@@ -113,6 +113,19 @@ export interface NightEvent {
   cancelled?: boolean;
   /** Length of a cruise route, for display. */
   routeMiles?: number;
+  /** Changes hosts made to the plan (rolling meets on the night, and edits). Only hosts see this. */
+  changes?: PlanChangeLog[];
+}
+
+export interface PlanChangeLog {
+  id: string;
+  at: string;
+  /** User id of the host who made the change. */
+  by: string;
+  /** What changed, in plain words. May name places, so hosts only. */
+  text: string;
+  /** Set when the new place is inside a ban zone. */
+  banZone?: string;
 }
 
 export interface ChatMessage {
@@ -121,6 +134,8 @@ export interface ChatMessage {
   userId: string;
   text: string;
   at: string;
+  /** App-written line (e.g. "Hosts changed the plan"), shown differently from people's messages. */
+  system?: boolean;
 }
 
 export type SpotKind = 'photo' | 'drive' | 'track';

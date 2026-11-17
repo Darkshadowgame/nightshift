@@ -59,6 +59,13 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 * **Rolling meets:** every stop is placed when the event is created, and nothing is
   picked on the night (owner's decision after the legal research, 17 Nov 2026).
   Stops stay hidden until a host moves on.
+* **Changing the plan on the night** (owner request, 17 Nov 2026): hosts can rename,
+  move or remove stops the meet hasn't reached, or add one on the end. Each change
+  is checked against ban zones (warning, not a block), logged on the event for
+  hosts (who, when, what), and posts "Hosts changed the plan" in chat without
+  saying where. Stops the meet has left, or with people checked in, can't move.
+* **Editing:** hosts can edit an event until it starts, if nobody has checked in.
+  **Share** sends the title, time, rough area and a `nightshift://event/<id>` link.
 * **Ban zones:** the app shows a warning (it doesn't block) when a stop of any
   event type is inside a sample injunction or PSPO zone, explaining that
   organisers have been taken to court.
