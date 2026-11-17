@@ -209,10 +209,10 @@ export function draftProblem(d: SpotDraft, spots: Spot[]): string | null {
   if (name.length > 40) return 'Keep the name to 40 characters or fewer.';
   if (spots.some((s) => s.name.toLowerCase() === name.toLowerCase())) return 'There is already a place with that name.';
   if (d.kind === 'photo') {
-    if (d.points.length !== 1) return 'Long-press the map to place the spot.';
+    if (d.points.length !== 1) return 'Choose the spot on the map.';
     return null;
   }
-  if (d.points.length < 2) return 'Long-press the map to add at least a start and a finish.';
+  if (d.points.length < 2) return 'Draw the drive on the map: at least a start and a finish.';
   const miles = pathMiles(d.points);
   if (miles < MIN_DRIVE_MILES) return `A drive needs to be at least ${MIN_DRIVE_MILES} mile long.`;
   if (miles > MAX_DRIVE_MILES) return `Keep drives under ${MAX_DRIVE_MILES} miles.`;

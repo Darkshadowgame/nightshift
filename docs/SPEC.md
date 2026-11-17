@@ -185,8 +185,11 @@ Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
 * **Photo spot visit:** check in within 0.2 mi by real GPS (or skip the check in the demo), then an optional
   photo that goes through the plate review and is saved pixelated with no metadata.
 * After a drive or visit, a 1–5 star prompt. One rating each, the latest counts.
-* **Suggest a place:** long-press the map to draw a drive (start to finish) or
-  drop a photo spot, and name it. Drive points must be no more than 1.5 mi apart,
+* **Suggest a place:** on a full-screen map with a fixed crosshair, add checkpoints
+  along a drive (start to finish, with Undo) or set one photo spot, and name it. The
+  same picker (search, my location, tap to drop, nearby places and ban zones drawn
+  faintly, a live address under the crosshair) places event stops, plan changes and
+  the rough home area. Drive points must be no more than 1.5 mi apart,
   so the line follows the road; the app shows which gap is too long. It starts **pending**; the demo approves it after
   about 10 seconds. A point inside a ban zone shows a warning, not a block.
 

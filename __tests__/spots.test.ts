@@ -180,7 +180,7 @@ describe('suggestions', () => {
     expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: [PATH[0], { lat: 53.4441, lng: -1.929 }] }, [])).toMatch(/at least/);
     expect(draftProblem({ kind: 'drive', name: 'Test drive', description: '', points: PATH }, [drive()])).toMatch(/already/);
     expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: DENSE }, [])).toBeNull();
-    expect(draftProblem({ kind: 'photo', name: 'New spot', description: '', points: [] }, [])).toMatch(/Long-press/);
+    expect(draftProblem({ kind: 'photo', name: 'New spot', description: '', points: [] }, [])).toMatch(/on the map/);
   });
 
   test('drive points more than 1.5 mi apart are rejected with the reason', () => {

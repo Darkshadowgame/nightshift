@@ -80,9 +80,16 @@ note anything odd for the next pass. Each step says what you should see.
       and bhp, bhp per tonne and mods. Open it > **Edit**. Change it to your own car or bike.
 - [ ] Add mods with bhp gains. Save. If the class goes up (e.g. remove the dyno
       figure, then add a big remap), the badge flips to the new class with a buzz.
-- [ ] **+ Add a photo** with a car whose number plate is visible. You should see the
-      plate boxed; tap a box to remove it, then
-      **Blur and add**. The saved photo has the plate blurred.
+- [ ] **+ Add a photo** with a car whose number plate is visible. The crop screen opens:
+      drag the box or its corners (rule-of-thirds grid), try **Cover** (the garage card's
+      shape), 1:1, 4:5, 4:3, 16:9, **Rotate 90°** and **Reset**, then **Use this crop**
+      (or **Skip crop**). Then you should see the plate boxed on the cropped photo; tap a
+      box to remove it, then **Blur and add**. The saved photo has the plate blurred.
+- [ ] Tap a saved photo (in the editor or on your build's page): **Crop / rotate** works on
+      the saved, already-blurred photo (originals aren't kept, so blur stays), **Re-check
+      plates** can only add more blur, **Set as cover** puts it first (the garage card and
+      trophy covers use it), **Move left / right**, and **Delete** asks first. On the build
+      page each change saves straight away; in the editor it's kept when you save.
 - [ ] **+ Add a car or bike** for a second build, then delete it (asks first).
 
 ### 4. Events
@@ -96,10 +103,12 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Invited tab > **Coffee and cars, late edition** (about 3 hours away) > **I'm
       going**. The first time, iOS asks to allow notifications: allow it. Its reminders
       are scheduled straight away (step 9). Stay going for step 9.
-- [ ] **+ Host**: make a meet for later tonight. Search a town or postcode above the map:
-      the map jumps there. Long-press to drop the meet spot: its name box fills in with the
-      street and town a moment later. Edit it; dropping it again won't overwrite your own
-      name. The area name suggests the town. The line under the time chips says
+- [ ] **+ Host**: make a meet for later tonight. Tap **Choose on the map**: a full-screen map
+      opens with a crosshair. Search a town or postcode (the map jumps there) or tap the
+      location button, pan and zoom until the crosshair is on the spot (the bar names the
+      street live; on a grey known place it snaps and turns green), then **Set spot here**.
+      Its name box fills in with the street and town. Edit it; moving it again won't
+      overwrite your own name. The area name suggests the town. The line under the time chips says
       when it starts; a time that has passed tonight is refused, and "Tonight 06:00"
       means the early hours. Try placing a stop inside a ban zone (Map > Ban zones
       shows them): you get a warning. Save, open it and turn on **See as a guest**:
@@ -186,9 +195,11 @@ note anything odd for the next pass. Each step says what you should see.
       drive only counts checkpoints you really pass.
 - [ ] Open a photo spot > **Check in here**: with the GPS check on it says how close you
       need to be; with it skipped you can add a photo (plates blurred) or skip it.
-- [ ] Map > **+ Suggest a place**: search to jump the map, then drop points for a drive or one point for a photo
-      spot. Drive points must be at most 1.5 mi apart: a longer gap shows red with
-      the reason. The name fills in from the first point (edit it). It shows as pending (grey) and is approved a few seconds later.
+- [ ] Map > **+ Suggest a place** > **Draw the drive on the map** (or **Choose on the map** for a photo
+      spot): put the crosshair on the road and tap **Add start**, then **Add checkpoint** along the road
+      (tapping the map adds one too; **Undo** takes one off), then **Done**. Drive points must be at
+      most 1.5 mi apart: a dashed line to the crosshair goes red, with the reason, before you add one
+      too far. A photo spot is one **Set spot here**. The name fills in from the first point (edit it). It shows as pending (grey) and is approved a few seconds later.
 - [ ] Me: rep breakdown and level go up after drives and spots. Check-ins and hosting
       count once the event has finished, the same numbers as on your Public view.
 
@@ -329,6 +340,7 @@ note anything odd for the next pass. Each step says what you should see.
 | `src/lib/demoTime.ts` | Keeps the demo scene's times current on load; "Restart the demo events"; your own events are left alone |
 | `src/lib/when.ts` | The host form's day and time chips to a start time (no silent "tonight" to tomorrow) |
 | `src/lib/photos.ts`, `photoRefs.ts` | Plate blur, then photos kept in the documents folder by file name |
+| `src/lib/crop.ts`, `components/CropEditor.tsx`, `PhotoFlow.tsx`, `PhotoManager.tsx` | Crop maths (box, aspect, corners, rotation to pixels); the crop screen; pick → crop → plate check → save for every photo; a build's photo actions |
 | `src/lib/profile.ts` | First-run profile checks; home saved fuzzed to about 1 km |
 | `src/lib/people.ts` | What other people can see about someone (never a location) |
 | `src/lib/invites.ts` | Invite filters and who matches |

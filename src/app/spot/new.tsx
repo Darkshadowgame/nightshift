@@ -1,20 +1,21 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { MapPicker } from '../../components/MapPicker';
 import { NightMap } from '../../components/NightMap';
-import type { MapPin, NightMapHandle } from '../../components/mapTypes';
-import { PlaceSearch } from '../../components/PlaceSearch';
+import type { MapPin } from '../../components/mapTypes';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { banZoneWarning } from '../../lib/events';
 import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
+import { fitRegion } from '../../lib/geo';
 import { nameForPlace } from '../../lib/location';
 import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, SPOT_COLOURS } from '../../theme';
 
-/** Suggest a drive (long-press points along the road) or a photo spot (one point). */
+/** Suggest a drive (checkpoints along the road) or a photo spot (one point), chosen on the full-screen map picker. */
 export default function SuggestPlace() {
   const params = useLocalSearchParams<{ kind?: string }>();
   const { users, me, spots, suggestSpot } = useStore();
@@ -37,15 +38,19 @@ export default function SuggestPlace() {
     setError(null);
   }
 
-  const mapRef = useRef<NightMapHandle>(null);
+  const [picking, setPicking] = useState(false);
   /** The geocoder's last name, so a name you typed is never replaced. */
   const autoName = useRef<string | undefined>(undefined);
 
-  function add(at: LatLng) {
+  /** Back from the picker with the place, or the whole drive so far. */
+  function placed(next: LatLng[]) {
+    setPicking(false);
     setError(null);
-    setPoints((p) => (kind === 'photo' ? [at] : [...p, at]));
+    const startMoved = next[0] && (next[0].lat !== points[0]?.lat || next[0].lng !== points[0]?.lng);
+    setPoints(kind === 'photo' ? next.slice(-1) : next);
     // Name a photo spot after where it is, and a drive after where it starts. You can edit it.
-    if (kind === 'photo' || points.length === 0) {
+    const at = kind === 'photo' ? next[next.length - 1] : next[0];
+    if (at && startMoved) {
       nameForPlace(at).then((found) => {
         if (!found) return;
         setName((n) => {
@@ -69,6 +74,10 @@ export default function SuggestPlace() {
     }
   }
 
+  const home = meUser?.home ?? { lat: 52.7, lng: -1.7 };
+  // The preview frames what's placed (or opens on home); tapping it opens the picker.
+  const view = fitRegion(points, kind === 'drive' ? 0.08 : 0.03) ?? { centre: home, span: 0.6 };
+
   const pins: MapPin[] = points.map((p, i) => ({
     id: `p${i}`,
     at: p,
@@ -87,30 +96,49 @@ export default function SuggestPlace() {
 
       <Txt v="muted">
         {kind === 'drive'
-          ? 'A great road to drive within the speed limits. Drives are never timed or ranked. Long-press the map along the road, start to finish: each point becomes a checkpoint.'
-          : 'Somewhere that looks good in photos, with space to pull fully off the road. Long-press the map to place it.'}
+          ? 'A great road to drive within the speed limits. Drives are never timed or ranked. Draw it on the map from start to finish: each point becomes a checkpoint.'
+          : 'Somewhere that looks good in photos, with space to pull fully off the road.'}
       </Txt>
 
-      <PlaceSearch onPick={(h) => mapRef.current?.animateTo(h.at, kind === 'drive' ? 0.25 : 0.06)} />
+      <Button
+        label={
+          kind === 'drive'
+            ? points.length ? 'Carry on drawing on the map' : 'Draw the drive on the map'
+            : points.length ? 'Move it on the map' : 'Choose on the map'
+        }
+        onPress={() => setPicking(true)}
+        accessibilityHint="Opens a full-screen map with a crosshair"
+      />
 
-      <View style={{ height: 300, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colour }}>
-        <NightMap
-          ref={mapRef}
-          pins={pins}
-          paths={
-            kind === 'drive' && points.length > 1
-              ? [
-                  { id: 'draft', coords: points, colour },
-                  ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: C.alert, dashed: true }] : []),
-                ]
-              : []
-          }
-          circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
-          centre={meUser?.home ?? { lat: 52.7, lng: -1.7 }}
-          span={0.6}
-          onLongPress={add}
-        />
-      </View>
+      <Pressable
+        onPress={() => setPicking(true)}
+        accessibilityRole="button"
+        accessibilityLabel={points.length ? 'Preview of the place. Open the map to change it' : 'Open the map to choose the place'}
+        style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: points.length ? colour : C.kerb }}
+      >
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <NightMap
+            pins={pins}
+            paths={
+              kind === 'drive' && points.length > 1
+                ? [
+                    { id: 'draft', coords: points, colour },
+                    ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: C.alert, dashed: true }] : []),
+                  ]
+                : []
+            }
+            circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+            centre={view.centre}
+            span={view.span}
+            follow
+          />
+        </View>
+        {points.length === 0 ? (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,15,23,0.55)' }]}>
+            <Txt v="label" style={{ color: C.chalk }}>Tap to open the map</Txt>
+          </View>
+        ) : null}
+      </Pressable>
 
       <Row style={{ justifyContent: 'space-between' }}>
         <Txt v="mono">
@@ -121,8 +149,8 @@ export default function SuggestPlace() {
               : 'NOT PLACED'}
         </Txt>
         <Row gap={6}>
-          {kind === 'drive' ? <Chip label="Undo point" onPress={() => setPoints((p) => p.slice(0, -1))} /> : null}
-          <Chip label="Clear" onPress={() => setPoints([])} />
+          {kind === 'drive' && points.length ? <Chip label="Undo point" onPress={() => setPoints((p) => p.slice(0, -1))} /> : null}
+          {points.length ? <Chip label="Clear" onPress={() => setPoints([])} /> : null}
         </Row>
       </Row>
 
@@ -133,10 +161,10 @@ export default function SuggestPlace() {
               Points {gap.index + 1} and {gap.index + 2} are {gap.miles.toFixed(1)} mi apart (red line). Add points along the road in
               between, at least every {MAX_POINT_GAP_MILES} mi, so the drive follows the road and the pace check is fair.
             </Txt>
-            <Txt v="muted">New points go on the end, so Undo back to point {gap.index + 1} and drop the missing ones in order.</Txt>
+            <Txt v="muted">New points go on the end, so Undo back to point {gap.index + 1} and add the missing ones in order.</Txt>
           </Card>
         ) : (
-          <Txt v="muted">Drop a point at least every {MAX_POINT_GAP_MILES} mi along the road.</Txt>
+          <Txt v="muted">Add a checkpoint at least every {MAX_POINT_GAP_MILES} mi along the road.</Txt>
         )
       ) : null}
 
@@ -184,6 +212,25 @@ export default function SuggestPlace() {
       </Card>
 
       <Button label={kind === 'drive' ? 'Suggest this drive' : 'Suggest this spot'} onPress={submit} />
+
+      <MapPicker
+        visible={picking}
+        mode={kind === 'drive' ? 'path' : 'point'}
+        title={kind === 'drive' ? 'DRAW THE DRIVE' : 'PLACE THE PHOTO SPOT'}
+        hint={
+          kind === 'drive'
+            ? 'Move the map so the crosshair is on the road, then add checkpoints from start to finish.'
+            : 'Move the map so the crosshair is on the spot, or tap the map.'
+        }
+        confirmLabel="Set spot here"
+        colour={colour}
+        start={home}
+        span={kind === 'drive' ? 0.12 : 0.04}
+        initial={points}
+        showKinds={kind === 'drive' ? ['drive'] : ['photo']}
+        onDone={(stops) => placed(stops.map((x) => x.at))}
+        onCancel={() => setPicking(false)}
+      />
     </ScrollView>
   );
 }

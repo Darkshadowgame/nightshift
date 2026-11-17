@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { DEMO_HOME, DEMO_REGION } from '../data/seed';
 import { DEFAULT_ALERTS, DEFAULT_TRAVEL_MILES, type AlertMode } from '../lib/discover';
 import { fuzz } from '../lib/geo';
@@ -7,6 +7,7 @@ import { currentPosition } from '../lib/location';
 import { nearestRegion, REGIONS, regionCentre, type ProfileDraft } from '../lib/profile';
 import type { LatLng } from '../lib/types';
 import { C } from '../theme';
+import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { PlaceSearch } from './PlaceSearch';
 import { TravelPrefs } from './TravelPrefs';
@@ -33,6 +34,7 @@ export function ProfileForm({
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const isDemoHome = !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
 
@@ -115,14 +117,22 @@ export function ProfileForm({
         <Button label={locating ? 'Finding you…' : 'Use my current location'} kind="neon" onPress={useMyLocation} busy={locating} />
         {locError ? <Txt v="muted" style={{ color: C.alert }}>{locError}</Txt> : null}
         <PlaceSearch placeholder="Or search your town or postcode" onPick={(h) => setHomeNear(h.at)} />
-        <View style={{ height: 220, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: home ? C.neon : C.kerb }}>
-          <NightMap key={`${centre.lat},${centre.lng}`} pins={[]} centre={centre} span={home ? 0.3 : 0.8} picked={home} onLongPress={setHomeNear} />
-        </View>
+        <Button label={home ? 'Move it on the map' : 'Choose on the map'} kind="ghost" onPress={() => setPicking(true)} />
+        <Pressable
+          onPress={() => setPicking(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open the map to set your home area"
+          style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: home ? C.neon : C.kerb }}
+        >
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <NightMap key={`${centre.lat},${centre.lng}`} pins={[]} centre={centre} span={home ? 0.3 : 0.8} picked={home} />
+          </View>
+        </Pressable>
         <Txt v="mono" style={{ color: home ? C.lime : C.fog }}>
           {isDemoHome ? 'HOME AREA SET: THE DEMO AREA (TAMWORTH)' : home ? 'HOME AREA SET, TO ABOUT 1 KM' : 'NOT SET YET'}
         </Txt>
         <Txt v="muted" style={{ fontSize: 12 }}>
-          Long-press the map to nudge it. Until the app has a backend, sample people and events (marked Sample) are drawn round your
+          Tap the map to fine-tune it. Until the app has a backend, sample people and events (marked Sample) are drawn round your
           home area so there's something to try.
         </Txt>
       </Section>
@@ -157,6 +167,23 @@ export function ProfileForm({
         </Card>
       ) : null}
       <Button label={submitLabel} onPress={submit} />
+
+      <MapPicker
+        visible={picking}
+        mode="point"
+        title="YOUR ROUGH HOME AREA"
+        hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your exact address."
+        confirmLabel="Set home area here"
+        colour={C.neon}
+        start={centre}
+        span={home ? 0.1 : 0.8}
+        initial={home ? [home] : []}
+        onDone={([stop]) => {
+          setPicking(false);
+          if (stop) setHomeNear(stop.at);
+        }}
+        onCancel={() => setPicking(false)}
+      />
     </View>
   );
 }

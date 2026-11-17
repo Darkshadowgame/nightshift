@@ -59,7 +59,7 @@ export function profileProblem(draft: ProfileDraft, users: User[], me: string): 
   if (!draft.name.trim()) return 'Add a display name.';
   if (draft.name.trim().length > 30) return 'Keep your name to 30 characters or fewer.';
   if (!REGIONS.some((r) => r.name === draft.region)) return 'Pick your region.';
-  if (!draft.home) return 'Set your rough home area: use your current location, search your town or postcode, or long-press the map.';
+  if (!draft.home) return 'Set your rough home area: use your current location, search your town or postcode, or choose it on the map.';
   if (draft.travelMiles !== undefined) {
     const t = travelProblem(draft.travelMiles);
     if (t) return t;

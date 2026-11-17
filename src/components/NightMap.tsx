@@ -5,7 +5,7 @@ import { C } from '../theme';
 import { pinLayer } from '../lib/hud';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
-import type { NightMapProps } from './mapTypes';
+import type { MapRegion, NightMapProps } from './mapTypes';
 
 const MILE_M = 1609.34;
 
@@ -15,9 +15,12 @@ export function NightMap({
   onRegion, credit,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
+  /** The last region the map settled on, for the handle's region(). */
+  const shown = useRef<MapRegion>({ centre, span });
   useImperativeHandle(ref, () => ({
     animateTo: (c, sp = span) =>
       map.current?.animateToRegion({ latitude: c.lat, longitude: c.lng, latitudeDelta: sp, longitudeDelta: sp * 1.2 }, 450),
+    region: () => shown.current,
   }), [span]);
   const first = useRef(true);
   // initialRegion only applies when the map mounts: move it when the place shown changes.
@@ -42,20 +45,17 @@ export function NightMap({
       style={StyleSheet.absoluteFill}
       onPress={onPressMap ? (e) => {
         // iOS also reports taps on markers here; only a tap on the map itself counts.
-        if (e.nativeEvent.action !== 'marker-press') onPressMap();
+        if (e.nativeEvent.action !== 'marker-press') onPressMap({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude });
       } : undefined}
       userInterfaceStyle="dark"
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
       showsUserLocation={showsUser}
       showsMyLocationButton={false}
-      onRegionChangeComplete={
-        onMoved || onRegion
-          ? (r) => {
-              onMoved?.({ lat: r.latitude, lng: r.longitude });
-              onRegion?.({ centre: { lat: r.latitude, lng: r.longitude }, span: r.latitudeDelta });
-            }
-          : undefined
-      }
+      onRegionChangeComplete={(r) => {
+        shown.current = { centre: { lat: r.latitude, lng: r.longitude }, span: r.latitudeDelta };
+        onMoved?.(shown.current.centre);
+        onRegion?.(shown.current);
+      }}
       showsTraffic
       showsPointsOfInterests={false}
       showsCompass={false}

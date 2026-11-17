@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Switch, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
-import type { NightMapHandle } from './mapTypes';
-import { PlaceSearch } from './PlaceSearch';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
 import { FILTER_BRANDS } from '../data/catalog';
 import { BAN_ZONES } from '../data/seed';
 import { visibleSpots } from '../lib/spots';
 import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen } from '../lib/format';
+import { fitRegion } from '../lib/geo';
 import { startFrom, type DayChoice } from '../lib/when';
 import { eventArea } from '../lib/area';
 import { isCrewHost } from '../lib/crews';
@@ -122,7 +122,8 @@ export function EventForm({
     setStops((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   }
 
-  const mapRef = useRef<NightMapHandle>(null);
+  /** Which stop the full-screen map picker is placing, if it's open. */
+  const [picking, setPicking] = useState<number | null>(null);
   /** The last name the geocoder gave each stop, so a name the host typed is never overwritten. */
   const autoNames = useRef<Record<string, string>>({});
 
@@ -166,7 +167,7 @@ export function EventForm({
   function save() {
     const used = visibleStops;
     if (!title.trim()) return setError('Give the event a name.');
-    if (!used[0]?.at) return setError(`Drop the ${stopLabel(0, used.length).toLowerCase()} on the map (long-press).`);
+    if (!used[0]?.at) return setError(`Choose the ${stopLabel(0, used.length).toLowerCase()} on the map.`);
     if (type === 'cruise' && used.filter((s) => s.at).length < 2) return setError('A cruise needs at least a start and a finish.');
     if (type === 'rolling' && used.some((s) => !s.at)) return setError('Place every stop on the map. Rolling meets are planned in full before they start.');
     if (!filter.cars && !filter.bikes && !filter.everyone) return setError('Invite cars, bikes or both.');
@@ -212,12 +213,19 @@ export function EventForm({
     }
   }
 
-  const pickPins = [
-    ...SPOTS.filter((s) => s.kind !== 'drive').map((s) => ({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: C.fog, title: s.name, size: 26 })),
-    ...visibleStops.flatMap((st, i) =>
-      st.at ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? C.sodium : C.chalk, title: st.name || stopLabel(i, visibleStops.length), size: 36 }] : [],
-    ),
-  ];
+  const stopPins = (active: number | null) =>
+    visibleStops.flatMap((st, i) =>
+      st.at && i !== (active === null ? -1 : active)
+        ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? C.sodium : C.chalk, title: st.name || stopLabel(i, visibleStops.length), size: active === null ? 36 : 28 }]
+        : [],
+    );
+  const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: C.sodium, dashed: true }] : [];
+  // The preview frames the stops placed so far, or opens on home.
+  const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.9 };
+  function openPicker(i: number) {
+    setActiveStop(i);
+    setPicking(i);
+  }
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
@@ -267,24 +275,32 @@ export function EventForm({
       </Section>
 
       <Section title={type === 'cruise' ? 'Route' : type === 'rolling' ? 'Stops' : 'Place'}>
-        <Txt v="muted">Search to jump the map, pick a stop below, then long-press the map to place it. It's named after the street; edit the name if you like. Grey pins are known spots and tracks.</Txt>
-        <PlaceSearch onPick={(h) => mapRef.current?.animateTo(h.at, 0.12)} />
-        <View style={{ height: 280, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
-          <NightMap
-            ref={mapRef}
-            pins={pickPins}
-            paths={type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: C.sodium, dashed: true }] : []}
-            circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
-            centre={stops[activeStop]?.at ?? meUser.home}
-            span={0.9}
-            onLongPress={(at) => placeStop(activeStop, at)}
-            onSelect={(pid) => {
-              if (!pid.startsWith('sp:')) return;
-              const spot = SPOTS.find((s) => `sp:${s.id}` === pid);
-              if (spot) placeStop(activeStop, spot.at, spot.name);
-            }}
-          />
-        </View>
+        <Txt v="muted">
+          Choose each {singlePlace ? 'place' : 'stop'} on the map: move it until the crosshair is on the spot. It's named after the street (or the known
+          spot it's on); edit the name if you like.
+        </Txt>
+        <Pressable
+          onPress={() => openPicker(activeStop)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open the map to place the ${stopLabel(activeStop, visibleStops.length).toLowerCase()}`}
+          style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}
+        >
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <NightMap
+              pins={stopPins(null)}
+              paths={routePaths}
+              circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+              centre={preview.centre}
+              span={preview.span}
+              follow
+            />
+          </View>
+          {placed.length === 0 ? (
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,15,23,0.55)' }]}>
+              <Txt v="label" style={{ color: C.chalk }}>Tap to open the map</Txt>
+            </View>
+          ) : null}
+        </Pressable>
         {visibleStops.map((st, i) => (
           <Card key={st.key} accent={i === activeStop ? C.sodium : undefined}>
             <Row style={{ justifyContent: 'space-between' }}>
@@ -293,6 +309,12 @@ export function EventForm({
                 {st.at ? 'PLACED' : 'NOT PLACED'}
               </Txt>
             </Row>
+            <Button
+              label={st.at ? 'Move on the map' : 'Choose on the map'}
+              kind={st.at ? 'ghost' : 'primary'}
+              onPress={() => openPicker(i)}
+              accessibilityLabel={`${st.at ? 'Move' : 'Choose'} the ${stopLabel(i, visibleStops.length).toLowerCase()} on the map`}
+            />
             <TextInput
               value={st.name}
               onChangeText={(name) => setStop(i, { name })}
@@ -444,6 +466,30 @@ export function EventForm({
         </Card>
       ) : null}
       <Button label={submitLabel} onPress={save} />
+
+      <MapPicker
+        visible={picking !== null}
+        mode="point"
+        title={picking !== null ? `PLACE THE ${stopLabel(picking, visibleStops.length).toUpperCase()}` : ''}
+        hint="Move the map so the crosshair is on the spot, or tap a grey pin to use a known place."
+        confirmLabel={picking !== null && visibleStops[picking]?.at ? 'Move it here' : 'Set spot here'}
+        start={
+          (picking !== null && (visibleStops[picking]?.at ?? [...visibleStops.slice(0, picking)].reverse().find((x) => x.at)?.at)) ||
+          placed[0]?.at ||
+          meUser.home
+        }
+        span={0.08}
+        initial={picking !== null && visibleStops[picking]?.at ? [visibleStops[picking].at!] : []}
+        showKinds={['venue', 'track', 'photo']}
+        snap
+        extraPins={stopPins(picking)}
+        extraPaths={routePaths}
+        onDone={([stop]) => {
+          if (picking !== null && stop) placeStop(picking, stop.at, stop.name);
+          setPicking(null);
+        }}
+        onCancel={() => setPicking(null)}
+      />
     </ScrollView>
   );
 }

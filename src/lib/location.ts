@@ -50,7 +50,7 @@ export class SearchError extends Error {}
 export async function searchPlaces(raw: string): Promise<PlaceHit[]> {
   const q = searchQuery(raw);
   if (!q) return [];
-  if (!geocoderAvailable) throw new SearchError('Place search needs the iPhone app. Long-press the map instead.');
+  if (!geocoderAvailable) throw new SearchError('Place search needs the iPhone app. Move or tap the map instead.');
   let found: Location.LocationGeocodedLocation[];
   try {
     found = await Location.geocodeAsync(q);

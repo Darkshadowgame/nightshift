@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { C } from '../theme';
@@ -17,9 +17,13 @@ export function NightMap({
   /** Set by the handle (e.g. locate me, search); cleared when the props move the map. */
   const [moved, setMoved] = useState<{ centre: NightMapProps['centre']; span: number } | null>(null);
   useEffect(() => setMoved(null), [centreProp.lat, centreProp.lng, spanProp, recentreKey]);
-  useImperativeHandle(ref, () => ({ animateTo: (c, sp = spanProp) => setMoved({ centre: c, span: sp }) }), [spanProp]);
   const centre = moved?.centre ?? centreProp;
   const span = moved?.span ?? spanProp;
+  useImperativeHandle(
+    ref,
+    () => ({ animateTo: (c, sp = spanProp) => setMoved({ centre: c, span: sp }), region: () => ({ centre, span }) }),
+    [spanProp, centre, span],
+  );
   // The stand-in map doesn't pan: it reports a new region whenever it's moved.
   useEffect(() => {
     onRegion?.({ centre, span });
@@ -34,17 +38,29 @@ export function NightMap({
   const x = (lng: number) => ((lng - (centre.lng - lngSpan / 2)) / lngSpan) * size.w;
   const y = (lat: number) => ((centre.lat + latSpan / 2 - lat) / latSpan) * size.h;
   const pxPerMile = size.h / (latSpan * 69);
+  const box = useRef<unknown>(null);
+  /** Screen point to map point. A browser click has no locationX, so measure it from the map's box. */
+  const at = (e: { locationX?: number; locationY?: number; clientX?: number; clientY?: number }) => {
+    let lx = e.locationX;
+    let ly = e.locationY;
+    const el = box.current as unknown as { getBoundingClientRect?: () => { left: number; top: number } } | null;
+    if ((typeof lx !== 'number' || typeof ly !== 'number') && el?.getBoundingClientRect && e.clientX !== undefined && e.clientY !== undefined) {
+      const r = el.getBoundingClientRect();
+      lx = e.clientX - r.left;
+      ly = e.clientY - r.top;
+    }
+    return {
+      lat: centre.lat + latSpan / 2 - ((ly ?? size.h / 2) / size.h) * latSpan,
+      lng: centre.lng - lngSpan / 2 + ((lx ?? size.w / 2) / size.w) * lngSpan,
+    };
+  };
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#080c13' }]} onLayout={onLayout}>
+    <View ref={box as never} style={[StyleSheet.absoluteFill, { backgroundColor: '#080c13' }]} onLayout={onLayout}>
       <Pressable
         style={StyleSheet.absoluteFill}
-        onPress={onPressMap}
-        onLongPress={(e) => {
-          if (!onLongPress) return;
-          const { locationX, locationY } = e.nativeEvent;
-          onLongPress({ lat: centre.lat + latSpan / 2 - (locationY / size.h) * latSpan, lng: centre.lng - lngSpan / 2 + (locationX / size.w) * lngSpan });
-        }}
+        onPress={onPressMap ? (e) => onPressMap(at(e.nativeEvent as never)) : undefined}
+        onLongPress={onLongPress ? (e) => onLongPress(at(e.nativeEvent as never)) : undefined}
       >
         <Svg width={size.w} height={size.h}>
           {Array.from({ length: 12 }, (_, i) => (

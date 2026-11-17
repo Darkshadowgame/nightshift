@@ -38,6 +38,8 @@ export interface MapCircle {
 /** Imperative handle: move the map without changing its props (e.g. the locate-me button). */
 export interface NightMapHandle {
   animateTo: (centre: LatLng, span?: number) => void;
+  /** Where the map is looking right now (its centre is under a picker's crosshair). */
+  region: () => MapRegion;
 }
 
 export interface NightMapProps {
@@ -57,8 +59,8 @@ export interface NightMapProps {
   follow?: boolean;
   /** Change this number to move the map back to `centre` and `span` (e.g. a "fit everything" button). */
   recentreKey?: number;
-  /** A tap on the map itself, not on a pin. */
-  onPressMap?: () => void;
+  /** A tap on the map itself, not on a pin, with where it was tapped. */
+  onPressMap?: (at: LatLng) => void;
   /** Called when the person pans or zooms, with the new centre. */
   onMoved?: (centre: LatLng) => void;
   /** Called when the person pans or zooms (and once at the start), with the centre and span. */

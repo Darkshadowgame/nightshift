@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { MapPicker } from '../../components/MapPicker';
 import { NightMap } from '../../components/NightMap';
-import type { MapPin, NightMapHandle } from '../../components/mapTypes';
-import { PlaceSearch } from '../../components/PlaceSearch';
+import type { MapPin } from '../../components/mapTypes';
 import { nameForPlace } from '../../lib/location';
 import { shouldAutoName } from '../../lib/placeNames';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
@@ -27,7 +27,7 @@ export default function ChangePlan() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ text: string; warning?: string } | null>(null);
-  const mapRef = useRef<NightMapHandle>(null);
+  const [picking, setPicking] = useState(false);
   const autoName = useRef<string | undefined>(undefined);
 
   if (!ev || !isHost(ev, me, crews)) {
@@ -93,6 +93,25 @@ export default function ChangePlan() {
   const centre = stop?.at ?? ev.stops[ev.currentStop]?.at ?? ev.area;
   const canPlace = selected === 'new' || !!move?.ok;
 
+  /** Back from the full-screen picker: the new place waits for "Move here" / "Add stop". */
+  function picked(at: LatLng, knownName?: string) {
+    setPicking(false);
+    setPending(at);
+    setDone(null);
+    // A new stop is named after the known place or the street and town; edit it if you like.
+    if (selected !== 'new') return;
+    const takeName = (found: string | null) => {
+      if (!found) return;
+      setName((n) => {
+        if (!shouldAutoName(n, autoName.current)) return n;
+        autoName.current = found;
+        return found;
+      });
+    };
+    if (knownName) takeName(knownName);
+    else nameForPlace(at).then(takeName);
+  }
+
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <Txt v="muted">
@@ -106,38 +125,26 @@ export default function ChangePlan() {
         <Chip label="+ New stop" on={selected === 'new'} onPress={() => select('new')} colour={C.neon} />
       </Row>
 
-      {canPlace ? <PlaceSearch onPick={(h) => mapRef.current?.animateTo(h.at, 0.08)} /> : null}
-
-      <View style={{ height: 260, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: canPlace ? C.sodium : C.kerb }}>
-        <NightMap
-          ref={mapRef}
-          key={`${selected}`}
-          pins={pins}
-          circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
-          paths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
-          centre={centre}
-          span={0.3}
-          picked={pending}
-          onLongPress={
-            canPlace
-              ? (at) => {
-                  setPending(at);
-                  setDone(null);
-                  // A new stop is named after the street and town; edit it if you like.
-                  if (selected !== 'new') return;
-                  nameForPlace(at).then((found) => {
-                    if (!found) return;
-                    setName((n) => {
-                      if (!shouldAutoName(n, autoName.current)) return n;
-                      autoName.current = found;
-                      return found;
-                    });
-                  });
-                }
-              : undefined
-          }
-        />
-      </View>
+      <Pressable
+        onPress={canPlace ? () => setPicking(true) : undefined}
+        disabled={!canPlace}
+        accessibilityRole="button"
+        accessibilityLabel={canPlace ? 'Open the map to choose the place' : 'Map of the stops'}
+        style={{ height: 220, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: canPlace ? C.sodium : C.kerb }}
+      >
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <NightMap
+            key={`${selected}`}
+            pins={pins}
+            circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+            paths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
+            centre={pending ?? centre}
+            span={0.3}
+            follow
+            picked={pending}
+          />
+        </View>
+      </Pressable>
 
       {error ? (
         <Card accent={C.alert}>
@@ -176,9 +183,10 @@ export default function ChangePlan() {
                     <Button label={pendingZone ? 'Move here anyway' : 'Move here'} style={{ flex: 1 }} onPress={() => apply({ kind: 'move', stopId: stop.id, at: pending }, `Moved ${stop.name}.`)} />
                     <Button label="Cancel" kind="ghost" onPress={() => setPending(null)} />
                   </Row>
+                  <Button label="Pick again on the map" kind="ghost" onPress={() => setPicking(true)} />
                 </>
               ) : (
-                <Txt v="muted">Long-press the map where it should go.</Txt>
+                <Button label="Choose the new place on the map" onPress={() => setPicking(true)} />
               )
             ) : (
               <Txt v="muted">{move?.ok === false ? move.reason : ''}</Txt>
@@ -213,8 +221,9 @@ export default function ChangePlan() {
                 <Txt v="muted">Not in a known ban zone.</Txt>
               )
             ) : (
-              <Txt v="muted">Long-press the map to place it. It goes on the end of the route.</Txt>
+              <Txt v="muted">It goes on the end of the route.</Txt>
             )}
+            <Button label={pending ? 'Pick again on the map' : 'Choose on the map'} kind={pending ? 'ghost' : 'neon'} onPress={() => setPicking(true)} />
             <Button
               label={pendingZone ? 'Add stop anyway' : 'Add stop'}
               disabled={!pending}
@@ -223,6 +232,23 @@ export default function ChangePlan() {
           </Card>
         </Section>
       )}
+
+      <MapPicker
+        visible={picking}
+        mode="point"
+        title={stop ? `MOVE ${stop.name.toUpperCase()}` : 'PLACE THE NEW STOP'}
+        hint="Move the map so the crosshair is on the new place, or tap a grey pin to use a known place."
+        confirmLabel={stop ? 'Move it here' : 'Set stop here'}
+        start={pending ?? centre}
+        span={0.06}
+        initial={pending ? [pending] : stop?.at ? [stop.at] : []}
+        showKinds={['venue', 'track', 'photo']}
+        snap
+        extraPins={pins.filter((p) => p.id !== stop?.id)}
+        extraPaths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
+        onDone={([s]) => (s ? picked(s.at, s.name) : setPicking(false))}
+        onCancel={() => setPicking(false)}
+      />
 
       <Section title={`Change log (${ev.changes?.length ?? 0})`}>
         <Card>
