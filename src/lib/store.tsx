@@ -48,6 +48,7 @@ import { notifyNow, syncReminders } from './notify';
 import { alertProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, travelProblem, type AlertMode } from './discover';
 import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
 import { dedupeNotices, dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
+import type { PendingFeedback } from './feedbackQueue';
 import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
 
 /**
@@ -81,6 +82,8 @@ interface Persisted extends SeedState {
    * Find events (the "I'll search" setting marks these instead of notifying).
    */
   nearby?: { known: string[]; unseen: string[] };
+  /** Suggestions from the vehicle and mod pickers, waiting to be sent to the backend's feedback table. */
+  pendingFeedback?: PendingFeedback[];
 }
 
 export interface Notice {
@@ -120,6 +123,8 @@ interface Store extends Persisted {
   setSettings: (patch: Partial<Settings>) => void;
   markNoticesRead: () => void;
   markLocationNoticeSeen: () => void;
+  /** Queue a suggestion (see feedbackQueue.ts) to be sent later. */
+  queueFeedback: (item: PendingFeedback) => void;
   /** Remember that the "unlocked" moment has been shown for these stops. */
   markUnlockSeen: (eventId: string, stopIds: string[]) => void;
   resetDemo: () => void;
@@ -548,6 +553,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })),
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
       markLocationNoticeSeen: () => setState((s) => ({ ...s, locationNoticeSeen: true })),
+      queueFeedback: (item) => setState((s) => ({ ...s, pendingFeedback: [...(s.pendingFeedback ?? []), item].slice(-50) })),
       resetDemo: () => setState(fresh()),
       restartDemoEvents: () => {
         const nowDate = new Date();

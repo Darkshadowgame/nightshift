@@ -43,6 +43,37 @@ scales, so a litre superbike and an M4 Competition both land in S.
 
 Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 
+## Vehicle picker, tune stages, mods and engine swaps (built, Nov 2026)
+
+* **Vehicle picker:** quick search or make → model → generation/engine, for cars and
+  bikes. Picking a variant fills stock bhp, kerb/wet weight, torque and year; all
+  stay editable. Anything not listed is free-typed. The bundled dataset lives in
+  `src/data/vehicles.cars.ts` and `vehicles.bikes.ts` (compact text, parsed and
+  searched by `src/lib/vehicles.ts`; sources in each file's header). Power is
+  stored as the maker quotes it; PS → bhp is ×0.986 everywhere.
+* **Tune stage:** one of Stock, Stage 1, 2, 2+, 3, 4 or Custom, with what the stage
+  usually includes (bike stages are bike parts: end can and flash, full system,
+  internals). The estimate uses a tuner's figure for that exact variant where the
+  dataset has one, else a cautious percentage by engine type (turbo petrol, diesel,
+  non-turbo, supercharged; bikes separately). It's saved as a "Stage N tune" engine
+  mod carrying the gain, so classes, older saves and the backend see it; the gain
+  is editable. "Add typical parts" adds the stage's parts with no gain of their own.
+* **Mods:** quick-pick chips by group (engine, intake, exhaust, turbo, fuel, cooling,
+  suspension, brakes, wheels, body, aero, interior, bike controls, lighting,
+  audio), car or bike only where it matters. Groups map onto the saved categories
+  (fuel and cooling → engine, aero → body, controls → other). Free-typed mods stay.
+* **Engine swap:** the chassis keeps its name, year and weight (plus an optional
+  ± kg); stock bhp and torque come from the donor (an engine from the engines list
+  or any vehicle in the dataset). Stages apply to the donor. Saved as
+  `engineSwap` on the build and as an "… engine swap" engine mod, so it counts as a
+  mod and shows on cards ("Bandit 1200 swap").
+* **Suggest a missing car/bike or mod:** a short form in both pickers, queued on
+  the phone as `pendingFeedback` (kind idea, screen vehicle-picker or mod-picker)
+  for sending to the backend's feedback table.
+
+Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
+`__tests__/vehicles.test.ts`, `vehicleData.test.ts`, `tune.test.ts`, `swap.test.ts`.
+
 ## Events
 
 | Type | Places | Who sees the place, and when |
@@ -337,8 +368,9 @@ Owner's request: "Obviously you need to use real maps and location."
    matching builds, hosts and the reveal time.
 5. **Garage:** your builds as cards showing the class letter.
 6. **Build:** a game-style stats screen with specs, mods by category and photos.
-7. **Edit build:** car or bike, make, model, year, nickname, stock bhp, weight,
-   dyno figure, and the mods list with bhp gains.
+7. **Edit build:** car or bike, vehicle picker (make, model, generation) that fills
+   stock specs, year, nickname, engine swap, stock bhp, weight, dyno figure, tune
+   stage, quick-pick mod chips and the mods list with bhp gains.
 8. **Me:** profile, rep and level with a breakdown, crew, your suggested places, events near you
    (willing to travel, new-event alerts), reminders, privacy toggles for later phases, demo controls
    (Demo: skip the GPS check, restart the demo events, reset data).

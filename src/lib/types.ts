@@ -16,6 +16,23 @@ export type ModCategory =
   | 'audio'
   | 'other';
 
+/** How far the engine's been tuned. One at a time. */
+export type TuneStage = 'stock' | 'stage1' | 'stage2' | 'stage2plus' | 'stage3' | 'stage4' | 'custom';
+
+/** A different engine in the chassis. The build's stock bhp and torque are the donor's. */
+export interface EngineSwap {
+  donorMake: string;
+  /** Engine code or donor model, e.g. "Bandit 1200" or "K20A". */
+  donorModel: string;
+  donorVariant?: string;
+  /** Dataset id of the donor (engine or vehicle variant), when picked from the list. */
+  donorId?: string;
+  bhp: number;
+  torqueLbFt?: number;
+  /** Weight change from the swap, kg (can be negative). The build's weight already includes it. */
+  weightDeltaKg?: number;
+}
+
 export interface Mod {
   id: string;
   category: ModCategory;
@@ -42,6 +59,12 @@ export interface Build {
   photos: string[];
   /** Accent colour used for the build's card art. */
   colour?: string;
+  /** Dataset id of the base vehicle picked in the vehicle picker (src/data/vehicles.ts). */
+  vehicleId?: string;
+  /** Tune stage. Also kept as a "Stage N tune" engine mod so older saves and the backend see it. */
+  tuneStage?: TuneStage;
+  /** Set when the build runs another engine. Also kept as an "… engine swap" engine mod. */
+  engineSwap?: EngineSwap;
 }
 
 export interface LatLng {

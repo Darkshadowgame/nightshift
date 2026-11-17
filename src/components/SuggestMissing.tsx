@@ -1,0 +1,64 @@
+import { useState } from 'react';
+import { Pressable, TextInput, View } from 'react-native';
+import { makeSuggestion, type FeedbackScreen } from '../lib/feedbackQueue';
+import { newId, useStore } from '../lib/store';
+import { C } from '../theme';
+import { Button, Card, Row, Txt, s as ui } from './ui';
+
+/**
+ * "Suggest a missing car/bike or mod": a link that opens a two-field form and
+ * queues the suggestion as feedback (kind idea) to be sent to the backend.
+ */
+export function SuggestMissing({ screen, label, placeholder, context }: { screen: FeedbackScreen; label: string; placeholder: string; context?: string }) {
+  const { queueFeedback } = useStore();
+  const [open, setOpen] = useState(false);
+  const [missing, setMissing] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  function send() {
+    try {
+      queueFeedback(makeSuggestion({ missing, notes, screen, context }, newId('fb'), new Date()));
+      setSent(true);
+      setOpen(false);
+      setMissing('');
+      setNotes('');
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Couldn’t save that.');
+    }
+  }
+
+  if (!open) {
+    return (
+      <Pressable onPress={() => { setOpen(true); setSent(false); }} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start', paddingVertical: 4 }}>
+        <Txt v="label" style={{ color: C.neon }}>{sent ? 'Thanks, noted. Suggest another ›' : `${label} ›`}</Txt>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Card accent={C.neon}>
+      <Txt v="h3">{label}</Txt>
+      <TextInput value={missing} onChangeText={setMissing} placeholder={placeholder} placeholderTextColor={C.fog} style={ui.input} accessibilityLabel="What's missing" autoFocus />
+      <TextInput
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Notes (optional): year, engine, where to find the specs"
+        placeholderTextColor={C.fog}
+        style={[ui.input, { minHeight: 64, textAlignVertical: 'top' }]}
+        multiline
+        accessibilityLabel="Notes"
+      />
+      {error ? <Txt style={{ color: C.alert }}>{error}</Txt> : null}
+      <Row style={{ flexWrap: 'nowrap' }}>
+        <View style={{ flex: 1 }}>
+          <Button label="Send suggestion" kind="neon" onPress={send} />
+        </View>
+        <Button label="Cancel" kind="ghost" onPress={() => { setOpen(false); setError(null); }} />
+      </Row>
+      <Txt v="muted" style={{ fontSize: 12 }}>Saved on your phone and sent to the Nightshift team with the next sync.</Txt>
+    </Card>
+  );
+}

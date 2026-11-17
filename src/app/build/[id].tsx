@@ -11,6 +11,8 @@ import { Card, Row, Section, Stat, StatBar, Txt } from '../../components/ui';
 import { MOD_CATEGORIES, modCategoryShort } from '../../data/catalog';
 import { bhpPerTonne, classOf, effectivePower, isModified, performanceFigure, powerBar } from '../../lib/classes';
 import { useStore } from '../../lib/store';
+import { swapTag } from '../../lib/swap';
+import { stageFromMods, stageLabel } from '../../lib/tune';
 import { C } from '../../theme';
 
 const LOOKS = new Set(['wheels', 'body', 'lighting', 'interior']);
@@ -47,6 +49,8 @@ export default function BuildScreen() {
   const count = (set: Set<string>) => b.mods.filter((m) => set.has(m.category)).length;
   const figure = performanceFigure(b);
   const won = allAwards(votes, events, builds, now).filter((a) => a.buildId === b.id);
+  const swap = swapTag(b);
+  const stage = b.tuneStage ?? stageFromMods(b.mods);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
@@ -62,6 +66,9 @@ export default function BuildScreen() {
       <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={14}>
         <View style={{ flex: 1, gap: 2 }}>
           <Txt v="h1">{b.make} {b.model}</Txt>
+          {swap || stage !== 'stock' ? (
+            <Txt v="label" style={{ color: C.magenta }}>{[swap, stage !== 'stock' ? stageLabel(stage) : null].filter(Boolean).join(' · ')}</Txt>
+          ) : null}
           <Txt v="label">{owner?.region}</Txt>
           {owner ? (
             <UserLink id={owner.id} style={{ alignSelf: 'flex-start' }} label={`Open @${owner.handle}`}>
@@ -133,7 +140,7 @@ export default function BuildScreen() {
         </Card>
       </Section>
       <Txt v="muted" style={{ fontSize: 12 }}>
-        Stock {b.stockBhp} bhp · {b.weightKg} kg {b.kind === 'bike' ? 'wet' : 'kerb'}
+        {b.engineSwap ? 'Donor engine' : 'Stock'} {b.stockBhp} bhp · {b.weightKg} kg {b.kind === 'bike' ? 'wet' : 'kerb'}{b.engineSwap?.weightDeltaKg ? ` (incl. ${b.engineSwap.weightDeltaKg > 0 ? '+' : ''}${b.engineSwap.weightDeltaKg} kg from the swap)` : ''}
       </Txt>
     </ScrollView>
   );

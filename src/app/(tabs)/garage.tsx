@@ -7,6 +7,7 @@ import { Button, Card, Row, Stat, Txt } from '../../components/ui';
 import { allAwards } from '../../lib/awards';
 import { bhpPerTonne, classOf, effectivePower, isModified } from '../../lib/classes';
 import { useStore } from '../../lib/store';
+import { swapTag } from '../../lib/swap';
 import { C } from '../../theme';
 
 /** The demo's example build for you (see seed.ts). */
@@ -40,6 +41,7 @@ export default function Garage() {
               <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Txt v="h2" numberOfLines={2}>{b.make} {b.model}</Txt>
+                  {swapTag(b) ? <Txt v="label" style={{ color: C.magenta }} numberOfLines={1}>{swapTag(b)}</Txt> : null}
                   {b.nickname ? <Txt v="muted" numberOfLines={1}>{b.nickname}</Txt> : null}
                 </View>
                 <Txt v="label" style={{ color: C.sodium }}>Open ›</Txt>

@@ -1,15 +1,21 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { ClassUpMoment } from '../../components/motion';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
-import { BIKE_MAKES, CAR_MAKES, MOD_CATEGORIES } from '../../data/catalog';
+import { ModPicker } from '../../components/ModPicker';
+import { SearchSelect } from '../../components/SearchSelect';
+import { VehiclePicker } from '../../components/VehiclePicker';
+import { allEngines, allVariants } from '../../data/vehicles';
 import { classOf, classUp, effectivePower } from '../../lib/classes';
+import { chassisWeight, isSwapMod, swapFromMods, swapProblem, swapSpecs, withSwapMod } from '../../lib/swap';
+import { restage, stageFromMods, withStage, type StageEngine } from '../../lib/tune';
+import { findDonor, findVariant, guessVariant, searchDonors, specFill, yearsLabel, type Aspiration, type Variant } from '../../lib/vehicles';
 import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
 import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
-import type { Build, ClassLetter, Mod, ModCategory, VehicleKind } from '../../lib/types';
+import type { Build, ClassLetter, EngineSwap, Mod, TuneStage, VehicleKind } from '../../lib/types';
 import { C } from '../../theme';
 
 const COLOURS = [C.sodium, C.neon, C.magenta, C.lime, '#ff4d4d', '#3f6fff', '#9b5de5', '#e9edf4', '#7a7f8c'];
@@ -19,33 +25,96 @@ function num(s: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
+/** A signed whole number ("-15", "+20"), or undefined. */
+function signed(s: string): number | undefined {
+  const n = Number(s.replace(/[^0-9.+-]/g, ''));
+  return Number.isFinite(n) && n !== 0 ? Math.round(n) : undefined;
+}
+
+const str = (n: number | undefined) => (n ? String(n) : '');
+const mid = () => newId('m');
+
 export default function EditBuild() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const store = useStore();
   const existing = id ? store.builds.find((b) => b.id === id) : undefined;
 
+  const variants = allVariants();
+  const engines = allEngines();
+  const initialVariant = existing
+    ? findVariant(variants, existing.vehicleId) ?? guessVariant(variants, existing.kind, existing.make, existing.model, existing.engineSwap ? undefined : existing.stockBhp)
+    : undefined;
+  const swap0 = existing ? existing.engineSwap ?? swapFromMods(existing) : undefined;
+
   const [kind, setKind] = useState<VehicleKind>(existing?.kind ?? 'car');
   const [make, setMake] = useState(existing?.make ?? '');
   const [model, setModel] = useState(existing?.model ?? '');
+  const [vehicleId, setVehicleId] = useState<string | undefined>(initialVariant?.id);
   const [year, setYear] = useState(existing?.year ? String(existing.year) : '');
   const [nickname, setNickname] = useState(existing?.nickname ?? '');
-  const [stockBhp, setStockBhp] = useState(existing ? String(existing.stockBhp) : '');
-  const [weight, setWeight] = useState(existing ? String(existing.weightKg) : '');
-  const [torque, setTorque] = useState(existing?.torqueLbFt ? String(existing.torqueLbFt) : '');
+  // Chassis (base vehicle) figures. After a swap the build's stock bhp and torque are the donor's.
+  const [stockBhp, setStockBhp] = useState(existing ? (swap0 ? str(initialVariant?.bhp) : String(existing.stockBhp)) : '');
+  const [weight, setWeight] = useState(existing ? String(chassisWeight(existing)) : '');
+  const [torque, setTorque] = useState(existing ? (swap0 ? str(initialVariant?.torqueLbFt) : str(existing.torqueLbFt)) : '');
   const [dyno, setDyno] = useState(existing?.dynoBhp ? String(existing.dynoBhp) : '');
   const [colour, setColour] = useState(existing?.colour ?? C.sodium);
-  const [mods, setMods] = useState<Mod[]>(existing?.mods ?? []);
+  const [mods, setMods] = useState<Mod[]>((existing?.mods ?? []).filter((m) => !isSwapMod(m)));
+  const [stage, setStage] = useState<TuneStage>(existing?.tuneStage ?? stageFromMods(existing?.mods ?? []));
+  const [aspGuess, setAspGuess] = useState<Aspiration | undefined>(undefined);
+  const [swapOn, setSwapOn] = useState(!!swap0);
+  const [donorId, setDonorId] = useState<string | undefined>(swap0?.donorId);
+  const [donorMake, setDonorMake] = useState(swap0?.donorMake ?? '');
+  const [donorModel, setDonorModel] = useState(swap0?.donorModel ?? '');
+  const [donorVariant, setDonorVariant] = useState(swap0?.donorVariant ?? '');
+  const [swapBhp, setSwapBhp] = useState(str(swap0?.bhp));
+  const [swapTorque, setSwapTorque] = useState(str(swap0?.torqueLbFt));
+  const [weightDelta, setWeightDelta] = useState(swap0?.weightDeltaKg ? String(swap0.weightDeltaKg) : '');
   const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
-  const [modName, setModName] = useState('');
-  const [modCat, setModCat] = useState<ModCategory>('engine');
-  const [modGain, setModGain] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState<PendingPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [celebrate, setCelebrate] = useState<{ from: ClassLetter; to: ClassLetter } | null>(null);
 
-  const makes = kind === 'car' ? CAR_MAKES : BIKE_MAKES;
+  const variant = findVariant(variants, vehicleId);
+  const donor = findDonor(engines, variants, donorId);
+  const swap: EngineSwap | undefined = swapOn
+    ? {
+        donorMake: donorMake.trim(),
+        donorModel: donorModel.trim(),
+        donorVariant: donorVariant.trim() || undefined,
+        donorId,
+        bhp: num(swapBhp) ?? 0,
+        torqueLbFt: num(swapTorque),
+        weightDeltaKg: signed(weightDelta),
+      }
+    : undefined;
+  const specs = swapSpecs(
+    { stockBhp: num(stockBhp) ?? 0, weightKg: num(weight) ?? (kind === 'car' ? 1400 : 190), torqueLbFt: num(torque) },
+    swap,
+  );
+
+  // The engine the tune stage applies to: the donor's after a swap.
+  const engine: StageEngine | null = useMemo(() => {
+    if (swapOn) {
+      const bhp = num(swapBhp) ?? 0;
+      return bhp > 0 ? { kind, bhp, asp: donor?.asp ?? aspGuess ?? (kind === 'bike' ? 'n' : undefined), stages: donor?.stages } : null;
+    }
+    const bhp = num(stockBhp) ?? 0;
+    return bhp > 0 ? { kind, bhp, asp: variant?.asp ?? aspGuess ?? (kind === 'bike' ? 'n' : undefined), stages: variant?.stages } : null;
+  }, [swapOn, swapBhp, stockBhp, kind, donor, variant, aspGuess]);
+  const aspKnown = swapOn ? !!donor : !!variant;
+
+  // When the engine changes, an untouched stage estimate follows it.
+  const engineKey = engine ? `${engine.bhp}|${engine.asp ?? ''}|${JSON.stringify(engine.stages ?? {})}` : '';
+  const lastEngine = useRef(engine);
+  useEffect(() => {
+    const before = lastEngine.current;
+    lastEngine.current = engine;
+    if (before !== engine) setMods((m) => restage(m, stage, before, engine));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engineKey]);
+
   const draft: Build = {
     id: existing?.id ?? newId('b'),
     ownerId: store.me,
@@ -54,15 +123,36 @@ export default function EditBuild() {
     model: model.trim(),
     year: num(year),
     nickname: nickname.trim() || undefined,
-    stockBhp: num(stockBhp) ?? 0,
-    weightKg: num(weight) ?? (kind === 'car' ? 1400 : 190),
-    torqueLbFt: num(torque),
+    stockBhp: specs.stockBhp,
+    weightKg: specs.weightKg,
+    torqueLbFt: specs.torqueLbFt,
     dynoBhp: num(dyno),
     mods,
     photos,
     colour,
+    vehicleId,
+    tuneStage: stage === 'stock' ? undefined : stage,
+    engineSwap: swap,
   };
   const ready = draft.make && draft.model && draft.stockBhp > 0;
+
+  function pickVariant(v: Variant) {
+    const fill = specFill(v, num(year));
+    setMake(fill.make);
+    setModel(fill.model);
+    setYear(String(fill.year));
+    setStockBhp(String(fill.stockBhp));
+    setWeight(String(fill.weightKg));
+    setTorque(str(fill.torqueLbFt));
+    setVehicleId(v.id);
+  }
+
+  function changeKind(k: VehicleKind) {
+    if (k === kind) return;
+    setKind(k);
+    setVehicleId(undefined);
+    setDonorId(undefined);
+  }
 
   async function addPhoto() {
     setError(null);
@@ -99,19 +189,17 @@ export default function EditBuild() {
     }
   }
 
-  function addMod() {
-    if (!modName.trim()) return;
-    setMods((m) => [...m, { id: newId('m'), category: modCat, name: modName.trim(), bhpGain: num(modGain) }]);
-    setModName('');
-    setModGain('');
-  }
-
   function save() {
     if (!draft.make || !draft.model) return setError('Add the make and model.');
+    const swapIssue = swapProblem(swap);
+    if (swapIssue) return setError(swapIssue);
     if (!draft.stockBhp) return setError('Add the standard power (bhp) so the app can work out the class.');
-    store.saveBuild(draft);
+    // The stage and the swap are also kept as engine mods (see tune.ts and swap.ts).
+    const staged = stage === 'stock' ? withStage(mods, 'stock', undefined, mid) : mods;
+    const final: Build = { ...draft, mods: withSwapMod(staged, swap, mid) };
+    store.saveBuild(final);
     // An edit that lifts the class gets its moment before closing.
-    const up = classUp(existing ? classOf(existing) : null, classOf(draft));
+    const up = classUp(existing ? classOf(existing) : null, classOf(final));
     if (up) setCelebrate(up);
     else router.back();
   }
@@ -127,67 +215,100 @@ export default function EditBuild() {
     >
       <Section title="Car or bike">
         <Row gap={6}>
-          <Chip label="Car" on={kind === 'car'} onPress={() => setKind('car')} />
-          <Chip label="Bike" on={kind === 'bike'} onPress={() => setKind('bike')} />
+          <Chip label="Car" on={kind === 'car'} onPress={() => changeKind('car')} />
+          <Chip label="Bike" on={kind === 'bike'} onPress={() => changeKind('bike')} />
         </Row>
       </Section>
 
       <Section title="Make and model">
-        <TextInput value={make} onChangeText={setMake} placeholder="Make" placeholderTextColor={C.fog} style={ui.input} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          {makes.map((m) => (
-            <Chip key={m} label={m} on={make === m} onPress={() => setMake(m)} colour={C.neon} />
-          ))}
-        </ScrollView>
-        <TextInput value={model} onChangeText={setModel} placeholder={kind === 'car' ? 'Model, e.g. Golf R Mk7.5' : 'Model, e.g. YZF-R1'} placeholderTextColor={C.fog} style={ui.input} />
+        <VehiclePicker
+          kind={kind}
+          make={make}
+          model={model}
+          vehicleId={vehicleId}
+          onMakeModel={(mk, md) => { setMake(mk); setModel(md); setVehicleId(undefined); }}
+          onPickVariant={pickVariant}
+        />
         <Row style={{ flexWrap: 'nowrap' }}>
-          <TextInput value={year} onChangeText={setYear} placeholder="Year" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1 }]} />
-          <TextInput value={nickname} onChangeText={setNickname} placeholder="Nickname (optional)" placeholderTextColor={C.fog} style={[ui.input, { flex: 2 }]} />
+          <TextInput value={year} onChangeText={setYear} placeholder="Year" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1 }]} accessibilityLabel="Year" />
+          <TextInput value={nickname} onChangeText={setNickname} placeholder="Nickname (optional)" placeholderTextColor={C.fog} style={[ui.input, { flex: 2 }]} accessibilityLabel="Nickname" />
         </Row>
+        {variant ? <Txt v="muted" style={{ fontSize: 12 }}>This version was sold {yearsLabel(variant)}.</Txt> : null}
+      </Section>
+
+      <Section title="Engine swap">
+        <Row gap={6}>
+          <Chip label="Original engine" on={!swapOn} onPress={() => setSwapOn(false)} />
+          <Chip label="Engine swapped" on={swapOn} onPress={() => setSwapOn(true)} colour={C.magenta} />
+        </Row>
+        {swapOn ? (
+          <Card accent={C.magenta}>
+            <SearchSelect
+              label="Donor engine"
+              value={donorModel ? `${donorMake} ${donorModel}`.trim() : ''}
+              placeholder="Search engines and vehicles, e.g. K20 or Bandit 1200"
+              search={(q) => searchDonors(engines, variants, kind, q, 40).map((d) => ({ key: d.id, title: `${d.make} ${d.name}`, detail: `${d.detail} · ${d.bhp} bhp` }))}
+              onPick={(o) => {
+                const d = findDonor(engines, variants, o.key);
+                if (!d) return;
+                setDonorId(d.id);
+                setDonorMake(d.make);
+                setDonorModel(d.name);
+                setDonorVariant(d.detail);
+                setSwapBhp(String(d.bhp));
+                setSwapTorque(str(d.torqueLbFt));
+              }}
+              onFree={(t) => { setDonorId(undefined); setDonorMake(''); setDonorModel(t); setDonorVariant(''); }}
+              freeLabel="Use my own:"
+            />
+            <Row style={{ flexWrap: 'nowrap' }}>
+              <Field label="Donor bhp" value={swapBhp} onChange={(t) => setSwapBhp(t)} />
+              <Field label="Donor torque lb-ft" value={swapTorque} onChange={setSwapTorque} />
+            </Row>
+            <View style={{ gap: 4 }}>
+              <Txt v="label" style={{ fontSize: 11 }}>Weight change kg (+ or −, optional)</Txt>
+              <TextInput value={weightDelta} onChangeText={setWeightDelta} keyboardType="numbers-and-punctuation" placeholder="e.g. +25 or -10" placeholderTextColor={C.fog} style={ui.input} accessibilityLabel="Weight change from the swap in kg" />
+            </View>
+            <Txt v="muted" style={{ fontSize: 12 }}>
+              Class uses the donor engine's bhp with the {kind === 'car' ? 'car' : 'bike'}'s weight{signed(weightDelta) ? ` ${signed(weightDelta)! > 0 ? '+' : '−'} ${Math.abs(signed(weightDelta)!)} kg` : ''}. The tune stage below applies to the donor engine.
+            </Txt>
+          </Card>
+        ) : null}
       </Section>
 
       <Section title="Specs">
         <Row style={{ flexWrap: 'nowrap' }}>
-          <Field label="Standard bhp" value={stockBhp} onChange={setStockBhp} />
+          <Field label={swapOn ? 'Original bhp' : 'Standard bhp'} value={stockBhp} onChange={setStockBhp} />
           <Field label={kind === 'car' ? 'Kerb weight kg' : 'Wet weight kg'} value={weight} onChange={setWeight} />
         </Row>
         <Row style={{ flexWrap: 'nowrap' }}>
-          <Field label="Torque lb-ft" value={torque} onChange={setTorque} />
+          <Field label={swapOn ? 'Original torque lb-ft' : 'Torque lb-ft'} value={torque} onChange={setTorque} />
           <Field label="Dyno bhp (if you have a sheet)" value={dyno} onChange={setDyno} />
         </Row>
         {ready ? (
           <Card accent={C.sodium}>
             <Row style={{ flexWrap: 'nowrap' }} gap={12}>
               <ClassBadge letter={classOf(draft)} size="md" />
-              <Txt v="muted" style={{ flex: 1 }}>
-                Class {classOf(draft)} at {Math.round(effectivePower(draft))} bhp{draft.dynoBhp ? ' (dyno)' : ' (standard plus mod gains)'}.
+              <Txt v="muted" style={{ flex: 1 }} accessibilityLiveRegion="polite">
+                Class {classOf(draft)} at {Math.round(effectivePower(draft))} bhp{draft.dynoBhp ? ' (dyno)' : swapOn ? ' (donor engine plus mod gains)' : ' (standard plus mod gains)'}
+                {swapOn ? ` and ${draft.weightKg} kg` : ''}.
               </Txt>
             </Row>
           </Card>
         ) : null}
       </Section>
 
-      <Section title={`Mods (${mods.length})`}>
-        {mods.map((m) => (
-          <Row key={m.id} style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-            <Txt style={{ flex: 1 }}>{m.name}{m.bhpGain ? ` (+${m.bhpGain} bhp)` : ''}</Txt>
-            <Pressable onPress={() => setMods((xs) => xs.filter((x) => x.id !== m.id))} hitSlop={10} accessibilityLabel={`Remove ${m.name}`}>
-              <Txt v="label" style={{ color: C.alert }}>Remove</Txt>
-            </Pressable>
-          </Row>
-        ))}
-        <Card>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-            {MOD_CATEGORIES.map((c) => (
-              <Chip key={c.key} label={c.short} on={modCat === c.key} onPress={() => setModCat(c.key)} colour={C.neon} />
-            ))}
-          </ScrollView>
-          <TextInput value={modName} onChangeText={setModName} placeholder="e.g. Stage 2 remap" placeholderTextColor={C.fog} style={ui.input} onSubmitEditing={addMod} />
-          <Row style={{ flexWrap: 'nowrap' }}>
-            <TextInput value={modGain} onChangeText={setModGain} placeholder="bhp gain (optional)" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1 }]} />
-            <Button label="Add mod" kind="ghost" onPress={addMod} />
-          </Row>
-        </Card>
+      <Section title={`Mods (${mods.length + (swapOn && donorModel.trim() ? 1 : 0)})`}>
+        <ModPicker
+          kind={kind}
+          engine={engine}
+          aspKnown={aspKnown}
+          onAsp={setAspGuess}
+          stage={stage}
+          mods={mods}
+          swapped={swapOn}
+          onChange={(m, st) => { setMods(m); setStage(st); }}
+        />
       </Section>
 
       <Section title="Photos">
