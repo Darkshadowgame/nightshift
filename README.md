@@ -57,7 +57,8 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 3. Garage and photos (plate blur)
 
-- [ ] Garage > open the example Golf R > **Edit**. Change it to your own car or bike.
+- [ ] Garage: the Golf R card has its class stamped on the picture, a trophy count
+      and bhp, bhp per tonne and mods. Open it > **Edit**. Change it to your own car or bike.
 - [ ] Add mods with bhp gains. Save. If the class goes up (e.g. remove the dyno
       figure, then add a big remap), the badge flips to the new class with a buzz.
 - [ ] **+ Add a photo** with a car whose number plate is visible. You should see the
@@ -67,8 +68,10 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 4. Events
 
-- [ ] Map: the **Lichfield rolling meet** pin pulses (it's live). Tap it, then
-      **Open event**.
+- [ ] Map: the **Lichfield rolling meet** pin pulses (it's live) and sits on top of
+      the locked pins near it. The card at the bottom says what's live and what's next,
+      with a countdown; tap it to open the event. **1 live now** (top right) jumps the
+      map to the live meet. Tap a pin, then **Open event**.
 - [ ] Events tab: Mine / Invited / Public / Past. Live events sit at the top
       with a pulsing pin.
 - [ ] Invited tab > **Coffee and cars, late edition** (about 3 hours away) > **I'm
@@ -92,7 +95,9 @@ note anything odd for the next pass. Each step says what you should see.
 ### 5. Rolling meet: check in, move on, change the plan
 
 - [ ] Lichfield rolling meet: the map dims and the stop **unlocks** (once per stop).
-      **Check in** (above the Going button): a tick bursts and the phone buzzes.
+      The strip under the title shows the time left, the stop number and how many have
+      checked in. **Check in** (above **Drop out** and **Share**): a tick bursts and the
+      phone buzzes.
 - [ ] **NightRunners late one** is your crew's meet and you're a NightRunners host,
       so you host it. Check in
       at the first stop now (check-in opens 30 min before the start).
@@ -106,7 +111,7 @@ note anything odd for the next pass. Each step says what you should see.
 
 - [ ] On the Lichfield meet after checking in, **Vote** shows award categories.
       Vote, change your vote; you can't vote for yourself.
-- [ ] Events > Past > **Snowdome Sunday meet** (last Sunday): trophies, with the cover
+- [ ] Events > Past > **Snowdome Sunday meet** (last Sunday): trophies straight under the map, with the cover
       rising in with sparks the first time, and no "Unlocked" moment. Chat is read-only.
       Tap a winner to open their profile.
 
