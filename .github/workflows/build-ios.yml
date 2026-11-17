@@ -54,6 +54,15 @@ jobs:
           npx tsc --noEmit
           npm test -- --ci
 
+      # The runtime version (fingerprint) this IPA is built for. OTA updates only reach
+      # installs with the same one; ota.yml prints its own and warns if they differ.
+      - name: Runtime fingerprint
+        run: |
+          HASH=$(npx expo-updates fingerprint:generate --platform ios | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).hash))")
+          echo "$HASH" > "$RUNNER_TEMP/runtime-fingerprint.txt"
+          echo "iOS runtime fingerprint: $HASH"
+          echo "### iOS runtime fingerprint: \`$HASH\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Generate native iOS project (expo prebuild)
         run: npx expo prebuild --platform ios --clean --no-install
 
@@ -122,3 +131,11 @@ jobs:
           archive: false
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload runtime fingerprint
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/runtime-fingerprint.txt
+          archive: false
+          if-no-files-found: error
+          retention-days: 90

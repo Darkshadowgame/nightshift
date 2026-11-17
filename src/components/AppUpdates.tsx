@@ -18,6 +18,15 @@ export function versionLine(): string {
 }
 
 /**
+ * "Runtime 1a2b3c4d · production": the native fingerprint this install runs and
+ * the channel it asks. Updates only reach installs with the same runtime: if
+ * the OTA job prints a different one, a new IPA is needed (README, "Updates").
+ */
+export function runtimeLine(runtime: string | null | undefined, channel: string | null | undefined): string {
+  return `Runtime ${runtime ? runtime.slice(0, 8) : 'unknown'} · ${channel || 'production'} channel`;
+}
+
+/**
  * New versions arrive over the air: checked when the app opens, and here on demand
  * (copied from Caristini's Settings › App updates).
  */
@@ -48,6 +57,11 @@ export function AppUpdates() {
     <Card>
       <Txt>{versionLine()}</Txt>
       <Txt v="muted">{when ? `Running the update from ${when}` : 'Running the version built into this install'}</Txt>
+      {enabled ? (
+        <Txt v="muted" style={{ fontSize: 11 }} selectable>
+          {runtimeLine(Updates.runtimeVersion, Updates.channel)}
+        </Txt>
+      ) : null}
       {state === 'ready' ? (
         <Button label="Restart to update" kind="neon" onPress={() => Updates.reloadAsync()} />
       ) : (

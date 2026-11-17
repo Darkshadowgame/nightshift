@@ -21,6 +21,8 @@ concurrency:
 
 permissions:
   contents: read
+  # To read the latest IPA build's runtime fingerprint (a warning if it differs).
+  actions: read
 
 defaults:
   run:
@@ -51,6 +53,28 @@ jobs:
       # Version shown in Me › App updates, e.g. v1.0.08 (one number per published update).
       - name: Set version
         run: echo "EXPO_PUBLIC_APP_VERSION=v1.0.$(printf '%02d' ${{ github.run_number }})" >> "$GITHUB_ENV"
+
+      # Updates only reach installs whose runtime (native fingerprint) matches. Print this
+      # update's, and warn when the latest IPA build was made for a different one: that
+      # IPA won't get this update, so a new IPA is needed (README, "Updates").
+      - name: Runtime fingerprint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HASH=$(npx expo-updates fingerprint:generate --platform ios | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).hash))")
+          echo "Update runtime fingerprint: $HASH"
+          echo "### Update runtime fingerprint: \`$HASH\`" >> "$GITHUB_STEP_SUMMARY"
+          RUN=$(gh run list --workflow build-ios.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+          if [ -n "$RUN" ] && gh run download "$RUN" --name runtime-fingerprint.txt --dir "$RUNNER_TEMP/ipa-fp" 2>/dev/null; then
+            IPA=$(cat "$RUNNER_TEMP/ipa-fp/runtime-fingerprint.txt")
+            echo "Latest IPA runtime fingerprint: $IPA"
+            if [ "$IPA" != "$HASH" ]; then
+              echo "::warning::This update's runtime ($HASH) differs from the latest IPA's ($IPA). Phones on that IPA won't get it: build and install a new IPA."
+              echo "**Needs a new IPA:** latest IPA runtime is \`$IPA\`." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "No IPA fingerprint found to compare (builds from before it was recorded)."
+          fi
 
       - name: Publish update to the production channel
         env:
