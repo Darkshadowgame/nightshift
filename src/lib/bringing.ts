@@ -109,21 +109,27 @@ export function awardBuilds(event: NightEvent, builds: Build[]): Build[] {
   });
 }
 
-/** Class counts of what people going are bringing, S first. Only classes with someone in. */
-export function classMix(event: NightEvent, builds: Build[]): { letter: ClassLetter; count: number }[] {
+/** Class counts of what people going are bringing, S first. Only classes with someone in. `kind`: only cars or only bikes. */
+export function classMix(event: NightEvent, builds: Build[], kind?: Build['kind']): { letter: ClassLetter; count: number }[] {
   const counts = new Map<ClassLetter, number>();
   for (const u of event.going) {
     const b = broughtBuild(event, u, builds);
-    if (b) counts.set(classOf(b), (counts.get(classOf(b)) ?? 0) + 1);
+    if (b && (!kind || b.kind === kind)) counts.set(classOf(b), (counts.get(classOf(b)) ?? 0) + 1);
   }
   return CLASS_LETTERS.filter((l) => counts.has(l)).map((letter) => ({ letter, count: counts.get(letter)! }));
 }
 
-/** "2S 3A 1B": what people going are bringing, by class. '' when nobody's bringing anything. */
+/**
+ * What people going are bringing, by class: "2S 3A 1B". Car and bike classes
+ * are different scales, so with both it reads "Cars 2A 1B · Bikes 1A", and
+ * bikes alone "Bikes 1A". '' when nobody's bringing anything.
+ */
 export function classMixText(event: NightEvent, builds: Build[]): string {
-  return classMix(event, builds)
-    .map((c) => `${c.count}${c.letter}`)
-    .join(' ');
+  const text = (k: Build['kind']) => classMix(event, builds, k).map((c) => `${c.count}${c.letter}`).join(' ');
+  const cars = text('car');
+  const bikes = text('bike');
+  if (cars && bikes) return `Cars ${cars} · Bikes ${bikes}`;
+  return cars || (bikes ? `Bikes ${bikes}` : '');
 }
 
 /** Short tag for the picker and lists: the engine swap and the tune stage, e.g. "K20 swap · Stage 2". */

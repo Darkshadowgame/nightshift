@@ -44,7 +44,7 @@ const PinMarker = memo(
             <Pin glyph={pin.glyph} colour={pin.colour} size={size} />
           </PulseRing>
         ) : (
-          <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} />
+          <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
         )}
       </Marker>
     );
@@ -57,6 +57,7 @@ const PinMarker = memo(
     a.pin.size === b.pin.size &&
     a.pin.live === b.pin.live &&
     a.pin.count === b.pin.count &&
+    a.pin.badge === b.pin.badge &&
     a.pin.title === b.pin.title &&
     a.pin.at.lat === b.pin.at.lat &&
     a.pin.at.lng === b.pin.at.lng,

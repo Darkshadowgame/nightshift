@@ -1,5 +1,5 @@
 import { allVariants } from '../src/data/vehicles';
-import { isYearsGen, modelLabel, tidyModel, variantLine } from '../src/lib/vehicles';
+import { isYearsGen, matchScore, modelLabel, tidyModel, variantLine } from '../src/lib/vehicles';
 
 describe('year-only generations (bikes)', () => {
   test('labels leave out a generation that is only years; real generations stay', () => {
@@ -20,5 +20,13 @@ describe('year-only generations (bikes)', () => {
       const years = line.match(/(19|20)\d{2}/g) ?? [];
       expect(new Set(years).size).toBe(years.length);
     }
+  });
+});
+
+describe('vehicle search', () => {
+  test('"r6 2017" finds the R6, not a CBR650F ("r6" inside "cbr650f")', () => {
+    expect(matchScore('Honda CBR650F 2014-2018', 'r6 2017')).toBe(0);
+    expect(matchScore('Yamaha YZF-R6 2017-2020', 'r6')).toBeGreaterThan(0);
+    expect(matchScore('Volkswagen Golf R Mk7', 'mk 7')).toBeGreaterThan(0);
   });
 });

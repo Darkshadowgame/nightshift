@@ -26,6 +26,8 @@ export interface Settings {
   shopCategories: ShopCategory[];
   /** Map: only partners on the Shops layer. */
   shopPartnersOnly: boolean;
+  /** Map: show spectator venues (speedway, oval stock cars, closed-road races) on the Tracks layer. Off by default. */
+  spectatorTracks?: boolean;
   /** Set once Shops and Speed cameras moved under "More" and went off by default (Nov 2026). */
   moreLayersOff?: boolean;
 }

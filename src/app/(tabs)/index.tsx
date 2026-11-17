@@ -27,7 +27,7 @@ import { averageStars, visibleSpots } from '../../lib/spots';
 import { driveTier } from '../../lib/rep';
 import { cameraIndex } from '../../lib/cameraData';
 import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCamera, describeZone } from '../../lib/cameras';
-import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks';
+import { ALL_VEHICLES, isSpectatorVenue, matchesVehicles, outlinesInView } from '../../lib/tracks';
 import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
@@ -153,6 +153,8 @@ export default function MapScreen() {
   const snapped = useMemo(() => regionKey(region.centre, region.span), [region]);
   /** Tracks: which vehicles to show circuits for (Cars, Bikes, Karts; any mix), kept in settings. */
   const trackKinds: TrackVehicle[] = settings.trackVehicles?.length ? settings.trackVehicles : ALL_VEHICLES;
+  /** Tracks ▾ › Racing to watch: spectator venues (no track days), off by default. */
+  const watchRacing = !!settings.spectatorTracks;
   function toggleKind(v: TrackVehicle) {
     const next = trackKinds.includes(v) ? trackKinds.filter((x) => x !== v) : ALL_VEHICLES.filter((x) => x === v || trackKinds.includes(x));
     if (!next.length) return;
@@ -166,9 +168,11 @@ export default function MapScreen() {
     () =>
       visibleSpots(spots, me).filter(
         // Photo spots are for car and bike photos: bundled ones without evidence stay off the map (photoVetting.ts).
-        (s) => (s.kind !== 'track' || matchesVehicles(s, trackKinds)) && !(s.kind === 'photo' && UNVETTED_PHOTO_SPOTS.has(s.id)),
+        (s) =>
+          (s.kind !== 'track' || (matchesVehicles(s, trackKinds) && (watchRacing || !isSpectatorVenue(s.id)))) &&
+          !(s.kind === 'photo' && UNVETTED_PHOTO_SPOTS.has(s.id)),
       ),
-    [spots, me, trackKinds],
+    [spots, me, trackKinds, watchRacing],
   );
   const hasVenues = places.some((x) => x.kind === 'venue');
   // Meet-friendly venues count as "Coffee & meet spots" on the Shops layer, so they show with it even with Venues off.
@@ -266,7 +270,7 @@ export default function MapScreen() {
     }
     if (shopView) {
       for (const s of shopView.shops) pins.push({ id: `shop:${s.id}`, at: s.at, glyph: s.categories[0] ?? 'shop', colour: SHOP_COLOUR, title: s.name, size: shopPinSize(region.span) });
-      for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30 });
+      for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30, badge: 'P' });
     }
     if (layers.track) {
       for (const { id, outline } of outlinesInView(places, region.centre, region.span))
@@ -710,18 +714,21 @@ export default function MapScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setKindMenu(null)} accessibilityLabel="Close the menu" />
           <View style={[st.menu, { left: Math.max(8, Math.min(kindMenu.x, screen.width - 158)), top: kindMenu.y }]} accessibilityRole="menu">
             <Txt v="label" style={{ fontSize: 10 }}>Show tracks for</Txt>
-            {ALL_VEHICLES.map((v) => {
-              const on = trackKinds.includes(v);
+            {[...ALL_VEHICLES.map((v) => ({ key: v as string, label: VEHICLE_LABELS[v], on: trackKinds.includes(v), toggle: () => toggleKind(v) })),
+              // Speedway, oval stock cars, motocross and closed-road races: no track days, so off unless asked for.
+              { key: 'watch', label: 'Racing to watch', on: watchRacing, toggle: () => { feel.select(); setSettings({ spectatorTracks: !watchRacing }); } },
+            ].map((v) => {
+              const on = v.on;
               return (
                 <Pressable
-                  key={v}
-                  onPress={() => toggleKind(v)}
+                  key={v.key}
+                  onPress={v.toggle}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
                   style={({ pressed }) => [st.menuRow, pressed && { opacity: 0.7 }]}
                 >
                   <View style={[st.box, on && { backgroundColor: C.lime, borderColor: C.lime }]}>{on ? <Txt v="label" style={{ color: C.asphalt, fontSize: 11, lineHeight: 14 }}>✓</Txt> : null}</View>
-                  <Txt style={{ color: on ? C.chalk : C.fog }}>{VEHICLE_LABELS[v]}</Txt>
+                  <Txt style={{ color: on ? C.chalk : C.fog }}>{v.label}</Txt>
                 </Pressable>
               );
             })}

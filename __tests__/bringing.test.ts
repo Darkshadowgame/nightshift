@@ -219,8 +219,13 @@ describe('who shows with what', () => {
   test('class counts use what people are bringing', () => {
     const e: NightEvent = { ...everyone, going: ['me', 'other'], vehicles: { me: 'bike', other: 'o2' } };
     expect(classMix(e, builds).reduce((n, c) => n + c.count, 0)).toBe(2);
-    expect(classMixText(e, builds)).toMatch(/^\d[SABCD]( \d[SABCD])?$/);
+    // Both bikes: the bike scale, said so.
+    expect(classMixText(e, builds)).toMatch(/^Bikes \d[SABCD]( \d[SABCD])?$/);
     expect(classMixText({ ...e, going: [] }, builds)).toBe('');
+    // A car and a bike: two scales, never added together.
+    const mixed: NightEvent = { ...e, vehicles: { me: 'bike', other: 'o1' } };
+    expect(classMixText(mixed, builds)).toMatch(/^Cars \d[SABCD] · Bikes \d[SABCD]$/);
+    expect(classMixText({ ...e, going: ['other'], vehicles: { other: 'o1' } }, builds)).toMatch(/^\d[SABCD]$/);
   });
 
   test('tags show the swap and the tune stage', () => {

@@ -204,13 +204,20 @@ export function matchScore(text: string, query: string): number {
   const joined = ` ${hay.join(' ')}`;
   const squashed = hay.join('');
   const qSquashed = q.join('');
+  // Where each word starts in the squashed text: matches inside a word ("r6" in "cbr650f") don't count.
+  const starts = new Set<number>();
+  hay.reduce((at, h) => (starts.add(at), at + h.length), 0);
+  const atWordStart = (needle: string) => {
+    for (let i = squashed.indexOf(needle); i >= 0; i = squashed.indexOf(needle, i + 1)) if (starts.has(i)) return true;
+    return false;
+  };
   let score = 0;
   for (const w of q) {
     if (hay.includes(w)) score += 3;
     else if (hay.some((h) => h.startsWith(w))) score += 2;
-    else if (joined.includes(w) || squashed.includes(w)) score += 1;
+    else if (joined.includes(` ${w}`) || atWordStart(w)) score += 1;
     // Last chance: the whole query squashed ("mk 7" against "mk7").
-    else return squashed.includes(qSquashed) ? q.length : 0;
+    else return atWordStart(qSquashed) ? q.length : 0;
   }
   return score;
 }

@@ -30,6 +30,8 @@ export function PhotoManager({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const flow = usePhotoFlow({
     onError,
+    // A build's first photo becomes the garage card's cover: start the crop on the Cover shape.
+    aspect: photos.length === 0 ? 'cover' : 'free',
     onPhoto: (ref, replaces) => {
       if (replaces) {
         onChange(photos.map((p) => (p === replaces ? ref : p)));

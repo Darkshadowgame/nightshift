@@ -186,6 +186,12 @@ export default function Me() {
 
       <Section title="Map">
         <Toggle
+          label="Shops"
+          hint="Car and bike businesses from OpenStreetMap (© OpenStreetMap contributors, ODbL), and partners, always marked. Also on the map's layers button."
+          value={!!settings.shops}
+          onChange={(v) => setSettings({ shops: v })}
+        />
+        <Toggle
           label="Speed cameras"
           hint={`Fixed speed cameras and average-speed zones from OpenStreetMap (© OpenStreetMap contributors, ODbL), shown once you zoom in to driving distance. Speed limits, never police positions. ${CAMERA_CAVEAT}`}
           value={settings.cameras}
@@ -194,27 +200,14 @@ export default function Me() {
       </Section>
 
       <Section title="Privacy">
-        <Toggle
-          label="Cruise mode"
-          hint="Show your build as part of a fuzzy group on the live map. Arrives in Phase 2."
-          value={settings.cruiseMode}
-          onChange={(v) => setSettings({ cruiseMode: v })}
-          later
-        />
-        <Toggle
-          label="Hide my home area"
-          hint="Never show you on the map within a mile of home."
-          value={settings.hideHomeZone}
-          onChange={(v) => setSettings({ hideHomeZone: v })}
-          later
-        />
-        <Toggle
-          label="Walkie-talkie with strangers"
-          hint="Let people you don't know talk to you within 500 m. Arrives with drive mode in Phase 4."
-          value={settings.pttStrangers}
-          onChange={(v) => setSettings({ pttStrangers: v })}
-          later
-        />
+        <Txt v="muted">
+          Nobody is ever shown on the map: other people only see your builds, trophies, crew and level, never a location. Your home area is saved to
+          about 1 km and only used for invites and events near you.
+        </Txt>
+        <Txt v="muted" style={{ fontSize: 12 }}>
+          Coming later: cruise mode (your build as part of a fuzzy group on the live map) and walkie-talkie with people nearby. Their settings appear
+          here when they arrive.
+        </Txt>
       </Section>
 
       <Section title="App updates">

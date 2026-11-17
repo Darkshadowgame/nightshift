@@ -13,6 +13,8 @@ export interface MapPin {
   live?: boolean;
   /** A group of places (zoomed out): drawn with a count badge. */
   count?: number;
+  /** A short label badge, e.g. "P" for partners. */
+  badge?: string;
 }
 
 /** A filled outline, e.g. a borough-wide ban zone. */

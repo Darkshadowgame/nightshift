@@ -103,7 +103,7 @@ export function NightMap({
                 <Pin glyph={p.glyph} colour={p.colour} size={sz} />
               </PulseRing>
             ) : (
-              <Pin glyph={p.glyph} colour={p.colour} size={sz} count={p.count} />
+              <Pin glyph={p.glyph} colour={p.colour} size={sz} count={p.count} badge={p.badge} />
             )}
           </Pressable>
         );

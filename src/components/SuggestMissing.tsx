@@ -70,7 +70,7 @@ export function SuggestMissing({
         </View>
         <Button label="Cancel" kind="ghost" onPress={() => { setOpen(false); setError(null); }} />
       </Row>
-      <Txt v="muted" style={{ fontSize: 12 }}>Saved on your phone and sent to the Nightshift team with the next sync.</Txt>
+      <Txt v="muted" style={{ fontSize: 12 }}>Saved on your phone. It's sent to the Nightshift team once the app has its server.</Txt>
     </Card>
   );
 }

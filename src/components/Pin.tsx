@@ -37,10 +37,11 @@ export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rollin
 
 /**
  * Game-style hexagon badge with a glyph, as on the concept board. `count`
- * adds a small number badge (a group of places when zoomed out).
+ * adds a small number badge (a group of places when zoomed out); `badge` a
+ * short text one ("P" on partners, so the label is on the map too).
  * Memoised: map markers re-render only when what they draw changes.
  */
-export const Pin = memo(function Pin({ glyph, colour, size = 36, count }: { glyph: Glyph; colour: string; size?: number; count?: number }) {
+export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string }) {
   const filled = FILLED_GLYPHS.has(glyph);
   const svg = (
     <Svg width={size} height={size} viewBox="0 0 40 40">
@@ -48,8 +49,8 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count }: { glyp
       <GlyphShape glyph={glyph} c={filled ? INK : colour} />
     </Svg>
   );
-  if (!count) return svg;
-  const label = count > 99 ? '99+' : String(count);
+  if (!count && !badge) return svg;
+  const label = badge ?? (count! > 99 ? '99+' : String(count));
   return (
     <View style={{ width: size + 8, height: size + 4, paddingTop: 4 }}>
       {svg}
