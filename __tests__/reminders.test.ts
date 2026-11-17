@@ -14,7 +14,7 @@ import type { Crew, NightEvent } from '../src/lib/types';
 
 const NOW = new Date('2026-11-20T18:00:00Z');
 const mins = (m: number) => new Date(NOW.getTime() + m * 60_000);
-const crews: Crew[] = [{ id: 'c1', name: 'Crew', tag: 'C', memberIds: ['crewmate'] }];
+const crews: Crew[] = [{ id: 'c1', name: 'Crew', tag: 'C', memberIds: ['crewmate', 'plain'], ownerId: 'crewmate', hostIds: [] }];
 
 function meet(overrides: Partial<NightEvent> = {}): NightEvent {
   return {
@@ -41,7 +41,7 @@ describe('which reminders an event needs', () => {
     }
   });
 
-  test('hosts (including crew members) get them too, with host wording', () => {
+  test('hosts (including the crew owner) get them too, with host wording', () => {
     const r = remindersFor(meet({ going: [] }), 'crewmate', crews);
     expect(r).toHaveLength(2);
     expect(r[0].body).toMatch(/People going can now see/);

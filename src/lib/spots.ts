@@ -16,8 +16,14 @@ import type { BanZone, LatLng, Spot, SpotCompletion } from './types';
 export const CHECKPOINT_RADIUS_MILES = 0.2;
 /** How close you must be to a photo spot to check in. */
 export const PHOTO_SPOT_RADIUS_MILES = 0.2;
-/** Above this average the run is implausible on these roads at the limits. */
-export const MAX_AVERAGE_MPH = 60;
+/**
+ * Above this average along the route the run doesn't count. Conservative on
+ * purpose: country roads with bends, villages and junctions rarely allow more
+ * at the speed limits.
+ */
+export const MAX_AVERAGE_MPH = 45;
+/** Suggested drives need a point at least this often, so the line follows the road. */
+export const MAX_POINT_GAP_MILES = 1.5;
 /** Pending suggestions are approved after this long in the demo. */
 export const DEMO_APPROVAL_MS = 10_000;
 
@@ -30,9 +36,22 @@ export function pathMiles(path: LatLng[]): number {
   return total;
 }
 
-/** The distance used for the plausibility check: the stated road length, or the line. */
+/**
+ * The distance used for the plausibility check, measured along the drawn
+ * route. If a stated road length is longer, that is used instead, so the check
+ * can only get stricter.
+ */
 export function driveMiles(spot: Spot): number {
-  return spot.miles ?? pathMiles(spot.path ?? []);
+  return Math.max(spot.miles ?? 0, pathMiles(spot.path ?? []));
+}
+
+/** The first gap between points that's too long to trust, if any (0-based index of the point before it). */
+export function longGap(points: LatLng[]): { index: number; miles: number } | null {
+  for (let i = 1; i < points.length; i++) {
+    const miles = milesBetween(points[i - 1], points[i]);
+    if (miles > MAX_POINT_GAP_MILES) return { index: i - 1, miles };
+  }
+  return null;
 }
 
 /** Generous: half an hour plus 6 minutes a mile (10 mph on average). */
@@ -190,6 +209,9 @@ export function draftProblem(d: SpotDraft, spots: Spot[]): string | null {
   const miles = pathMiles(d.points);
   if (miles < MIN_DRIVE_MILES) return `A drive needs to be at least ${MIN_DRIVE_MILES} mile long.`;
   if (miles > MAX_DRIVE_MILES) return `Keep drives under ${MAX_DRIVE_MILES} miles.`;
+  const gap = longGap(d.points);
+  if (gap)
+    return `Points ${gap.index + 1} and ${gap.index + 2} are ${gap.miles.toFixed(1)} mi apart. Add points along the road at least every ${MAX_POINT_GAP_MILES} mi, so the drive follows the road and can be checked fairly.`;
   return null;
 }
 

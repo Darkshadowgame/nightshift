@@ -1,6 +1,8 @@
 import type { BanZone, Build, ChatMessage, Crew, Mod, ModCategory, NightEvent, Spot, User } from '../lib/types';
 import { DEFAULT_FILTER } from '../lib/invites';
 import type { Vote } from '../lib/awards';
+import { eventArea } from '../lib/area';
+import { isPublicType } from '../lib/events';
 
 /**
  * Demo scene for Phase 1: a made-up Midlands crowd, real roads and venues.
@@ -149,10 +151,11 @@ const PEOPLE: Person[] = [
 ];
 
 const crewOf = (id: string) => PEOPLE.filter((p) => p.crew === id).map((p) => p.id);
+/** Each crew has an owner and a couple of hosts. You're a host in NightRunners, so you can run its events. */
 const CREWS: Crew[] = [
-  { id: 'nr', name: 'NightRunners', tag: 'NR', memberIds: crewOf('nr') },
-  { id: 'pk', name: 'Peak Chasers', tag: 'PKC', memberIds: crewOf('pk') },
-  { id: 'ts', name: 'Torque Street', tag: 'TQS', memberIds: crewOf('ts') },
+  { id: 'nr', name: 'NightRunners', tag: 'NR', memberIds: crewOf('nr'), ownerId: 'dan', hostIds: ['mo', ME] },
+  { id: 'pk', name: 'Peak Chasers', tag: 'PKC', memberIds: crewOf('pk'), ownerId: 'sully', hostIds: ['liv'] },
+  { id: 'ts', name: 'Torque Street', tag: 'TQS', memberIds: crewOf('ts'), ownerId: 'kez', hostIds: ['cal'] },
 ];
 
 function makeMods(buildId: string, specs: ModSpec[]): Mod[] {
@@ -233,8 +236,21 @@ function minutesFrom(now: Date, minutes: number): string {
   return new Date(now.getTime() + minutes * 60_000).toISOString();
 }
 
+/** Seed event ids: everything else in the events list was made on the phone. */
+export const SEED_EVENT_IDS = [
+  'ev-rolling-live', 'ev-rolling-host', 'ev-cruise-peak', 'ev-meet-tam', 'ev-bike-cat', 'ev-past-snowdome', 'ev-show-don', 'ev-track-curb',
+];
+
+/** Rough areas are worked out the same way as for events made in the app: fuzzed, never on a stop. */
+function withAreas(list: NightEvent[]): NightEvent[] {
+  return list.map((e) => {
+    const placed = e.stops.flatMap((st) => (st.at ? [st.at] : []));
+    return { ...e, ...eventArea(placed, e.id, isPublicType(e.type)) };
+  });
+}
+
 function events(now: Date): NightEvent[] {
-  return [
+  return withAreas([
     {
       id: 'ev-rolling-live', type: 'rolling', title: 'Lichfield rolling meet',
       description: 'Three spots, all planned in advance. Check in at each spot to get the next one.',
@@ -251,7 +267,7 @@ function events(now: Date): NightEvent[] {
     },
     {
       id: 'ev-rolling-host', type: 'rolling', title: 'NightRunners late one',
-      description: 'Crew-run rolling meet. Any NightRunners member can move it on.',
+      description: 'Crew-run rolling meet. NightRunners hosts move it on.',
       startsAt: minutesFrom(now, 30), endsAt: minutesFrom(now, 240),
       area: { lat: 52.63, lng: -1.69 }, areaName: 'Tamworth',
       stops: [
@@ -261,6 +277,7 @@ function events(now: Date): NightEvent[] {
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['mo'], crewId: 'nr',
       filter: { ...DEFAULT_FILTER, classes: ['S', 'A', 'B'], radiusMiles: 25 },
       going: ['mo', 'dan', 'aimee', 'priya', 'cal'], checkIns: {},
+      requests: ['ash'],
     },
     {
       id: 'ev-cruise-peak', type: 'cruise', title: 'Peak District night cruise',
@@ -274,10 +291,11 @@ function events(now: Date): NightEvent[] {
       currentStop: 0, revealMinutesBefore: 60, hostIds: [ME], crewId: 'nr',
       filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 60 },
       going: [ME, 'dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
+      requests: ['jord', 'nina'],
     },
     {
-      id: 'ev-meet-tam', type: 'meet', title: 'Retail park takeover',
-      description: 'S and A class only. Park up, no revving, leave clean.',
+      id: 'ev-meet-tam', type: 'meet', title: 'Late S/A meet',
+      description: 'S and A class only. Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: at(now, 5, 23, 0), area: { lat: 52.62, lng: -1.72 }, areaName: 'Tamworth',
       stops: [{ id: 'mt-1', name: 'Ventura Park, Tamworth', at: { lat: 52.6205, lng: -1.7265 } }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'], crewId: 'ts',
@@ -318,14 +336,14 @@ function events(now: Date): NightEvent[] {
     },
     {
       id: 'ev-track-curb', type: 'trackday', title: 'Curborough sprint evening',
-      description: 'Timed runs on the sprint course. Helmets required. Lap times go on the leaderboard.',
+      description: 'Sprint course evening run by the venue. Helmets required, noise limits apply. Book through the circuit.',
       startsAt: at(now, 9, 17, 30), endsAt: at(now, 9, 21, 0), area: { lat: 52.7097, lng: -1.8053 }, areaName: 'Lichfield',
       stops: [{ id: 'tc-1', name: 'Curborough Sprint Course', at: { lat: 52.7097, lng: -1.8053 } }],
       currentStop: 0, revealMinutesBefore: 0, hostIds: ['tom'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 80 },
       going: ['tom', 'ash', 'nina'], checkIns: {},
     },
-  ];
+  ]);
 }
 
 function chat(now: Date): ChatMessage[] {

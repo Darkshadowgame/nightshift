@@ -6,7 +6,10 @@ import {
   canVisit,
   DEMO_APPROVAL_MS,
   draftProblem,
+  driveMiles,
   judgeRun,
+  longGap,
+  MAX_POINT_GAP_MILES,
   makeSpot,
   NEW_RUN,
   pathMiles,
@@ -28,6 +31,19 @@ const PATH: LatLng[] = [
   { lat: 53.379, lng: -1.727 },
 ];
 const MILES = 12.4;
+
+/** The test path with extra points on each leg, as a person would drop them along the road. */
+function dense(path: LatLng[], per = 3): LatLng[] {
+  const out: LatLng[] = [path[0]];
+  for (let i = 1; i < path.length; i++) {
+    for (let k = 1; k <= per; k++) {
+      const f = k / per;
+      out.push({ lat: path[i - 1].lat + (path[i].lat - path[i - 1].lat) * f, lng: path[i - 1].lng + (path[i].lng - path[i - 1].lng) * f });
+    }
+  }
+  return out;
+}
+const DENSE = dense(PATH);
 
 function drive(overrides: Partial<Spot> = {}): Spot {
   return {
@@ -69,6 +85,20 @@ describe('drives', () => {
     const verdict = judgeRun(runAt(times), PATH, MILES);
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) expect(verdict.reason).not.toMatch(/\d/);
+  });
+
+  test('averaging over 45 mph along the drawn route fails; under it passes', () => {
+    const miles = pathMiles(PATH);
+    const at = (mph: number) => PATH.map((_, i) => t0 + (i * (miles / mph) * HOUR) / (PATH.length - 1));
+    // judge against the line itself (no stated length), as for a community drive
+    expect(judgeRun(runAt(at(50)), PATH, miles).ok).toBe(false);
+    expect(judgeRun(runAt(at(40)), PATH, miles).ok).toBe(true);
+  });
+
+  test('the distance for the check is along the route, and a longer stated length only makes it stricter', () => {
+    expect(driveMiles(drive({ miles: undefined }))).toBeCloseTo(pathMiles(PATH), 5);
+    expect(driveMiles(drive({ miles: 1 }))).toBeCloseTo(pathMiles(PATH), 5);
+    expect(driveMiles(drive({ miles: 99 }))).toBe(99);
   });
 
   test('missing a checkpoint fails', () => {
@@ -149,15 +179,24 @@ describe('suggestions', () => {
     expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: [PATH[0]] }, [])).toMatch(/start and a finish/);
     expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: [PATH[0], { lat: 53.4441, lng: -1.929 }] }, [])).toMatch(/at least/);
     expect(draftProblem({ kind: 'drive', name: 'Test drive', description: '', points: PATH }, [drive()])).toMatch(/already/);
-    expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: PATH }, [])).toBeNull();
+    expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: DENSE }, [])).toBeNull();
     expect(draftProblem({ kind: 'photo', name: 'New spot', description: '', points: [] }, [])).toMatch(/Long-press/);
   });
 
-  test('a new drive starts pending, with its length worked out', () => {
-    const { spot, warning } = makeSpot({ kind: 'drive', name: 'New road', description: '', points: PATH }, 'me', NOW, 'n1', [], zones);
+  test('drive points more than 1.5 mi apart are rejected with the reason', () => {
+    expect(longGap(PATH)).not.toBeNull();
+    expect(longGap(DENSE)).toBeNull();
+    const problem = draftProblem({ kind: 'drive', name: 'New road', description: '', points: PATH }, []);
+    expect(problem).toMatch(/Points 1 and 2 are .* mi apart/);
+    expect(problem).toContain(`${MAX_POINT_GAP_MILES} mi`);
+    expect(() => makeSpot({ kind: 'drive', name: 'New road', description: '', points: PATH }, 'me', NOW, 'n1', [], zones)).toThrow(/apart/);
+  });
+
+  test('a new drive starts pending, with its length measured along the route', () => {
+    const { spot, warning } = makeSpot({ kind: 'drive', name: 'New road', description: '', points: DENSE }, 'me', NOW, 'n1', [], zones);
     expect(spot.status).toBe('pending');
     expect(spot.authorId).toBe('me');
-    expect(spot.miles).toBeCloseTo(pathMiles(PATH), 1);
+    expect(spot.miles).toBeCloseTo(pathMiles(DENSE), 1);
     expect(warning).toBeUndefined();
   });
 
@@ -168,7 +207,7 @@ describe('suggestions', () => {
   });
 
   test('the demo approves suggestions after a short wait', () => {
-    const { spot } = makeSpot({ kind: 'drive', name: 'New road', description: '', points: PATH }, 'me', NOW, 'n1', [], zones);
+    const { spot } = makeSpot({ kind: 'drive', name: 'New road', description: '', points: DENSE }, 'me', NOW, 'n1', [], zones);
     expect(approveDue([spot], new Date(t0 + 1000))[0].status).toBe('pending');
     expect(approveDue([spot], new Date(t0 + DEMO_APPROVAL_MS))[0].status).toBe('approved');
   });

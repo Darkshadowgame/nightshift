@@ -16,6 +16,12 @@ export const REGIONS: { name: string; centre: LatLng }[] = [
   { name: 'Northern Ireland', centre: { lat: 54.6, lng: -6.3 } },
 ];
 
+/** The region whose centre is closest: a sensible default name for an event's area. */
+export function nearestRegion(p: LatLng): string {
+  const d = (r: LatLng) => (r.lat - p.lat) ** 2 + ((r.lng - p.lng) * Math.cos((p.lat * Math.PI) / 180)) ** 2;
+  return [...REGIONS].sort((a, b) => d(a.centre) - d(b.centre))[0].name;
+}
+
 export function regionCentre(region: string): LatLng {
   return (REGIONS.find((r) => r.name === region) ?? REGIONS[0]).centre;
 }

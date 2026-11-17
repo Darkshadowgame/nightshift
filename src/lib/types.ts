@@ -64,7 +64,13 @@ export interface Crew {
   name: string;
   tag: string;
   memberIds: string[];
+  /** Who started the crew. Owners pick the crew's hosts. */
+  ownerId?: string;
+  /** Members the owner has made hosts. Only the owner and hosts host crew events. */
+  hostIds?: string[];
 }
+
+export type CrewRole = 'owner' | 'host' | 'member';
 
 export type EventType = 'cruise' | 'rolling' | 'meet' | 'show' | 'trackday';
 
@@ -97,8 +103,10 @@ export interface NightEvent {
   description?: string;
   startsAt: string;
   endsAt?: string;
-  /** Approximate area shown to invited people before the reveal. */
+  /** Rough area shown to invited people before the reveal. Fuzzed: never on a stop (see area.ts). */
   area: LatLng;
+  /** Radius of the rough-area circle. Contains every stop, at least 3 mi. */
+  areaRadiusMiles?: number;
   areaName: string;
   stops: Stop[];
   /** Rolling meets: the index of the stop the meet is at now. */
@@ -111,6 +119,10 @@ export interface NightEvent {
   /** userId -> stop ids checked in at. */
   checkIns: Record<string, string[]>;
   cancelled?: boolean;
+  /** People who don't match the invite and asked to go. Hosts approve or decline. */
+  requests?: string[];
+  /** Requests a host declined. */
+  declined?: string[];
   /** Length of a cruise route, for display. */
   routeMiles?: number;
   /** Changes hosts made to the plan (rolling meets on the night, and edits). Only hosts see this. */

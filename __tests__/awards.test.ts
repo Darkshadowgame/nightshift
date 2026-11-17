@@ -52,6 +52,13 @@ describe('voting', () => {
     expect(cats).toEqual(expect.arrayContaining(['best-in-show', 'best-car', 'best-bike', 'stance', 'newcomer']));
     expect(cats.some((c) => c.startsWith('class-'))).toBe(false); // fewer than 12 people
   });
+
+  test('best car and best bike only when both turn up, the same rule for each', () => {
+    const carsOnly = { ...event, checkIns: { u1: ['s'], u2: ['s'], u3: ['s'] } };
+    const bikesOnly = { ...event, checkIns: { u4: ['s'], u5: ['s'] } };
+    expect(categoriesFor(carsOnly, builds)).not.toContain('best-car');
+    expect(categoriesFor(bikesOnly, builds)).not.toContain('best-bike');
+  });
 });
 
 describe('results', () => {

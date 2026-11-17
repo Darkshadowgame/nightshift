@@ -1,3 +1,4 @@
+import { isCrewHost } from './crews';
 import { milesBetween } from './geo';
 import type { BanZone, ChatMessage, Crew, EventType, LatLng, NightEvent, PlanChangeLog, Stop } from './types';
 
@@ -19,11 +20,44 @@ export function isPublicType(type: EventType): boolean {
 
 export function isHost(event: NightEvent, userId: string, crews: Crew[]): boolean {
   if (event.hostIds.includes(userId)) return true;
-  if (event.crewId) {
-    const crew = crews.find((c) => c.id === event.crewId);
-    if (crew?.memberIds.includes(userId)) return true;
-  }
+  // Crew events: only the crew's owner and hosts. Joining a crew makes you a plain member.
+  if (event.crewId) return isCrewHost(crews.find((c) => c.id === event.crewId), userId);
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// Going, and requests from people the invite doesn't cover
+// ---------------------------------------------------------------------------
+
+/**
+ * Tap "I'm going" / "Request to go". People the invite covers (or anyone, for
+ * public events) go straight in. Anyone else only adds a request, which a host
+ * approves or declines. Requests are never approved automatically.
+ */
+export function rsvp(event: NightEvent, userId: string, eligible: boolean): NightEvent {
+  if (event.going.includes(userId)) return event;
+  if (eligible) return { ...event, going: [...event.going, userId], requests: (event.requests ?? []).filter((r) => r !== userId) };
+  if (event.declined?.includes(userId)) throw new Error('A host has already said no to this one.');
+  if (event.requests?.includes(userId)) return event;
+  return { ...event, requests: [...(event.requests ?? []), userId] };
+}
+
+export function dropOut(event: NightEvent, userId: string): NightEvent {
+  return { ...event, going: event.going.filter((u) => u !== userId), requests: (event.requests ?? []).filter((r) => r !== userId) };
+}
+
+export function hasRequested(event: NightEvent, userId: string): boolean {
+  return !!event.requests?.includes(userId);
+}
+
+/** A host approves (they're going) or declines (they can't ask again). */
+export function answerRequest(event: NightEvent, hostId: string, crews: Crew[], userId: string, approve: boolean): NightEvent {
+  if (!isHost(event, hostId, crews)) throw new Error('Only hosts can answer requests.');
+  if (!event.requests?.includes(userId)) throw new Error('That request has gone.');
+  const requests = event.requests.filter((r) => r !== userId);
+  return approve
+    ? { ...event, requests, going: Array.from(new Set([...event.going, userId])) }
+    : { ...event, requests, declined: Array.from(new Set([...(event.declined ?? []), userId])) };
 }
 
 export function revealTime(event: NightEvent): Date {

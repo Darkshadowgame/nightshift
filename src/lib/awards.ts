@@ -87,7 +87,7 @@ export function categoriesFor(event: NightEvent, builds: Build[]): AwardCategory
   const cars = cands.filter((b) => b.kind === 'car').length;
   const bikes = cands.filter((b) => b.kind === 'bike').length;
   if (cars >= 2 && bikes >= 1) cats.push('best-car');
-  if (bikes >= 2) cats.push('best-bike');
+  if (bikes >= 2 && cars >= 1) cats.push('best-bike');
   if (attendeeIds(event).length >= CLASS_AWARDS_MIN_ATTENDEES) {
     for (const letter of ['S', 'A', 'B', 'C', 'D'] as ClassLetter[]) {
       if (cands.filter((b) => classOf(b) === letter).length >= 2) cats.push(`class-${letter}`);

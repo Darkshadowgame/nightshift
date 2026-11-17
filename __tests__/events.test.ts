@@ -4,7 +4,7 @@ import type { Build, Crew, NightEvent, User } from '../src/lib/types';
 
 const NOW = new Date('2026-11-20T22:00:00Z');
 const mins = (m: number) => new Date(NOW.getTime() + m * 60_000).toISOString();
-const crews: Crew[] = [{ id: 'c1', name: 'Crew', tag: 'C', memberIds: ['crewmate'] }];
+const crews: Crew[] = [{ id: 'c1', name: 'Crew', tag: 'C', memberIds: ['crewmate', 'plain'], ownerId: 'crewmate', hostIds: [] }];
 
 function rolling(overrides: Partial<NightEvent> = {}): NightEvent {
   return {
@@ -28,9 +28,11 @@ describe('rolling meets', () => {
     expect(canSeeStop(e, 0, 'stranger', crews, new Date(NOW.getTime() + 31 * 60_000))).toBe(false);
   });
 
-  test('hosts, including crew members, see every planned stop', () => {
+  test('hosts, including the crew owner, see every planned stop; plain crew members do not host', () => {
     const e = rolling();
     expect(isHost(e, 'crewmate', crews)).toBe(true);
+    expect(isHost(e, 'plain', crews)).toBe(false);
+    expect(canSeeStop(e, 1, 'plain', crews, NOW)).toBe(false);
     expect(canSeeStop(e, 1, 'host', crews, NOW)).toBe(true);
     expect(canSeeStop(e, 1, 'crewmate', crews, NOW)).toBe(true);
     expect(canSeeStop(e, 2, 'host', crews, NOW)).toBe(false); // no place yet
