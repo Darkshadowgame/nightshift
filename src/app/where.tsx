@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Keyboard, ScrollView, TextInput, View } from 'react-native';
 import { NavLaunch } from '../components/NavLaunch';
@@ -32,7 +33,9 @@ const SLOTS: SavedSlot[] = ['home', 'work'];
 export default function WhereTo() {
   const { settings, updatePlaces } = useStore();
   const places = savedPlaces(settings.places);
-  const [text, setText] = useState('');
+  // Find can hand over what was typed there (`q`).
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [text, setText] = useState(typeof q === 'string' ? q : '');
   const [hits, setHits] = useState<Destination[]>([]);
   const [state, setState] = useState<'idle' | 'searching' | 'none' | 'error'>('idle');
   const [error, setError] = useState('');

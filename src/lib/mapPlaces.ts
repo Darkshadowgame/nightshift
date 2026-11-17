@@ -22,6 +22,12 @@ import type { LatLng, Spot, SpotKind } from './types';
 
 /** Above this span (degrees of latitude shown), places are grouped into count pins. */
 export const CLUSTER_SPAN = 1.0;
+/**
+ * Above this span (about the size of Wales), groups mix every kind of place
+ * into one count ("23 places"), so the whole UK reads as a few dozen regional
+ * counts instead of four coloured pins per region.
+ */
+export const MIXED_SPAN = 2;
 /** Grid cells across the view's height when grouping; cells are square-ish on the ground. */
 export const CLUSTER_CELLS = 4;
 /** At most this many pins of one kind when zoomed in. */
@@ -37,6 +43,8 @@ export interface PlaceCluster {
   kind: SpotKind;
   at: LatLng;
   count: number;
+  /** Mixed kinds (zoomed far out): `kind` is then the most common one. */
+  mixed?: boolean;
   /** Where to zoom to when it's tapped: fits every member. */
   zoomCentre: LatLng;
   zoomSpan: number;
@@ -124,11 +132,12 @@ export function placesForView(all: readonly Spot[], centre: LatLng, span: number
   if (span > CLUSTER_SPAN) {
     const size = cellSize(span);
     const maxKm = maxClusterKm(span);
+    const mixed = span > MIXED_SPAN;
     const cells = new Map<string, Spot[]>();
     for (const s of inView) {
       if (s.id === selectedId) continue;
       // Kind, island and grid cell: Northern Ireland, the Isle of Wight and the other islands never share a group with the mainland.
-      const key = `${s.kind}:${landmassOf(s.at)}:${Math.floor(s.at.lat / size)}_${Math.floor(s.at.lng / (size * 1.6))}`;
+      const key = `${mixed ? 'all' : s.kind}:${landmassOf(s.at)}:${Math.floor(s.at.lat / size)}_${Math.floor(s.at.lng / (size * 1.6))}`;
       const list = cells.get(key);
       if (list) list.push(s);
       else cells.set(key, [s]);
@@ -143,9 +152,13 @@ export function placesForView(all: readonly Spot[], centre: LatLng, span: number
         }
         const at = medoid(group);
         const fit = fitRegion(group.map((s) => s.at))!;
+        const kinds = new Map<SpotKind, number>();
+        for (const s of group) kinds.set(s.kind, (kinds.get(s.kind) ?? 0) + 1);
+        const kind = [...kinds.entries()].sort((a, b) => b[1] - a[1])[0][0];
         clusters.push({
           id: `cl:${key}:${at.id}`,
-          kind: group[0].kind,
+          kind,
+          ...(mixed && kinds.size > 1 ? { mixed: true } : {}),
           at: at.at,
           count: group.length,
           zoomCentre: fit.centre,

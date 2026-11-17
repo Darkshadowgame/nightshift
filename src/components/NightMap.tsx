@@ -86,7 +86,7 @@ const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export const NightMap = memo(function NightMap({
   ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
-  onRegion, credit,
+  onRegion, credit, compass,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
   /** The last region the map settled on, for the handle's region(). */
@@ -137,7 +137,8 @@ export const NightMap = memo(function NightMap({
       // Traffic lines (red and amber) compete with cameras and events on a night map.
       showsTraffic={false}
       showsPointsOfInterests={false}
-      showsCompass={false}
+      showsCompass={!!compass}
+      compassOffset={compass}
       pitchEnabled={false}
       onLongPress={onLongPress ? (e) => onLongPress({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude }) : undefined}
     >

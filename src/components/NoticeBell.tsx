@@ -14,7 +14,7 @@ export function BellIcon({ colour = C.chalk, size = 22 }: { colour?: string; siz
 }
 
 /** Bell with an unread count. Opens the notifications list. */
-export function NoticeBell({ boxed }: { boxed?: boolean }) {
+export function NoticeBell({ boxed, size = 44 }: { boxed?: boolean; size?: number }) {
   const { notices } = useStore();
   const unread = notices.filter((n) => !n.read).length;
   return (
@@ -24,7 +24,7 @@ export function NoticeBell({ boxed }: { boxed?: boolean }) {
       accessibilityRole="button"
       accessibilityLabel={unread > 0 ? `Notifications, ${unread} new` : 'Notifications'}
       style={({ pressed }) => [
-        { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+        { width: size, height: size, alignItems: 'center', justifyContent: 'center' },
         // On the map: the same 44 pt rounded square as every map button.
         boxed && { backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.card },
         pressed && { opacity: 0.8 },

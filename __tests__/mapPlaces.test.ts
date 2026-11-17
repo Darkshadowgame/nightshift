@@ -1,4 +1,4 @@
-import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, maxClusterKm, medoid, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
+import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, MIXED_SPAN, maxClusterKm, medoid, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
 import { landmassOf } from '../src/lib/landmass';
 import { bundledSpots } from '../src/lib/placeStore';
 import type { LatLng, Spot } from '../src/lib/types';
@@ -127,7 +127,7 @@ describe('groups stay on land (medoid, landmass, radius cap)', () => {
     for (const span of SPANS) {
       const v = placesForView(all, UK, span);
       for (const c of v.clusters) {
-        const members = all.filter((s) => s.kind === c.kind && s.at.lat === c.at.lat && s.at.lng === c.at.lng);
+        const members = all.filter((s) => (c.mixed || s.kind === c.kind) && s.at.lat === c.at.lat && s.at.lng === c.at.lng);
         expect(members.length).toBeGreaterThan(0);
         expect(c.zoomSpan).toBeLessThan(span);
       }
@@ -147,9 +147,16 @@ describe('groups stay on land (medoid, landmass, radius cap)', () => {
           v.clusters.filter((c) => landmassOf(c.at) === land).reduce((n, c) => n + c.count, 0);
         expect(shown).toBe(expected);
       }
-      // A readable number of markers for the whole UK: regional counts, not hundreds of pins.
-      expect(v.places.length + v.clusters.length).toBeLessThan(110);
+      // A readable number of markers for the whole UK: regional counts of every kind together, not hundreds of pins.
+      expect(v.places.length + v.clusters.length).toBeLessThan(45);
     }
+  });
+
+  test('zoomed far out, kinds share one count; closer in, each kind keeps its own', () => {
+    const far = placesForView(all, UK, MIXED_SPAN * 3);
+    expect(far.clusters.some((c) => c.mixed)).toBe(true);
+    const near = placesForView(all, { lat: 52.6, lng: -1.7 }, MIXED_SPAN);
+    expect(near.clusters.every((c) => !c.mixed)).toBe(true);
   });
 
   test('medoid: the member nearest the centre, not the centre', () => {
