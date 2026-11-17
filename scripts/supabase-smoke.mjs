@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * End-to-end smoke test against the HOSTED Supabase project, as two real
- * signed-in users talking to the same API the app uses (publishable key + JWT).
+ * End-to-end smoke test against the HOSTED Supabase project, as real signed-in
+ * users talking to the same API the app uses (publishable key + JWT): two for
+ * everything, and a third for road reports (two confirmations).
  *
  *   set -a; . ~/.config/homelab-secrets.env; set +a
  *   node scripts/supabase-smoke.mjs
@@ -89,9 +90,10 @@ async function until(fn, ms = 10_000) {
   return fn();
 }
 
-const made = { eventId: null, spotId: null, crewId: null, photoPath: null };
+const made = { eventId: null, spotId: null, crewId: null, photoPath: null, roadIds: [] };
 let A;
 let B;
+let C;
 
 async function main() {
   // --- Users -----------------------------------------------------------------
@@ -244,6 +246,74 @@ async function main() {
   check('notices: B has notices and marks them read', (noticesB ?? []).length > 0 && readB.every((n) => n.read_at), `${noticesB?.length} notices`);
   const { error: fbErr } = await B.client.from('feedback').insert({ kind: 'idea', message: `smoke test ${RUN}`, screen: 'smoke', app_version: 'smoke', device: 'node' });
   check('feedback: insert without select', !fbErr, fbErr?.message);
+
+  await roadReports();
+}
+
+// --- Road reports ------------------------------------------------------------------
+// Off the M6 near Birmingham. A reports a crash, C a police check; B listens on Realtime.
+async function roadReports() {
+  C = await makeUser('c');
+  const at = { lat: 52.5201, lng: -1.8501 };
+  const heard = [];
+  const ch = B.client
+    .channel(`roads:${RUN}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'road_reports' }, (p) => heard.push(p));
+  let status = '';
+  ch.subscribe((x) => (status = x));
+  await until(() => status === 'SUBSCRIBED', 15_000);
+  check('road reports: B listens to road_reports on Realtime', status === 'SUBSCRIBED', status);
+  await wait(1500);
+
+  const crash = await rpc(A, 'report_road', { p_kind: 'crash', p_lat: at.lat, p_lng: at.lng, p_heading: 90, p_from_lat: at.lat + 0.001, p_from_lng: at.lng });
+  made.roadIds.push(crash.id);
+  check('report_road: A reports a crash from where they are', !!crash.id && crash.merged === false);
+  const again = await rpcError(A, 'report_road', { p_kind: 'hazard', p_lat: at.lat, p_lng: at.lng, p_from_lat: at.lat, p_from_lng: at.lng });
+  check('report_road: one report every 2 minutes', again === "You've just sent a report. Try again in a couple of minutes.", again ?? 'no error');
+  const far = await rpcError(C, 'report_road', { p_kind: 'hazard', p_lat: at.lat, p_lng: at.lng, p_from_lat: at.lat + 0.05, p_from_lng: at.lng });
+  check('report_road: only within half a mile of where you are', far === 'You can only report within half a mile of where you are.', far ?? 'no error');
+  const police = await rpc(C, 'report_road', { p_kind: 'police', p_lat: at.lat + 0.004, p_lng: at.lng, p_from_lat: at.lat + 0.004, p_from_lng: at.lng });
+  made.roadIds.push(police.id);
+
+  await until(() => heard.some((p) => p.new?.id === crash.id), 15_000);
+  await wait(3000);
+  const crashEvent = heard.find((p) => p.new?.id === crash.id);
+  check('realtime: B hears the crash report', !!crashEvent, `${heard.length} events`);
+  check('realtime: the payload never says who reported it', crashEvent && !('created_by' in crashEvent.new), crashEvent ? Object.keys(crashEvent.new).join(',') : '');
+  check('realtime: the police report never goes out on Realtime', !heard.some((p) => p.new?.id === police.id || p.new?.kind === 'police'));
+  await B.client.removeChannel(ch);
+
+  const mapB = await rpc(B, 'road_reports_near', { p_lat: at.lat, p_lng: at.lng, p_radius_mi: 5, p_context: 'map' });
+  const driveB = await rpc(B, 'road_reports_near', { p_lat: at.lat, p_lng: at.lng, p_radius_mi: 5, p_context: 'driving' });
+  check('road_reports_near (map): the crash, never police', mapB.some((r) => r.id === crash.id) && !mapB.some((r) => r.kind === 'police'));
+  check('road_reports_near (driving): police included', driveB.some((r) => r.id === police.id && r.kind === 'police'));
+  const { data: direct } = await B.client.from('road_reports').select('id,kind').in('id', [crash.id, police.id]);
+  check('road_reports table: B reads the crash but not the police report', direct?.length === 1 && direct[0].id === crash.id, JSON.stringify(direct));
+  const { error: whoErr } = await B.client.from('road_reports').select('created_by').eq('id', crash.id);
+  check("road_reports table: nobody reads who reported it", !!whoErr, whoErr?.message);
+
+  const own = await rpcError(A, 'vote_road_report', { p_report_id: crash.id, p_vote: 'still_there', p_lat: at.lat, p_lng: at.lng });
+  check('vote_road_report: not on your own report', own === "You can't confirm your own report.", own ?? 'no error');
+  const tooFar = await rpcError(B, 'vote_road_report', { p_report_id: crash.id, p_vote: 'still_there', p_lat: at.lat + 0.05, p_lng: at.lng });
+  check('vote_road_report: within a mile of the report', tooFar === 'You need to be within a mile of the report to answer.', tooFar ?? 'no error');
+  await rpc(B, 'vote_road_report', { p_report_id: crash.id, p_vote: 'still_there', p_lat: at.lat, p_lng: at.lng });
+  const twice = await rpcError(B, 'vote_road_report', { p_report_id: crash.id, p_vote: 'gone', p_lat: at.lat, p_lng: at.lng });
+  check('vote_road_report: one answer each', twice === "You've already answered for this one.", twice ?? 'no error');
+  const repBefore = await rpc(A, 'road_rep_for', { p_user_ids: [A.id] });
+  check('rep: nothing for the reporter after one confirmation', repBefore[0]?.rep === 0, JSON.stringify(repBefore));
+  const second = await rpc(C, 'vote_road_report', { p_report_id: crash.id, p_vote: 'still_there', p_lat: at.lat, p_lng: at.lng });
+  check('vote_road_report: a second driver confirms', second.confirm_count === 2 && second.status === 'active');
+  const repAfter = await rpc(B, 'road_rep_for', { p_user_ids: [A.id, B.id, C.id] });
+  const byUser = Object.fromEntries(repAfter.map((r) => [r.user_id, r]));
+  check('rep: +10 to the reporter once two others confirm, +2 to each who answered',
+    byUser[A.id]?.reported_rep === 10 && byUser[A.id]?.reports_confirmed === 1 && byUser[B.id]?.checked_rep === 2 && byUser[C.id]?.checked_rep === 2,
+    JSON.stringify(repAfter.map((r) => [r.reports_confirmed, r.reported_rep, r.reports_checked, r.checked_rep])));
+
+  const closures = await rpc(B, 'road_closures_near', { p_lat: 51.5074, p_lng: -0.1278, p_radius_mi: 15 });
+  check('road_closures_near: answers (open-data closures in London)', Array.isArray(closures), `${closures.length} in force`);
+  const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error: anonErr } = await anon.rpc('road_reports_near', { p_lat: at.lat, p_lng: at.lng, p_radius_mi: 5, p_context: 'driving' });
+  check('road_reports_near: refused signed out', !!anonErr, anonErr?.message);
 }
 
 async function cleanup() {
@@ -255,10 +325,10 @@ async function cleanup() {
   } catch (e) {
     check('storage cleanup', false, e.message);
   }
-  for (const u of [A, B]) {
+  for (const [label, u] of [['A', A], ['B', B], ['C', C]]) {
     if (!u) continue;
     const err = await rpcError(u, 'delete_my_account', {});
-    check(`delete_my_account (${u === A ? 'A' : 'B'})`, !err, err ?? '');
+    check(`delete_my_account (${label})`, !err, err ?? '');
   }
   // Sweep: the event (cancelled when A left, but still a row), the place, the feedback line, the users.
   await sql(`
@@ -266,14 +336,18 @@ async function cleanup() {
     delete from public.spots where name like 'Smoke spot %';
     delete from public.crews where name like 'Smoke %';
     delete from public.feedback where message like 'smoke test %';
+    delete from public.road_reports where id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[]);
     delete from auth.users where email like '%@${DOMAIN}';`);
   const [left] = await sql(`select
     (select count(*) from auth.users where email like '%@${DOMAIN}') users,
     (select count(*) from public.events where title like 'Smoke test %') events,
     (select count(*) from public.spots where name like 'Smoke spot %') spots,
     (select count(*) from public.feedback where message like 'smoke test %') feedback,
-    (select count(*) from storage.objects where bucket_id = 'photos' and name like ${lit(`${A?.id ?? 'none'}/%`)}) files`);
-  check('cleanup: no test users, events, places, feedback or files left', Object.values(left).every((n) => Number(n) === 0), JSON.stringify(left));
+    (select count(*) from storage.objects where bucket_id = 'photos' and name like ${lit(`${A?.id ?? 'none'}/%`)}) files,
+    (select count(*) from public.road_reports where id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_reports,
+    (select count(*) from public.road_report_votes where report_id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_votes,
+    (select count(*) from public.road_rep where report_id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_rep`);
+  check('cleanup: no test users, events, places, feedback, files or road reports left', Object.values(left).every((n) => Number(n) === 0), JSON.stringify(left));
 }
 
 try {
