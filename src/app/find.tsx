@@ -1,9 +1,9 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { EventCard } from '../components/EventCard';
 import { Pin } from '../components/Pin';
-import { Card, Chip, EmptyState, LinkText, Notice, Row, Section, Txt, s as ui } from '../components/ui';
+import { Card, Chip, EmptyState, LinkText, ListRow, Notice, Row, Section, Segmented, Txt, s as ui } from '../components/ui';
 import {
   ALL_TYPES,
   defaultFilters,
@@ -21,23 +21,54 @@ import {
 import { EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
 import { plural } from '../lib/format';
-import { fuzz } from '../lib/geo';
+import { formatMiles, fuzz, milesBetween } from '../lib/geo';
+import { PLACE_NAMES } from '../lib/glossary';
+import { visibleSpots } from '../lib/spots';
 import { currentPosition } from '../lib/location';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import type { LatLng } from '../lib/types';
-import { BRAND } from '../theme';
+import { BRAND, C, EVENT_COLOURS, SPOT_COLOURS } from '../theme';
 
 const WHENS: When[] = ['any', 'tonight', 'week', 'weekend'];
 const VEHICLES: Vehicles[] = ['any', 'cars', 'bikes'];
+type Tab = 'all' | 'events' | 'places' | 'people';
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'events', label: 'Events' },
+  { key: 'places', label: 'Places' },
+  { key: 'people', label: 'People' },
+];
+
+/** Lower case, no accents or punctuation, for matching what's typed. */
+function norm(t: string): string {
+  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9@ ]+/g, ' ').trim();
+}
+function matches(q: string, ...fields: (string | undefined)[]): boolean {
+  const words = norm(q).split(/\s+/).filter(Boolean);
+  const hay = norm(fields.filter(Boolean).join(' '));
+  return words.every((w) => hay.includes(w.replace(/^@/, '')));
+}
+/** Back to the map, centred on what was picked, with it open in the sheet. */
+function showOnMap(focus: string) {
+  router.dismissTo({ pathname: '/', params: { focus, t: String(Date.now()) } });
+}
 
 /**
- * Find: "Where to?" (any address or place, then turn by turn: where.tsx) at
- * the top, then events: every upcoming event you can see, nearest first. Locked events
- * only ever show their rough area; the distance is to that area, never a stop.
+ * Find, the map's search (MAP-REDESIGN.md): one field for events, places,
+ * people and addresses, with All / Events / Places / People tabs. Typed
+ * results for events and places go back to the map and open there; people
+ * open their profile; an address goes to Where to? (where.tsx). With nothing
+ * typed: "Where to?" and every upcoming event you can see, nearest first.
+ * Locked events only ever show their rough area; the distance is to that
+ * area, never a stop.
  */
 export default function FindEvents() {
-  const { events, me, crews, users, builds, nearby, markNearbySeen, remote } = useStore();
+  const { events, me, crews, users, builds, nearby, markNearbySeen, remote, spots } = useStore();
+  const params = useLocalSearchParams<{ focus?: string }>();
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<Tab>('all');
+  const typed = norm(query).length >= 2;
   const now = useNow();
   const meUser = users.find((u) => u.id === me)!;
   const travel = travelOf(meUser);
@@ -109,8 +140,111 @@ export default function FindEvents() {
   const changed =
     filters.maxMiles !== travel.miles || filters.types.length > 0 || filters.when !== 'any' || filters.canGoOnly || filters.vehicles !== 'any' || useHere;
 
+  // Typed search: events (title, area, kind), places (name, region, kind) and people (name, @handle).
+  const found = useMemo(() => {
+    if (!typed) return { events: [], places: [], people: [] };
+    const eventHits = hits.filter((h) =>
+      matches(query, h.view.event.title, h.view.event.areaName, EVENT_LABELS[h.view.event.type], h.view.shownStop >= 0 ? h.view.event.stops[h.view.shownStop].name : undefined),
+    );
+    const placeHits = visibleSpots(spots, me)
+      .filter((s) => matches(query, s.name, s.region, PLACE_NAMES[s.kind].one))
+      .map((s) => ({ s, miles: milesBetween(origin, s.at) }))
+      .sort((a, b) => a.miles - b.miles);
+    const people = users.filter((u) => u.id !== me && matches(query, u.name, u.handle));
+    return { events: eventHits, places: placeHits, people };
+  }, [typed, query, hits, spots, me, users, origin]);
+  const cap = (n: number) => (tab === 'all' ? n : 50);
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <View style={{ gap: 10 }}>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Events, places, people or an address"
+          placeholderTextColor={C.fog}
+          autoFocus={params.focus === '1'}
+          autoCorrect={false}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          style={[ui.input, { minHeight: 48 }]}
+          accessibilityLabel="Search events, places, people or an address"
+        />
+        <Segmented options={TABS} value={tab} onChange={setTab} />
+      </View>
+      {typed ? (
+        <>
+          {(tab === 'all' || tab === 'events') ? (
+            <Section title={plural(found.events.length, 'event')}>
+              {found.events.length === 0 ? <Txt v="muted">No events match. Try Change the search below for wider filters.</Txt> : null}
+              {found.events.slice(0, cap(4)).map((h) => (
+                <ListRow
+                  key={h.view.event.id}
+                  glyph={h.view.shownStop >= 0 ? h.view.event.type : 'locked'}
+                  colour={EVENT_COLOURS[h.view.event.type]}
+                  title={h.view.event.title}
+                  subtitle={[EVENT_LABELS[h.view.event.type], hitNote(h, useHere)].join(' · ')}
+                  onPress={() => showOnMap(`ev:${h.view.event.id}`)}
+                  accessibilityLabel={`${h.view.event.title}. ${hitNote(h, useHere)}. Show on the map`}
+                />
+              ))}
+              {tab === 'all' && found.events.length > 4 ? <LinkText label={`All ${found.events.length} events ›`} onPress={() => setTab('events')} /> : null}
+            </Section>
+          ) : null}
+          {(tab === 'all' || tab === 'places') ? (
+            <Section title={plural(found.places.length, 'place')}>
+              {found.places.length === 0 ? <Txt v="muted">No drives, photo spots, tracks or meet spots by that name.</Txt> : null}
+              {found.places.slice(0, cap(4)).map(({ s, miles }) => (
+                <ListRow
+                  key={s.id}
+                  glyph={s.kind}
+                  colour={SPOT_COLOURS[s.kind]}
+                  title={s.name}
+                  subtitle={[PLACE_NAMES[s.kind].one, s.region, formatMiles(miles)].filter(Boolean).join(' · ')}
+                  onPress={() => showOnMap(`sp:${s.id}`)}
+                  accessibilityLabel={`${s.name}, ${PLACE_NAMES[s.kind].one}. Show on the map`}
+                />
+              ))}
+              {tab === 'all' && found.places.length > 4 ? <LinkText label={`All ${found.places.length} places ›`} onPress={() => setTab('places')} /> : null}
+            </Section>
+          ) : null}
+          {(tab === 'all' || tab === 'people') ? (
+            <Section title={plural(found.people.length, 'person', 'people')}>
+              {found.people.length === 0 ? <Txt v="muted">Nobody by that name or handle.</Txt> : null}
+              {found.people.slice(0, cap(4)).map((u) => (
+                <ListRow
+                  key={u.id}
+                  glyph="me"
+                  colour={C.chalk}
+                  title={u.name}
+                  subtitle={`@${u.handle}`}
+                  onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
+                  accessibilityLabel={`${u.name}, @${u.handle}. Open profile`}
+                />
+              ))}
+              {tab === 'all' && found.people.length > 4 ? <LinkText label={`All ${found.people.length} people ›`} onPress={() => setTab('people')} /> : null}
+            </Section>
+          ) : null}
+          {tab === 'all' ? (
+            <Section title="Address or place">
+              <ListRow
+                glyph="destination"
+                colour={BRAND}
+                title={`Search addresses for “${query.trim()}”`}
+                subtitle="Where to? Any address, postcode or place, then drive there"
+                onPress={() => router.push({ pathname: '/where', params: { q: query.trim() } })}
+                accessibilityLabel={`Search addresses for ${query.trim()} in Where to`}
+              />
+            </Section>
+          ) : null}
+        </>
+      ) : null}
+      {typed || tab === 'people' || tab === 'places' ? (
+        !typed ? (
+          <Txt v="muted">{tab === 'people' ? 'Type a name or @handle.' : 'Type the name of a drive, photo spot, track or meet spot, or a region.'}</Txt>
+        ) : null
+      ) : (
+      <>
       <Pressable
         onPress={() => router.push('/where')}
         accessibilityRole="button"
@@ -205,6 +339,8 @@ export default function FindEvents() {
           ))
         )}
       </Section>
+      </>
+      )}
       <View style={{ height: 8 }} />
     </ScrollView>
   );

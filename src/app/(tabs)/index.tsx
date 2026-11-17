@@ -1,11 +1,13 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { areaRadius } from '../../lib/area';
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
 import { Pin, type Glyph } from '../../components/Pin';
-import { LayerBar } from '../../components/LayerBar';
+import { LayersPanel } from '../../components/LayersPanel';
+import { detentTops, MapSheet, type Detent } from '../../components/MapSheet';
 import { MapWidgetSlot } from '../../components/MapWidgetSlot';
 import Svg, { Path } from 'react-native-svg';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
@@ -14,13 +16,13 @@ import { nearestPoints, placesForView, regionKey } from '../../lib/mapPlaces';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
-import { Button, Card, LinkText, Row, Tag, Txt } from '../../components/ui';
+import { Button, LinkText, ListRow, Notice, Row, Tag, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
 import { plural } from '../../lib/format';
 import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
-import { fitRegion } from '../../lib/geo';
+import { fitRegion, formatMiles } from '../../lib/geo';
 import { currentPosition } from '../../lib/location';
 import type { LatLng, SpotKind } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
@@ -41,33 +43,14 @@ import { milesBetween } from '../../lib/geo';
 import { answerProblem, confirmations, KIND_INFO, reportAge, sourceCredit, type RoadReport, type RoadVote } from '../../lib/roadReports';
 import { useRoadReports, useRoads } from '../../lib/roadStore';
 import { openPlaceLabel, PLACE_NAMES, roleLabel, roleTone, UNLOCK } from '../../lib/glossary';
-import { layerOn, mapChrome, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
+import { ALL_LAYERS, CORE_LAYERS, layerOn, toggleLayer as toggledLayer, type CoreLayer, type Layer } from '../../lib/mapLayers';
 import { BRAND, C, EVENT_COLOURS, F, FONT_SCALE, LAYER, PARTNER_COLOUR, RADIUS, ROAD_COLOUR, SHOP_COLOUR, SPOT_COLOURS, STATE, SURFACE, TYPE } from '../../theme';
 
-/** The layer bar: the core layers only, in order (mapLayers.ts saves them). */
-const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
-  { key: 'events', label: 'Events', glyph: 'meet', colour: LAYER.event },
-  { key: 'photo', label: 'Photos', glyph: 'photo', colour: LAYER.photo },
-  { key: 'drive', label: PLACE_NAMES.drive.many, glyph: 'drive', colour: LAYER.drive },
-  { key: 'track', label: PLACE_NAMES.track.many, glyph: 'track', colour: LAYER.track },
-];
-/**
- * The layers button (under locate-me) holds the rest: meet spots, and the
- * background layers kept in settings and off by default, Shops (with its kinds),
- * Speed cameras and Road reports. Ban zones aren't a map layer: they show where
- * you host. Road reports here never include police: those are only in the
- * driving view (roadReports.ts).
- */
-const MORE_LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
-  { key: 'venue', label: PLACE_NAMES.venue.many, glyph: 'venue', colour: LAYER.venue },
-  { key: 'shops', label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR },
-  { key: 'cameras', label: 'Speed cameras', glyph: 'camera', colour: LAYER.camera },
-  { key: 'roads', label: 'Road reports', glyph: 'hazard', colour: ROAD_COLOUR },
-];
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
 interface Selection {
   title: string;
+  glyph: Glyph;
   meta: string;
   body: string;
   colour: string;
@@ -98,6 +81,7 @@ const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
   { glyph: 'partner', colour: PARTNER_COLOUR, label: 'Partner (paid, always marked)' },
   { glyph: 'camera', colour: LAYER.camera, label: 'Speed camera' },
   { glyph: 'hazard', colour: ROAD_COLOUR, label: 'Road report or closure' },
+  { glyph: 'area', colour: C.chalk, label: 'A group of places (zoomed out): tap to zoom in' },
 ];
 
 /** "Near me": a frame round a dot (fit what's near you). */
@@ -140,15 +124,12 @@ export default function MapScreen() {
   const newNear = nearby?.unseen.length ?? 0;
   // Every layer is saved in settings, the core ones too (mapLayers.ts), so they come back as left.
   const layersKey = [settings.mapLayers, settings.cameras, settings.shops, settings.roadReports];
-  const layers: Record<Layer, boolean> = useMemo(
-    () => ({
-      events: layerOn(settings, 'events'), photo: layerOn(settings, 'photo'), drive: layerOn(settings, 'drive'), track: layerOn(settings, 'track'),
-      venue: layerOn(settings, 'venue'), shops: layerOn(settings, 'shops'), cameras: layerOn(settings, 'cameras'), roads: layerOn(settings, 'roads'),
-    }),
+  const layers = useMemo(
+    () => Object.fromEntries(ALL_LAYERS.map((k) => [k, layerOn(settings, k)])) as Record<Layer, boolean>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     layersKey,
   );
-  const shown = `${layers.events}${layers.photo}${layers.drive}${layers.track}${layers.venue}`;
+  const shown = ALL_LAYERS.map((k) => (layers[k] ? 1 : 0)).join('');
   /** The camera layer's "zoom in" note only shows once the person has turned the layer on themselves. */
   const [camerasAsked, setCamerasAsked] = useState(false);
   function toggleLayer(key: Layer) {
@@ -167,6 +148,8 @@ export default function MapScreen() {
     setSettings({ shopCategories: toggleCategory(shopFilter.categories, c) });
   }
   const [selected, setSelected] = useState<string | null>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   /** "Show everything": where to move the map, and a counter so the same button works twice. */
   const [view, setView] = useState<{ centre: LatLng; span: number; key: number } | null>(null);
   const meUser = users.find((u) => u.id === me);
@@ -193,8 +176,6 @@ export default function MapScreen() {
     feel.select();
     setSettings({ trackVehicles: next });
   }
-  /** The Tracks ▾ or Shops ▾ menu, anchored under the chip (window coordinates). */
-  const [kindMenu, setKindMenu] = useState<{ which: 'track' | 'shops'; x: number; y: number } | null>(null);
   const screen = useWindowDimensions();
   const places = useMemo(
     () =>
@@ -223,7 +204,7 @@ export default function MapScreen() {
       setLocated(true);
       setHere(pos.at);
       setLocNote(null);
-      map.current?.animateTo(pos.at, 0.35);
+      if (!selectedRef.current) map.current?.animateTo(pos.at, 0.35);
       return;
     }
     setLocated(false);
@@ -299,8 +280,9 @@ export default function MapScreen() {
 
   /** Places for the view: culled to the view, capped per kind, grouped into count pins when zoomed out (mapPlaces.ts). */
   const placeView = useMemo(() => {
-    const shownPlaces = places.filter((s) => layers[s.kind] || (s.kind === 'venue' && venuesViaShops));
     const sel = selected?.startsWith('sp:') ? selected.slice(3) : null;
+    // A place picked in search shows even when its layer is off.
+    const shownPlaces = places.filter((s) => layers[s.kind] || (s.kind === 'venue' && venuesViaShops) || s.id === sel);
     return placesForView(shownPlaces, snapped.centre, snapped.span, sel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, shown, venuesViaShops, snapped.key, selected]);
@@ -362,7 +344,11 @@ export default function MapScreen() {
       pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour, title: s.name, size: 32 });
     }
     for (const c of placeView.clusters)
-      pins.push({ id: c.id, at: c.at, glyph: c.kind, colour: SPOT_COLOURS[c.kind], title: CLUSTER_NAMES[c.kind], size: 32, count: c.count });
+      pins.push(
+        c.mixed
+          ? { id: c.id, at: c.at, glyph: 'area', colour: C.chalk, title: 'places', size: 36, count: c.count }
+          : { id: c.id, at: c.at, glyph: c.kind, colour: SPOT_COLOURS[c.kind], title: CLUSTER_NAMES[c.kind], size: 32, count: c.count },
+      );
     for (const s of placeView.lines) {
       const colour = s.status === 'pending' ? C.fog : SPOT_COLOURS[s.kind];
       paths.push({ id: `pa:${s.id}`, coords: s.path!, colour, dashed: s.status === 'pending' });
@@ -376,15 +362,10 @@ export default function MapScreen() {
     const c = placeView.clusters.find((x) => x.id === id);
     if (!c) return;
     feel.select();
-    setView((x) => ({ centre: c.at, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
+    setView((x) => ({ centre: c.zoomCentre, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
   }
-  const onSelectPin = useCallback((id: string) => {
-    if (id.startsWith('cl:')) zoomClusterRef.current(id);
-    else setSelected(id);
-  }, []);
   const zoomClusterRef = useRef(zoomCluster);
   zoomClusterRef.current = zoomCluster;
-  const clearSelection = useCallback(() => setSelected(null), []);
 
   const sel = selected ? describeSelection(selected) : null;
 
@@ -395,7 +376,7 @@ export default function MapScreen() {
       const pin = pins.find((p) => p.id === id);
       if (!pin) return null;
       const [what, ...rest] = pin.title.split(' · ');
-      return { title: what, meta: rest.join(' · '), body: `${CAMERA_CAVEAT}\n${CAMERA_CREDIT}.`, colour: LAYER.camera };
+      return { title: what, glyph: pin.glyph, meta: rest.join(' · '), body: `${CAMERA_CAVEAT}\n${CAMERA_CREDIT}.`, colour: LAYER.camera };
     }
     if (kind === 'rr') {
       const r = roadReports.find((x) => x.id === key);
@@ -415,6 +396,7 @@ export default function MapScreen() {
                 : problem ?? undefined;
       return {
         title: r.source === 'user' ? info.label : [info.label, r.road].filter(Boolean).join(' · '),
+        glyph: r.kind,
         meta: [r.source === 'user' ? `Reported ${reportAge(r.createdAt, now)}` : r.direction, confirmations(r)].filter(Boolean).join(' · '),
         body: [
           r.description,
@@ -439,11 +421,12 @@ export default function MapScreen() {
       const hours = parseOpeningHours(s.hours);
       return {
         title: s.name,
+        glyph: s.categories[0] ?? 'shop',
         meta: [describeCategories(s.categories), hours ? openState(hours, now).label : null].filter(Boolean).join(' · '),
         body: `${s.brand ? `${s.brand}. ` : ''}Listing from OpenStreetMap, not a Nightshift partner.`,
         colour: SHOP_COLOUR,
         open: () => router.push({ pathname: '/shop/[id]', params: { id: s.id } }),
-        cta: 'Open shop ›',
+        cta: 'Open shop',
       };
     }
     if (kind === 'ptn') {
@@ -452,11 +435,12 @@ export default function MapScreen() {
       const hours = parseOpeningHours(p.hours);
       return {
         title: p.name,
+        glyph: 'partner',
         meta: [partnerBadge(p), describeCategories(p.categories), hours ? openState(hours, now).label : null].filter(Boolean).join(' · '),
         body: [p.offer, p.demo ? 'Made-up business for the demo.' : null].filter(Boolean).join('\n') || (p.description ?? ''),
         colour: PARTNER_COLOUR,
         open: () => router.push({ pathname: '/shop/[id]', params: { id: `partner:${p.id}` } }),
-        cta: 'Open partner ›',
+        cta: 'Open partner',
       };
     }
     if (kind === 'ev') {
@@ -472,11 +456,12 @@ export default function MapScreen() {
       const clock = eventClock(v, now);
       return {
         title: e.title,
+        glyph: v.shownStop >= 0 ? e.type : 'locked',
         meta: [EVENT_LABELS[e.type], roleLabel(v.role), `${clock.label} ${clock.value}`, `${e.going.length} going`].filter(Boolean).join(' · '),
         body: `${place}\n${describeFilter(e.filter)}`,
         colour: EVENT_COLOURS[e.type],
         open: () => router.push({ pathname: '/event/[id]', params: { id: e.id } }),
-        cta: 'Open event ›',
+        cta: 'Open event',
       };
     }
     const s = places.find((x) => x.id === key);
@@ -486,13 +471,14 @@ export default function MapScreen() {
     const status = s.status === 'pending' ? ' · waiting for approval' : '';
     return {
       title: s.name,
+      glyph: s.kind,
       meta:
         (s.kind === 'drive' ? `${PLACE_NAMES.drive.one} · ${s.miles} mi · ${driveTier(s.miles).label} · +${driveTier(s.miles).rep} rep · untimed` : PLACE_NAMES[s.kind].one) +
         (s.region ? ` · ${s.region}` : '') + stars + status,
       body: s.description,
       colour: SPOT_COLOURS[s.kind],
       open: () => router.push({ pathname: '/spot/[id]', params: { id: s.id } }),
-      cta: openPlaceLabel(s.kind),
+      cta: openPlaceLabel(s.kind).replace(/\s*›$/, ''),
     };
   }
 
@@ -507,49 +493,130 @@ export default function MapScreen() {
     const closures = openDataCredit ? ` · closures: ${openDataCredit}` : '';
     return { zoom: false, text: `© OpenStreetMap${cams && !cams.tooWide ? ' · cameras may be incomplete' : ''}${more}${closures}` };
   })();
-  const [showKey, setShowKey] = useState(false);
-  /** The layers button's menu, and where it opens (window y under the layers button). */
-  const [showLayers, setShowLayers] = useState(false);
-  const layersButton = useRef<ComponentRef<typeof View>>(null);
-  const [menuTop, setMenuTop] = useState(insets.top + 160);
-  function measureMenu(then: () => void) {
-    if (!layersButton.current) return then();
-    layersButton.current.measureInWindow((_x, y, _w, h) => {
-      if (h) setMenuTop(y + h + 8);
-      then();
-    });
-  }
-  const moreOn = MORE_LAYERS.filter((l) => l.key !== 'venue' && layers[l.key]).length;
-
-  // The top bar fits the screen at any text size: labelled pills, or icons only (mapLayers.ts).
-  const chrome = mapChrome(screen.width, screen.fontScale, { labels: LAYERS.map((l) => l.label), withMenu: 1, live: views.some((v) => v.phase === 'live'), cap: FONT_SCALE.chrome });
-
   const hud = useMemo(() => mapHud(views, now), [views, now]);
-  const liveCount = hud.live.length;
-  /** Live pill: jump to the live event and open its card. */
-  function focusLive() {
-    const v = hud.live[0];
-    if (!v) return;
-    const at = v.shownStop >= 0 ? v.event.stops[v.shownStop].at : v.event.area;
-    if (at) setView((x) => ({ centre: at, span: 0.3, key: (x?.key ?? 0) + 1 }));
-    setSelected(`ev:${v.event.id}`);
-  }
   /** Near me: what's near you that you can open (events and places on the shown layers), the nearest 60 to home. */
   function nearMe() {
     feel.tap();
-    const from = meUser?.home ?? region.centre;
+    const from = here ?? meUser?.home ?? region.centre;
     const shownPlaces = places.filter((s) => layers[s.kind] || (s.kind === 'venue' && venuesViaShops)).map((s) => s.at);
     const evs = layers.events ? views.map((v) => (v.shownStop >= 0 ? v.event.stops[v.shownStop].at : v.event.area)).filter((p): p is LatLng => !!p) : [];
     const r = fitRegion(nearestPoints([...evs, ...shownPlaces], from, 60));
     if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
   }
   const lead = hud.live[0] ?? hud.next;
-  const after = hud.live[0] ? hud.next : null;
   /** The one-time "how the map works" hint (REVIEW-5 M8), once the location note is out of the way. */
   const showHint = ready && !settings.mapHintSeen && !locNote;
 
+  // ---------------------------------------------------------------------------
+  // The sheet (MAP-REDESIGN.md): Tonight near you, or the selected pin.
+  // ---------------------------------------------------------------------------
+  const [box, setBox] = useState({ w: screen.width, h: 0 });
+  const [detent, setDetent] = useState<Detent>('peek');
+  const [headerH, setHeaderH] = useState(120);
+  const sheetY = useSharedValue(screen.height);
+  const sheetTop = insets.top + 8;
+  const tops = detentTops(box.h, headerH, sheetTop);
+  // The first visit, or a location note: open the sheet so the note is read.
+  useEffect(() => {
+    if (showHint || locNote) setDetent((d) => (d === 'peek' ? 'half' : d));
+  }, [showHint, locNote]);
+
+  /** Where an event or place is on the map (an event's shown stop, or its rough area). */
+  const where = useCallback(
+    (id: string): LatLng | null => {
+      const key = id.slice(id.indexOf(':') + 1);
+      if (id.startsWith('ev:')) {
+        const v = views.find((x) => x.event.id === key);
+        if (!v) return null;
+        return v.shownStop >= 0 ? v.event.stops[v.shownStop].at ?? v.event.area : v.event.area;
+      }
+      if (id.startsWith('sp:')) return places.find((x) => x.id === key)?.at ?? null;
+      return pins.find((p) => p.id === id)?.at ?? null;
+    },
+    [views, places, pins],
+  );
+  /**
+   * Select something: its card opens in the sheet (lowered, hugging the card), and the map moves so
+   * the pin sits in the top third, clear of the sheet. A pin tapped on the map only moves if the sheet would hide it.
+   */
+  function show(id: string, zoom = true, onlyIfHidden = false) {
+    feel.select();
+    setSelected(id);
+    setDetent('peek');
+    const at = where(id);
+    if (!at) return;
+    const fromTop = (region.centre.lat + region.span / 2 - at.lat) / region.span;
+    if (onlyIfHidden && fromTop > 0.12 && fromTop < 0.5) return;
+    const span = zoom ? Math.min(region.span, 0.35) : region.span;
+    setView((x) => ({ centre: { lat: at.lat - span * 0.2, lng: at.lng }, span, key: (x?.key ?? 0) + 1 }));
+  }
+  const showRef = useRef(show);
+  showRef.current = show;
+  // Search (Find) sends people back here with what they picked: `focus` is a pin id ("ev:…" or "sp:…").
+  const params = useLocalSearchParams<{ focus?: string; t?: string }>();
+  useEffect(() => {
+    if (params.focus && ready) showRef.current(params.focus);
+  }, [params.focus, params.t, ready]);
+
+  const onSelectPin2 = useCallback((id: string) => {
+    if (id.startsWith('cl:')) zoomClusterRef.current(id);
+    else showRef.current(id, false, true);
+  }, []);
+  const close = useCallback(() => {
+    setSelected(null);
+    setDetent('peek');
+  }, []);
+  const onMapPress = useCallback(() => {
+    if (selectedRef.current) close();
+  }, [close]);
+
+  /** Tonight near you: live now, the rest of the next 12 hours, then the week. */
+  const origin = here ?? meUser?.home ?? region.centre;
+  const lists = useMemo(() => {
+    const t = now.getTime();
+    const start = (v: EventView) => new Date(v.event.startsAt).getTime();
+    // The lead event is already in the sheet's header.
+    const upcoming = views.filter((v) => v.phase !== 'live' && v !== lead).sort((a, b) => start(a) - start(b));
+    return {
+      live: hud.live.filter((v) => v !== lead),
+      tonight: upcoming.filter((v) => start(v) <= t + 12 * 3_600_000),
+      week: upcoming.filter((v) => start(v) > t + 12 * 3_600_000 && start(v) <= t + 7 * 86_400_000).slice(0, 6),
+    };
+  }, [views, now, lead, hud.live]);
+  const nearPlaces = useMemo(() => {
+    const shownPlaces = places.filter((s) => s.status !== 'pending' && (layers[s.kind] || (s.kind === 'venue' && venuesViaShops)));
+    return shownPlaces
+      .map((s) => ({ s, miles: milesBetween(snapped.centre, s.at) }))
+      .sort((a, b) => a.miles - b.miles)
+      .slice(0, 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [places, shown, venuesViaShops, snapped.key]);
+  const milesTo = (v: EventView) => {
+    const at = v.shownStop >= 0 ? v.event.stops[v.shownStop].at ?? v.event.area : v.event.area;
+    return formatMiles(milesBetween(origin, at));
+  };
+  const nothingOn = ready && !lead && lists.week.length === 0;
+
+  // The map's buttons and notes ride just above the sheet, up to half; they fade out as it opens fully.
+  const [stackH, setStackH] = useState(176);
+  const [noteH, setNoteH] = useState(30);
+  const pillBottom = insets.top + 8 + PILL + 8;
+  const ride = (y: number, h: number) => {
+    'worklet';
+    const yy = Math.min(y, tops.peek);
+    const lift = Math.max(pillBottom, yy - h - 12);
+    const fade = Math.min(1, Math.max(0, (yy - (tops.full + 60)) / Math.max(1, tops.half - tops.full - 60)));
+    return { transform: [{ translateY: lift }], opacity: fade };
+  };
+  const stackStyle = useAnimatedStyle(() => ride(sheetY.value, stackH));
+  const noteStyle = useAnimatedStyle(() => ride(sheetY.value, noteH));
+  const chromeLive = detent !== 'full';
+  const moreOn = ALL_LAYERS.filter((k) => !CORE_LAYERS.includes(k as CoreLayer) && k !== 'venue' && layers[k]).length;
+  const [showLayers, setShowLayers] = useState(false);
+  const showNote = (cams && (!cams.tooWide || camerasAsked)) || shopView || openDataCredit;
+
   return (
-    <View style={{ flex: 1, backgroundColor: C.asphalt }}>
+    <View style={{ flex: 1, backgroundColor: C.asphalt }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <NightMap
         ref={map}
         pins={pins}
@@ -560,370 +627,360 @@ export default function MapScreen() {
         span={view?.span ?? START_SPAN}
         onRegion={setRegion}
         recentreKey={view?.key ?? 0}
-        onSelect={onSelectPin}
-        onPressMap={clearSelection}
+        onSelect={onSelectPin2}
+        onPressMap={onMapPress}
         showsUser={located}
+        compass={{ x: -2, y: PILL + 12 }}
       />
-      <View style={[st.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-          <View style={st.brand}>
-            <Txt v="h3" scale="chrome" style={{ fontFamily: F.displayMedItalic }} numberOfLines={1}>
-              NIGHT<Txt v="h3" scale="chrome" style={{ color: BRAND, fontFamily: F.displayMedItalic }}>SHIFT</Txt>
-            </Txt>
+
+      {/* Top: one search pill and the bell. */}
+      <View style={[st.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+        <Pressable
+          onPress={() => router.push({ pathname: '/find', params: { focus: '1' } })}
+          style={({ pressed }) => [st.search, pressed && { opacity: 0.85 }]}
+          accessibilityRole="search"
+          accessibilityLabel={`Search: where to, events, places and people${newNear > 0 ? `. ${newNear} new events near you` : ''}`}
+        >
+          <FindIcon colour={C.chalk} />
+          <View style={{ flex: 1 }}>
+            <Txt v="body" scale="chrome" style={{ fontFamily: F.bodyBold }} numberOfLines={1}>Where to?</Txt>
+            <Txt v="caption" scale="chrome" numberOfLines={1}>Events, places, people, addresses</Txt>
           </View>
-          <Row gap={8} style={{ flexWrap: 'nowrap', flexShrink: 1, justifyContent: 'flex-end' }}>
-            {liveCount > 0 ? (
-              <Pressable
-                onPress={focusLive}
-                style={({ pressed }) => [st.live, pressed && { opacity: 0.8 }]}
-                accessibilityRole="button"
-                accessibilityLabel={`${plural(liveCount, 'event')} live now. Show on the map`}
-                hitSlop={6}
-              >
-                <View style={st.liveDot} />
-                <Txt v="label" scale="chrome" style={{ color: C.asphalt, fontFamily: F.labelBold }} numberOfLines={1}>{liveCount} live</Txt>
-              </Pressable>
-            ) : null}
-            <Pressable
-              onPress={() => router.push('/find')}
-              style={({ pressed }) => [st.mapButton, chrome.find === 'label' && st.findWide, pressed && { opacity: 0.8 }]}
-              accessibilityRole="button"
-              accessibilityLabel={newNear > 0 ? `Find events or a place to drive to, ${newNear} new events near you` : 'Find events or a place to drive to'}
-              hitSlop={4}
-            >
-              <FindIcon colour={C.chalk} />
-              {chrome.find === 'label' ? <Txt v="label" scale="chrome" style={{ color: C.chalk, fontFamily: F.labelBold }}>Find</Txt> : null}
-              {newNear > 0 ? (
-                <View style={st.badge}>
-                  <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={st.badgeText}>{newNear > 9 ? '9+' : newNear}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-            <NoticeBell boxed />
-          </Row>
-        </Row>
-        <LayerBar
-          compact={chrome.pills === 'icons'}
-          onToggle={(key) => {
-            setKindMenu(null);
-            toggleLayer(key as Layer);
-          }}
-          layers={LAYERS.map((l) => ({
-            key: l.key,
-            label: l.label,
-            glyph: l.glyph,
-            colour: l.colour,
-            on: layers[l.key],
-            ...(l.key === 'track'
-              ? {
-                  note: trackKinds.length === ALL_VEHICLES.length ? undefined : trackKinds.map((v) => VEHICLE_LABELS[v]).join(' · '),
-                  menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : { which: 'track', ...anchor })),
-                }
-              : {}),
-          }))}
-        />
-        <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-          {(cams && (!cams.tooWide || camerasAsked)) || shopView || openDataCredit ? (
-            <View style={st.credit} pointerEvents="none">
-              <Txt v="micro" scale="chrome" style={{ color: mapNote.zoom ? C.chalk : C.fog }} numberOfLines={2}>{mapNote.text}</Txt>
+          {newNear > 0 ? (
+            <View style={st.newBadge}>
+              <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={st.newBadgeText}>{newNear > 9 ? '9+' : newNear} new</Text>
             </View>
-          ) : <View />}
-          <View style={{ gap: 8 }}>
-            <Pressable
-              onPress={() => locate(true, true)}
-              style={({ pressed }) => [st.mapButton, pressed && { opacity: 0.8 }]}
-              accessibilityRole="button"
-              accessibilityLabel="Show where I am"
-              hitSlop={4}
-            >
-              <Pin glyph="you" colour={located ? C.chalk : C.fog} size={26} />
-            </Pressable>
-            <Pressable
-              ref={layersButton}
-              onPress={() => {
-                setKindMenu(null);
-                setShowKey(false);
-                if (showLayers) setShowLayers(false);
-                else measureMenu(() => setShowLayers(true));
-              }}
-              style={({ pressed }) => [st.mapButton, (showLayers || moreOn > 0) && { borderColor: SURFACE.borderStrong }, pressed && { opacity: 0.8 }]}
-              accessibilityRole="button"
-              accessibilityLabel={`Map layers and key: meet spots, shops, speed cameras and road reports${moreOn > 0 ? `, ${moreOn} on` : ''}`}
-              accessibilityState={{ expanded: showLayers }}
-              hitSlop={4}
-            >
-              <LayersIcon colour={showLayers || moreOn > 0 ? C.chalk : C.fog} />
-            </Pressable>
-            <Pressable
-              onPress={nearMe}
-              style={({ pressed }) => [st.mapButton, pressed && { opacity: 0.8 }]}
-              accessibilityRole="button"
-              accessibilityLabel="Near me: show what's near your home area"
-              hitSlop={4}
-            >
-              <NearIcon colour={C.chalk} />
-            </Pressable>
-          </View>
-        </Row>
-        {locNote ? (
-          <View style={st.note}>
-            <Txt v="muted" style={{ color: C.chalk }}>{locNote}</Txt>
-            <Row gap={18}>
-              {Platform.OS !== 'web' ? <LinkText label="Open Settings" onPress={() => Linking.openSettings().catch(() => {})} /> : null}
-              <LinkText label="OK" colour={C.fog} onPress={() => setLocNote(null)} />
-            </Row>
-          </View>
-        ) : null}
-        {showHint ? (
-          <View style={st.note} accessibilityLiveRegion="polite">
-            <Txt v="eyebrow">How the map works</Txt>
-            <Txt v="muted" style={{ color: C.chalk }}>Filled pins are events. Outlined pins are places. Tap a pin to see it.</Txt>
-            <Txt v="muted" style={{ color: C.chalk }}>The layers button (right) has more layers, Suggest a place and the map key. Long-press a pill with ▾ for its options.</Txt>
-            <Row gap={18}>
-              <LinkText label="Got it" onPress={() => setSettings({ mapHintSeen: true })} />
-              <LinkText
-                label="Show the key"
-                colour={C.fog}
-                onPress={() => {
-                  setSettings({ mapHintSeen: true });
-                  measureMenu(() => setShowKey(true));
-                }}
-              />
-            </Row>
-          </View>
-        ) : null}
-      </View>
-      <View style={st.bottom} pointerEvents="box-none">
-      {/* Bottom-right, above the card: room for a small map widget (e.g. a speed readout). See MapWidgetSlot. */}
-      <MapWidgetSlot />
-      {sel ? (
-        <SelectionCard open={sel.open} colour={sel.colour}>
-          <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-            <Txt v="h3" style={{ flex: 1 }} numberOfLines={2}>{sel.title}</Txt>
-            <Pressable onPress={() => setSelected(null)} hitSlop={14} accessibilityRole="button" accessibilityLabel="Close" style={{ minHeight: 32, justifyContent: 'center' }}>
-              <Txt v="label" scale="chrome">Close</Txt>
-            </Pressable>
-          </Row>
-          <Txt v="mono" scale="chrome" style={{ color: sel.colour }}>{sel.meta}</Txt>
-          {sel.body ? <Txt v="muted">{sel.body}</Txt> : null}
-          {sel.note ? <Txt v="muted" style={{ color: C.chalk }}>{sel.note}</Txt> : null}
-          {sel.actions ? (
-            <Row gap={10} style={{ flexWrap: 'nowrap', marginTop: 2 }}>
-              {sel.actions.map((a) => (
-                <Pressable
-                  key={a.label}
-                  onPress={a.onPress}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [st.answer, { borderColor: a.colour }, pressed && { opacity: 0.8 }]}
-                >
-                  <Txt v="label" scale="chrome" style={{ color: a.colour, fontSize: TYPE.body }}>{a.label}</Txt>
-                </Pressable>
-              ))}
-            </Row>
           ) : null}
-          {sel.cta ? <Txt v="label" scale="chrome" style={{ color: BRAND, marginTop: 2 }}>{sel.cta}</Txt> : null}
-        </SelectionCard>
-      ) : lead ? (
-        <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
-      ) : ready ? (
-        <NothingOn />
-      ) : null}
+        </Pressable>
+        <NoticeBell boxed size={PILL} />
       </View>
-      {showLayers ? (
-        <>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLayers(false)} accessibilityLabel="Close the layers menu" />
-          <View style={[st.menu, st.key, { top: menuTop }]} accessibilityRole="menu">
-            <Txt v="micro">More on the map</Txt>
-            {MORE_LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) => {
-              const on = layers[l.key];
-              return (
-                <View key={l.key} style={st.menuRow}>
-                  <Pressable
-                    onPress={() => {
-                      feel.select();
-                      toggleLayer(l.key);
-                    }}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: on }}
-                    style={({ pressed }) => [st.menuHit, pressed && { opacity: 0.8 }]}
-                  >
-                    <View style={[st.box, on && { backgroundColor: l.colour, borderColor: l.colour }]}>
-                      {on ? <Tick /> : null}
-                    </View>
-                    <Pin glyph={l.glyph} colour={on ? l.colour : C.fog} size={20} />
-                    <View style={{ flexShrink: 1 }}>
-                      <Txt v="muted" style={{ color: on ? C.chalk : C.fog }}>{l.label}</Txt>
-                      {l.key === 'shops' && on && shopFilterNote(shopFilter.categories, shopFilter.partnersOnly) ? (
-                        <Txt v="micro">{shopFilterNote(shopFilter.categories, shopFilter.partnersOnly)}</Txt>
-                      ) : null}
-                    </View>
+
+      {/* Left, above the sheet: what to zoom in for, or the OpenStreetMap credit. */}
+      {showNote && box.h ? (
+        <Animated.View style={[st.note, { maxWidth: box.w - 16 - BUTTON - 24 }, noteStyle]} pointerEvents="none" onLayout={(e) => setNoteH(e.nativeEvent.layout.height)}>
+          <Txt v="micro" scale="chrome" style={{ color: mapNote.zoom ? C.chalk : C.fog }} numberOfLines={2}>{mapNote.text}</Txt>
+        </Animated.View>
+      ) : null}
+
+      {/* Right, above the sheet: layers, locate me, near me. */}
+      {box.h ? (
+        <Animated.View style={[st.stack, stackStyle]} pointerEvents={chromeLive ? 'box-none' : 'none'} onLayout={(e) => setStackH(e.nativeEvent.layout.height)}>
+          {/* Room for one small map widget (e.g. a speed readout). See MapWidgetSlot. */}
+          <MapWidgetSlot />
+          <View style={st.stackGroup}>
+            <MapButton
+              onPress={() => setShowLayers(true)}
+              label={`Map layers and key${moreOn > 0 ? `, ${moreOn} extra on` : ''}`}
+              lit={moreOn > 0}
+            >
+              <LayersIcon colour={moreOn > 0 ? C.chalk : C.fog} />
+            </MapButton>
+            <View style={st.stackRule} />
+            <MapButton onPress={() => locate(true, true)} label="Show where I am">
+              <Pin glyph="you" colour={located ? C.chalk : C.fog} size={26} />
+            </MapButton>
+            <View style={st.stackRule} />
+            <MapButton onPress={nearMe} label="Near me: fit what's around you">
+              <NearIcon colour={C.chalk} />
+            </MapButton>
+          </View>
+        </Animated.View>
+      ) : null}
+
+      {box.h ? (
+        <MapSheet
+          y={sheetY}
+          height={box.h}
+          top={sheetTop}
+          peek={headerH}
+          detent={detent}
+          onDetent={setDetent}
+          label={sel ? sel.title : 'Tonight near you'}
+          onHeaderLayout={setHeaderH}
+          header={
+            sel ? (
+              <View style={st.header}>
+                <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={12}>
+                  <Pin glyph={sel.glyph} colour={sel.colour} size={36} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Txt v="h3" numberOfLines={2} accessibilityRole="header">{sel.title}</Txt>
+                    <Txt v="mono" scale="chrome" style={{ color: sel.colour }} numberOfLines={2}>{sel.meta}</Txt>
+                  </View>
+                  <Pressable onPress={close} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={st.closeBtn}>
+                    <Txt v="h3" scale="chrome" style={{ color: C.fog }}>✕</Txt>
                   </Pressable>
-                  {l.key === 'shops' ? (
-                    <Pressable
-                      onPress={() => {
-                        setShowLayers(false);
-                        setKindMenu({ which: 'shops', x: screen.width - 262, y: menuTop });
-                      }}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Which kinds of shop to show"
-                      style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 6 }}
-                    >
-                      <Txt v="label" scale="chrome" style={{ color: BRAND }}>Kinds ›</Txt>
-                    </Pressable>
-                  ) : null}
-                </View>
-              );
-            })}
-            <View style={st.rule} />
-            <Pressable
-              onPress={() => {
-                setShowLayers(false);
-                router.push('/spot/new');
-              }}
-              accessibilityRole="button"
-              style={({ pressed }) => [st.menuRow, pressed && { opacity: 0.8 }]}
-            >
-              <Txt v="label" scale="chrome" style={{ color: BRAND }}>+ Suggest a place</Txt>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setShowLayers(false);
-                setShowKey(true);
-              }}
-              accessibilityRole="button"
-              style={({ pressed }) => [st.menuRow, pressed && { opacity: 0.8 }]}
-            >
-              <Txt v="label" scale="chrome" style={{ color: C.chalk }}>Map key ›</Txt>
-            </Pressable>
-          </View>
-        </>
-      ) : null}
-      {showKey ? (
-        <>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowKey(false)} accessibilityLabel="Close the map key" />
-          <View style={[st.menu, st.key, { top: menuTop }]} accessibilityRole="summary">
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Txt v="micro">Map key</Txt>
-              <Pressable onPress={() => setShowKey(false)} hitSlop={14} accessibilityRole="button" accessibilityLabel="Close">
-                <Txt v="micro">Close</Txt>
-              </Pressable>
-            </Row>
-            <Txt v="caption">Filled pins are events. Outlined pins are places. A number on a pin is a group: tap to zoom in.</Txt>
-            {KEY_ROWS.map((r) => (
-              <View key={r.label} style={[st.menuRow, { minHeight: 30 }]}>
-                <Pin glyph={r.glyph} colour={r.colour} size={22} />
-                <Txt v="caption" style={{ color: C.chalk, flexShrink: 1 }} numberOfLines={2}>{r.label}</Txt>
+                </Row>
+                {sel.body ? <Txt v="muted" numberOfLines={detent === 'peek' ? 3 : undefined}>{sel.body}</Txt> : null}
+                {sel.note ? <Txt v="muted" style={{ color: C.chalk }}>{sel.note}</Txt> : null}
+                {sel.actions ? (
+                  <Row gap={10} style={{ flexWrap: 'nowrap' }}>
+                    {sel.actions.map((a) => (
+                      <Pressable
+                        key={a.label}
+                        onPress={a.onPress}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [st.answer, { borderColor: a.colour }, pressed && { opacity: 0.8 }]}
+                      >
+                        <Txt v="label" scale="chrome" style={{ color: a.colour, fontSize: TYPE.body }}>{a.label}</Txt>
+                      </Pressable>
+                    ))}
+                  </Row>
+                ) : null}
+                {sel.open ? <Button label={sel.cta ?? 'Open'} onPress={sel.open} /> : null}
               </View>
-            ))}
-          </View>
-        </>
-      ) : null}
-      {kindMenu?.which === 'shops' ? (
-        <>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setKindMenu(null)} accessibilityLabel="Close the menu" />
-          <View style={[st.menu, { left: Math.max(8, Math.min(kindMenu.x, screen.width - 262)), top: kindMenu.y, width: 254 }]} accessibilityRole="menu">
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Txt v="micro">Show shops</Txt>
-              {shopFilter.categories.length < ALL_CATEGORIES.length ? (
-                <Pressable
-                  onPress={() => {
-                    feel.select();
-                    setSettings({ shopCategories: [...ALL_CATEGORIES] });
-                  }}
-                  hitSlop={14}
-                  accessibilityRole="button"
-                  accessibilityLabel="Show all kinds of shop"
-                >
-                  <Txt v="micro" style={{ color: BRAND }}>Show all</Txt>
-                </Pressable>
+            ) : (
+              <View style={st.header}>
+                <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+                  <Txt v="eyebrow" scale="chrome" accessibilityRole="header">Tonight near you</Txt>
+                  {hud.tonight > 0 ? <Txt v="mono" scale="chrome" style={{ color: BRAND }}>{hud.tonight} IN THE NEXT 12H</Txt> : null}
+                </Row>
+                {lead ? (
+                  <LeadRow lead={lead} now={now} miles={milesTo(lead)} onPress={() => show(`ev:${lead.event.id}`)} />
+                ) : ready ? (
+                  <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between', minHeight: 48 }}>
+                    <Txt v="h3" style={{ flex: 1 }}>Nothing on near you tonight</Txt>
+                    <LinkText label="Find events ›" onPress={() => router.push('/find')} />
+                  </Row>
+                ) : null}
+              </View>
+            )
+          }
+        >
+          {sel ? null : (
+            <>
+              {locNote ? (
+                <Notice onDismiss={() => setLocNote(null)} action={Platform.OS !== 'web' ? { label: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) } : undefined}>
+                  {locNote}
+                </Notice>
               ) : null}
-            </Row>
-            {MENU_ORDER.map((c) => {
-              const on = shopFilter.categories.includes(c);
-              return (
-                <Pressable
-                  key={c}
-                  onPress={() => toggleShopCategory(c)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  accessibilityHint={CATEGORY_HINTS[c]}
-                  style={({ pressed }) => [st.menuRow, pressed && { opacity: 0.8 }]}
-                >
-                  <View style={[st.box, on && { backgroundColor: SHOP_COLOUR, borderColor: SHOP_COLOUR }]}>{on ? <Tick /> : null}</View>
-                  <Pin glyph={c} colour={on ? SHOP_COLOUR : C.fog} size={18} />
-                  <Txt v="muted" style={{ color: on ? C.chalk : C.fog, flexShrink: 1 }} numberOfLines={1}>{CATEGORY_LABELS[c]}</Txt>
-                </Pressable>
-              );
-            })}
-            <View style={st.rule} />
-            <Pressable
-              onPress={() => {
-                feel.select();
-                setSettings({ shopPartnersOnly: !shopFilter.partnersOnly });
-              }}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: shopFilter.partnersOnly }}
-              style={({ pressed }) => [st.menuRow, pressed && { opacity: 0.8 }]}
-            >
-              <View style={[st.box, shopFilter.partnersOnly && { backgroundColor: PARTNER_COLOUR, borderColor: PARTNER_COLOUR }]}>
-                {shopFilter.partnersOnly ? <Tick /> : null}
-              </View>
-              <Pin glyph="partner" colour={shopFilter.partnersOnly ? PARTNER_COLOUR : C.fog} size={18} />
-              <Txt v="muted" style={{ color: shopFilter.partnersOnly ? C.chalk : C.fog }}>Partners only</Txt>
-            </Pressable>
-            <Txt v="caption">Partners pay to be highlighted and are always marked Partner. Other listings come from OpenStreetMap.</Txt>
-          </View>
-        </>
-      ) : kindMenu ? (
-        <>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setKindMenu(null)} accessibilityLabel="Close the menu" />
-          <View style={[st.menu, { left: Math.max(8, Math.min(kindMenu.x, screen.width - 178)), top: kindMenu.y, minWidth: 170 }]} accessibilityRole="menu">
-            <Txt v="micro">Show tracks for</Txt>
-            {[...ALL_VEHICLES.map((v) => ({ key: v as string, label: VEHICLE_LABELS[v], on: trackKinds.includes(v), toggle: () => toggleKind(v) })),
-              // Speedway, oval stock cars, motocross and closed-road races: no track days, so off unless asked for.
-              { key: 'watch', label: 'Racing to watch', on: watchRacing, toggle: () => { feel.select(); setSettings({ spectatorTracks: !watchRacing }); } },
-            ].map((v) => {
-              const on = v.on;
-              return (
-                <Pressable
-                  key={v.key}
-                  onPress={v.toggle}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  style={({ pressed }) => [st.menuRow, pressed && { opacity: 0.8 }]}
-                >
-                  <View style={[st.box, on && { backgroundColor: LAYER.track, borderColor: LAYER.track }]}>{on ? <Tick /> : null}</View>
-                  <Txt style={{ color: on ? C.chalk : C.fog }}>{v.label}</Txt>
-                </Pressable>
-              );
-            })}
-          </View>
-        </>
+              {showHint ? (
+                <View style={st.hint} accessibilityLiveRegion="polite">
+                  <Txt v="eyebrow">How the map works</Txt>
+                  <Txt v="muted" style={{ color: C.chalk }}>
+                    Filled pins are events, outlined pins are places. Tap one to see it here. Search is at the top; the layers button (right) picks what the map shows.
+                  </Txt>
+                  <LinkText label="Got it" onPress={() => setSettings({ mapHintSeen: true })} />
+                </View>
+              ) : null}
+              <Row gap={8} style={{ flexWrap: 'nowrap' }}>
+                <Action label="Host an event" glyph="meet" onPress={() => router.push('/event/new')} />
+                <Action label="Suggest a place" glyph="destination" onPress={() => router.push('/spot/new')} />
+                <Action label="Find events" glyph="calendar" onPress={() => router.push('/find')} />
+              </Row>
+              {lists.live.length ? (
+                <SheetSection title="Live now">
+                  {lists.live.map((v) => (
+                    <EventRow key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => show(`ev:${v.event.id}`)} />
+                  ))}
+                </SheetSection>
+              ) : null}
+              {lists.tonight.length ? (
+                <SheetSection title="Tonight">
+                  {lists.tonight.map((v) => (
+                    <EventRow key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => show(`ev:${v.event.id}`)} />
+                  ))}
+                </SheetSection>
+              ) : null}
+              {lists.week.length ? (
+                <SheetSection title="This week" right={<LinkText label="All events ›" onPress={() => router.push('/find')} />}>
+                  {lists.week.map((v) => (
+                    <EventRow key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => show(`ev:${v.event.id}`)} />
+                  ))}
+                </SheetSection>
+              ) : null}
+              {nothingOn ? (
+                <Txt v="muted">Nothing coming up near you. Find an event further out, or host one for your mates.</Txt>
+              ) : null}
+              {nearPlaces.length ? (
+                <SheetSection title="Places on the map">
+                  {nearPlaces.map(({ s, miles }) => (
+                    <ListRow
+                      key={s.id}
+                      glyph={s.kind}
+                      colour={SPOT_COLOURS[s.kind]}
+                      title={s.name}
+                      subtitle={[PLACE_NAMES[s.kind].one, s.region, `${formatMiles(miles)} from the map's centre`].filter(Boolean).join(' · ')}
+                      onPress={() => show(`sp:${s.id}`, false)}
+                      accessibilityLabel={`${s.name}, ${PLACE_NAMES[s.kind].one}. Show on the map`}
+                    />
+                  ))}
+                </SheetSection>
+              ) : null}
+            </>
+          )}
+        </MapSheet>
       ) : null}
+
+      <LayersPanel
+        visible={showLayers}
+        onClose={() => setShowLayers(false)}
+        on={layers}
+        onToggle={toggleLayer}
+        hidden={hasVenues ? [] : ['venue']}
+        trackKinds={trackKinds}
+        onTrackKind={toggleKind}
+        watchRacing={watchRacing}
+        onWatchRacing={() => {
+          feel.select();
+          setSettings({ spectatorTracks: !watchRacing });
+        }}
+        shopCategories={shopFilter.categories}
+        onShopCategory={toggleShopCategory}
+        onAllShops={() => {
+          feel.select();
+          setSettings({ shopCategories: [...ALL_CATEGORIES] });
+        }}
+        partnersOnly={shopFilter.partnersOnly}
+        onPartnersOnly={() => {
+          feel.select();
+          setSettings({ shopPartnersOnly: !shopFilter.partnersOnly });
+        }}
+        keyRows={KEY_ROWS}
+      />
     </View>
   );
 }
 
-function Tick() {
-  return <Txt v="micro" scale="chrome" style={{ color: C.asphalt, fontFamily: F.labelBold }}>✓</Txt>;
-}
+/** Search pill and map buttons: big enough for a thumb (48 pt). */
+const PILL = 52;
+const BUTTON = 48;
 
-/** The card for the tapped pin: a button when it opens something, else a plain card (its own buttons stay live). */
-function SelectionCard({ open, colour, children }: { open?: () => void; colour: string; children: ReactNode }) {
-  if (!open) {
-    return (
-      <View style={[st.peek, { borderLeftColor: colour }]} accessibilityRole="summary">
-        {children}
-      </View>
-    );
-  }
+function MapButton({ onPress, label, lit, children }: { onPress: () => void; label: string; lit?: boolean; children: ReactNode }) {
   return (
-    <Pressable style={({ pressed }) => [st.peek, { borderLeftColor: colour }, pressed && { opacity: 0.9 }]} onPress={open} accessibilityRole="button">
+    <Pressable
+      onPress={() => {
+        feel.tap();
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [st.mapButton, lit && { backgroundColor: C.kerb }, pressed && { opacity: 0.7 }]}
+    >
       {children}
     </Pressable>
   );
 }
+
+/** One of the sheet's three actions: icon over a short label, a big target. */
+function Action({ label, glyph, onPress }: { label: string; glyph: Glyph; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [st.action, pressed && { opacity: 0.8 }]}>
+      <Pin glyph={glyph} colour={BRAND} size={24} />
+      <Txt v="label" scale="chrome" style={{ color: C.chalk, textAlign: 'center' }} numberOfLines={2}>{label}</Txt>
+    </Pressable>
+  );
+}
+
+function SheetSection({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
+  return (
+    <View style={{ gap: 2 }}>
+      <Row style={{ justifyContent: 'space-between', minHeight: 28 }}>
+        <Txt v="micro" accessibilityRole="header">{title}</Txt>
+        {right}
+      </Row>
+      {children}
+    </View>
+  );
+}
+
+/** An event in the sheet's lists: tap to see it on the map. */
+function EventRow({ view: v, now, miles, onPress }: { view: EventView; now: Date; miles: string; onPress: () => void }) {
+  const e = v.event;
+  const clock = eventClock(v, now);
+  const role = roleLabel(v.role);
+  const locked = v.shownStop < 0;
+  const sub = [EVENT_LABELS[e.type], `${clock.label} ${clock.value}`, `${e.going.length} going`, locked ? `${e.areaName} (rough area)` : miles].join(' · ');
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${e.title}. ${role ? `${role}. ` : ''}${sub}. Show on the map`}
+      style={({ pressed }) => [st.row, pressed && { opacity: 0.8 }]}
+    >
+      <Pin glyph={locked ? 'locked' : e.type} colour={EVENT_COLOURS[e.type]} size={30} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
+          {clock.live ? <View style={st.liveDot} accessibilityLabel="Live now" /> : null}
+          <Txt numberOfLines={1} style={{ flexShrink: 1 }}>{e.title}</Txt>
+        </Row>
+        <Txt v="caption" numberOfLines={2}>{sub}</Txt>
+      </View>
+      {role ? <Tag label={role} tone={roleTone(v.role)} /> : null}
+    </Pressable>
+  );
+}
+
+/** The sheet's peek: what's live now, or the next thing you're part of, with its countdown. */
+function LeadRow({ lead, now, miles, onPress }: { lead: EventView; now: Date; miles: string; onPress: () => void }) {
+  const e = lead.event;
+  const colour = EVENT_COLOURS[e.type];
+  const clock = eventClock(lead, now);
+  const locked = unlocksIn(lead, now);
+  const role = roleLabel(lead.role);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${clock.live ? 'Live now' : 'Next up'}: ${e.title}, ${role ? `${role}, ` : ''}${clock.label} ${clock.value}. Show on the map`}
+      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }, pressed && { opacity: 0.8 }]}
+    >
+      <PulseRing live={clock.live} size={38}>
+        <Pin glyph={lead.shownStop >= 0 ? e.type : 'locked'} colour={colour} size={38} />
+      </PulseRing>
+      <View style={{ flex: 1, gap: 1 }}>
+        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
+          {clock.live ? <View style={st.liveDot} /> : null}
+          <Txt v="eyebrow" scale="chrome" style={{ color: clock.live ? STATE.live : colour, flexShrink: 1 }} numberOfLines={1}>
+            {clock.live ? 'Live now' : 'Next up'} · {EVENT_LABELS[e.type]}
+          </Txt>
+        </Row>
+        <Txt v="h3" scale="chrome" numberOfLines={1}>{e.title}</Txt>
+        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
+          {role ? <Tag label={role} tone={roleTone(lead.role)} /> : null}
+          <Txt v="mono" scale="chrome" numberOfLines={1} style={{ flexShrink: 1 }}>
+            {[`${e.going.length} going`, locked ? UNLOCK.in(locked) : miles].filter(Boolean).join(' · ')}
+          </Txt>
+        </Row>
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Txt v="micro" scale="chrome">{clock.live ? 'Ends in' : 'Starts in'}</Txt>
+        <Txt v="h2" scale="chrome" style={{ color: clock.live ? STATE.live : C.chalk, fontVariant: ['tabular-nums'], textTransform: 'none' }}>{clock.value}</Txt>
+      </View>
+    </Pressable>
+  );
+}
+
+const st = StyleSheet.create({
+  top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  search: {
+    flex: 1, minHeight: PILL, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 6,
+    backgroundColor: SURFACE.glassRaised, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.pill,
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
+  },
+  newBadge: { backgroundColor: BRAND, borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 3 },
+  newBadgeText: { fontFamily: F.labelBold, fontSize: TYPE.micro, color: C.ink, letterSpacing: 0.6, textTransform: 'uppercase' },
+  stack: { position: 'absolute', right: 12, top: 0, gap: 8, alignItems: 'flex-end' },
+  stackGroup: {
+    backgroundColor: SURFACE.glassRaised, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.sheet, overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+  },
+  stackRule: { height: 1, backgroundColor: C.kerb, marginHorizontal: 8 },
+  mapButton: { width: BUTTON, height: BUTTON, alignItems: 'center', justifyContent: 'center' },
+  note: {
+    position: 'absolute', left: 12, top: 0,
+    backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.tag, paddingHorizontal: 6, paddingVertical: 3,
+  },
+  header: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
+  closeBtn: { width: 44, height: 44, marginTop: -6, marginRight: -8, alignItems: 'center', justifyContent: 'center' },
+  hint: { backgroundColor: C.tarmac, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.card, padding: 12, gap: 8 },
+  action: {
+    flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4, paddingVertical: 8,
+    backgroundColor: C.tarmac, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.card,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 6 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: STATE.liveDot },
+  answer: { flex: 1, minHeight: 48, borderWidth: 1.5, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center' },
+});
 
 /** "at 22:40", or "tomorrow at 09:00" / "on Fri 21 Nov". */
 function reportEnds(iso: string, now: Date): string {
@@ -935,119 +992,3 @@ function reportEnds(iso: string, now: Date): string {
   if (day(d) === day(tomorrow)) return `tomorrow at ${hm}`;
   return `on ${d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
 }
-
-/** Nothing you're part of is coming up: say what to do instead (REVIEW-5 M8). */
-function NothingOn() {
-  return (
-    <Card variant="glass" style={{ gap: 10 }}>
-      <Txt v="h3">Nothing on near you tonight</Txt>
-      <Txt v="muted">Find an event to go to, or host one for your mates.</Txt>
-      <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label="Find events" size="sm" onPress={() => router.push('/find')} style={{ flex: 1 }} />
-        <Button label="Host one" kind="secondary" size="sm" onPress={() => router.push('/event/new')} style={{ flex: 1 }} />
-      </Row>
-      <LinkText label="Suggest a place ›" onPress={() => router.push('/spot/new')} />
-    </Card>
-  );
-}
-
-/** The bottom HUD card: what's on now, or the next thing you're part of, with a countdown. */
-function NextUp({ lead, after, tonight, now }: { lead: EventView; after: EventView | null; tonight: number; now: Date }) {
-  const e = lead.event;
-  const colour = EVENT_COLOURS[e.type];
-  const clock = eventClock(lead, now);
-  const locked = unlocksIn(lead, now);
-  const role = roleLabel(lead.role);
-  const open = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
-  return (
-    <View style={[st.next, { borderLeftColor: clock.live ? STATE.live : colour }]}>
-      <Pressable
-        onPress={() => open(e.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`${clock.live ? 'Live now' : 'Next up'}: ${e.title}, ${role ? `${role}, ` : ''}${clock.label} ${clock.value}. Open event`}
-        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12 }, pressed && { opacity: 0.8 }]}
-      >
-        <PulseRing live={clock.live} size={38}>
-          <Pin glyph={lead.shownStop >= 0 ? e.type : 'locked'} colour={colour} size={38} />
-        </PulseRing>
-        <View style={{ flex: 1, gap: 1 }}>
-          <Row gap={6} style={{ flexWrap: 'nowrap' }}>
-            {clock.live ? <View style={[st.liveDot, { backgroundColor: STATE.liveDot }]} /> : null}
-            <Txt v="eyebrow" scale="chrome" style={{ color: clock.live ? STATE.live : colour, flexShrink: 1 }} numberOfLines={1}>
-              {clock.live ? 'Live now' : 'Next up'} · {EVENT_LABELS[e.type]}
-            </Txt>
-          </Row>
-          <Txt v="h3" scale="chrome" numberOfLines={1}>{e.title}</Txt>
-          <Row gap={6} style={{ flexWrap: 'nowrap' }}>
-            {role ? <Tag label={role} tone={roleTone(lead.role)} /> : null}
-            <Txt v="mono" scale="chrome" numberOfLines={1} style={{ flexShrink: 1 }}>
-              {[`${e.going.length} going`, locked ? UNLOCK.in(locked) : null].filter(Boolean).join(' · ').toUpperCase()}
-            </Txt>
-          </Row>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Txt v="micro" scale="chrome">{clock.live ? 'Ends in' : 'Starts in'}</Txt>
-          <Txt v="h2" scale="chrome" style={{ color: clock.live ? STATE.live : C.chalk, fontVariant: ['tabular-nums'], textTransform: 'none' }}>{clock.value}</Txt>
-        </View>
-      </Pressable>
-      {after || tonight > 1 ? (
-        <View style={st.nextFoot}>
-          {after ? (
-            <Pressable onPress={() => open(after.event.id)} accessibilityRole="button" hitSlop={10} style={{ flex: 1 }}>
-              <Txt v="mono" scale="chrome" numberOfLines={1}>
-                THEN <Txt v="mono" scale="chrome" style={{ color: C.chalk }}>{after.event.title.toUpperCase()}</Txt> · {eventClock(after, now).value.toUpperCase()}
-              </Txt>
-            </Pressable>
-          ) : <View style={{ flex: 1 }} />}
-          {tonight > 1 ? <Txt v="mono" scale="chrome" style={{ color: BRAND }}>{tonight} IN THE NEXT 12H</Txt> : null}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-const st = StyleSheet.create({
-  hud: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 14 },
-  brand: { backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.card, paddingHorizontal: 10, minHeight: 44, justifyContent: 'center', flexShrink: 0 },
-  live: { backgroundColor: STATE.live, borderRadius: RADIUS.card, paddingHorizontal: 10, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: STATE.liveDot },
-  /** Every map button: a 44 pt rounded square on glass (REVIEW-5 m10). */
-  mapButton: {
-    backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.card, minWidth: 44, height: 44,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  findWide: { flexDirection: 'row', gap: 6, paddingHorizontal: 10 },
-  badge: {
-    position: 'absolute', top: -5, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
-    backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center',
-  },
-  badgeText: { fontFamily: F.labelBold, fontSize: TYPE.micro, color: C.ink },
-  next: {
-    backgroundColor: SURFACE.glassRaised, borderColor: C.kerb, borderWidth: 1,
-    borderLeftWidth: 3, borderRadius: RADIUS.card, paddingHorizontal: 12, paddingVertical: 10, gap: 8,
-  },
-  nextFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: C.kerb, paddingTop: 7 },
-  note: { backgroundColor: SURFACE.glassRaised, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.card, padding: 12, gap: 8, marginTop: 8 },
-  menu: {
-    // Solid, not glass: a menu often opens over a card or note, and any alpha lets their text ghost through.
-    position: 'absolute', backgroundColor: SURFACE.surface, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.card,
-    paddingHorizontal: 12, paddingVertical: 8, gap: 0, minWidth: 140,
-  },
-  /** Menu rows are at least 44 pt tall (REVIEW-5 m19). */
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
-  menuHit: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minHeight: 44 },
-  rule: { height: 1, backgroundColor: C.kerb, marginVertical: 4 },
-  /** The bottom of the map: the widget slot on the right, then the card. */
-  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 8 },
-  key: { right: 14, width: 260 },
-  box: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: C.fog, alignItems: 'center', justifyContent: 'center' },
-  credit: {
-    backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.tag, paddingHorizontal: 6, paddingVertical: 3,
-    flexShrink: 1, marginRight: 8, marginTop: 2,
-  },
-  answer: { flex: 1, minHeight: 44, borderWidth: 1.5, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center' },
-  peek: {
-    backgroundColor: SURFACE.glassRaised, borderColor: C.kerb, borderWidth: 1,
-    borderLeftWidth: 3, borderRadius: RADIUS.card, padding: 14, gap: 6,
-  },
-});

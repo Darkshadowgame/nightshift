@@ -1,6 +1,7 @@
-import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
+import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, MIXED_SPAN, maxClusterKm, medoid, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
+import { landmassOf } from '../src/lib/landmass';
 import { bundledSpots } from '../src/lib/placeStore';
-import type { Spot } from '../src/lib/types';
+import type { LatLng, Spot } from '../src/lib/types';
 
 const TAMWORTH = { lat: 52.63, lng: -1.69 };
 
@@ -69,5 +70,99 @@ describe('places drawn for the view', () => {
     const near = nearestPoints(pts, TAMWORTH, 60);
     expect(near).toHaveLength(60);
     for (const p of near) expect(Math.abs(p.lat - TAMWORTH.lat)).toBeLessThan(2);
+  });
+});
+
+describe('groups stay on land (medoid, landmass, radius cap)', () => {
+  const all = bundledSpots();
+  const UK = { lat: 54.5, lng: -3 };
+  const SPANS = [1.2, 2, 3.5, 6, 9, 14, 24, 40];
+
+  test('the Thames estuary: Norfolk and Kent drives never group onto the water', () => {
+    const list = [
+      spot('norwich', 'drive', 52.63, 1.3), spot('cromer', 'drive', 52.93, 1.3), spot('kings-lynn', 'drive', 52.75, 0.4),
+      spot('canterbury', 'drive', 51.28, 1.08), spot('dover', 'drive', 51.13, 1.31), spot('margate', 'drive', 51.38, 1.38), spot('maidstone', 'drive', 51.27, 0.52),
+    ];
+    const atOf = new Set(list.map((s) => `${s.at.lat},${s.at.lng}`));
+    for (const span of SPANS) {
+      for (const c of placesForView(list, { lat: 52, lng: 0.9 }, span).clusters) {
+        expect(atOf.has(`${c.at.lat},${c.at.lng}`)).toBe(true);
+        // Not in the estuary between Southend, Sheppey and the open sea.
+        expect(c.at.lat > 51.42 && c.at.lat < 51.56 && c.at.lng > 0.7 && c.at.lng < 1.2).toBe(false);
+        // Never one group from the Wash to Dover (about 190 km).
+        expect(c.count).toBeLessThan(list.length);
+      }
+    }
+  });
+
+  test('Belfast and Stranraer never group, at any zoom', () => {
+    const list = [spot('belfast', 'photo', 54.597, -5.93), spot('stranraer', 'photo', 54.903, -5.024)];
+    expect(landmassOf(list[0].at)).toBe('northern-ireland');
+    expect(landmassOf(list[1].at)).toBe('gb');
+    for (const span of SPANS) {
+      const v = placesForView(list, { lat: 54.7, lng: -5.5 }, span);
+      expect(v.clusters).toEqual([]);
+      expect(v.places).toHaveLength(2);
+    }
+  });
+
+  test('the islands stay apart from the mainland across the narrow straits', () => {
+    const pairs: [LatLng, LatLng, string][] = [
+      [{ lat: 50.73, lng: -1.16 }, { lat: 50.79, lng: -1.09 }, 'isle-of-wight'], // Ryde, Portsmouth
+      [{ lat: 50.69, lng: -1.53 }, { lat: 50.758, lng: -1.545 }, 'isle-of-wight'], // Yarmouth IoW, Lymington
+      [{ lat: 57.413, lng: -6.195 }, { lat: 57.4327, lng: -5.8158 }, 'skye'], // Portree, Applecross
+      [{ lat: 54.15, lng: -4.48 }, { lat: 54.49, lng: -3.6 }, 'isle-of-man'], // Douglas, St Bees
+      [{ lat: 54.457, lng: -5.475 }, { lat: 54.84, lng: -5.12 }, 'northern-ireland'], // Kirkistown, Portpatrick
+      [{ lat: 55.2, lng: -6.24 }, { lat: 55.29, lng: -5.8 }, 'northern-ireland'], // Ballycastle, Mull of Kintyre
+    ];
+    for (const [island, mainland, name] of pairs) {
+      expect(landmassOf(island)).toBe(name);
+      expect(landmassOf(mainland)).toBe('gb');
+    }
+    // A few mainland places that sit near an outline.
+    for (const p of [{ lat: 57.28, lng: -5.71 }, { lat: 57.21, lng: -5.62 }, { lat: 50.9, lng: -1.4 }, { lat: 53.23, lng: -4.13 }]) expect(landmassOf(p)).toBe('gb');
+  });
+
+  test('every group pin sits on one of its own places, inside the radius cap', () => {
+    for (const span of SPANS) {
+      const v = placesForView(all, UK, span);
+      for (const c of v.clusters) {
+        const members = all.filter((s) => (c.mixed || s.kind === c.kind) && s.at.lat === c.at.lat && s.at.lng === c.at.lng);
+        expect(members.length).toBeGreaterThan(0);
+        expect(c.zoomSpan).toBeLessThan(span);
+      }
+      // Every place still counted exactly once.
+      const inView = v.places.length + v.clusters.reduce((n, c) => n + c.count, 0);
+      if (span >= 9) expect(inView).toBe(all.length);
+    }
+  });
+
+  test('zoomed far out: per-island counts add up, nothing merges across the sea', () => {
+    for (const span of [9, 14, 24, 40]) {
+      const v = placesForView(all, UK, span);
+      for (const land of ['northern-ireland', 'isle-of-wight', 'skye'] as const) {
+        const expected = all.filter((s) => landmassOf(s.at) === land).length;
+        const shown =
+          v.places.filter((s) => landmassOf(s.at) === land).length +
+          v.clusters.filter((c) => landmassOf(c.at) === land).reduce((n, c) => n + c.count, 0);
+        expect(shown).toBe(expected);
+      }
+      // A readable number of markers for the whole UK: regional counts of every kind together, not hundreds of pins.
+      expect(v.places.length + v.clusters.length).toBeLessThan(45);
+    }
+  });
+
+  test('zoomed far out, kinds share one count; closer in, each kind keeps its own', () => {
+    const far = placesForView(all, UK, MIXED_SPAN * 3);
+    expect(far.clusters.some((c) => c.mixed)).toBe(true);
+    const near = placesForView(all, { lat: 52.6, lng: -1.7 }, MIXED_SPAN);
+    expect(near.clusters.every((c) => !c.mixed)).toBe(true);
+  });
+
+  test('medoid: the member nearest the centre, not the centre', () => {
+    const list = [spot('a', 'drive', 52.63, 1.3), spot('b', 'drive', 51.28, 1.08), spot('c', 'drive', 52.0, 1.1)];
+    expect(medoid(list).id).toBe('c');
+    expect(maxClusterKm(0.5)).toBeCloseTo(13.875);
+    expect(maxClusterKm(100)).toBe(120);
   });
 });

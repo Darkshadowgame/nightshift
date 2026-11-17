@@ -1,12 +1,14 @@
 /**
- * The map's layers and its top chrome, as pure logic (REVIEW-5 B3, M7).
+ * The map's layers, as pure logic (REVIEW-5 M7, MAP-REDESIGN.md).
  *
- * Core layers sit on the layer bar; the rest live under the layers button.
- * Every choice is saved in Settings, the same way for all of them.
- * The layer bar never scrolls sideways: `mapChrome()` works out whether the
- * pills can carry their labels at this width and text size, or go icon-only
- * (the labels stay in the accessibility label and in the map key).
+ * Every layer is a tile in the layers panel (the layers button on the map).
+ * Core layers start on; the rest start off. Every choice is saved in
+ * Settings, the same way for all of them.
  */
+
+import type { Glyph } from '../components/Pin';
+import { LAYER, ROAD_COLOUR, SHOP_COLOUR } from '../theme';
+import { PLACE_NAMES } from './glossary';
 
 export type CoreLayer = 'events' | 'photo' | 'drive' | 'track';
 /** Layers kept under the layers button. `venue` is "Meet spots" in the UI. */
@@ -15,6 +17,24 @@ export type Layer = CoreLayer | MoreLayer;
 
 export const CORE_LAYERS: readonly CoreLayer[] = ['events', 'photo', 'drive', 'track'];
 export const MORE_LAYERS: readonly MoreLayer[] = ['venue', 'shops', 'cameras', 'roads'];
+
+/** Every layer, in the order the layers panel shows them. */
+export const ALL_LAYERS: readonly Layer[] = [...CORE_LAYERS, ...MORE_LAYERS];
+
+/**
+ * How each layer looks in the layers panel and the map key. A new layer (e.g.
+ * Posts) goes in the types and lists above, here, and in layerOn / setLayer.
+ */
+export const LAYER_INFO: Record<Layer, { label: string; glyph: Glyph; colour: string; hint?: string }> = {
+  events: { label: 'Events', glyph: 'meet', colour: LAYER.event, hint: 'Meets, cruises, shows and track days' },
+  photo: { label: 'Photos', glyph: 'photo', colour: LAYER.photo, hint: 'Photo spots' },
+  drive: { label: PLACE_NAMES.drive.many, glyph: 'drive', colour: LAYER.drive, hint: 'Great roads, never timed' },
+  track: { label: PLACE_NAMES.track.many, glyph: 'track', colour: LAYER.track, hint: 'Circuits and track-day venues' },
+  venue: { label: PLACE_NAMES.venue.many, glyph: 'venue', colour: LAYER.venue, hint: 'Cafés and museums that welcome meets' },
+  shops: { label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR, hint: 'From OpenStreetMap, and partners' },
+  cameras: { label: 'Speed cameras', glyph: 'camera', colour: LAYER.camera, hint: 'Show when zoomed in' },
+  roads: { label: 'Road reports', glyph: 'hazard', colour: ROAD_COLOUR, hint: 'Closures and drivers\' reports' },
+};
 
 /** Saved on/off for the layers that start on: the core four and meet spots. */
 export type SavedLayers = Record<CoreLayer | 'venue', boolean>;
@@ -64,47 +84,3 @@ export function setLayer(settings: LayerSettings, key: Layer, on: boolean): Laye
 export function toggleLayer(settings: LayerSettings, key: Layer): LayerChange {
   return setLayer(settings, key, !layerOn(settings, key));
 }
-
-/** Rough widths (pt at 100% text) of the map chrome, from the fonts in theme.ts. */
-const HUD_PADDING = 14;
-const PILL_GAP = 6;
-/** A condensed capital at 12 pt with its letter spacing. */
-const CAP_WIDTH = 6.6;
-/** Pill padding, icon and the gap to the label. */
-const PILL_FIXED = 8 + 18 + 5 + 6;
-/** The ▾ on a pill with options. */
-const CARET = 18;
-/** An icon-only pill. */
-export const ICON_PILL = 8 + 18 + 8;
-
-export interface ChromeLayout {
-  /** Layer pills with labels, or icons only. */
-  pills: 'labels' | 'icons';
-  /** The Find button in the top row: icon and "Find", or the icon only. */
-  find: 'label' | 'icon';
-}
-
-/**
- * How the map's top chrome fits this screen. `fontScale` is the iOS text size
- * (useWindowDimensions().fontScale); chrome text is capped at `cap` (FONT_SCALE.chrome).
- */
-export function mapChrome(
-  width: number,
-  fontScale: number,
-  opts: { labels: string[]; withMenu?: number; live?: boolean; cap?: number },
-): ChromeLayout {
-  const scale = Math.min(Math.max(fontScale || 1, 1), opts.cap ?? 1.3);
-  const room = width - HUD_PADDING * 2;
-  const pillsNeed =
-    opts.labels.reduce((sum, l) => sum + PILL_FIXED + l.length * CAP_WIDTH * scale, 0) +
-    (opts.withMenu ?? 0) * CARET +
-    PILL_GAP * (opts.labels.length - 1);
-  const pills = pillsNeed <= room ? 'labels' : 'icons';
-  // Top row: the wordmark (~118), the live pill (~74), Find (~72 with its label, 44 without) and the bell (44).
-  const brand = 118 * scale;
-  const live = opts.live ? 74 * scale + 8 : 0;
-  const findLabelled = 72 * scale;
-  const find = brand + live + findLabelled + 8 + 44 + 8 <= room ? 'label' : 'icon';
-  return { pills, find };
-}
-

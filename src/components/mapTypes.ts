@@ -77,6 +77,11 @@ export interface NightMapProps {
   onMoved?: (centre: LatLng) => void;
   /** Called when the person pans or zooms (and once at the start), with the centre and span. */
   onRegion?: (region: MapRegion) => void;
+  /**
+   * Show Apple Maps' compass when the map is rotated (tap it for north up),
+   * moved this far from its usual top-right spot (iOS only).
+   */
+  compass?: { x: number; y: number };
   /** Small credit line in the map's bottom corner, e.g. for OpenStreetMap data drawn on it. */
   credit?: string;
 }
