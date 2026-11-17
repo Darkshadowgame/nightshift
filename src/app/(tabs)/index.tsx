@@ -6,10 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
 import { Pin, type Glyph } from '../../components/Pin';
 import { LayerBar } from '../../components/LayerBar';
+import { MapWidgetSlot } from '../../components/MapWidgetSlot';
+import Svg, { Path } from 'react-native-svg';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { feel } from '../../lib/feel';
-import { BAN_ZONES } from '../../data/seed';
-import { zoneShapes } from '../../lib/zones';
 import { nearestPoints, placesForView, regionKey } from '../../lib/mapPlaces';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapHandle } from '../../components/mapTypes';
@@ -40,19 +40,23 @@ import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { milesBetween } from '../../lib/geo';
 import { C, EVENT_COLOURS, F, PARTNER_COLOUR, SHOP_COLOUR, SPOT_COLOURS } from '../../theme';
 
-type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'shops' | 'bans' | 'cameras';
-/** The layer bar, in order. Add a layer here (and to `shown` below) to give it a pill. */
+type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'shops' | 'cameras';
+/** The layer bar: the core layers only, in order. Add a layer here (and to `shown` below) to give it a pill. */
 const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'events', label: 'Events', glyph: 'meet', colour: C.sodium },
   { key: 'photo', label: 'Photos', glyph: 'photo', colour: C.magenta },
   { key: 'drive', label: 'Drives', glyph: 'drive', colour: C.neon },
   { key: 'track', label: 'Tracks', glyph: 'track', colour: C.lime },
+];
+/**
+ * The layers button (under locate-me) holds the rest: venues, and the two
+ * background layers kept in settings and off by default, Shops (with its kinds)
+ * and Speed cameras. Ban zones aren't a map layer: they show where you host.
+ */
+const MORE_LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'venue', label: 'Venues', glyph: 'venue', colour: SPOT_COLOURS.venue },
-  // Kept in settings, with its filter (Shops ▾).
   { key: 'shops', label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR },
-  { key: 'bans', label: 'Bans', glyph: 'area', colour: C.alert },
-  // Kept in settings (Me > Map), so it stays as you left it.
-  { key: 'cameras', label: 'Cameras', glyph: 'camera', colour: C.alert },
+  { key: 'cameras', label: 'Speed cameras', glyph: 'camera', colour: C.alert },
 ];
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
@@ -83,8 +87,20 @@ const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
   { glyph: 'garage', colour: SHOP_COLOUR, label: 'Shop (OpenStreetMap)' },
   { glyph: 'partner', colour: PARTNER_COLOUR, label: 'Partner (paid, always marked)' },
   { glyph: 'camera', colour: C.alert, label: 'Speed camera' },
-  { glyph: 'area', colour: C.alert, label: 'Ban zone' },
 ];
+
+/** Height of the brand row and the layer bar above the note/locate row (the menus open under the layers button). */
+const HUD_TOP = 92;
+
+/** The layers button's icon: three stacked sheets, as in Apple Maps. */
+function LayersIcon({ colour }: { colour: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24">
+      <Path d="M12 3 21 8l-9 5-9-5z" fill="none" stroke={colour} strokeWidth={1.8} strokeLinejoin="round" />
+      <Path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5" fill="none" stroke={colour} strokeWidth={1.8} strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 const START = { lat: 52.7, lng: -1.7 };
 const START_SPAN = 1.4;
@@ -95,7 +111,7 @@ export default function MapScreen() {
   const { events, me, crews, users, builds, spots, nearby, settings, setSettings } = store;
   const now = useNow();
   const newNear = nearby?.unseen.length ?? 0;
-  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
+  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true });
   const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras, shops: !!settings.shops };
   /** The camera layer's "zoom in" note only shows once the person has turned the layer on themselves. */
   const [camerasAsked, setCamerasAsked] = useState(false);
@@ -281,11 +297,6 @@ export default function MapScreen() {
       const colour = s.status === 'pending' ? C.fog : SPOT_COLOURS[s.kind];
       paths.push({ id: `pa:${s.id}`, coords: s.path!, colour, dashed: s.status === 'pending' });
     }
-    if (layers.bans) {
-      const shapes = zoneShapes(BAN_ZONES, C.alert);
-      circles.push(...shapes.circles);
-      polygons = shapes.polygons;
-    }
     return { pins: orderPins(pins), paths, circles, polygons };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [views, shown, placeView, cams, region.span, shopView]);
@@ -388,6 +399,10 @@ export default function MapScreen() {
     return { zoom: false, text: `© OpenStreetMap${cams && !cams.tooWide ? ' · cameras may be incomplete' : ''}${more}` };
   })();
   const [showKey, setShowKey] = useState(false);
+  /** The layers button's menu, and where the button sits (to open the menu under it). */
+  const [showLayers, setShowLayers] = useState(false);
+  const [layersButtonY, setLayersButtonY] = useState(52);
+  const moreOn = MORE_LAYERS.filter((l) => l.key !== 'venue' && layers[l.key]).length;
 
   const hud = useMemo(() => mapHud(views, now), [views, now]);
   const liveCount = hud.live.length;
@@ -446,7 +461,7 @@ export default function MapScreen() {
             setKindMenu(null);
             toggleLayer(key as Layer);
           }}
-          layers={LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) => ({
+          layers={LAYERS.map((l) => ({
             key: l.key,
             label: l.label,
             glyph: l.glyph,
@@ -457,12 +472,7 @@ export default function MapScreen() {
                   note: trackKinds.length === ALL_VEHICLES.length ? undefined : trackKinds.map((v) => VEHICLE_LABELS[v]).join(' · '),
                   menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : { which: 'track', ...anchor })),
                 }
-              : l.key === 'shops'
-                ? {
-                    note: shopFilterNote(shopFilter.categories, shopFilter.partnersOnly),
-                    menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : { which: 'shops', ...anchor })),
-                  }
-                : {}),
+              : {}),
           }))}
           actions={[
             { key: 'find', label: newNear > 0 ? `Find events · ${newNear} new` : 'Find events', colour: C.lime, onPress: () => router.push('/find') },
@@ -481,7 +491,6 @@ export default function MapScreen() {
               },
             },
             { key: 'suggest', label: '+ Suggest a place', colour: C.chalk, onPress: () => router.push('/spot/new') },
-            { key: 'key', label: 'Map key', colour: C.chalk, onPress: () => setShowKey((k) => !k) },
           ]}
         />
         <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
@@ -490,15 +499,32 @@ export default function MapScreen() {
               <Txt v="mono" style={{ fontSize: 10, color: mapNote.zoom ? C.chalk : C.fog }} numberOfLines={2}>{mapNote.text}</Txt>
             </View>
           ) : <View />}
-          <Pressable
-            onPress={() => locate(true, true)}
-            style={({ pressed }) => [st.locate, pressed && { opacity: 0.8 }]}
-            accessibilityRole="button"
-            accessibilityLabel="Show where I am"
-            hitSlop={6}
-          >
-            <Pin glyph="you" colour={located ? C.neon : C.fog} size={26} />
-          </Pressable>
+          <View style={{ gap: 8 }}>
+            <Pressable
+              onPress={() => locate(true, true)}
+              style={({ pressed }) => [st.locate, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Show where I am"
+              hitSlop={6}
+            >
+              <Pin glyph="you" colour={located ? C.neon : C.fog} size={26} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setKindMenu(null);
+                setShowKey(false);
+                setShowLayers((v) => !v);
+              }}
+              onLayout={(e) => setLayersButtonY(e.nativeEvent.layout.y)}
+              style={({ pressed }) => [st.locate, st.round, (showLayers || moreOn > 0) && { borderColor: C.kerbHi }, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Map layers: venues, shops and speed cameras${moreOn > 0 ? `, ${moreOn} on` : ''}`}
+              accessibilityState={{ expanded: showLayers }}
+              hitSlop={6}
+            >
+              <LayersIcon colour={showLayers || moreOn > 0 ? C.chalk : C.fog} />
+            </Pressable>
+          </View>
         </Row>
         {locNote ? (
           <View style={st.note}>
@@ -516,6 +542,9 @@ export default function MapScreen() {
           </View>
         ) : null}
       </View>
+      <View style={st.bottom} pointerEvents="box-none">
+      {/* Bottom-right, above the card: room for a small map widget (e.g. a speed readout). See MapWidgetSlot. */}
+      <MapWidgetSlot />
       {sel ? (
         <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} disabled={!sel.open} accessibilityRole={sel.open ? 'button' : 'summary'}>
           <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
@@ -535,10 +564,71 @@ export default function MapScreen() {
       ) : lead ? (
         <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
       ) : null}
+      </View>
+      {showLayers ? (
+        <>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLayers(false)} accessibilityLabel="Close the layers menu" />
+          <View style={[st.menu, st.key, { top: insets.top + 8 + layersButtonY + HUD_TOP + 50 }]} accessibilityRole="menu">
+            <Txt v="label" style={{ fontSize: 10 }}>More on the map</Txt>
+            {MORE_LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) => {
+              const on = layers[l.key];
+              return (
+                <View key={l.key} style={[st.menuRow, { paddingVertical: 4 }]}>
+                  <Pressable
+                    onPress={() => {
+                      feel.select();
+                      toggleLayer(l.key);
+                    }}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: on }}
+                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minHeight: 34 }, pressed && { opacity: 0.7 }]}
+                  >
+                    <View style={[st.box, on && { backgroundColor: l.colour, borderColor: l.colour }]}>
+                      {on ? <Txt v="label" style={{ color: C.asphalt, fontSize: 11, lineHeight: 14 }}>✓</Txt> : null}
+                    </View>
+                    <Pin glyph={l.glyph} colour={on ? l.colour : C.fog} size={20} />
+                    <View style={{ flexShrink: 1 }}>
+                      <Txt style={{ color: on ? C.chalk : C.fog, fontSize: 14 }}>{l.label}</Txt>
+                      {l.key === 'shops' && on && shopFilterNote(shopFilter.categories, shopFilter.partnersOnly) ? (
+                        <Txt v="muted" style={{ fontSize: 11 }}>{shopFilterNote(shopFilter.categories, shopFilter.partnersOnly)}</Txt>
+                      ) : null}
+                    </View>
+                  </Pressable>
+                  {l.key === 'shops' ? (
+                    <Pressable
+                      onPress={() => {
+                        setShowLayers(false);
+                        setKindMenu({ which: 'shops', x: screen.width - 262, y: insets.top + 8 + layersButtonY + HUD_TOP + 50 });
+                      }}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Which kinds of shop to show"
+                      style={{ minHeight: 34, justifyContent: 'center', paddingLeft: 6 }}
+                    >
+                      <Txt v="label" style={{ fontSize: 11, color: SHOP_COLOUR }}>Kinds ›</Txt>
+                    </Pressable>
+                  ) : null}
+                </View>
+              );
+            })}
+            <View style={{ height: 1, backgroundColor: C.kerb, marginVertical: 4 }} />
+            <Pressable
+              onPress={() => {
+                setShowLayers(false);
+                setShowKey(true);
+              }}
+              accessibilityRole="button"
+              style={({ pressed }) => [st.menuRow, { paddingVertical: 6 }, pressed && { opacity: 0.7 }]}
+            >
+              <Txt v="label" style={{ fontSize: 12 }}>Map key ›</Txt>
+            </Pressable>
+          </View>
+        </>
+      ) : null}
       {showKey ? (
         <>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowKey(false)} accessibilityLabel="Close the map key" />
-          <View style={[st.menu, st.key, { top: insets.top + 104 }]} accessibilityRole="summary">
+          <View style={[st.menu, st.key, { top: insets.top + 8 + layersButtonY + HUD_TOP + 50 }]} accessibilityRole="summary">
             <Row style={{ justifyContent: 'space-between' }}>
               <Txt v="label" style={{ fontSize: 10 }}>Map key</Txt>
               <Pressable onPress={() => setShowKey(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
@@ -694,7 +784,7 @@ const st = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#00222c' },
   cta: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 5, marginTop: 2 },
   next: {
-    position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.96)', borderColor: C.kerb, borderWidth: 1,
+    backgroundColor: 'rgba(19,26,38,0.96)', borderColor: C.kerb, borderWidth: 1,
     borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, gap: 8,
   },
   nextFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: C.kerb, paddingTop: 7 },
@@ -708,6 +798,9 @@ const st = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 8, gap: 2, minWidth: 140,
   },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
+  round: { borderRadius: 22 },
+  /** The bottom of the map: the widget slot on the right, then the card. */
+  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 8 },
   key: { right: 14, width: 250 },
   box: { width: 18, height: 18, borderRadius: 3, borderWidth: 1.5, borderColor: C.fog, alignItems: 'center', justifyContent: 'center' },
   credit: {
@@ -715,7 +808,7 @@ const st = StyleSheet.create({
     flexShrink: 1, marginRight: 8, marginTop: 2,
   },
   peek: {
-    position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1,
+    backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1,
     borderLeftWidth: 3, borderRadius: 8, padding: 14, gap: 6,
   },
 });
