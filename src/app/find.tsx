@@ -174,9 +174,9 @@ export default function FindEvents() {
       </View>
       {typed ? (
         <>
-          {(tab === 'all' || tab === 'events') ? (
+          {tab === 'events' || (tab === 'all' && found.events.length > 0) ? (
             <Section title={plural(found.events.length, 'event')}>
-              {found.events.length === 0 ? <Txt v="muted">No events match. Try Change the search below for wider filters.</Txt> : null}
+              {found.events.length === 0 ? <Txt v="muted">No upcoming events match, within your usual distance and filters (Events tab › clear the search to change them).</Txt> : null}
               {found.events.slice(0, cap(4)).map((h) => (
                 <ListRow
                   key={h.view.event.id}
@@ -191,7 +191,7 @@ export default function FindEvents() {
               {tab === 'all' && found.events.length > 4 ? <LinkText label={`All ${found.events.length} events ›`} onPress={() => setTab('events')} /> : null}
             </Section>
           ) : null}
-          {(tab === 'all' || tab === 'places') ? (
+          {tab === 'places' || (tab === 'all' && found.places.length > 0) ? (
             <Section title={plural(found.places.length, 'place')}>
               {found.places.length === 0 ? <Txt v="muted">No drives, photo spots, tracks or meet spots by that name.</Txt> : null}
               {found.places.slice(0, cap(4)).map(({ s, miles }) => (
@@ -208,7 +208,7 @@ export default function FindEvents() {
               {tab === 'all' && found.places.length > 4 ? <LinkText label={`All ${found.places.length} places ›`} onPress={() => setTab('places')} /> : null}
             </Section>
           ) : null}
-          {(tab === 'all' || tab === 'people') ? (
+          {tab === 'people' || (tab === 'all' && found.people.length > 0) ? (
             <Section title={plural(found.people.length, 'person', 'people')}>
               {found.people.length === 0 ? <Txt v="muted">Nobody by that name or handle.</Txt> : null}
               {found.people.slice(0, cap(4)).map((u) => (
@@ -224,6 +224,9 @@ export default function FindEvents() {
               ))}
               {tab === 'all' && found.people.length > 4 ? <LinkText label={`All ${found.people.length} people ›`} onPress={() => setTab('people')} /> : null}
             </Section>
+          ) : null}
+          {tab === 'all' && found.events.length + found.places.length + found.people.length === 0 ? (
+            <Txt v="muted">No events, places or people match. It might be an address:</Txt>
           ) : null}
           {tab === 'all' ? (
             <Section title="Address or place">
