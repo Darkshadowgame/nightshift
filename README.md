@@ -202,9 +202,13 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Zoomed out further, the pins go and a small note says **Zoom in to see speed cameras**.
       The **Cameras** chip turns the layer off and on; so does Me > Map > **Speed cameras**
       (they're the same setting, on by default).
-- [ ] Tracks chip on: **Cars**, **Bikes** and **Karts** chips appear next to it. Turn Cars
-      off: hill climbs and car-only circuits (e.g. Goodwood) go; Buckmore Park stays only
-      with Karts on.
+- [ ] Tracks chip on: **Cars**, **Bikes** and **Karts** chips appear next to it (any mix).
+      Cars and Bikes off: only places that run karts stay (the kart circuits, plus circuits
+      with karting on site such as Teesside or Three Sisters); Goodwood and the hill climbs go.
+- [ ] Open a kart circuit (e.g. Whilton Mill or PF International): **Runs here: Karts**,
+      **Arrive and drive: yes, hire karts** (only where the venue says so; Llandow and
+      Shenington say no), its layouts, a **Venue details** link, and Track times grouped as
+      hire or own karts.
 - [ ] Zoom right in on a circuit (Snetterton, Brands Hatch, Silverstone): its outline is
       drawn in green on the map.
 - [ ] Open a track (e.g. Snetterton): the little map shows the circuit outline, then **The
@@ -303,6 +307,9 @@ note anything odd for the next pass. Each step says what you should see.
   `src/data/cameras.ts`). Volunteers map them, so some are missing or out of date: the
   app says so and only ever shows them as speed-limit information. They are a separate
   dataset from anything people report (there's no way to report cameras or police).
+- Kart circuits are the outdoor ones whose own websites show them running in 2025/26
+  (`src/data/kartTracks.ts`). Arrive-and-drive, lengths and club lap records show only
+  where the venue publishes them.
 - Circuit outlines come from OpenStreetMap and show the main layout as mapped. Lap records
   are copied from each circuit's Wikipedia page (read 17 Nov 2026) and left out where the
   page wasn't clear. Track times are kept on this phone and marked unverified: checking the

@@ -220,8 +220,13 @@ shown; no timing on public roads).
   length, current layouts, and the official lap records published on each circuit's Wikipedia
   page (outright and fastest bike class, holder, vehicle, year, source link). Records the page
   isn't clear about are left out.
-* **Cars / Bikes / Karts chips** (shown with the Tracks layer): filter the circuits on the map
-  by what runs there.
+* **Cars / Bikes / Karts chips** (shown with the Tracks layer, any mix): filter the circuits on
+  the map by what runs there. Every track is tagged (cars, bikes, karts) from the circuit's own
+  site or Wikipedia; sprint courses and hill climbs are cars; spectator stadiums take no times.
+* **Kart circuits** (owner request, 17 Nov 2026): 14 more UK outdoor kart circuits checked on
+  their own sites (`src/data/kartTracks.ts`), plus Buckmore Park and Ellough Park. Each shows
+  arrive-and-drive yes or no only where the venue says, lengths and club lap records only where
+  published, and a link to the venue. Existing saves gain new bundled places on load.
 * **Track times:** entered by hand only at a bundled track (circuit, kart track, sprint course or
   hill climb; never a drive, photo spot, venue or spectator stadium), with the layout, the
   date (in the last two years, not in the future), the vehicle type, the build (its class is
