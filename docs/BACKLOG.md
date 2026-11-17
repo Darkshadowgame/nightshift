@@ -99,7 +99,10 @@ Work in this order. Each item ships over the air unless marked native.
    use…" option). Includes the pending Expo patch upgrades.
 3. **Waze-style community reports** (needs the Supabase app wiring): report
    incidents from the driving view in one or two taps (crash, hazard, roadworks,
-   closure, traffic jam, mobile speed camera, police: see SPEC safety notes),
+   closure, traffic jam, mobile speed camera, police — owner decision 17 Nov 2026:
+   police reports are included, labelled "Police / speed check", shown only in the
+   driving view, expire after 30 minutes, never shown on event/cruise/meet screens,
+   and earn rep like other reports once other drivers confirm them),
    other drivers confirm or clear them ("still there?"), reports expire, and
    reporters earn small rep for confirmed reports. Live traffic from Apple's layer;
    closures and diversions from UK open data (National Highways, Street Manager,
