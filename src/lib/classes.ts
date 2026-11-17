@@ -12,9 +12,10 @@ const CAR_THRESHOLDS: [ClassLetter, number][] = [
   ['C', 125],
 ];
 
+// 600 cc supersports (~610-660 bhp/t) sit in A with fast hot hatches; litre bikes are S.
 const BIKE_THRESHOLDS: [ClassLetter, number][] = [
   ['S', 850],
-  ['A', 640],
+  ['A', 580],
   ['B', 380],
   ['C', 200],
 ];

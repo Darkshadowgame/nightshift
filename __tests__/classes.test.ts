@@ -27,7 +27,10 @@ describe('classes', () => {
   test('typical bikes land in the expected class', () => {
     expect(classOf(bike(148, 190))).toBe('A'); // GSX-R750
     expect(classOf(bike(128, 188))).toBe('A'); // Street Triple RS
-    expect(classOf(bike(117, 190))).toBe('B'); // R6
+    expect(classOf(bike(117, 190))).toBe('A'); // R6
+    expect(classOf(bike(118, 194))).toBe('A'); // CBR600RR
+    expect(classOf(bike(128, 196))).toBe('A'); // ZX-6R
+    expect(classOf(bike(117, 189))).toBe('A'); // MT-09
     expect(classOf(bike(72, 184))).toBe('B'); // MT-07
     expect(classOf(bike(45, 168))).toBe('C'); // Ninja 400
     expect(classOf(bike(15, 140))).toBe('D'); // 125

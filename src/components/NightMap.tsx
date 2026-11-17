@@ -14,6 +14,7 @@ export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, o
       userInterfaceStyle="dark"
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
       showsUserLocation={showsUser}
+      showsTraffic
       showsPointsOfInterests={false}
       showsCompass={false}
       pitchEnabled={false}

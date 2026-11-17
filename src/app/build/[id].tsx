@@ -2,6 +2,8 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { BuildArt } from '../../components/BuildArt';
+import { Cover, Trophy } from '../../components/Cover';
+import { allAwards, categoryInfo } from '../../lib/awards';
 import { Card, ClassBadge, Row, Section, StatBar, Txt } from '../../components/ui';
 import { MOD_CATEGORIES, modCategoryShort } from '../../data/catalog';
 import { classOf, effectivePower, isModified, performanceFigure, powerBar } from '../../lib/classes';
@@ -15,7 +17,7 @@ const SOUND = new Set(['exhaust', 'intake', 'turbo']);
 export default function BuildScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { builds, users, me } = useStore();
+  const { builds, users, me, votes, events, now } = useStore();
   const b = builds.find((x) => x.id === id);
 
   useLayoutEffect(() => {
@@ -73,6 +75,32 @@ export default function BuildScreen() {
           Class {letter} from {Math.round(figure)} {b.kind === 'bike' ? 'bhp per tonne' : 'weight-adjusted bhp'}. {b.dynoBhp ? 'Dyno verified.' : 'Upload a dyno sheet to verify.'}
         </Txt>
       </Card>
+
+      {(() => {
+        const won = allAwards(votes, events, builds, now).filter((a) => a.buildId === b.id);
+        if (won.length === 0) return null;
+        const covers = won.filter((a) => categoryInfo(a.category).cover);
+        return (
+          <Section title={`Trophy cabinet (${won.length})`}>
+            {covers.length > 0 ? (
+              <ScrollView horizontal contentContainerStyle={{ gap: 10 }} showsHorizontalScrollIndicator={false}>
+                {covers.map((a) => (
+                  <Cover key={a.eventId + a.category} award={a} build={b} owner={owner} event={events.find((e) => e.id === a.eventId)} width={200} />
+                ))}
+              </ScrollView>
+            ) : null}
+            <Row gap={10}>
+              {won.map((a) => (
+                <View key={a.eventId + a.category} style={{ width: 96, alignItems: 'center', gap: 4, padding: 8, backgroundColor: C.tarmac, borderRadius: 8, borderWidth: 1, borderColor: C.kerb }}>
+                  <Trophy colour={categoryInfo(a.category).cover ? C.sodium : C.chalk} size={36} />
+                  <Txt v="label" style={{ textAlign: 'center', fontSize: 11, color: C.chalk }}>{categoryInfo(a.category).label}</Txt>
+                  <Txt v="muted" style={{ textAlign: 'center', fontSize: 11 }} numberOfLines={2}>{events.find((e) => e.id === a.eventId)?.title}</Txt>
+                </View>
+              ))}
+            </Row>
+          </Section>
+        );
+      })()}
 
       <Section title={`Mods (${b.mods.length})${isModified(b) ? ' · modified' : ''}`}>
         <Card>

@@ -35,7 +35,8 @@ scales, so a litre superbike and an M4 Competition both land in S.
   pay a mild penalty and lighter cars get a mild boost.
   S ≥ 420 · A ≥ 290 · B ≥ 190 · C ≥ 125 · D below.
 * **Bike figure:** bhp per tonne of wet weight.
-  S ≥ 850 · A ≥ 640 · B ≥ 380 · C ≥ 200 · D below.
+  S ≥ 850 · A ≥ 580 · B ≥ 380 · C ≥ 200 · D below.
+* 600 cc supersports (R6, CBR600RR, ZX-6R) land in A, with Golf R and Type R level cars.
 * **"Modified":** 3 or more logged mods. Meet filters use this.
 
 Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
@@ -92,6 +93,57 @@ Anti-gaming rules:
   giving 5 stars can't push a route to the top.
 
 Code: `src/lib/rep.ts`, tests in `__tests__/rep.test.ts`.
+
+## Post-meet voting and trophies (built)
+
+* Only people who checked in can vote, once per award, never for their own build.
+  Voting opens at the start and closes 24 hours after the end. An award needs at
+  least 3 votes.
+* Awards: **Best in show**, **Best car** and **Best bike** (when both turn up),
+  **Best per class** (meets with 12+ people checked in, and 2+ builds in that
+  class) and the style awards: stance, sound, paint, cleanest build, newcomer.
+* Rewards:
+  * **Cover shoot:** Best in show, Best car and Best bike winners get an original
+    magazine-style cover of their build, pinned to their garage.
+  * **Trophy cabinet** on the build page.
+  * **Rep:** Best in show 500, Best car or bike 300, class 200, style 150.
+  * **Legend badge:** Best in show winners carry a "Legend" badge for a week.
+* Ties go to the build that reached the top count first.
+
+Code: `src/lib/awards.ts`, tests in `__tests__/awards.test.ts`.
+
+## Research findings that change the plan (Nov 2026)
+
+Full reports are in `docs/research/`.
+
+* **Map and traffic data** (`data-sources.md`):
+  * Google and Waze can't supply closures. Google data can't be shown on an
+    Apple map, and Waze only shares feeds with public bodies.
+  * Apple's traffic layer is on, but it only colours congestion.
+  * Closures and roadworks will come from UK open data (National Highways
+    closures, DfT Street Manager, TfL) through our own small backend.
+  * Live incidents for drive mode: TomTom or HERE free tiers.
+  * Speed cameras: OpenStreetMap (credit OSM, and keep camera data separate from
+    user reports) or a paid PocketGPSWorld licence.
+  * "Open in Waze / Apple Maps" deep links for navigation.
+  * DVLA and DVSA MOT lookups can fill in make, model and colour from a
+    registration, called from the backend only.
+* **Plate blurring** (`plate-blurring.md`):
+  * A small Swift module using Apple's text recognition, matched to UK plate
+    formats, with heavy pixelation (light blur can be reversed). Every upload is
+    re-saved with no metadata.
+  * A review screen lets people add, move or remove boxes.
+  * Done so far: photos are already re-saved to strip GPS and EXIF data
+    (`src/lib/photos.ts`). The plate module is next.
+* **Other apps, design and branding** (`competitors-design-branding.md`):
+  * UK meet apps are calendars. None has classes, rep, voting or rolling meets.
+  * Never time or rank public-road routes. No police spotting.
+  * Plan how the app makes money early, since Drivetribe and Zenly both closed.
+  * Don't use "Need for Speed", "NFS" or "Underground" in the name. "Nightshift"
+    clashes with Apple's Night Shift feature and a 2026 UK trademark filing for
+    vehicle lights, so it stays a working name only. Name shortlist: Sodium Nights,
+    Slipstreet, Nitelane.
+* **UK law** (`legal.md`): pending.
 
 ## Privacy and safety in Phase 1
 

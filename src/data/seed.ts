@@ -1,5 +1,6 @@
 import type { BanZone, Build, ChatMessage, Crew, Mod, ModCategory, NightEvent, Spot, User } from '../lib/types';
 import { DEFAULT_FILTER } from '../lib/invites';
+import type { Vote } from '../lib/awards';
 
 /**
  * Demo scene for Phase 1: a made-up Midlands crowd, real roads and venues.
@@ -258,6 +259,16 @@ function events(now: Date): NightEvent[] {
       going: ['aimee', 'sully', 'liv', 'gaz'], checkIns: {},
     },
     {
+      id: 'ev-past-snowdome', type: 'meet', title: 'Snowdome Sunday meet',
+      description: 'Last weekend. Voting has closed, trophies are out.',
+      startsAt: at(now, -3, 19, 0), endsAt: at(now, -3, 22, 0), area: { lat: 52.63, lng: -1.70 }, areaName: 'Tamworth',
+      stops: [{ id: 'ps-1', name: 'Tamworth Snowdome car park', at: { lat: 52.6302, lng: -1.6962 } }],
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
+      filter: { ...DEFAULT_FILTER, minMods: 2, radiusMiles: 30 },
+      going: [ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'],
+      checkIns: Object.fromEntries([ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'].map((u) => [u, ['ps-1']])),
+    },
+    {
       id: 'ev-show-don', type: 'show', title: 'Midlands Modified Show',
       description: 'Show-and-shine, club stands and a trade area. Public event.',
       startsAt: at(now, 12, 9, 0), endsAt: at(now, 12, 17, 0), area: { lat: 52.8306, lng: -1.3797 }, areaName: 'Donington Park',
@@ -291,7 +302,20 @@ function chat(now: Date): ChatMessage[] {
   ];
 }
 
+function votes(now: Date): Vote[] {
+  const when = at(now, -3, 21, 30);
+  const v = (voterId: string, category: Vote['category'], buildId: string): Vote => ({ eventId: 'ev-past-snowdome', voterId, category, buildId, at: when });
+  return [
+    v('tom', 'best-in-show', 'b-dan-0'), v('kez', 'best-in-show', 'b-dan-0'), v('em', 'best-in-show', 'b-dan-0'), v(ME, 'best-in-show', 'b-dan-0'), v('jord', 'best-in-show', 'b-aimee-0'),
+    v('tom', 'best-car', 'b-me-0'), v('aimee', 'best-car', 'b-me-0'), v('sully', 'best-car', 'b-me-0'), v('priya', 'best-car', 'b-mo-0'),
+    v('tom', 'best-bike', 'b-aimee-0'), v('dan', 'best-bike', 'b-aimee-0'), v('mo', 'best-bike', 'b-aimee-0'),
+    v('dan', 'cleanest', 'b-me-0'), v('kez', 'cleanest', 'b-me-0'), v('mo', 'cleanest', 'b-me-0'),
+    v(ME, 'sound', 'b-kez-0'), v('em', 'sound', 'b-kez-0'), v('jord', 'sound', 'b-kez-0'),
+  ];
+}
+
 export interface SeedState {
+  votes: Vote[];
   users: User[];
   builds: Build[];
   crews: Crew[];
@@ -314,5 +338,5 @@ export function seed(now: Date = new Date()): SeedState {
       };
     }),
   );
-  return { users, builds, crews: CREWS, events: events(now), chat: chat(now) };
+  return { users, builds, crews: CREWS, events: events(now), chat: chat(now), votes: votes(now) };
 }

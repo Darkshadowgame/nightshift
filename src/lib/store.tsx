@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ME, seed, type SeedState } from '../data/seed';
+import { castVote as applyVote, type AwardCategory } from './awards';
 import { checkIn as applyCheckIn, moveOn as applyMoveOn } from './events';
 import type { Build, ChatMessage, LatLng, NightEvent, Stop } from './types';
 
@@ -47,6 +48,8 @@ interface Store extends Persisted {
   moveOn: (eventId: string, newStop?: Omit<Stop, 'id' | 'revealedAt'>) => void;
   cancelEvent: (eventId: string) => void;
   sendChat: (eventId: string, text: string) => void;
+  /** Throws with a readable reason if the vote isn't allowed. */
+  vote: (eventId: string, category: AwardCategory, buildId: string) => void;
   setSettings: (patch: Partial<Settings>) => void;
   markNoticesRead: () => void;
   resetDemo: () => void;
@@ -141,6 +144,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       sendChat: (eventId, text) => {
         const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text, at: new Date().toISOString() };
         setState((s) => ({ ...s, chat: [...s.chat, msg] }));
+      },
+      vote: (eventId, category, buildId) => {
+        const event = state.events.find((e) => e.id === eventId);
+        if (!event) throw new Error('Event not found.');
+        const votes = applyVote(state.votes, event, state.builds, ME, category, buildId, new Date());
+        setState((s) => ({ ...s, votes }));
       },
       setSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),

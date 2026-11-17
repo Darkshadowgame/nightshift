@@ -5,6 +5,7 @@ import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BIKE_MAKES, CAR_MAKES, MOD_CATEGORIES } from '../../data/catalog';
 import { classOf, effectivePower } from '../../lib/classes';
+import { cleanPhoto } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, Mod, ModCategory, VehicleKind } from '../../lib/types';
 import { C } from '../../theme';
@@ -59,8 +60,14 @@ export default function EditBuild() {
   const ready = draft.make && draft.model && draft.stockBhp > 0;
 
   async function addPhoto() {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsMultipleSelection: true });
-    if (!res.canceled) setPhotos((p) => [...p, ...res.assets.map((a) => a.uri)]);
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsMultipleSelection: true, exif: false });
+    if (res.canceled) return;
+    try {
+      const cleaned = await Promise.all(res.assets.map((a) => cleanPhoto(a.uri, a.width, a.height)));
+      setPhotos((p) => [...p, ...cleaned]);
+    } catch {
+      setError("Couldn't prepare that photo. Try another one.");
+    }
   }
 
   function addMod() {

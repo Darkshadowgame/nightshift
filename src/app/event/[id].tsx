@@ -2,6 +2,8 @@ import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { AwardsSection } from '../../components/AwardsSection';
+import { allAwards, hasLegend } from '../../lib/awards';
 import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
@@ -21,7 +23,8 @@ export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
   const store = useStore();
-  const { events, me, crews, users, builds, now, chat, settings } = store;
+  const { events, me, crews, users, builds, now, chat, settings, votes } = store;
+  const awardsSoFar = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
   const e = events.find((x) => x.id === id);
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -251,7 +254,10 @@ export default function EventScreen() {
                 <Row key={uid} style={{ flexWrap: 'nowrap' }} gap={10}>
                   {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
                   <View style={{ flex: 1 }}>
-                    <Txt numberOfLines={1}>{uid === me ? 'You' : `@${u?.handle ?? uid}`}</Txt>
+                    <Txt numberOfLines={1}>
+                      {uid === me ? 'You' : `@${u?.handle ?? uid}`}
+                      {hasLegend(awardsSoFar, uid, now) ? <Txt v="label" style={{ color: C.lime }}>  ★ LEGEND</Txt> : null}
+                    </Txt>
                     <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model}` : 'No build yet'}</Txt>
                   </View>
                   {checked > 0 ? <Txt v="mono" style={{ color: C.lime }}>{checked} ✓</Txt> : null}
@@ -260,6 +266,8 @@ export default function EventScreen() {
             })}
           </Card>
         </Section>
+
+        <AwardsSection event={ev} />
 
         <Section title="Chat">
           <Card>

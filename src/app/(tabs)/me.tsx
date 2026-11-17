@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { ScrollView, Switch, View } from 'react-native';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
+import { allAwards, awardRep, hasLegend } from '../../lib/awards';
 import { useStore, type Settings } from '../../lib/store';
 import { C } from '../../theme';
 
 export default function Me() {
-  const { users, me, crews, settings, setSettings, resetDemo, builds, events } = useStore();
+  const { users, me, crews, settings, setSettings, resetDemo, builds, events, votes, now } = useStore();
+  const awards = allAwards(votes, events, builds, now);
+  const myAwards = awards.filter((a) => a.ownerId === me);
   const [confirmReset, setConfirmReset] = useState(false);
   const user = users.find((u) => u.id === me);
   const crew = crews.find((c) => c.id === user?.crewId);
@@ -14,12 +17,16 @@ export default function Me() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
       <Card>
-        <Txt v="h2">@{user?.handle}</Txt>
+        <Row>
+          <Txt v="h2">@{user?.handle}</Txt>
+          {hasLegend(awards, me, now) ? <Txt v="eyebrow" style={{ color: C.lime }}>Legend this week</Txt> : null}
+        </Row>
         <Txt v="muted">{user?.region}{crew ? ` · Crew: ${crew.name}` : ''}</Txt>
         <Row gap={16}>
           <Txt v="mono">{builds.filter((b) => b.ownerId === me).length} BUILDS</Txt>
           <Txt v="mono">{hosting} EVENTS HOSTED</Txt>
-          <Txt v="mono" style={{ color: C.sodium }}>REP COMING IN PHASE 3</Txt>
+          <Txt v="mono">{myAwards.length} TROPHIES</Txt>
+          <Txt v="mono" style={{ color: C.sodium }}>{awardRep(awards, me)} REP FROM AWARDS</Txt>
         </Row>
       </Card>
 
