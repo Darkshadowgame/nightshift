@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput } from 'react-native';
-import { Button, Card, Section, Txt, s as ui } from '../../components/ui';
+import { Button, Card, InlineError, Section, Txt, s as ui } from '../../components/ui';
 import { crewHostLoss, crewProblem, normaliseTag } from '../../lib/crews';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
-import { C } from '../../theme';
+import { C, STATE } from '../../theme';
 
 export default function NewCrew() {
-  const { crews, users, me, createCrew, events } = useStore();
+  const store = useStore();
+  const { crews, users, me, createCrew, events } = store;
   const now = useNow();
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
@@ -39,7 +40,7 @@ export default function NewCrew() {
       <Section title="Crew name">
         <TextInput value={name} onChangeText={setName} placeholder="e.g. NightRunners" placeholderTextColor={C.fog} style={ui.input} maxLength={30} />
       </Section>
-      <Section title="Tag" right={<Txt v="mono" style={{ color: C.neon }}>{normaliseTag(tag) ? `[${normaliseTag(tag)}]` : ''}</Txt>}>
+      <Section title="Tag" right={<Txt v="mono" style={{ color: C.chalk }}>{normaliseTag(tag) ? `[${normaliseTag(tag)}]` : ''}</Txt>}>
         <TextInput
           value={tag}
           onChangeText={(t) => setTag(normaliseTag(t).slice(0, 4))}
@@ -54,20 +55,18 @@ export default function NewCrew() {
         <Card>
           <Txt v="muted">Starting a crew means leaving {current.name}.</Txt>
           {losing.length ? (
-            <Txt style={{ color: C.alert }}>
+            <Txt style={{ color: STATE.warning }}>
               You'll stop hosting {losing.map((e) => e.title).join(', ')}: you host {losing.length === 1 ? 'it' : 'them'} as a{' '}
               {current.name} host, not a named host. Events that name you as a host stay yours.
             </Txt>
           ) : null}
         </Card>
       ) : null}
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt>{error}</Txt>
-        </Card>
-      ) : null}
-      <Button label={confirmed ? 'Yes, start it and leave' : 'Start crew'} kind={confirmed ? 'danger' : 'primary'} onPress={submit} />
-      <Txt v="muted" style={{ fontSize: 12 }}>You'll be the owner. On the crew page, Invite members brings sample people in so you can make them hosts.</Txt>
+      <Button label={confirmed ? 'Start it and leave' : 'Start crew'} onPress={submit} />
+      <InlineError message={error} />
+      <Txt v="caption">
+        You'll be the owner and pick the crew's hosts.{store.backend === 'local' ? ' In the demo, Invite members on the crew page brings sample people in.' : ''}
+      </Txt>
     </ScrollView>
   );
 }

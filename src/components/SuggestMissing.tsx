@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { makeSuggestion, type FeedbackScreen } from '../lib/feedbackQueue';
 import { newId, useStore } from '../lib/store';
-import { C } from '../theme';
-import { Button, Card, Row, Txt, s as ui } from './ui';
+import { BRAND, C } from '../theme';
+import { Button, Card, InlineError, Row, Txt, s as ui } from './ui';
 
 /**
  * "Suggest a missing car/bike or mod" (or a shop edit): a link that opens a two-field form and
@@ -44,14 +44,14 @@ export function SuggestMissing({
 
   if (!open) {
     return (
-      <Pressable onPress={() => { setOpen(true); setSent(false); }} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start', paddingVertical: 4 }}>
-        <Txt v="label" style={{ color: C.neon }}>{sent ? 'Thanks, noted. Suggest another ›' : `${label} ›`}</Txt>
+      <Pressable onPress={() => { setOpen(true); setSent(false); }} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' }}>
+        <Txt v="label" style={{ color: BRAND }}>{sent ? 'Thanks, noted. Suggest another ›' : `${label} ›`}</Txt>
       </Pressable>
     );
   }
 
   return (
-    <Card accent={C.neon}>
+    <Card accent={BRAND}>
       <Txt v="h3">{label}</Txt>
       <TextInput value={missing} onChangeText={setMissing} placeholder={placeholder} placeholderTextColor={C.fog} style={ui.input} accessibilityLabel="What's missing" autoFocus />
       <TextInput
@@ -63,14 +63,15 @@ export function SuggestMissing({
         multiline
         accessibilityLabel="Notes"
       />
-      {error ? <Txt style={{ color: C.alert }}>{error}</Txt> : null}
+
       <Row style={{ flexWrap: 'nowrap' }}>
         <View style={{ flex: 1 }}>
-          <Button label="Send suggestion" kind="neon" onPress={send} />
+          <Button label="Send suggestion" kind="secondary" onPress={send} />
         </View>
-        <Button label="Cancel" kind="ghost" onPress={() => { setOpen(false); setError(null); }} />
+        <Button label="Cancel" kind="secondary" onPress={() => { setOpen(false); setError(null); }} />
       </Row>
-      <Txt v="muted" style={{ fontSize: 12 }}>Saved on your phone. It's sent to the Nightshift team once the app has its server.</Txt>
+      <InlineError message={error} />
+      <Txt v="caption">It goes to the Nightshift team. With no signal it waits on your phone and goes later.</Txt>
     </Card>
   );
 }

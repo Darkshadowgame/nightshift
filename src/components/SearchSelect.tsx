@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { C, F } from '../theme';
+import { BRAND, C, F, FONT_SCALE, RADIUS, STATE, TYPE } from '../theme';
 import { Txt, s as ui } from './ui';
 
 export interface SelectOption {
@@ -60,7 +60,7 @@ export function SearchSelect({
         style={({ pressed }) => [ui.input, { flexDirection: 'row', alignItems: 'center', gap: 8 }, (pressed || disabled) && { opacity: disabled ? 0.45 : 0.8 }]}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: F.label, fontSize: 11, letterSpacing: 1.2, color: C.fog, textTransform: 'uppercase' }}>{label}</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ fontFamily: F.label, fontSize: TYPE.micro, letterSpacing: 1.2, color: C.fog, textTransform: 'uppercase' }}>{label}</Text>
           <Text style={{ fontFamily: F.body, fontSize: 16, color: value ? C.chalk : C.fog }} numberOfLines={1}>{value || placeholder}</Text>
         </View>
         <Text style={{ color: C.fog, fontSize: 14 }}>▾</Text>
@@ -69,7 +69,7 @@ export function SearchSelect({
   }
 
   return (
-    <View style={{ gap: 6, borderWidth: 1, borderColor: C.neon, borderRadius: 8, padding: 8, backgroundColor: C.asphalt }}>
+    <View style={{ gap: 6, borderWidth: 1, borderColor: BRAND, borderRadius: RADIUS.card, padding: 8, backgroundColor: C.asphalt }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <TextInput
           value={query}
@@ -88,7 +88,7 @@ export function SearchSelect({
           }}
         />
         <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Close ${label} list`}>
-          <Txt v="label" style={{ color: C.neon }}>Close</Txt>
+          <Txt v="label" style={{ color: BRAND }}>Close</Txt>
         </Pressable>
       </View>
       {onFree && typed && !exact ? (
@@ -104,7 +104,7 @@ export function SearchSelect({
       ))}
       {shown.length === 0 && !(onFree && typed) ? <Txt v="muted" style={{ padding: 6 }}>Nothing matches.</Txt> : null}
       {options.length > shown.length ? (
-        <Txt v="muted" style={{ fontSize: 12, padding: 6 }}>{options.length - shown.length} more. Keep typing to narrow it down.</Txt>
+        <Txt v="caption" style={{ padding: 6 }}>{options.length - shown.length} more. Keep typing to narrow it down.</Txt>
       ) : null}
     </View>
   );
@@ -118,12 +118,12 @@ function Row({ title, detail, on, accent, onPress }: { title: string; detail?: s
       accessibilityLabel={detail ? `${title}, ${detail}` : title}
       accessibilityState={{ selected: !!on }}
       style={({ pressed }) => [
-        { paddingVertical: 9, paddingHorizontal: 10, borderRadius: 6, backgroundColor: on ? `${C.neon}1f` : C.tarmac, borderWidth: 1, borderColor: on ? C.neon : C.kerb },
+        { paddingVertical: 9, paddingHorizontal: 10, minHeight: 44, borderRadius: RADIUS.card, backgroundColor: on ? `${STATE.selected}1f` : C.tarmac, borderWidth: 1, borderColor: on ? STATE.selected : C.kerb },
         pressed && { opacity: 0.7 },
       ]}
     >
-      <Text style={{ fontFamily: F.bodyBold, fontSize: 15, color: accent ? C.sodium : on ? C.neon : C.chalk }}>{title}</Text>
-      {detail ? <Text style={{ fontFamily: F.body, fontSize: 13, color: C.fog }}>{detail}</Text> : null}
+      <Text style={{ fontFamily: F.bodyBold, fontSize: TYPE.body, color: accent || on ? BRAND : C.chalk }}>{title}</Text>
+      {detail ? <Text style={{ fontFamily: F.body, fontSize: TYPE.caption, color: C.fog }}>{detail}</Text> : null}
     </Pressable>
   );
 }

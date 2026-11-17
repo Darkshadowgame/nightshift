@@ -17,15 +17,15 @@ export const CATEGORY_ORDER: ShopCategory[] = ['tuning', 'dyno', 'dealer', 'deta
 export const MENU_ORDER: ShopCategory[] = ['tuning', 'parts', 'gear', 'dealer', 'tyres', 'detailing', 'dyno', 'garage', 'coffee'];
 
 export const CATEGORY_LABELS: Record<ShopCategory, string> = {
-  tuning: 'Tuning & modifications',
-  parts: 'Parts & accessories',
+  tuning: 'Tuning and modifications',
+  parts: 'Parts and accessories',
   gear: 'Bike gear',
   dealer: 'Dealers',
-  tyres: 'Tyres & wheels',
-  detailing: 'Detailing, wraps & tints',
-  dyno: 'Dyno & rolling road',
-  garage: 'Garages & MOT',
-  coffee: 'Coffee & meet spots',
+  tyres: 'Tyres and wheels',
+  detailing: 'Detailing, wraps and tints',
+  dyno: 'Dyno and rolling road',
+  garage: 'Garages and MOT',
+  coffee: 'Cafés and meet spots',
 };
 
 /** Short names for the pill's filter note and the peek card. */
@@ -38,7 +38,7 @@ export const CATEGORY_SHORT: Record<ShopCategory, string> = {
   detailing: 'Detailing',
   dyno: 'Dyno',
   garage: 'Garages',
-  coffee: 'Coffee',
+  coffee: 'Cafés',
 };
 
 /** A line under each menu entry, so it's clear what's in it. */
@@ -51,7 +51,7 @@ export const CATEGORY_HINTS: Record<ShopCategory, string> = {
   detailing: 'Detailers, valeting, wraps and tints',
   dyno: 'Dyno days and rolling roads',
   garage: 'Repairs, servicing and MOT',
-  coffee: 'Biker and car cafés, and meet-friendly venues',
+  coffee: 'Biker and car cafés, and meet spots',
 };
 
 export const ALL_CATEGORIES: ShopCategory[] = [...MENU_ORDER];

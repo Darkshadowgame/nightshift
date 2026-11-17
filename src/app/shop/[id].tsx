@@ -1,11 +1,11 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useLayoutEffect, useMemo } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useMemo } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { NightMap } from '../../components/NightMap';
 import { NavLaunch } from '../../components/NavLaunch';
 import { Pin } from '../../components/Pin';
 import { SuggestMissing } from '../../components/SuggestMissing';
-import { Button, Card, Row, Section, Txt } from '../../components/ui';
+import { Button, Card, NotFound, Row, Section, Tag, Txt } from '../../components/ui';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { formatOpeningHours, openState, parseOpeningHours } from '../../lib/openingHours';
 import { demoPartners, partnerBadge, type Partner } from '../../lib/partners';
@@ -16,7 +16,7 @@ import { formatPhone, phoneLink, safeWebLink, SHOP_CAVEAT, websiteLabel } from '
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
-import { C, PARTNER_COLOUR, SHOP_COLOUR } from '../../theme';
+import { BRAND, C, PARTNER_COLOUR, RADIUS, SHOP_COLOUR, STATE } from '../../theme';
 
 /** What the screen shows: an OpenStreetMap listing or a partner. */
 interface Listing {
@@ -38,7 +38,6 @@ function open(url: string) {
 /** A shop from the Shops layer: what it is, opening hours, website and phone, directions, and "suggest an edit". */
 export default function ShopScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const nav = useNavigation();
   const { users, me } = useStore();
   const now = useNow();
   const home = users.find((u) => u.id === me)?.home;
@@ -55,10 +54,7 @@ export default function ShopScreen() {
     return s ? { ...s } : null;
   }, [id, home, shopIdx]);
 
-  useLayoutEffect(() => {
-    nav.setOptions({ title: listing?.partner ? 'PARTNER' : 'SHOP' });
-  }, [nav, listing]);
-
+  // The header stays blank, like every detail screen: the eyebrow says Shop or Partner, once.
   if (!listing && isShop && !shopIdx && !failed) {
     return (
       <View style={{ flex: 1, padding: 16 }}>
@@ -69,15 +65,16 @@ export default function ShopScreen() {
 
   if (!listing) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
-        <Txt>
-          {failed
+      <NotFound
+        what="Shop"
+        message={
+          failed
             ? "Couldn't load the shop listings just now. Try again in a moment."
             : isLegacyShopId(id ?? '')
               ? 'This link is from an older version of the app and no longer points at a shop. Find it on the map with the Shops layer.'
-              : 'This shop is no longer on the map. The listings are refreshed from OpenStreetMap with app updates.'}
-        </Txt>
-      </View>
+              : 'This shop is no longer on the map. The listings are refreshed from OpenStreetMap with app updates.'
+        }
+      />
     );
   }
 
@@ -92,9 +89,7 @@ export default function ShopScreen() {
       <View style={{ gap: 6 }}>
         <Row>
           {p ? (
-            <View style={{ borderWidth: 1, borderColor: PARTNER_COLOUR, backgroundColor: `${PARTNER_COLOUR}22`, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 }}>
-              <Txt v="eyebrow" style={{ color: PARTNER_COLOUR, fontSize: 11 }}>★ {partnerBadge(p)}</Txt>
-            </View>
+            <Tag label={`★ ${partnerBadge(p)}`} colour={PARTNER_COLOUR} />
           ) : (
             <Txt v="eyebrow" style={{ color: SHOP_COLOUR }}>Shop</Txt>
           )}
@@ -110,7 +105,7 @@ export default function ShopScreen() {
         </Row>
         {listing.brand ? <Txt v="muted">{listing.brand}</Txt> : null}
         {state ? (
-          <Txt v="label" style={{ color: state.open ? C.lime : C.fog, fontSize: 13 }} accessibilityLiveRegion="polite">
+          <Txt v="label" style={{ color: state.open ? STATE.success : C.fog }} accessibilityLiveRegion="polite">
             {state.label}
           </Txt>
         ) : null}
@@ -121,8 +116,8 @@ export default function ShopScreen() {
         <Card accent={PARTNER_COLOUR}>
           <Txt v="label" style={{ color: PARTNER_COLOUR }}>{p.demo ? 'Sample partner offer' : 'Partner offer'}</Txt>
           {p.offer ? <Txt>{p.offer}</Txt> : <Txt v="muted">No offer listed right now.</Txt>}
-          {p.link && safeWebLink(p.link) && !p.demo ? <Button label="See the offer" kind="ghost" onPress={() => open(p.link!)} /> : null}
-          <Txt v="muted" style={{ fontSize: 12 }}>
+          {p.link && safeWebLink(p.link) && !p.demo ? <Button label="See the offer" kind="secondary" onPress={() => open(p.link!)} /> : null}
+          <Txt v="caption">
             {p.demo
               ? 'A made-up business to show how partners look. It isn’t real and neither is the offer.'
               : 'Partners pay Nightshift to be highlighted on the map. They are always marked Partner.'}
@@ -130,7 +125,7 @@ export default function ShopScreen() {
         </Card>
       ) : null}
 
-      <View style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
+      <View style={{ height: 200, borderRadius: RADIUS.sheet, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
         <NightMap
           pins={[{ id: 'shop', at: listing.at, glyph: p ? 'partner' : (listing.categories[0] ?? 'shop'), colour, title: listing.name, size: 34 }]}
           centre={listing.at}
@@ -140,17 +135,17 @@ export default function ShopScreen() {
       </View>
 
       <Section title="Get there">
-        <NavLaunch target={{ kind: 'place', name: listing.name, lat: listing.at.lat, lng: listing.at.lng }} to={listing.at} />
+        <NavLaunch target={{ kind: 'place', name: listing.name, lat: listing.at.lat, lng: listing.at.lng }} to={listing.at} kind="primary" />
         {web || listing.phone ? (
           <Row style={{ flexWrap: 'nowrap' }}>
             {web && !p?.demo ? (
               <View style={{ flex: 1 }}>
-                <Button label="Website" kind="ghost" onPress={() => open(web)} accessibilityLabel={`Open the website, ${websiteLabel(web).split('/')[0]}`} />
+                <Button label="Website" kind="secondary" onPress={() => open(web)} accessibilityLabel={`Open the website, ${websiteLabel(web).split('/')[0]}`} />
               </View>
             ) : null}
             {listing.phone ? (
               <View style={{ flex: 1 }}>
-                <Button label={`Call ${formatPhone(listing.phone)}`} kind="ghost" onPress={() => open(phoneLink(listing.phone!))} />
+                <Button label={`Call ${formatPhone(listing.phone)}`} kind="secondary" onPress={() => open(phoneLink(listing.phone!))} />
               </View>
             ) : null}
           </Row>
@@ -169,12 +164,12 @@ export default function ShopScreen() {
           ) : listing.hours ? (
             <>
               <Txt selectable>{listing.hours}</Txt>
-              <Txt v="muted" style={{ fontSize: 12 }}>Shown as listed: the app couldn’t read these hours, so it can’t say if it’s open now.</Txt>
+              <Txt v="caption">Shown as listed: the app couldn’t read these hours, so it can’t say if it’s open now.</Txt>
             </>
           ) : (
             <Txt v="muted">No opening hours listed. Check with them before you go.</Txt>
           )}
-          {hours?.holidays ? null : hours ? <Txt v="muted" style={{ fontSize: 12 }}>Bank holidays may differ.</Txt> : null}
+          {hours?.holidays ? null : hours ? <Txt v="caption">Bank holidays may differ.</Txt> : null}
         </Card>
       </Section>
 
@@ -187,9 +182,9 @@ export default function ShopScreen() {
       />
 
       {p ? null : (
-        <Pressable onPress={() => open('https://www.openstreetmap.org/copyright')} accessibilityRole="link" hitSlop={6}>
-          <Txt v="muted" style={{ fontSize: 12 }}>
-            {SHOP_CAVEAT} © OpenStreetMap contributors, ODbL. <Txt v="muted" style={{ fontSize: 12, color: C.neon }}>Licence ›</Txt>
+        <Pressable onPress={() => open('https://www.openstreetmap.org/copyright')} accessibilityRole="link" hitSlop={12}>
+          <Txt v="caption">
+            {SHOP_CAVEAT} © OpenStreetMap contributors, ODbL. <Txt v="caption" style={{ color: BRAND }}>Licence ›</Txt>
           </Txt>
         </Pressable>
       )}

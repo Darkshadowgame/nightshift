@@ -21,9 +21,9 @@ import {
 import type { Mod, ModCategory, TuneStage, VehicleKind } from '../lib/types';
 import { isRoadIllegal, MAX_REWARDED_MODS, OFF_ROAD_TAG } from '../lib/legality';
 import type { Aspiration } from '../lib/vehicles';
-import { C, F } from '../theme';
+import { BRAND, C, F, FONT_SCALE, RADIUS, STATE, SURFACE, TYPE } from '../theme';
 import { SuggestMissing } from './SuggestMissing';
-import { Button, Card, Chip, Row, Txt, s as ui } from './ui';
+import { Button, Card, Chip, Row, Tag, Txt, s as ui } from './ui';
 
 const mid = () => newId('m');
 
@@ -102,7 +102,7 @@ export function ModPicker({
 
   return (
     <View style={{ gap: 12 }}>
-      <Card accent={C.sodium}>
+      <Card accent={BRAND}>
         <Txt v="h3">Tune stage{swapped ? ' (swapped engine)' : ''}</Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }} accessibilityRole="radiogroup" accessibilityLabel="Tune stage">
           {TUNE_STAGES.map((st) => (
@@ -112,20 +112,20 @@ export function ModPicker({
               accessibilityRole="radio"
               accessibilityState={{ checked: st === stage }}
               style={({ pressed }) => [
-                { paddingVertical: 8, paddingHorizontal: 11, borderRadius: 4, borderWidth: 1, borderColor: st === stage ? C.sodium : C.kerbHi, backgroundColor: st === stage ? C.sodium : 'transparent' },
-                pressed && { opacity: 0.75 },
+                { paddingVertical: 8, paddingHorizontal: 11, minHeight: 40, justifyContent: 'center', borderRadius: RADIUS.tag, borderWidth: 1, borderColor: st === stage ? BRAND : SURFACE.borderStrong, backgroundColor: st === stage ? BRAND : 'transparent' },
+                pressed && { opacity: 0.8 },
               ]}
             >
-              <Text style={{ fontFamily: F.labelBold, fontSize: 14, letterSpacing: 1, textTransform: 'uppercase', color: st === stage ? C.ink : C.chalk }}>{stageLabel(st)}</Text>
+              <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ fontFamily: F.labelBold, fontSize: TYPE.muted, letterSpacing: 1, textTransform: 'uppercase', color: st === stage ? C.ink : C.chalk }}>{stageLabel(st)}</Text>
             </Pressable>
           ))}
         </View>
         {kind === 'car' && !aspKnown ? (
           <View style={{ gap: 4 }}>
-            <Txt v="label" style={{ fontSize: 11 }}>Engine type (for the estimate)</Txt>
+            <Txt v="label">Engine type (for the estimate)</Txt>
             <Row gap={6}>
               {ASP_CHOICES.map((a) => (
-                <Chip key={a.key} label={a.label} on={engine?.asp === a.key} onPress={() => onAsp(a.key)} colour={C.neon} />
+                <Chip key={a.key} label={a.label} on={engine?.asp === a.key} onPress={() => onAsp(a.key)} />
               ))}
             </Row>
           </View>
@@ -133,8 +133,8 @@ export function ModPicker({
         <Txt v="muted">{stageIncludes(kind, engine?.asp, stage)}</Txt>
         {estimate ? (
           <Txt accessibilityLiveRegion="polite">
-            Typically {stockBhp} → <Text style={{ color: C.sodium, fontFamily: F.bodyBold }}>{estimate.bhp} bhp</Text> (+{estimate.gain}).{' '}
-            <Text style={{ color: C.fog, fontSize: 13 }}>
+            Typically {stockBhp} → <Text style={{ color: BRAND, fontFamily: F.bodyBold }}>{estimate.bhp} bhp</Text> (+{estimate.gain}).{' '}
+            <Text style={{ color: C.fog, fontSize: TYPE.caption }}>
               {estimate.source === 'tuner' ? 'From UK tuner figures for this engine.' : 'A cautious typical figure for this kind of engine.'} Edit the gain below if yours differs.
             </Text>
           </Txt>
@@ -144,18 +144,18 @@ export function ModPicker({
           <Txt v="muted">Type your gain on the “Custom tune” line below.</Txt>
         ) : null}
         {missingParts.length ? (
-          <Button label={`Add typical parts (${missingParts.length})`} kind="ghost" onPress={() => onChange(addTypicalParts(mods, parts, mid), stage)} accessibilityHint={missingParts.map((p) => p.name).join(', ')} />
+          <Button label={`Add typical parts (${missingParts.length})`} kind="secondary" onPress={() => onChange(addTypicalParts(mods, parts, mid), stage)} accessibilityHint={missingParts.map((p) => p.name).join(', ')} />
         ) : null}
         {optionalOffRoad.length ? (
           <View style={{ gap: 6 }}>
-            <Txt v="muted" style={{ fontSize: 12 }}>Often fitted at this stage, but not added for you: {OFF_ROAD_TAG.toLowerCase()}, and no rep.</Txt>
+            <Txt v="caption">Often fitted at this stage, but not added for you: {OFF_ROAD_TAG.toLowerCase()}, and no rep.</Txt>
             <Row gap={6}>
               {optionalOffRoad.map((c) => (
                 <Chip
                   key={c.key}
                   label={hasQuickMod(mods, c) ? `✓ ${c.name}` : `⚠ ${c.name}`}
                   on={hasQuickMod(mods, c)}
-                  colour={C.alert}
+                  colour={STATE.warning}
                   onPress={() => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage)}
                 />
               ))}
@@ -169,7 +169,7 @@ export function ModPicker({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           {groups.map((g) => {
             const n = chips.filter((c) => c.group === g.key && hasQuickMod(mods, c)).length;
-            return <Chip key={g.key} label={n ? `${g.label} · ${n}` : g.label} on={g.key === (shown[0]?.group ?? group)} onPress={() => setGroup(g.key)} colour={C.neon} />;
+            return <Chip key={g.key} label={n ? `${g.label} · ${n}` : g.label} on={g.key === (shown[0]?.group ?? group)} onPress={() => setGroup(g.key)} />;
           })}
         </ScrollView>
         <Row gap={6}>
@@ -178,12 +178,12 @@ export function ModPicker({
               key={c.key}
               label={hasQuickMod(mods, c) ? `✓ ${c.name}` : c.roadLegal === false ? `⚠ ${c.name}` : c.name}
               on={hasQuickMod(mods, c)}
-              colour={c.roadLegal === false ? C.alert : undefined}
+              colour={c.roadLegal === false ? STATE.warning : undefined}
               onPress={() => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage)}
             />
           ))}
         </Row>
-        <Txt v="muted" style={{ fontSize: 12 }}>
+        <Txt v="caption">
           Tap to add, tap again to remove.{stage !== 'stock' ? ' With a tune stage set, power parts start at +0 because the stage figure covers them.' : ''}
           {shown.some((c) => c.roadLegal === false) ? ` ⚠ ${OFF_ROAD_TAG}: you can log it, but it earns no rep.` : ''} Rep counts each road-legal mod once, up to {MAX_REWARDED_MODS} per build.
         </Txt>
@@ -195,7 +195,7 @@ export function ModPicker({
             <Row key={m.id} style={{ flexWrap: 'nowrap' }} gap={8}>
               <View style={{ flex: 1 }}>
                 <Txt numberOfLines={2}>{m.name}</Txt>
-                {isRoadIllegal(m) ? <Txt v="label" style={{ color: C.alert, fontSize: 11 }}>⚠ {OFF_ROAD_TAG}</Txt> : null}
+                {isRoadIllegal(m) ? <Tag label={`⚠ ${OFF_ROAD_TAG}`} tone="warning" /> : null}
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <Txt v="mono">+</Txt>
@@ -210,8 +210,8 @@ export function ModPicker({
                 />
                 <Txt v="mono">bhp</Txt>
               </View>
-              <Pressable onPress={() => remove(m)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove ${m.name}`}>
-                <Txt v="label" style={{ color: C.alert }}>✕</Txt>
+              <Pressable onPress={() => remove(m)} hitSlop={12} accessibilityRole="button" accessibilityLabel={`Remove ${m.name}`}>
+                <Txt v="label" style={{ color: STATE.danger, fontSize: TYPE.body }}>✕</Txt>
               </Pressable>
             </Row>
           ))}
@@ -222,13 +222,13 @@ export function ModPicker({
         <Txt v="label">Something else</Txt>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           {MOD_CATEGORIES.map((c) => (
-            <Chip key={c.key} label={c.short} on={modCat === c.key} onPress={() => setModCat(c.key)} colour={C.neon} />
+            <Chip key={c.key} label={c.short} on={modCat === c.key} onPress={() => setModCat(c.key)} />
           ))}
         </ScrollView>
         <TextInput value={modName} onChangeText={setModName} placeholder="e.g. Wagner intercooler" placeholderTextColor={C.fog} style={ui.input} onSubmitEditing={addFree} maxLength={60} accessibilityLabel="Mod name" />
         <Row style={{ flexWrap: 'nowrap' }}>
-          <TextInput value={modGain} onChangeText={setModGain} placeholder="bhp gain (optional)" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1 }]} accessibilityLabel="bhp gain" />
-          <Button label="Add mod" kind="ghost" onPress={addFree} />
+          <TextInput value={modGain} onChangeText={setModGain} placeholder="bhp gain (optional)" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1, minWidth: 0 }]} accessibilityLabel="bhp gain" />
+          <Button label="Add mod" kind="secondary" onPress={addFree} />
         </Row>
       </Card>
       <SuggestMissing screen="mod-picker" label="Suggest a missing mod" placeholder="e.g. Wastegate actuator" context={`${kind} · ${group}`} />

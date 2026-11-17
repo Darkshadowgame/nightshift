@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import type { LatLng } from '../lib/types';
-import { C, ROAD_COLOUR } from '../theme';
+import { BRAND, C, ROAD_COLOUR } from '../theme';
 import { Pin, type Glyph } from './Pin';
 
 export interface DriveMapStop {
@@ -64,7 +64,7 @@ export const DriveMap = memo(function DriveMap({ route, stops, cameras, reports 
         rotateEnabled={false}
         pitchEnabled={false}
       >
-        {line.length > 1 ? <Polyline coordinates={line} strokeColor={C.neon} strokeWidth={7} /> : null}
+        {line.length > 1 ? <Polyline coordinates={line} strokeColor={BRAND} strokeWidth={7} /> : null}
         {cameras.map((c) => (
           <Marker key={c.id} coordinate={{ latitude: c.at.lat, longitude: c.at.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <View style={st.camera} />
@@ -82,7 +82,7 @@ export const DriveMap = memo(function DriveMap({ route, stops, cameras, reports 
         ))}
         {you ? (
           <Marker coordinate={{ latitude: you.lat, longitude: you.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-            <Pin glyph="you" colour={C.neon} size={30} />
+            <Pin glyph="you" colour={C.chalk} size={30} />
           </Marker>
         ) : null}
       </MapView>

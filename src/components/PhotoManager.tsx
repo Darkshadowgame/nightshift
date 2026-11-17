@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { makeFirst, moveItem } from '../lib/crop';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
-import { C, F } from '../theme';
+import { BRAND, C, F, FONT_SCALE, RADIUS, STATE, SURFACE, TYPE } from '../theme';
 import { usePhotoFlow } from './PhotoFlow';
-import { Button, Card, Row, Txt } from './ui';
+import { Button, Card, ConfirmBox, Row, Txt } from './ui';
 
 /**
  * A build's photos with their actions: add (pick → crop → plate check), crop or
@@ -84,7 +84,7 @@ export function PhotoManager({
       ) : null}
 
       {sel && !flow.view ? (
-        <Card accent={C.sodium}>
+        <Card accent={BRAND}>
           <Txt v="label">Photo {index + 1}{index === 0 ? ' · cover' : ''}</Txt>
           <Row gap={6}>
             <Small label="Crop / rotate" onPress={() => flow.recrop(sel)} disabled={flow.busy} />
@@ -95,15 +95,14 @@ export function PhotoManager({
             <Small label="Delete" danger onPress={() => setConfirmDelete(true)} />
           </Row>
           {confirmDelete ? (
-            <View style={{ gap: 6 }}>
-              <Txt>{saveLater ? 'Remove this photo? Its file is deleted when you save the build.' : "Delete this photo? It can't be got back."}</Txt>
-              <Row style={{ flexWrap: 'nowrap' }}>
-                <Button label="Yes, delete it" kind="danger" style={{ flex: 1 }} onPress={remove} />
-                <Button label="Keep" kind="ghost" onPress={() => setConfirmDelete(false)} />
-              </Row>
-            </View>
+            <ConfirmBox
+              message={saveLater ? 'Remove this photo? Its file is deleted when you save the build.' : "Delete this photo? It can't be got back."}
+              verb={saveLater ? 'Remove' : 'Delete'}
+              onConfirm={remove}
+              onCancel={() => setConfirmDelete(false)}
+            />
           ) : null}
-          <Txt v="muted" style={{ fontSize: 12 }}>
+          <Txt v="caption">
             Edits work on the saved photo. Originals aren't kept, so blurred plates stay blurred and a crop can't be undone later.
             {plateRedactorAvailable ? '' : ' (Re-checking plates needs the iPhone app.)'}
           </Txt>
@@ -111,7 +110,7 @@ export function PhotoManager({
       ) : null}
 
       {flow.view ?? (
-        <Button label={flow.busy ? 'Checking for plates…' : '+ Add a photo'} kind="ghost" onPress={() => flow.pick()} busy={flow.busy && !sel} />
+        <Button label={flow.busy ? 'Checking for plates…' : '+ Add a photo'} kind="secondary" onPress={() => flow.pick()} busy={flow.busy && !sel} />
       )}
     </View>
   );
@@ -126,21 +125,21 @@ function Small({ label, onPress, disabled, danger, accessibilityLabel }: { label
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled }}
       hitSlop={4}
-      style={({ pressed }) => [st.small, danger && { borderColor: C.alert }, (pressed || disabled) && { opacity: 0.6 }]}
+      style={({ pressed }) => [st.small, danger && { borderColor: STATE.danger }, disabled && { backgroundColor: C.kerb, borderColor: C.kerb }, pressed && { opacity: 0.8 }]}
     >
-      <Text style={[st.smallText, danger && { color: C.alert }]}>{label}</Text>
+      <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={[st.smallText, danger && { color: STATE.danger }, disabled && { color: C.fog }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const st = StyleSheet.create({
   thumb: { borderRadius: 8, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
-  thumbOn: { borderColor: C.sodium },
+  thumbOn: { borderColor: BRAND },
   img: { width: 110, height: 80 },
   cover: {
-    position: 'absolute', left: 4, bottom: 4, fontFamily: F.labelBold, fontSize: 10, letterSpacing: 1.2, color: C.ink, backgroundColor: C.sodium,
+    position: 'absolute', left: 4, bottom: 4, fontFamily: F.labelBold, fontSize: TYPE.micro, letterSpacing: 1.2, color: C.ink, backgroundColor: BRAND,
     paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3, overflow: 'hidden', textTransform: 'uppercase',
   },
-  small: { borderWidth: 1, borderColor: C.kerbHi, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 8, minHeight: 36, justifyContent: 'center' },
-  smallText: { fontFamily: F.label, fontSize: 13, letterSpacing: 0.8, color: C.chalk, textTransform: 'uppercase' },
+  small: { borderWidth: 1, borderColor: SURFACE.borderStrong, borderRadius: RADIUS.card, paddingHorizontal: 10, paddingVertical: 8, minHeight: 40, justifyContent: 'center' },
+  smallText: { fontFamily: F.label, fontSize: TYPE.caption, letterSpacing: 0.8, color: C.chalk, textTransform: 'uppercase' },
 });

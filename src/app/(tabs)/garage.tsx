@@ -3,14 +3,14 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { BuildHero } from '../../components/BuildHero';
 import { FadeUp } from '../../components/motion';
-import { Button, Card, Row, Stat, Txt } from '../../components/ui';
+import { Button, EmptyState, Row, Stat, Txt } from '../../components/ui';
 import { allAwards } from '../../lib/awards';
 import { COVER_ASPECT } from '../../lib/crop';
 import { bhpPerTonne, classOf, effectivePower, isModified } from '../../lib/classes';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
 import { swapTag } from '../../lib/swap';
-import { C } from '../../theme';
+import { BRAND } from '../../theme';
 
 /** The demo's example build for you (see seed.ts). */
 const SAMPLE_BUILD = 'b-me-0';
@@ -24,10 +24,12 @@ export default function Garage() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
       {mine.length === 0 ? (
-        <Card>
-          <Txt v="h3">Your garage is empty</Txt>
-          <Txt v="muted">Add your car or bike. Invites to meets and cruises are matched against your builds.</Txt>
-        </Card>
+        <EmptyState
+          glyph="car"
+          title="Your garage is empty"
+          body="Add your car or bike. Invites are matched to your builds, and each one gets a class from S to D."
+          action={{ label: '+ Add a car or bike', onPress: () => router.push('/build/edit') }}
+        />
       ) : null}
       {mine.map((b, i) => {
         const won = awards.filter((a) => a.buildId === b.id).length;
@@ -44,18 +46,18 @@ export default function Garage() {
               <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Txt v="h2" numberOfLines={2}>{b.make} {b.model}</Txt>
-                  {swapTag(b) ? <Txt v="label" style={{ color: C.magenta }} numberOfLines={1}>{swapTag(b)}</Txt> : null}
+                  {swapTag(b) ? <Txt v="label" style={{ color: BRAND }} numberOfLines={1}>{swapTag(b)}</Txt> : null}
                   {b.nickname ? <Txt v="muted" numberOfLines={1}>{b.nickname}</Txt> : null}
                 </View>
-                <Txt v="label" style={{ color: C.sodium }}>Open ›</Txt>
+                <Txt v="label" style={{ color: BRAND }}>Open ›</Txt>
               </Row>
               <Row gap={8} style={{ flexWrap: 'nowrap' }}>
                 <Stat value={`${Math.round(effectivePower(b))}`} label={b.dynoBhp ? 'bhp · dyno' : 'bhp · est.'} />
                 <Stat value={`${bhpPerTonne(b)}`} label="bhp / tonne" />
-                <Stat value={`${b.mods.length}`} label={isModified(b) ? 'mods · modified' : 'mods'} colour={isModified(b) ? C.sodium : undefined} />
+                <Stat value={`${b.mods.length}`} label={isModified(b) ? 'mods · modified' : 'mods'} colour={isModified(b) ? BRAND : undefined} />
               </Row>
               {sample ? (
-                <Txt v="muted" style={{ fontSize: 13 }}>
+                <Txt v="caption">
                   A sample build with sample trophies from the demo meet. Tap it, then Edit to make it yours.
                 </Txt>
               ) : null}
@@ -63,8 +65,8 @@ export default function Garage() {
           </FadeUp>
         );
       })}
-      <Button label="+ Add a car or bike" kind={mine.length === 0 ? 'primary' : 'ghost'} onPress={() => router.push('/build/edit')} />
-      <Txt v="muted" style={{ textAlign: 'center', fontSize: 13 }}>
+      {mine.length ? <Button label="+ Add a car or bike" kind="secondary" onPress={() => router.push('/build/edit')} /> : null}
+      <Txt v="caption" style={{ textAlign: 'center' }}>
         Class comes from power-to-weight. Cars and bikes use separate scales, so a litre superbike and an M4 are both S.
       </Txt>
     </ScrollView>

@@ -9,7 +9,7 @@ import { Section, Txt } from './ui';
 type State = { step: 'loading' } | { step: 'done'; photos: CommonsPhoto[] } | { step: 'offline' };
 
 /**
- * "Online photos": public photos of cars and bikes taken near a place, from
+ * "Nearby photos": public photos of cars and bikes taken near a place, from
  * Wikimedia Commons (anything else is filtered out in commons.ts). The whole
  * section hides when there are none. Each shows its
  * author and licence and opens its Commons page when tapped. Fetched when the
@@ -31,13 +31,13 @@ export function CommonsStrip({ at, radiusM, placeName }: { at: LatLng; radiusM: 
 
   if (state.step === 'done' && state.photos.length === 0) return null;
   return (
-    <Section title={state.step === 'done' ? `Online photos (${state.photos.length})` : 'Online photos'}>
+    <Section title={state.step === 'done' ? `Nearby photos (${state.photos.length})` : 'Nearby photos'}>
       {state.step === 'loading' ? (
         <View style={{ height: 60, justifyContent: 'center' }}>
           <ActivityIndicator color={C.fog} />
         </View>
       ) : state.step === 'offline' ? (
-        <Txt v="muted" style={{ fontSize: 13 }}>Couldn't load online photos just now. They'll show when you have a signal.</Txt>
+        <Txt v="caption">Couldn't load nearby photos just now. They'll show when you have a signal.</Txt>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
           {state.photos.map((p) => (
@@ -53,14 +53,14 @@ export function CommonsStrip({ at, radiusM, placeName }: { at: LatLng; radiusM: 
                 style={{ width: 168, height: 118, borderRadius: 6, borderWidth: 1, borderColor: C.kerb, backgroundColor: C.tarmac }}
                 resizeMode="cover"
               />
-              <Txt v="muted" style={{ fontSize: 11, lineHeight: 14 }} numberOfLines={2}>
+              <Txt v="micro" style={{ textTransform: 'none' }} numberOfLines={2}>
                 {p.author} · {p.licence}
               </Txt>
             </Pressable>
           ))}
         </ScrollView>
       )}
-      <Txt v="muted" style={{ fontSize: 11 }}>From Wikimedia Commons, credited to each photographer. Tap one for its licence and the full picture.</Txt>
+      <Txt v="caption">From Wikimedia Commons, credited to each photographer. Tap one for its licence and the full picture.</Txt>
     </Section>
   );
 }

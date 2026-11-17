@@ -19,9 +19,10 @@ import { photoUri } from '../lib/photos';
 import { useStore } from '../lib/store';
 import { formatLength, isSpectatorVenue, layoutNames, outrightRecord, trackInfo, trackVehicles, type TrackOutline } from '../lib/tracks';
 import type { Spot } from '../lib/types';
-import { C, SPOT_COLOURS } from '../theme';
+import { ONLY_ON_PHONE } from '../lib/glossary';
+import { BRAND, C, RADIUS, SPOT_COLOURS, STATE } from '../theme';
 import { usePhotoFlow } from './PhotoFlow';
-import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from './ui';
+import { Button, Card, Chip, ClassBadge, InlineError, LinkText, Row, Section, Tag, Txt, s as ui } from './ui';
 
 /** Track screen: the circuit's details and records, then the app's own track times. */
 export function TrackPanel({ spot, outline }: { spot: Spot; outline: TrackOutline | null }) {
@@ -64,14 +65,15 @@ function TrackDetails({ spot, outline }: { spot: Spot; outline: TrackOutline | n
           </View>
         ) : null}
         {outline ? (
-          <Txt v="muted" style={{ fontSize: 12 }}>
+          <Txt v="caption">
             {outline.closed ? 'Outline' : 'Course line'} on the map: {outline.layout ? `the ${outline.layout.name} layout` : 'the main layout as mapped'}, from OpenStreetMap.
           </Txt>
         ) : null}
         {info?.factSources?.length ? (
-          <Pressable onPress={() => Linking.openURL(info.factSources![0]).catch(() => {})} accessibilityRole="link" hitSlop={6}>
-            <Txt v="muted" style={{ fontSize: 12, color: C.neon }}>Venue details: {info.factSources[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')} ›</Txt>
-          </Pressable>
+          <LinkText
+            label={`Track details: ${info.factSources[0].replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')} ›`}
+            onPress={() => Linking.openURL(info.factSources![0]).catch(() => {})}
+          />
         ) : null}
       </Card>
       {records.length ? (
@@ -81,11 +83,10 @@ function TrackDetails({ spot, outline }: { spot: Spot; outline: TrackOutline | n
             <RecordRow key={`${r.kind}-${r.layout}-${r.time}`} r={r} />
           ))}
           {info?.source ? (
-            <Pressable onPress={() => Linking.openURL(info.source!).catch(() => {})} accessibilityRole="link" hitSlop={6}>
-              <Txt v="muted" style={{ fontSize: 12, color: C.neon }}>
-                Source: {/wikipedia\.org/.test(info.source) ? 'Wikipedia' : info.source.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')}, read {RECORDS_READ_ON} ›
-              </Txt>
-            </Pressable>
+            <LinkText
+              label={`Source: ${/wikipedia\.org/.test(info.source) ? 'Wikipedia' : info.source.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')}, read ${RECORDS_READ_ON} ›`}
+              onPress={() => Linking.openURL(info.source!).catch(() => {})}
+            />
           ) : null}
         </Card>
       ) : null}
@@ -97,12 +98,12 @@ function RecordRow({ r }: { r: LapRecord }) {
   return (
     <View style={{ gap: 1, paddingVertical: 2 }}>
       <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-        <Txt v="eyebrow" style={{ color: r.kind === 'bike' ? C.neon : C.lime, fontSize: 11 }}>
+        <Txt v="eyebrow" style={{ color: r.kind === 'bike' ? C.chalk : BRAND }}>
           {r.kind === 'bike' ? 'Bikes' : 'Outright'} · {r.layout}
         </Txt>
         <Txt v="h3" style={{ fontVariant: ['tabular-nums'], textTransform: 'none' }}>{r.time}{/^\d+\.\d+$/.test(r.time) ? 's' : ''}</Txt>
       </Row>
-      <Txt v="muted" style={{ fontSize: 13 }}>
+      <Txt v="caption">
         {r.holder}
         {r.vehicle ? `, ${r.vehicle}` : ''} · {r.series ? `${r.series}, ` : ''}
         {r.year}
@@ -144,7 +145,7 @@ function TrackTimes({ spot }: { spot: Spot }) {
   }
 
   return (
-    <Section title="Track times" colour={SPOT_COLOURS.track}>
+    <Section title="Track times" colour={SPOT_COLOURS.track} right={<Tag label={ONLY_ON_PHONE} tone="muted" />}>
       {vehicles.length > 1 ? (
         <Row gap={6}>
           {vehicles.map((v) => (
@@ -152,7 +153,6 @@ function TrackTimes({ spot }: { spot: Spot }) {
               key={v}
               label={VEHICLE_LABELS[v]}
               on={kinds.includes(v)}
-              colour={C.neon}
               onPress={() => setKinds((k) => (k.includes(v) ? (k.length > 1 ? k.filter((x) => x !== v) : k) : [...k, v]))}
             />
           ))}
@@ -161,7 +161,7 @@ function TrackTimes({ spot }: { spot: Spot }) {
       {layouts.length > 1 ? (
         <Row gap={6}>
           {layouts.map((l) => (
-            <Chip key={l} label={l} on={l === layout} colour={C.lime} onPress={() => setLayout(l)} />
+            <Chip key={l} label={l} on={l === layout} onPress={() => setLayout(l)} />
           ))}
         </Row>
       ) : null}
@@ -182,17 +182,17 @@ function TrackTimes({ spot }: { spot: Spot }) {
               const who = users.find((u) => u.id === l.userId);
               return (
                 <Row key={l.id} style={{ flexWrap: 'nowrap' }} gap={10}>
-                  <Txt v="mono" style={{ width: 18, color: i === 0 ? C.lime : C.fog }}>{i + 1}</Txt>
+                  <Txt v="mono" style={{ width: 18, color: i === 0 ? BRAND : C.fog }}>{i + 1}</Txt>
                   <View style={{ flex: 1 }}>
                     <Txt numberOfLines={1}>{l.userId === me ? 'You' : who ? `@${who.handle}` : 'Someone'} · {l.vehicle}</Txt>
-                    <Txt v="mono" style={{ fontSize: 11 }}>
+                    <Txt v="micro">
                       {l.on} · {l.status === 'verified' ? 'VERIFIED' : 'UNVERIFIED'}
                     </Txt>
                   </View>
-                  <Txt v="h3" style={{ fontVariant: ['tabular-nums'], textTransform: 'none', color: i === 0 ? C.lime : C.chalk }}>{formatLapTime(l.ms)}</Txt>
+                  <Txt v="h3" style={{ fontVariant: ['tabular-nums'], textTransform: 'none', color: i === 0 ? BRAND : C.chalk }}>{formatLapTime(l.ms)}</Txt>
                   {l.userId === me ? (
-                    <Pressable onPress={() => removeLap(l.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove your time ${formatLapTime(l.ms)}`}>
-                      <Txt v="label" style={{ color: C.alert }}>Remove</Txt>
+                    <Pressable onPress={() => removeLap(l.id)} hitSlop={12} accessibilityRole="button" accessibilityLabel={`Remove your time ${formatLapTime(l.ms)}`}>
+                      <Txt v="label" style={{ color: STATE.danger }}>Remove</Txt>
                     </Pressable>
                   ) : null}
                 </Row>
@@ -201,17 +201,17 @@ function TrackTimes({ spot }: { spot: Spot }) {
           </Card>
         ))
       )}
-      <Txt v="muted" style={{ fontSize: 12 }}>
+      <Txt v="caption">
         {run ? 'Run' : 'Lap'} times from real track days and events only, typed in from the timing sheet with a photo as proof, and
-        grouped by vehicle type and the class of the build that set them. They're kept on this phone and marked unverified for now: checking them
-        against the proof arrives with the server. Drives and roads are never timed.
+        grouped by vehicle type and the class of the build that set them. {ONLY_ON_PHONE}: nobody else sees them yet, and they're marked
+        unverified until the server can check the proof. Drives and roads are never timed.
       </Txt>
       {adding ? (
         <AddTime spot={spot} vehicles={vehicles} layouts={published.length ? published : [MAIN_LAYOUT]} initialLayout={layout} onDone={() => setAdding(false)} />
       ) : mineFits ? (
-        <Button label="+ Add a track time" kind="ghost" onPress={() => setAdding(true)} />
+        <Button label="+ Add a track time" kind="secondary" onPress={() => setAdding(true)} />
       ) : (
-        <Txt v="muted" style={{ fontSize: 12 }}>
+        <Txt v="caption">
           Add a {vehicles.map((v) => (v === 'car' ? 'car' : 'bike')).join(' or ')} to your garage to enter a time.
         </Txt>
       )}
@@ -269,14 +269,14 @@ function AddTime({
   if (flow.view) return flow.view;
 
   return (
-    <Card accent={C.lime}>
+    <Card accent={SPOT_COLOURS.track}>
       <Txt v="h3">Add a track time</Txt>
       {layouts.length > 1 ? (
         <>
           <Txt v="label">Layout</Txt>
           <Row gap={6}>
             {layouts.map((l) => (
-              <Chip key={l} label={l} on={draft.layout === l} colour={C.lime} onPress={() => set({ layout: l })} />
+              <Chip key={l} label={l} on={draft.layout === l} onPress={() => set({ layout: l })} />
             ))}
           </Row>
         </>
@@ -313,7 +313,6 @@ function AddTime({
                 key={v}
                 label={VEHICLE_LABELS[v]}
                 on={draft.kind === v}
-                colour={C.lime}
                 onPress={() => set({ kind: v, buildId: mineAll.find((b) => b.kind === v)?.id })}
               />
             ))}
@@ -324,32 +323,32 @@ function AddTime({
       {mine.length ? (
         <Row gap={6}>
           {mine.map((b) => (
-            <Chip key={b.id} label={`${b.make} ${b.model} · ${classOf(b)}`} on={draft.buildId === b.id} colour={C.lime} onPress={() => set({ buildId: b.id })} />
+            <Chip key={b.id} label={`${b.make} ${b.model} · ${classOf(b)}`} on={draft.buildId === b.id} onPress={() => set({ buildId: b.id })} />
           ))}
         </Row>
       ) : (
-        <Txt v="muted" style={{ fontSize: 13 }}>Add this {draft.kind} to your garage first, so its class can be worked out.</Txt>
+        <Txt v="caption">Add this {draft.kind} to your garage first, so its class can be worked out.</Txt>
       )}
       <Txt v="label">Proof</Txt>
       {draft.proof ? (
         <Row style={{ flexWrap: 'nowrap' }} gap={10}>
-          <Image source={{ uri: photoUri(draft.proof) }} style={{ width: 72, height: 72, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
-          <Txt v="muted" style={{ flex: 1, fontSize: 13 }}>Proof added. Plates were blurred and the photo was saved without its metadata.</Txt>
+          <Image source={{ uri: photoUri(draft.proof) }} style={{ width: 72, height: 72, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb }} />
+          <Txt v="caption" style={{ flex: 1 }}>Proof added. Plates were blurred and the photo was saved without its metadata.</Txt>
         </Row>
       ) : (
-        <Txt v="muted" style={{ fontSize: 13 }}>A photo of the printed timing sheet or a screenshot of the circuit's timing app. Any number plates in it are blurred first.</Txt>
+        <Txt v="caption">A photo of the printed timing sheet or a screenshot of the circuit's timing app. Any number plates in it are blurred first.</Txt>
       )}
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label="Camera" kind="ghost" style={{ flex: 1 }} onPress={() => pickProof(true)} disabled={flow.busy} />
-        <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => pickProof(false)} disabled={flow.busy} />
+        <Button label="Camera" kind="secondary" style={{ flex: 1 }} onPress={() => pickProof(true)} disabled={flow.busy} />
+        <Button label="Library" kind="secondary" style={{ flex: 1 }} onPress={() => pickProof(false)} disabled={flow.busy} />
       </Row>
-      {error ? <Txt style={{ color: C.alert }}>{error}</Txt> : null}
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label="Save time" kind="neon" style={{ flex: 1 }} onPress={save} busy={flow.busy} />
-        <Button label="Cancel" kind="ghost" onPress={onDone} />
+        <Button label="Save time" style={{ flex: 1 }} onPress={save} busy={flow.busy} />
+        <Button label="Cancel" kind="secondary" onPress={onDone} />
       </Row>
-      <Txt v="muted" style={{ fontSize: 12 }}>
-        Only enter a time from a real track day or event here, as printed by the circuit's timing. It shows as unverified until the server can check it.
+      <InlineError message={error} />
+      <Txt v="caption">
+        Only enter a time from a real track day or event here, as printed by the circuit's timing. It's kept {ONLY_ON_PHONE.toLowerCase()} and shows as unverified until the server can check it.
       </Txt>
     </Card>
   );

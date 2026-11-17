@@ -6,7 +6,7 @@ import { usePhotoFlow } from '../../components/PhotoFlow';
 import { photoUri } from '../../lib/photos';
 import { NightMap } from '../../components/NightMap';
 import type { MapPin } from '../../components/mapTypes';
-import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
+import { Button, Card, Chip, InlineError, Row, Section, Txt, s as ui } from '../../components/ui';
 import { ZoneNotice } from '../../components/ZoneCard';
 import { BAN_ZONES } from '../../data/seed';
 import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
@@ -15,7 +15,7 @@ import { nameForPlace } from '../../lib/location';
 import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
-import { C, SPOT_COLOURS } from '../../theme';
+import { C, RADIUS, SPOT_COLOURS, STATE, SURFACE } from '../../theme';
 
 
 /** Suggest a drive (checkpoints along the road) or a photo spot (one point), chosen on the full-screen map picker. */
@@ -129,7 +129,7 @@ export default function SuggestPlace() {
               kind === 'drive' && points.length > 1
                 ? [
                     { id: 'draft', coords: points, colour },
-                    ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: C.alert, dashed: true }] : []),
+                    ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: STATE.danger, dashed: true }] : []),
                   ]
                 : []
             }
@@ -139,7 +139,7 @@ export default function SuggestPlace() {
           />
         </View>
         {points.length === 0 ? (
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,15,23,0.55)' }]}>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: SURFACE.scrim }]}>
             <Txt v="label" style={{ color: C.chalk }}>Tap to open the map</Txt>
           </View>
         ) : null}
@@ -161,7 +161,7 @@ export default function SuggestPlace() {
 
       {kind === 'drive' ? (
         gap ? (
-          <Card accent={C.alert}>
+          <Card accent={STATE.warning}>
             <Txt>
               Points {gap.index + 1} and {gap.index + 2} are {gap.miles.toFixed(1)} mi apart (red line). Add points along the road in
               between, at least every {MAX_POINT_GAP_MILES} mi, so the drive follows the road and the pace check is fair.
@@ -189,11 +189,11 @@ export default function SuggestPlace() {
                 plates are blurred before it's saved. It shows on the spot while it waits for approval.
               </Txt>
               {photo ? (
-                <Image source={{ uri: photoUri(photo) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
+                <Image source={{ uri: photoUri(photo) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb }} />
               ) : null}
               <Row style={{ flexWrap: 'nowrap' }}>
-                <Button label={photo ? 'Retake' : 'Camera'} kind="ghost" style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
-                <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
+                <Button label={photo ? 'Retake' : 'Camera'} kind="secondary" style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
+                <Button label="Library" kind="secondary" style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
               </Row>
             </Card>
           )}
@@ -210,7 +210,7 @@ export default function SuggestPlace() {
           maxLength={40}
         />
         {autoName.current && name === autoName.current ? (
-          <Txt v="muted" style={{ fontSize: 12 }}>Named from the map. Edit it to the name people know it by.</Txt>
+          <Txt v="caption">Named from the map. Edit it to the name people know it by.</Txt>
         ) : null}
         <TextInput
           value={description}
@@ -223,20 +223,15 @@ export default function SuggestPlace() {
         />
       </Section>
 
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt>{error}</Txt>
-        </Card>
-      ) : null}
-
       <Card>
         <Txt v="muted">
           Suggestions are checked before they go on the map. You get +50 rep once it's approved, then more each time someone else{' '}
-          {kind === 'drive' ? 'drives it' : 'visits'}, scaled by their ratings. You can't rate your own.
+          {kind === 'drive' ? 'drives it' : 'checks in there'}, scaled by their ratings. You can't rate your own.
         </Txt>
       </Card>
 
       <Button label={kind === 'drive' ? 'Suggest this drive' : 'Suggest this spot'} onPress={submit} />
+      <InlineError message={error} />
 
       <MapPicker
         visible={picking}

@@ -1,8 +1,8 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { ClassUpMoment } from '../../components/motion';
-import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
+import { Button, Card, Chip, ClassBadge, ConfirmBox, InlineError, Row, Section, Txt, s as ui } from '../../components/ui';
 import { ModPicker } from '../../components/ModPicker';
 import { SearchSelect } from '../../components/SearchSelect';
 import { VehiclePicker } from '../../components/VehiclePicker';
@@ -15,9 +15,11 @@ import { PhotoManager } from '../../components/PhotoManager';
 import { plateRedactorAvailable } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, ClassLetter, EngineSwap, Mod, TuneStage, VehicleKind } from '../../lib/types';
-import { C } from '../../theme';
+import { SCREEN_TITLES, title } from '../../lib/glossary';
+import { BRAND, C } from '../../theme';
 
-const COLOURS = [C.sodium, C.neon, C.magenta, C.lime, '#ff4d4d', '#3f6fff', '#9b5de5', '#e9edf4', '#7a7f8c'];
+/** Paint colours for the build's card: the owner's choice, not theme roles. */
+const COLOURS = ['#ff9a2e', '#3fd6ff', '#ff4fa3', '#9dfa5a', '#ff4d4d', '#3f6fff', '#9b5de5', '#e9edf4', '#7a7f8c'];
 
 function num(s: string): number | undefined {
   const n = Number(s.replace(/[^0-9.]/g, ''));
@@ -56,7 +58,7 @@ export default function EditBuild() {
   const [weight, setWeight] = useState(existing ? String(chassisWeight(existing)) : '');
   const [torque, setTorque] = useState(existing ? (swap0 ? str(initialVariant?.torqueLbFt) : str(existing.torqueLbFt)) : '');
   const [dyno, setDyno] = useState(existing?.dynoBhp ? String(existing.dynoBhp) : '');
-  const [colour, setColour] = useState(existing?.colour ?? C.sodium);
+  const [colour, setColour] = useState(existing?.colour ?? COLOURS[0]);
   const [mods, setMods] = useState<Mod[]>((existing?.mods ?? []).filter((m) => !isSwapMod(m)));
   const [stage, setStage] = useState<TuneStage>(existing?.tuneStage ?? stageFromMods(existing?.mods ?? []));
   const [aspGuess, setAspGuess] = useState<Aspiration | undefined>(undefined);
@@ -179,6 +181,7 @@ export default function EditBuild() {
 
   return (
     <>
+    <Stack.Screen options={{ title: title(existing ? SCREEN_TITLES.editBuild : SCREEN_TITLES.addBuild) }} />
     {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={() => router.back()} /> : null}
     <ScrollView
       contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }}
@@ -203,19 +206,19 @@ export default function EditBuild() {
           onPickVariant={pickVariant}
         />
         <Row style={{ flexWrap: 'nowrap' }}>
-          <TextInput value={year} onChangeText={setYear} placeholder="Year" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1 }]} accessibilityLabel="Year" />
-          <TextInput value={nickname} onChangeText={setNickname} placeholder="Nickname (optional)" placeholderTextColor={C.fog} style={[ui.input, { flex: 2 }]} accessibilityLabel="Nickname" />
+          <TextInput value={year} onChangeText={setYear} placeholder="Year" keyboardType="number-pad" placeholderTextColor={C.fog} style={[ui.input, { flex: 1, minWidth: 0 }]} accessibilityLabel="Year" />
+          <TextInput value={nickname} onChangeText={setNickname} placeholder="Nickname (optional)" placeholderTextColor={C.fog} style={[ui.input, { flex: 2, minWidth: 0 }]} accessibilityLabel="Nickname" />
         </Row>
-        {variant ? <Txt v="muted" style={{ fontSize: 12 }}>This version was sold {yearsLabel(variant)}.</Txt> : null}
+        {variant ? <Txt v="caption">This version was sold {yearsLabel(variant)}.</Txt> : null}
       </Section>
 
       <Section title="Engine swap">
         <Row gap={6}>
           <Chip label="Original engine" on={!swapOn} onPress={() => setSwapOn(false)} />
-          <Chip label="Engine swapped" on={swapOn} onPress={() => setSwapOn(true)} colour={C.magenta} />
+          <Chip label="Engine swapped" on={swapOn} onPress={() => setSwapOn(true)} />
         </Row>
         {swapOn ? (
-          <Card accent={C.magenta}>
+          <Card accent={BRAND}>
             <SearchSelect
               label="Donor engine"
               value={donorModel ? `${donorMake} ${donorModel}`.trim() : ''}
@@ -239,10 +242,10 @@ export default function EditBuild() {
               <Field label="Donor torque lb-ft" value={swapTorque} onChange={setSwapTorque} />
             </Row>
             <View style={{ gap: 4 }}>
-              <Txt v="label" style={{ fontSize: 11 }}>Weight change kg (+ or −, optional)</Txt>
+              <Txt v="label">Weight change kg (+ or −, optional)</Txt>
               <TextInput value={weightDelta} onChangeText={setWeightDelta} keyboardType="numbers-and-punctuation" placeholder="e.g. +25 or -10" placeholderTextColor={C.fog} style={ui.input} accessibilityLabel="Weight change from the swap in kg" />
             </View>
-            <Txt v="muted" style={{ fontSize: 12 }}>
+            <Txt v="caption">
               Class uses the donor engine's bhp with the {kind === 'car' ? 'car' : 'bike'}'s weight{signed(weightDelta) ? ` ${signed(weightDelta)! > 0 ? '+' : '−'} ${Math.abs(signed(weightDelta)!)} kg` : ''}. The tune stage below applies to the donor engine.
             </Txt>
           </Card>
@@ -259,7 +262,7 @@ export default function EditBuild() {
           <Field label="Dyno bhp (if you have a sheet)" value={dyno} onChange={setDyno} />
         </Row>
         {ready ? (
-          <Card accent={C.sodium}>
+          <Card accent={BRAND}>
             <Row style={{ flexWrap: 'nowrap' }} gap={12}>
               <ClassBadge letter={classOf(draft)} size="md" />
               <Txt v="muted" style={{ flex: 1 }} accessibilityLiveRegion="polite">
@@ -286,7 +289,7 @@ export default function EditBuild() {
 
       <Section title="Photos">
         <PhotoManager photos={photos} onChange={setPhotos} onError={setError} saveLater />
-        <Txt v="muted" style={{ fontSize: 12 }}>
+        <Txt v="caption">
           Crop as you add, then tap a photo to crop it again, set the cover (first photo) or move it. Number plates are blurred on your phone before a photo is saved, and location data is removed.
           {plateRedactorAvailable ? '' : ' (Automatic plate detection only works in the iPhone app.)'}
         </Txt>
@@ -299,26 +302,28 @@ export default function EditBuild() {
               key={c}
               onPress={() => setColour(c)}
               accessibilityLabel={`Colour ${c}`}
+              accessibilityState={{ selected: colour === c }}
+              hitSlop={7}
               style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c, borderWidth: colour === c ? 3 : 0, borderColor: C.chalk }}
             />
           ))}
         </Row>
       </Section>
 
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt>{error}</Txt>
-        </Card>
-      ) : null}
       <Button label="Save build" onPress={save} busy={saving} />
+      <InlineError message={confirmDelete ? null : error} />
       {existing ? (
         confirmDelete ? (
-          <Row style={{ flexWrap: 'nowrap' }}>
-            <Button label="Yes, delete it" kind="danger" style={{ flex: 1 }} onPress={() => {
+          <ConfirmBox
+            message={`Delete ${existing.make} ${existing.model} from your garage? This can't be undone.`}
+            verb="Delete"
+            error={error}
+            onConfirm={() => {
+              setError(null);
               store.deleteBuild(existing.id).then(() => router.dismissAll()).catch((e) => setError(e instanceof Error ? e.message : 'Could not delete the build.'));
-            }} />
-            <Button label="Keep" kind="ghost" onPress={() => setConfirmDelete(false)} />
-          </Row>
+            }}
+            onCancel={() => setConfirmDelete(false)}
+          />
         ) : (
           <Button label="Delete build" kind="danger" onPress={() => setConfirmDelete(true)} />
         )
@@ -330,8 +335,8 @@ export default function EditBuild() {
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (s: string) => void }) {
   return (
-    <View style={{ flex: 1, gap: 4 }}>
-      <Txt v="label" style={{ fontSize: 11 }}>{label}</Txt>
+    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+      <Txt v="label">{label}</Txt>
       <TextInput value={value} onChangeText={onChange} keyboardType="number-pad" placeholderTextColor={C.fog} style={ui.input} accessibilityLabel={label} />
     </View>
   );

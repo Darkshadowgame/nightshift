@@ -4,7 +4,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
 import { classOf, effectivePower } from '../lib/classes';
 import type { Build, NightEvent, User } from '../lib/types';
-import { C, F } from '../theme';
+import { BRAND, C, F, TYPE } from '../theme';
 import { BuildArt } from './BuildArt';
 
 /** The "cover shoot" reward: the winning build as a stylised magazine-style cover. */
@@ -23,7 +23,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
       )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,8,14,0.35)' }]} />
       <View style={st.top}>
-        <Text style={[st.mast, { fontSize: width * 0.14 }]} numberOfLines={1} adjustsFontSizeToFit>NIGHT<Text style={{ color: C.sodium }}>SHIFT</Text></Text>
+        <Text style={[st.mast, { fontSize: width * 0.14 }]} numberOfLines={1} adjustsFontSizeToFit>NIGHT<Text style={{ color: BRAND }}>SHIFT</Text></Text>
         <Text style={st.issue}>{issue} · {event?.areaName?.toUpperCase() ?? 'UK'}</Text>
       </View>
       <View style={st.bottom}>
@@ -40,7 +40,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
   );
 }
 
-export function Trophy({ colour = C.sodium, size = 34 }: { colour?: string; size?: number }) {
+export function Trophy({ colour = BRAND, size = 34 }: { colour?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 40 40">
       <Path d="M13 8h14v8a7 7 0 0 1-14 0z" fill={colour} />
@@ -55,10 +55,10 @@ const st = StyleSheet.create({
   cover: { borderRadius: 6, overflow: 'hidden', backgroundColor: '#111827', borderWidth: 1, borderColor: C.kerbHi },
   top: { position: 'absolute', top: 10, left: 12, right: 12 },
   mast: { fontFamily: F.displayItalic, color: C.chalk, letterSpacing: -1, lineHeight: undefined },
-  issue: { fontFamily: F.label, color: C.chalk, fontSize: 11, letterSpacing: 2 },
+  issue: { fontFamily: F.label, color: C.chalk, fontSize: TYPE.micro, letterSpacing: 2 },
   bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 3 },
-  ribbon: { alignSelf: 'flex-start', backgroundColor: C.sodium, paddingHorizontal: 8, paddingVertical: 3, transform: [{ skewX: '-10deg' }] },
-  ribbonText: { fontFamily: F.labelBold, color: C.ink, fontSize: 12, letterSpacing: 2, textTransform: 'uppercase' },
+  ribbon: { alignSelf: 'flex-start', backgroundColor: BRAND, paddingHorizontal: 8, paddingVertical: 3, transform: [{ skewX: '-10deg' }] },
+  ribbonText: { fontFamily: F.labelBold, color: C.ink, fontSize: TYPE.label, letterSpacing: 2, textTransform: 'uppercase' },
   headline: { fontFamily: F.displayItalic, color: C.chalk, textTransform: 'uppercase' },
-  lines: { fontFamily: F.label, color: C.chalk, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase' },
+  lines: { fontFamily: F.label, color: C.chalk, fontSize: TYPE.micro, letterSpacing: 1.2, textTransform: 'uppercase' },
 });

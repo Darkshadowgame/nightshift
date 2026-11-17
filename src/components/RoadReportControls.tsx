@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { KIND_INFO, promptText, REPORT_GRID, type RoadReport, type RoadReportKind, type RoadVote } from '../lib/roadReports';
-import { C, F, ROAD_COLOUR } from '../theme';
+import { C, F, FONT_SCALE, ROAD_COLOUR, STATE, SURFACE } from '../theme';
 import { Pin } from './Pin';
 
 /**
@@ -18,7 +18,7 @@ export function ReportGrid({ onPick, onClose, bottom }: { onPick: (kind: RoadRep
     <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
       <Pressable style={[StyleSheet.absoluteFill, st.backdrop]} onPress={onClose} accessibilityLabel="Close without reporting" />
       <View style={[st.sheet, { paddingBottom: bottom + 10 }]}>
-        <Text style={st.title} accessibilityRole="header">REPORT</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.title} accessibilityRole="header">REPORT</Text>
         {rows.map((row) => (
           <View key={row.join()} style={st.gridRow}>
             {row.map((k) => (
@@ -30,13 +30,13 @@ export function ReportGrid({ onPick, onClose, bottom }: { onPick: (kind: RoadRep
                 style={({ pressed }) => [st.tile, pressed && { backgroundColor: C.kerbHi }]}
               >
                 <Pin glyph={k} colour={ROAD_COLOUR} size={36} />
-                <Text style={st.tileText} numberOfLines={2}>{KIND_INFO[k].label}</Text>
+                <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.tileText} numberOfLines={2}>{KIND_INFO[k].label}</Text>
               </Pressable>
             ))}
           </View>
         ))}
         <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => [st.cancel, pressed && { opacity: 0.7 }]}>
-          <Text style={st.cancelText}>CANCEL</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.cancelText}>CANCEL</Text>
         </Pressable>
       </View>
     </View>
@@ -48,9 +48,9 @@ export function UndoBar({ kind, secondsLeft, onUndo }: { kind: RoadReportKind; s
   return (
     <View style={st.bar} accessibilityLiveRegion="polite">
       <Pin glyph={kind} colour={ROAD_COLOUR} size={34} />
-      <Text style={st.barText} numberOfLines={2}>{KIND_INFO[kind].label.toUpperCase()} REPORTED</Text>
+      <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.barText} numberOfLines={2}>{KIND_INFO[kind].label.toUpperCase()} REPORTED</Text>
       <Pressable onPress={onUndo} accessibilityRole="button" accessibilityLabel="Undo the report" style={({ pressed }) => [st.undo, pressed && { opacity: 0.7 }]}>
-        <Text style={st.undoText}>UNDO {secondsLeft}</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.undoText}>UNDO {secondsLeft}</Text>
       </Pressable>
     </View>
   );
@@ -62,17 +62,17 @@ export function StillTherePrompt({ report, onAnswer, onDismiss }: { report: Road
     <View style={[st.bar, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]} accessibilityLiveRegion="polite">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Pin glyph={report.kind} colour={ROAD_COLOUR} size={34} />
-        <Text style={[st.barText, { flex: 1 }]}>{promptText(report)}</Text>
+        <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={[st.barText, { flex: 1 }]}>{promptText(report)}</Text>
         <Pressable onPress={onDismiss} hitSlop={12} accessibilityRole="button" accessibilityLabel="Not sure. Close">
-          <Text style={st.skip}>SKIP</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.skip}>SKIP</Text>
         </Pressable>
       </View>
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        <Pressable onPress={() => onAnswer('still_there')} accessibilityRole="button" accessibilityLabel="Yes, still there" style={({ pressed }) => [st.answer, { backgroundColor: C.lime }, pressed && { opacity: 0.8 }]}>
-          <Text style={[st.answerText, { color: C.asphalt }]}>YES</Text>
+        <Pressable onPress={() => onAnswer('still_there')} accessibilityRole="button" accessibilityLabel="Yes, still there" style={({ pressed }) => [st.answer, { backgroundColor: STATE.success }, pressed && { opacity: 0.8 }]}>
+          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={[st.answerText, { color: C.asphalt }]}>YES</Text>
         </Pressable>
         <Pressable onPress={() => onAnswer('gone')} accessibilityRole="button" accessibilityLabel="No, it's gone" style={({ pressed }) => [st.answer, { borderWidth: 2, borderColor: C.kerbHi }, pressed && { opacity: 0.8 }]}>
-          <Text style={st.answerText}>NO, GONE</Text>
+          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.answerText}>NO, GONE</Text>
         </Pressable>
       </View>
     </View>
@@ -83,13 +83,13 @@ export function StillTherePrompt({ report, onAnswer, onDismiss }: { report: Road
 export function ReportAlert({ text }: { text: string }) {
   return (
     <View style={st.alert} accessibilityLiveRegion="assertive">
-      <Text style={st.alertText} numberOfLines={2}>{text}</Text>
+      <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.alertText} numberOfLines={2}>{text}</Text>
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  backdrop: { backgroundColor: 'rgba(5,8,12,0.6)' },
+  backdrop: { backgroundColor: SURFACE.scrim },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.tarmac, borderTopWidth: 3, borderTopColor: ROAD_COLOUR, padding: 12, gap: 10 },
   title: { fontFamily: F.display, fontSize: 20, color: C.chalk, letterSpacing: 2, marginLeft: 4 },
   gridRow: { flexDirection: 'row', gap: 10 },

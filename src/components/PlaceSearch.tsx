@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
 import { searchPlaces, SearchError } from '../lib/location';
 import { searchQuery, type PlaceHit } from '../lib/placeNames';
 import { C } from '../theme';
-import { Txt, s as ui } from './ui';
+import { InlineError, Txt, s as ui } from './ui';
 
 const DEBOUNCE_MS = 600;
 
@@ -68,7 +68,7 @@ export function PlaceSearch({ onPick, placeholder = 'Search a postcode, town or 
         {state === 'searching' ? <ActivityIndicator color={C.fog} style={{ position: 'absolute', right: 12, top: 0, bottom: 0 }} /> : null}
       </View>
       {state === 'none' ? <Txt v="muted">No UK places found. Try a postcode or a town name.</Txt> : null}
-      {state === 'error' ? <Txt v="muted" style={{ color: C.alert }}>{error}</Txt> : null}
+      {state === 'error' ? <InlineError message={error} /> : null}
       {hits.map((h) => (
         <Pressable
           key={`${h.at.lat},${h.at.lng}`}
@@ -76,7 +76,7 @@ export function PlaceSearch({ onPick, placeholder = 'Search a postcode, town or 
           accessibilityRole="button"
           accessibilityLabel={`Go to ${h.label}`}
           style={({ pressed }) => [
-            { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: C.kerb, backgroundColor: C.tarmac },
+            { paddingVertical: 10, paddingHorizontal: 12, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: C.kerb, backgroundColor: C.tarmac },
             pressed && { opacity: 0.7 },
           ]}
         >

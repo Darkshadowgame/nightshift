@@ -78,7 +78,7 @@ import { useRoadReports, useRoads } from '../lib/roadStore';
 import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../lib/spots';
 import { useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
-import { C, F, ROAD_COLOUR } from '../theme';
+import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, ROAD_COLOUR, STATE, SURFACE, TYPE } from '../theme';
 
 /**
  * The driving view: turn-by-turn directions through an event's stops, a
@@ -115,9 +115,9 @@ export default function DriveScreen() {
   if (!plan) {
     return (
       <View style={[st.screen, st.centred, { paddingTop: insets.top + 24 }]}>
-        <Txt v="h2">Nothing to navigate to</Txt>
-        <Txt v="muted" style={{ textAlign: 'center' }}>The place isn't visible to you yet, or it's gone.</Txt>
-        <Button label="Back" kind="ghost" onPress={() => router.back()} />
+        <Txt v="h2" scale="drive">Nothing to navigate to</Txt>
+        <Txt v="muted" scale="drive" style={{ textAlign: 'center' }}>The stop isn't unlocked for you yet, or it's gone.</Txt>
+        <Button label="Back" kind="secondary" size="lg" onPress={() => router.back()} />
       </View>
     );
   }
@@ -131,18 +131,19 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
   const to = plan.stops[0].at;
   return (
     <View style={[st.screen, { paddingTop: insets.top + 24, paddingHorizontal: 20, gap: 14 }]}>
-      <Txt v="eyebrow" style={{ color: C.neon }}>Navigation</Txt>
-      <Txt v="h1">Turn by turn needs the iPhone app</Txt>
-      <Txt v="muted">
+      <Txt v="eyebrow" scale="drive">Navigation</Txt>
+      <Txt v="h1" scale="drive">Turn by turn needs the iPhone app</Txt>
+      <Txt v="muted" scale="drive">
         {Platform.OS === 'web'
           ? 'The web preview has no directions or voice. Open Nightshift on the iPhone, or use another app for now.'
           : 'This install is older than the navigation update. Install the latest IPA, or use another app for now.'}
+        {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Count without directions does." : ''}
       </Txt>
-      <Txt>{plan.title}</Txt>
-      <Button label="Apple Maps" kind="neon" onPress={() => openDirections('apple', to)} />
-      <Button label="Google Maps" kind="ghost" onPress={() => openDirections('google', to)} />
-      <Button label="Waze" kind="ghost" onPress={() => openDirections('waze', to)} />
-      <Button label="Back" kind="ghost" onPress={() => router.back()} />
+      <Txt scale="drive">{plan.title}</Txt>
+      <Button label="Apple Maps" size="lg" onPress={() => openDirections('apple', to)} />
+      <Button label="Google Maps" kind="secondary" onPress={() => openDirections('google', to)} />
+      <Button label="Waze" kind="secondary" onPress={() => openDirections('waze', to)} />
+      <Button label="Back" kind="secondary" onPress={() => router.back()} />
     </View>
   );
 }
@@ -350,7 +351,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       setReportCentre((c) => (!c || metresBetween(c, f.at) > 1500 ? f.at : c));
       if (vias.current.length) vias.current = vias.current.filter((v) => metresBetween(f.at, v.at) > VIA_REACHED_METRES);
 
-      // A drive counts the same way as Start drive on the drive's screen: every checkpoint, in order.
+      // Navigating a drive counts it: every checkpoint, in order (the same check as "Count without directions" on the drive's page).
       if (plan.driveId && !simulate && !runDone.current) {
         const spot = store.spots.find((s) => s.id === plan.driveId);
         if (spot?.path) {
@@ -362,7 +363,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
               runDone.current = true;
               store
                 .finishDrive(spot.id, run.current)
-                .then((verdict) => setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed.' : verdict.reason))
+                .then((verdict) => {
+                  if (verdict.ok) feel.success();
+                  setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed. It counts.' : verdict.reason);
+                })
                 .catch((e) => setDriveNote(e instanceof Error ? e.message : 'Could not record the drive.'));
             }
           }
@@ -714,7 +718,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         id: s.id,
         at: s.at,
         glyph: s.role === 'checkpoint' ? 'drive' : plan.eventId ? 'cruise' : 'venue',
-        colour: i < next ? C.fog : i === next ? C.sodium : C.chalk,
+        colour: i < next ? C.fog : i === next ? BRAND : C.chalk,
       })),
     [stops, next, plan.eventId],
   );
@@ -766,11 +770,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   return (
     <View style={st.screen}>
-      <View style={[st.banner, { paddingTop: insets.top + 8 }, over && { borderBottomColor: C.alert }]} accessibilityLiveRegion="polite">
-        <Text style={st.arrow} accessibilityLabel={step ? step.kind : undefined}>{bannerArrow}</Text>
+      <View style={[st.banner, { paddingTop: insets.top + 8 }, over && { borderBottomColor: STATE.danger }]} accessibilityLiveRegion="polite">
+        <Text style={st.arrow} allowFontScaling={false} accessibilityLabel={step ? step.kind : undefined}>{bannerArrow}</Text>
         <View style={{ flex: 1 }}>
-          {bannerDistance ? <Text style={st.bannerDistance}>{bannerDistance}</Text> : null}
-          <Text style={st.bannerText} numberOfLines={2}>{bannerText}</Text>
+          {bannerDistance ? <Text style={st.bannerDistance} maxFontSizeMultiplier={FONT_SCALE.drive}>{bannerDistance}</Text> : null}
+          <Text style={st.bannerText} numberOfLines={3} maxFontSizeMultiplier={FONT_SCALE.drive}>{bannerText}</Text>
         </View>
       </View>
       {alert ? <ReportAlert text={alert} /> : null}
@@ -788,29 +792,29 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         />
         {cameraAlerts && mapCameras.length > 0 ? (
           <View pointerEvents="none" style={st.credit}>
-            <Text style={st.creditText}>{CAMERA_CREDIT}</Text>
+            <Text style={st.creditText} maxFontSizeMultiplier={FONT_SCALE.drive}>{CAMERA_CREDIT}</Text>
           </View>
         ) : null}
         {simulate ? (
           <View pointerEvents="none" style={st.demo}>
-            <Text style={st.demoText}>DEMO DRIVE · 4× SPEED</Text>
+            <Text style={st.demoText} maxFontSizeMultiplier={FONT_SCALE.drive}>DEMO DRIVE · 4× SPEED</Text>
           </View>
         ) : null}
         {notice ? (
           <View style={st.notice}>
-            <Txt style={{ fontSize: 17 }}>{notice}</Txt>
+            <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }}>{notice}</Txt>
           </View>
         ) : null}
       </View>
 
       {phase === 'error' ? (
         <View style={[st.panel, { gap: 10 }]}>
-          <Txt style={{ fontSize: 17 }}>{error}</Txt>
-          <Button label="Try again" kind="neon" onPress={retry} />
+          <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }} accessibilityLiveRegion="polite">{error}</Txt>
+          <Button label="Try again" size="lg" onPress={retry} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button label="Apple Maps" kind="ghost" style={{ flex: 1 }} onPress={() => openDirections('apple', stops[nextRef.current]?.at ?? stops[0].at)} />
-            <Button label="Google Maps" kind="ghost" style={{ flex: 1 }} onPress={() => openDirections('google', stops[nextRef.current]?.at ?? stops[0].at)} />
-            <Button label="Waze" kind="ghost" style={{ flex: 1 }} onPress={() => openDirections('waze', stops[nextRef.current]?.at ?? stops[0].at)} />
+            <Button label="Apple Maps" kind="secondary" style={{ flex: 1 }} onPress={() => openDirections('apple', stops[nextRef.current]?.at ?? stops[0].at)} />
+            <Button label="Google Maps" kind="secondary" style={{ flex: 1 }} onPress={() => openDirections('google', stops[nextRef.current]?.at ?? stops[0].at)} />
+            <Button label="Waze" kind="secondary" style={{ flex: 1 }} onPress={() => openDirections('waze', stops[nextRef.current]?.at ?? stops[0].at)} />
           </View>
         </View>
       ) : null}
@@ -829,48 +833,55 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       ) : null}
 
       {checkInStop && !moving && !checkedIn.includes(checkInStop.id) ? (
-        <View style={[st.panel, { gap: 10, borderTopColor: C.lime }]}>
-          <Txt style={{ fontSize: 18 }}>You're at {checkInStop.name}.</Txt>
-          <Button label={`Check in at ${checkInStop.name}`} kind="neon" onPress={() => doCheckIn(checkInAt!)} />
-          <Button label="Not now" kind="ghost" onPress={() => setCheckInAt(null)} />
+        <View style={[st.panel, { gap: 10, borderTopColor: STATE.success }]}>
+          <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }}>You're at {checkInStop.name}.</Txt>
+          <Button label={`Check in at ${checkInStop.name}`} size="lg" onPress={() => doCheckIn(checkInAt!)} />
+          <Button label="Not now" kind="secondary" size="lg" onPress={() => setCheckInAt(null)} />
         </View>
       ) : null}
 
       <View style={[st.panel, { paddingBottom: insets.bottom + 10 }]}>
         <View style={st.row}>
-          <View style={[st.speedBox, over && { borderColor: C.alert, backgroundColor: '#3a0d0d' }]} accessibilityLabel={speedMph != null ? `${speedMph} miles per hour` : 'Speed unknown'}>
-            <Text style={[st.speed, over && { color: C.alert }]}>{speedMph ?? '–'}</Text>
-            <Text style={st.unit}>MPH</Text>
+          <View style={[st.speedBox, over && { borderColor: STATE.danger, backgroundColor: '#3a0d0d' }]} accessibilityLabel={speedMph != null ? `${speedMph} miles per hour` : 'Speed unknown'}>
+            <Text style={[st.speed, over && { color: STATE.danger }]} maxFontSizeMultiplier={FONT_SCALE.drive}>{speedMph ?? '–'}</Text>
+            <Text style={st.unit} maxFontSizeMultiplier={FONT_SCALE.drive}>MPH</Text>
           </View>
           {hud?.limit ? (
             <View style={st.limit} accessibilityLabel={`${hud.limit.source === 'zone' ? 'Average speed zone' : 'Speed camera'} limit ${hud.limit.mph} miles per hour`}>
-              <Text style={st.limitText}>{hud.limit.mph}</Text>
+              <Text style={st.limitText} allowFontScaling={false}>{hud.limit.mph}</Text>
             </View>
           ) : null}
           <View style={{ flex: 1, gap: 2 }}>
             {hud?.zone ? (
-              <Text style={st.zone} numberOfLines={2}>
+              <Text style={st.zone} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE.drive}>
                 {hud.zone.inside
                   ? `AVG ZONE${hud.zone.zone.mph ? ` ${hud.zone.zone.mph}` : ''} · YOURS ${hud.zone.average ?? '–'} · ${formatDistance(hud.zone.zone.endAlong - (progress?.snap.along ?? 0))} LEFT`
                   : `AVG ZONE IN ${formatDistance(hud.zone.zone.startAlong - (progress?.snap.along ?? 0))}${hud.zone.zone.mph ? ` · ${hud.zone.zone.mph} MPH` : ''}`}
               </Text>
             ) : hud?.ahead[0] ? (
-              <Text style={st.zone}>
+              <Text style={st.zone} maxFontSizeMultiplier={FONT_SCALE.drive}>
                 CAMERA IN {formatDistance(hud.ahead[0].along - (progress?.snap.along ?? 0))}
                 {hud.ahead[0].mph ? ` · ${hud.ahead[0].mph} MPH` : ''}
               </Text>
             ) : null}
             {nextStop && toNextStop !== undefined && secsToNextStop !== undefined && phase === 'driving' ? (
-              <Text style={st.next} numberOfLines={1}>
+              <Text style={st.next} numberOfLines={1} maxFontSizeMultiplier={FONT_SCALE.drive}>
                 {nextStop.name} · {formatDistance(toNextStop)} · {etaClock(nowMs, secsToNextStop)}
               </Text>
             ) : null}
             {progress && stops.length - next > 1 && phase === 'driving' ? (
-              <Text style={st.sub} numberOfLines={1}>
+              <Text style={st.sub} numberOfLines={1} maxFontSizeMultiplier={FONT_SCALE.drive}>
                 {stops[stops.length - 1].name} · {formatDistance(progress.toEnd)} · {etaClock(nowMs, progress.secondsToEnd)}
               </Text>
             ) : null}
-            {driveNote ? <Text style={st.sub}>{driveNote}</Text> : simulate && plan.driveId ? <Text style={st.sub}>Demo drives don't count as finishing it.</Text> : null}
+            {plan.driveId ? (
+              <Text style={[st.sub, driveNote?.startsWith('Drive complete') && { color: STATE.success }]} maxFontSizeMultiplier={FONT_SCALE.drive}>
+                {driveNote ??
+                  (simulate
+                    ? "Demo drive: it doesn't count. Simulate the drive on its page to count it."
+                    : 'Pass every checkpoint in order and the drive counts.')}
+              </Text>
+            ) : null}
           </View>
         </View>
         <View style={st.row}>
@@ -884,7 +895,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             accessibilityLabel={muted ? 'Voice off. Turn voice on' : 'Voice on. Mute'}
             style={({ pressed }) => [st.mute, pressed && { opacity: 0.7 }]}
           >
-            <Text style={st.muteText}>{muted ? 'VOICE OFF' : 'VOICE ON'}</Text>
+            <Text style={st.muteText} maxFontSizeMultiplier={FONT_SCALE.drive}>{muted ? 'VOICE OFF' : 'VOICE ON'}</Text>
           </Pressable>
           <Pressable
             onPress={openReport}
@@ -892,10 +903,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             accessibilityLabel="Report something on the road"
             style={({ pressed }) => [st.report, pressed && { opacity: 0.8 }]}
           >
-            <Text style={st.reportText}>REPORT</Text>
+            <Text style={st.reportText} maxFontSizeMultiplier={FONT_SCALE.drive}>REPORT</Text>
           </Pressable>
           <Pressable onPress={end} accessibilityRole="button" accessibilityLabel="End navigation" style={({ pressed }) => [st.end, pressed && { opacity: 0.8 }]}>
-            <Text style={st.endText}>END</Text>
+            <Text style={st.endText} maxFontSizeMultiplier={FONT_SCALE.drive}>END</Text>
           </Pressable>
         </View>
       </View>
@@ -915,30 +926,32 @@ const st = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: C.tarmac,
     borderBottomWidth: 3,
-    borderBottomColor: C.neon,
+    borderBottomColor: BRAND,
   },
-  arrow: { fontSize: 64, lineHeight: 70, color: C.neon, width: 70, textAlign: 'center' },
-  bannerDistance: { fontFamily: F.display, fontSize: 38, color: C.chalk, fontVariant: ['tabular-nums'] },
-  bannerText: { fontFamily: F.bodyBold, fontSize: 22, lineHeight: 27, color: C.chalk },
+  /** The turn arrow: brand, never the Drives layer's blue. */
+  arrow: { fontSize: 64, lineHeight: 70, color: BRAND, width: 70, textAlign: 'center' },
+  bannerDistance: { fontFamily: F.display, fontSize: DRIVE_TYPE.banner, color: C.chalk, fontVariant: ['tabular-nums'] },
+  bannerText: { fontFamily: F.bodyBold, fontSize: DRIVE_TYPE.readout, lineHeight: 27, color: C.chalk },
   panel: { backgroundColor: C.tarmac, paddingHorizontal: 16, paddingTop: 12, gap: 12, borderTopWidth: 1, borderTopColor: C.kerb },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   speedBox: { minWidth: 92, alignItems: 'center', borderWidth: 2, borderColor: C.kerbHi, borderRadius: 12, paddingVertical: 4, paddingHorizontal: 8 },
-  speed: { fontFamily: F.display, fontSize: 44, lineHeight: 48, color: C.chalk, fontVariant: ['tabular-nums'] },
-  unit: { fontFamily: F.labelBold, fontSize: 13, color: C.fog, letterSpacing: 1.5 },
+  speed: { fontFamily: F.display, fontSize: DRIVE_TYPE.speed, lineHeight: 48, color: C.chalk, fontVariant: ['tabular-nums'] },
+  unit: { fontFamily: F.labelBold, fontSize: TYPE.caption, color: C.fog, letterSpacing: 1.5 },
   limit: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffff', borderWidth: 7, borderColor: '#d61f1f', alignItems: 'center', justifyContent: 'center' },
   limitText: { fontFamily: F.display, fontSize: 24, color: '#111111' },
-  zone: { fontFamily: F.labelBold, fontSize: 16, color: C.sodium, letterSpacing: 0.8 },
-  next: { fontFamily: F.bodyBold, fontSize: 18, color: C.chalk },
-  sub: { fontFamily: F.body, fontSize: 15, color: C.fog },
+  zone: { fontFamily: F.labelBold, fontSize: 16, color: STATE.warning, letterSpacing: 0.8 },
+  next: { fontFamily: F.bodyBold, fontSize: DRIVE_TYPE.body, color: C.chalk },
+  sub: { fontFamily: F.body, fontSize: TYPE.body, color: C.fog },
   mute: { flex: 1, height: 60, borderRadius: 12, borderWidth: 2, borderColor: C.kerbHi, alignItems: 'center', justifyContent: 'center' },
   muteText: { fontFamily: F.labelBold, fontSize: 18, color: C.chalk, letterSpacing: 1.5 },
   report: { flex: 1.5, height: 60, borderRadius: 12, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center' },
   reportText: { fontFamily: F.display, fontSize: 22, color: C.asphalt, letterSpacing: 1.5 },
-  end: { flex: 1.3, height: 60, borderRadius: 12, backgroundColor: C.alert, alignItems: 'center', justifyContent: 'center' },
-  endText: { fontFamily: F.display, fontSize: 24, color: '#ffffff', letterSpacing: 2 },
-  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
-  creditText: { color: C.fog, fontSize: 9 },
-  demo: { position: 'absolute', left: 8, top: 8, backgroundColor: 'rgba(11,15,23,0.8)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  demoText: { fontFamily: F.labelBold, color: C.sodium, fontSize: 12, letterSpacing: 1 },
-  notice: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.95)', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: C.sodium },
+  end: { flex: 1.3, height: 60, borderRadius: 12, backgroundColor: STATE.danger, alignItems: 'center', justifyContent: 'center' },
+  /** Asphalt on red: 5.9:1, readable in sunlight (white was 3.3:1). */
+  endText: { fontFamily: F.display, fontSize: 24, color: C.asphalt, letterSpacing: 2 },
+  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
+  creditText: { fontFamily: F.label, color: C.fog, fontSize: TYPE.micro },
+  demo: { position: 'absolute', left: 8, top: 8, backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  demoText: { fontFamily: F.labelBold, color: BRAND, fontSize: TYPE.label, letterSpacing: 1 },
+  notice: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: SURFACE.glassRaised, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: BRAND },
 });

@@ -17,7 +17,7 @@ import {
   type Handle,
   type Rotation,
 } from '../lib/crop';
-import { C } from '../theme';
+import { BRAND, C } from '../theme';
 import { Button, Chip, Row, Txt } from './ui';
 
 const HANDLE = 40;
@@ -141,7 +141,7 @@ export function CropEditor({
       <View style={[st.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
         <View style={{ paddingHorizontal: 16, gap: 4 }}>
           <Txt v="h3">{saved ? 'Crop or rotate photo' : 'Crop the photo'}</Txt>
-          <Txt v="muted" style={{ fontSize: 13 }}>
+          <Txt v="caption">
             {saved
               ? "This changes the saved photo. Originals aren't kept, so anything cropped off now can't be got back, and blurred plates stay blurred."
               : 'Drag the box to move it, or a corner to resize. Plates are checked on the cropped photo next.'}
@@ -152,7 +152,7 @@ export function CropEditor({
           {failed ? (
             <Txt v="muted">Couldn't open that photo.</Txt>
           ) : !size || !b ? (
-            <ActivityIndicator color={C.sodium} />
+            <ActivityIndicator color={BRAND} />
           ) : (
             <View style={{ width: dispW, height: dispH }}>
               <Image
@@ -209,8 +209,8 @@ export function CropEditor({
             ))}
           </ScrollView>
           <Row style={{ flexWrap: 'nowrap', paddingHorizontal: 16 }}>
-            <Button label="Rotate 90°" kind="ghost" onPress={rotate} disabled={!box || busy} style={{ flex: 1 }} accessibilityLabel="Rotate 90 degrees clockwise" />
-            <Button label="Reset" kind="ghost" onPress={reset} disabled={!box || busy} style={{ flex: 1 }} />
+            <Button label="Rotate 90°" kind="secondary" onPress={rotate} disabled={!box || busy} style={{ flex: 1 }} accessibilityLabel="Rotate 90 degrees clockwise" />
+            <Button label="Reset" kind="secondary" onPress={reset} disabled={!box || busy} style={{ flex: 1 }} />
           </Row>
           <Row style={{ flexWrap: 'nowrap', paddingHorizontal: 16 }}>
             <Button
@@ -220,8 +220,8 @@ export function CropEditor({
               disabled={!box}
               style={{ flex: 1 }}
             />
-            {onSkip ? <Button label="Skip crop" kind="ghost" onPress={onSkip} disabled={busy} /> : null}
-            <Button label="Cancel" kind="ghost" onPress={onCancel} disabled={busy} />
+            {onSkip ? <Button label="Skip crop" kind="secondary" onPress={onSkip} disabled={busy} /> : null}
+            <Button label="Cancel" kind="secondary" onPress={onCancel} disabled={busy} />
           </Row>
         </View>
       </View>
@@ -237,6 +237,6 @@ const st = StyleSheet.create({
   gridV: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: 'rgba(233,237,244,0.55)' },
   gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(233,237,244,0.55)' },
   handle: { position: 'absolute', width: HANDLE, height: HANDLE },
-  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: C.sodium, borderRadius: 1 },
-  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: C.sodium, borderRadius: 1 },
+  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: BRAND, borderRadius: 1 },
+  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: BRAND, borderRadius: 1 },
 });

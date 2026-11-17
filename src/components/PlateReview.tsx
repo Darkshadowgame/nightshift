@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Image, Pressable, View, type LayoutChangeEvent } from 'react-native';
 import type { PlateBox } from '../../modules/plate-redactor';
-import { C } from '../theme';
+import { BRAND, STATE } from '../theme';
 import { Button, Card, Row, Txt } from './ui';
 
 export interface PendingPhoto {
@@ -46,7 +46,7 @@ export function PlateReview({
   }
 
   return (
-    <Card accent={C.neon}>
+    <Card accent={BRAND}>
       <Txt v="h3">{recheck ? 'Add more plate blur' : 'Check the number plates'}</Txt>
       <Txt v="muted">
         {recheck
@@ -72,15 +72,15 @@ export function PlateReview({
               height: b.h * frame.h,
               backgroundColor: 'rgba(17,24,39,0.85)',
               borderWidth: 2,
-              borderColor: C.alert,
+              borderColor: STATE.danger,
             }}
           />
         ))}
       </View>
-      <Txt v="muted" style={{ fontSize: 12 }}>We try to blur plates automatically, but check before saving. The original photo isn't kept.</Txt>
+      <Txt v="caption">We try to blur plates automatically, but check before saving. The original photo isn't kept.</Txt>
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label={busy ? 'Blurring…' : recheck ? (boxes.length ? `Blur ${boxes.length} and save` : 'Nothing to add') : `Blur ${boxes.length} and add`} kind="neon" onPress={() => onDone(boxes)} busy={busy} style={{ flex: 1 }} />
-        <Button label="Cancel" kind="ghost" onPress={onCancel} />
+        <Button label={busy ? 'Blurring…' : recheck ? (boxes.length ? `Blur ${boxes.length} and save` : 'Nothing to add') : `Blur ${boxes.length} and add`} onPress={() => onDone(boxes)} busy={busy} style={{ flex: 1 }} />
+        <Button label="Cancel" kind="secondary" onPress={onCancel} />
       </Row>
     </Card>
   );

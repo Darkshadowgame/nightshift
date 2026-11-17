@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { allVariants, VEHICLES_VERSION } from '../data/vehicles';
+import { allVariants } from '../data/vehicles';
 import type { VehicleKind } from '../lib/types';
 import {
   canonicalMake,
@@ -15,7 +15,7 @@ import {
   yearsLabel,
   type Variant,
 } from '../lib/vehicles';
-import { C, F } from '../theme';
+import { C, F, RADIUS, STATE, TYPE } from '../theme';
 import { SearchSelect } from './SearchSelect';
 import { SuggestMissing } from './SuggestMissing';
 import { Card, Txt, s as ui } from './ui';
@@ -90,7 +90,7 @@ export function VehiclePicker({
 
       {family && variants.length ? (
         <View style={{ gap: 6 }}>
-          <Txt v="label" style={{ fontSize: 11 }}>Generation and engine</Txt>
+          <Txt v="label">Generation and engine</Txt>
           {variants.map((v) => (
             <VariantRow key={v.id} v={v} on={v.id === vehicleId} onPress={() => onPickVariant(v)} />
           ))}
@@ -98,10 +98,10 @@ export function VehiclePicker({
       ) : null}
 
       {!family && make.trim() && model.trim() ? (
-        <Txt v="muted" style={{ fontSize: 13 }}>Not in our list, so add the specs below yourself.</Txt>
+        <Txt v="caption">Not in our list, so add the specs below yourself.</Txt>
       ) : null}
       {family && !variant ? (
-        <Txt v="muted" style={{ fontSize: 12 }}>Pick yours above, or name it your own way here:</Txt>
+        <Txt v="caption">Pick yours above, or name it your own way here:</Txt>
       ) : null}
       {family && !variant ? (
         <TextInput
@@ -115,12 +115,12 @@ export function VehiclePicker({
       ) : null}
 
       {variant ? (
-        <Card accent={C.neon}>
-          <Txt v="label" style={{ color: C.neon }}>Stock specs filled in</Txt>
+        <Card accent={STATE.success}>
+          <Txt v="label" style={{ color: STATE.success }}>Stock specs filled in</Txt>
           <Txt>
             {variant.make} {modelLabel(variant)} · {variant.engine} · {yearsLabel(variant)}
           </Txt>
-          <Txt v="muted" style={{ fontSize: 13 }}>
+          <Txt v="caption">
             {variant.bhp} bhp · {variant.weightKg} kg {kind === 'car' ? 'kerb' : 'wet'}{variant.weightApprox ? ' (approx. from dry)' : ''}
             {variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}. Change anything below if yours differs.
           </Txt>
@@ -133,7 +133,7 @@ export function VehiclePicker({
         placeholder={kind === 'car' ? 'e.g. Vauxhall Astra VXR Arctic Edition' : 'e.g. Honda CBR400RR NC29'}
         context={[kind, make, model].filter(Boolean).join(' · ')}
       />
-      <Txt v="muted" style={{ fontSize: 11 }}>Stock figures are manufacturer UK figures (PS × 0.986 = bhp). Data {VEHICLES_VERSION}.</Txt>
+      <Txt v="caption">Stock figures are manufacturer UK figures (PS × 0.986 = bhp).</Txt>
     </View>
   );
 }
@@ -154,12 +154,12 @@ function VariantRow({ v, on, withName, onPress }: { v: Variant; on?: boolean; wi
       accessibilityState={{ selected: !!on }}
       accessibilityLabel={`${withName ? `${v.make} ${v.model}, ` : ''}${line}`}
       style={({ pressed }) => [
-        { paddingVertical: 9, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: on ? C.neon : C.kerb, backgroundColor: on ? `${C.neon}1f` : C.tarmac },
-        pressed && { opacity: 0.7 },
+        { paddingVertical: 9, paddingHorizontal: 12, minHeight: 44, borderRadius: RADIUS.card, borderWidth: 1, borderColor: on ? STATE.selected : C.kerbHi, backgroundColor: on ? `${STATE.selected}1f` : C.tarmac },
+        pressed && { opacity: 0.8 },
       ]}
     >
-      {withName ? <Text style={{ fontFamily: F.bodyBold, fontSize: 15, color: on ? C.neon : C.chalk }}>{v.make} {v.model}</Text> : null}
-      <Text style={{ fontFamily: withName ? F.body : F.bodyBold, fontSize: withName ? 13 : 15, color: withName ? C.fog : on ? C.neon : C.chalk }}>{line}</Text>
+      {withName ? <Text style={{ fontFamily: F.bodyBold, fontSize: TYPE.body, color: on ? STATE.selected : C.chalk }}>{v.make} {v.model}</Text> : null}
+      <Text style={{ fontFamily: withName ? F.body : F.bodyBold, fontSize: withName ? TYPE.caption : TYPE.body, color: withName ? C.fog : on ? STATE.selected : C.chalk }}>{line}</Text>
     </Pressable>
   );
 }
