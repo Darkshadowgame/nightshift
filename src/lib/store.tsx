@@ -1,8 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ME, seed, type SeedState } from '../data/seed';
+import { BAN_ZONES, ME, seed, type SeedState } from '../data/seed';
 import { castVote as applyVote, type AwardCategory } from './awards';
-import { checkIn as applyCheckIn, moveOn as applyMoveOn } from './events';
+import {
+  applyEventEdit,
+  applyPlanChange,
+  canEditEvent,
+  checkIn as applyCheckIn,
+  moveOn as applyMoveOn,
+  planChangedMessage,
+  type PlanChange,
+} from './events';
+import { applyProfile, profileProblem, type ProfileDraft } from './profile';
 import type { Build, ChatMessage, LatLng, NightEvent } from './types';
 
 /**
@@ -26,6 +35,8 @@ interface Persisted extends SeedState {
   settings: Settings;
   /** Notices for the current user, e.g. "the meet moved on". */
   notices: Notice[];
+  /** False until the person has set up their profile on first run. */
+  onboarded: boolean;
 }
 
 export interface Notice {
@@ -43,6 +54,12 @@ interface Store extends Persisted {
   saveBuild: (b: Build) => void;
   deleteBuild: (id: string) => void;
   saveEvent: (e: NightEvent) => void;
+  /** Host edits an event before it starts. Throws with a readable reason if not allowed. */
+  editEvent: (e: NightEvent) => void;
+  /** Host changes a rolling meet's stops on the night. Throws if not allowed; returns any ban-zone warning. */
+  changePlan: (eventId: string, change: PlanChange) => { warning?: string };
+  /** Save the person's own profile. Throws with a readable reason if something is missing. */
+  saveProfile: (draft: ProfileDraft) => void;
   setGoing: (eventId: string, going: boolean) => void;
   checkIn: (eventId: string, stopIndex: number) => void;
   moveOn: (eventId: string) => void;
@@ -58,7 +75,7 @@ interface Store extends Persisted {
 const Ctx = createContext<Store | null>(null);
 
 function fresh(): Persisted {
-  return { ...seed(new Date()), settings: DEFAULT_SETTINGS, notices: [] };
+  return { ...seed(new Date()), settings: DEFAULT_SETTINGS, notices: [], onboarded: false };
 }
 
 export function newId(prefix: string): string {
@@ -118,6 +135,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...s,
           events: s.events.some((x) => x.id === e.id) ? s.events.map((x) => (x.id === e.id ? e : x)) : [e, ...s.events],
         })),
+      editEvent: (edited) => {
+        const event = state.events.find((e) => e.id === edited.id);
+        if (!event) throw new Error('Event not found.');
+        const nowDate = new Date();
+        const ok = canEditEvent(event, nowDate);
+        if (!ok.ok) throw new Error(ok.reason);
+        const next = applyEventEdit(event, edited, ME, nowDate, newId('pc'));
+        const msg: ChatMessage = {
+          id: newId('c'), eventId: event.id, userId: ME, text: 'Hosts updated the event details', at: nowDate.toISOString(), system: true,
+        };
+        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === event.id ? next : e)), chat: [...s.chat, msg] }));
+      },
+      changePlan: (eventId, change) => {
+        const event = state.events.find((e) => e.id === eventId);
+        if (!event) throw new Error('Event not found.');
+        const nowDate = new Date();
+        const result = applyPlanChange(event, change, ME, nowDate, BAN_ZONES, () => newId(`${eventId}-x`));
+        const msg = planChangedMessage(eventId, ME, nowDate, newId('c'));
+        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? result.event : e)), chat: [...s.chat, msg] }));
+        return { warning: result.warning };
+      },
+      saveProfile: (draft) => {
+        const problem = profileProblem(draft, state.users, ME);
+        if (problem) throw new Error(problem);
+        setState((s) => ({ ...s, onboarded: true, users: s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u)) }));
+      },
       setGoing: (eventId, going) =>
         updateEvent(eventId, (e) => ({
           ...e,

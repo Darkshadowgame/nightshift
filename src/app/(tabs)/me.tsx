@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Switch, View } from 'react-native';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
@@ -21,12 +22,17 @@ export default function Me() {
           <Txt v="h2">@{user?.handle}</Txt>
           {hasLegend(awards, me, now) ? <Txt v="eyebrow" style={{ color: C.lime }}>Legend this week</Txt> : null}
         </Row>
+        <Txt>{user?.name}</Txt>
         <Txt v="muted">{user?.region}{crew ? ` · Crew: ${crew.name}` : ''}</Txt>
         <Row gap={16}>
           <Txt v="mono">{builds.filter((b) => b.ownerId === me).length} BUILDS</Txt>
           <Txt v="mono">{hosting} EVENTS HOSTED</Txt>
           <Txt v="mono">{myAwards.length} TROPHIES</Txt>
           <Txt v="mono" style={{ color: C.sodium }}>{awardRep(awards, me)} REP FROM AWARDS</Txt>
+        </Row>
+        <Row style={{ flexWrap: 'nowrap' }}>
+          <Button label="Edit profile" kind="ghost" style={{ flex: 1 }} onPress={() => router.push('/profile')} />
+          <Button label="Public view" kind="ghost" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/user/[id]', params: { id: me } })} />
         </Row>
       </Card>
 
@@ -63,7 +69,7 @@ export default function Me() {
         />
         <Card>
           <Txt v="muted">
-            Everything is stored on this phone for now and the other people are sample data. Sharing between phones arrives when the app gets its backend.
+            Everything is stored on this phone for now and the other people are sample data. Sharing between phones arrives when the app gets its backend. Resetting also clears your profile.
           </Txt>
           {confirmReset ? (
             <Row style={{ flexWrap: 'nowrap' }}>

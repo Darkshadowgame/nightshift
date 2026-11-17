@@ -9,7 +9,7 @@ import { StoreProvider, useStore } from '../lib/store';
 import { C, F } from '../theme';
 
 function Gate() {
-  const { ready } = useStore();
+  const { ready, onboarded } = useStore();
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: C.asphalt, alignItems: 'center', justifyContent: 'center' }}>
@@ -28,11 +28,20 @@ function Gate() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="event/[id]" options={{ title: '' }} />
-      <Stack.Screen name="event/new" options={{ title: 'Host an event', presentation: 'modal' }} />
-      <Stack.Screen name="build/[id]" options={{ title: '' }} />
-      <Stack.Screen name="build/edit" options={{ title: 'Build', presentation: 'modal' }} />
+      <Stack.Protected guard={!onboarded}>
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={onboarded}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="event/[id]" options={{ title: '' }} />
+        <Stack.Screen name="event/new" options={{ title: 'Host an event', presentation: 'modal' }} />
+        <Stack.Screen name="event/edit" options={{ title: 'Edit event', presentation: 'modal' }} />
+        <Stack.Screen name="event/plan" options={{ title: 'Change the plan' }} />
+        <Stack.Screen name="build/[id]" options={{ title: '' }} />
+        <Stack.Screen name="build/edit" options={{ title: 'Build', presentation: 'modal' }} />
+        <Stack.Screen name="user/[id]" options={{ title: '' }} />
+        <Stack.Screen name="profile" options={{ title: 'Your profile', presentation: 'modal' }} />
+      </Stack.Protected>
     </Stack>
   );
 }
