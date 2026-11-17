@@ -446,3 +446,17 @@ Owner's request: "Obviously you need to use real maps and location."
 2. A paid Apple developer account, then TestFlight and real push notifications
    for Move on.
 3. Phase 2: cruise mode presence, crews, matching.
+
+## Drive length tiers (17 Nov 2026)
+
+Drives pay rep by length, both to the driver (first completion) and to the
+person who suggested it (per completion by others, on top of the star scale):
+
+| Tier | Length | Driver rep | Author multiplier |
+|---|---|---|---|
+| Short | under 10 mi | 50 | ×0.5 |
+| Medium | 10–25 mi | 100 | ×1 |
+| Long | 25–50 mi | 175 | ×1.75 |
+| Epic | 50 mi and over | 250 | ×2.5 |
+
+Still never timed or ranked by speed. Code: `driveTier` in `src/lib/rep.ts`.

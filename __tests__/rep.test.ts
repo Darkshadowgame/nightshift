@@ -130,3 +130,42 @@ describe('rep and public profile agree', () => {
     expect(p.hosted).toBe(by.hosted.count);
   });
 });
+
+describe('drive length tiers', () => {
+  const { driveTier, authorRep: aRep, ROUTE_APPROVED_REP: base } = require('../src/lib/rep');
+
+  test('short, medium, long and epic drives pay different rep', () => {
+    expect(driveTier(6)).toMatchObject({ key: 'short', rep: 50 });
+    expect(driveTier(12)).toMatchObject({ key: 'medium', rep: 100 });
+    expect(driveTier(30)).toMatchObject({ key: 'long', rep: 175 });
+    expect(driveTier(80)).toMatchObject({ key: 'epic', rep: 250 });
+  });
+
+  test('tier boundaries start at 10, 25 and 50 miles', () => {
+    expect(driveTier(9.9).key).toBe('short');
+    expect(driveTier(10).key).toBe('medium');
+    expect(driveTier(25).key).toBe('long');
+    expect(driveTier(50).key).toBe('epic');
+  });
+
+  test('unknown length counts as medium', () => {
+    expect(driveTier(undefined).key).toBe('medium');
+    expect(driveTier(0).key).toBe('medium');
+  });
+
+  test('a long drive pays its author more per completion than a short one', () => {
+    const drivers = ['a', 'b', 'c', 'd', 'e'];
+    const ratings = drivers.map((userId) => ({ userId, stars: 5 }));
+    const short = aRep({ kind: 'route', miles: 6, authorId: 'x', completions: drivers, ratings });
+    const long = aRep({ kind: 'route', miles: 60, authorId: 'x', completions: drivers, ratings });
+    expect(long - base).toBeGreaterThan(short - base);
+  });
+
+  test('photo spots are not scaled by length', () => {
+    const drivers = ['a', 'b', 'c'];
+    const ratings = drivers.map((userId) => ({ userId, stars: 5 }));
+    expect(aRep({ kind: 'spot', miles: 100, authorId: 'x', completions: drivers, ratings })).toBe(
+      aRep({ kind: 'spot', authorId: 'x', completions: drivers, ratings }),
+    );
+  });
+});

@@ -158,6 +158,7 @@ export function myRating(spot: Spot, userId: string): number | undefined {
 export function statsOf(spot: Spot): RouteStats {
   return {
     kind: spot.kind === 'photo' ? 'spot' : 'route',
+    miles: spot.kind === 'drive' ? spot.miles : undefined,
     authorId: spot.authorId ?? '',
     completions: [...new Set(spot.completions.map((c) => c.userId))],
     ratings: spot.ratings,

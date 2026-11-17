@@ -30,6 +30,8 @@ export interface RouteRating {
 }
 
 export interface RouteStats {
+  /** Drive length in miles: longer drives scale the author's per-completion rep. */
+  miles?: number;
   /** Drive or photo spot. Defaults to a drive (route). */
   kind?: 'route' | 'spot';
   authorId: string;
@@ -60,7 +62,39 @@ export function routeScore(route: RouteStats): number {
 export function authorRep(route: RouteStats): number {
   const byOthers = route.completions.filter((u) => u !== route.authorId).length;
   const per = PER_COMPLETION_BY_STARS[route.kind ?? 'route'][Math.round(routeScore(route))];
-  return ROUTE_APPROVED_REP + byOthers * per;
+  // Longer drives pay their author more per completion, like they pay the driver.
+  const scale = (route.kind ?? 'route') === 'route' && route.miles ? driveTier(route.miles).multiplier : 1;
+  return ROUTE_APPROVED_REP + Math.round(byOthers * per * scale);
+}
+
+// ---------------------------------------------------------------------------
+// Drive length tiers: short drives pay less, long ones more
+// ---------------------------------------------------------------------------
+
+export type DriveTierKey = 'short' | 'medium' | 'long' | 'epic';
+
+export interface DriveTier {
+  key: DriveTierKey;
+  label: string;
+  /** Applied to the base drive rep and to the author's per-completion rep. */
+  multiplier: number;
+  /** Rep for finishing it the first time. */
+  rep: number;
+}
+
+/** Miles at which each tier starts. */
+export const DRIVE_TIERS: { key: DriveTierKey; label: string; fromMiles: number; multiplier: number }[] = [
+  { key: 'short', label: 'Short drive', fromMiles: 0, multiplier: 0.5 },
+  { key: 'medium', label: 'Medium drive', fromMiles: 10, multiplier: 1 },
+  { key: 'long', label: 'Long drive', fromMiles: 25, multiplier: 1.75 },
+  { key: 'epic', label: 'Epic drive', fromMiles: 50, multiplier: 2.5 },
+];
+
+/** Tier for a drive of this length. Unknown or zero length counts as medium. */
+export function driveTier(miles: number | undefined): DriveTier {
+  const m = miles && miles > 0 ? miles : 10;
+  const t = [...DRIVE_TIERS].reverse().find((x) => m >= x.fromMiles) ?? DRIVE_TIERS[1];
+  return { key: t.key, label: t.label, multiplier: t.multiplier, rep: Math.round(REP.drive * t.multiplier) };
 }
 
 // ---------------------------------------------------------------------------
@@ -76,7 +110,7 @@ export const REP = {
   hostedSmall: 100,
   /** People checked in for the bigger hosting reward. */
   hostedBigCrowd: 10,
-  /** First time you finish each drive. */
+  /** First time you finish each drive, for a medium drive (10–25 mi). Scaled by length: see driveTier. */
   drive: 100,
   /** First visit to each photo spot. */
   photoSpot: 50,
@@ -139,7 +173,9 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
 
   // Your own places don't pay you for driving or visiting them.
   const others = input.spots.filter((s) => s.status === 'approved' && s.authorId !== userId);
-  const drives = others.filter((s) => s.kind === 'drive' && hasCompleted(s, userId)).length;
+  const doneDrives = others.filter((s) => s.kind === 'drive' && hasCompleted(s, userId));
+  const drives = doneDrives.length;
+  const drivesRep = doneDrives.reduce((sum, s) => sum + driveTier(s.miles).rep, 0);
   const spots = others.filter((s) => s.kind === 'photo' && hasCompleted(s, userId)).length;
 
   const authored = input.spots.filter((s) => s.authorId === userId && s.status === 'approved' && s.kind !== 'track' && s.kind !== 'venue');
@@ -151,7 +187,7 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
   const lines: RepLine[] = [
     { source: 'attended', label: 'Meets attended', count: attended, rep: attended * REP.attended },
     { source: 'hosted', label: 'Events hosted', count: hosted.length, rep: hostedRep },
-    { source: 'drives', label: 'Drives finished', count: drives, rep: drives * REP.drive },
+    { source: 'drives', label: 'Drives finished', count: drives, rep: drivesRep },
     { source: 'spots', label: 'Photo spots visited', count: spots, rep: spots * REP.photoSpot },
     { source: 'authored', label: 'Places you suggested', count: authored.length, rep: authoredRep },
     { source: 'awards', label: 'Trophies', count: mine.length, rep: awardRep(input.awards, userId) },
