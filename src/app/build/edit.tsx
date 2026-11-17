@@ -1,14 +1,15 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ClassUpMoment } from '../../components/motion';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BIKE_MAKES, CAR_MAKES, MOD_CATEGORIES } from '../../data/catalog';
-import { classOf, effectivePower } from '../../lib/classes';
+import { classOf, classUp, effectivePower } from '../../lib/classes';
 import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
 import { findPlates, finishPhoto, plateRedactorAvailable } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
-import type { Build, Mod, ModCategory, VehicleKind } from '../../lib/types';
+import type { Build, ClassLetter, Mod, ModCategory, VehicleKind } from '../../lib/types';
 import { C } from '../../theme';
 
 const COLOURS = [C.sodium, C.neon, C.magenta, C.lime, '#ff4d4d', '#3f6fff', '#9b5de5', '#e9edf4', '#7a7f8c'];
@@ -42,6 +43,7 @@ export default function EditBuild() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState<PendingPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [celebrate, setCelebrate] = useState<{ from: ClassLetter; to: ClassLetter } | null>(null);
 
   const makes = kind === 'car' ? CAR_MAKES : BIKE_MAKES;
   const draft: Build = {
@@ -108,11 +110,16 @@ export default function EditBuild() {
     if (!draft.make || !draft.model) return setError('Add the make and model.');
     if (!draft.stockBhp) return setError('Add the standard power (bhp) so the app can work out the class.');
     store.saveBuild(draft);
-    router.back();
+    // An edit that lifts the class gets its moment before closing.
+    const up = classUp(existing ? classOf(existing) : null, classOf(draft));
+    if (up) setCelebrate(up);
+    else router.back();
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={70}>
+    {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={() => router.back()} /> : null}
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
       <Section title="Car or bike">
         <Row gap={6}>
           <Chip label="Car" on={kind === 'car'} onPress={() => setKind('car')} />
@@ -227,6 +234,7 @@ export default function EditBuild() {
         )
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -234,7 +242,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   return (
     <View style={{ flex: 1, gap: 4 }}>
       <Txt v="label" style={{ fontSize: 11 }}>{label}</Txt>
-      <TextInput value={value} onChangeText={onChange} keyboardType="number-pad" placeholderTextColor={C.fog} style={ui.input} />
+      <TextInput value={value} onChangeText={onChange} keyboardType="number-pad" placeholderTextColor={C.fog} style={ui.input} accessibilityLabel={label} />
     </View>
   );
 }

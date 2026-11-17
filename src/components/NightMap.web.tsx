@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { C } from '../theme';
+import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import type { NightMapProps } from './mapTypes';
 
@@ -55,14 +56,22 @@ export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, o
       </Pressable>
       {pins.map((p) => {
         const sz = p.size ?? 36;
+        const box = p.live ? sz * 2.2 : sz;
         return (
           <Pressable
             key={p.id}
             onPress={() => onSelect?.(p.id)}
-            accessibilityLabel={p.title}
-            style={{ position: 'absolute', left: x(p.at.lng) - sz / 2, top: y(p.at.lat) - sz / 2 }}
+            accessibilityRole="button"
+            accessibilityLabel={p.live ? `${p.title}, live now` : p.title}
+            style={{ position: 'absolute', left: x(p.at.lng) - box / 2, top: y(p.at.lat) - box / 2 }}
           >
-            <Pin glyph={p.glyph} colour={p.colour} size={sz} />
+            {p.live ? (
+              <PulseRing live colour={p.colour} size={sz} pad>
+                <Pin glyph={p.glyph} colour={p.colour} size={sz} />
+              </PulseRing>
+            ) : (
+              <Pin glyph={p.glyph} colour={p.colour} size={sz} />
+            )}
           </Pressable>
         );
       })}

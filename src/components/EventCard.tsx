@@ -5,6 +5,7 @@ import type { EventView } from '../lib/eventView';
 import { formatWhen } from '../lib/format';
 import { describeFilter } from '../lib/invites';
 import { C, EVENT_COLOURS } from '../theme';
+import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import { Row, Txt } from './ui';
 
@@ -19,6 +20,7 @@ export function EventCard({ view, now }: { view: EventView; now: Date }) {
     <Pressable
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
       accessibilityRole="button"
+      accessibilityLabel={`${e.title}, ${EVENT_LABELS[e.type]}, ${when}, ${e.going.length} going${ROLE_TEXT[role] ? `, ${ROLE_TEXT[role]}` : ''}`}
       style={({ pressed }) => [
         { backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderLeftWidth: 3, borderLeftColor: colour, borderRadius: 8, padding: 14, gap: 6 },
         pressed && { opacity: 0.8 },
@@ -26,7 +28,9 @@ export function EventCard({ view, now }: { view: EventView; now: Date }) {
       ]}
     >
       <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={12}>
-        <Pin glyph={shownStop >= 0 ? e.type : 'locked'} colour={colour} size={40} />
+        <PulseRing live={phase === 'live'} colour={colour} size={40}>
+          <Pin glyph={shownStop >= 0 ? e.type : 'locked'} colour={colour} size={40} />
+        </PulseRing>
         <View style={{ flex: 1, gap: 4 }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Txt v="label" style={{ color: colour }}>{EVENT_LABELS[e.type]}</Txt>

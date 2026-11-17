@@ -1,6 +1,7 @@
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { C } from '../theme';
+import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import type { NightMapProps } from './mapTypes';
 
@@ -44,11 +45,17 @@ export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, o
           key={p.id}
           coordinate={{ latitude: p.at.lat, longitude: p.at.lng }}
           onPress={() => onSelect?.(p.id)}
-          tracksViewChanges={false}
+          tracksViewChanges={!!p.live}
           anchor={{ x: 0.5, y: 0.5 }}
-          accessibilityLabel={p.title}
+          accessibilityLabel={p.live ? `${p.title}, live now` : p.title}
         >
-          <Pin glyph={p.glyph} colour={p.colour} size={p.size ?? 36} />
+          {p.live ? (
+            <PulseRing live colour={p.colour} size={p.size ?? 36} pad>
+              <Pin glyph={p.glyph} colour={p.colour} size={p.size ?? 36} />
+            </PulseRing>
+          ) : (
+            <Pin glyph={p.glyph} colour={p.colour} size={p.size ?? 36} />
+          )}
         </Marker>
       ))}
       {picked ? (

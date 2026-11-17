@@ -8,6 +8,8 @@ export interface MapPin {
   colour: string;
   title: string;
   size?: number;
+  /** Pulses: the event is on now. */
+  live?: boolean;
 }
 
 export interface MapPath {

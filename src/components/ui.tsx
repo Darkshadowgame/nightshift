@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import { CLASS_COLOURS } from '../lib/classes';
 import type { ClassLetter } from '../lib/types';
 import { C, F } from '../theme';
@@ -11,14 +11,15 @@ export function Txt({
   style,
   children,
   numberOfLines,
+  ...rest
 }: {
   v?: TxtVariant;
   style?: StyleProp<TextStyle>;
   children: ReactNode;
   numberOfLines?: number;
-}) {
+} & Pick<TextProps, 'accessibilityLiveRegion' | 'accessibilityRole' | 'accessibilityLabel' | 'selectable'>) {
   return (
-    <Text style={[t[v], style]} numberOfLines={numberOfLines}>
+    <Text style={[t[v], style]} numberOfLines={numberOfLines} {...rest}>
       {children}
     </Text>
   );
@@ -66,25 +67,39 @@ export function Button({
   onPress,
   kind = 'primary',
   disabled,
+  busy,
   style,
+  accessibilityHint,
+  accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
   kind?: 'primary' | 'ghost' | 'danger' | 'neon';
   disabled?: boolean;
+  /** Shows a spinner and blocks taps while something is in progress. */
+  busy?: boolean;
   style?: StyleProp<ViewStyle>;
+  accessibilityHint?: string;
+  accessibilityLabel?: string;
 }) {
+  const off = disabled || busy;
   const bg = kind === 'primary' ? C.sodium : kind === 'neon' ? C.neon : 'transparent';
   const fg = kind === 'primary' ? C.ink : kind === 'neon' ? '#00222c' : kind === 'danger' ? C.alert : C.chalk;
   const border = kind === 'ghost' ? C.kerbHi : kind === 'danger' ? C.alert : bg;
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={off}
       accessibilityRole="button"
-      style={({ pressed }) => [s.btn, { backgroundColor: bg, borderColor: border }, (pressed || disabled) && { opacity: disabled ? 0.4 : 0.8 }, style]}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: !!off, busy: !!busy }}
+      style={({ pressed }) => [s.btn, { backgroundColor: bg, borderColor: border }, (pressed || off) && { opacity: disabled ? 0.4 : 0.8 }, style]}
     >
-      <Text style={[s.btnText, { color: fg }]}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {busy ? <ActivityIndicator size="small" color={fg} /> : null}
+        <Text style={[s.btnText, { color: fg }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -93,8 +108,8 @@ export function Card({ children, style, accent }: { children: ReactNode; style?:
   return <View style={[s.card, accent ? { borderLeftWidth: 3, borderLeftColor: accent } : null, style]}>{children}</View>;
 }
 
-export function ClassBadge({ letter, size = 'md' }: { letter: ClassLetter; size?: 'sm' | 'md' | 'lg' }) {
-  const dim = size === 'lg' ? 52 : size === 'md' ? 32 : 22;
+export function ClassBadge({ letter, size = 'md' }: { letter: ClassLetter; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+  const dim = size === 'xl' ? 92 : size === 'lg' ? 52 : size === 'md' ? 32 : 22;
   const colour = CLASS_COLOURS[letter];
   return (
     <View style={[s.badge, { width: dim, height: dim, borderColor: colour }]} accessibilityLabel={`Class ${letter}`}>

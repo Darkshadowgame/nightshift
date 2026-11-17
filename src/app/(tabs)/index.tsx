@@ -48,7 +48,7 @@ export default function MapScreen() {
         const colour = EVENT_COLOURS[e.type];
         if (v.shownStop >= 0) {
           const stop = e.stops[v.shownStop];
-          if (stop.at) pins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42 });
+          if (stop.at) pins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live' });
           if (e.type === 'cruise') {
             const coords = e.stops.flatMap((s) => (s.at ? [s.at] : []));
             paths.push({ id: `rt:${e.id}`, coords, colour, dashed: true });

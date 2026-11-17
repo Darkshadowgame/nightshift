@@ -1,8 +1,9 @@
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
 import { AwardsSection } from '../../components/AwardsSection';
+import { CheckInMark, UnlockReveal } from '../../components/motion';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
@@ -11,7 +12,8 @@ import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { classOf } from '../../lib/classes';
 import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
-import { roleOf } from '../../lib/eventView';
+import { newlyUnlocked, roleOf } from '../../lib/eventView';
+import { feel } from '../../lib/feel';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
 import { describeFilter } from '../../lib/invites';
 import { askPermission } from '../../lib/notify';
@@ -29,6 +31,20 @@ export default function EventScreen() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [justCheckedIn, setJustCheckedIn] = useState(false);
+  const [unlock, setUnlock] = useState<string | null>(null);
+
+  // "Event unlocked": the first time this person can see a stop, play the reveal once.
+  const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
+  const freshKey = fresh.join(',');
+  const { markUnlockSeen } = store;
+  useEffect(() => {
+    if (!e || fresh.length === 0) return;
+    const names = fresh.map((sid) => e.stops.find((x) => x.id === sid)?.name ?? '');
+    setUnlock(e.type === 'cruise' && fresh.length > 1 ? 'The route' : names[names.length - 1]);
+    markUnlockSeen(e.id, fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freshKey, e?.id]);
 
   useLayoutEffect(() => {
     if (e) nav.setOptions({ title: EVENT_LABELS[e.type] });
@@ -60,7 +76,10 @@ export default function EventScreen() {
   const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: canSeeStop(ev, i, me, crews, now) }));
   const mapPins: MapPin[] = visibleStops
     .filter((x) => x.visible && x.st.at)
-    .map((x) => ({ id: x.st.id, at: x.st.at!, glyph: ev.type, colour: x.i === current ? colour : C.fog, title: x.st.name, size: x.i === current ? 40 : 30 }));
+    .map((x) => ({
+      id: x.st.id, at: x.st.at!, glyph: ev.type, colour: x.i === current ? colour : C.fog, title: x.st.name,
+      size: x.i === current ? 40 : 30, live: x.i === current && phase === 'live',
+    }));
   const mapPaths: MapPath[] =
     ev.type === 'cruise' && mapPins.length > 1 ? [{ id: 'route', coords: mapPins.map((p) => p.at), colour, dashed: true }] : [];
   const anyVisible = mapPins.length > 0;
@@ -80,7 +99,11 @@ export default function EventScreen() {
       const pos = await position();
       const result = canCheckIn(ev, current, me, crews, new Date(), pos, settings.simulateGps);
       if (!result.ok) setError(result.reason);
-      else store.checkIn(ev.id, current);
+      else {
+        store.checkIn(ev.id, current);
+        setJustCheckedIn(true);
+        feel.success();
+      }
     } catch {
       setError('Could not read your location. Try again outside.');
     } finally {
@@ -92,6 +115,7 @@ export default function EventScreen() {
     setError(null);
     try {
       store.moveOn(ev.id);
+      feel.warning();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not move on.');
     }
@@ -138,6 +162,7 @@ export default function EventScreen() {
             centre={mapCentre}
             span={ev.type === 'cruise' ? 0.25 : 0.12}
           />
+          {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
         </View>
 
         {error ? (
@@ -150,12 +175,18 @@ export default function EventScreen() {
           <View style={{ gap: 10 }}>
             {!host ? (
               going ? (
-                <Button label="Going ✓  (tap to drop out)" kind="ghost" onPress={() => store.setGoing(ev.id, false)} />
+                <Button
+                  label="Going ✓  (tap to drop out)"
+                  kind="ghost"
+                  accessibilityHint="Drops you out and cancels your reminders"
+                  onPress={() => store.setGoing(ev.id, false)}
+                />
               ) : (
                 <Button
                   label={role === 'invited' || role === 'public' ? "I'm going" : "Request to go"}
                   onPress={() => {
                     store.setGoing(ev.id, true);
+                    feel.tap();
                     // First Going is the moment reminders make sense, so ask then (iOS only asks once).
                     if (settings.reminders) askPermission().catch(() => {});
                   }}
@@ -170,7 +201,12 @@ export default function EventScreen() {
             {(going || host) && checkInWindowOpen(ev, now) && canSeeStop(ev, current, me, crews, now) ? (
               myCheckIns.includes(ev.stops[current]?.id) ? (
                 <Card accent={C.lime}>
-                  <Txt>Checked in at {ev.stops[current].name}.{ev.type === 'rolling' ? " You'll get the next spot when the hosts move on." : ''}</Txt>
+                  <Row style={{ flexWrap: 'nowrap' }} gap={12}>
+                    <CheckInMark play={justCheckedIn} />
+                    <Txt style={{ flex: 1 }} accessibilityLiveRegion="polite">
+                      Checked in at {ev.stops[current].name}.{ev.type === 'rolling' ? " You'll get the next spot when the hosts move on." : ''}
+                    </Txt>
+                  </Row>
                 </Card>
               ) : (
                 <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} disabled={busy} />

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { canVote, categoriesFor, categoryInfo, eligibleFor, results, votingCloses } from '../lib/awards';
 import { classOf } from '../lib/classes';
+import { feel } from '../lib/feel';
 import { formatRelative } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { NightEvent } from '../lib/types';
 import { C } from '../theme';
 import { Cover, Trophy } from './Cover';
+import { RevealIn } from './motion';
 import { Card, ClassBadge, Row, Section, Txt } from './ui';
 import { UserLink } from './UserLink';
 
@@ -27,12 +29,13 @@ export function AwardsSection({ event }: { event: NightEvent }) {
         ) : null}
         {awards
           .filter((a) => categoryInfo(a.category).cover)
-          .map((a) => {
-            const b = builds.find((x) => x.id === a.buildId)!;
+          .map((a, i) => {
+            const b = builds.find((x) => x.id === a.buildId);
+            if (!b) return null;
             return (
-              <View key={a.category} style={{ alignItems: 'center' }}>
+              <RevealIn key={a.category} id={`${event.id}:${a.category}`} delay={i * 250} sparks={i === 0}>
                 <Cover award={a} build={b} owner={users.find((u) => u.id === a.ownerId)} event={event} width={240} />
-              </View>
+              </RevealIn>
             );
           })}
         <Card>
@@ -97,10 +100,12 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                         key={b.id}
                         accessibilityRole="button"
                         accessibilityState={{ selected: on }}
+                        accessibilityLabel={`Vote ${b.make} ${b.model} by @${owner?.handle ?? 'unknown'} for ${categoryInfo(cat).label}`}
                         onPress={() => {
                           setError(null);
                           try {
                             vote(event.id, cat, b.id);
+                            feel.select();
                           } catch (e) {
                             setError(e instanceof Error ? e.message : 'That vote did not count.');
                           }
