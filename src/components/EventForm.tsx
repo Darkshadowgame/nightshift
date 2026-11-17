@@ -108,7 +108,7 @@ export function EventForm({
     .filter((x) => x.zone);
   const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
   const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
-  const friends = users.filter((u) => u.id !== me && u.crewId === meUser.crewId);
+  const friends = meUser.crewId ? users.filter((u) => u.id !== me && u.crewId === meUser.crewId) : [];
 
   function setStop(i: number, patch: Partial<DraftStop>) {
     setStops((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -359,6 +359,7 @@ export function EventForm({
           </Row>
         ) : null}
         <Txt v="label">Co-hosts</Txt>
+        {friends.length === 0 ? <Txt v="muted">Co-hosts come from your crew. Join or start one on the Me tab.</Txt> : null}
         <Row gap={6}>
           {friends.map((u) => (
             <Chip

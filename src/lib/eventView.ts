@@ -21,22 +21,25 @@ export function roleOf(event: NightEvent, me: string, crews: Crew[], users: User
   return 'none';
 }
 
+/** How one event looks to this user (any role, including none). */
+export function viewEvent(event: NightEvent, me: string, crews: Crew[], users: User[], builds: Build[], now: Date): EventView {
+  const role = roleOf(event, me, crews, users, builds);
+  const phase = phaseOf(event, now);
+  const active = activeStopIndex(event);
+  // The furthest stop this user may see, up to the active one.
+  let shownStop = -1;
+  for (let i = active; i >= 0; i--) {
+    if (canSeeStop(event, i, me, crews, now)) {
+      shownStop = i;
+      break;
+    }
+  }
+  return { event, role, phase, shownStop };
+}
+
 export function viewEvents(events: NightEvent[], me: string, crews: Crew[], users: User[], builds: Build[], now: Date): EventView[] {
   return events
-    .map((event) => {
-      const role = roleOf(event, me, crews, users, builds);
-      const phase = phaseOf(event, now);
-      const active = activeStopIndex(event);
-      // The furthest stop this user may see, up to the active one.
-      let shownStop = -1;
-      for (let i = active; i >= 0; i--) {
-        if (canSeeStop(event, i, me, crews, now)) {
-          shownStop = i;
-          break;
-        }
-      }
-      return { event, role, phase, shownStop };
-    })
+    .map((event) => viewEvent(event, me, crews, users, builds, now))
     .filter((v) => v.role !== 'none')
     .sort((a, b) => new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime());
 }

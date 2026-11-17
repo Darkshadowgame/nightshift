@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Share, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
 import { AwardsSection } from '../../components/AwardsSection';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { NightMap } from '../../components/NightMap';
@@ -236,6 +236,16 @@ export default function EventScreen() {
               Hosted by {crew ? `${crew.name} (any member) with ` : ''}
               {hostNames.join(', ')}
             </Txt>
+            {crew ? (
+              <Pressable
+                onPress={() => router.push({ pathname: '/crew/[id]', params: { id: crew.id } })}
+                accessibilityRole="link"
+                hitSlop={6}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                <Txt v="label" style={{ color: C.neon }}>[{crew.tag}] {crew.name} crew ›</Txt>
+              </Pressable>
+            ) : null}
           </Card>
         </Section>
 

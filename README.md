@@ -36,7 +36,9 @@ npx tsc --noEmit        # typecheck
 | `src/lib/profile.ts` | First-run profile checks; home saved fuzzed to about 1 km |
 | `src/lib/people.ts` | What other people can see about someone (never a location) |
 | `src/lib/invites.ts` | Invite filters and who matches |
-| `src/lib/rep.ts` | Rep for suggested routes and photo spots (Phase 3 maths) |
+| `src/lib/rep.ts` | Rep ledger (attendance, hosting, drives, spots, authored places, trophies, mods), levels, author rep |
+| `src/lib/spots.ts` | Drives and photo spots: checkpoint runs (pass or fail only), visits, ratings, suggestions and demo approval |
+| `src/lib/crews.ts` | Join, leave and start crews; crew events |
 | `src/lib/store.tsx` | All state, saved on the phone. The one layer to swap for Supabase |
 | `src/data/seed.ts` | Demo scene: sample people, real roads, venues and sample ban zones |
 | `src/app/` | Screens (Expo Router) |

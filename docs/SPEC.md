@@ -13,8 +13,8 @@ with the focus on modified builds.
 |---|---|
 | Garage: car and bike builds, mods, specs, photos | Live "cruise mode" presence of other users |
 | Class letter (S/A/B/C/D) per build | Swipe-to-match, follows, DMs |
-| Map with game-style pins: events, photo spots, sprint routes, tracks | Crew pages and crew chat |
-| Events: cruise, rolling meet, meet, show, track day | Rep, levels, badges, leaderboards |
+| Map with game-style pins: events, photo spots, drives, tracks | Crew chat |
+| Events: cruise, rolling meet, meet, show, track day | Badges, leaderboards (never for public roads) |
 | Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Drive mode, cameras and hazards, push-to-talk |
 | Co-hosts and crew-owned events | Real push notifications (need a paid Apple developer account) |
 | RSVP, check-in, timed reveal, rolling "Move on" | Backend sync between phones (Supabase, next step) |
@@ -46,7 +46,7 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 | Type | Places | Who sees the place, and when |
 |---|---|---|
 | Cruise | Start, regroup stops, finish (a route) | Everyone going sees the whole route from the reveal time |
-| Rolling meet | Every stop planned before the event (checked against ban zones) | Stop 1 shows from the reveal time. A host taps **Move on**, and only people checked in at the current stop see the next one |
+| Rolling meet | Every stop planned before the event (checked against ban zones) | Stop 1 shows from the reveal time. Once the meet is live, a host taps **Move on**, and only people checked in at the current stop see the next one |
 | Meet | One spot | Everyone going, from the reveal time |
 | Show | One spot | Public: always visible |
 | Track day | A circuit | Public: always visible |
@@ -70,20 +70,39 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
   event type is inside a sample injunction or PSPO zone, explaining that
   organisers have been taken to court.
 * **Drives** (formerly "sprints"): rated roads, never timed or ranked.
-* **Check-in:** you must be within 0.5 mi of the current stop while the event is
-  on. On the demo build a "simulate" switch in Settings skips the GPS check.
+* **Check-in:** you must be within 0.5 mi of the current stop, from 30 minutes
+  before the start until the end. Before then the event shows when check-in opens. On the demo build a "simulate" switch in Settings skips the GPS check.
 * **Invites:** someone is invited when any of their builds matches the filter and
   they live within the radius of the area. "Everyone welcome" skips the build
   filter but keeps the radius.
 
 Code: `src/lib/events.ts` and `src/lib/invites.ts`, with tests.
 
-## Route and photo spot rep (Phase 3, scoring logic already built)
+## Drives and photo spots (built, demo)
 
-Anyone can suggest a sprint route or a photo spot. Once it's approved, the author gets **+50 rep**.
+* Drives and photo spots live in the store with an author, a status (pending or
+  approved), completions and 1–5 star ratings. Tap a pin on the map to open one.
+* **Start drive:** each point of the drive's line is a checkpoint (within 0.2 mi).
+  Pass every checkpoint in order to finish, using GPS (`watchPositionAsync`) or,
+  with **Simulate GPS** on, a button that walks the checkpoints at a legal pace.
+  A run that would average over 60 mph for the distance, or takes far longer than
+  the drive allows, doesn't count. **The app only ever says pass or fail**: no
+  time or speed is shown or stored, and a completion keeps the day only.
+* **Photo spot visit:** check in within 0.2 mi (or simulate), then an optional
+  photo that goes through the plate review and is saved pixelated with no metadata.
+* After a drive or visit, a 1–5 star prompt. One rating each, the latest counts.
+* **Suggest a place:** long-press the map to draw a drive (start to finish) or
+  drop a photo spot, and name it. It starts **pending**; the demo approves it after
+  about 10 seconds. A point inside a ban zone shows a warning, not a block.
+
+Code: `src/lib/spots.ts`, tests in `__tests__/spots.test.ts`.
+
+## Author rep for drives and photo spots
+
+Anyone can suggest a drive or a photo spot. Once it's approved, the author gets **+50 rep**.
 After each GPS-checked completion, the driver or rider is asked to rate the route
-from 1 to 5 stars. The author then earns rep **per completion by someone else**,
-scaled by the route's average rating:
+from 1 to 5 stars. The author then earns rep **per person who has completed it**
+(repeat drives by one person count once), scaled by the route's average rating:
 
 | Average rating | Rep per completion |
 |---|---|
@@ -93,18 +112,43 @@ scaled by the route's average rating:
 | 2 stars | 1 |
 | 1 star | 0 |
 
-Photo spots work the same way: a GPS-checked visit with a photo taken there counts
-as a completion. Spots pay half (10 / 6 / 2 / 0 / 0) because stopping for a photo
-is easier than driving a whole route.
+Photo spots work the same way: a GPS-checked visit counts as a completion. Spots
+pay half (10 / 6 / 2 / 0 / 0) because stopping for a photo is easier than driving
+a whole route.
 
-A great route that lots of people drive earns far more than a poor one few take.
 Anti-gaming rules:
 * Only people who completed the route can rate it, and only once (the latest rating counts).
-* The author can't rate or score their own route.
+* The author can't rate their own route, and gets no driver rep for driving it.
 * The average starts as if five people had already given 3 stars, so a few mates
   giving 5 stars can't push a route to the top.
 
-Code: `src/lib/rep.ts`, tests in `__tests__/rep.test.ts`.
+## Rep and levels (built)
+
+| Source | Rep |
+|---|---|
+| Each event you checked in at | 150 |
+| Each finished event you hosted | 400 with 10+ checked in, otherwise 100 |
+| Each drive, first time you finish it | 100 |
+| Each photo spot, first visit | 50 |
+| Places you suggested | author rep above |
+| Trophies | 500 / 300 / 200 / 150 (see below) |
+| Each logged mod | 20 |
+
+Level n starts at 250 × (n − 1) × n ÷ 2 rep: level 2 at 250, 3 at 750, 4 at 1,500.
+Me shows the total, level, a progress bar and the breakdown; profiles show the level.
+
+Code: `repLedger` and `levelFor` in `src/lib/rep.ts`, tests in `__tests__/rep.test.ts`.
+
+## Crews (built, demo)
+
+* A crew has a name, a 2–4 character tag and members. You can be in one crew at a time.
+* Crew page: members (tap for profiles, with levels), crew events, combined rep
+  and the average member's level, and Join / Leave.
+* Start a crew from Me or the crews list: you become its first member.
+* Reach crews from Me, people's profiles and the "hosted by" line on events.
+* Event co-hosts are picked from your crew.
+
+Code: `src/lib/crews.ts`, tests in `__tests__/crews.test.ts`.
 
 ## Post-meet voting and trophies (built)
 
@@ -179,7 +223,8 @@ Full reports are in `docs/research/`.
 ## Screens
 
 1. **Map:** a dark map, game-style hexagon pins, filter chips (events, spots,
-   sprints, tracks), and a peek card for the selected pin.
+   drives, tracks), a "Suggest a place" chip, and a peek card that opens the
+   event, drive, photo spot or track.
 2. **Events:** Going, Invited, Hosting and Public lists, with a create button.
 3. **Event detail:** hero, hosts, invite filter summary, the stops timeline
    (locked or revealed), RSVP, check-in, Move on (hosts), attendees and chat.
@@ -189,8 +234,12 @@ Full reports are in `docs/research/`.
 6. **Build:** a game-style stats screen with specs, mods by category and photos.
 7. **Edit build:** car or bike, make, model, year, nickname, stock bhp, weight,
    dyno figure, and the mods list with bhp gains.
-8. **Me:** profile, crew, privacy toggles for later phases, demo controls
+8. **Me:** profile, rep and level with a breakdown, crew, your suggested places, privacy toggles for later phases, demo controls
    (simulate GPS, reset data).
+
+9. **Drive / photo spot:** details, map, Start drive or Check in, rating, photos.
+10. **Suggest a place:** draw a drive or drop a photo spot on the map.
+11. **Crews:** browse crews, crew page, start a crew.
 
 ## Next steps after Phase 1
 

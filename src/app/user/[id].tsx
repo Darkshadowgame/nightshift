@@ -3,6 +3,7 @@ import { useLayoutEffect, useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { BuildArt } from '../../components/BuildArt';
 import { Trophy } from '../../components/Cover';
+import { LevelTag, useRep } from '../../components/Rep';
 import { Card, ClassBadge, Row, Section, Txt } from '../../components/ui';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf, effectivePower, isModified } from '../../lib/classes';
@@ -18,6 +19,7 @@ export default function UserScreen() {
   const awards = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
   const p = publicProfile(id, users, builds, crews, events, awards, now);
   const handle = p?.handle;
+  const rep = useRep(id);
 
   useLayoutEffect(() => {
     nav.setOptions({ title: handle ? `@${handle}` : '' });
@@ -36,6 +38,7 @@ export default function UserScreen() {
       <Card>
         <Row>
           <Txt v="h1">@{p.handle}</Txt>
+          <LevelTag level={rep.level.level} size="lg" />
           {p.legend ? <Txt v="eyebrow" style={{ color: C.lime }}>★ Legend this week</Txt> : null}
         </Row>
         <Txt>{p.name}{p.id === me ? ' (you)' : ''}</Txt>
@@ -45,24 +48,34 @@ export default function UserScreen() {
           <Txt v="mono">{p.meetsAttended} MEETS</Txt>
           <Txt v="mono">{p.hosted} HOSTED</Txt>
           <Txt v="mono">{p.trophies.length} TROPHIES</Txt>
-          <Txt v="mono" style={{ color: C.sodium }}>{p.awardRep} REP</Txt>
+          <Txt v="mono" style={{ color: C.sodium }}>{rep.ledger.total.toLocaleString('en-GB')} REP</Txt>
         </Row>
       </Card>
 
       <Section title="Crew">
-        <Card>
-          {p.crew ? (
-            <>
-              <Row>
-                <Txt v="h3">{p.crew.name}</Txt>
-                <Txt v="mono" style={{ color: C.neon }}>[{p.crew.tag}]</Txt>
+        {p.crew ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/crew/[id]', params: { id: p.crew!.id } })}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${p.crew.name}`}
+            style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+          >
+            <Card accent={C.neon}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Row>
+                  <Txt v="h3">{p.crew.name}</Txt>
+                  <Txt v="mono" style={{ color: C.neon }}>[{p.crew.tag}]</Txt>
+                </Row>
+                <Txt v="label" style={{ color: C.sodium }}>Open ›</Txt>
               </Row>
               <Txt v="muted">{p.crew.memberIds.length} members</Txt>
-            </>
-          ) : (
+            </Card>
+          </Pressable>
+        ) : (
+          <Card>
             <Txt v="muted">Not in a crew.</Txt>
-          )}
-        </Card>
+          </Card>
+        )}
       </Section>
 
       <Section title={`Garage (${p.builds.length})`}>
