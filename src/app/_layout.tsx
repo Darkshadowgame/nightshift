@@ -1,6 +1,14 @@
-import { Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold } from '@expo-google-fonts/barlow';
-import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
-import { ChakraPetch_600SemiBold, ChakraPetch_600SemiBold_Italic, ChakraPetch_700Bold, ChakraPetch_700Bold_Italic } from '@expo-google-fonts/chakra-petch';
+// Each weight from its own subpath: the package roots require every weight (46 font files);
+// the app uses these 9, so only these ship.
+import { Barlow_400Regular } from '@expo-google-fonts/barlow/400Regular';
+import { Barlow_500Medium } from '@expo-google-fonts/barlow/500Medium';
+import { Barlow_600SemiBold } from '@expo-google-fonts/barlow/600SemiBold';
+import { BarlowCondensed_600SemiBold } from '@expo-google-fonts/barlow-condensed/600SemiBold';
+import { BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed/700Bold';
+import { ChakraPetch_600SemiBold } from '@expo-google-fonts/chakra-petch/600SemiBold';
+import { ChakraPetch_600SemiBold_Italic } from '@expo-google-fonts/chakra-petch/600SemiBold_Italic';
+import { ChakraPetch_700Bold } from '@expo-google-fonts/chakra-petch/700Bold';
+import { ChakraPetch_700Bold_Italic } from '@expo-google-fonts/chakra-petch/700Bold_Italic';
 import { useFonts } from 'expo-font';
 import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
