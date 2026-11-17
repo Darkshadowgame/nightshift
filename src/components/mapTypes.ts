@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import type { LatLng } from '../lib/types';
 import type { Glyph } from './Pin';
 
@@ -26,7 +27,13 @@ export interface MapCircle {
   colour: string;
 }
 
+/** Imperative handle: move the map without changing its props (e.g. the locate-me button). */
+export interface NightMapHandle {
+  animateTo: (centre: LatLng, span?: number) => void;
+}
+
 export interface NightMapProps {
+  ref?: Ref<NightMapHandle>;
   pins: MapPin[];
   paths?: MapPath[];
   circles?: MapCircle[];
@@ -44,4 +51,6 @@ export interface NightMapProps {
   recentreKey?: number;
   /** A tap on the map itself, not on a pin. */
   onPressMap?: () => void;
+  /** Called when the person pans or zooms, with the new centre. */
+  onMoved?: (centre: LatLng) => void;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useImperativeHandle, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { C } from '../theme';
@@ -10,8 +10,14 @@ import type { NightMapProps } from './mapTypes';
  * Web preview stand-in for the map (react-native-maps has no web version).
  * A flat projection on a dark grid: good enough to check layouts in a browser.
  */
-export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, picked, onPressMap }: NightMapProps) {
+export function NightMap({ ref, pins, paths = [], circles = [], centre: centreProp, span: spanProp = 0.6, onSelect, onLongPress, picked, onPressMap, recentreKey }: NightMapProps) {
   const [size, setSize] = useState({ w: 400, h: 700 });
+  /** Set by the handle (e.g. locate me, search); cleared when the props move the map. */
+  const [moved, setMoved] = useState<{ centre: NightMapProps['centre']; span: number } | null>(null);
+  useEffect(() => setMoved(null), [centreProp.lat, centreProp.lng, spanProp, recentreKey]);
+  useImperativeHandle(ref, () => ({ animateTo: (c, sp = spanProp) => setMoved({ centre: c, span: sp }) }), [spanProp]);
+  const centre = moved?.centre ?? centreProp;
+  const span = moved?.span ?? spanProp;
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width > 0 && height > 0) setSize({ w: width, h: height });

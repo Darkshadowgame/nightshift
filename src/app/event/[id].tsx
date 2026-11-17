@@ -1,4 +1,3 @@
-import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Switch, TextInput, View } from 'react-native';
@@ -14,11 +13,13 @@ import { areaRadius } from '../../lib/area';
 import { classOf } from '../../lib/classes';
 import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf, viewEvent } from '../../lib/eventView';
+import { isSeedEvent } from '../../lib/demoTime';
 import { countdown, eventClock, unlocksIn } from '../../lib/hud';
 import { feel } from '../../lib/feel';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
 import { describeFilter } from '../../lib/invites';
 import { askPermission } from '../../lib/notify';
+import { preciseFix } from '../../lib/location';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, EVENT_COLOURS } from '../../theme';
@@ -92,19 +93,24 @@ export default function EventScreen() {
   const anyVisible = mapPins.length > 0;
   const closed = phase === 'over' || phase === 'cancelled';
 
-  async function position(): Promise<LatLng | null> {
-    if (settings.simulateGps) return null;
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (!perm.granted) return null;
-    const p = await Location.getCurrentPositionAsync({});
-    return { lat: p.coords.latitude, lng: p.coords.longitude };
-  }
-
   async function doCheckIn() {
     setError(null);
     setBusy(true);
     try {
-      const pos = await position();
+      let pos: LatLng | null = null;
+      if (!settings.simulateGps) {
+        // Real GPS: one precise fix, used for the distance check and never stored.
+        const fix = await preciseFix();
+        if (!fix.ok) {
+          setError(
+            fix.reason === 'denied'
+              ? 'Check-in needs your location. Allow it for Nightshift in Settings (or, for testing, Me > Demo: skip the GPS check).'
+              : 'Could not read your location. Try again outside.',
+          );
+          return;
+        }
+        pos = fix.at;
+      }
       const result = canCheckIn(ev, current, me, crews, new Date(), pos, settings.simulateGps);
       if (!result.ok) setError(result.reason);
       else {
@@ -165,6 +171,7 @@ export default function EventScreen() {
             <Txt v="eyebrow" style={{ color: colour }}>{EVENT_LABELS[ev.type]}</Txt>
             {phase === 'live' ? <Txt v="eyebrow" style={{ color: C.neon }}>· Live now</Txt> : null}
             {phase === 'cancelled' ? <Txt v="eyebrow" style={{ color: C.alert }}>· Cancelled</Txt> : null}
+            {isSeedEvent(ev.id) ? <Txt v="eyebrow" style={{ color: C.fog }}>· Sample event</Txt> : null}
             {roleTag && !closed ? (
               <View style={{ marginLeft: 'auto', borderWidth: 1, borderColor: roleTag.colour, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                 <Txt v="label" style={{ color: roleTag.colour, fontSize: 11 }}>{roleTag.text}</Txt>

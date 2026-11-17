@@ -11,6 +11,7 @@ import { Stars } from '../../components/Stars';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
+import { SYSTEM_AUTHOR } from '../../data/places';
 import { banZoneWarning } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
@@ -22,6 +23,7 @@ import {
   CHECKPOINT_RADIUS_MILES,
   driveMiles,
   hasCompleted,
+  isInfoOnly,
   myRating,
   NEW_RUN,
   runExpired,
@@ -30,6 +32,7 @@ import {
   statsOf,
   type DriveRun,
 } from '../../lib/spots';
+import { preciseFix } from '../../lib/location';
 import { useStore } from '../../lib/store';
 import type { LatLng, Spot } from '../../lib/types';
 import { C, SPOT_COLOURS } from '../../theme';
@@ -109,7 +112,8 @@ function SpotDetail({ spot }: { spot: Spot }) {
         <Txt v="mono" style={{ color: C.chalk }}>
           {[
             spot.kind === 'drive' ? `${driveMiles(spot).toFixed(1)} MI · ${checkpoints.length} CHECKPOINTS · NEVER TIMED` : null,
-            spot.kind !== 'track' ? `${spot.kind === 'drive' ? 'DRIVEN' : 'VISITED'} BY ${people}` : null,
+            !isInfoOnly(spot.kind) ? `${spot.kind === 'drive' ? 'DRIVEN' : 'VISITED'} BY ${people}` : null,
+            spot.region ? spot.region.toUpperCase() : null,
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -119,7 +123,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
             <Stars value={average} size={18} />
             <Txt v="mono">{average.toFixed(1)} FROM {count} RATING{count > 1 ? 'S' : ''}</Txt>
           </Row>
-        ) : spot.kind !== 'track' ? (
+        ) : !isInfoOnly(spot.kind) ? (
           <Txt v="muted">No ratings yet.</Txt>
         ) : null}
         <Txt v="muted">{spot.description}</Txt>
@@ -127,8 +131,19 @@ function SpotDetail({ spot }: { spot: Spot }) {
           <UserLink id={author.id} style={{ alignSelf: 'flex-start' }} label={`Open @${author.handle}`}>
             <Txt v="label" style={{ color: C.sodium }}>Suggested by <Txt v="label" style={{ color: C.sodium, textTransform: 'none' }}>{mine ? 'you' : `@${author.handle}`}</Txt> ›</Txt>
           </UserLink>
+        ) : spot.authorId === SYSTEM_AUTHOR ? (
+          <Txt v="label" style={{ color: C.fog }}>Added by Nightshift</Txt>
         ) : null}
       </View>
+
+      {spot.warnings?.length ? (
+        <Card accent={C.sodium}>
+          <Txt v="label" style={{ color: C.sodium }}>Before you go</Txt>
+          {spot.warnings.map((w) => (
+            <Txt key={w} v="muted">{w}</Txt>
+          ))}
+        </Card>
+      ) : null}
 
       <View style={{ height: 240, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
         <NightMap
@@ -190,7 +205,13 @@ function SpotDetail({ spot }: { spot: Spot }) {
         </Card>
       ) : null}
 
-      {spot.kind !== 'track' && !pending ? (
+      {spot.kind === 'venue' ? (
+        <Card>
+          <Txt>A place that welcomes meets. Check its own opening times and rules before you go, and keep it clean.</Txt>
+        </Card>
+      ) : null}
+
+      {!isInfoOnly(spot.kind) && !pending ? (
         <Section title="Rating">
           <Card accent={justDone && !rated ? C.sodium : undefined}>
             {mine ? (
@@ -218,7 +239,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
 
       {spot.kind === 'photo' ? <Photos spot={spot} /> : null}
 
-      {done && !justDone && spot.kind !== 'track' ? (
+      {done && !justDone && !isInfoOnly(spot.kind) ? (
         <Txt v="muted" style={{ textAlign: 'center', fontSize: 12 }}>
           You've {spot.kind === 'drive' ? 'finished this drive' : 'visited this spot'}.
         </Txt>
@@ -299,7 +320,7 @@ function DrivePanel({
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) {
         setRun(null);
-        setError('Turn on location for Nightshift to track the checkpoints.');
+        setError('Drives need your location to pass the checkpoints. Allow it for Nightshift in Settings (or, for testing, Me > Demo: skip the GPS check).');
         return;
       }
       const sub = await Location.watchPositionAsync(
@@ -385,7 +406,7 @@ function DrivePanel({
         ))}
         <Txt v="muted" style={{ fontSize: 12 }}>
           {settings.simulateGps
-            ? 'Simulate is on (Me > Demo), so the app walks the checkpoints for you at a legal pace.'
+            ? 'Demo: skip the GPS check is on (Me), so the app walks the checkpoints for you at a legal pace.'
             : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
         </Txt>
         {settings.simulateGps ? (
@@ -414,11 +435,16 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
     try {
       let pos: LatLng | null = null;
       if (!settings.simulateGps) {
-        const perm = await Location.requestForegroundPermissionsAsync();
-        if (perm.granted) {
-          const p = await Location.getCurrentPositionAsync({});
-          pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+        const fix = await preciseFix();
+        if (!fix.ok) {
+          setError(
+            fix.reason === 'denied'
+              ? 'Checking in here needs your location. Allow it for Nightshift in Settings (or, for testing, Me > Demo: skip the GPS check).'
+              : 'Could not read your location. Try again outside.',
+          );
+          return;
         }
+        pos = fix.at;
       }
       const ok = canVisit(spot, pos, settings.simulateGps);
       if (!ok.ok) setError(ok.reason);

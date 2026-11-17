@@ -1,12 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { NightMap } from '../../components/NightMap';
-import type { MapPin } from '../../components/mapTypes';
+import type { MapPin, NightMapHandle } from '../../components/mapTypes';
+import { PlaceSearch } from '../../components/PlaceSearch';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { banZoneWarning } from '../../lib/events';
 import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
+import { nameForPlace } from '../../lib/location';
+import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, SPOT_COLOURS } from '../../theme';
@@ -34,9 +37,24 @@ export default function SuggestPlace() {
     setError(null);
   }
 
+  const mapRef = useRef<NightMapHandle>(null);
+  /** The geocoder's last name, so a name you typed is never replaced. */
+  const autoName = useRef<string | undefined>(undefined);
+
   function add(at: LatLng) {
     setError(null);
     setPoints((p) => (kind === 'photo' ? [at] : [...p, at]));
+    // Name a photo spot after where it is, and a drive after where it starts. You can edit it.
+    if (kind === 'photo' || points.length === 0) {
+      nameForPlace(at).then((found) => {
+        if (!found) return;
+        setName((n) => {
+          if (!shouldAutoName(n, autoName.current)) return n;
+          autoName.current = found;
+          return found;
+        });
+      });
+    }
   }
 
   function submit() {
@@ -73,8 +91,11 @@ export default function SuggestPlace() {
           : 'Somewhere that looks good in photos, with space to pull fully off the road. Long-press the map to place it.'}
       </Txt>
 
+      <PlaceSearch onPick={(h) => mapRef.current?.animateTo(h.at, kind === 'drive' ? 0.25 : 0.06)} />
+
       <View style={{ height: 300, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colour }}>
         <NightMap
+          ref={mapRef}
           pins={pins}
           paths={
             kind === 'drive' && points.length > 1
@@ -135,6 +156,9 @@ export default function SuggestPlace() {
           style={ui.input}
           maxLength={40}
         />
+        {autoName.current && name === autoName.current ? (
+          <Txt v="muted" style={{ fontSize: 12 }}>Named from the map. Edit it to the name people know it by.</Txt>
+        ) : null}
         <TextInput
           value={description}
           onChangeText={setDescription}

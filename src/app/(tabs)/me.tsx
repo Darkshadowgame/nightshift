@@ -183,17 +183,17 @@ export default function Me() {
 
       <Section title="Demo">
         <Toggle
-          label="Simulate GPS"
-          hint="On the demo build you aren't really there, so this skips the distance check at check-ins and photo spots, and lets you simulate drives from the sofa."
+          label="Demo: skip the GPS check"
+          hint="Off: check-ins, drives and photo spots use your real location, so you have to be there. On (for testing only): the distance check is skipped and drives can be simulated from the sofa."
           value={settings.simulateGps}
           onChange={(v) => setSettings({ simulateGps: v })}
         />
         <Card>
           <Txt>Restart the demo events</Txt>
           <Txt v="muted">
-            Puts the sample events back as if you'd just installed: Lichfield live, the crew meet in about 30 min, the invite a
-            few hours away, requests to answer, and the sample chat and votes. Drives and photo spots go back to not done.
-            Your profile, builds, photos, crew and anything you made stay.
+            Draws the sample events round your home area again, as if you'd just installed: a rolling meet live now, the crew meet
+            in about 30 min, the invite a few hours away, requests to answer, and the sample chat and votes. Drives and photo
+            spots go back to not done. Your profile, builds, photos, crew and anything you made stay.
           </Txt>
           <Button
             label={restarted ? 'Restarted ✓' : 'Restart the demo events'}

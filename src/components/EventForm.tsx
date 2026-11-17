@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Switch, TextInput, View } from 'react-native';
 import { NightMap } from './NightMap';
+import type { NightMapHandle } from './mapTypes';
+import { PlaceSearch } from './PlaceSearch';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
 import { FILTER_BRANDS } from '../data/catalog';
 import { BAN_ZONES } from '../data/seed';
@@ -12,6 +14,9 @@ import { eventArea } from '../lib/area';
 import { isCrewHost } from '../lib/crews';
 import { DEFAULT_FILTER, invitees } from '../lib/invites';
 import { nearestRegion } from '../lib/profile';
+import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
+import { shouldAutoName } from '../lib/placeNames';
+import type { LatLng } from '../lib/types';
 import { newId, useStore } from '../lib/store';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { C, F } from '../theme';
@@ -94,7 +99,19 @@ export function EventForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [placedKey, areaKey, type, meUser.home],
   );
-  const suggestedAreaName = placed.length ? nearestRegion(area) : meUser.region;
+  // The town the (fuzzed) area is in, from the phone's geocoder; the region if it can't say.
+  const [town, setTown] = useState<string | null>(null);
+  useEffect(() => {
+    setTown(null);
+    if (!placed.length) return;
+    let live = true;
+    townForPlace(area).then((t) => live && setTown(t));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [area.lat, area.lng]);
+  const suggestedAreaName = placed.length ? (town ?? nearestRegion(area)) : meUser.region;
   const matches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
   const bans = placed
     .map((st) => ({ st, zone: banZoneAt(st.at!, BAN_ZONES) }))
@@ -103,6 +120,32 @@ export function EventForm({
 
   function setStop(i: number, patch: Partial<DraftStop>) {
     setStops((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  }
+
+  const mapRef = useRef<NightMapHandle>(null);
+  /** The last name the geocoder gave each stop, so a name the host typed is never overwritten. */
+  const autoNames = useRef<Record<string, string>>({});
+
+  /** Drop a stop, then name it after the street and town (the host can edit it). */
+  function placeStop(i: number, at: LatLng, knownName?: string) {
+    const key = stops[i]?.key;
+    if (!key) return;
+    if (knownName) {
+      setStop(i, { at, name: shouldAutoName(stops[i].name, autoNames.current[key]) ? knownName : stops[i].name });
+      autoNames.current[key] = knownName;
+      return;
+    }
+    setStop(i, { at });
+    nameForPlace(at).then((name) => {
+      if (!name) return;
+      setStops((xs) =>
+        xs.map((x) => {
+          if (x.key !== key || x.at !== at || !shouldAutoName(x.name, autoNames.current[key])) return x;
+          autoNames.current[key] = name;
+          return { ...x, name };
+        }),
+      );
+    });
   }
 
   function stopLabel(i: number, n: number) {
@@ -224,19 +267,21 @@ export function EventForm({
       </Section>
 
       <Section title={type === 'cruise' ? 'Route' : type === 'rolling' ? 'Stops' : 'Place'}>
-        <Txt v="muted">Pick a stop below, then long-press the map to place it. Grey pins are known spots and tracks.</Txt>
+        <Txt v="muted">Search to jump the map, pick a stop below, then long-press the map to place it. It's named after the street; edit the name if you like. Grey pins are known spots and tracks.</Txt>
+        <PlaceSearch onPick={(h) => mapRef.current?.animateTo(h.at, 0.12)} />
         <View style={{ height: 280, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
           <NightMap
+            ref={mapRef}
             pins={pickPins}
             paths={type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: C.sodium, dashed: true }] : []}
             circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
             centre={stops[activeStop]?.at ?? meUser.home}
             span={0.9}
-            onLongPress={(at) => setStop(activeStop, { at })}
+            onLongPress={(at) => placeStop(activeStop, at)}
             onSelect={(pid) => {
               if (!pid.startsWith('sp:')) return;
               const spot = SPOTS.find((s) => `sp:${s.id}` === pid);
-              if (spot) setStop(activeStop, { at: spot.at, name: stops[activeStop].name || spot.name });
+              if (spot) placeStop(activeStop, spot.at, spot.name);
             }}
           />
         </View>
@@ -252,10 +297,13 @@ export function EventForm({
               value={st.name}
               onChangeText={(name) => setStop(i, { name })}
               onFocus={() => setActiveStop(i)}
-              placeholder="Name this spot"
+              placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : 'Name this spot'}
               placeholderTextColor={C.fog}
               style={ui.input}
             />
+            {st.at && autoNames.current[st.key] && st.name === autoNames.current[st.key] ? (
+              <Txt v="muted" style={{ fontSize: 12 }}>Named from the map. Edit it if people know it by another name.</Txt>
+            ) : null}
             {!singlePlace && visibleStops.length > 2 ? (
               <Button
                 label="Remove"

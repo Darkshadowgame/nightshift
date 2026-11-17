@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useImperativeHandle, useRef } from 'react';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { C } from '../theme';
@@ -11,9 +11,13 @@ const MILE_M = 1609.34;
 
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export function NightMap({
-  pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap,
+  ref, pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
+  useImperativeHandle(ref, () => ({
+    animateTo: (c, sp = span) =>
+      map.current?.animateToRegion({ latitude: c.lat, longitude: c.lng, latitudeDelta: sp, longitudeDelta: sp * 1.2 }, 450),
+  }), [span]);
   const first = useRef(true);
   // initialRegion only applies when the map mounts: move it when the place shown changes.
   const followKey = follow ? `${centre.lat},${centre.lng},${span}` : '';
@@ -36,6 +40,8 @@ export function NightMap({
       userInterfaceStyle="dark"
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
       showsUserLocation={showsUser}
+      showsMyLocationButton={false}
+      onRegionChangeComplete={onMoved ? (r) => onMoved({ lat: r.latitude, lng: r.longitude }) : undefined}
       showsTraffic
       showsPointsOfInterests={false}
       showsCompass={false}

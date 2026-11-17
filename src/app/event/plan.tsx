@@ -1,8 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { NightMap } from '../../components/NightMap';
-import type { MapPin } from '../../components/mapTypes';
+import type { MapPin, NightMapHandle } from '../../components/mapTypes';
+import { PlaceSearch } from '../../components/PlaceSearch';
+import { nameForPlace } from '../../lib/location';
+import { shouldAutoName } from '../../lib/placeNames';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { banZoneAt, banZoneWarning, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
@@ -24,6 +27,8 @@ export default function ChangePlan() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ text: string; warning?: string } | null>(null);
+  const mapRef = useRef<NightMapHandle>(null);
+  const autoName = useRef<string | undefined>(undefined);
 
   if (!ev || !isHost(ev, me, crews)) {
     return (
@@ -101,8 +106,11 @@ export default function ChangePlan() {
         <Chip label="+ New stop" on={selected === 'new'} onPress={() => select('new')} colour={C.neon} />
       </Row>
 
+      {canPlace ? <PlaceSearch onPick={(h) => mapRef.current?.animateTo(h.at, 0.08)} /> : null}
+
       <View style={{ height: 260, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: canPlace ? C.sodium : C.kerb }}>
         <NightMap
+          ref={mapRef}
           key={`${selected}`}
           pins={pins}
           circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
@@ -110,7 +118,24 @@ export default function ChangePlan() {
           centre={centre}
           span={0.3}
           picked={pending}
-          onLongPress={canPlace ? (at) => { setPending(at); setDone(null); } : undefined}
+          onLongPress={
+            canPlace
+              ? (at) => {
+                  setPending(at);
+                  setDone(null);
+                  // A new stop is named after the street and town; edit it if you like.
+                  if (selected !== 'new') return;
+                  nameForPlace(at).then((found) => {
+                    if (!found) return;
+                    setName((n) => {
+                      if (!shouldAutoName(n, autoName.current)) return n;
+                      autoName.current = found;
+                      return found;
+                    });
+                  });
+                }
+              : undefined
+          }
         />
       </View>
 

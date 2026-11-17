@@ -10,6 +10,7 @@ import { classOf, effectivePower, isModified } from '../../lib/classes';
 import { plural } from '../../lib/format';
 import { publicProfile } from '../../lib/people';
 import { useStore } from '../../lib/store';
+import { SAMPLE_PEOPLE } from '../../data/seed';
 import { C } from '../../theme';
 
 /** Someone's public profile: builds, trophies, crew. Never any location. */
@@ -43,7 +44,7 @@ export default function UserScreen() {
           {p.legend ? <Txt v="eyebrow" style={{ color: C.lime }}>★ Legend this week</Txt> : null}
         </Row>
         <Txt>{p.name}{p.id === me ? ' (you)' : ''}</Txt>
-        <Txt v="muted">{p.region}</Txt>
+        <Txt v="muted">{p.region}{SAMPLE_PEOPLE.includes(p.id) ? ' · Sample person' : ''}</Txt>
         <Row gap={16}>
           <Txt v="mono">{plural(p.builds.length, 'build').toUpperCase()}</Txt>
           <Txt v="mono">{plural(p.meetsAttended, 'meet').toUpperCase()}</Txt>

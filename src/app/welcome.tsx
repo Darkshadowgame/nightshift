@@ -4,7 +4,7 @@ import { FadeUp, PulseRing } from '../components/motion';
 import { Pin, type Glyph } from '../components/Pin';
 import { ProfileForm } from '../components/ProfileForm';
 import { Row, Txt } from '../components/ui';
-import { DEMO_HOME, DEMO_REGION } from '../data/seed';
+import { DEMO_REGION } from '../data/seed';
 import { useStore } from '../lib/store';
 import { C } from '../theme';
 
@@ -47,7 +47,7 @@ export default function Welcome() {
         </View>
         <Txt v="label">18+ only · Set up your profile to get invites near you</Txt>
       </View>
-      <ProfileForm initial={{ handle: '', name: '', region: DEMO_REGION, home: DEMO_HOME }} submitLabel="Let's go" onSubmit={saveProfile} />
+      <ProfileForm initial={{ handle: '', name: '', region: DEMO_REGION, home: null }} submitLabel="Let's go" onSubmit={saveProfile} />
     </ScrollView>
   );
 }

@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { areaRadius } from '../../lib/area';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
 import { Pin } from '../../components/Pin';
 import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
-import type { MapCircle, MapPath, MapPin } from '../../components/mapTypes';
+import type { MapCircle, MapPath, MapPin, NightMapHandle } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
 import { Chip, Row, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
@@ -16,17 +16,19 @@ import { describeFilter } from '../../lib/invites';
 import { plural } from '../../lib/format';
 import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
 import { fitRegion } from '../../lib/geo';
+import { currentPosition } from '../../lib/location';
 import type { LatLng } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import { C, EVENT_COLOURS, F, SPOT_COLOURS } from '../../theme';
 
-type Layer = 'events' | 'photo' | 'drive' | 'track' | 'bans';
+type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'bans';
 const LAYERS: { key: Layer; label: string; colour: string }[] = [
   { key: 'events', label: 'Events', colour: C.sodium },
   { key: 'photo', label: 'Photo spots', colour: C.magenta },
   { key: 'drive', label: 'Drives', colour: C.neon },
   { key: 'track', label: 'Tracks', colour: C.lime },
+  { key: 'venue', label: 'Venues', colour: C.sodium },
   { key: 'bans', label: 'Ban zones', colour: C.alert },
 ];
 
@@ -34,12 +36,43 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
   const { events, me, crews, users, builds, now, spots } = store;
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, bans: false });
+  const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
   const [selected, setSelected] = useState<string | null>(null);
   /** "Show everything": where to move the map, and a counter so the same button works twice. */
   const [view, setView] = useState<{ centre: LatLng; span: number; key: number } | null>(null);
   const meUser = users.find((u) => u.id === me);
   const places = useMemo(() => visibleSpots(spots, me), [spots, me]);
+  const hasVenues = places.some((x) => x.kind === 'venue');
+
+  // Follow the person: ask for when-in-use location the first time, then centre on them.
+  const map = useRef<NightMapHandle>(null);
+  const [located, setLocated] = useState(false);
+  const [locNote, setLocNote] = useState<string | null>(null);
+  const { ready, locationNoticeSeen, markLocationNoticeSeen } = store;
+  async function locate(ask: boolean, explicit: boolean) {
+    const pos = await currentPosition(ask);
+    if (pos.ok) {
+      setLocated(true);
+      setLocNote(null);
+      map.current?.animateTo(pos.at, 0.35);
+      return;
+    }
+    setLocated(false);
+    // Say so once (or whenever the locate button is tapped), then quietly stay on the home area.
+    if (explicit || !locationNoticeSeen) {
+      setLocNote(
+        pos.reason === 'denied'
+          ? "Location is off for Nightshift, so the map shows your home area. Turn it on in Settings to see where you are and check in."
+          : "Couldn't find where you are just now, so the map shows your home area.",
+      );
+      if (!explicit) markLocationNoticeSeen();
+    }
+  }
+  useEffect(() => {
+    if (!ready) return;
+    locate(true, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const views = useMemo(
     () => viewEvents(events, me, crews, users, builds, now).filter((v) => v.phase !== 'over' && v.phase !== 'cancelled' && v.role !== 'declined'),
@@ -109,11 +142,13 @@ export default function MapScreen() {
     const status = s.status === 'pending' ? ' · waiting for approval' : '';
     return {
       title: s.name,
-      meta: (s.kind === 'drive' ? `Drive · ${s.miles} mi · untimed` : s.kind === 'track' ? 'Track' : 'Photo spot') + stars + status,
+      meta:
+        (s.kind === 'drive' ? `Drive · ${s.miles} mi · untimed` : s.kind === 'track' ? 'Track' : s.kind === 'venue' ? 'Venue' : 'Photo spot') +
+        (s.region ? ` · ${s.region}` : '') + stars + status,
       body: s.description,
       colour: SPOT_COLOURS[s.kind],
       open: () => router.push({ pathname: '/spot/[id]', params: { id: s.id } }),
-      cta: s.kind === 'drive' ? 'Open drive ›' : s.kind === 'photo' ? 'Open photo spot ›' : 'Open track ›',
+      cta: s.kind === 'drive' ? 'Open drive ›' : s.kind === 'photo' ? 'Open photo spot ›' : s.kind === 'venue' ? 'Open venue ›' : 'Open track ›',
     };
   }
 
@@ -133,6 +168,7 @@ export default function MapScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: C.asphalt }}>
       <NightMap
+        ref={map}
         pins={pins}
         paths={paths}
         circles={circles}
@@ -141,7 +177,7 @@ export default function MapScreen() {
         recentreKey={view?.key ?? 0}
         onSelect={setSelected}
         onPressMap={() => setSelected(null)}
-        showsUser
+        showsUser={located}
       />
       <View style={[st.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <Row style={{ justifyContent: 'space-between' }}>
@@ -167,7 +203,7 @@ export default function MapScreen() {
           </Row>
         </Row>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 8 }}>
-          {LAYERS.map((l) => (
+          {LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) => (
             <View key={l.key} style={st.chipBg}>
               <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => setLayers((x) => ({ ...x, [l.key]: !x[l.key] }))} />
             </View>
@@ -187,6 +223,32 @@ export default function MapScreen() {
             <Chip label="+ Suggest a place" on colour={C.chalk} onPress={() => router.push('/spot/new')} />
           </View>
         </ScrollView>
+        <Row style={{ justifyContent: 'flex-end' }}>
+          <Pressable
+            onPress={() => locate(true, true)}
+            style={({ pressed }) => [st.locate, pressed && { opacity: 0.8 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Show where I am"
+            hitSlop={6}
+          >
+            <Pin glyph="you" colour={located ? C.neon : C.fog} size={26} />
+          </Pressable>
+        </Row>
+        {locNote ? (
+          <View style={st.note}>
+            <Txt v="muted" style={{ color: C.chalk }}>{locNote}</Txt>
+            <Row gap={14}>
+              {Platform.OS !== 'web' ? (
+                <Pressable onPress={() => Linking.openSettings().catch(() => {})} accessibilityRole="button" hitSlop={8}>
+                  <Txt v="label" style={{ color: C.sodium }}>Open Settings</Txt>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => setLocNote(null)} accessibilityRole="button" hitSlop={8}>
+                <Txt v="label">OK</Txt>
+              </Pressable>
+            </Row>
+          </View>
+        ) : null}
       </View>
       {sel ? (
         <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} accessibilityRole="button">
@@ -269,6 +331,11 @@ const st = StyleSheet.create({
     borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, gap: 8,
   },
   nextFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: C.kerb, paddingTop: 7 },
+  locate: {
+    backgroundColor: 'rgba(11,15,23,0.92)', borderColor: C.kerb, borderWidth: 1, borderRadius: 6, width: 44, height: 44,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  note: { backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1, borderRadius: 8, padding: 12, gap: 8, marginTop: 8 },
   chipBg: { backgroundColor: 'rgba(11,15,23,0.88)', borderRadius: 4 },
   peek: {
     position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1,

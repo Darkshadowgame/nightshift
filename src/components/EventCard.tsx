@@ -5,6 +5,7 @@ import { countdown } from '../lib/hud';
 import type { EventView } from '../lib/eventView';
 import { formatWhen } from '../lib/format';
 import { describeFilter } from '../lib/invites';
+import { isSeedEvent } from '../lib/demoTime';
 import { C, EVENT_COLOURS } from '../theme';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
@@ -45,7 +46,7 @@ export function EventCard({ view, now }: { view: EventView; now: Date }) {
         </PulseRing>
         <View style={{ flex: 1, gap: 4 }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Txt v="label" style={{ color: colour }}>{EVENT_LABELS[e.type]}</Txt>
+            <Txt v="label" style={{ color: colour }}>{EVENT_LABELS[e.type]}{isSeedEvent(e.id) ? <Txt v="label" style={{ color: C.fog }}> · Sample</Txt> : null}</Txt>
             <Txt v="label" style={{ color: role === 'host' ? C.neon : role === 'requested' ? C.sodium : role === 'declined' ? C.alert : C.fog }}>{ROLE_TEXT[role]}</Txt>
           </Row>
           <Txt v="h3">{e.title}</Txt>
