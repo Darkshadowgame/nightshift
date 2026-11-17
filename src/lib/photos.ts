@@ -2,6 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 import { detectPlates, plateRedactorAvailable, redact, type PlateBox } from '../../modules/plate-redactor';
+import { isWholeImage, sourceRect, type Box, type Rotation } from './crop';
 import { isStoredName, nameFromPath, newPhotoName, PHOTO_DIR } from './photoRefs';
 
 /**
@@ -35,6 +36,39 @@ export async function finishPhoto(uri: string, boxes: PlateBox[], width?: number
   const redacted = await redact(uri, boxes, 'pixelate', MAX_EDGE);
   const done = redacted ? redacted.uri : await reencode(uri, width, height);
   return keep(done);
+}
+
+/**
+ * Crop and turn a photo (box drawn on the rotated view, which is viewW x viewH;
+ * see crop.ts). Writes a temporary JPEG: it still has to go through
+ * finishPhoto before it's kept. The real pixel size is read from the decoded
+ * image, so the view's units only need the right shape.
+ */
+export async function cropPhoto(
+  uri: string,
+  box: Box,
+  rot: Rotation,
+  viewW: number,
+  viewH: number,
+): Promise<{ uri: string; width: number; height: number }> {
+  const src = await ImageManipulator.manipulate(uri).renderAsync();
+  const ctx = ImageManipulator.manipulate(src);
+  if (!isWholeImage(box, viewW, viewH)) ctx.crop(sourceRect(box, rot, viewW, viewH, src.width, src.height));
+  if (rot) ctx.rotate(rot);
+  const image = await ctx.renderAsync();
+  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
+  return { uri: saved.uri, width: saved.width, height: saved.height };
+}
+
+/** Delete a temporary file we made along the way (never a stored photo). Best effort. */
+export function discardTemp(uri: string | undefined): void {
+  if (!native || !uri || !uri.startsWith('file://') || nameFromPath(uri)) return;
+  try {
+    const f = new File(uri);
+    if (f.exists) f.delete();
+  } catch {
+    // iOS clears temp and cache folders anyway.
+  }
 }
 
 function photoDir(): Directory {

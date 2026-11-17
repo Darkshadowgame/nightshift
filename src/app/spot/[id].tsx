@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -7,7 +6,7 @@ import { CommonsStrip } from '../../components/CommonsStrip';
 import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
-import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
+import { usePhotoFlow } from '../../components/PhotoFlow';
 import { Stars } from '../../components/Stars';
 import { TrackPanel } from '../../components/TrackPanel';
 import { UserLink } from '../../components/UserLink';
@@ -19,7 +18,7 @@ import { banZoneWarning } from '../../lib/events';
 import { trackOutline } from '../../lib/tracks';
 import { driveTier } from '../../lib/rep';
 import { feel } from '../../lib/feel';
-import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
+import { photoUri } from '../../lib/photos';
 import {
   advanceRun,
   averageStars,
@@ -443,7 +442,6 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
   const { settings } = store;
   const [step, setStep] = useState<'idle' | 'photo' | 'done'>('idle');
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<PendingPhoto | null>(null);
 
   async function checkIn() {
     setError(null);
@@ -477,51 +475,17 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
       store.visitSpot(spot.id, photo);
       feel.success();
       setStep('done');
-      setPending(null);
       onVisited();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the visit.');
     }
   }
 
-  async function pickPhoto(camera: boolean) {
-    setError(null);
-    try {
-      if (camera) {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return setError('Allow camera access to take a photo here.');
-      }
-      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.9, exif: false };
-      const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      if (res.canceled) return;
-      const a = res.assets[0];
-      setBusy(true);
-      if (plateRedactorAvailable) {
-        const found = await findPlates(a.uri);
-        setPending({ uri: a.uri, width: found?.width || a.width, height: found?.height || a.height, boxes: found?.boxes ?? [] });
-      } else {
-        save(await finishPhoto(a.uri, [], a.width, a.height));
-      }
-    } catch {
-      setError("Couldn't prepare that photo. Try another one.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Pick → crop → plate check → save (PhotoFlow.tsx).
+  const flow = usePhotoFlow({ onPhoto: (ref) => save(ref), onError: setError, cameraDenied: 'Allow camera access to take a photo here.' });
+  const pickPhoto = (camera: boolean) => flow.pick(camera);
 
-  async function confirm(boxes: PendingPhoto['boxes']) {
-    if (!pending) return;
-    setBusy(true);
-    try {
-      save(await finishPhoto(pending.uri, boxes, pending.width, pending.height));
-    } catch {
-      setError("Couldn't blur that photo. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (pending) return <PlateReview photo={pending} onDone={confirm} onCancel={() => setPending(null)} busy={busy} />;
+  if (flow.view) return flow.view;
 
   return (
     <Section title="Visit">
@@ -537,10 +501,10 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
           <>
             <Txt>You're here. Add a photo?</Txt>
             <Row style={{ flexWrap: 'nowrap' }}>
-              <Button label="Camera" kind="neon" style={{ flex: 1 }} onPress={() => pickPhoto(true)} disabled={busy} />
-              <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => pickPhoto(false)} disabled={busy} />
+              <Button label="Camera" kind="neon" style={{ flex: 1 }} onPress={() => pickPhoto(true)} disabled={busy || flow.busy} />
+              <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => pickPhoto(false)} disabled={busy || flow.busy} />
             </Row>
-            <Button label="Skip the photo" kind="ghost" onPress={() => save()} disabled={busy} />
+            <Button label="Skip the photo" kind="ghost" onPress={() => save()} disabled={busy || flow.busy} />
           </>
         ) : (
           <>

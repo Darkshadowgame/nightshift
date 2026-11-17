@@ -5,6 +5,7 @@ import { BuildHero } from '../../components/BuildHero';
 import { FadeUp } from '../../components/motion';
 import { Button, Card, Row, Stat, Txt } from '../../components/ui';
 import { allAwards } from '../../lib/awards';
+import { COVER_ASPECT } from '../../lib/crop';
 import { bhpPerTonne, classOf, effectivePower, isModified } from '../../lib/classes';
 import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
@@ -37,7 +38,7 @@ export default function Garage() {
               accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${b.mods.length} mods${won ? `, ${won} trophies` : ''}`}
               style={({ pressed }) => [{ gap: 10 }, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
             >
-              <BuildHero build={b} height={b.photos[0] ? 190 : 160} trophies={won} tag={sample ? 'Sample' : undefined} />
+              <BuildHero build={b} {...(b.photos[0] ? { aspect: COVER_ASPECT } : { height: 160 })} trophies={won} tag={sample ? 'Sample' : undefined} />
               <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Txt v="h2" numberOfLines={2}>{b.make} {b.model}</Txt>

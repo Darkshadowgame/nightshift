@@ -10,16 +10,17 @@ import { ClassBadge } from './ui';
 /**
  * The build's photo (or silhouette) with its class stamped on the corner, like a
  * car select screen. Used by the garage cards and the build page.
+ * Give a fixed `height`, or an `aspect` (width / height) to size it from its width.
  */
-export function BuildHero({ build, height, trophies = 0, tag }: { build: Build; height: number; trophies?: number; tag?: string }) {
+export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build: Build; height?: number; aspect?: number; trophies?: number; tag?: string }) {
   const letter = classOf(build);
   const colour = CLASS_COLOURS[letter];
   return (
-    <View style={[st.wrap, { height }]}>
+    <View style={[st.wrap, aspect ? { aspectRatio: aspect } : { height }]}>
       {build.photos[0] ? (
         <Image source={{ uri: photoUri(build.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
       ) : (
-        <BuildArt kind={build.kind} colour={build.colour} height={height} />
+        <BuildArt kind={build.kind} colour={build.colour} height={height ?? 160} />
       )}
       <View style={[st.stamp, { borderColor: `${colour}66` }]}>
         <ClassBadge letter={letter} size="lg" />

@@ -1,7 +1,6 @@
-import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { ClassUpMoment } from '../../components/motion';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { ModPicker } from '../../components/ModPicker';
@@ -12,8 +11,8 @@ import { classOf, classUp, effectivePower } from '../../lib/classes';
 import { chassisWeight, isSwapMod, swapFromMods, swapProblem, swapSpecs, withSwapMod } from '../../lib/swap';
 import { restage, stageFromMods, withStage, type StageEngine } from '../../lib/tune';
 import { findDonor, findVariant, guessVariant, searchDonors, specFill, yearsLabel, type Aspiration, type Variant } from '../../lib/vehicles';
-import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
-import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
+import { PhotoManager } from '../../components/PhotoManager';
+import { plateRedactorAvailable } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, ClassLetter, EngineSwap, Mod, TuneStage, VehicleKind } from '../../lib/types';
 import { C } from '../../theme';
@@ -72,8 +71,6 @@ export default function EditBuild() {
   const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [pending, setPending] = useState<PendingPhoto | null>(null);
-  const [photoBusy, setPhotoBusy] = useState(false);
   const [celebrate, setCelebrate] = useState<{ from: ClassLetter; to: ClassLetter } | null>(null);
 
   const variant = findVariant(variants, vehicleId);
@@ -152,41 +149,6 @@ export default function EditBuild() {
     setKind(k);
     setVehicleId(undefined);
     setDonorId(undefined);
-  }
-
-  async function addPhoto() {
-    setError(null);
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9, exif: false });
-    if (res.canceled) return;
-    const a = res.assets[0];
-    setPhotoBusy(true);
-    try {
-      if (plateRedactorAvailable) {
-        const found = await findPlates(a.uri);
-        setPending({ uri: a.uri, width: found?.width || a.width, height: found?.height || a.height, boxes: found?.boxes ?? [] });
-      } else {
-        const done = await finishPhoto(a.uri, [], a.width, a.height);
-        setPhotos((p) => [...p, done]);
-      }
-    } catch {
-      setError("Couldn't prepare that photo. Try another one.");
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
-
-  async function confirmPhoto(boxes: PendingPhoto['boxes']) {
-    if (!pending) return;
-    setPhotoBusy(true);
-    try {
-      const done = await finishPhoto(pending.uri, boxes, pending.width, pending.height);
-      setPhotos((p) => [...p, done]);
-      setPending(null);
-    } catch {
-      setError("Couldn't blur that photo. Try again.");
-    } finally {
-      setPhotoBusy(false);
-    }
   }
 
   function save() {
@@ -312,20 +274,9 @@ export default function EditBuild() {
       </Section>
 
       <Section title="Photos">
-        <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
-          {photos.map((p) => (
-            <Pressable key={p} onLongPress={() => setPhotos((xs) => xs.filter((x) => x !== p))} accessibilityHint="Long-press to remove">
-              <Image source={{ uri: photoUri(p) }} style={{ width: 110, height: 80, borderRadius: 6 }} />
-            </Pressable>
-          ))}
-        </ScrollView>
-        {pending ? (
-          <PlateReview photo={pending} onDone={confirmPhoto} onCancel={() => setPending(null)} busy={photoBusy} />
-        ) : (
-          <Button label={photoBusy ? 'Checking for plates…' : '+ Add a photo'} kind="ghost" onPress={addPhoto} busy={photoBusy} />
-        )}
+        <PhotoManager photos={photos} onChange={setPhotos} onError={setError} saveLater />
         <Txt v="muted" style={{ fontSize: 12 }}>
-          Number plates are blurred on your phone before a photo is saved, and location data is removed.
+          Crop as you add, then tap a photo to crop it again, set the cover (first photo) or move it. Number plates are blurred on your phone before a photo is saved, and location data is removed.
           {plateRedactorAvailable ? '' : ' (Automatic plate detection only works in the iPhone app.)'}
         </Txt>
       </Section>

@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import { useMemo, useState } from 'react';
 import { Image, Linking, Pressable, TextInput, View } from 'react-native';
 import { RECORDS_READ_ON, type LapRecord } from '../data/trackInfo';
@@ -17,12 +16,12 @@ import {
   type LapDraft,
   type TrackVehicle,
 } from '../lib/laptimes';
-import { findPlates, finishPhoto, photoUri, plateRedactorAvailable } from '../lib/photos';
+import { photoUri } from '../lib/photos';
 import { useStore } from '../lib/store';
 import { formatLength, isSpectatorVenue, layoutNames, outrightRecord, trackInfo, trackVehicles, type TrackOutline } from '../lib/tracks';
 import type { Spot } from '../lib/types';
 import { C, SPOT_COLOURS } from '../theme';
-import { PlateReview, type PendingPhoto } from './PlateReview';
+import { usePhotoFlow } from './PhotoFlow';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from './ui';
 
 /** Track screen: the circuit's details and records, then the app's own track times. */
@@ -253,50 +252,14 @@ function AddTime({
     ...(firstKind === 'kart' ? { kartClass: 'Hire' as const } : { buildId: mineAll.find((b) => b.kind === firstKind)?.id }),
   });
   const mine = mineAll.filter((b) => b.kind === draft.kind);
-  const [pending, setPending] = useState<PendingPhoto | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (patch: Partial<LapDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const record = outrightRecord(spot.id, draft.layout);
   const ctx = { track: spot, layouts, vehicles, builds, me, now: new Date(), fastestMs: record ? recordMs(record.time) : null };
 
-  async function pickProof(camera: boolean) {
-    setError(null);
-    try {
-      if (camera) {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return setError('Allow camera access to photograph the timing sheet.');
-      }
-      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.9, exif: false };
-      const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      if (res.canceled) return;
-      const a = res.assets[0];
-      setBusy(true);
-      if (plateRedactorAvailable) {
-        const found = await findPlates(a.uri);
-        setPending({ uri: a.uri, width: found?.width || a.width, height: found?.height || a.height, boxes: found?.boxes ?? [] });
-      } else {
-        set({ proof: await finishPhoto(a.uri, [], a.width, a.height) });
-      }
-    } catch {
-      setError("Couldn't prepare that photo. Try another one.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirm(boxes: PendingPhoto['boxes']) {
-    if (!pending) return;
-    setBusy(true);
-    try {
-      set({ proof: await finishPhoto(pending.uri, boxes, pending.width, pending.height) });
-      setPending(null);
-    } catch {
-      setError("Couldn't blur that photo. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Pick → crop → plate check → save (PhotoFlow.tsx).
+  const flow = usePhotoFlow({ onPhoto: (ref) => set({ proof: ref }), onError: setError, cameraDenied: 'Allow camera access to photograph the timing sheet.' });
+  const pickProof = (camera: boolean) => flow.pick(camera);
 
   function save() {
     setError(null);
@@ -310,7 +273,7 @@ function AddTime({
     }
   }
 
-  if (pending) return <PlateReview photo={pending} onDone={confirm} onCancel={() => setPending(null)} busy={busy} />;
+  if (flow.view) return flow.view;
 
   return (
     <Card accent={C.lime}>
@@ -392,12 +355,12 @@ function AddTime({
         <Txt v="muted" style={{ fontSize: 13 }}>A photo of the printed timing sheet or a screenshot of the circuit's timing app. Any number plates in it are blurred first.</Txt>
       )}
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label="Camera" kind="ghost" style={{ flex: 1 }} onPress={() => pickProof(true)} disabled={busy} />
-        <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => pickProof(false)} disabled={busy} />
+        <Button label="Camera" kind="ghost" style={{ flex: 1 }} onPress={() => pickProof(true)} disabled={flow.busy} />
+        <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => pickProof(false)} disabled={flow.busy} />
       </Row>
       {error ? <Txt style={{ color: C.alert }}>{error}</Txt> : null}
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label="Save time" kind="neon" style={{ flex: 1 }} onPress={save} busy={busy} />
+        <Button label="Save time" kind="neon" style={{ flex: 1 }} onPress={save} busy={flow.busy} />
         <Button label="Cancel" kind="ghost" onPress={onDone} />
       </Row>
       <Txt v="muted" style={{ fontSize: 12 }}>

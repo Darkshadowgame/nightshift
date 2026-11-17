@@ -14,17 +14,22 @@ export interface PendingPhoto {
 /**
  * Check the plate boxes before a photo is saved.
  * Tap a box to remove it, tap anywhere else to add one there.
+ *
+ * `recheck`: the photo is already saved and blurred. Blur in it stays (it's in
+ * the pixels); this can only add more.
  */
 export function PlateReview({
   photo,
   onDone,
   onCancel,
   busy,
+  recheck,
 }: {
   photo: PendingPhoto;
   onDone: (boxes: PlateBox[]) => void;
   onCancel: () => void;
   busy?: boolean;
+  recheck?: boolean;
 }) {
   const [boxes, setBoxes] = useState<PlateBox[]>(photo.boxes);
   const [frame, setFrame] = useState({ w: 1, h: 1 });
@@ -42,9 +47,11 @@ export function PlateReview({
 
   return (
     <Card accent={C.neon}>
-      <Txt v="h3">Check the number plates</Txt>
+      <Txt v="h3">{recheck ? 'Add more plate blur' : 'Check the number plates'}</Txt>
       <Txt v="muted">
-        {photo.boxes.length > 0
+        {recheck
+          ? `Blur already in this photo stays. ${photo.boxes.length > 0 ? `We found ${photo.boxes.length} more to cover. ` : ''}Tap any plate that still shows to cover it, or a box to remove it.`
+          : photo.boxes.length > 0
           ? `We found ${photo.boxes.length} plate${photo.boxes.length > 1 ? 's' : ''}. Tap a box to remove it, or tap a missed plate to cover it.`
           : "We didn't find a plate. Check the photo and tap any plate to cover it before saving."}
       </Txt>
@@ -72,7 +79,7 @@ export function PlateReview({
       </View>
       <Txt v="muted" style={{ fontSize: 12 }}>We try to blur plates automatically, but check before saving. The original photo isn't kept.</Txt>
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label={busy ? 'Blurring…' : `Blur ${boxes.length} and add`} kind="neon" onPress={() => onDone(boxes)} busy={busy} style={{ flex: 1 }} />
+        <Button label={busy ? 'Blurring…' : recheck ? (boxes.length ? `Blur ${boxes.length} and save` : 'Nothing to add') : `Blur ${boxes.length} and add`} kind="neon" onPress={() => onDone(boxes)} busy={busy} style={{ flex: 1 }} />
         <Button label="Cancel" kind="ghost" onPress={onCancel} />
       </Row>
     </Card>

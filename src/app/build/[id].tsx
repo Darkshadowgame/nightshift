@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { photoUri } from '../../lib/photos';
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { BuildHero } from '../../components/BuildHero';
 import { FadeUp } from '../../components/motion';
+import { PhotoManager } from '../../components/PhotoManager';
 import { Cover, Trophy } from '../../components/Cover';
 import { UserLink } from '../../components/UserLink';
 import { allAwards, categoryInfo } from '../../lib/awards';
@@ -22,8 +23,9 @@ const SOUND = new Set(['exhaust', 'intake', 'turbo']);
 export default function BuildScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { builds, users, me, votes, events, now } = useStore();
+  const { builds, users, me, votes, events, now, saveBuild } = useStore();
   const b = builds.find((x) => x.id === id);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     if (!b || b.ownerId !== me) return;
@@ -55,7 +57,12 @@ export default function BuildScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
       <BuildHero build={b} height={b.photos[0] ? 240 : 200} trophies={won.length} />
-      {b.photos.length > 1 ? (
+      {b.ownerId === me ? (
+        <Section title={`Photos (${b.photos.length})`}>
+          <PhotoManager photos={b.photos} onChange={(photos) => saveBuild({ ...b, photos })} onError={setPhotoError} />
+          {photoError ? <Txt style={{ color: C.alert }} accessibilityLiveRegion="polite">{photoError}</Txt> : null}
+        </Section>
+      ) : b.photos.length > 1 ? (
         <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
           {b.photos.slice(1).map((p) => (
             <Image key={p} source={{ uri: photoUri(p) }} style={{ width: 110, height: 80, borderRadius: 6 }} />
