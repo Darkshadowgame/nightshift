@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chime, navDirectionsAvailable, route as fetchRoute, speak, stopSpeaking } from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
 import { openDirections } from '../components/NavLaunch';
+import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
 import { Button, Txt } from '../components/ui';
 import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
@@ -25,6 +26,7 @@ import {
   etaClock,
   formatDistance,
   isOver,
+  metresBetween,
   mphOf,
   ON_ROUTE,
   pointAlong,
@@ -52,10 +54,31 @@ import {
   type ZoneRun,
 } from '../lib/nav';
 import { planForEvent, planForPlace, planForSpot, targetFromParams, type NavPlan } from '../lib/navPlan';
+import {
+  alertText,
+  closureAhead,
+  detourCandidates,
+  dropViaArrivals,
+  reportAlertDue,
+  reportsOnRoute,
+  routeAvoids,
+  ROAD_CLOSED_SPOKEN,
+  ROAD_CLOSED_WARNING,
+  ROAD_RULES,
+  stillTherePrompt,
+  VIA_REACHED_METRES,
+  withVias,
+  type RoadReport,
+  type RoadReportKind,
+  type RoadVote,
+  type RouteReport,
+  type Via,
+} from '../lib/roadReports';
+import { useRoadReports, useRoads } from '../lib/roadStore';
 import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../lib/spots';
 import { useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
-import { C, F } from '../theme';
+import { C, F, ROAD_COLOUR } from '../theme';
 
 /**
  * The driving view: turn-by-turn directions through an event's stops, a
@@ -65,7 +88,13 @@ import { C, F } from '../theme';
  * Safety (docs/SPEC.md, "Driving view"): foreground only, GPS stops when you
  * leave the screen or the app; your speed is shown live against a camera or
  * zone limit and never stored, scored or ranked; cameras are speed-limit
- * information only, and there's nothing about police.
+ * information only.
+ *
+ * Road reports (docs/SPEC.md, "Road reports"): REPORT then what, undo for 5 s;
+ * reports ahead on the route are said and shown; "Still there?" after passing
+ * one, gone after 8 s. This is the only screen that asks for police reports
+ * ("Police / speed check", context 'driving'). Closures on the route are
+ * driven round where MapKit finds a way that stays 100 m clear.
  */
 export default function DriveScreen() {
   const params = useLocalSearchParams();
@@ -120,7 +149,7 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
 
 interface Active {
   route: NavRoute;
-  /** For each leg, which stop it ends at. */
+  /** For each leg, which stop it ends at (-1: a detour point round a closure). */
   legStops: number[];
   /** Bumped on every new route, so announcements are said once per route. */
   gen: number;
@@ -178,23 +207,45 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const run = useRef<DriveRun>(NEW_RUN);
   const runDone = useRef(false);
 
+  // Road reports: read around you (re-read every couple of km, every minute and on any change).
+  const roads = useRoads();
+  const [reportCentre, setReportCentre] = useState<LatLng | null>(null);
+  const { reports: roadReports } = useRoadReports({ centre: reportCentre, radiusMi: 15, context: 'driving', enabled: true, refreshMs: 60_000 });
+  const routeReports = useRef<RouteReport[]>([]);
+  const announced = useRef(new Set<string>());
+  const asked = useRef(new Set<string>());
+  const closuresTried = useRef(new Set<string>());
+  const vias = useRef<Via[]>([]);
+  const detouring = useRef(false);
+  const [gridOpen, setGridOpen] = useState(false);
+  const [pending, setPending] = useState<{ kind: RoadReportKind; at: LatLng; heading: number | null; until: number } | null>(null);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  const [undoLeft, setUndoLeft] = useState(0);
+  const [prompt, setPrompt] = useState<RoadReport | null>(null);
+  const promptRef = useRef<RoadReport | null>(null);
+  const [alert, setAlert] = useState<string | null>(null);
+
   const say = useCallback((text: string) => {
     if (!mutedRef.current) speak(text).catch(() => undefined);
   }, []);
 
   const doRoute = useCallback(
-    async (from: LatLng, reason: 'start' | 'reroute') => {
+    async (from: LatLng, reason: 'start' | 'reroute' | 'detour') => {
       if (routing.current || closed.current) return;
-      const { points, legStops } = routePoints(from, stops, nextRef.current);
-      if (points.length < 2) return;
+      const base = routePoints(from, stops, nextRef.current);
+      if (base.points.length < 2) return;
+      // Detour points round a closure go in before the next stop.
+      const { points, legStops } = withVias(base.points, base.legStops, vias.current.map((v) => v.at));
       routing.current = true;
       if (reason === 'start') setPhase('routing');
+      else if (reason === 'detour') setNotice('Road closed ahead. Taking a way round…');
       else setNotice('Off the route. Finding a new way…');
       setLegsDone({ done: 0, total: points.length - 1 });
       try {
         const raw = await fetchRoute(points, { onProgress: (done, total) => setLegsDone({ done, total }) });
         if (!raw || closed.current) return;
-        const r = buildRoute(raw, legStops.map((i) => stops[i].name));
+        const r = dropViaArrivals(buildRoute(raw, legStops.map((i) => (i >= 0 ? stops[i].name : ''))), legStops);
         const box = routeBox(r);
         const idx = cameraAlerts ? cameraIndex() : null;
         const fresh: Active = {
@@ -217,7 +268,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           const target = stops[nextRef.current];
           say(`Starting route to ${target.name}.${first ? ` ${first.text}, in ${spokenDistance(first.along)}.` : ''}`);
         } else {
-          say('Route updated.');
+          say(reason === 'detour' ? 'Road closed ahead. Taking a way round.' : 'Route updated.');
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Could not plan the route.';
@@ -234,6 +285,39 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       }
     },
     [stops, say, cameraAlerts],
+  );
+
+  /**
+   * A closure on this leg: MapKit can't avoid a road, so try a detour point to
+   * each side of it (near, then further out) and keep the first route that
+   * stays 100 m clear. Otherwise say so and leave the route as it is.
+   */
+  const detour = useCallback(
+    async (x: RouteReport, from: LatLng) => {
+      const a = activeRef.current;
+      const target = stops[nextRef.current];
+      if (!a || !target || detouring.current) return;
+      detouring.current = true;
+      setNotice('Road closed ahead. Looking for a way round…');
+      try {
+        for (const wp of detourCandidates(a.route, x.along).slice(0, 4)) {
+          if (closed.current) return;
+          const raw = await fetchRoute([from, wp, target.at]).catch(() => null);
+          if (!raw) continue;
+          if (routeAvoids(buildRoute(raw).coords, x.report)) {
+            vias.current = [{ closureId: x.report.id, at: wp }];
+            detouring.current = false;
+            await doRoute(fixRef.current?.at ?? from, 'detour');
+            return;
+          }
+        }
+        setNotice(ROAD_CLOSED_WARNING);
+        say(ROAD_CLOSED_SPOKEN);
+      } finally {
+        detouring.current = false;
+      }
+    },
+    [stops, doRoute, say],
   );
 
   const arrive = useCallback(
@@ -263,6 +347,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       if (closed.current) return;
       fixRef.current = f;
       setFix(f);
+      setReportCentre((c) => (!c || metresBetween(c, f.at) > 1500 ? f.at : c));
+      if (vias.current.length) vias.current = vias.current.filter((v) => metresBetween(f.at, v.at) > VIA_REACHED_METRES);
 
       // A drive counts the same way as Start drive on the drive's screen: every checkpoint, in order.
       if (plan.driveId && !simulate && !runDone.current) {
@@ -300,14 +386,50 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       offState.current = off.state;
       if (off.off && nextRef.current < stops.length && !routing.current && Date.now() - lastRoute.current > 20_000) {
         say(off.state.reason === 'wrongWay' ? 'Turn around when it is safe, or wait for a new route.' : 'Finding a new route.');
+        // Off a detour too: start again from here, closures included.
+        vias.current = [];
+        closuresTried.current.clear();
         doRoute(f.at, 'reroute');
       }
 
+      let spoke = false;
       if (snap.off < 60 && nextRef.current < stops.length) {
         const due = dueAnnouncement(a.route, progress, f.speed, said.current, `g${a.gen}`);
         if (due) {
           said.current.add(due.key);
           say(due.text);
+          spoke = true;
+        }
+      }
+
+      // Road reports ahead: said once each (after any turn instruction), shown for a few seconds.
+      if (snap.off < 60) {
+        const nowDate = new Date();
+        const ahead = spoke ? null : reportAlertDue(routeReports.current, snap.along, announced.current);
+        if (ahead) {
+          announced.current.add(ahead.report.id);
+          const t = alertText(ahead, snap.along);
+          setAlert(t.banner);
+          say(t.spoken);
+        }
+        // Just passed someone's report: still there?
+        if (!promptRef.current) {
+          const ask = stillTherePrompt(routeReports.current, snap.along, asked.current, nowDate);
+          if (ask) {
+            asked.current.add(ask.id);
+            promptRef.current = ask;
+            setPrompt(ask);
+            feel.tap();
+          }
+        }
+        // A closure on this leg: find a way round, once per closure.
+        if (!routing.current && !detouring.current && nextRef.current < stops.length) {
+          const legEnd = Number.isFinite(a.stopAlong[nextRef.current]) ? a.stopAlong[nextRef.current] : a.route.length;
+          const blocked = closureAhead(routeReports.current, snap.along, legEnd, nowDate);
+          if (blocked && !closuresTried.current.has(blocked.report.id)) {
+            closuresTried.current.add(blocked.report.id);
+            detour(blocked, f.at);
+          }
         }
       }
 
@@ -353,9 +475,103 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         over,
       });
     },
-    [arrive, cameraAlerts, doRoute, plan.driveId, say, simulate, stops, store],
+    [arrive, cameraAlerts, doRoute, detour, plan.driveId, say, simulate, stops, store],
   );
   const onFixRef = useRef(onFix);
+
+  // Reports on the route: worked out again for each new route and each new read.
+  const [onRouteReports, setOnRouteReports] = useState<RouteReport[]>([]);
+  useEffect(() => {
+    const on = active ? reportsOnRoute(active.route, roadReports) : [];
+    routeReports.current = on;
+    setOnRouteReports(on);
+  }, [active, roadReports]);
+
+  // The alert strip goes after 10 s; "Still there?" after 8 s (ignoring it is fine).
+  useEffect(() => {
+    if (!alert) return;
+    const t = setTimeout(() => setAlert(null), 10_000);
+    return () => clearTimeout(t);
+  }, [alert]);
+  useEffect(() => {
+    if (!prompt) return;
+    const t = setTimeout(() => {
+      promptRef.current = null;
+      setPrompt(null);
+    }, ROAD_RULES.promptMs);
+    return () => clearTimeout(t);
+  }, [prompt]);
+
+  // A report waits 5 s for UNDO, then goes.
+  const sendReport = useCallback(
+    (p: { kind: RoadReportKind; at: LatLng; heading: number | null }) => {
+      roads
+        .report(p.kind, p.at, p.heading, fixRef.current?.at ?? p.at)
+        .catch((e) => setNotice(e instanceof Error ? e.message : 'Could not send the report.'));
+    },
+    [roads],
+  );
+  const sendRef = useRef(sendReport);
+  sendRef.current = sendReport;
+  useEffect(() => {
+    if (!pending) return;
+    let sent = false;
+    const tick = () => {
+      if (sent) return;
+      const left = pending.until - Date.now();
+      if (left <= 0) {
+        sent = true;
+        pendingRef.current = null;
+        setPending(null);
+        sendRef.current(pending);
+      } else setUndoLeft(Math.ceil(left / 1000));
+    };
+    tick();
+    const t = setInterval(tick, 250);
+    return () => clearInterval(t);
+  }, [pending]);
+  // Leaving inside the 5 s still sends it.
+  useEffect(
+    () => () => {
+      const p = pendingRef.current;
+      if (p) sendRef.current(p);
+    },
+    [],
+  );
+
+  function openReport() {
+    if (!fixRef.current) {
+      setNotice('Waiting for your location before you can report.');
+      return;
+    }
+    feel.tap();
+    setGridOpen(true);
+  }
+
+  function pickReport(kind: RoadReportKind) {
+    setGridOpen(false);
+    const f = fixRef.current;
+    if (!f) return;
+    feel.success();
+    setPending({ kind, at: f.at, heading: f.course, until: Date.now() + ROAD_RULES.undoMs });
+    say('Thanks, reported.');
+  }
+
+  function undoReport() {
+    pendingRef.current = null;
+    setPending(null);
+    feel.tap();
+    say('Report cancelled.');
+  }
+
+  function answerPrompt(vote: RoadVote) {
+    const r = promptRef.current;
+    promptRef.current = null;
+    setPrompt(null);
+    if (!r) return;
+    feel.tap();
+    roads.answer(r.id, vote, fixRef.current?.at ?? null).catch((e) => setNotice(e instanceof Error ? e.message : 'Could not send that.'));
+  }
   onFixRef.current = onFix;
 
   // GPS while this screen is open and the app is in front; nothing in the background.
@@ -503,6 +719,12 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     [stops, next, plan.eventId],
   );
   const mapCameras = useMemo(() => (active ? active.cameras.map((c) => ({ id: `${c.id}:${Math.round(c.along)}`, at: c.at })) : []), [active]);
+  // Reports on the route, and the nearest others around you.
+  const mapReports = useMemo(() => {
+    const ids = new Set(onRouteReports.map((x) => x.report.id));
+    const rest = roadReports.filter((r) => !ids.has(r.id)).slice(0, 40);
+    return [...onRouteReports.map((x) => x.report), ...rest].map((r) => ({ id: r.id, at: r.at, glyph: r.kind }));
+  }, [onRouteReports, roadReports]);
   const route = active?.route;
   const progress = hud?.progress;
   const step = route && progress && progress.stepIndex >= 0 ? route.steps[progress.stepIndex] : null;
@@ -551,12 +773,14 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           <Text style={st.bannerText} numberOfLines={2}>{bannerText}</Text>
         </View>
       </View>
+      {alert ? <ReportAlert text={alert} /> : null}
 
       <View style={{ flex: 1 }}>
         <DriveMap
           route={route?.coords ?? []}
           stops={mapStops}
           cameras={mapCameras}
+          reports={mapReports}
           focus={focus}
           heading={heading}
           speed={fix?.speed ?? null}
@@ -589,6 +813,19 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             <Button label="Waze" kind="ghost" style={{ flex: 1 }} onPress={() => openDirections('waze', stops[nextRef.current]?.at ?? stops[0].at)} />
           </View>
         </View>
+      ) : null}
+
+      {pending ? (
+        <UndoBar kind={pending.kind} secondsLeft={Math.max(1, undoLeft)} onUndo={undoReport} />
+      ) : prompt ? (
+        <StillTherePrompt
+          report={prompt}
+          onAnswer={answerPrompt}
+          onDismiss={() => {
+            promptRef.current = null;
+            setPrompt(null);
+          }}
+        />
       ) : null}
 
       {checkInStop && !moving && !checkedIn.includes(checkInStop.id) ? (
@@ -649,11 +886,20 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           >
             <Text style={st.muteText}>{muted ? 'VOICE OFF' : 'VOICE ON'}</Text>
           </Pressable>
+          <Pressable
+            onPress={openReport}
+            accessibilityRole="button"
+            accessibilityLabel="Report something on the road"
+            style={({ pressed }) => [st.report, pressed && { opacity: 0.8 }]}
+          >
+            <Text style={st.reportText}>REPORT</Text>
+          </Pressable>
           <Pressable onPress={end} accessibilityRole="button" accessibilityLabel="End navigation" style={({ pressed }) => [st.end, pressed && { opacity: 0.8 }]}>
             <Text style={st.endText}>END</Text>
           </Pressable>
         </View>
       </View>
+      {gridOpen ? <ReportGrid onPick={pickReport} onClose={() => setGridOpen(false)} bottom={insets.bottom} /> : null}
     </View>
   );
 }
@@ -686,7 +932,9 @@ const st = StyleSheet.create({
   sub: { fontFamily: F.body, fontSize: 15, color: C.fog },
   mute: { flex: 1, height: 60, borderRadius: 12, borderWidth: 2, borderColor: C.kerbHi, alignItems: 'center', justifyContent: 'center' },
   muteText: { fontFamily: F.labelBold, fontSize: 18, color: C.chalk, letterSpacing: 1.5 },
-  end: { flex: 2, height: 60, borderRadius: 12, backgroundColor: C.alert, alignItems: 'center', justifyContent: 'center' },
+  report: { flex: 1.5, height: 60, borderRadius: 12, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center' },
+  reportText: { fontFamily: F.display, fontSize: 22, color: C.asphalt, letterSpacing: 1.5 },
+  end: { flex: 1.3, height: 60, borderRadius: 12, backgroundColor: C.alert, alignItems: 'center', justifyContent: 'center' },
   endText: { fontFamily: F.display, fontSize: 24, color: '#ffffff', letterSpacing: 2 },
   credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
   creditText: { color: C.fog, fontSize: 9 },

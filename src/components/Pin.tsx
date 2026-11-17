@@ -28,7 +28,15 @@ export type Glyph =
   | 'dyno'
   | 'garage'
   | 'coffee'
-  | 'partner';
+  | 'partner'
+  // Road reports (roadReports.ts). 'police' is only ever drawn in the driving view.
+  | 'crash'
+  | 'hazard'
+  | 'roadworks'
+  | 'closure'
+  | 'traffic'
+  | 'mobile_camera'
+  | 'police';
 
 const INK = '#0b0f17';
 
@@ -68,6 +76,61 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
 
 function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
   switch (glyph) {
+    case 'crash':
+      // A starburst: something hit something.
+      return <Path d="M20 9l2.4 6.1 6-2.6-2.6 6.1 6.1 2.4-6.1 2.4 2.6 6.1-6-2.6L20 31.4l-2.4-6.1-6 2.6 2.6-6.1-6.1-2.4 6.1-2.4-2.6-6.1 6 2.6Z" fill={c} />;
+    case 'hazard':
+      return (
+        <>
+          <Path d="M20 10.5 30 28.5H10Z" fill="none" stroke={c} strokeWidth={2.4} strokeLinejoin="round" />
+          <Path d="M20 16.5v6" stroke={c} strokeWidth={2.4} strokeLinecap="round" />
+          <Circle cx={20} cy={25.3} r={1.4} fill={c} />
+        </>
+      );
+    case 'roadworks':
+      // A traffic cone.
+      return (
+        <>
+          <Path d="M17.5 11h5l4 16h-13Z" fill={c} />
+          <Rect x={15.6} y={17.5} width={8.8} height={3} fill={INK} />
+          <Rect x={11} y={27} width={18} height={2.6} rx={1} fill={c} />
+        </>
+      );
+    case 'closure':
+      // No entry.
+      return (
+        <>
+          <Circle cx={20} cy={20} r={9.5} fill={c} />
+          <Rect x={13} y={18.4} width={14} height={3.2} rx={0.8} fill={INK} />
+        </>
+      );
+    case 'traffic':
+      // A queue.
+      return (
+        <>
+          <Rect x={14} y={10} width={12} height={5} rx={2} fill={c} />
+          <Rect x={14} y={17.5} width={12} height={5} rx={2} fill={c} />
+          <Rect x={14} y={25} width={12} height={5} rx={2} fill={c} />
+        </>
+      );
+    case 'mobile_camera':
+      // A camera on a tripod.
+      return (
+        <>
+          <Rect x={11} y={11} width={15} height={9} rx={1.5} fill={c} />
+          <Path d="M26 13.5h3v4h-3" fill="none" stroke={c} strokeWidth={1.8} />
+          <Circle cx={16} cy={15.5} r={2.4} fill={INK} />
+          <Path d="M18.5 20l-5 10M18.5 20v10M18.5 20l5 10" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+    case 'police':
+      // A shield: "Police / speed check" (driving view only).
+      return (
+        <>
+          <Path d="M20 9.5l8.5 3.2v6.1c0 5.7-3.7 9.6-8.5 11.9-4.8-2.3-8.5-6.2-8.5-11.9v-6.1Z" fill={c} />
+          <Path d="M16 19.5l3 3 5.5-6" fill="none" stroke={INK} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      );
     case 'show':
       // A trophy: shows are judged.
       return (

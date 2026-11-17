@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { areaRadius } from '../../lib/area';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
@@ -38,9 +38,11 @@ import { parseOpeningHours, openState } from '../../lib/openingHours';
 import { demoPartners, partnerBadge } from '../../lib/partners';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { milesBetween } from '../../lib/geo';
-import { C, EVENT_COLOURS, F, PARTNER_COLOUR, SHOP_COLOUR, SPOT_COLOURS } from '../../theme';
+import { answerProblem, confirmations, KIND_INFO, reportAge, sourceCredit, type RoadReport, type RoadVote } from '../../lib/roadReports';
+import { useRoadReports, useRoads } from '../../lib/roadStore';
+import { C, EVENT_COLOURS, F, PARTNER_COLOUR, ROAD_COLOUR, SHOP_COLOUR, SPOT_COLOURS } from '../../theme';
 
-type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'shops' | 'cameras';
+type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'shops' | 'cameras' | 'roads';
 /** The layer bar: the core layers only, in order. Add a layer here (and to `shown` below) to give it a pill. */
 const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'events', label: 'Events', glyph: 'meet', colour: C.sodium },
@@ -49,14 +51,17 @@ const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'track', label: 'Tracks', glyph: 'track', colour: C.lime },
 ];
 /**
- * The layers button (under locate-me) holds the rest: venues, and the two
- * background layers kept in settings and off by default, Shops (with its kinds)
- * and Speed cameras. Ban zones aren't a map layer: they show where you host.
+ * The layers button (under locate-me) holds the rest: venues, and the
+ * background layers kept in settings and off by default, Shops (with its kinds),
+ * Speed cameras and Road reports. Ban zones aren't a map layer: they show where
+ * you host. Road reports here never include police: those are only in the
+ * driving view (roadReports.ts).
  */
 const MORE_LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'venue', label: 'Venues', glyph: 'venue', colour: SPOT_COLOURS.venue },
   { key: 'shops', label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR },
   { key: 'cameras', label: 'Speed cameras', glyph: 'camera', colour: C.alert },
+  { key: 'roads', label: 'Road reports', glyph: 'hazard', colour: ROAD_COLOUR },
 ];
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
@@ -67,6 +72,10 @@ interface Selection {
   colour: string;
   open?: () => void;
   cta?: string;
+  /** Buttons on the card (road reports: Still there / Gone). */
+  actions?: { label: string; onPress: () => void; colour: string }[];
+  /** A short line under the body, e.g. why you can't answer from here. */
+  note?: string;
 }
 
 /** Count pins (places grouped when zoomed out): what each one is. */
@@ -87,6 +96,7 @@ const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
   { glyph: 'garage', colour: SHOP_COLOUR, label: 'Shop (OpenStreetMap)' },
   { glyph: 'partner', colour: PARTNER_COLOUR, label: 'Partner (paid, always marked)' },
   { glyph: 'camera', colour: C.alert, label: 'Speed camera' },
+  { glyph: 'hazard', colour: ROAD_COLOUR, label: 'Road report or closure' },
 ];
 
 /** Height of the brand row and the layer bar above the note/locate row (the menus open under the layers button). */
@@ -111,8 +121,8 @@ export default function MapScreen() {
   const { events, me, crews, users, builds, spots, nearby, settings, setSettings } = store;
   const now = useNow();
   const newNear = nearby?.unseen.length ?? 0;
-  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true });
-  const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras, shops: !!settings.shops };
+  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops' | 'roads'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true });
+  const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras, shops: !!settings.shops, roads: !!settings.roadReports };
   /** The camera layer's "zoom in" note only shows once the person has turned the layer on themselves. */
   const [camerasAsked, setCamerasAsked] = useState(false);
   function toggleLayer(key: Layer) {
@@ -121,6 +131,7 @@ export default function MapScreen() {
       setSettings({ cameras: !settings.cameras });
     }
     else if (key === 'shops') setSettings({ shops: !settings.shops });
+    else if (key === 'roads') setSettings({ roadReports: !settings.roadReports });
     else setLayers((x) => ({ ...x, [key]: !x[key] }));
   }
   /** Shops: which kinds to show and "partners only", kept in settings (Shops ▾ menu). */
@@ -181,12 +192,15 @@ export default function MapScreen() {
   // Follow the person: ask for when-in-use location the first time, then centre on them.
   const map = useRef<NightMapHandle>(null);
   const [located, setLocated] = useState(false);
+  /** The last fix (answering "Still there?" needs you within a mile). Never stored. */
+  const [here, setHere] = useState<LatLng | null>(null);
   const [locNote, setLocNote] = useState<string | null>(null);
   const { ready, locationNoticeSeen, markLocationNoticeSeen } = store;
   async function locate(ask: boolean, explicit: boolean) {
     const pos = await currentPosition(ask);
     if (pos.ok) {
       setLocated(true);
+      setHere(pos.at);
       setLocNote(null);
       map.current?.animateTo(pos.at, 0.35);
       return;
@@ -224,6 +238,30 @@ export default function MapScreen() {
     () => (layers.cameras ? camerasForView(cameraIndex(), region.centre, region.span) : null),
     [layers.cameras, region],
   );
+
+  /**
+   * Road reports for the view (the layer is off by default): drivers' reports and
+   * open-data closures. 'map' never includes police, here or on the server.
+   */
+  const roads = useRoads();
+  const { reports: roadReports } = useRoadReports({
+    centre: region.centre,
+    radiusMi: Math.min(50, Math.max(2, region.span * 69 * 0.75)),
+    context: 'map',
+    enabled: layers.roads,
+  });
+  const [roadNote, setRoadNote] = useState<{ id: string; text: string } | null>(null);
+  async function answerReport(r: RoadReport, vote: RoadVote) {
+    feel.select();
+    setRoadNote(null);
+    try {
+      await roads.answer(r.id, vote, here);
+      feel.success();
+      setRoadNote({ id: r.id, text: vote === 'still_there' ? 'Thanks. Marked as still there.' : 'Thanks. Marked as gone.' });
+    } catch (e) {
+      setRoadNote({ id: r.id, text: e instanceof Error ? e.message : 'Could not send that.' });
+    }
+  }
 
   /** Partners: the production list (empty until the backend) and the labelled demo samples near home. */
   const partners = useMemo(() => [...PARTNERS, ...demoPartners(DEMO_PARTNERS, meUser?.home)], [meUser?.home]);
@@ -272,6 +310,10 @@ export default function MapScreen() {
       for (const s of shopView.shops) pins.push({ id: `shop:${s.id}`, at: s.at, glyph: s.categories[0] ?? 'shop', colour: SHOP_COLOUR, title: s.name, size: shopPinSize(region.span) });
       for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30, badge: 'P' });
     }
+    for (const r of roadReports) {
+      if (r.path) paths.push({ id: `rrp:${r.id}`, coords: r.path, colour: ROAD_COLOUR, width: 4 });
+      pins.push({ id: `rr:${r.id}`, at: r.at, glyph: r.kind, colour: ROAD_COLOUR, title: KIND_INFO[r.kind].label, size: 30 });
+    }
     if (layers.track) {
       for (const { id, outline } of outlinesInView(places, region.centre, region.span))
         paths.push({ id: `ol:${id}`, coords: outline.path, colour: SPOT_COLOURS.track, width: 3 });
@@ -306,7 +348,7 @@ export default function MapScreen() {
     }
     return { pins: orderPins(pins), paths, circles, polygons };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [views, shown, placeView, cams, region.span, shopView]);
+  }, [views, shown, placeView, cams, region.span, shopView, roadReports]);
 
   /** A count pin: zoom in on it. */
   function zoomCluster(id: string) {
@@ -333,6 +375,42 @@ export default function MapScreen() {
       if (!pin) return null;
       const [what, ...rest] = pin.title.split(' · ');
       return { title: what, meta: rest.join(' · '), body: `${CAMERA_CAVEAT}\n${CAMERA_CREDIT}.`, colour: C.alert };
+    }
+    if (kind === 'rr') {
+      const r = roadReports.find((x) => x.id === key);
+      if (!r) return null;
+      const info = KIND_INFO[r.kind];
+      const sample = r.id.startsWith('demo-rr-');
+      const problem = answerProblem(r, roads.skipGps ? r.at : here, now);
+      const note =
+        roadNote?.id === r.id
+          ? roadNote.text
+          : r.source !== 'user'
+            ? undefined
+            : r.mine
+              ? 'Your report. Other drivers confirm or clear it.'
+              : r.myVote
+                ? `You said ${r.myVote === 'still_there' ? 'still there' : 'gone'}.`
+                : problem ?? undefined;
+      return {
+        title: r.source === 'user' ? info.label : [info.label, r.road].filter(Boolean).join(' · '),
+        meta: [r.source === 'user' ? `Reported ${reportAge(r.createdAt, now)}` : r.direction, confirmations(r)].filter(Boolean).join(' · '),
+        body: [
+          r.description,
+          r.source === 'user' ? `Ends ${reportEnds(r.expiresAt, now)} unless drivers confirm it.` : `Until ${reportEnds(r.expiresAt, now)}.`,
+          sample ? 'Sample report for the demo.' : null,
+        ].filter(Boolean).join('\n'),
+        colour: ROAD_COLOUR,
+        ...(note ? { note } : {}),
+        ...(r.source === 'user' && !problem && roadNote?.id !== r.id
+          ? {
+              actions: [
+                { label: 'Still there', onPress: () => answerReport(r, 'still_there'), colour: C.lime },
+                { label: 'Gone', onPress: () => answerReport(r, 'gone'), colour: C.fog },
+              ],
+            }
+          : {}),
+      };
     }
     if (kind === 'shop') {
       const s = shopIdx?.find(key);
@@ -398,13 +476,15 @@ export default function MapScreen() {
   }
 
   /** One short line under the bar: what to zoom in for, or the OpenStreetMap credit. */
+  const openDataCredit = Array.from(new Set(roadReports.filter((r) => r.source !== 'user').map((r) => sourceCredit(r)).filter(Boolean))).join(' · ');
   const mapNote = (() => {
     const zoom = [cams?.tooWide && camerasAsked ? 'CAMERAS' : null, shopView?.tooWide ? 'SHOPS' : null].filter(Boolean);
     if (shopView?.loading) return { zoom: true, text: shopsFailed ? "COULDN'T LOAD SHOPS" : 'LOADING SHOPS…' };
     if (zoom.length) return { zoom: true, text: `ZOOM IN TO SEE ${zoom.join(' AND ')}` };
     if (shopView && shopFilter.partnersOnly) return { zoom: false, text: `PARTNERS ONLY · ${shopView.partners.length} HERE` };
     const more = shopView?.more ? ' · nearest shops shown' : '';
-    return { zoom: false, text: `© OpenStreetMap${cams && !cams.tooWide ? ' · cameras may be incomplete' : ''}${more}` };
+    const closures = openDataCredit ? ` · closures: ${openDataCredit}` : '';
+    return { zoom: false, text: `© OpenStreetMap${cams && !cams.tooWide ? ' · cameras may be incomplete' : ''}${more}${closures}` };
   })();
   const [showKey, setShowKey] = useState(false);
   /** The layers button's menu, and where the button sits (to open the menu under it). */
@@ -502,7 +582,7 @@ export default function MapScreen() {
           ]}
         />
         <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-          {(cams && (!cams.tooWide || camerasAsked)) || shopView ? (
+          {(cams && (!cams.tooWide || camerasAsked)) || shopView || openDataCredit ? (
             <View style={st.credit} pointerEvents="none">
               <Txt v="mono" style={{ fontSize: 10, color: mapNote.zoom ? C.chalk : C.fog }} numberOfLines={2}>{mapNote.text}</Txt>
             </View>
@@ -526,7 +606,7 @@ export default function MapScreen() {
               onLayout={(e) => setLayersButtonY(e.nativeEvent.layout.y)}
               style={({ pressed }) => [st.locate, st.round, (showLayers || moreOn > 0) && { borderColor: C.kerbHi }, pressed && { opacity: 0.8 }]}
               accessibilityRole="button"
-              accessibilityLabel={`Map layers: venues, shops and speed cameras${moreOn > 0 ? `, ${moreOn} on` : ''}`}
+              accessibilityLabel={`Map layers: venues, shops, speed cameras and road reports${moreOn > 0 ? `, ${moreOn} on` : ''}`}
               accessibilityState={{ expanded: showLayers }}
               hitSlop={6}
             >
@@ -554,7 +634,7 @@ export default function MapScreen() {
       {/* Bottom-right, above the card: room for a small map widget (e.g. a speed readout). See MapWidgetSlot. */}
       <MapWidgetSlot />
       {sel ? (
-        <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} disabled={!sel.open} accessibilityRole={sel.open ? 'button' : 'summary'}>
+        <SelectionCard open={sel.open} colour={sel.colour}>
           <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
             <Txt v="h3" style={{ flex: 1 }} numberOfLines={1}>{sel.title}</Txt>
             <Pressable onPress={() => setSelected(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
@@ -562,13 +642,28 @@ export default function MapScreen() {
             </Pressable>
           </Row>
           <Txt v="mono" style={{ color: sel.colour }}>{sel.meta.toUpperCase()}</Txt>
-          <Txt v="muted">{sel.body}</Txt>
+          {sel.body ? <Txt v="muted">{sel.body}</Txt> : null}
+          {sel.note ? <Txt style={{ color: C.chalk, fontSize: 14 }}>{sel.note}</Txt> : null}
+          {sel.actions ? (
+            <Row gap={10} style={{ flexWrap: 'nowrap', marginTop: 2 }}>
+              {sel.actions.map((a) => (
+                <Pressable
+                  key={a.label}
+                  onPress={a.onPress}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [st.answer, { borderColor: a.colour }, pressed && { opacity: 0.7 }]}
+                >
+                  <Txt v="label" style={{ color: a.colour, fontSize: 15 }}>{a.label}</Txt>
+                </Pressable>
+              ))}
+            </Row>
+          ) : null}
           {sel.cta ? (
             <View style={[st.cta, { borderColor: sel.colour }]}>
               <Txt v="label" style={{ color: sel.colour }}>{sel.cta}</Txt>
             </View>
           ) : null}
-        </Pressable>
+        </SelectionCard>
       ) : lead ? (
         <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
       ) : null}
@@ -739,6 +834,33 @@ export default function MapScreen() {
   );
 }
 
+/** The card for the tapped pin: a button when it opens something, else a plain card (its own buttons stay live). */
+function SelectionCard({ open, colour, children }: { open?: () => void; colour: string; children: ReactNode }) {
+  if (!open) {
+    return (
+      <View style={[st.peek, { borderLeftColor: colour }]} accessibilityRole="summary">
+        {children}
+      </View>
+    );
+  }
+  return (
+    <Pressable style={[st.peek, { borderLeftColor: colour }]} onPress={open} accessibilityRole="button">
+      {children}
+    </Pressable>
+  );
+}
+
+/** "at 22:40", or "tomorrow at 09:00" / "on Fri 21 Nov". */
+function reportEnds(iso: string, now: Date): string {
+  const d = new Date(iso);
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const day = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  if (day(d) === day(now)) return `at ${hm}`;
+  const tomorrow = new Date(now.getTime() + 86_400_000);
+  if (day(d) === day(tomorrow)) return `tomorrow at ${hm}`;
+  return `on ${d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+}
+
 /** The bottom HUD card: what's on now, or the next thing you're part of, with a countdown. */
 function NextUp({ lead, after, tonight, now }: { lead: EventView; after: EventView | null; tonight: number; now: Date }) {
   const e = lead.event;
@@ -818,6 +940,7 @@ const st = StyleSheet.create({
     backgroundColor: 'rgba(11,15,23,0.85)', borderColor: C.kerb, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3,
     flexShrink: 1, marginRight: 8, marginTop: 2,
   },
+  answer: { flex: 1, minHeight: 44, borderWidth: 1.5, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   peek: {
     backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1,
     borderLeftWidth: 3, borderRadius: 8, padding: 14, gap: 6,
