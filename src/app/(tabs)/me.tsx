@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, View } from 'react-native';
+import { AppUpdates } from '../../components/AppUpdates';
 import { Pin } from '../../components/Pin';
 import { TravelPrefs } from '../../components/TravelPrefs';
 import { LevelTag, RepPanel, useRep } from '../../components/Rep';
@@ -212,6 +213,10 @@ export default function Me() {
           onChange={(v) => setSettings({ pttStrangers: v })}
           later
         />
+      </Section>
+
+      <Section title="App updates">
+        <AppUpdates />
       </Section>
 
       <Section title="Demo">
