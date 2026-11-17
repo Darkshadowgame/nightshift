@@ -35,6 +35,8 @@ const ASP_CHOICES: { key: Aspiration; label: string }[] = [
   { key: 'd', label: 'Diesel' },
   { key: 'n', label: 'Non-turbo' },
   { key: 's', label: 'Supercharged' },
+  { key: 'h', label: 'Hybrid' },
+  { key: 'e', label: 'Electric' },
 ];
 
 /**
