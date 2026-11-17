@@ -129,14 +129,29 @@ export function StatBar({ label, value, colour = C.sodium }: { label: string; va
   );
 }
 
-export function Section({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
+/**
+ * A titled block. Every screen uses this for its sections so headers share one
+ * rhythm: eyebrow title, a hairline running to the edge, optional action.
+ */
+export function Section({ title, children, right, colour }: { title: string; children: ReactNode; right?: ReactNode; colour?: string }) {
   return (
     <View style={{ gap: 10 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Txt v="eyebrow">{title}</Txt>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} accessibilityRole="header">
+        <Txt v="eyebrow" style={colour ? { color: colour } : undefined}>{title}</Txt>
+        <View style={[s.rule, colour ? { backgroundColor: `${colour}40` } : null]} />
         {right}
       </View>
       {children}
+    </View>
+  );
+}
+
+/** A big number with a small label under it: the HUD readout used on events and builds. */
+export function Stat({ value, label, colour, style }: { value: string; label: string; colour?: string; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[s.stat, style]} accessibilityLabel={`${label} ${value}`}>
+      <Text style={[s.statValue, colour ? { color: colour } : null]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={s.statLabel} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -152,6 +167,10 @@ export const s = StyleSheet.create({
   btnText: { fontFamily: F.labelBold, fontSize: 15, letterSpacing: 2, textTransform: 'uppercase' },
   card: { backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderRadius: 8, padding: 14, gap: 8 },
   badge: { borderWidth: 2, borderRadius: 4, alignItems: 'center', justifyContent: 'center', transform: [{ skewX: '-8deg' }], backgroundColor: C.asphalt },
+  rule: { flex: 1, height: 1, backgroundColor: C.kerb },
+  stat: { flex: 1, backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 9, gap: 1 },
+  statValue: { fontFamily: F.display, fontSize: 20, color: C.chalk, fontVariant: ['tabular-nums'] },
+  statLabel: { fontFamily: F.label, fontSize: 10, letterSpacing: 1.2, color: C.fog, textTransform: 'uppercase' },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   barLabel: { width: 74, fontFamily: F.label, fontSize: 12, letterSpacing: 1.2, color: C.fog, textTransform: 'uppercase' },
   barTrack: { flex: 1, height: 7, backgroundColor: C.kerb, borderRadius: 4, overflow: 'hidden' },

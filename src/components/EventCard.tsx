@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
-import { EVENT_LABELS } from '../lib/events';
+import { endTime, EVENT_LABELS } from '../lib/events';
+import { countdown } from '../lib/hud';
 import type { EventView } from '../lib/eventView';
 import { formatWhen } from '../lib/format';
 import { describeFilter } from '../lib/invites';
@@ -20,7 +21,13 @@ export function EventCard({ view, now }: { view: EventView; now: Date }) {
       : role === 'requested'
         ? `${e.areaName} · waiting for a host to say yes`
         : `${e.areaName} · location locked`;
-  const when = phase === 'live' ? 'Live now' : phase === 'cancelled' ? 'Cancelled' : phase === 'over' ? 'Finished' : formatWhen(e.startsAt, now);
+  const soon = (phase === 'upcoming' || phase === 'revealed') && new Date(e.startsAt).getTime() - now.getTime() < 24 * 3_600_000;
+  const when =
+    phase === 'live' ? `Live · ends in ${countdown(endTime(e), now)}`
+      : phase === 'cancelled' ? 'Cancelled'
+        : phase === 'over' ? 'Finished'
+          : soon ? `${formatWhen(e.startsAt, now)} · in ${countdown(e.startsAt, now)}`
+            : formatWhen(e.startsAt, now);
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}

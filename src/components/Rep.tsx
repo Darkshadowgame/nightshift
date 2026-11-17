@@ -64,7 +64,7 @@ export function RepPanel({ ledger, level, title = 'Rep' }: { ledger: RepLedger; 
       </View>
       <Txt v="mono">{nf(level.next - level.rep)} TO LEVEL {level.level + 1}</Txt>
       <View style={{ gap: 6, marginTop: 4 }}>
-        {ledger.lines.map((l) => (
+        {ledger.lines.filter((l) => l.count > 0).map((l) => (
           <Row key={l.source} style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
             <Txt v="muted" style={{ flex: 1 }}>
               {l.label} <Txt v="mono">×{l.count}</Txt>
@@ -72,6 +72,11 @@ export function RepPanel({ ledger, level, title = 'Rep' }: { ledger: RepLedger; 
             <Txt v="mono" style={{ color: l.rep > 0 ? C.sodium : C.fog }}>+{nf(l.rep)}</Txt>
           </Row>
         ))}
+        {ledger.lines.some((l) => l.count === 0) ? (
+          <Txt v="muted" style={{ fontSize: 12 }}>
+            Still to earn: {ledger.lines.filter((l) => l.count === 0).map((l) => l.label.toLowerCase()).join(', ')}.
+          </Txt>
+        ) : null}
       </View>
     </Card>
   );

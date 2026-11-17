@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { C } from '../theme';
+import { pinLayer } from '../lib/hud';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import type { NightMapProps } from './mapTypes';
@@ -66,6 +67,7 @@ export function NightMap({
           coordinate={{ latitude: p.at.lat, longitude: p.at.lng }}
           onPress={() => onSelect?.(p.id)}
           tracksViewChanges={!!p.live}
+          zIndex={pinLayer(p)}
           anchor={{ x: 0.5, y: 0.5 }}
           accessibilityLabel={p.live ? `${p.title}, live now` : p.title}
         >

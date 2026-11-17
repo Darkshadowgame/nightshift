@@ -73,6 +73,23 @@ export function PulseRing({ live, colour, size, pad, children }: { live: boolean
 }
 
 // ---------------------------------------------------------------------------
+// Fade up: list items and mod tags settle in on first show, staggered.
+// 220 ms out-quad, 8 px rise (C1 "garage hero / mod tags"). Reduced motion: a
+// plain 150 ms fade.
+// ---------------------------------------------------------------------------
+
+export function FadeUp({ index = 0, stagger = 40, children, style }: { index?: number; stagger?: number; children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const reduced = useReducedMotion();
+  const p = useSharedValue(0);
+  useEffect(() => {
+    const delay = Math.min(index, 10) * stagger;
+    p.value = withDelay(delay, withTiming(1, { duration: reduced ? 150 : 220, easing: Easing.out(Easing.quad) }));
+  }, [index, stagger, reduced, p]);
+  const anim = useAnimatedStyle(() => (reduced ? { opacity: p.value } : { opacity: p.value, transform: [{ translateY: 8 * (1 - p.value) }] }));
+  return <Animated.View style={[style, anim]}>{children}</Animated.View>;
+}
+
+// ---------------------------------------------------------------------------
 // Sparks: a one-off burst of small dots, used by check-in and trophies.
 // ---------------------------------------------------------------------------
 
