@@ -5,9 +5,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from './backend/client';
 import { AUTH_REDIRECT } from './backend/config';
 import { LEGACY_KEY, sliceKey } from './persist';
-import { authMessage, emailProblem, parseAuthLink, type AuthLink } from './authLink';
+import { authMessage, emailProblem, isReviewEmail, parseAuthLink, type AuthLink } from './authLink';
 
-export { authMessage, emailProblem };
+export { authMessage, emailProblem, isReviewEmail };
 
 /**
  * Who's using the app:
@@ -31,6 +31,8 @@ interface Auth {
   sendCode(email: string): Promise<void>;
   /** The 6-digit code from the email. */
   verifyCode(email: string, code: string): Promise<void>;
+  /** App Review's account only (isReviewEmail): an email and password the owner set up. */
+  signInWithPassword(email: string, password: string): Promise<void>;
   /** A sign-in link (opened from the email, or pasted). Resolves false if it isn't one. */
   openLink(url: string): Promise<boolean>;
   startDemo(): Promise<void>;
@@ -155,6 +157,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token.length !== 6) throw new Error('Enter the 6-digit code from the email.');
         try {
           const { data, error } = await supabase().auth.verifyOtp({ email: raw.trim().toLowerCase(), token, type: 'email' });
+          if (error) throw error;
+          if (data.session) await signedIn(data.session);
+        } catch (e) {
+          throw new Error(authMessage(e));
+        }
+      },
+      async signInWithPassword(raw, password) {
+        const problem = emailProblem(raw);
+        if (problem) throw new Error(problem);
+        if (!password) throw new Error('Add the password.');
+        try {
+          const { data, error } = await supabase().auth.signInWithPassword({ email: raw.trim().toLowerCase(), password });
           if (error) throw error;
           if (data.session) await signedIn(data.session);
         } catch (e) {

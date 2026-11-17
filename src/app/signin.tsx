@@ -1,10 +1,54 @@
-import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, InlineError, LinkText, Row, Section, Txt, s as ui } from '../components/ui';
+import { openLegal } from '../components/AboutSection';
 import { Wordmark } from '../components/Wordmark';
-import { useAuth } from '../lib/auth';
-import { C } from '../theme';
+import { isReviewEmail, useAuth } from '../lib/auth';
+import { BRAND, C } from '../theme';
+
+/** Set once someone ticks the 18+ and terms box, so it stays ticked next time. Bump the date when the terms change. */
+const AGREED_KEY = 'nightshift.agreed';
+const TERMS_VERSION = '2026-11-17';
+
+/** "I'm 18 or over and agree…": required before an account is made (App Store 1.2 and the Terms). */
+function AgreeRow({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Pressable
+        onPress={() => onChange(!on)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: on }}
+        accessibilityLabel="I'm 18 or over and I agree to the Terms of Use and Community Guidelines"
+        hitSlop={8}
+        style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', minHeight: 44 }}
+      >
+        <View
+          style={{
+            width: 24,
+            height: 24,
+            marginTop: 1,
+            borderRadius: 6,
+            borderWidth: 2,
+            borderColor: on ? BRAND : C.fog,
+            backgroundColor: on ? BRAND : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {on ? <Txt style={{ color: C.ink, fontSize: 16, lineHeight: 18 }}>✓</Txt> : null}
+        </View>
+        <Txt style={{ flex: 1 }}>I'm 18 or over and I agree to the Terms of Use and Community Guidelines. Zero tolerance for abuse, harassment or organising street racing.</Txt>
+      </Pressable>
+      <Row gap={16}>
+        <LinkText label="Terms ›" onPress={() => openLegal('terms')} />
+        <LinkText label="Community rules ›" onPress={() => openLegal('guidelines')} />
+        <LinkText label="Privacy ›" onPress={() => openLegal('privacy')} />
+      </Row>
+    </View>
+  );
+}
 
 /**
  * First run: sign in with an email code, or try the demo without an account.
@@ -27,6 +71,21 @@ export default function SignIn() {
   const setError = (x: null) => setErrorState(x);
   const errorAt = (at: NonNullable<typeof busy> | 'code') => (error && (error.at === at || (at === 'code' && (error.at === 'verify' || (error.at === 'send' && !!sentTo)))) ? error.text : null);
   const [note, setNote] = useState<string | null>(null);
+  const [agreed, setAgreedState] = useState(false);
+  const [password, setPassword] = useState('');
+  const review = isReviewEmail(email);
+  useEffect(() => {
+    AsyncStorage.getItem(AGREED_KEY)
+      .then((v) => v === TERMS_VERSION && setAgreedState(true))
+      .catch(() => {});
+  }, []);
+  const setAgreed = (v: boolean) => {
+    setAgreedState(v);
+    (v ? AsyncStorage.setItem(AGREED_KEY, TERMS_VERSION) : AsyncStorage.removeItem(AGREED_KEY)).catch(() => {});
+  };
+  const mustAgree = () => {
+    if (!agreed) throw new Error('Tick the box to confirm you are 18 or over and agree to the terms.');
+  };
 
   async function run(kind: NonNullable<typeof busy>, fn: () => Promise<void>) {
     setError(null);
@@ -43,6 +102,7 @@ export default function SignIn() {
 
   const send = () =>
     run('send', async () => {
+      mustAgree();
       await auth.sendCode(email);
       setSentTo(email.trim().toLowerCase());
       setCode('');
@@ -83,7 +143,33 @@ export default function SignIn() {
             onSubmitEditing={send}
             accessibilityLabel="Email address"
           />
-          <Button label="Email me a code" onPress={send} busy={busy === 'send'} />
+          {review ? (
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password (App Review account)"
+              placeholderTextColor={C.fog}
+              style={ui.input}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={() => run('send', async () => { mustAgree(); await auth.signInWithPassword(email, password); })}
+              accessibilityLabel="Password"
+            />
+          ) : null}
+          <AgreeRow on={agreed} onChange={setAgreed} />
+          {review ? (
+            <Button
+              label="Sign in with password"
+              onPress={() => run('send', async () => { mustAgree(); await auth.signInWithPassword(email, password); })}
+              busy={busy === 'send'}
+              disabled={!password}
+            />
+          ) : (
+            <Button label="Email me a code" onPress={send} busy={busy === 'send'} />
+          )}
           <InlineError message={errorAt('send')} />
           <Txt v="caption">No password. We email you a 6-digit code each time you sign in. New here? The same code makes your account.</Txt>
         </Section>

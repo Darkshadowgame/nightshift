@@ -71,12 +71,22 @@ export function emailProblem(raw: string): string | null {
   return null;
 }
 
+/**
+ * App Review's account (docs/APP-STORE.md): any address whose name starts
+ * "appreview" also gets a password box, because a reviewer can't read our
+ * emails. Only an account the owner made with a password can use it.
+ */
+export function isReviewEmail(raw: string): boolean {
+  return /^appreview[^@]*@[^\s@]+\.[^\s@]+$/i.test(raw.trim());
+}
+
 /** Supabase's answers, in the app's words. */
 export function authMessage(e: unknown): string {
   if (isNetworkError(e)) return OFFLINE;
   const msg = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e);
   if (/expired|invalid.*(otp|token)|token.*(invalid|expired)|otp_expired/i.test(msg)) return 'That code is wrong or has expired. Ask for a new one.';
   if (/rate limit|too many|security purposes|after \d+ seconds/i.test(msg)) return 'Too many tries. Wait a minute, then ask for a new code.';
+  if (/invalid login credentials/i.test(msg)) return "That email and password don't match.";
   if (/signups? not allowed/i.test(msg)) return 'New accounts are closed right now.';
   if (/error sending|smtp|email.*(address|recipient).*not authorized/i.test(msg))
     return "The sign-in email couldn't be sent to that address yet. Until Nightshift's own email is set up, only the project team can sign in. Try the demo for now.";

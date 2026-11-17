@@ -5,6 +5,7 @@ racing game: garages for cars and bikes with S–D classes, game-style map pins,
 and cruises, rolling meets, meets, shows and track days with filtered invites.
 
 * Phase 1 spec: [docs/SPEC.md](docs/SPEC.md)
+* App Store submission: [docs/APP-STORE.md](docs/APP-STORE.md) (checklist, listing copy, privacy label, review notes). Legal and support pages: https://darkshadowgame.github.io/nightshift/ (source in `site/`)
 
 ## Status
 

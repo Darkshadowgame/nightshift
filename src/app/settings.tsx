@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { AboutSection } from '../components/AboutSection';
 import { AccountSection } from '../components/AccountSection';
 import { AppUpdates } from '../components/AppUpdates';
 import { TravelPrefs } from '../components/TravelPrefs';
@@ -24,7 +25,7 @@ const LAYER_ROWS: { key: Layer; label: string; hint?: string }[] = [
   { key: 'venue', label: PLACE_NAMES.venue.many, hint: 'Cafés and museums that welcome meets.' },
   { key: 'shops', label: 'Shops', hint: 'Car and bike businesses from OpenStreetMap, and partners (always marked).' },
   { key: 'cameras', label: 'Speed cameras', hint: `Fixed cameras and average-speed zones, once you zoom in. ${CAMERA_CAVEAT}` },
-  { key: 'roads', label: 'Road reports', hint: "Drivers' reports and road closures. Police checks only ever show while navigating." },
+  { key: 'roads', label: 'Road reports', hint: "Drivers' reports and road closures. Some reports only show in the driving view, along your route." },
 ];
 
 /**
@@ -155,6 +156,8 @@ export default function SettingsScreen() {
       </Section>
 
       <AccountSection />
+
+      <AboutSection />
 
       {backend === 'local' ? (
         <Section title="Demo">

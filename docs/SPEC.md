@@ -682,7 +682,8 @@ Owner's request: "Obviously you need to use real maps and location."
    stage, quick-pick mod chips and the mods list with bhp gains.
 8. **Me:** profile, rep and level with a breakdown, crew and your places (Suggest a place).
    **Settings** (header button): map layers, events near you (willing to travel, new-event
-   alerts), reminders, navigation, privacy, account, demo controls (demo only: skip the GPS
+   alerts), reminders, navigation, privacy, account, about and legal (the site/ pages and a
+   credits screen), demo controls (demo only: skip the GPS
    check, restart the demo events, reset data) and app updates.
 
 9. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.

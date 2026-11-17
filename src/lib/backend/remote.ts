@@ -702,23 +702,34 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     },
 
     async deleteAccount() {
-      // Storage first (Supabase doesn't let SQL delete files): everything under photos/{uid}/.
-      const files: string[] = [];
-      const walk = async (prefix: string, depth: number) => {
-        if (depth > 4) return;
-        const { data, error } = await client.storage.from('photos').list(prefix, { limit: 1000 });
-        if (error) throw new Error(isNetworkError(error) ? OFFLINE : error.message);
-        for (const f of data ?? []) {
-          const path = `${prefix}/${f.name}`;
-          if (f.id) files.push(path);
-          else await walk(path, depth + 1);
+      // Storage first (Supabase doesn't let SQL delete files): everything under
+      // photos/{uid}/ and, once Community is live, the photos you sent in
+      // messages (messages/{uid}/...). A bucket that doesn't exist yet is skipped.
+      const clearFolder = async (bucket: string, optional: boolean) => {
+        const files: string[] = [];
+        const walk = async (prefix: string, depth: number): Promise<boolean> => {
+          if (depth > 4) return true;
+          const { data, error } = await client.storage.from(bucket).list(prefix, { limit: 1000 });
+          if (error) {
+            if (isNetworkError(error)) throw new Error(OFFLINE);
+            if (optional && depth === 0) return false;
+            throw new Error(error.message);
+          }
+          for (const f of data ?? []) {
+            const path = `${prefix}/${f.name}`;
+            if (f.id) files.push(path);
+            else await walk(path, depth + 1);
+          }
+          return true;
+        };
+        if (!(await walk(uid, 0))) return;
+        for (let i = 0; i < files.length; i += 100) {
+          const { error } = await client.storage.from(bucket).remove(files.slice(i, i + 100));
+          if (error) throw new Error(isNetworkError(error) ? OFFLINE : error.message);
         }
       };
-      await walk(uid, 0);
-      for (let i = 0; i < files.length; i += 100) {
-        const { error } = await client.storage.from('photos').remove(files.slice(i, i + 100));
-        if (error) throw new Error(isNetworkError(error) ? OFFLINE : error.message);
-      }
+      await clearFolder('photos', false);
+      await clearFolder('messages', true);
       await rpc('delete_my_account');
     },
   };

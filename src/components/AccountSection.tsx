@@ -55,7 +55,7 @@ export function AccountSection() {
       </Card>
       {confirmDelete ? (
         <ConfirmBox
-          message="Delete your account? This deletes your profile, home area, garage and photos, check-ins, chat, votes, notices and crew place, straight away. Events only you host are cancelled; crews you own pass to a host. Places you suggested stay, without your name. It can't be undone."
+          message="Delete your account? This deletes your profile, home area, garage and photos, check-ins, chat, posts and messages, votes, notices and crew place, straight away. Events only you host are cancelled; crews you own pass to a host. Places you suggested stay, without your name. It can't be undone."
           verb="Delete"
           busy={busy === 'delete'}
           error={error}
