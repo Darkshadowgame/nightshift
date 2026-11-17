@@ -630,7 +630,12 @@ Owner's request: "Obviously you need to use real maps and location."
   2027), the Black Country injunction (Wolverhampton, Sandwell and Walsall, 3pm to
   7am, to 1 Mar 2027), Dudley's borough-wide PSPO (it left the injunction in Feb
   2026), Coventry's city-wide nuisance-vehicle PSPO, and Broadland and South
-  Norfolk. Solihull has no current order. The rest are circles: the Westminster and Kensington
+  Norfolk; and, from the Nov 2026 sweep (`docs/research/ban-zones-checked.md`),
+  Stevenage (injunction to 31 Jan 2028), Brent, Southend, Braintree, Breckland, East
+  Cambridgeshire, Milton Keynes, Bassetlaw (12 noon to 6am), Ashfield, Newcastle-under-Lyme,
+  West Northamptonshire, Redcar and Cleveland and North Somerset. Gedling's
+  Netherfield order uses the council's own map. Solihull now has a street-racing PSPO
+  on Damson and Bickenhill Parkways (a circle). The rest are circles: the Westminster and Kensington
   injunction (revving and dangerous driving 18:00–07:00), Enfield, Great Yarmouth,
   Felixstowe, Norwich, Broadland and South Norfolk, Cromer, Halstead and Polhill,
   and the Medway, Dartford and Sheerness dispersal hotspots. Each is marked

@@ -1,4 +1,5 @@
 import type { BanZone } from '../../lib/types';
+import { REDCAR_CLEVELAND } from '../zoneBoundaries';
 import type { PlaceSeed } from '../places';
 
 /**
@@ -572,12 +573,12 @@ export const banZones: BanZone[] = [
   },
   {
     id: 'bz-ne-stockport', name: 'Stockport', centre: { lat: 53.4, lng: -2.15 }, radiusMiles: 4,
-    note: `${CHECK} Borough-wide car-cruising PSPO since 2017. It lapsed in March 2026 and the council consulted on bringing it back to May 2029, so treat it as in force.`,
+    note: `${CHECK} Borough-wide car-cruising PSPO since 2017. The old order ended on 17 Mar 2026; after a consultation the renewal was approved in Jun 2026 and runs to 4 May 2029. It bans convoys, so a cruise through Stockport may breach it.`,
     source: 'https://www.stockport.gov.uk/pspo/car-cruising-pspo',
   },
   {
     id: 'bz-ne-trafford', name: 'Trafford (incl. Trafford Park)', centre: { lat: 53.445, lng: -2.33 }, radiusMiles: 4.5,
-    note: `${CHECK} Car-cruising PSPO (Trafford Park since 2017, whole borough from 2023 to Aug 2026; renewal not confirmed). Meet attendees were fined about £15k in 2025.`,
+    note: `${CHECK} Car-cruising PSPO (Trafford Park since 2016, whole borough from Aug 2023). That order ran to Aug 2026 and no renewal was found when checked in Nov 2026, so it may have lapsed; Trafford Park is still a police hotspot. Meet attendees were fined about £15k in 2025.`,
     source: 'https://democratic.trafford.gov.uk/ieDecisionDetails.aspx?ID=878',
   },
   {
@@ -587,12 +588,21 @@ export const banZones: BanZone[] = [
   },
   {
     id: 'bz-ne-bromborough', name: 'Bromborough industrial estate (Wirral)', centre: { lat: 53.338, lng: -2.975 }, radiusMiles: 1,
-    note: `${CHECK} PSPO from 16 Jul 2025 against racing and dangerous driving after large car and bike gatherings on Riverview Road. Circle position is approximate.`,
+    note: `${CHECK} PSPO against racing and dangerous driving after large car and bike gatherings on Riverview Road (public roads between New Chester Road and the Mersey, plus Croft Retail Park and Asda car parks). The first order lapsed in 2025 and was renewed in Jul 2025, probably for three years. Circle position is approximate.`,
     source: 'https://haveyoursay.wirral.gov.uk/we-asked-you-said-we-did/news_feed/bromborough-industrial-estate-public-spaces-protection-order',
   },
   {
     id: 'bz-ne-pimbo', name: 'Pimbo industrial estate (Skelmersdale)', centre: { lat: 53.537, lng: -2.745 }, radiusMiles: 0.8,
-    note: `${CHECK} PSPO since 2022, renewed in 2025, against car meets on the estate: bans racing, revving, stunts, convoys and timed runs. Circle position is approximate.`,
+    note: `${CHECK} PSPO since 2022, extended in Jul 2025 for three years (to about Jul 2028), against car meets on the estate: bans racing, revving, stunts, convoys and timed runs. Circle position is approximate.`,
     source: 'https://www.westlancs.gov.uk/pspo',
+  },
+  {
+    id: 'bz-ne-redcar', name: 'Redcar and Cleveland', centre: { lat: 54.56, lng: -1.0 }, radiusMiles: 9,
+    polygons: REDCAR_CLEVELAND,
+    kind: 'pspo',
+    bans: 'Nuisance driving anywhere in the borough, plus driving or parking on the beaches and e-scooter misuse in Redcar, Guisborough and Saltburn.',
+    note: `${CHECK} Borough-wide vehicle nuisance PSPO (formerly the Majuba order), renewed to 31 Dec 2028.`,
+    source: 'https://www.redcar-cleveland.gov.uk/community-safety/neighbourhood-services/public-space-protection-orders-pspos/vehicle-nuisance-pspo',
+    checked: '2026-11-17',
   },
 ];

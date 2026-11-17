@@ -41,11 +41,12 @@ describe('West Midlands orders (checked 17 Nov 2026)', () => {
     expect(dudley).not.toContain('bz-blackcountry');
   });
 
-  test('venues inside an order carry the warning; Solihull has no current order', () => {
+  test('venues inside an order carry the warning', () => {
     const spot = (id: string) => bundledSpots().find((s) => s.id === id)!;
     expect(PLACES.some((p) => p.id === 'mw-v-coventry-transport-museum')).toBe(true);
     expect(spot('mw-v-coventry-transport-museum').banZoneIds).toContain('bz-mw-coventry');
-    expect(spot('mw-v-national-motorcycle-museum').banZoneIds).toBeUndefined();
+    // Solihull's 2026 street-racing PSPO is only round Damson and Bickenhill Parkways.
+    expect(ids({ lat: 52.413, lng: -1.778 })).toEqual([]); // Solihull town centre
   });
 
   test('no nested duplicates: the old city-centre circle is gone and Norwich is not inside the districts round it', () => {
@@ -53,6 +54,31 @@ describe('West Midlands orders (checked 17 Nov 2026)', () => {
     expect(inZone(byId('bz-norwich').centre, byId('bz-broadland-south-norfolk'))).toBe(false);
     expect(ids({ lat: 52.66, lng: 1.12 })).toContain('bz-broadland-south-norfolk'); // Longwater
     expect(new Set(BAN_ZONES.map((z) => z.id)).size).toBe(BAN_ZONES.length);
+  });
+});
+
+describe('Nov 2026 sweep (checked 17 Nov 2026)', () => {
+  test('borough-wide orders cover their towns and stop at the border', () => {
+    expect(ids({ lat: 53.302, lng: -1.124 })).toContain('bz-mw-bassetlaw'); // Worksop
+    expect(ids({ lat: 52.237, lng: -0.897 })).toContain('bz-mw-west-northants'); // Northampton
+    expect(ids({ lat: 52.399, lng: 0.262 })).toContain('bz-east-cambs'); // Ely
+    expect(ids({ lat: 51.903, lng: -0.202 })).toContain('bz-stevenage');
+    expect(ids({ lat: 52.041, lng: -0.759 })).toContain('bz-milton-keynes'); // Central Milton Keynes
+    expect(ids({ lat: 51.538, lng: 0.711 })).toContain('bz-southend');
+    expect(ids({ lat: 52.205, lng: 0.119 })).toEqual([]); // Cambridge, no order
+    expect(ids({ lat: 52.136, lng: -0.467 })).toEqual([]); // Bedford, no order
+  });
+
+  test("Gedling's order is the council's own map, not the whole borough", () => {
+    expect(ids({ lat: 52.966, lng: -1.069 })).toContain('bz-mw-gedling'); // Netherfield and Colwick
+    expect(ids({ lat: 53.011, lng: -1.114 })).not.toContain('bz-mw-gedling'); // Arnold, elsewhere in Gedling
+  });
+
+  test('every zone has a source and a centre inside its own outline', () => {
+    for (const z of BAN_ZONES) {
+      expect(z.source).toMatch(/^https:/);
+      if (z.polygons) expect(inZone(z.centre, z)).toBe(true);
+    }
   });
 });
 

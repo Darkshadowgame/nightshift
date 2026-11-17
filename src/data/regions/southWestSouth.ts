@@ -1,4 +1,5 @@
 import type { BanZone, LatLng } from '../../lib/types';
+import { NORTH_SOMERSET } from '../zoneBoundaries';
 import type { PlaceSeed } from '../places';
 
 /**
@@ -552,7 +553,65 @@ export const banZones: BanZone[] = [
   },
   {
     id: 'bz-sws-basingstoke', name: 'Basingstoke', centre: { lat: 51.262, lng: -1.087 }, radiusMiles: 3,
-    note: `${CHECK} Hampshire police have used Section 35 dispersal orders over a large part of Basingstoke against car meets (July 2024, June 2025); hotspots Asda Brighton Hill and Stroudley Road. Not a standing order, but expect them.`,
+    note: `${CHECK} Hampshire police have used Section 35 dispersal orders over a large part of Basingstoke against car meets (July 2024, June 2025; none found in 2026); hotspots Asda Brighton Hill and Stroudley Road. The council has no vehicle PSPO. Not a standing order, but expect them.`,
     source: 'https://www.hellorayo.co.uk/hits-radio/berkshire-north-hampshire/news/dispersal-order-basingstoke',
+  },
+  {
+    id: 'bz-sws-north-somerset', name: 'North Somerset', centre: { lat: 51.39, lng: -2.8 }, radiusMiles: 12,
+    polygons: NORTH_SOMERSET,
+    kind: 'pspo',
+    bans: 'Revving, driving to cause alarm or nuisance, gathering round parked cars, doughnuts, drifting and wheelspins, loud exhausts or music, and obstruction.',
+    note: `${CHECK} District-wide (area-wide) PSPO with vehicle clauses. The 2023 order ran to 12 Oct 2026; the council says its orders were renewed after a 2026 review, but the new text was not yet published when checked. Sainsbury's at Worle is a known meet spot.`,
+    source: 'https://n-somerset.gov.uk/my-services/community-safety-crime/public-space-protection-orders/area-wide-orders',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-sws-plymouth-centre', name: 'Plymouth city-centre car parks', centre: { lat: 50.372, lng: -4.144 }, radiusMiles: 0.6,
+    kind: 'pspo',
+    bans: 'Occupying, loitering or gathering in the named car parks for anything but parking; brought in against large car meets and motorbike racing.',
+    note: `${CHECK} Car-park PSPO approved Sep 2025 for three years (to about Sep 2028): Regent Street, Theatre Royal, Colin Campbell Court, Western Approach, Napier Street and Mayflower East. Circle is approximate.`,
+    source: 'https://democracy.plymouth.gov.uk/ieDecisionDetails.aspx?ID=4650',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-sws-mount-batten', name: 'Mount Batten and Jennycliff (Plymouth)', centre: { lat: 50.354, lng: -4.127 }, radiusMiles: 0.7,
+    kind: 'pspo',
+    bans: 'Occupying, loitering or gathering in the car parks for anything but parking; brought in against large car meets and motorbike racing.',
+    note: `${CHECK} The same Plymouth car-park PSPO (Sep 2025, three years) covers Jennycliff, Mount Batten Pier and Mount Batten Castle car parks. Circle is approximate.`,
+    source: 'https://democracy.plymouth.gov.uk/ieDecisionDetails.aspx?ID=4650',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-sws-eastbourne', name: 'Eastbourne seafront and Beachy Head', centre: { lat: 50.757, lng: 0.27 }, radiusMiles: 2.2,
+    kind: 'pspo',
+    hours: '1 April to 31 October',
+    bans: 'From 1 April to 31 October: revving, rapid acceleration, racing, excessive vehicle noise and driving off-road on public land along the seafront and Beachy Head roads.',
+    note: `${CHECK} Eastbourne anti-social driving PSPO (made 2022, renewed in 2025 for about three years, per local news) on about 15 roads: Royal, Marine, Grand, King Edwards and Prince William Parades, Dukes Drive, Beachy Head Road, Warren Hill and parts of East Dean Road. Circle is approximate.`,
+    source: 'https://democracy.lewes-eastbourne.gov.uk/documents/s23095/Eastbourne%20Public%20Spaces%20Protection%20Anti-social%20Driving%20Order%202022.pdf',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-sws-cobham-services', name: 'Cobham Services (M25)', centre: { lat: 51.32, lng: -0.393 }, radiusMiles: 0.7,
+    kind: 'dispersal',
+    bans: 'Police can order car-meet groups to leave for up to 48 hours and seize vehicles driven anti-socially.',
+    note: `${CHECK} Surrey Police have used repeated dispersal orders against car meets here (Aug 2025, May and Jun 2026), alongside Brooklands and Waterside Drive. Not a standing order, but expect them.`,
+    source: 'https://ground.news/article/police-say-a-dispersal-order-will-be-in-place-at-cobham-services-and-brooklands-industrial-park-this-weekend',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-sws-brooklands', name: 'Brooklands, Weybridge', centre: { lat: 51.352, lng: -0.473 }, radiusMiles: 0.8,
+    kind: 'dispersal',
+    bans: 'Police can order car-meet groups to leave for up to 48 hours and seize vehicles driven anti-socially.',
+    note: `${CHECK} Surrey Police have used repeated dispersal orders against car meets at the Brooklands industrial estate (Aug 2025, May and Jun 2026). Not a standing order, but expect them. Brooklands Museum events are not the target.`,
+    source: 'https://ground.news/article/police-say-a-dispersal-order-will-be-in-place-at-cobham-services-and-brooklands-industrial-park-this-weekend',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-sws-walton-waterside', name: 'Waterside Drive, Walton-on-Thames', centre: { lat: 51.395, lng: -0.42 }, radiusMiles: 0.5,
+    kind: 'dispersal',
+    bans: 'Police can order car-meet groups to leave for up to 48 hours and seize vehicles driven anti-socially.',
+    note: `${CHECK} Named with Cobham Services and Brooklands in Surrey Police's 2026 car-meet dispersal orders. Not a standing order, but expect them. Circle is approximate.`,
+    source: 'https://ground.news/article/police-say-a-dispersal-order-will-be-in-place-at-cobham-services-and-brooklands-industrial-park-this-weekend',
+    checked: '2026-11-17',
   },
 ];
