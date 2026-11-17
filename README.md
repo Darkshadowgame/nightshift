@@ -70,7 +70,12 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Open an invite you're not going to (Invited tab) and tap **I'm going**. The
       first time, iOS asks to allow notifications: allow it. Tap again to drop out.
 - [ ] **+ Host**: make a meet for later tonight. Try placing a stop inside a ban
-      zone (Map > Ban zones shows them): you get a warning.
+      zone (Map > Ban zones shows them): you get a warning. Save, then look at the
+      map: the locked pin and circle sit a mile or two off your spot, never on it.
+- [ ] **Peak District night cruise** (you host it): **Requests (2)** from people who
+      don't match the invite. Approve one (they move to Going), decline the other.
+- [ ] Open **Cat and Fiddle sunrise ride** (bikes only, from a crew page): you get
+      **Request to go** with the reason, not "going". Chat stays closed until you're in.
 - [ ] Open your event > **Edit**, change the time, save. **Share** opens the share
       sheet with a `nightshift://event/...` link. **Cancel event** asks first.
 
@@ -78,7 +83,8 @@ note anything odd for the next pass. Each step says what you should see.
 
 - [ ] Lichfield rolling meet: the map dims and the stop **unlocks** (once per stop).
       **Check in**: a tick bursts and the phone buzzes.
-- [ ] **NightRunners late one** is your crew's meet, so you're a host. Check in
+- [ ] **NightRunners late one** is your crew's meet and you're a NightRunners host,
+      so you host it. Check in
       at the first stop now (check-in opens 30 min before the start).
 - [ ] **Change the plan**: rename, move or add a stop. The change log (hosts only)
       updates and the chat says "Hosts changed the plan" without saying where.
@@ -99,7 +105,8 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Open the **Ladybower viaduct** photo spot > **Check in here** > add a photo
       (plates blurred) or skip it.
 - [ ] Map > **+ Suggest a place**: drop points for a drive or one point for a photo
-      spot. It shows as pending (grey) and is approved a few seconds later.
+      spot. Drive points must be at most 1.5 mi apart: a longer gap shows red with
+      the reason. It shows as pending (grey) and is approved a few seconds later.
 - [ ] Me: rep breakdown and level go up after drives, spots and check-ins.
 
 ### 8. People and crews
@@ -107,6 +114,8 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Tap anyone in a Going list, a vote card or chat: their builds, trophies,
       crew and level. Never a location.
 - [ ] Me > **All crews**: open one, leave yours, join another, start a new crew.
+      Joining makes you a plain member (no host rights on its events). In a crew
+      you started you're the owner: **Make host** on a member.
 
 ### 9. Reminders
 
@@ -128,6 +137,16 @@ note anything odd for the next pass. Each step says what you should see.
       static and reveals become quick fades. Haptics still work.
 - [ ] **Reset demo data** (asks first) takes you back to the welcome screen.
 
+- [ ] Leave the app for a day and open it again: the demo times move back into
+      place (Lichfield is live again, the crew meet is in about 30 min). Events you
+      made aren't moved.
+- [ ] The home-screen icon is the orange hexagon with a moon over a road; the
+      launch screen is dark.
+- [ ] Headings (event titles, class letters) are in italics on the phone too.
+- [ ] Add a build photo, then install a new IPA over the top with Sideloadly (don't
+      delete the app first): the photo is still there. Photos live in the app's
+      documents folder, not a temp folder.
+
 ### Known limits
 
 - Everything is stored on this phone only. There's no backend, so nothing is shared
@@ -145,13 +164,16 @@ note anything odd for the next pass. Each step says what you should see.
 | Path | What it does |
 |---|---|
 | `src/lib/classes.ts` | S–D class from power-to-weight, separate car and bike scales |
-| `src/lib/events.ts` | Reveal timing, who sees which stop, check-ins, rolling "Move on", changing the plan on the night, editing, share links |
+| `src/lib/events.ts` | Reveal timing, who sees which stop, check-ins, rolling "Move on", changing the plan on the night, editing, share links, requests to go |
+| `src/lib/area.ts` | The fuzzed rough area and circle shown before the reveal (never on a stop) |
+| `src/lib/demoTime.ts` | Keeps the demo scene's times current on load; your own events are left alone |
+| `src/lib/photos.ts`, `photoRefs.ts` | Plate blur, then photos kept in the documents folder by file name |
 | `src/lib/profile.ts` | First-run profile checks; home saved fuzzed to about 1 km |
 | `src/lib/people.ts` | What other people can see about someone (never a location) |
 | `src/lib/invites.ts` | Invite filters and who matches |
 | `src/lib/rep.ts` | Rep ledger (attendance, hosting, drives, spots, authored places, trophies, mods), levels, author rep |
 | `src/lib/spots.ts` | Drives and photo spots: checkpoint runs (pass or fail only), visits, ratings, suggestions and demo approval |
-| `src/lib/crews.ts` | Join, leave and start crews; crew events |
+| `src/lib/crews.ts` | Join, leave and start crews; owner and host roles; crew events |
 | `src/lib/reminders.ts` | Which reminders an event needs (reveal, 30 min before, moved on), what to schedule or cancel, and what lands in the in-app list |
 | `src/lib/notify.ts` | Thin layer over `expo-notifications`: permission, scheduling, taps that open the event (no-op on web) |
 | `src/lib/feel.ts` | Haptics for the key moments |

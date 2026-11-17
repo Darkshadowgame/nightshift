@@ -51,11 +51,21 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 | Show | One spot | Public: always visible |
 | Track day | A circuit | Public: always visible |
 
-* Before the reveal, invited people see only the **area**, a circle a few miles
-  wide, plus the time and the filters.
+* Before the reveal, invited people see only the **area**, a circle at least 3 mi
+  across in radius, plus the time and the filters. The area is never the place:
+  it's the stops' centre snapped to a ~2 mi grid, then moved 1–2 mi in a direction
+  picked from the event id, at least 0.75 mi from every stop. The circle still
+  contains every stop (`src/lib/area.ts`). Hosts name the area (default: the
+  nearest region).
 * **Reveal time** is set by the host, as minutes before the start (default 60).
-* **Hosts:** one or more named co-hosts, or a whole crew (any crew member can
-  host). Hosts always see every stop and can move on, edit and cancel.
+* **Hosts:** one or more named co-hosts, or a crew. For crew events only the crew's
+  owner and the hosts the owner picks get host rights; joining a crew makes you a
+  plain member. Hosts always see every stop and can move on, edit and cancel.
+* **Request to go:** someone the invite doesn't cover (wrong class, too far, a
+  shared link) can ask. It's a pending request, never "going", until a host
+  approves it on the event. Declined people can't ask again. Requests are never
+  approved automatically.
+* **Chat** is for hosts and people going (it can carry "far end of the car park").
 * **Rolling meets:** every stop is placed when the event is created, and nothing is
   picked on the night (owner's decision after the legal research, 17 Nov 2026).
   Stops stay hidden until a host moves on.
@@ -85,14 +95,16 @@ Code: `src/lib/events.ts` and `src/lib/invites.ts`, with tests.
 * **Start drive:** each point of the drive's line is a checkpoint (within 0.2 mi).
   Pass every checkpoint in order to finish, using GPS (`watchPositionAsync`) or,
   with **Simulate GPS** on, a button that walks the checkpoints at a legal pace.
-  A run that would average over 60 mph for the distance, or takes far longer than
+  A run that would average over 45 mph along the drawn route (or the stated road
+  length, if longer), or takes far longer than
   the drive allows, doesn't count. **The app only ever says pass or fail**: no
   time or speed is shown or stored, and a completion keeps the day only.
 * **Photo spot visit:** check in within 0.2 mi (or simulate), then an optional
   photo that goes through the plate review and is saved pixelated with no metadata.
 * After a drive or visit, a 1–5 star prompt. One rating each, the latest counts.
 * **Suggest a place:** long-press the map to draw a drive (start to finish) or
-  drop a photo spot, and name it. It starts **pending**; the demo approves it after
+  drop a photo spot, and name it. Drive points must be no more than 1.5 mi apart,
+  so the line follows the road; the app shows which gap is too long. It starts **pending**; the demo approves it after
   about 10 seconds. A point inside a ban zone shows a warning, not a block.
 
 Code: `src/lib/spots.ts`, tests in `__tests__/spots.test.ts`.
@@ -144,7 +156,10 @@ Code: `repLedger` and `levelFor` in `src/lib/rep.ts`, tests in `__tests__/rep.te
 * A crew has a name, a 2–4 character tag and members. You can be in one crew at a time.
 * Crew page: members (tap for profiles, with levels), crew events, combined rep
   and the average member's level, and Join / Leave.
-* Start a crew from Me or the crews list: you become its first member.
+* Start a crew from Me or the crews list: you become its **owner**. The owner makes
+  members **hosts** (or takes it away). Joining makes you a plain member. If the
+  owner leaves, a host (or the longest-standing member) takes over.
+* Only the owner and hosts host crew events.
 * Reach crews from Me, people's profiles and the "hosted by" line on events.
 * Event co-hosts are picked from your crew.
 
