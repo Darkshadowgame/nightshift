@@ -1,6 +1,7 @@
 import type { BanZone } from '../lib/types';
 import { banZones as NORTH_ENGLAND_BAN_ZONES } from './regions/northEngland';
 import { banZones as SOUTH_WEST_SOUTH_BAN_ZONES } from './regions/southWestSouth';
+import { banZones as MIDLANDS_WALES_BAN_ZONES } from './regions/midlandsWales';
 
 /**
  * Sample ban zones: areas covered by real court injunctions, PSPOs (public
@@ -21,7 +22,7 @@ const BASE_BAN_ZONES: BanZone[] = [
   },
   {
     id: 'bz-blackcountry', name: 'Black Country', centre: { lat: 52.55, lng: -2.06 }, radiusMiles: 6,
-    note: `${CHECK} Rough circle for the Black Country street-racing injunction (Dudley, Sandwell, Walsall and Wolverhampton).`,
+    note: `${CHECK} Rough circle for the Black Country street-racing injunction (Wolverhampton, Sandwell and Walsall; Dudley left it in 2026), extended to at least 1 Mar 2027.`,
   },
   {
     id: 'bz-westminster', name: 'Westminster and Kensington', centre: { lat: 51.509, lng: -0.15 }, radiusMiles: 1.75,
@@ -80,4 +81,4 @@ const BASE_BAN_ZONES: BanZone[] = [
   },
 ];
 
-export const BAN_ZONES: BanZone[] = [...BASE_BAN_ZONES, ...NORTH_ENGLAND_BAN_ZONES, ...SOUTH_WEST_SOUTH_BAN_ZONES];
+export const BAN_ZONES: BanZone[] = [...BASE_BAN_ZONES, ...NORTH_ENGLAND_BAN_ZONES, ...SOUTH_WEST_SOUTH_BAN_ZONES, ...MIDLANDS_WALES_BAN_ZONES];

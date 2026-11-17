@@ -4,6 +4,7 @@ import { BAN_ZONES } from './banZones';
 import { KART_PLACES } from './kartTracks';
 import { places as NORTH_ENGLAND } from './regions/northEngland';
 import { places as SOUTH_WEST_SOUTH } from './regions/southWestSouth';
+import { places as MIDLANDS_WALES } from './regions/midlandsWales';
 
 /**
  * Real UK places, bundled with the app (no network needed):
@@ -166,7 +167,7 @@ const DRIVES: PlaceSeed[] = [
   {
     id: 'dr-black-mountain-pass', kind: 'drive', name: 'Black Mountain Pass (A4069)', region: 'Brecon Beacons (Bannau Brycheiniog)', miles: 13.0,
     description: 'Llangadog to Brynamman over the Black Mountain. Untimed: rep for finishing it within the limits.',
-    warnings: ['Hairpins and sheep. 50 mph limit and average-speed cameras.'],
+    warnings: ['Hairpins and sheep. Average-speed cameras along the whole A4069 (reported 40 mph limit; check the signs).'],
     at: { lat: 51.9407, lng: -3.8929 },
     path: [{ lat: 51.9407, lng: -3.8929 }, { lat: 51.9291, lng: -3.8801 }, { lat: 51.9149, lng: -3.8677 }, { lat: 51.9015, lng: -3.8479 }, { lat: 51.8874, lng: -3.8351 }, { lat: 51.8751, lng: -3.8453 }, { lat: 51.8611, lng: -3.8333 }, { lat: 51.8576, lng: -3.8492 }, { lat: 51.8458, lng: -3.8506 }, { lat: 51.8316, lng: -3.8615 }, { lat: 51.8192, lng: -3.86 }, { lat: 51.8101, lng: -3.8686 }],
     sources: [OSM],
@@ -1032,7 +1033,7 @@ const REGIONAL: PlaceSeed[] = [
 ];
 
 /** Venues that welcome meets: see REGIONAL for the researched ones. */
-export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH];
+export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES];
 
 /** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. */
 export function placeSpots(createdAt: string): Spot[] {
