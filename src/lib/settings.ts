@@ -1,6 +1,7 @@
 import type { DirectionsApp } from './directions';
 import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
+import type { SavedPlaces } from './whereTo';
 
 /** App settings, kept on the phone. */
 export interface Settings {
@@ -48,6 +49,11 @@ export interface Settings {
    * the others so they come back the same after a restart (mapLayers.ts). All on by default.
    */
   mapLayers: SavedLayers;
+  /**
+   * "Where to?": recent searches (at most 10) and Home and Work. Only on this phone: never
+   * sent to the server (settings aren't) and never logged (whereTo.ts).
+   */
+  places?: SavedPlaces;
   /** The one-time "how the map works" hint has been dismissed. */
   mapHintSeen?: boolean;
 }

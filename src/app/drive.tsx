@@ -13,6 +13,7 @@ import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
 import { feel } from '../lib/feel';
+import { compassHeading, driveFocus, pickHeading, smoothHeading } from '../lib/heading';
 import { currentPosition } from '../lib/location';
 import {
   activeLimit,
@@ -195,6 +196,13 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
   const fixRef = useRef<Fix | null>(null);
+  /** When the last fix arrived (phone clock): an old fix's course says nothing about now. */
+  const fixAt = useRef(0);
+  /** The compass (degrees), for which way to face when GPS course is no good (slow or stopped). */
+  const compassRef = useRef<number | null>(null);
+  /** Where you are on the route, for the heading's last resort. */
+  const snapRef = useRef<{ bearing: number; off: number } | null>(null);
+  const [heading, setHeading] = useState(0);
   const said = useRef(new Set<string>());
   const camSaid = useRef(new Map<string, number>());
   const hint = useRef<number | undefined>(undefined);
@@ -347,6 +355,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     (f: Fix) => {
       if (closed.current) return;
       fixRef.current = f;
+      fixAt.current = Date.now();
       setFix(f);
       setReportCentre((c) => (!c || metresBetween(c, f.at) > 1500 ? f.at : c));
       if (vias.current.length) vias.current = vias.current.filter((v) => metresBetween(f.at, v.at) > VIA_REACHED_METRES);
@@ -381,6 +390,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       const snap = snapToRoute(a.route, f.at, hint.current, f.course);
       hint.current = snap.along;
+      snapRef.current = { bearing: snap.bearing, off: snap.off };
       const progress = progressOn(a.route, snap);
 
       const reached = nextRef.current < stops.length ? reachedStop(stops, nextRef.current, f.at) : -1;
@@ -578,10 +588,32 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   }
   onFixRef.current = onFix;
 
+  // Which way the map faces: GPS course when moving, else the compass, else the route (heading.ts), eased.
+  useEffect(() => {
+    let shown: number | null = null;
+    const t = setInterval(() => {
+      const f = fixRef.current;
+      const fresh = f && Date.now() - fixAt.current < 3000;
+      const pick = pickHeading({
+        course: fresh ? f.course : null,
+        speed: fresh ? f.speed : null,
+        compass: compassRef.current,
+        route: snapRef.current,
+      });
+      const next = smoothHeading(shown, pick.heading);
+      if (next != null && next !== shown) {
+        shown = next;
+        setHeading(next);
+      }
+    }, 400);
+    return () => clearInterval(t);
+  }, []);
+
   // GPS while this screen is open and the app is in front; nothing in the background.
   useEffect(() => {
     closed.current = false;
     let sub: Location.LocationSubscription | null = null;
+    let compass: Location.LocationSubscription | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
     let starting = false;
 
@@ -605,6 +637,21 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       );
       if (closed.current || AppState.currentState !== 'active') s.remove();
       else sub = s;
+      await startCompass();
+    }
+
+    /** The compass, for facing the right way while slow or stopped. No compass (or it fails): GPS and the route only. */
+    async function startCompass() {
+      if (compass) return;
+      try {
+        const c = await Location.watchHeadingAsync((h) => {
+          compassRef.current = compassHeading(h);
+        });
+        if (closed.current || AppState.currentState !== 'active') c.remove();
+        else compass = c;
+      } catch {
+        compassRef.current = null;
+      }
     }
 
     /** Demo: skip the GPS check (Me) drives the route for you, four times faster than life, at Apple's pace for each leg. */
@@ -632,11 +679,15 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         origin = p.at;
         onFixRef.current({ at: p.at, speed: along >= a.route.length ? 0 : v, course: p.bearing, accuracy: 5, t });
       }, 250);
+      await startCompass();
     }
 
     function stop() {
       sub?.remove();
       sub = null;
+      compass?.remove();
+      compass = null;
+      compassRef.current = null;
       if (timer) clearInterval(timer);
       timer = null;
     }
@@ -717,7 +768,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       stops.map((s, i) => ({
         id: s.id,
         at: s.at,
-        glyph: s.role === 'checkpoint' ? 'drive' : plan.eventId ? 'cruise' : 'venue',
+        glyph: s.role === 'checkpoint' ? 'drive' : plan.eventId ? 'cruise' : 'destination',
         colour: i < next ? C.fog : i === next ? BRAND : C.chalk,
       })),
     [stops, next, plan.eventId],
@@ -742,8 +793,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     active && progress && nextStop && Number.isFinite(active.stopAlong[next])
       ? secondsBetween(active.route, progress.snap.along, active.stopAlong[next])
       : progress?.secondsToLegEnd;
-  const heading = fix?.course ?? progress?.snap.bearing ?? 0;
-  const focus = fix ? (progress && progress.snap.off < 30 ? progress.snap.at : fix.at) : null;
+  // On you; on the route only when you're moving along it and within a few metres (heading.ts).
+  const focus = driveFocus(fix, progress?.snap);
   const over = !!hud?.over;
   const checkInStop = checkInAt !== null ? stops[checkInAt] : null;
 

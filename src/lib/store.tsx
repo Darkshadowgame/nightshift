@@ -31,6 +31,7 @@ import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene
 import { DEFAULT_SETTINGS, type Settings } from './settings';
 import { approveDue, DEMO_APPROVAL_MS, type DriveRun, type SpotDraft, type Verdict } from './spots';
 import type { Build, LatLng, NightEvent } from './types';
+import { savedPlaces, type SavedPlaces } from './whereTo';
 
 /**
  * The one store every screen reads and writes through. Its writes go to a
@@ -84,6 +85,8 @@ interface Store extends Persisted {
   /** Rejects with a readable reason if the vote isn't allowed. */
   vote: (eventId: string, category: AwardCategory, buildId: string) => Promise<void>;
   setSettings: (patch: Partial<Settings>) => void;
+  /** "Where to?" recent places, Home and Work (kept in the phone's settings only). */
+  updatePlaces: (fn: (p: SavedPlaces) => SavedPlaces) => void;
   markNoticesRead: () => void;
   markLocationNoticeSeen: () => void;
   /** Queue a suggestion (see feedbackQueue.ts); it's sent to the team when there's a connection. */
@@ -544,6 +547,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
         repo?.markNoticesRead().catch(() => {});
       },
       setSettings: (patch) => set((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
+      updatePlaces: (fn) => set((s) => ({ ...s, settings: { ...s.settings, places: fn(savedPlaces(s.settings.places)) } })),
       markUnlockSeen: (eventId, stopIds) =>
         set((s) => ({ ...s, unlockSeen: { ...s.unlockSeen, [eventId]: Array.from(new Set([...(s.unlockSeen[eventId] ?? []), ...stopIds])) } })),
       markLocationNoticeSeen: () => set((s) => ({ ...s, locationNoticeSeen: true })),

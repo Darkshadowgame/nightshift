@@ -18,7 +18,7 @@ export interface DriveMapProps {
   cameras: { id: string; at: LatLng }[];
   /** Drivers' reports and closures on or near the route (roadReports.ts). */
   reports?: { id: string; at: LatLng; glyph: Glyph }[];
-  /** Where to centre the camera (you), and which way is up. */
+  /** Where to centre the camera (you), and which way is up (already eased: heading.ts). */
   focus: LatLng | null;
   heading: number;
   /** m/s: the map pulls back a little at speed. */
@@ -43,7 +43,8 @@ export const DriveMap = memo(function DriveMap({ route, stops, cameras, reports 
     const v = speed != null && speed > 0 ? speed : 0;
     map.current?.animateCamera(
       { center: { latitude: focus.lat, longitude: focus.lng }, heading, pitch: 45, altitude: Math.min(1400, 450 + v * 25) },
-      { duration: 900 },
+      // Heading changes come eased, at most a few a second (heading.ts): short moves keep up without spinning.
+      { duration: 600 },
     );
   }, [focus, heading, speed]);
 

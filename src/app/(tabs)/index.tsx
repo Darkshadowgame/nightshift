@@ -110,7 +110,7 @@ function NearIcon({ colour }: { colour: string }) {
   );
 }
 
-/** Find events: a magnifier. */
+/** Find (events, and Where to? for any address): a magnifier. */
 function FindIcon({ colour }: { colour: string }) {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -588,7 +588,7 @@ export default function MapScreen() {
               onPress={() => router.push('/find')}
               style={({ pressed }) => [st.mapButton, chrome.find === 'label' && st.findWide, pressed && { opacity: 0.8 }]}
               accessibilityRole="button"
-              accessibilityLabel={newNear > 0 ? `Find events, ${newNear} new near you` : 'Find events'}
+              accessibilityLabel={newNear > 0 ? `Find events or a place to drive to, ${newNear} new events near you` : 'Find events or a place to drive to'}
               hitSlop={4}
             >
               <FindIcon colour={C.chalk} />

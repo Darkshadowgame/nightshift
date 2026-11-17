@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { currentPosition, nameForPlace, searchPlaces, SearchError, townForPlace } from '../src/lib/location';
+import { currentPosition, nameForPlace, searchDestinations, searchPlaces, SearchError, townForPlace } from '../src/lib/location';
 
 jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3, High: 4 },
@@ -76,5 +76,28 @@ describe('naming a dropped point', () => {
     await expect(nameForPlace({ lat: 52.68, lng: -1.83 })).resolves.toBeNull();
     L.reverseGeocodeAsync.mockResolvedValueOnce([{ street: 'High St', city: 'Lichfield' }] as never);
     await expect(townForPlace({ lat: 52.68, lng: -1.83 })).resolves.toBe('Lichfield');
+  });
+});
+
+describe('where to', () => {
+  test('UK first, with two readable lines', async () => {
+    L.geocodeAsync.mockResolvedValue([{ latitude: 52.63, longitude: -1.69 }] as never);
+    L.reverseGeocodeAsync.mockResolvedValue([{ name: '12 High Street', streetNumber: '12', street: 'High Street', city: 'Tamworth', postalCode: 'B79 7ND', isoCountryCode: 'GB' }] as never);
+    await expect(searchDestinations('12 high street tamworth')).resolves.toEqual([
+      { at: { lat: 52.63, lng: -1.69 }, name: '12 High Street', address: 'Tamworth, B79 7ND' },
+    ]);
+    expect(L.geocodeAsync).toHaveBeenCalledTimes(1);
+    expect(L.geocodeAsync).toHaveBeenCalledWith('12 high street tamworth, UK');
+  });
+  test('nothing in the UK: searches as typed, abroad allowed', async () => {
+    L.geocodeAsync.mockResolvedValueOnce([]).mockResolvedValueOnce([{ latitude: 50.33, longitude: 6.95 }] as never);
+    L.reverseGeocodeAsync.mockResolvedValue([{ name: 'Nürburgring', city: 'Nürburg', isoCountryCode: 'DE', country: 'Germany' }] as never);
+    const hits = await searchDestinations('Nurburgring');
+    expect(L.geocodeAsync).toHaveBeenLastCalledWith('Nurburgring');
+    expect(hits).toEqual([{ at: { lat: 50.33, lng: 6.95 }, name: 'Nürburgring', address: 'Nürburg, Germany' }]);
+  });
+  test('a failed lookup is a SearchError', async () => {
+    L.geocodeAsync.mockRejectedValue(new Error('offline'));
+    await expect(searchDestinations('somewhere')).rejects.toBeInstanceOf(SearchError);
   });
 });

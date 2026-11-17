@@ -66,6 +66,17 @@ describe('what navigation routes through', () => {
     expect(targetFromParams({ kind: 'nope' })).toBeNull();
     expect(planForPlace('Tyre shop', { lat: 52.5, lng: -1.9 }).stops[0].role).toBe('destination');
   });
+
+  test('a searched address goes through to a one-stop plan ("Where to?")', () => {
+    const t = { kind: 'place' as const, name: "12 High Street, St Mary's & Co", lat: 50.33, lng: 6.95 };
+    const back = targetFromParams(targetParams(t));
+    expect(back).toEqual(t);
+    const plan = planForPlace(back!.kind === 'place' ? back!.name : '', { lat: 50.33, lng: 6.95 });
+    expect(plan.title).toBe("12 High Street, St Mary's & Co");
+    expect(plan.stops).toEqual([{ id: 'place', name: "12 High Street, St Mary's & Co", at: { lat: 50.33, lng: 6.95 }, role: 'destination' }]);
+    expect(plan.eventId).toBeUndefined();
+    expect(plan.driveId).toBeUndefined();
+  });
 });
 
 describe('other apps', () => {

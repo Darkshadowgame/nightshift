@@ -14,6 +14,8 @@ export type Glyph =
   | 'venue'
   | 'you'
   | 'area'
+  /** "Where to?": a searched address or place you're driving to. */
+  | 'destination'
   | 'locked'
   | 'camera'
   | 'average'
@@ -265,6 +267,14 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
           <Path d="M25 13h3v4h-3" fill="none" stroke={c} strokeWidth={1.8} />
           <Path d="M9 27h22" stroke={c} strokeWidth={2.6} strokeLinecap="round" strokeDasharray="4 3" />
           <Path d="M9 23v8M31 23v8" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
+        </>
+      );
+    case 'destination':
+      // A map pin: somewhere you searched for.
+      return (
+        <>
+          <Path d="M20 30.5c-4.6-5.2-7-9-7-12.3a7 7 0 0 1 14 0c0 3.3-2.4 7.1-7 12.3z" fill={c} />
+          <Circle cx={20} cy={18.2} r={2.6} fill={INK} />
         </>
       );
     case 'area':

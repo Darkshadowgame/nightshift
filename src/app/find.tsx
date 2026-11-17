@@ -1,8 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { EventCard } from '../components/EventCard';
-import { Card, Chip, EmptyState, LinkText, Notice, Row, Section, Txt } from '../components/ui';
+import { Pin } from '../components/Pin';
+import { Card, Chip, EmptyState, LinkText, Notice, Row, Section, Txt, s as ui } from '../components/ui';
 import {
   ALL_TYPES,
   defaultFilters,
@@ -25,12 +26,14 @@ import { currentPosition } from '../lib/location';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import type { LatLng } from '../lib/types';
+import { BRAND } from '../theme';
 
 const WHENS: When[] = ['any', 'tonight', 'week', 'weekend'];
 const VEHICLES: Vehicles[] = ['any', 'cars', 'bikes'];
 
 /**
- * Find events: every upcoming event you can see, nearest first. Locked events
+ * Find: "Where to?" (any address or place, then turn by turn: where.tsx) at
+ * the top, then events: every upcoming event you can see, nearest first. Locked events
  * only ever show their rough area; the distance is to that area, never a stop.
  */
 export default function FindEvents() {
@@ -108,6 +111,15 @@ export default function FindEvents() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
+      <Pressable
+        onPress={() => router.push('/where')}
+        accessibilityRole="button"
+        accessibilityLabel="Where to? Search an address, postcode or place and drive there"
+        style={({ pressed }) => [ui.input, { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48 }, pressed && { opacity: 0.8 }]}
+      >
+        <Pin glyph="destination" colour={BRAND} size={26} />
+        <Txt v="muted" style={{ flex: 1 }} numberOfLines={1}>Where to? Address, postcode or place</Txt>
+      </Pressable>
       {editing ? (
         <Card>
           <Row style={{ justifyContent: 'space-between' }}>

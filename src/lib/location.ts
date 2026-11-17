@@ -1,7 +1,8 @@
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import { placeLabel, searchQuery, tidyHits, townLabel, type PlaceHit } from './placeNames';
+import { inUk, placeLabel, searchQuery, tidyHits, townLabel, type PlaceHit } from './placeNames';
 import type { LatLng } from './types';
+import { destinationLabel, tidyDestinations, whereQueries, type Destination } from './whereTo';
 
 /**
  * Thin layer over expo-location: the person's position, and place search and
@@ -67,6 +68,40 @@ export async function searchPlaces(raw: string): Promise<PlaceHit[]> {
   for (const c of candidates) {
     const label = (await nameForPlace(c.at)) ?? typed;
     out.push({ at: c.at, label });
+  }
+  return out;
+}
+
+/**
+ * "Where to?": any address, postcode or place, UK first, then anywhere if the
+ * UK has nothing. Up to five, each with two readable lines from the reverse
+ * geocoder. Only Apple's geocoder sees what was typed; nothing is logged.
+ * Empty when nothing matched; throws SearchError when the lookup failed.
+ */
+export async function searchDestinations(raw: string, limit = 5): Promise<Destination[]> {
+  const q = whereQueries(raw);
+  if (!q) return [];
+  if (!geocoderAvailable) throw new SearchError('Search needs the iPhone app.');
+  const geocode = async (text: string) => {
+    try {
+      return (await Location.geocodeAsync(text)).map((f) => ({ at: { lat: f.latitude, lng: f.longitude } }));
+    } catch {
+      throw new SearchError("Couldn't search just now. Check your signal and try again.");
+    }
+  };
+  let found = (await geocode(q.uk)).filter((h) => inUk(h.at));
+  if (found.length === 0 && q.anywhere) found = await geocode(q.anywhere);
+  const typed = raw.trim();
+  const out: Destination[] = [];
+  // One at a time: the geocoder dislikes bursts. A failed name falls back to what was typed.
+  for (const c of tidyDestinations(found, limit)) {
+    let parts: Location.LocationGeocodedAddress | null = null;
+    try {
+      [parts] = await Location.reverseGeocodeAsync({ latitude: c.at.lat, longitude: c.at.lng });
+    } catch {
+      parts = null;
+    }
+    out.push({ at: c.at, ...destinationLabel(parts, typed) });
   }
   return out;
 }

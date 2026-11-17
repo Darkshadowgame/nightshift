@@ -358,6 +358,10 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
   stops still to come, at most every 20 s. Arrival is per stop: cruise and meet stops with
   check-in offer **Check in** once you've stopped; drive checkpoints are called out, and
   passing all of them in order counts the drive (pass or fail, never timed).
+* **Map:** heading-up and centred on you. It faces your GPS course above about 2.5 m/s
+  (5.6 mph); slower or stopped, the phone's compass; the route's bearing only as a last
+  resort; turns are eased and jitter under 3° ignored (`src/lib/heading.ts`). The camera
+  sits on the route line only while you're moving along it within 15 m.
 * **Cameras and zones:** fixed cameras within 40 m of the route and up to about half a mile
   ahead (a camera tagged as facing across your road is left out), and average-speed zones
   driven in their own direction. Spoken as "Speed camera ahead, 30 miles per hour" and
@@ -387,6 +391,15 @@ Code: `src/lib/nav.ts` (engine, tests in `__tests__/nav.test.ts` with a fixture 
 `navPlan.ts`, `directions.ts`, `src/app/drive.tsx`, `components/DriveMap.tsx`,
 `NavLaunch.tsx`, and the native module `modules/nav-directions` (Swift: MapKit directions,
 AVSpeechSynthesizer, system chime). Needs a new IPA (the fingerprint changes).
+
+## Where to? (owner request, 17 Nov 2026)
+
+Nightshift as an everyday sat nav: **Find › Where to?** searches any address, postcode or
+place (UK first, then anywhere), shows it on the map, and **Go here** starts the driving view
+(or the app picked with **Always use this**). Recent places (10, with **Clear**), **Home** and
+**Work** are kept in the phone's settings only. Lookups go to Apple's geocoder alone
+(expo-location); searches are never logged or sent to our server. Code: `src/lib/whereTo.ts`,
+`src/lib/location.ts`, `src/app/where.tsx`.
 
 ## Road reports (built, 17 Nov 2026)
 
@@ -670,7 +683,8 @@ Owner's request: "Obviously you need to use real maps and location."
 9. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
 10. **Suggest a place:** draw a drive or drop a photo spot on the map.
 11. **Crews:** browse crews, crew page, start a crew.
-12. **Find events:** filters and results nearest first; opens the event.
+12. **Find:** a **Where to?** box (any address or place, then Go here), then events: filters
+    and results nearest first; opens the event.
 
 ## Words and design system (REVIEW-5, 17 Nov 2026)
 

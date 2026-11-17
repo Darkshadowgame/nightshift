@@ -134,7 +134,8 @@ export const SCREEN_TITLES = {
   crews: 'Crews',
   newCrew: 'Start a crew',
   notifications: 'Notifications',
-  find: 'Find events',
+  find: 'Find',
+  whereTo: 'Where to?',
   settings: 'Settings',
 } as const;
 
