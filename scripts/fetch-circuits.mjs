@@ -106,6 +106,11 @@ for (const t of tracks) {
     report.push(`${t.id}: skipped, ${outline.loops} possible loops and no published length`);
     continue;
   }
+  // An open line is only right for a hill climb, sprint or strip; at a circuit it's a fragment.
+  if (!outline.closed && !info?.run) {
+    report.push(`${t.id}: skipped, only part of the track is mapped`);
+    continue;
+  }
   if (outline.closed && outline.metres < 500 && !karting && !stadium(t.id)) {
     report.push(`${t.id}: skipped, ${outline.metres} m loop is too small for this venue`);
     continue;

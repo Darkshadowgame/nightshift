@@ -365,10 +365,25 @@ note anything odd for the next pass. Each step says what you should see.
 | Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
 | Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
 
+The bundled data (17 Nov 2026): 3,470 cameras (2,025 with a speed limit, 987 with a
+direction) and 67 average-speed zones across the UK in 31 KB; 49 circuit outlines in 9 KB.
+Overpass was refusing connections for most of that day, so the South West, South and
+London/South East/Kent came from Overpass and the rest from the Geofabrik UK extract of
+16 Nov 2026 (the same OpenStreetMap data), using the fallback scripts below.
+
 To refresh the bundled OpenStreetMap data (be polite: it runs one query per region, one
 at a time, and backs off when Overpass is busy; `--cache DIR` keeps the answers):
 
 ```bash
 node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-cameras.mjs --cache /tmp/osm
 node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs --cache /tmp/osm
+```
+
+If Overpass is down, fill the same cache from a Geofabrik extract first (needs pyosmium;
+see the top of each script), then run the two commands above (cameras with `--cached-only`):
+
+```bash
+python scripts/cameras-from-pbf.py united-kingdom-latest.osm.pbf /tmp/osm
+node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs --list-venues > /tmp/osm/venues.json
+python scripts/circuits-from-pbf.py united-kingdom-latest.osm.pbf /tmp/osm/venues.json /tmp/osm
 ```

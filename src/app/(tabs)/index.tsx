@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { areaRadius } from '../../lib/area';
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
 import { Pin } from '../../components/Pin';
@@ -77,6 +77,7 @@ export default function MapScreen() {
   }
   /** The Tracks ▾ menu, anchored under the chip (window coordinates). */
   const [kindMenu, setKindMenu] = useState<{ x: number; y: number } | null>(null);
+  const screen = useWindowDimensions();
   const trackChip = useRef<ComponentRef<typeof View>>(null);
   function openKindMenu() {
     trackChip.current?.measureInWindow((x, y, _w, h) => setKindMenu({ x, y: y + h + 4 }));
@@ -381,7 +382,7 @@ export default function MapScreen() {
       {kindMenu ? (
         <>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setKindMenu(null)} accessibilityLabel="Close the menu" />
-          <View style={[st.menu, { left: Math.max(8, kindMenu.x), top: kindMenu.y }]} accessibilityRole="menu">
+          <View style={[st.menu, { left: Math.max(8, Math.min(kindMenu.x, screen.width - 158)), top: kindMenu.y }]} accessibilityRole="menu">
             <Txt v="label" style={{ fontSize: 10 }}>Show tracks for</Txt>
             {ALL_VEHICLES.map((v) => {
               const on = trackKinds.includes(v);

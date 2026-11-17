@@ -21,7 +21,7 @@ describe('bundled speed cameras (OpenStreetMap)', () => {
       expect(count({ south: 50.9, west: 0.03, north: 51.48, east: 1.45 })).toBeGreaterThan(20); // Kent
     }
     if (has('midlands')) expect(count({ south: 52.3, west: -2.2, north: 52.9, east: -1.3 })).toBeGreaterThan(30); // Birmingham to Tamworth (demo area)
-    expect(CAMERA_DATA.regions.length).toBeGreaterThan(0);
+    for (const r of ['east-anglia', 'london-south-east-kent', 'midlands']) expect(CAMERA_DATA.regions).toContain(r);
   });
 
   test('average-speed zones decode to lines', () => {
@@ -31,7 +31,7 @@ describe('bundled speed cameras (OpenStreetMap)', () => {
       expect(z.path.length).toBeGreaterThanOrEqual(2);
       for (const p of z.path) expect(inUk(p)).toBe(true);
     }
-    const view = camerasForView(index, { lat: 51.5, lng: -0.12 }, 0.3); // central London
+    const view = camerasForView(index, { lat: 52.63, lng: -1.69 }, 0.3); // Tamworth, the demo area
     expect(view.tooWide).toBe(false);
     expect(view.cameras.length).toBeGreaterThan(0);
   });
