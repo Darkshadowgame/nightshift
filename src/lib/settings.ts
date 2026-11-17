@@ -1,6 +1,7 @@
 import type { DirectionsApp } from './directions';
 import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
+import type { MapOrientation, NavIcon } from './driveView';
 import type { SavedPlaces } from './whereTo';
 
 /** App settings, kept on the phone. */
@@ -37,6 +38,10 @@ export interface Settings {
   directionsApp: DirectionsApp;
   /** Driving view: spoken instructions. */
   navVoice: boolean;
+  /** Driving view: the map turns with you ('heading', the default) or keeps north at the top. */
+  navMap?: MapOrientation;
+  /** Driving view: your icon on the map (an arrow by default). */
+  navIcon?: NavIcon;
   /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
   navCameraAlerts: boolean;
   /**

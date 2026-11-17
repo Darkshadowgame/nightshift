@@ -2,10 +2,22 @@ import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chime, navDirectionsAvailable, route as fetchRoute, speak, stopSpeaking } from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
+import {
+  AlertPill,
+  CompassGlyph,
+  DriveBanner,
+  DriveBar,
+  IconPickerSheet,
+  MapButton,
+  RecentreGlyph,
+  ReportButton,
+  SpeakerGlyph,
+  SubLine,
+} from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
 import { Button, Txt } from '../components/ui';
@@ -13,8 +25,26 @@ import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
 import { feel } from '../lib/feel';
+import {
+  arrivedByRoute,
+  bannerFor,
+  cameraHeading,
+  canPan,
+  isMoving,
+  liveSpeed,
+  nameLookupDue,
+  navIconOf,
+  overLimit,
+  recentreDue,
+  roadOnRoute,
+  shownLimit,
+  tripSummary,
+  type MapOrientation,
+} from '../lib/driveView';
 import { compassHeading, driveFocus, pickHeading, smoothHeading } from '../lib/heading';
-import { currentPosition } from '../lib/location';
+import { fetchRoads } from '../lib/roadLookup';
+import { cellOf, lookupDue, OSM_CREDIT, pickWay, remember, roadInfo, type OsmWay, type RoadInfo } from '../lib/speedLimit';
+import { currentPosition, streetAt } from '../lib/location';
 import {
   activeLimit,
   ARROWS,
@@ -47,7 +77,6 @@ import {
   type Fix,
   type Limit,
   type NavRoute,
-  type NavStop,
   type OffRouteState,
   type Progress,
   type RouteCamera,
@@ -79,7 +108,7 @@ import { useRoadReports, useRoads } from '../lib/roadStore';
 import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../lib/spots';
 import { useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
-import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, ROAD_COLOUR, STATE, SURFACE, TYPE } from '../theme';
+import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, STATE, SURFACE, TYPE } from '../theme';
 
 /**
  * The driving view: turn-by-turn directions through an event's stops, a
@@ -172,7 +201,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   useKeepAwake('drive');
   const insets = useSafeAreaInsets();
   const store = useStore();
-  const { settings } = store;
+  const { settings, setSettings } = store;
   const stops = plan.stops;
   // The demo's simulated drive; signed in, the server judges real fixes only.
   const simulate = settings.simulateGps && store.backend === 'local';
@@ -190,6 +219,20 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const [checkInAt, setCheckInAt] = useState<number | null>(null);
   const [checkedIn, setCheckedIn] = useState<string[]>([]);
   const [driveNote, setDriveNote] = useState<string | null>(null);
+  /** Ticks every second: the ETA, "stopped" once fixes dry up, and recentring after a look round. */
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const orientation: MapOrientation = settings.navMap === 'north' ? 'north' : 'heading';
+  const icon = useMemo(() => navIconOf(settings.navIcon), [settings.navIcon]);
+  /** When you last panned the map (stopped only); null while it follows you. */
+  const [pannedAt, setPannedAt] = useState<number | null>(null);
+  const [iconOpen, setIconOpen] = useState(false);
+  /** The road you're on from OpenStreetMap (name and limit), and the street from the phone's geocoder off the route. */
+  const [osmRoad, setOsmRoad] = useState<RoadInfo | null>(null);
+  const [geoStreet, setGeoStreet] = useState<string | null>(null);
+  const roadCache = useRef(new Map<string, OsmWay[]>());
+  const roadLookupAt = useRef(0);
+  const roadLoading = useRef(false);
+  const nameLookup = useRef<{ at: LatLng; t: number } | null>(null);
 
   const activeRef = useRef<Active | null>(null);
   const nextRef = useRef(0);
@@ -351,6 +394,32 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     [stops, say, plan.title],
   );
 
+  /**
+   * The road you're on from OpenStreetMap: the roads round each ~200 m square are
+   * asked for once (Overpass, at most every 4 s) and kept; each fix picks yours from
+   * them. Any failure just leaves the name and roundel as they were.
+   */
+  const lookUpRoad = useCallback((f: Fix) => {
+    const cell = cellOf(f.at);
+    const ways = roadCache.current.get(cell.key);
+    if (ways) {
+      const w = pickWay(ways, f.at, f.course ?? compassRef.current);
+      const info = w ? roadInfo(w) : null;
+      setOsmRoad((prev) => (prev?.wayId === info?.wayId ? prev : info));
+      return;
+    }
+    if (roadLoading.current || !lookupDue(false, roadLookupAt.current, Date.now())) return;
+    roadLoading.current = true;
+    roadLookupAt.current = Date.now();
+    fetchRoads(cell.centre)
+      .then((list) => {
+        if (list) remember(roadCache.current, cell.key, list);
+      })
+      .finally(() => {
+        roadLoading.current = false;
+      });
+  }, []);
+
   const onFix = useCallback(
     (f: Fix) => {
       if (closed.current) return;
@@ -358,6 +427,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       fixAt.current = Date.now();
       setFix(f);
       setReportCentre((c) => (!c || metresBetween(c, f.at) > 1500 ? f.at : c));
+      lookUpRoad(f);
       if (vias.current.length) vias.current = vias.current.filter((v) => metresBetween(f.at, v.at) > VIA_REACHED_METRES);
 
       // Navigating a drive counts it: every checkpoint, in order (the same check as "Count without directions" on the drive's page).
@@ -393,7 +463,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       snapRef.current = { bearing: snap.bearing, off: snap.off };
       const progress = progressOn(a.route, snap);
 
-      const reached = nextRef.current < stops.length ? reachedStop(stops, nextRef.current, f.at) : -1;
+      let reached = nextRef.current < stops.length ? reachedStop(stops, nextRef.current, f.at) : -1;
+      // An address set back from the road: you reach the end of the route before you're within 80 m of the pin.
+      if (reached < 0 && nextRef.current < stops.length && arrivedByRoute(a.stopAlong[nextRef.current], snap.along, snap.off, f.at, stops[nextRef.current])) {
+        reached = nextRef.current;
+      }
       if (reached >= 0) arrive(reached);
 
       const off = checkOffRoute(offState.current, snap, f);
@@ -489,7 +563,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         over,
       });
     },
-    [arrive, cameraAlerts, doRoute, detour, plan.driveId, say, simulate, stops, store],
+    [arrive, cameraAlerts, doRoute, detour, lookUpRoad, plan.driveId, say, simulate, stops, store],
   );
   const onFixRef = useRef(onFix);
 
@@ -625,7 +699,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         return;
       }
       const s = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 3, timeInterval: 1000 },
+        { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 0, timeInterval: 1000 },
         (loc) =>
           onFixRef.current({
             at: { lat: loc.coords.latitude, lng: loc.coords.longitude },
@@ -763,6 +837,42 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   // Drawing
   // ---------------------------------------------------------------------------
 
+  // The clock: ETA, "stopped" once fixes dry up, and going back to following you after a look round.
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const fixAge = fix ? nowMs - fixAt.current : Infinity;
+  const speedNow = fix ? liveSpeed(fix.speed, fixAge) : null;
+  const moving = isMoving(speedNow);
+  const panOk = canPan(speedNow);
+
+  useEffect(() => {
+    if (recentreDue(pannedAt, nowMs, speedNow)) setPannedAt(null);
+  }, [pannedAt, nowMs, speedNow]);
+
+  const route = active?.route;
+  const progress = hud?.progress;
+  const routeRoad = route && progress ? roadOnRoute(route, progress) : null;
+
+  // Off the route with no name from OpenStreetMap: the phone's geocoder, every 15 s or 150 m at most.
+  useEffect(() => {
+    if (!fix || routeRoad || osmRoad?.name) return;
+    const now = Date.now();
+    if (!nameLookupDue(nameLookup.current, fix.at, now)) return;
+    nameLookup.current = { at: fix.at, t: now };
+    let live = true;
+    streetAt(fix.at).then((name) => live && setGeoStreet(name));
+    return () => {
+      live = false;
+    };
+  }, [fix, routeRoad, osmRoad]);
+
+  // ---------------------------------------------------------------------------
+  // Drawing
+  // ---------------------------------------------------------------------------
+
   const mapStops = useMemo<DriveMapStop[]>(
     () =>
       stops.map((s, i) => ({
@@ -773,20 +883,34 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       })),
     [stops, next, plan.eventId],
   );
-  const mapCameras = useMemo(() => (active ? active.cameras.map((c) => ({ id: `${c.id}:${Math.round(c.along)}`, at: c.at })) : []), [active]);
-  // Reports on the route, and the nearest others around you.
+  // Less on the map: cameras only on the route ahead (within 2 miles), reports on the route and the few nearest you.
+  const along = progress?.snap.along ?? 0;
+  const alongBucket = Math.floor(along / 250);
+  const mapCameras = useMemo(
+    () =>
+      active
+        ? active.cameras.filter((c) => c.along >= alongBucket * 250 - 50 && c.along - alongBucket * 250 <= 3200).map((c) => ({ id: `${c.id}:${Math.round(c.along)}`, at: c.at }))
+        : [],
+    [active, alongBucket],
+  );
+  const reportCentreKey = fix ? `${fix.at.lat.toFixed(2)},${fix.at.lng.toFixed(2)}` : '';
   const mapReports = useMemo(() => {
     const ids = new Set(onRouteReports.map((x) => x.report.id));
-    const rest = roadReports.filter((r) => !ids.has(r.id)).slice(0, 40);
-    return [...onRouteReports.map((x) => x.report), ...rest].map((r) => ({ id: r.id, at: r.at, glyph: r.kind }));
-  }, [onRouteReports, roadReports]);
-  const route = active?.route;
-  const progress = hud?.progress;
-  const step = route && progress && progress.stepIndex >= 0 ? route.steps[progress.stepIndex] : null;
-  const speedMph = mphOf(fix?.speed);
-  const moving = (fix?.speed ?? 0) > 2.5;
+    const here = fixRef.current?.at;
+    const near = here
+      ? roadReports
+          .filter((r) => !ids.has(r.id) && metresBetween(here, r.at) <= 1500)
+          .slice(0, 10)
+      : [];
+    return [
+      ...onRouteReports.map((x) => ({ id: x.report.id, at: x.report.at, glyph: x.report.kind, onRoute: true })),
+      ...near.map((r) => ({ id: r.id, at: r.at, glyph: r.kind, onRoute: false })),
+    ];
+    // Re-read when you've moved about a kilometre, not on every fix.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRouteReports, roadReports, reportCentreKey]);
+
   const nextStop = next < stops.length ? stops[next] : null;
-  const nowMs = Date.now();
   const toNextStop =
     active && progress && nextStop && Number.isFinite(active.stopAlong[next]) ? Math.max(0, active.stopAlong[next] - progress.snap.along) : progress?.toLegEnd;
   const secsToNextStop =
@@ -795,62 +919,127 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       : progress?.secondsToLegEnd;
   // On you; on the route only when you're moving along it and within a few metres (heading.ts).
   const focus = driveFocus(fix, progress?.snap);
-  const over = !!hud?.over;
+  const mapHeading = cameraHeading(orientation, heading);
   const checkInStop = checkInAt !== null ? stops[checkInAt] : null;
 
-  let bannerArrow = '…';
-  let bannerDistance = '';
-  let bannerText = 'Finding you…';
-  if (phase === 'arrived') {
-    bannerArrow = ARROWS.arrive;
-    bannerText = `You've arrived at ${stops[stops.length - 1].name}`;
-  } else if (phase === 'routing') {
-    bannerText = legsDone && legsDone.total > 1 ? `Planning the route… ${legsDone.done} of ${legsDone.total} legs` : 'Planning the route…';
-  } else if (phase === 'error') {
-    bannerArrow = '!';
-    bannerText = "Couldn't start navigation";
-  } else if (step && progress) {
-    bannerArrow = ARROWS[step.kind];
-    bannerDistance = formatDistance(progress.toStep);
-    bannerText = step.text;
-  } else if (route && progress) {
-    bannerArrow = ARROWS.straight;
-    bannerDistance = formatDistance(progress.toEnd);
-    bannerText = 'Follow the route';
+  const banner = phase === 'driving' && route && progress ? bannerFor(route, progress) : null;
+  let status: { arrow: string; title: string; distance?: string } | null = null;
+  if (phase === 'arrived') status = { arrow: ARROWS.arrive, title: `You've arrived at ${stops[stops.length - 1].name}` };
+  else if (phase === 'routing')
+    status = { arrow: '…', title: legsDone && legsDone.total > 1 ? `Planning the route… ${legsDone.done} of ${legsDone.total} legs` : 'Planning the route…' };
+  else if (phase === 'error') status = { arrow: '!', title: "Couldn't start navigation" };
+  else if (phase === 'locating') status = { arrow: '…', title: 'Finding you…' };
+  else if (!banner && route && progress) status = { arrow: ARROWS.straight, title: 'Follow the route', distance: formatDistance(progress.toEnd) };
+
+  const roadName = routeRoad ?? osmRoad?.name ?? geoStreet;
+  const limit = shownLimit(hud?.limit ?? null, osmRoad?.limit ?? null);
+  const speedMph = mphOf(speedNow);
+  const over = overLimit(speedNow, limit);
+  const trip = phase === 'driving' && progress ? tripSummary(nowMs, progress.toEnd, progress.secondsToEnd) : null;
+
+  // One alert at a time over the map: the zone you're in or coming to, else the next camera.
+  let alertPill: string | null = null;
+  if (hud?.zone) {
+    alertPill = hud.zone.inside
+      ? `AVG ZONE${hud.zone.zone.mph ? ` ${hud.zone.zone.mph}` : ''} · YOURS ${hud.zone.average ?? '–'} · ${formatDistance(hud.zone.zone.endAlong - along)} LEFT`
+      : `AVG ZONE IN ${formatDistance(hud.zone.zone.startAlong - along)}${hud.zone.zone.mph ? ` · ${hud.zone.zone.mph} MPH` : ''}`;
+  } else if (hud?.ahead[0]) {
+    alertPill = `CAMERA IN ${formatDistance(hud.ahead[0].along - along)}${hud.ahead[0].mph ? ` · ${hud.ahead[0].mph} MPH` : ''}`;
   }
+  const credits = [osmRoad ? OSM_CREDIT : null, cameraAlerts && mapCameras.length > 0 ? CAMERA_CREDIT : null].filter(Boolean).join(' · ');
+
+  const toggleOrientation = () => {
+    feel.tap();
+    setSettings({ navMap: orientation === 'north' ? 'heading' : 'north' });
+  };
+  const toggleVoice = () => {
+    const m = !muted;
+    setMuted(m);
+    if (m) stopSpeaking();
+  };
+  const onUserPan = useCallback(() => setPannedAt(Date.now()), []);
+  const onPressYou = useCallback(() => {
+    if (canPan(fixRef.current && Date.now() - fixAt.current < 4000 ? fixRef.current.speed : 0)) setIconOpen(true);
+  }, []);
+  const onLongPress = useCallback((at: LatLng) => {
+    const you = fixRef.current?.at;
+    if (you && metresBetween(you, at) <= 80) setIconOpen(true);
+  }, []);
+
+  const subLines = (
+    <>
+      {nextStop && stops.length - next > 1 && toNextStop !== undefined && secsToNextStop !== undefined && phase === 'driving' ? (
+        <SubLine>
+          Next: {nextStop.name} · {formatDistance(toNextStop)} · {etaClock(nowMs, secsToNextStop)}
+        </SubLine>
+      ) : null}
+      {plan.driveId ? (
+        <SubLine colour={driveNote?.startsWith('Drive complete') ? STATE.success : undefined}>
+          {driveNote ??
+            (simulate ? "Demo drive: it doesn't count. Simulate the drive on its page to count it." : 'Pass every checkpoint in order and the drive counts.')}
+        </SubLine>
+      ) : null}
+    </>
+  );
 
   return (
     <View style={st.screen}>
-      <View style={[st.banner, { paddingTop: insets.top + 8 }, over && { borderBottomColor: STATE.danger }]} accessibilityLiveRegion="polite">
-        <Text style={st.arrow} allowFontScaling={false} accessibilityLabel={step ? step.kind : undefined}>{bannerArrow}</Text>
-        <View style={{ flex: 1 }}>
-          {bannerDistance ? <Text style={st.bannerDistance} maxFontSizeMultiplier={FONT_SCALE.drive}>{bannerDistance}</Text> : null}
-          <Text style={st.bannerText} numberOfLines={3} maxFontSizeMultiplier={FONT_SCALE.drive}>{bannerText}</Text>
-        </View>
-      </View>
+      <DriveBanner top={insets.top} banner={banner} status={status} danger={over} />
       {alert ? <ReportAlert text={alert} /> : null}
 
       <View style={{ flex: 1 }}>
         <DriveMap
           route={route?.coords ?? []}
           stops={mapStops}
-          cameras={mapCameras}
+          cameras={cameraAlerts ? mapCameras : []}
           reports={mapReports}
           focus={focus}
+          orientation={orientation}
+          mapHeading={mapHeading}
           heading={heading}
-          speed={fix?.speed ?? null}
-          you={simulate ? fix?.at ?? null : null}
+          speed={speedNow}
+          you={fix ? focus ?? fix.at : null}
+          icon={icon}
+          following={pannedAt == null}
+          panEnabled={panOk}
+          onUserPan={onUserPan}
+          onPressYou={onPressYou}
+          onLongPress={onLongPress}
         />
-        {cameraAlerts && mapCameras.length > 0 ? (
-          <View pointerEvents="none" style={st.credit}>
-            <Text style={st.creditText} maxFontSizeMultiplier={FONT_SCALE.drive}>{CAMERA_CREDIT}</Text>
+        <View pointerEvents="box-none" style={st.overlayTop}>
+          <View pointerEvents="none" style={{ flex: 1, gap: 6, alignItems: 'flex-start' }}>
+            {alertPill ? <AlertPill text={alertPill} /> : null}
+            {simulate ? (
+              <View style={st.demo}>
+                <Text style={st.demoText} maxFontSizeMultiplier={FONT_SCALE.drive}>DEMO DRIVE · 4× SPEED</Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-        {simulate ? (
-          <View pointerEvents="none" style={st.demo}>
-            <Text style={st.demoText} maxFontSizeMultiplier={FONT_SCALE.drive}>DEMO DRIVE · 4× SPEED</Text>
+          <View style={{ gap: 10 }}>
+            <MapButton
+              onPress={toggleOrientation}
+              label={orientation === 'north' ? 'North up. Switch to heading up' : 'Heading up. Switch to north up'}
+            >
+              <CompassGlyph mapHeading={mapHeading} mode={orientation} />
+            </MapButton>
+            <MapButton onPress={toggleVoice} label={muted ? 'Voice off. Turn voice on' : 'Voice on. Mute'} active={muted}>
+              <SpeakerGlyph muted={muted} />
+            </MapButton>
+            {pannedAt != null ? (
+              <MapButton onPress={() => setPannedAt(null)} label="Recentre on me" active>
+                <RecentreGlyph />
+              </MapButton>
+            ) : null}
           </View>
-        ) : null}
+        </View>
+        <View pointerEvents="box-none" style={st.overlayBottom}>
+          <ReportButton onPress={openReport} />
+          {credits ? (
+            <View pointerEvents="none" style={st.credit}>
+              <Text style={st.creditText} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE.drive}>{credits}</Text>
+            </View>
+          ) : null}
+        </View>
         {notice ? (
           <View style={st.notice}>
             <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }}>{notice}</Txt>
@@ -891,77 +1080,15 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         </View>
       ) : null}
 
-      <View style={[st.panel, { paddingBottom: insets.bottom + 10 }]}>
-        <View style={st.row}>
-          <View style={[st.speedBox, over && { borderColor: STATE.danger, backgroundColor: '#3a0d0d' }]} accessibilityLabel={speedMph != null ? `${speedMph} miles per hour` : 'Speed unknown'}>
-            <Text style={[st.speed, over && { color: STATE.danger }]} maxFontSizeMultiplier={FONT_SCALE.drive}>{speedMph ?? '–'}</Text>
-            <Text style={st.unit} maxFontSizeMultiplier={FONT_SCALE.drive}>MPH</Text>
-          </View>
-          {hud?.limit ? (
-            <View style={st.limit} accessibilityLabel={`${hud.limit.source === 'zone' ? 'Average speed zone' : 'Speed camera'} limit ${hud.limit.mph} miles per hour`}>
-              <Text style={st.limitText} allowFontScaling={false}>{hud.limit.mph}</Text>
-            </View>
-          ) : null}
-          <View style={{ flex: 1, gap: 2 }}>
-            {hud?.zone ? (
-              <Text style={st.zone} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE.drive}>
-                {hud.zone.inside
-                  ? `AVG ZONE${hud.zone.zone.mph ? ` ${hud.zone.zone.mph}` : ''} · YOURS ${hud.zone.average ?? '–'} · ${formatDistance(hud.zone.zone.endAlong - (progress?.snap.along ?? 0))} LEFT`
-                  : `AVG ZONE IN ${formatDistance(hud.zone.zone.startAlong - (progress?.snap.along ?? 0))}${hud.zone.zone.mph ? ` · ${hud.zone.zone.mph} MPH` : ''}`}
-              </Text>
-            ) : hud?.ahead[0] ? (
-              <Text style={st.zone} maxFontSizeMultiplier={FONT_SCALE.drive}>
-                CAMERA IN {formatDistance(hud.ahead[0].along - (progress?.snap.along ?? 0))}
-                {hud.ahead[0].mph ? ` · ${hud.ahead[0].mph} MPH` : ''}
-              </Text>
-            ) : null}
-            {nextStop && toNextStop !== undefined && secsToNextStop !== undefined && phase === 'driving' ? (
-              <Text style={st.next} numberOfLines={1} maxFontSizeMultiplier={FONT_SCALE.drive}>
-                {nextStop.name} · {formatDistance(toNextStop)} · {etaClock(nowMs, secsToNextStop)}
-              </Text>
-            ) : null}
-            {progress && stops.length - next > 1 && phase === 'driving' ? (
-              <Text style={st.sub} numberOfLines={1} maxFontSizeMultiplier={FONT_SCALE.drive}>
-                {stops[stops.length - 1].name} · {formatDistance(progress.toEnd)} · {etaClock(nowMs, progress.secondsToEnd)}
-              </Text>
-            ) : null}
-            {plan.driveId ? (
-              <Text style={[st.sub, driveNote?.startsWith('Drive complete') && { color: STATE.success }]} maxFontSizeMultiplier={FONT_SCALE.drive}>
-                {driveNote ??
-                  (simulate
-                    ? "Demo drive: it doesn't count. Simulate the drive on its page to count it."
-                    : 'Pass every checkpoint in order and the drive counts.')}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-        <View style={st.row}>
-          <Pressable
-            onPress={() => {
-              const m = !muted;
-              setMuted(m);
-              if (m) stopSpeaking();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={muted ? 'Voice off. Turn voice on' : 'Voice on. Mute'}
-            style={({ pressed }) => [st.mute, pressed && { opacity: 0.7 }]}
-          >
-            <Text style={st.muteText} maxFontSizeMultiplier={FONT_SCALE.drive}>{muted ? 'VOICE OFF' : 'VOICE ON'}</Text>
-          </Pressable>
-          <Pressable
-            onPress={openReport}
-            accessibilityRole="button"
-            accessibilityLabel="Report something on the road"
-            style={({ pressed }) => [st.report, pressed && { opacity: 0.8 }]}
-          >
-            <Text style={st.reportText} maxFontSizeMultiplier={FONT_SCALE.drive}>REPORT</Text>
-          </Pressable>
-          <Pressable onPress={end} accessibilityRole="button" accessibilityLabel="End navigation" style={({ pressed }) => [st.end, pressed && { opacity: 0.8 }]}>
-            <Text style={st.endText} maxFontSizeMultiplier={FONT_SCALE.drive}>END</Text>
-          </Pressable>
-        </View>
-      </View>
+      <DriveBar bottom={insets.bottom} road={roadName} speedMph={speedMph} over={over} limit={limit} trip={trip} sub={subLines} onEnd={end} />
       {gridOpen ? <ReportGrid onPick={pickReport} onClose={() => setGridOpen(false)} bottom={insets.bottom} /> : null}
+      <IconPickerSheet
+        visible={iconOpen}
+        value={settings.navIcon}
+        onChange={(v) => setSettings({ navIcon: v })}
+        onClose={() => setIconOpen(false)}
+        bottom={insets.bottom}
+      />
     </View>
   );
 }
@@ -969,40 +1096,12 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.asphalt },
   centred: { alignItems: 'center', gap: 12, paddingHorizontal: 24 },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: C.tarmac,
-    borderBottomWidth: 3,
-    borderBottomColor: BRAND,
-  },
-  /** The turn arrow: brand, never the Drives layer's blue. */
-  arrow: { fontSize: 64, lineHeight: 70, color: BRAND, width: 70, textAlign: 'center' },
-  bannerDistance: { fontFamily: F.display, fontSize: DRIVE_TYPE.banner, color: C.chalk, fontVariant: ['tabular-nums'] },
-  bannerText: { fontFamily: F.bodyBold, fontSize: DRIVE_TYPE.readout, lineHeight: 27, color: C.chalk },
-  panel: { backgroundColor: C.tarmac, paddingHorizontal: 16, paddingTop: 12, gap: 12, borderTopWidth: 1, borderTopColor: C.kerb },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  speedBox: { minWidth: 92, alignItems: 'center', borderWidth: 2, borderColor: C.kerbHi, borderRadius: 12, paddingVertical: 4, paddingHorizontal: 8 },
-  speed: { fontFamily: F.display, fontSize: DRIVE_TYPE.speed, lineHeight: 48, color: C.chalk, fontVariant: ['tabular-nums'] },
-  unit: { fontFamily: F.labelBold, fontSize: TYPE.caption, color: C.fog, letterSpacing: 1.5 },
-  limit: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#ffffff', borderWidth: 7, borderColor: '#d61f1f', alignItems: 'center', justifyContent: 'center' },
-  limitText: { fontFamily: F.display, fontSize: 24, color: '#111111' },
-  zone: { fontFamily: F.labelBold, fontSize: 16, color: STATE.warning, letterSpacing: 0.8 },
-  next: { fontFamily: F.bodyBold, fontSize: DRIVE_TYPE.body, color: C.chalk },
-  sub: { fontFamily: F.body, fontSize: TYPE.body, color: C.fog },
-  mute: { flex: 1, height: 60, borderRadius: 12, borderWidth: 2, borderColor: C.kerbHi, alignItems: 'center', justifyContent: 'center' },
-  muteText: { fontFamily: F.labelBold, fontSize: 18, color: C.chalk, letterSpacing: 1.5 },
-  report: { flex: 1.5, height: 60, borderRadius: 12, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center' },
-  reportText: { fontFamily: F.display, fontSize: 22, color: C.asphalt, letterSpacing: 1.5 },
-  end: { flex: 1.3, height: 60, borderRadius: 12, backgroundColor: STATE.danger, alignItems: 'center', justifyContent: 'center' },
-  /** Asphalt on red: 5.9:1, readable in sunlight (white was 3.3:1). */
-  endText: { fontFamily: F.display, fontSize: 24, color: C.asphalt, letterSpacing: 2 },
-  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
-  creditText: { fontFamily: F.label, color: C.fog, fontSize: TYPE.micro },
-  demo: { position: 'absolute', left: 8, top: 8, backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  panel: { backgroundColor: C.tarmac, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 12, borderTopWidth: 1, borderTopColor: C.kerb },
+  overlayTop: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  overlayBottom: { position: 'absolute', left: 10, right: 10, bottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
+  credit: { flexShrink: 1, backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 'auto' },
+  creditText: { fontFamily: F.label, color: C.fog, fontSize: TYPE.micro, textAlign: 'right' },
+  demo: { backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   demoText: { fontFamily: F.labelBold, color: BRAND, fontSize: TYPE.label, letterSpacing: 1 },
-  notice: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: SURFACE.glassRaised, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: BRAND },
+  notice: { position: 'absolute', left: 12, right: 12, bottom: 80, backgroundColor: SURFACE.glassRaised, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: BRAND },
 });

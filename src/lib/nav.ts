@@ -80,7 +80,7 @@ export function angleBetween(a: number, b: number): number {
 }
 
 /** Nearest point on segment a→b to p, in a local flat projection (fine over a few km). */
-function projectOnSegment(p: LatLng, a: LatLng, b: LatLng): { t: number; at: LatLng; off: number } {
+export function projectOnSegment(p: LatLng, a: LatLng, b: LatLng): { t: number; at: LatLng; off: number } {
   const k = Math.cos(rad(p.lat));
   const ax = a.lng * k, ay = a.lat;
   const bx = b.lng * k, by = b.lat;

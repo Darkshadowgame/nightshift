@@ -4,6 +4,7 @@ import { ScrollView, View } from 'react-native';
 import { AboutSection } from '../components/AboutSection';
 import { AccountSection } from '../components/AccountSection';
 import { AppUpdates } from '../components/AppUpdates';
+import { NavIconChoices } from '../components/DriveHud';
 import { TravelPrefs } from '../components/TravelPrefs';
 import { Button, Card, Chip, ConfirmBox, InlineError, LinkText, Row, Section, ToggleRow, Txt } from '../components/ui';
 import { CAMERA_CAVEAT } from '../lib/cameras';
@@ -130,6 +131,15 @@ export default function SettingsScreen() {
             ))}
           </Row>
           <Txt v="caption">Nightshift guides you turn by turn, with a voice and camera alerts. The others open that app. "Open in another app" still lets you pick each time.</Txt>
+          <Txt>The driving map</Txt>
+          <Row>
+            <Chip label="Turns with you" on={settings.navMap !== 'north'} onPress={() => setSettings({ navMap: 'heading' })} />
+            <Chip label="North up" on={settings.navMap === 'north'} onPress={() => setSettings({ navMap: 'north' })} />
+          </Row>
+          <Txt v="caption">The compass button on the driving screen switches it too.</Txt>
+          <Txt>Your icon on the map</Txt>
+          <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
+          <Txt v="caption">Stopped, tap your icon on the driving screen to change it.</Txt>
           <ToggleRow
             label="Spoken directions"
             hint="A British voice reads each turn and turns music down while it speaks. Mute it for one trip on the driving screen."

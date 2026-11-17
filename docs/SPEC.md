@@ -366,9 +366,25 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
   ahead (a camera tagged as facing across your road is left out), and average-speed zones
   driven in their own direction. Spoken as "Speed camera ahead, 30 miles per hour" and
   "Average speed zone starts / ends". In a zone the panel shows your running average
-  through it. Your GPS speed is compared with the camera's or zone's limit only (there's no
-  road speed-limit data); above it the speed box turns red with one soft chime and a buzz,
-  at most every 10 s. On by default; Me › Settings › Navigation turns the alerts off.
+  through it. The roundel shows the zone's or camera's limit while one applies, else the
+  road's from OpenStreetMap (below); hidden when unknown. Over the shown limit the speed box
+  turns red; over a camera's or zone's there's also one soft chime and a buzz, at most every
+  10 s. On by default; Me › Settings › Navigation turns the alerts off.
+* **Layout (redesign, 17 Nov 2026):** top, the next turn (big arrow, distance, the road to turn
+  onto) and a **Then** line when the one after comes within 500 m; on the map, the compass
+  (heading-up or north-up, remembered), voice, and **Recentre** after a look round, one alert
+  pill (camera or zone) and **REPORT**; bottom, the road you're on, your speed, the limit
+  roundel, arrival time, miles and time to go, and **END**. Your icon is an arrow, a car
+  (hatchback, saloon, coupé, estate or van) or a bike in one of six colours (Settings ›
+  Navigation, or tap yourself while stopped); it turns with you in north-up. Cameras are
+  drawn small and only on the route ahead; reports on the route, plus the ten nearest within
+  a mile. Logic: `src/lib/driveView.ts`.
+* **Road name and limit:** the road you're on is the one the last turn put you on; off the
+  route, OpenStreetMap's name, else the phone's reverse geocoder (every 15 s or 150 m). The
+  limit is OSM `maxspeed`: the app asks Overpass (overpass-api.de) for the roads round each
+  ~200 m square once (only the square's centre is sent, at most every 4 s), keeps the last 40
+  squares, and picks your road by distance and direction (`src/lib/speedLimit.ts`). Credited
+  on the map; any failure just hides the roundel.
 
 **Safety rules for the driving view** (code-level, keep them):
 
@@ -379,8 +395,9 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
    caveat and credit, kept apart from drivers' reports. Drivers' "Police / speed check"
    reports (owner decision, 17 Nov 2026) appear only here, under the safeguards in
    "Road reports" below.
-3. **Minimal interaction while moving:** no panning, zooming or menus on the map; two big
-   buttons (voice, **END**); check-in only appears once you've stopped. Large text, dark.
+3. **Minimal interaction while moving:** no panning, zooming or menus on the map while
+   moving (stopped, you can look round; it recentres after 8 s or as you move off); big
+   buttons only; check-in and the icon picker only appear once you've stopped. Large text, dark.
    Set the route before setting off; the phone belongs in a cradle (reg 110).
 4. **Foreground only:** GPS runs while the driving screen is open and the app is in front;
    leaving the app or pressing END stops it. No background location permission.

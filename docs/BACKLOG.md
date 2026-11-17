@@ -116,3 +116,7 @@ Work in this order. Each item ships over the air unless marked native.
    branch `native-voice-search`, not merged (the owner stays on build #10 for now): pick a
    better voice (Enhanced or Premium) in Settings, and shop and business search with
    MapKit's autocomplete. Merging it changes the fingerprint and needs a new IPA.
+6. **Driving view redesign (owner request, over the air)**: next turn and Then line on top;
+   road name, speed, OSM speed-limit roundel, arrival, miles and time left and END at the
+   bottom; heading-up or north-up; your own icon; recentre after a look round; fixes for
+   set-back destinations and the check-in panel when stopped.

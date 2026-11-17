@@ -106,6 +106,17 @@ export async function searchDestinations(raw: string, limit = 5): Promise<Destin
   return out;
 }
 
+/** The street at a point, for the driving view's road name off the route. Null if unknown or offline. */
+export async function streetAt(at: LatLng): Promise<string | null> {
+  if (!geocoderAvailable) return null;
+  try {
+    const [a] = await Location.reverseGeocodeAsync({ latitude: at.lat, longitude: at.lng });
+    return a?.street?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 /** A short name for a point, e.g. "Ventura Park Rd, Tamworth". Null if unknown or offline. */
 export async function nameForPlace(at: LatLng): Promise<string | null> {
   if (!geocoderAvailable) return null;
