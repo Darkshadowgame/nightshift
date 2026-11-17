@@ -1,0 +1,83 @@
+# Overnight build backlog (17 Nov 2026)
+
+Goal: by the morning the owner can tap through a **working** app. It should look right
+and every button should do something real. Everything still runs on local demo data
+(AsyncStorage), because there is no backend account yet.
+
+Ground rules for every chunk:
+* The repo is **public**. Never commit personal data: no real names, emails, home
+  addresses, IPs or tokens. Git is already set to the GitHub no-reply identity.
+* Expo SDK 58. Check the versioned docs (https://docs.expo.dev/versions/v58.0.0/) before
+  using any Expo API, and add packages with `npx expo install`.
+* Keep logic in `src/lib/*` as pure functions with Jest tests. Screens stay thin.
+* `npx tsc --noEmit` and `npx jest` must pass before each commit.
+* Respect the legal decisions in `docs/SPEC.md`: no timing or ranking on public roads, no
+  police spotting, plates always blurred, ban-zone warnings, 18+.
+* Match the existing visual language: `src/theme.ts`, `src/components/ui.tsx`, the hexagon
+  pins and the dark sodium-orange palette.
+
+## Chunks
+
+### A. Rolling meets: changes on the night (owner request)
+Hosts can change the plan while the meet is on: rename, move or remove upcoming stops,
+or add a new one. Each change:
+* checks the new place against ban zones and warns;
+* is added to a change log on the event (who, when, what), shown to hosts;
+* posts a chat line to everyone, "Hosts changed the plan", without revealing the place.
+Stops already revealed can't be moved after people have checked in there.
+
+### B. First run and profile
+A first-run screen to pick a handle, display name and region, and set a rough home
+area (map long-press, saved fuzzed to about 1 km, used only for invites). A profile
+editor on Me. The demo "You" user is replaced by the person's own profile.
+
+### C. Other people
+Tap anyone (Going list, vote cards, trophies, chat) to open their profile: builds,
+trophies, crew and rep level. No exact location ever.
+
+### D. Hosting tools
+Hosts can edit an event before it starts (name, time, filters, stops, reveal time)
+and share it (a share sheet with text and deep link `nightshift://event/<id>`).
+Cancel already exists.
+
+### E. Drives and photo spots, working
+* Detail screens for drives and photo spots.
+* "Start drive" tracks GPS checkpoints (or uses simulate mode) and completes the drive
+  when all checkpoints are passed. A completion that's implausibly fast for the
+  distance at the speed limits doesn't count. Never show a time.
+* After completing, a 1–5 star rating prompt.
+* Visiting a photo spot means a check-in within 0.2 mi plus an optional photo, which
+  goes through the plate review.
+* Suggest a new drive (drop points on the map) or photo spot. Suggestions start as
+  "pending" until approved; in the demo, auto-approve after a short delay.
+* A rep ledger in `src/lib/rep.ts`: attendance, hosting, drives, spots, awards and
+  authored places. Levels, and a rep breakdown on Me.
+
+### F. Crews
+A crew page with members, crew events and a join/leave button. Create a crew.
+
+### G. Reminders
+Local notifications with `expo-notifications` (local only, so no paid Apple account
+is needed): at an event's reveal time and 30 min before the start for events you're
+going to; "moved on" for rolling meets you're checked in at (local only in the demo).
+An in-app notifications list.
+
+### H. Motion and feel
+`react-native-reanimated` animations, with reduced motion respected:
+* a pulse on live event pins;
+* a check-in confirmation burst;
+* a cover or trophy reveal;
+* a class-up moment when a build's class rises after an edit;
+* the "event unlocked" reveal.
+Also haptics on the key actions. See the animation specs in
+`docs/research/competitors-design-branding.md`.
+
+### I. Polish
+Empty states, accessibility labels, safe areas, keyboard handling and loading states.
+A README section titled "Try this tomorrow" with a test checklist.
+
+### Review loops
+After each two or three chunks, a fresh reviewer reads the code and screenshots the
+web preview (`npx expo export --platform web` and a static server with SPA fallback),
+and writes findings to `docs/REVIEW.md`: bugs, UX problems, and ideas to improve.
+The next pass fixes them.
