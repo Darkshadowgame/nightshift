@@ -36,7 +36,7 @@ Phase 1 runs two ways (Nov 2026):
 
 All app logic goes through `src/lib/store.tsx`, which sends writes to a Repository
 (`src/lib/repository.ts`): `LocalRepository` for the demo, `SupabaseRepository`
-(`src/lib/backend/remote.ts`) signed in. Account deletion is in the app (Me >
+(`src/lib/backend/remote.ts`) signed in. Account deletion is in the app (Me ›
 Account), as Apple requires.
 
 ## Classes
@@ -155,7 +155,7 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
   see details", opening the same card.
 * **Drives** (formerly "sprints"): rated roads, never timed or ranked.
 * **Check-in:** you must be within 0.5 mi of the current stop, from 30 minutes
-  before the start until the end. Before then the event shows when check-in opens. Check-ins use a real GPS fix (never stored). For testing, Me > **Demo: skip the GPS
+  before the start until the end. Before then the event shows when check-in opens. Check-ins use a real GPS fix (never stored). For testing, Me › Settings › **Demo: skip the GPS
   check** skips the distance check; it is off by default.
 * **Invites:** someone is invited when any of their builds matches the filter and
   they live within the radius of the area. "Everyone welcome" skips the build
@@ -204,9 +204,12 @@ Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
 
 * Drives and photo spots live in the store with an author, a status (pending or
   approved), completions and 1–5 star ratings. Tap a pin on the map to open one.
-* **Start drive:** each point of the drive's line is a checkpoint (within 0.2 mi).
-  Pass every checkpoint in order to finish, using GPS (`watchPositionAsync`) or,
-  with **Demo: skip the GPS check** on, a button that walks the checkpoints at a legal pace.
+* **Navigate the drive** (the drive page's one primary button) opens the driving view, and
+  passing every checkpoint in order counts the drive. Each point of the drive's line is a
+  checkpoint (within 0.2 mi). Where Nightshift's own directions aren't available (web, an
+  older install, or another directions app chosen in Settings) a secondary **Count without
+  directions** runs the same checkpoint check with GPS (`watchPositionAsync`); with **Demo: skip
+  the GPS check** on, **Simulate the drive** walks the checkpoints at a legal pace.
   A run that would average over 45 mph along the drawn route (or the stated road
   length, if longer; or the road's own limit on national-limit A-roads, 60 mph), or takes far longer than
   the drive allows, doesn't count, and says only "This run looks too quick to count" (never
@@ -231,7 +234,7 @@ Owner's requests, 17 Nov 2026. Legal basis: `docs/research/legal.md` section 3 a
 App Store notes (camera *sites* from a database are legal in the UK; police positions are not
 shown; no timing on public roads).
 
-* **Cameras layer** (the map's layers button > **Speed cameras**, and Me > Map > **Speed cameras**;
+* **Cameras layer** (the map's layers button > **Speed cameras**, and Me › Settings › Map layers › **Speed cameras**;
   one setting, off by default, turned off once for older installs). Fixed speed cameras and average-speed zones for the whole UK from OpenStreetMap
   (`highway=speed_camera`; `type=enforcement` relations with `device`/`from`/`to`), fetched at
   build time into `src/data/cameras.ts` and decoded a 1° tile at a time. They only show once
@@ -249,8 +252,8 @@ shown; no timing on public roads).
   says so, or a short list of well-known locations with the reason (`src/data/photoVetting.ts`).
   Scenic-only spots stay in the data but off the map. Suggesting a photo spot needs a photo taken
   there with a car or bike in it (cropped, plates reviewed), shown on the pending spot.
-* **Photos on a place** come in two sections: **Members' photos** (the suggester's and visit
-  photos, plate-blurred) and **Online photos** from Wikimedia Commons, only those whose title,
+* **Photos on a place** come in two sections: **Photos** (the suggester's and check-in
+  photos, plate-blurred) and **Nearby photos** from Wikimedia Commons, only those whose title,
   description or categories show cars, bikes or motorsport; the section hides when none qualify.
 * **Nearby photos** on photo spot, drive and track screens: your own (plate-blurred) visit
   photos first, then public photos from Wikimedia Commons' geosearch near the place (800 m
@@ -292,7 +295,7 @@ Owner's request, 17 Nov 2026: "Add another toggle on the map — Shops, which ca
 sponsors — and filter the shops you want to see." Money model: no ads and no paywalls;
 local businesses can pay to be a **labelled partner**, never disguised as an ordinary listing.
 
-* **Shops** in the map's layers button (and Me › Map). A tap turns the layer on or
+* **Shops** in the map's layers button (and Me › Settings › Map layers). A tap turns the layer on or
   off (off by default; kept in settings). **Kinds ›** opens a small floating menu
   with nine kinds, any mix (never none): Tuning & modifications, Parts & accessories, Bike
   gear (helmets, leathers), Dealers (car and bike), Tyres & wheels, Detailing, wraps & tints,
@@ -311,7 +314,7 @@ local businesses can pay to be a **labelled partner**, never disguised as an ord
   ones (tuning, "dyno"/"rolling road", detailing). A business can be in more than one kind;
   the main one picks its small pin glyph. Cafés count only when tagged or named for bikers or
   drivers (biker, motorcycle, truck stop, Moto café, "Pit Stop Café"…; never pizza, sushi or
-  cycle cafés), and the bundled meet-friendly venues show as Coffee & meet spots too.
+  cycle cafés), and the bundled meet spots show under Cafés and meet spots too.
   Plain hand car washes are left out.
 * Shops show once the map is zoomed in to about 20 miles top to bottom, at most 90 pins,
   nearest the middle first, decoded one 1° tile at a time. Zoomed out, a note says to zoom in.
@@ -341,9 +344,9 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
 * **Entry points:** **Start navigation** on events (once their stops are revealed to you: a
   cruise through every stop you can see, in order; a rolling meet only to the stop it's at
   now; a meet to the spot), drives (**Navigate the drive**: to the start, then through the
-  checkpoints), tracks, venues, photo spots and shops. It opens Nightshift's driving view by
+  checkpoints), tracks, meet spots, photo spots and shops. It opens Nightshift's driving view by
   default. **Open in another app ›** offers Apple Maps, Google Maps (app, else website), Waze
-  or the share sheet, with **Always use this**; Me > **Navigation** changes the default.
+  or the share sheet, with **Always use this**; Me › Settings › **Navigation** changes the default.
   Other apps get the first stop's coordinates only, never a stop or event name.
 * **Directions:** Apple MapKit (`MKDirections`, driving, no alternatives), one request per
   leg, chained in order, two at a time, retried with backoff when Apple throttles. Only
@@ -354,14 +357,14 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
   over 5 s, or heading the wrong way along it) it reroutes from where you are through the
   stops still to come, at most every 20 s. Arrival is per stop: cruise and meet stops with
   check-in offer **Check in** once you've stopped; drive checkpoints are called out, and
-  passing all of them in order counts the drive exactly like **Start drive** (pass or fail).
+  passing all of them in order counts the drive (pass or fail, never timed).
 * **Cameras and zones:** fixed cameras within 40 m of the route and up to about half a mile
   ahead (a camera tagged as facing across your road is left out), and average-speed zones
   driven in their own direction. Spoken as "Speed camera ahead, 30 miles per hour" and
   "Average speed zone starts / ends". In a zone the panel shows your running average
   through it. Your GPS speed is compared with the camera's or zone's limit only (there's no
   road speed-limit data); above it the speed box turns red with one soft chime and a buzz,
-  at most every 10 s. On by default; Me > Navigation turns the alerts off.
+  at most every 10 s. On by default; Me › Settings › Navigation turns the alerts off.
 
 **Safety rules for the driving view** (code-level, keep them):
 
@@ -378,7 +381,7 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
 4. **Foreground only:** GPS runs while the driving screen is open and the app is in front;
    leaving the app or pressing END stops it. No background location permission.
 5. **Over the limit is a warning, never a reward:** red and one chime, no sounds or visuals
-   that celebrate speed. The demo drive (Me > Demo: skip the GPS check) never counts.
+   that celebrate speed. The demo drive (Me › Settings › Demo: skip the GPS check) never counts.
 
 Code: `src/lib/nav.ts` (engine, tests in `__tests__/nav.test.ts` with a fixture route),
 `navPlan.ts`, `directions.ts`, `src/app/drive.tsx`, `components/DriveMap.tsx`,
@@ -517,7 +520,7 @@ Code: `src/lib/crews.ts`, tests in `__tests__/crews.test.ts`.
 * Rewards:
   * **Cover shoot:** Best in show, Best car and Best bike winners get an original
     magazine-style cover of their build, pinned to their garage.
-  * **Trophy cabinet** on the build page.
+  * **Trophies** on the build page.
   * **Rep:** Best in show 500, Best car or bike 300, class 200, style 150.
   * **Legend badge:** Best in show winners carry a "Legend" badge for a week.
 * Ties go to the build that reached the top count first.
@@ -595,7 +598,7 @@ Owner's request: "Obviously you need to use real maps and location."
   (OpenStreetMap, ODbL), with warnings for single-track, steep or snow-gated roads;
   photo spots only at public car parks and viewpoints. They are "Added by
   Nightshift", so nobody earns author rep for them. A `venue` kind exists for
-  meet-friendly venues (information only, like tracks).
+  meet spots: cafés and museums that welcome meets (information only, like tracks).
 * **Sample scene near you:** the sample people and events (labelled Sample) are
   moved onto your home area keeping each point's distance and direction; cruises
   run on the nearest real drives and the show and track day are at the nearest
@@ -637,13 +640,19 @@ Owner's request: "Obviously you need to use real maps and location."
 ## Screens
 
 1. **Map:** a dark map, game-style hexagon pins (events filled, places outlined; a
-   number on a pin is a group of places when zoomed out, tap to zoom in), a layer bar
-   with the core layers (Events, Photos, Drives, Tracks) and Find events, Near me and
-   Suggest a place, a round layers button under locate-me (Venues, Shops with its
-   kinds, Speed cameras, both off by default, and the map key), a slot bottom right for
-   a small widget, and a peek card that opens the event, drive, photo spot or track.
-   Only what's in view is drawn, at most 40 of a kind (`src/lib/mapPlaces.ts`).
-2. **Events:** Going, Invited, Hosting and Public lists, with a create button and **Find**.
+   number on a pin is a group of places when zoomed out, tap to zoom in). Top row: the
+   wordmark, a white **N live** pill, **Find** (with a new-events badge) and the bell. Under
+   it the four core layer pills (Events, Photos, Drives, Tracks; ▾ or long-press on Tracks
+   for options), which share the row and go icon-only on narrow screens or larger text, so
+   nothing scrolls sideways (`src/lib/mapLayers.ts`). Right column: locate, the layers button
+   (Meet spots, Shops with its kinds, Speed cameras, Road reports, **Suggest a place** and the
+   map key) and **Near me**. All layer choices are saved. Bottom: Next up, or "Nothing on near
+   you tonight" with Find events, Host one and Suggest a place; a one-time hint explains
+   the pins and buttons. A slot bottom right for a small widget, and a peek card that opens
+   the event, drive, photo spot, track or meet spot. Only what's in view is drawn, at most
+   40 of a kind (`src/lib/mapPlaces.ts`).
+2. **Events:** a segmented control: Mine (hosting, going, requested), Invited, Public (shows
+   and track days), Past (finished, cancelled, declined); header actions **Find** and **+ Host**.
 3. **Event detail:** hero, hosts, invite filter summary, the stops timeline
    (locked or revealed), RSVP, check-in, Move on (hosts), attendees and chat.
 4. **New event:** type, name, time, area, stops, filters with a live count of
@@ -653,14 +662,55 @@ Owner's request: "Obviously you need to use real maps and location."
 7. **Edit build:** car or bike, vehicle picker (make, model, generation) that fills
    stock specs, year, nickname, engine swap, stock bhp, weight, dyno figure, tune
    stage, quick-pick mod chips and the mods list with bhp gains.
-8. **Me:** profile, rep and level with a breakdown, crew, your suggested places, events near you
-   (willing to travel, new-event alerts), reminders, privacy toggles for later phases, demo controls
-   (Demo: skip the GPS check, restart the demo events, reset data).
+8. **Me:** profile, rep and level with a breakdown, crew and your places (Suggest a place).
+   **Settings** (header button): map layers, events near you (willing to travel, new-event
+   alerts), reminders, navigation, privacy, account, demo controls (demo only: skip the GPS
+   check, restart the demo events, reset data) and app updates.
 
-9. **Drive / photo spot:** details, map, Start drive or Check in, rating, photos.
+9. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
 10. **Suggest a place:** draw a drive or drop a photo spot on the map.
 11. **Crews:** browse crews, crew page, start a crew.
 12. **Find events:** filters and results nearest first; opens the event.
+
+## Words and design system (REVIEW-5, 17 Nov 2026)
+
+One vocabulary, in `src/lib/glossary.ts` (screens import it rather than writing their own):
+
+| Use | Not |
+|---|---|
+| **event** (cruise, rolling meet, meet, show, track day) | "meet" as the generic word |
+| **Hosting**, **Going**, **Requested**, **Invited**, **Public**, **Declined** (`roleLabel()`) | You host, Asked to go, Open to all |
+| **Request to go** / **Cancel request** | Ask to go, Withdraw request |
+| **Public · anyone within N mi** (invite line) | Everyone welcome |
+| the stop **unlocks** | reveal, revealed (UI copy) |
+| **stop** (a point on an event) | place, spot, location |
+| **drive** (a road to enjoy); **route** only for a cruise's line | route for drives |
+| **meet spot** (cafés and museums that welcome meets) | venue |
+| **check in** (events and photo spots) | visit (in buttons) |
+| "and" in labels | "&", "+" |
+| menu paths with "›": Me › Settings › Demo | "Me > Demo" |
+
+Design rules (`src/theme.ts`, `src/components/ui.tsx`):
+
+* **Colour roles.** `BRAND` (sodium) for primary buttons, links, eyebrows, unread and
+  selected chips. `LAYER` colours only on the map and a place's own header. `STATE`: live
+  (white with a red dot), success (green), warning (amber), danger (red), info. `CLASS`:
+  a metal ladder (steel D, bronze C, silver B, gold A, platinum S), not layer hexes.
+  `SURFACE`: glass and scrim alphas, `borderStrong` for inputs (3:1).
+* **Buttons.** One **primary** per screen; **secondary** is an outline; **danger** only
+  destroys or cancels (joining a crew isn't). On a live event, Check in is primary and
+  navigation secondary; on a drive, Navigate the drive is primary.
+* **Type.** `Txt` variants h1 28, h2 20, h3 16, body 15, muted 14, caption 13, label 12,
+  micro 11 (credits and tags), mono 13. 11 is the smallest. Body text scales with the iOS
+  text size; map chrome, pills, tags and stat tiles cap at 1.3x, the driving view at 1.2x.
+* **Components.** `Card` (solid, raised, glass, muted for finished things: never opacity),
+  `Tag`, `SampleTag`, `LegendTag`, `ConfirmBox` ("{Verb} it / Keep it"), `InlineError`
+  (under the control that failed), `Notice`, `EmptyState`, `NotFound` (with Go back),
+  `ToggleRow`, `ListRow`, `LinkText` ("Open ›"), `HeaderAction`, `Segmented`, `CrewCard`.
+* **Headers.** Detail screens are blank (the hero carries the title); list and form
+  screens use `title(SCREEN_TITLES.x)` in capitals ("ADD A CAR OR BIKE" / "EDIT BUILD").
+* **Icons.** Drive is a winding road, track and track day a chequered flag; tab icons
+  (folded map, calendar, car, person) never reuse a map layer glyph. Pulse means live only.
 
 ## Next steps after Phase 1
 

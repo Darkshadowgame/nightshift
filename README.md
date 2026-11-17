@@ -41,7 +41,7 @@ the driving screen.
 
 Every push to `main` publishes an over-the-air update, but an install only takes updates
 built for the same **runtime** (a fingerprint of the native side: native modules, config
-plugins, app config, icons). Me › App updates shows the install's runtime (first 8
+plugins, app config, icons). Me › Settings › App updates shows the install's runtime (first 8
 characters) and channel, e.g. `Runtime bceac1ba · production channel`. The OTA job prints
 the update's runtime in its summary, and the **Build iPhone app** job prints the IPA's.
 
@@ -75,7 +75,7 @@ note anything odd for the next pass. Each step says what you should see.
 ### 2. Sign in, or the demo
 
 The app now opens on **Sign in** (phones that used Nightshift before accounts stay in
-the demo with their data; Me > Account > **Sign in or create an account** gets you here).
+the demo with their data; Me › Settings › Account > **Sign in or create an account** gets you here).
 
 - [ ] Type your email and tap **Email me a code**. Until custom email (SMTP) is set up,
       Supabase only mails **the project team's addresses**, about 2 an hour, and the email
@@ -90,7 +90,7 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
 - [ ] Signed in, the first run below is the same, but saved on the server: a taken handle
       is anyone's on Nightshift now, not a sample person's. There are no sample people or
       events when signed in: you'll see what real people host.
-- [ ] Me > Account shows **Signed in as …**, **Sign out** and **Delete my account**.
+- [ ] Me › Settings › Account shows **Signed in as …**, **Sign out** and **Delete my account**.
       Deleting asks first, then removes your profile, home, garage and photos, check-ins,
       chat and votes, cancels events only you host, and goes back to Sign in. The Demo
       section (skip the GPS check, restart, reset) only shows in the demo.
@@ -116,7 +116,9 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
 - [ ] Also try the search box: type a postcode (e.g. `SW1A 1AA`) or a town (e.g. `Leeds`),
       wait a moment, tap a result: the map and home area move there. Nonsense text says
       no places were found; with flight mode on it says it couldn't search.
-- [ ] **Testing: use the demo area (Tamworth)** is still there if you want the old setup.
+- [ ] Demo only: **Testing: use the demo area (Tamworth)** and the sample-people sentence.
+      Signed in, neither shows; the home area hint says it's only used to find events near you.
+      The handle hint says it's shown on your profile, in chat and on trophies (nobody is on the map).
 - [ ] **Events near you**: Willing to travel shows 25 mi picked and New events near you
       shows **Notify me**. Leave them for now (step 4b changes them).
 - [ ] Tap **Let's go**: you land on the map. The bell (top right) shows a count: the only
@@ -124,8 +126,11 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
       25 mi (e.g. **Coffee and cars, late edition**, and the show or track day if the
       nearest venue is that close), never one you host or are already going to. No
       reminders from before you joined. Me shows your new handle in your own case.
-- [ ] The map centres on you with the blue dot. The round **you** button (top right,
-      under the chips) brings it back after you pan away.
+- [ ] The map centres on you with the blue dot. The **you** button (top right, under the
+      pills) brings it back after you pan away.
+- [ ] First open: a **How the map works** card explains pins and buttons; **Got it** hides it
+      for good. Nothing on near you? The bottom card says so, with **Find events**, **Host one**
+      and **Suggest a place ›**.
 - [ ] The sample people and events (marked **Sample**) are around your own area now, not
       the Midlands. Within a few seconds the sample stops get real street names near you
       (e.g. "Ventura Park Rd, Tamworth" style); with no signal they keep neutral names
@@ -184,7 +189,7 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
       your spot, never on it, and the stops show locked.
 - [ ] **Night cruise: …** (you host it, on the nearest real drive to you): **Requests (2)** from people who
       don't match the invite. Approve one (they move to Going), decline the other.
-- [ ] Open **Sunrise ride: …** (bikes only, on the second-nearest drive; Me > All crews > Peak Chasers):
+- [ ] Open **Sunrise ride: …** (bikes only, on the second-nearest drive; Me › All crews > Peak Chasers):
       you get **Request to go** with the reason, not "going". Chat stays closed until
       you're in. Request it: Events > Mine now lists it as **Requested**, and the map
       shows it locked ("you asked to go"). Open it to **Withdraw request**.
@@ -211,12 +216,12 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
 - [ ] **Where I am**: asks for location if needed and measures from your position, rounded
       to about 1 km. With location off it says so and stays on your home area.
 - [ ] Tap a result: the event opens, with **I'm going** or **Request to go** as usual.
-- [ ] Me > **Events near you**: tap **Custom** and type 40: the chip reads 40 mi, and Find
+- [ ] Me › Settings › **Events near you**: tap **Custom** and type 40: the chip reads 40 mi, and Find
       events now starts at 40 mi. Type 0 or 500: it says 1 to 300 miles and keeps the old one.
 - [ ] The bell's **New … near you** notices (step 2) say the event's title, time and area
       name only: no stop, street or distance. Tapping one opens the event.
-- [ ] Phone notification: with notifications allowed (step 4 or Me > Reminders), set **Notify
-      me**, then Me > **Restart the demo events** and lock the phone: one notification,
+- [ ] Phone notification: with notifications allowed (step 4 or Me › Settings › Reminders), set **Notify
+      me**, then Me › Settings › **Restart the demo events** and lock the phone: one notification,
       "N new events near you", which opens Find events (or the event, if there's just one).
 - [ ] Set **I'll search** and restart the demo events again: no notification and nothing new
       under the bell, but Events shows **Find · N new** and the map chip says **N new**; the
@@ -228,7 +233,7 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
 - [ ] Late rolling meet: the map dims and the stop **unlocks** (once per stop).
       The strip under the title shows the time left, the stop number and how many have
       checked in. **Check in** uses your real location now: unless you're at the stop it
-      says how close you need to be. To try the rest from the sofa, turn on Me > **Demo:
+      says how close you need to be. To try the rest from the sofa, turn on Me › Settings › **Demo:
       skip the GPS check** first, then tap **Check in** (above **Drop out** and **Share**): a
       tick bursts and the phone buzzes.
 - [ ] **NightRunners late one** is your crew's meet and you're a NightRunners host,
@@ -254,18 +259,27 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
       zoomed in, each place has its own pin, and drive lines appear. **Near me** fits the 60
       nearest things to your home area. Real circuits, hill climbs, drives and photo spots all
       over the UK (Silverstone to Knockhill and Kirkistown, Snake Pass to Bealach na Bà), plus
-      **Venues** (cafés and museums that welcome meets; mint building-and-flag pins, under the
-      layers button). The bar has Events, Photos, Drives and Tracks; the round layers button
-      under locate-me has Venues, Shops and Speed cameras, and **Map key ›** explains every
-      pin (events filled, places outlined). There are no ban zones on this map: a place inside
+      **Meet spots** (cafés and museums that welcome meets; mint building-and-flag pins, under
+      the layers button). The four pills (Events, Photos, Drives, Tracks) fit across the top
+      with no sideways scrolling, at 375 and 430 pt and at larger text (icon-only when tight).
+      The layers button under locate-me has Meet spots, Shops, Speed cameras, Road reports,
+      **+ Suggest a place** and **Map key ›**, which explains every pin (events filled, places
+      outlined; drives are a winding road, tracks a chequered flag). **Near me** is the third
+      round button, **Find** sits next to the bell. Layer choices survive a restart. There are no ban zones on this map: a place inside
       one (e.g. Westminster Bridge or Coventry Transport Museum) has one line, "Inside a
       car-meet order area… See details ›", which opens the info card. Each
       drive's line should sit on the real road when you zoom in. Drives show **Before you
       go** warnings where they matter (single-track, snow gates, cameras), and "Added by
       Nightshift".
-- [ ] With **Demo: skip the GPS check** on, tap a drive > **Start drive** > **Simulate the
-      drive**. It finishes with a pass, never a time. Rate it 1–5 stars. With it off, Start
-      drive only counts checkpoints you really pass.
+- [ ] A drive has one primary button, **Navigate the drive**: the driving view counts the
+      drive when you pass every checkpoint in order (pass or fail, never timed). With **Demo:
+      skip the GPS check** on, tap **Simulate the drive** instead: it finishes with a pass,
+      never a time. Rate it 1–5 stars. On the web (or with another directions app chosen),
+      **Count without directions** only counts checkpoints you really pass.
+- [ ] Signed in, finishing, checking in at or rating one of Nightshift's own drives or photo
+      spots is saved on the server: **Driven by**, the stars and your rep match on a mate's
+      phone. Anything done on that phone before this update shows **Only on this phone** and
+      doesn't count.
 - [ ] Open a photo spot > **Check in here**: with the GPS check on it says how close you
       need to be; with it skipped you can add a photo (plates blurred) or skip it.
 - [ ] Map > **+ Suggest a place** > **Draw the drive on the map** (or **Choose on the map** for a photo
@@ -287,7 +301,7 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
       camera · 30 mph · faces north-east**), that the data may be incomplete, and the
       OpenStreetMap credit. Nothing to open, and nothing about police (drivers' reports are
       a separate layer, 7e).
-- [ ] Cameras are off at first: turn them on from the layers button (or Me > Map > **Speed
+- [ ] Cameras are off at first: turn them on from the layers button (or Me › Settings › Map layers › **Speed
       cameras**, the same setting). Zoomed out further, the pins go and a small note says
       **Zoom in to see cameras**. Cameras with no recorded limit are smaller and dimmer.
 - [ ] Tracks **▾**: **Cars** and **Bikes** (either or both), and **Racing to watch** (off at
@@ -304,7 +318,7 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
       **Unverified**. A time quicker than the lap record, a future date or no photo is
       refused with the reason. **Remove** takes yours off. Drives and photo spots have no
       way to enter a time.
-- [ ] A photo spot, drive or track: **Members' photos** (yours and other visits), then **Online
+- [ ] A photo spot, drive or track: **Photos** (yours and other check-ins), then **Nearby
       photos** from Wikimedia Commons of cars, bikes or racing only, with the author and licence
       under each (the section hides when there are none).
       Tap one: its Commons page opens in Safari. In flight mode on a place you haven't
@@ -339,14 +353,14 @@ while moving: the driving screen is built to be glanced at, not used.
       event you're going to, the button shows once its stops are revealed to you: a
       cruise goes through every stop you can see, in order; a rolling meet only to the
       stop it's at now; a meet to the spot.
-- [ ] Tap it at home with Me > **Demo: skip the GPS check** on: the driving screen opens full
+- [ ] Tap it at home with Me › Settings › **Demo: skip the GPS check** on: the driving screen opens full
       screen, says **Planning the route… N of M legs** for longer routes, then drives the
       route for you at four times the speed (**DEMO DRIVE · 4× SPEED**). You should see the
       big arrow and distance at the top, the street, the map turning so your direction is
       up, and hear "Starting route to …" in a British voice with music turned down.
 - [ ] The voice says each turn at 1 mile (after a long straight), a quarter of a mile,
       200 yards and at the turn, and "You've reached …" / "You've arrived at …" at stops.
-      **VOICE ON / OFF** mutes it for this trip; Me > **Navigation** > **Spoken directions**
+      **VOICE ON / OFF** mutes it for this trip; Me › Settings › **Navigation** > **Spoken directions**
       turns it off for good.
 - [ ] Bottom panel: your speed (MPH), the next stop with its distance and arrival time, and
       the final stop's when there's more than one.
@@ -362,12 +376,12 @@ while moving: the driving screen is built to be glanced at, not used.
       where you are through the stops still to come.
 - [ ] Cruise or meet: at a stop with check-in, once you've stopped the screen offers **Check in
       at …** (with the usual distance and time checks). Drives: each checkpoint is called out
-      ("Checkpoint 3 of 12"), and passing them all in order counts the drive just like
-      **Start drive** (pass or fail, never timed).
+      ("Checkpoint 3 of 12"), and passing them all in order counts the drive (pass or fail,
+      never timed).
 - [ ] **Open in another app ›**: Nightshift, Apple Maps, Google Maps (the app if installed,
       else the website), Waze, or **Other app…** (share sheet with the coordinates). Turn on
       **Always use this** and pick Waze: the main button now says **Directions in Waze**.
-      Me > **Navigation** sets it back to Nightshift. Other apps get the first stop only.
+      Me › Settings › **Navigation** sets it back to Nightshift. Other apps get the first stop only.
 - [ ] Web preview: the driving screen says it needs the iPhone app and offers the other apps.
 
 ### 7e. Road reports (over the air)
@@ -379,16 +393,16 @@ and everything stays on the phone; signed in they're shared through the server.
       roadworks, a closure, traffic and a mobile camera round your home area. **Never a
       police report on the map.** Tap one: **CRASH · REPORTED 12 MIN AGO · CONFIRMED BY 1
       DRIVER**, when it ends, and (demo) "Sample report for the demo".
-- [ ] Within a mile of it (or with Me > **Demo: skip the GPS check** on), the card has
+- [ ] Within a mile of it (or with Me › Settings › **Demo: skip the GPS check** on), the card has
       **Still there** and **Gone**. Tap **Still there**: "Thanks. Marked as still there.",
-      the count goes up, and Me > Rep shows **Road reports checked ×1 +2**. Tap it again:
+      the count goes up, and Me › Rep shows **Road reports checked ×1 +2**. Tap it again:
       it says you've already answered. Further away it says you need to be within a mile.
 - [ ] Driving view (demo drive or real): a big coral **REPORT** button between VOICE and
       END. Tap it: seven big tiles: Crash, Hazard, Roadworks, Closure, Traffic, Mobile
       camera, **Police / speed check**. Tap one: "Thanks, reported" (with voice on) and a
       bar **CRASH REPORTED · UNDO 5** counting down; **UNDO** takes it back. After 5 s it's
       sent. Report again within 2 minutes: "You've just sent a report…".
-- [ ] Demo: 20 s after you report, two sample drivers confirm it, and Me > Rep shows
+- [ ] Demo: 20 s after you report, two sample drivers confirm it, and Me › Rep shows
       **Road reports confirmed ×1 +10**. Signed in, that needs two real drivers.
 - [ ] Route past a report (the demo drive near home goes past some): about three quarters
       of a mile before, a coral strip **CRASH REPORTED AHEAD · 0.5 MI** and the voice says
@@ -408,18 +422,18 @@ and everything stays on the phone; signed in they're shared through the server.
 
 - [ ] Tap anyone in a Going list, a vote card or chat: their builds, trophies,
       crew and level. Never a location.
-- [ ] Me > **All crews**: open one, leave yours, join another, start a new crew.
+- [ ] Me › **All crews**: open one, leave yours, join another, start a new crew.
       Leaving NightRunners (or joining or starting another crew) first warns that you'll
       stop hosting **NightRunners late one**; the night cruise, which names you
       as a host, stays yours. Joining makes you a plain member.
 - [ ] In a crew you started you're the owner: **Invite members** > **Add** a couple of
       sample people (they join straight away in the demo), then **Make host** on one.
-      Me > **Restart the demo events** doesn't undo crew changes; **Reset demo data**
+      Me › Settings › **Restart the demo events** doesn't undo crew changes; **Reset demo data**
       does.
 
 ### 9. Reminders
 
-- [ ] Me > Reminders > **Send a test reminder**, then lock the phone: it appears
+- [ ] Me › Settings › Reminders > **Send a test reminder**, then lock the phone: it appears
       in about 5 seconds. Tapping it opens the notifications list.
 - [ ] Going to **Coffee and cars, late edition** (step 4): you'll get one notification
       when its location unlocks (about 2 hours after install or restart) and one 30 min
@@ -432,10 +446,15 @@ and everything stays on the phone; signed in they're shared through the server.
 
 ### 10. Settings
 
+Me shows who you are (profile, rep, crew, your places). **Settings** (top right on Me) holds
+map layers, events near you, reminders, navigation, privacy, account, demo (demo only) and
+app updates.
+
+
 - [ ] **Demo: skip the GPS check** is off by default (and was turned off once on an old
       install). Off: check-ins, drives and photo spots need you to be there. On: the
       distance check is skipped and drives can be simulated.
-- [ ] Me > **Edit profile** > set a different home area: the sample scene moves there (and its
+- [ ] Me › **Edit profile** > set a different home area: the sample scene moves there (and its
       events count as new near you again). Willing to travel and New events near you are on
       this screen too, and on Me under **Events near you**.
 - [ ] Turn on iOS Reduce Motion (Settings > Accessibility > Motion): pulses go
@@ -443,7 +462,7 @@ and everything stays on the phone; signed in they're shared through the server.
 - [ ] **Reset demo data** (asks first) takes you back to the welcome screen.
 
 - [ ] Leave the app for a day and open it again: the demo times move back into
-      place. Each event keeps what you did to it, so to run steps 4–9 again tap Me >
+      place. Each event keeps what you did to it, so to run steps 4–9 again tap Me › Settings ›
       **Restart the demo events**: the rolling meet live, the crew meet in about 30 min, the
       invite a few hours away and the requests come back, and your profile, builds,
       photos, crew and your own events stay.
@@ -578,6 +597,11 @@ and everything stays on the phone; signed in they're shared through the server.
 | `src/lib/placeStore.ts`, `persist.ts`, `clock.tsx` | Bundled places read from the bundle (only progress saved); saving in slices, debounced; the 30 s clock context |
 | `src/lib/legality.ts` | Road-illegal mods (labelled, never auto-added, no rep) and which mods earn rep |
 | `src/data/trackInfo.ts` | Circuit layouts, lap records (with sources) and what runs at each track |
+| `src/theme.ts`, `src/components/ui.tsx` | Colour roles (brand, layers, states, class ladder, surfaces), the type scale and text-size caps; shared components (Txt, Button, Card, Tag, ConfirmBox, InlineError, Notice, EmptyState, NotFound, ToggleRow, ListRow, Segmented, LinkText, HeaderAction) |
+| `src/lib/glossary.ts` | The app's words: role labels (Hosting, Going, Requested, Invited, Public), place names, menu paths, header titles, confirm labels |
+| `src/lib/mapLayers.ts`, `components/LayerBar.tsx` | How the map's layer pills fit the width and text size (labels or icon-only, never scrolling) |
+| `src/app/settings.tsx` | Settings (from Me): map layers, events near you, reminders, navigation, privacy, account, demo, app updates |
+| `scripts/seed-bundled-places.mjs`, `src/lib/backend/bundledSeed.ts` | Generates the server rows for the bundled drives and photo spots from `src/data/places.ts` (docs/BACKEND.md) |
 | `src/app/` | Screens (Expo Router) |
 
 ## Data and credits
