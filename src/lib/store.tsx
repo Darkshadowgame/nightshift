@@ -51,7 +51,7 @@ import { notifyNow, syncReminders } from './notify';
 import { alertProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, travelProblem, type AlertMode } from './discover';
 import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
 import { dedupeNotices, dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
-import type { PendingFeedback } from './feedbackQueue';
+import { markLegacyShopRefs, type PendingFeedback } from './feedbackQueue';
 import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
 
 /**
@@ -301,6 +301,8 @@ function migrate(parsed: Persisted): Persisted {
   }
   // Saved before "new events near you": what's already there isn't new.
   if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };
+  // Shop suggestions queued before shop ids were stable (schema 3): mark the old listing numbers.
+  if ((parsed.schemaVersion ?? 1) < 3 && next.pendingFeedback) next = { ...next, pendingFeedback: markLegacyShopRefs(next.pendingFeedback) };
   return { ...next, schemaVersion: SCHEMA_VERSION };
 }
 

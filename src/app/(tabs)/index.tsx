@@ -31,7 +31,7 @@ import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks'
 import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
-import { shopIndex } from '../../lib/shopData';
+import { useShopIndex } from '../../lib/shopData';
 import { describeCategories, SHOP_CREDIT, shopPinSize, shopsForView, toggleCategory, type ShopFilter } from '../../lib/shops';
 import { ALL_CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, MENU_ORDER, shopFilterNote, type ShopCategory } from '../../lib/shopCategories';
 import { parseOpeningHours, openState } from '../../lib/openingHours';
@@ -223,13 +223,16 @@ export default function MapScreen() {
 
   /** Partners: the production list (empty until the backend) and the labelled demo samples near home. */
   const partners = useMemo(() => [...PARTNERS, ...demoPartners(DEMO_PARTNERS, meUser?.home)], [meUser?.home]);
+  // The shop dataset is an asset read the first time the layer is turned on (shopData.ts).
+  const { index: shopIdx, failed: shopsFailed } = useShopIndex(layers.shops);
   const shopView = useMemo(() => {
     if (!layers.shops) return null;
-    const v = shopsForView(shopIndex(), region.centre, region.span, shopFilter, partners);
+    if (!shopIdx) return { shops: [], partners: [], tooWide: false, more: false, loading: true };
+    const v = { ...shopsForView(shopIdx, region.centre, region.span, shopFilter, partners), loading: false };
     // A venue's own pin replaces the OpenStreetMap café under it.
     const venues = venuesViaShops || layers.venue ? places.filter((p) => p.kind === 'venue') : [];
     return { ...v, shops: v.shops.filter((s) => !(s.categories[0] === 'coffee' && venues.some((p) => milesBetween(p.at, s.at) < 0.12))) };
-  }, [layers.shops, layers.venue, region, shopFilter, partners, venuesViaShops, places]);
+  }, [layers.shops, layers.venue, region, shopFilter, partners, venuesViaShops, places, shopIdx]);
 
   /** Places for the view: culled to the view, capped per kind, grouped into count pins when zoomed out (mapPlaces.ts). */
   const placeView = useMemo(() => {
@@ -328,7 +331,7 @@ export default function MapScreen() {
       return { title: what, meta: rest.join(' · '), body: `${CAMERA_CAVEAT}\n${CAMERA_CREDIT}.`, colour: C.alert };
     }
     if (kind === 'shop') {
-      const s = shopIndex().find(key);
+      const s = shopIdx?.find(key);
       if (!s) return null;
       const hours = parseOpeningHours(s.hours);
       return {
@@ -393,6 +396,7 @@ export default function MapScreen() {
   /** One short line under the bar: what to zoom in for, or the OpenStreetMap credit. */
   const mapNote = (() => {
     const zoom = [cams?.tooWide && camerasAsked ? 'CAMERAS' : null, shopView?.tooWide ? 'SHOPS' : null].filter(Boolean);
+    if (shopView?.loading) return { zoom: true, text: shopsFailed ? "COULDN'T LOAD SHOPS" : 'LOADING SHOPS…' };
     if (zoom.length) return { zoom: true, text: `ZOOM IN TO SEE ${zoom.join(' AND ')}` };
     if (shopView && shopFilter.partnersOnly) return { zoom: false, text: `PARTNERS ONLY · ${shopView.partners.length} HERE` };
     const more = shopView?.more ? ' · nearest shops shown' : '';

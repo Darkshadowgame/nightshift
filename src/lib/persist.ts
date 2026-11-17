@@ -6,7 +6,7 @@
  */
 
 /** Bump when the saved shape changes; older saves then go through the store's migrate(). */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** Saves from before slices: one blob with everything in it (bundled places included). */
 export const LEGACY_KEY = 'nightshift.v1';

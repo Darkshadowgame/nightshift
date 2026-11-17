@@ -1,3 +1,4 @@
+import { markLegacyShopRefs } from '../src/lib/feedbackQueue';
 import { categoriesFromTags, fromMask, isMeetFriendly, shopFilterNote, toMask, ALL_CATEGORIES } from '../src/lib/shopCategories';
 import { buildDict, decodeTile, encodeDataset, packPhone, packWebsite, unpackWebsite, type ShopRecord } from '../src/lib/shopCodec';
 import {
@@ -117,12 +118,12 @@ describe('the Shops pill note and filter', () => {
 });
 
 const recs: ShopRecord[] = [
-  { at: { lat: 52.63721, lng: 1.29874 }, mask: toMask(['tuning', 'garage']), name: 'Norwich Performance', hours: 'Mo-Fr 08:00-17:30', website: 'norwichperf.example', phone: '01603123456' },
-  { at: { lat: 52.6301, lng: 1.2901 }, mask: toMask(['garage']), name: 'Kwik Fit', hours: 'Mo-Fr 08:00-17:30' },
-  { at: { lat: 52.6302, lng: 1.2902 }, mask: toMask(['garage']), name: 'Kwik Fit', hours: 'Mo-Fr 08:00-17:30' },
-  { at: { lat: 52.6303, lng: 1.2903 }, mask: toMask(['garage']), name: 'Kwik Fit', hours: 'Mo-Fr 08:00-17:30' },
-  { at: { lat: 52.6304, lng: 1.2904 }, mask: toMask(['garage']), name: 'Kwik Fit', brand: 'Kwik Fit Ltd' },
-  { at: { lat: 51.50735, lng: -0.12776 }, mask: toMask(['coffee']), name: 'Pipe | Tilde ~ Café' },
+  { osm: 'n1001', at: { lat: 52.63721, lng: 1.29874 }, mask: toMask(['tuning', 'garage']), name: 'Norwich Performance', hours: 'Mo-Fr 08:00-17:30', website: 'norwichperf.example', phone: '01603123456' },
+  { osm: 'n1002', at: { lat: 52.6301, lng: 1.2901 }, mask: toMask(['garage']), name: 'Kwik Fit', hours: 'Mo-Fr 08:00-17:30' },
+  { osm: 'n1003', at: { lat: 52.6302, lng: 1.2902 }, mask: toMask(['garage']), name: 'Kwik Fit', hours: 'Mo-Fr 08:00-17:30' },
+  { osm: 'n1004', at: { lat: 52.6303, lng: 1.2903 }, mask: toMask(['garage']), name: 'Kwik Fit', hours: 'Mo-Fr 08:00-17:30' },
+  { osm: 'n1005', at: { lat: 52.6304, lng: 1.2904 }, mask: toMask(['garage']), name: 'Kwik Fit', brand: 'Kwik Fit Ltd' },
+  { osm: 'n1006', at: { lat: 51.50735, lng: -0.12776 }, mask: toMask(['coffee']), name: 'Pipe | Tilde ~ Café' },
 ];
 
 describe('shop encoding', () => {
@@ -167,9 +168,9 @@ describe('shop encoding', () => {
 describe('what the Shops layer draws', () => {
   const data = encodeDataset(
     [
-      ...Array.from({ length: 150 }, (_, i) => ({ at: { lat: 52.5 + i * 0.0005, lng: -1.5 }, mask: toMask(['garage']), name: `Garage ${i}` })),
-      { at: { lat: 52.51, lng: -1.51 }, mask: toMask(['tuning']), name: 'Boost Lab' },
-      { at: { lat: 52.5001, lng: -1.5001 }, mask: toMask(['detailing']), name: 'Shiny Partner Detailing' },
+      ...Array.from({ length: 150 }, (_, i) => ({ osm: `n${i + 1}`, at: { lat: 52.5 + i * 0.0005, lng: -1.5 }, mask: toMask(['garage']), name: `Garage ${i}` })),
+      { osm: 'w77', at: { lat: 52.51, lng: -1.51 }, mask: toMask(['tuning']), name: 'Boost Lab' },
+      { osm: 'r78', at: { lat: 52.5001, lng: -1.5001 }, mask: toMask(['detailing']), name: 'Shiny Partner Detailing' },
     ],
     '2026-11-17',
     {},
@@ -270,5 +271,24 @@ describe('partners', () => {
       expect(p.name).toMatch(/^Sample /);
       expect(Math.abs(p.at.lat - home.lat)).toBeLessThan(0.1);
     }
+  });
+});
+
+describe('stable shop ids (OpenStreetMap element)', () => {
+  test("adding a shop to a tile doesn't change the other shops' ids", () => {
+    const base = recs.slice(0, 4);
+    const before = Object.entries(encodeDataset(base, 'x', {}).tiles).flatMap(([k, t]) => decodeTile(k, t, encodeDataset(base, 'x', {}).dict));
+    const more = [...base, { osm: 'n1', at: { lat: 52.6, lng: 1.2 }, mask: toMask(['garage']), name: 'AAA First' }];
+    const d2 = encodeDataset(more, 'x', {});
+    const after = Object.entries(d2.tiles).flatMap(([k, t]) => decodeTile(k, t, d2.dict));
+    for (const s of before) expect(after.find((x) => x.id === s.id)?.name).toBe(s.name);
+    expect(before.map((s) => s.id)).toContain('52_1:n1001');
+  });
+
+  test('queued suggestions with an old listing number are marked, names kept', () => {
+    const [f] = markLegacyShopRefs([{ id: 'f', kind: 'idea', screen: 'shop', at: '', message: 'Shop edit or missing shop: closed\nListing: Kwik Fit · 52_-2:10' }]);
+    expect(f.message).toMatch(/Kwik Fit · 52_-2:10 \(old listing number/);
+    const [g] = markLegacyShopRefs([{ id: 'g', kind: 'idea', screen: 'shop', at: '', message: 'Listing: Kwik Fit · 52_-2:n123' }]);
+    expect(g.message).toBe('Listing: Kwik Fit · 52_-2:n123');
   });
 });

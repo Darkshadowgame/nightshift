@@ -1,14 +1,18 @@
 import type { LatLng } from './types';
 
 /**
- * Compact encoding for the bundled shop dataset (src/data/shops.ts), from
+ * Compact encoding for the shop dataset (assets/data/shops.nsdata), from
  * OpenStreetMap. Shops are grouped into 1° × 1° tiles so the app only decodes
  * the tiles on screen. In a tile, records are joined by "~"; each is
  *
  *   3 chars  latitude offset inside the tile, in 1e-5 degrees (about 1 m)
  *   3 chars  longitude offset inside the tile, in 1e-5 degrees
  *   2 chars  categories, a bitmask (shopCategories.ts)
- *   then     name|brand|hours|website|phone, trailing empty fields left off
+ *   then     osm|name|brand|hours|website|phone, trailing empty fields left off
+ *
+ * `osm` is the OpenStreetMap element: its type's first letter (n, w, r) and its
+ * id in base 64. A shop's id is its tile and that element, e.g. "52_-2:n12018556",
+ * so it stays the same when other shops are added or removed in a refresh.
  *
  * A field starting with "^" is a reference into the dataset's shared strings
  * (chain names, brands and common opening hours), as a base-64 number.
@@ -27,6 +31,8 @@ export const FIELD_SEP = '|';
 export const REF = '^';
 
 export interface ShopRecord {
+  /** The OpenStreetMap element, e.g. "n12018556" (node) or "w789" (way). */
+  osm: string;
   at: LatLng;
   /** Category bitmask (shopCategories.ts). */
   mask: number;
@@ -38,12 +44,32 @@ export interface ShopRecord {
 }
 
 export interface DecodedShop extends ShopRecord {
-  /** Stable for one dataset: tile key and position in the tile. */
+  /** Stable across refreshes: the tile key and the OpenStreetMap element, e.g. "52_-2:n12018556". */
   id: string;
 }
 
-/** The bundled dataset as written by scripts/fetch-shops.mjs. */
+/** "n12018556" -> "nBcD…" (type letter, id in base 64). */
+export function packOsm(osm: string): string {
+  const m = osm.match(/^([nwr])(\d+)$/);
+  if (!m) throw new Error(`Not an OpenStreetMap element: ${osm}`);
+  return m[1] + b64(Number(m[2]));
+}
+
+export function unpackOsm(packed: string): string {
+  return packed[0] + String(num(packed.slice(1)));
+}
+
+/** Ids from before shop ids were stable ("52_-2:10", a position in the tile). They can't be mapped to a shop. */
+export function isLegacyShopId(id: string): boolean {
+  return /^-?\d+_-?\d+:\d+$/.test(id);
+}
+
+/** The dataset as written by scripts/fetch-shops.mjs (assets/data/shops.nsdata). */
 export interface ShopDataset {
+  /** What it is, its licence and the regions read (the asset's own header). */
+  about?: string;
+  licence?: string;
+  regions?: string[];
   /** Day the data was read (YYYY-MM-DD). */
   generated: string;
   count: number;
@@ -152,7 +178,7 @@ export function encodeRecord(r: ShopRecord, key: string, dict: Map<string, numbe
     const i = dict.get(c);
     return i === undefined ? c : REF + b64(i);
   };
-  const fields = [ref(r.name), ref(r.brand), ref(r.hours), clean(r.website), clean(r.phone)];
+  const fields = [packOsm(r.osm), ref(r.name), ref(r.brand), ref(r.hours), clean(r.website), clean(r.phone)];
   while (fields.length > 1 && !fields[fields.length - 1]) fields.pop();
   return put(dLat, 3) + put(dLng, 3) + put(r.mask & 4095, 2) + fields.join(FIELD_SEP);
 }
@@ -177,12 +203,14 @@ export function decodeTile(key: string, s: string, dict: readonly string[]): Dec
   if (!s) return [];
   const o = tileOrigin(key);
   const deref = (v: string | undefined) => (!v ? undefined : v[0] === REF ? dict[num(v.slice(1))] : v);
-  return s.split(RECORD_SEP).map((rec, i) => {
-    const [name, brand, hours, website, phone] = rec.slice(8).split(FIELD_SEP);
+  return s.split(RECORD_SEP).map((rec) => {
+    const [packed, name, brand, hours, website, phone] = rec.slice(8).split(FIELD_SEP);
     const b = deref(brand);
     const h = deref(hours);
+    const osm = unpackOsm(packed);
     return {
-      id: `${key}:${i}`,
+      id: `${key}:${osm}`,
+      osm,
       at: { lat: Math.round((o.lat + get(rec, 0, 3) / 1e5) * 1e5) / 1e5, lng: Math.round((o.lng + get(rec, 3, 3) / 1e5) * 1e5) / 1e5 },
       mask: get(rec, 6, 2),
       name: deref(name) ?? '',

@@ -53,6 +53,9 @@
     "preset": "jest-expo",
     "testPathIgnorePatterns": [
       "/node_modules/"
-    ]
+    ],
+    "moduleNameMapper": {
+      "\\.nsdata$": "<rootDir>/jest/assetStub.js"
+    }
   }
 }

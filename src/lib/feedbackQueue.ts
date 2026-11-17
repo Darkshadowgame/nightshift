@@ -39,3 +39,17 @@ export function makeSuggestion(
   if (input.context?.trim()) lines.push(`${CONTEXT[input.screen]}: ${input.context.trim()}`);
   return { id, kind: 'idea', message: lines.join('\n').slice(0, FEEDBACK_MAX), screen: input.screen, at: now.toISOString() };
 }
+
+/**
+ * Shop suggestions queued before shop ids were stable named the listing by its
+ * position in a tile ("Kwik Fit · 52_-2:10"), which points at a different shop
+ * after a data refresh. Mark those so the team doesn't trust the number; the
+ * shop's name stays.
+ */
+export function markLegacyShopRefs(items: PendingFeedback[]): PendingFeedback[] {
+  return items.map((f) =>
+    f.screen === 'shop' && /(^|\s)-?\d+_-?\d+:\d+\b/.test(f.message)
+      ? { ...f, message: f.message.replace(/((?:^|\s)-?\d+_-?\d+:\d+)\b/g, '$1 (old listing number from the 17 Nov 2026 data, not a stable id)') }
+      : f,
+  );
+}

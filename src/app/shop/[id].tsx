@@ -9,7 +9,8 @@ import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { formatOpeningHours, openState, parseOpeningHours } from '../../lib/openingHours';
 import { demoPartners, partnerBadge, type Partner } from '../../lib/partners';
 import { CATEGORY_LABELS, type ShopCategory } from '../../lib/shopCategories';
-import { shopIndex } from '../../lib/shopData';
+import { useShopIndex } from '../../lib/shopData';
+import { isLegacyShopId } from '../../lib/shopCodec';
 import { directionsLinks, formatPhone, phoneLink, safeWebLink, SHOP_CAVEAT, websiteLabel } from '../../lib/shops';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
@@ -41,24 +42,40 @@ export default function ShopScreen() {
   const now = useNow();
   const home = users.find((u) => u.id === me)?.home;
 
+  const isShop = !!id && !id.startsWith('partner:');
+  const { index: shopIdx, failed } = useShopIndex(isShop);
   const listing = useMemo<Listing | null>(() => {
     if (!id) return null;
     if (id.startsWith('partner:')) {
       const p = [...PARTNERS, ...demoPartners(DEMO_PARTNERS, home)].find((x) => x.id === id.slice('partner:'.length));
       return p ? { id, name: p.name, at: p.at, categories: p.categories, hours: p.hours, website: p.link, phone: p.phone, partner: p } : null;
     }
-    const s = shopIndex().find(id);
+    const s = shopIdx?.find(id);
     return s ? { ...s } : null;
-  }, [id, home]);
+  }, [id, home, shopIdx]);
 
   useLayoutEffect(() => {
     nav.setOptions({ title: listing?.partner ? 'PARTNER' : 'SHOP' });
   }, [nav, listing]);
 
+  if (!listing && isShop && !shopIdx && !failed) {
+    return (
+      <View style={{ flex: 1, padding: 16 }}>
+        <Txt v="muted">Loading the listing…</Txt>
+      </View>
+    );
+  }
+
   if (!listing) {
     return (
       <View style={{ flex: 1, padding: 16 }}>
-        <Txt>This shop is no longer on the map. The listings are refreshed from OpenStreetMap with app updates.</Txt>
+        <Txt>
+          {failed
+            ? "Couldn't load the shop listings just now. Try again in a moment."
+            : isLegacyShopId(id ?? '')
+              ? 'This link is from an older version of the app and no longer points at a shop. Find it on the map with the Shops layer.'
+              : 'This shop is no longer on the map. The listings are refreshed from OpenStreetMap with app updates.'}
+        </Txt>
       </View>
     );
   }

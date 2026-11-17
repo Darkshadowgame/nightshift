@@ -9,7 +9,7 @@ import type { LatLng } from './types';
  * The map's Shops layer: which shops to draw for the part of the map on
  * screen, the category filter, and the links on a shop's screen.
  *
- * Listings are OpenStreetMap's (ODbL), bundled in src/data/shops.ts and
+ * Listings are OpenStreetMap's (ODbL), shipped as assets/data/shops.nsdata and
  * decoded one 1° tile at a time when a tile first comes into view. They stay a
  * separate dataset: nothing people type in the app is merged into it
  * (suggested edits go to the feedback queue for the team).
