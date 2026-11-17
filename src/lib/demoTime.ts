@@ -1,4 +1,4 @@
-import { seed, SEED_EVENT_IDS } from '../data/seed';
+import { seed, SEED_EVENT_IDS, type SceneOptions } from '../data/seed';
 import type { Vote } from './awards';
 import type { ChatMessage, NightEvent, Spot } from './types';
 
@@ -27,8 +27,8 @@ function shift(iso: string, ms: number): string {
 }
 
 /** Nothing seeded has changed since the seed was made at `anchor`. */
-export function isUntouchedDemo(slice: DemoSlice, anchor: Date): boolean {
-  const original = seed(anchor);
+export function isUntouchedDemo(slice: DemoSlice, anchor: Date, scene: SceneOptions = {}): boolean {
+  const original = seed(anchor, scene);
   const pick = (s: DemoSlice) => JSON.stringify({ e: s.events, c: s.chat, v: s.votes });
   return pick(slice) === pick({ events: original.events, chat: original.chat, votes: original.votes });
 }
@@ -39,10 +39,10 @@ export function inferAnchor(events: NightEvent[]): Date | null {
   return live ? new Date(new Date(live.startsAt).getTime() + 45 * 60_000) : null;
 }
 
-export function needsRefresh(slice: DemoSlice, anchor: Date, now: Date): boolean {
+export function needsRefresh(slice: DemoSlice, anchor: Date, now: Date, scene: SceneOptions = {}): boolean {
   const age = now.getTime() - anchor.getTime();
   if (age <= 60_000) return false;
-  return age >= REFRESH_AFTER_MS || isUntouchedDemo(slice, anchor);
+  return age >= REFRESH_AFTER_MS || isUntouchedDemo(slice, anchor, scene);
 }
 
 /**
@@ -52,9 +52,9 @@ export function needsRefresh(slice: DemoSlice, anchor: Date, now: Date): boolean
  * moves by whole days, keeping your clock time. Chat moves by the time since
  * the anchor, so it stays in the past.
  */
-export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date): DemoSlice {
-  const then = new Map(seed(anchor).events.map((e) => [e.id, e]));
-  const fresh = new Map(seed(now).events.map((e) => [e.id, e]));
+export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date, scene: SceneOptions = {}): DemoSlice {
+  const then = new Map(seed(anchor, scene).events.map((e) => [e.id, e]));
+  const fresh = new Map(seed(now, scene).events.map((e) => [e.id, e]));
   const age = now.getTime() - anchor.getTime();
   const wholeDays = Math.round(age / DAY_MS) * DAY_MS;
   const deltas = new Map<string, number>();
@@ -93,12 +93,13 @@ export interface RestartSlice extends DemoSlice {
 /**
  * "Restart the demo events": lay the sample events out again as if the demo
  * was installed now, with their seeded chat, votes and check-ins, and put the
- * sample drives and photo spots back to their seeded visits and ratings.
+ * real drives, photo spots and tracks back to their seeded state. The scene
+ * is drawn round `scene.home` (your fuzzed home area).
  * Everything you made stays: events and places you created, and (outside this
  * slice) your profile, builds, photos and crews.
  */
-export function restartDemo(slice: RestartSlice, now: Date): RestartSlice {
-  const fresh = seed(now);
+export function restartDemo(slice: RestartSlice, now: Date, scene: SceneOptions = {}): RestartSlice {
+  const fresh = seed(now, scene);
   const seedSpots = new Map(fresh.spots.map((x) => [x.id, x]));
   return {
     events: [...slice.events.filter((e) => !SEED_IDS.has(e.id)), ...fresh.events],

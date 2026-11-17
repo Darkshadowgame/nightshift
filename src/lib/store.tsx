@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
-import { BAN_ZONES, ME, seed, SEED_EVENT_IDS, type SeedState } from '../data/seed';
+import { BAN_ZONES, DEMO_HOME, ME, sampleHomes, seed, seededStops, SEED_EVENT_IDS, type SeedState } from '../data/seed';
+import { geocoderAvailable, nameForPlace, townForPlace } from './location';
+import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { castVote as applyVote, type AwardCategory } from './awards';
 import { areaGivesAway, eventArea } from './area';
 import { inferAnchor, isSeedEvent, needsRefresh, refreshDemo, restartDemo } from './demoTime';
@@ -43,6 +45,7 @@ import {
   type Verdict,
 } from './spots';
 import { notifyNow, syncReminders } from './notify';
+import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
 import { dedupeNotices, dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
 import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
 
@@ -52,18 +55,6 @@ import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
  */
 
 const KEY = 'nightshift.v1';
-
-export interface Settings {
-  /** Demo builds skip the GPS distance check when checking in. */
-  simulateGps: boolean;
-  cruiseMode: boolean;
-  hideHomeZone: boolean;
-  pttStrangers: boolean;
-  /** Local reminders at the reveal and 30 min before the start. */
-  reminders: boolean;
-}
-
-const DEFAULT_SETTINGS: Settings = { simulateGps: true, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true };
 
 interface Persisted extends SeedState {
   settings: Settings;
@@ -77,6 +68,12 @@ interface Persisted extends SeedState {
   unlockSeen: Record<string, string[]>;
   /** When the demo scene's times were last laid out (ISO). Used to keep the demo fresh. */
   seededAt?: string;
+  /** Where the sample scene was drawn (your fuzzed home area) and the geocoder's names for its stops. */
+  scene?: { home: LatLng; names: SceneNames };
+  /** Set once "skip the GPS check" has been turned off for saves from before real GPS was the default. */
+  realGpsDefault?: boolean;
+  /** The Map tab has said once that location is off and it's showing your home area. */
+  locationNoticeSeen?: boolean;
 }
 
 export interface Notice {
@@ -115,6 +112,7 @@ interface Store extends Persisted {
   vote: (eventId: string, category: AwardCategory, buildId: string) => void;
   setSettings: (patch: Partial<Settings>) => void;
   markNoticesRead: () => void;
+  markLocationNoticeSeen: () => void;
   /** Remember that the "unlocked" moment has been shown for these stops. */
   markUnlockSeen: (eventId: string, stopIds: string[]) => void;
   resetDemo: () => void;
@@ -144,21 +142,48 @@ const Ctx = createContext<Store | null>(null);
 
 function fresh(): Persisted {
   const now = new Date();
-  return { ...seed(now), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString() };
+  return {
+    ...seed(now), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString(),
+    scene: { home: DEMO_HOME, names: {} }, realGpsDefault: true,
+  };
 }
 
 /** Keep the demo scene's times current (see demoTime.ts). Events made on the phone are left alone. */
 function freshen(state: Persisted, now: Date): Persisted {
+  if (!state.scene) return state; // older save: migrate() redraws the scene round your home
   const anchor = state.seededAt ? new Date(state.seededAt) : inferAnchor(state.events);
   if (!anchor || isNaN(anchor.getTime())) return { ...state, seededAt: state.seededAt ?? now.toISOString() };
-  if (!needsRefresh(state, anchor, now)) return { ...state, seededAt: anchor.toISOString() };
-  return { ...state, ...refreshDemo(state, anchor, now), seededAt: now.toISOString() };
+  if (!needsRefresh(state, anchor, now, state.scene)) return { ...state, seededAt: anchor.toISOString() };
+  return { ...state, ...refreshDemo(state, anchor, now, state.scene), seededAt: now.toISOString() };
+}
+
+/**
+ * Draw the sample scene round a new home area: sample events, chat, votes and
+ * real places laid out fresh (your own events, builds and crews stay), and
+ * sample people's rough homes moved with it.
+ */
+function redrawScene(s: Persisted, home: LatLng, now: Date): Persisted {
+  const scene = { home, names: {} };
+  const restarted = restartDemo(s, now, scene);
+  const homes = sampleHomes(home);
+  const region = seed(now, scene).users.find((u) => u.id !== ME)?.region;
+  return {
+    ...s,
+    ...restarted,
+    users: s.users.map((u) => (u.id !== ME && homes.has(u.id) ? { ...u, home: homes.get(u.id)!, region: region ?? u.region } : u)),
+    unlockSeen: Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id))),
+    notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
+    seededAt: now.toISOString(),
+    onboardedAt: s.onboarded ? now.toISOString() : s.onboardedAt,
+    scene,
+  };
 }
 
 /** Data saved by an older version of the app: fill in anything that's new since. */
 function migrate(parsed: Persisted): Persisted {
   const base = fresh();
-  let next: Persisted = { ...base, ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } };
+  // Real GPS is now the default: the old "simulate GPS" default goes off, once.
+  let next: Persisted = { ...base, ...parsed, settings: upgradeSettings(parsed.settings, !!parsed.realGpsDefault), realGpsDefault: true };
   if (!parsed.spots) {
     // Saved before drives, photo spots and more crews arrived: add the new sample crews.
     const known = new Set(next.crews.map((c) => c.id));
@@ -207,10 +232,18 @@ function migrate(parsed: Persisted): Persisted {
   };
   // Sample events added since this save was made (e.g. the invite a few hours away).
   const have = new Set(next.events.map((e) => e.id));
-  const added = base.events.filter((e) => SEED_EVENT_IDS.includes(e.id) && !have.has(e.id));
+  const sceneBase = parsed.scene ? seed(new Date(), parsed.scene).events : base.events;
+  const added = sceneBase.filter((e) => SEED_EVENT_IDS.includes(e.id) && !have.has(e.id));
   if (added.length) next = { ...next, events: [...next.events, ...added] };
   // In-app reminders used to be keyed by time, so the demo moving its times added repeats.
   next = { ...next, notices: dedupeNotices(next.notices ?? []) };
+  if (!parsed.scene) {
+    // Saved before the sample scene followed your home area and the real UK places arrived:
+    // drop the old Midlands sample places (keep your own) and draw the scene round your home once.
+    const mine = next.spots.filter((x) => x.authorId === ME);
+    const home = next.users.find((u) => u.id === ME)?.home ?? DEMO_HOME;
+    next = redrawScene({ ...next, spots: mine }, home, new Date());
+  }
   return next;
 }
 
@@ -299,6 +332,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [ready, onboarded, now, allEvents]);
 
+  // Name the sample stops after real places near them, with the phone's geocoder (a few lookups, one at a time).
+  const scene = state.scene;
+  useEffect(() => {
+    if (!ready || !onboarded || !scene || !geocoderAvailable) return;
+    const seeded = seededStops(scene.home);
+    const todo = stopsToName(allEvents, seeded, scene.names).slice(0, 12);
+    const areas = allEvents.filter((e) => isSeedEvent(e.id) && !isPublicType(e.type) && !scene.names[`area:${e.id}`]);
+    if (todo.length === 0 && areas.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const found: SceneNames = {};
+      for (const t of todo) {
+        if (cancelled) return;
+        // Unnamed stops keep their neutral name ("Retail park car park"); mark them tried.
+        found[t.id] = (await nameForPlace(t.at)) ?? seeded.get(t.id)!.name;
+      }
+      for (const e of areas) {
+        if (cancelled) return;
+        found[`area:${e.id}`] = (await townForPlace(e.area)) ?? e.areaName;
+      }
+      if (cancelled) return;
+      setState((s) => {
+        if (!s.scene || !sameHome(s.scene.home, scene.home)) return s;
+        const names = { ...s.scene.names, ...found };
+        return { ...s, scene: { ...s.scene, names }, events: applySceneNames(s.events, names, seeded) };
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, onboarded, scene, allEvents]);
+
   const updateSpot = useCallback((id: string, fn: (x: Spot) => Spot) => {
     setState((s) => ({ ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) }));
   }, []);
@@ -358,7 +423,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       saveProfile: (draft) => {
         const problem = profileProblem(draft, state.users, ME);
         if (problem) throw new Error(problem);
-        setState((s) => ({ ...s, onboarded: true, onboardedAt: s.onboardedAt ?? new Date().toISOString(), users: s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u)) }));
+        setState((s) => {
+          const users = s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u));
+          const next = { ...s, onboarded: true, onboardedAt: s.onboardedAt ?? new Date().toISOString(), users };
+          // A new home area: the sample scene moves with it.
+          const home = users.find((u) => u.id === ME)!.home;
+          return sameHome(s.scene?.home, home) ? next : redrawScene(next, home, new Date());
+        });
       },
       setGoing: (eventId, going) => {
         const event = state.events.find((e) => e.id === eventId);
@@ -415,11 +486,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           unlockSeen: { ...s.unlockSeen, [eventId]: Array.from(new Set([...(s.unlockSeen[eventId] ?? []), ...stopIds])) },
         })),
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
+      markLocationNoticeSeen: () => setState((s) => ({ ...s, locationNoticeSeen: true })),
       resetDemo: () => setState(fresh()),
       restartDemoEvents: () => {
         const nowDate = new Date();
         setState((s) => {
-          const restarted = restartDemo(s, nowDate);
+          const restarted = restartDemo(s, nowDate, s.scene);
           const unlockSeen = Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id)));
           return {
             ...s,
@@ -497,4 +569,4 @@ export function useUser(id: string) {
   return users.find((u) => u.id === id);
 }
 
-export type { LatLng };
+export type { LatLng, Settings };

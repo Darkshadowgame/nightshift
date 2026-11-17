@@ -1,23 +1,34 @@
-import type { BanZone, Build, ChatMessage, Crew, Mod, ModCategory, NightEvent, Spot, User } from '../lib/types';
+import type { Build, ChatMessage, Crew, LatLng, Mod, ModCategory, NightEvent, Spot, User } from '../lib/types';
 import { DEFAULT_FILTER } from '../lib/invites';
 import type { Vote } from '../lib/awards';
 import { eventArea } from '../lib/area';
 import { isPublicType } from '../lib/events';
+import { nearestRegion } from '../lib/profile';
+import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
+import { PLACES, placeSpots, type PlaceSeed } from './places';
 
 /**
- * Demo scene for Phase 1: a made-up Midlands crowd, real roads and venues.
- * Times are relative to `now` so the demo always has something on tonight.
- * Everything here is sample data, not real people.
+ * Demo scene for Phase 1: made-up sample people and events, drawn round the
+ * person's own (fuzzed) home area, plus real UK circuits, roads and photo
+ * spots from places.ts. Times are relative to `now` so the demo always has
+ * something on tonight. The people and events are sample data, not real.
  */
 
 export const ME = 'me';
 
 /**
- * Where the sample scene is: around Tamworth in the Midlands. First run starts
- * your rough home area here so the invites and the map have something in them.
+ * The made-up origin the sample scene is drawn round (Tamworth). Every sample
+ * point is moved onto your home area keeping its distance and direction.
+ * "Use the demo area" on first run still puts your home here, for testing.
  */
 export const DEMO_HOME = { lat: 52.63, lng: -1.7 };
 export const DEMO_REGION = 'Midlands';
+
+/** Where the sample scene goes, and the geocoder's names for its stops (see scene.ts). */
+export interface SceneOptions {
+  home?: LatLng;
+  names?: SceneNames;
+}
 
 type ModSpec = [ModCategory, string, number?];
 
@@ -39,7 +50,7 @@ interface Person {
   id: string;
   handle: string;
   name: string;
-  region: string;
+  /** Where the sample person was drawn round the origin. Moved onto your area. */
   home: [number, number];
   crew?: string;
   builds: BuildSpec[];
@@ -47,7 +58,7 @@ interface Person {
 
 const PEOPLE: Person[] = [
   {
-    id: ME, handle: 'you', name: 'You', region: 'Midlands', home: [52.63, -1.69], crew: 'nr',
+    id: ME, handle: 'you', name: 'You', home: [52.63, -1.69], crew: 'nr',
     builds: [{
       kind: 'car', make: 'Volkswagen', model: 'Golf R Mk7.5', year: 2019, stockBhp: 296, weightKg: 1500, torque: 370,
       dyno: 388, nickname: 'Example build (edit me)', colour: '#3fd6ff',
@@ -56,102 +67,102 @@ const PEOPLE: Person[] = [
     }],
   },
   {
-    id: 'dan', handle: 'dan_r', name: 'Dan', region: 'Tamworth', home: [52.63, -1.70], crew: 'nr',
+    id: 'dan', handle: 'dan_r', name: 'Dan', home: [52.63, -1.70], crew: 'nr',
     builds: [{ kind: 'car', make: 'BMW', model: 'M4 Competition', year: 2021, stockBhp: 503, weightKg: 1725, torque: 479, colour: '#ff9a2e',
       mods: [['engine', 'Stage 1 remap', 80], ['exhaust', 'Valved cat-back'], ['wheels', '20" forged'], ['body', 'Carbon front splitter']] }],
   },
   {
-    id: 'aimee', handle: 'aimee.r1', name: 'Aimee', region: 'Lichfield', home: [52.68, -1.82], crew: 'nr',
+    id: 'aimee', handle: 'aimee.r1', name: 'Aimee', home: [52.68, -1.82], crew: 'nr',
     builds: [{ kind: 'bike', make: 'Yamaha', model: 'YZF-R1', year: 2020, stockBhp: 197, weightKg: 201, colour: '#3f6fff',
       mods: [['exhaust', 'Full titanium system', 8], ['engine', 'ECU flash', 5], ['other', 'Quickshifter'], ['body', 'Tail tidy']] }],
   },
   {
-    id: 'kez', handle: 'kez_typer', name: 'Kez', region: 'Nuneaton', home: [52.52, -1.47], crew: 'ts',
+    id: 'kez', handle: 'kez_typer', name: 'Kez', home: [52.52, -1.47], crew: 'ts',
     builds: [{ kind: 'car', make: 'Honda', model: 'Civic Type R FK8', year: 2018, stockBhp: 316, weightKg: 1380, colour: '#ff4d4d',
       mods: [['intake', 'Carbon intake', 5], ['exhaust', 'Cat-back'], ['wheels', '19" flow-formed'], ['suspension', 'Lowering springs'], ['engine', 'Stage 1 map', 30]] }],
   },
   {
-    id: 'jord', handle: 'jordST', name: 'Jordan', region: 'Burton', home: [52.80, -1.64],
+    id: 'jord', handle: 'jordST', name: 'Jordan', home: [52.80, -1.64],
     builds: [{ kind: 'car', make: 'Ford', model: 'Fiesta ST Mk7', year: 2016, stockBhp: 197, weightKg: 1163, colour: '#2ec4b6',
       mods: [['engine', 'Mountune MR230 pack', 33], ['intake', 'Induction kit'], ['suspension', 'Coilovers'], ['wheels', '17" Rotas']] }],
   },
   {
-    id: 'mo', handle: 'mo.rs3', name: 'Mo', region: 'Sutton Coldfield', home: [52.57, -1.82], crew: 'nr',
+    id: 'mo', handle: 'mo.rs3', name: 'Mo', home: [52.57, -1.82], crew: 'nr',
     builds: [{ kind: 'car', make: 'Audi', model: 'RS3 8V', year: 2019, stockBhp: 395, weightKg: 1575, torque: 354, dyno: 470, colour: '#9b5de5',
       mods: [['engine', 'Stage 2+ remap'], ['turbo', 'Hybrid turbo'], ['intake', 'Turbo inlet'], ['exhaust', 'Decat downpipe'], ['wheels', '19" forged']] }],
   },
   {
-    id: 'liv', handle: 'liv_on_two', name: 'Liv', region: 'Derby', home: [52.92, -1.48], crew: 'pk',
+    id: 'liv', handle: 'liv_on_two', name: 'Liv', home: [52.92, -1.48], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Triumph', model: 'Street Triple RS', year: 2022, stockBhp: 128, weightKg: 188, colour: '#ff4fa3',
       mods: [['exhaust', 'Arrow end can', 3], ['other', 'Bar-end mirrors'], ['body', 'Fly screen']] }],
   },
   {
-    id: 'sully', handle: 'sully_zx', name: 'Sully', region: 'Leicester', home: [52.64, -1.13], crew: 'pk',
+    id: 'sully', handle: 'sully_zx', name: 'Sully', home: [52.64, -1.13], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Kawasaki', model: 'ZX-10R', year: 2021, stockBhp: 200, weightKg: 207, colour: '#9dfa5a',
       mods: [['exhaust', 'Akrapovič slip-on', 4], ['engine', 'ECU flash', 6], ['suspension', 'Öhlins shock'], ['other', 'Steering damper']] }],
   },
   {
-    id: 'bex', handle: 'bex_gti', name: 'Bex', region: 'Coventry', home: [52.41, -1.51], crew: 'ts',
+    id: 'bex', handle: 'bex_gti', name: 'Bex', home: [52.41, -1.51], crew: 'ts',
     builds: [{ kind: 'car', make: 'Volkswagen', model: 'Golf GTI Mk7', year: 2017, stockBhp: 227, weightKg: 1375, colour: '#e9edf4',
       mods: [['engine', 'Stage 1 remap', 50], ['wheels', '18" Pretorias'], ['suspension', 'Air ride']] }],
   },
   {
-    id: 'tay', handle: 'tay_subie', name: 'Tay', region: 'Stafford', home: [52.81, -2.12],
+    id: 'tay', handle: 'tay_subie', name: 'Tay', home: [52.81, -2.12],
     builds: [{ kind: 'car', make: 'Subaru', model: 'Impreza WRX STI', year: 2008, stockBhp: 296, weightKg: 1505, colour: '#3f6fff',
       mods: [['engine', 'Forged internals'], ['turbo', 'Twin-scroll turbo'], ['exhaust', 'Equal-length manifold'], ['brakes', 'Big brake kit'], ['body', 'Wing']], dyno: 420 }],
   },
   {
-    id: 'raf', handle: 'raf.r6', name: 'Raf', region: 'Walsall', home: [52.59, -1.98],
+    id: 'raf', handle: 'raf.r6', name: 'Raf', home: [52.59, -1.98],
     builds: [{ kind: 'bike', make: 'Yamaha', model: 'YZF-R6', year: 2017, stockBhp: 117, weightKg: 190, colour: '#3fd6ff',
       mods: [['exhaust', 'Slip-on', 3], ['body', 'Race fairings'], ['other', 'Rearsets']] }],
   },
   {
-    id: 'nina', handle: 'nina_mx5', name: 'Nina', region: 'Rugby', home: [52.37, -1.26],
+    id: 'nina', handle: 'nina_mx5', name: 'Nina', home: [52.37, -1.26],
     builds: [{ kind: 'car', make: 'Mazda', model: 'MX-5 NB', year: 2003, stockBhp: 144, weightKg: 1065, colour: '#ff9a2e',
       mods: [['suspension', 'Coilovers'], ['wheels', '15" Enkei'], ['interior', 'Bucket seats'], ['body', 'Hardtop']] }],
   },
   {
-    id: 'cal', handle: 'cal_focusrs', name: 'Cal', region: 'Hinckley', home: [52.54, -1.37], crew: 'ts',
+    id: 'cal', handle: 'cal_focusrs', name: 'Cal', home: [52.54, -1.37], crew: 'ts',
     builds: [{ kind: 'car', make: 'Ford', model: 'Focus RS Mk3', year: 2017, stockBhp: 345, weightKg: 1599, colour: '#3f6fff',
       mods: [['engine', 'Stage 2 remap', 55], ['intake', 'Turbo inlet'], ['exhaust', 'Cat-back'], ['wheels', '19" forged']] }],
   },
   {
-    id: 'ash', handle: 'ash.saxo', name: 'Ash', region: 'Cannock', home: [52.69, -2.03],
+    id: 'ash', handle: 'ash.saxo', name: 'Ash', home: [52.69, -2.03],
     builds: [{ kind: 'car', make: 'Citroën', model: 'Saxo VTS', year: 2001, stockBhp: 100, weightKg: 935, colour: '#ffd166',
       mods: [['engine', 'Throttle bodies', 25], ['exhaust', '4-2-1 manifold'], ['suspension', 'Coilovers'], ['interior', 'Half cage']] }],
   },
   {
-    id: 'deano', handle: 'deano_mt09', name: 'Dean', region: 'Ashby', home: [52.75, -1.47], crew: 'pk',
+    id: 'deano', handle: 'deano_mt09', name: 'Dean', home: [52.75, -1.47], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Yamaha', model: 'MT-09', year: 2021, stockBhp: 117, weightKg: 189, colour: '#7a7f8c',
       mods: [['exhaust', 'Full system', 6], ['engine', 'ECU flash', 4], ['other', 'Tail tidy']] }],
   },
   {
-    id: 'priya', handle: 'priya.m140', name: 'Priya', region: 'Solihull', home: [52.41, -1.78], crew: 'ts',
+    id: 'priya', handle: 'priya.m140', name: 'Priya', home: [52.41, -1.78], crew: 'ts',
     builds: [{ kind: 'car', make: 'BMW', model: 'M140i', year: 2018, stockBhp: 335, weightKg: 1475, colour: '#e9edf4',
       mods: [['engine', 'Stage 2 remap', 65], ['intake', 'Charge pipe'], ['exhaust', 'Decat downpipe'], ['suspension', 'Coilovers']] }],
   },
   {
-    id: 'gaz', handle: 'gaz_gsxr', name: 'Gaz', region: 'Nuneaton', home: [52.53, -1.46], crew: 'pk',
+    id: 'gaz', handle: 'gaz_gsxr', name: 'Gaz', home: [52.53, -1.46], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Suzuki', model: 'GSX-R750', year: 2016, stockBhp: 148, weightKg: 190, colour: '#3f6fff',
       mods: [['exhaust', 'Yoshimura can', 4], ['brakes', 'Braided lines'], ['other', 'Steering damper']] }],
   },
   {
-    id: 'em', handle: 'em_i30n', name: 'Em', region: 'Lichfield', home: [52.69, -1.83],
+    id: 'em', handle: 'em_i30n', name: 'Em', home: [52.69, -1.83],
     builds: [{ kind: 'car', make: 'Hyundai', model: 'i30 N', year: 2020, stockBhp: 271, weightKg: 1429, colour: '#3fd6ff',
       mods: [['engine', 'Stage 1 remap', 40], ['wheels', '19" Rotas']] }],
   },
   {
-    id: 'tom', handle: 'tomtom_gr', name: 'Tom', region: 'Tamworth', home: [52.64, -1.68],
+    id: 'tom', handle: 'tomtom_gr', name: 'Tom', home: [52.64, -1.68],
     builds: [{ kind: 'car', make: 'Toyota', model: 'GR Yaris', year: 2021, stockBhp: 257, weightKg: 1280, colour: '#ff4d4d',
       mods: [['engine', 'Stage 1 remap', 40], ['intake', 'Turbo inlet'], ['exhaust', 'Cat-back'], ['suspension', 'Coilovers'], ['wheels', '18" forged']] }],
   },
   {
-    id: 'lew', handle: 'lew.ninja', name: 'Lewis', region: 'Burton', home: [52.81, -1.62],
+    id: 'lew', handle: 'lew.ninja', name: 'Lewis', home: [52.81, -1.62],
     builds: [{ kind: 'bike', make: 'Kawasaki', model: 'Ninja 400', year: 2022, stockBhp: 45, weightKg: 168, colour: '#9dfa5a',
       mods: [['exhaust', 'Slip-on'], ['other', 'Tail tidy'], ['body', 'Double-bubble screen']] }],
   },
   {
-    id: 'sam', handle: 'sam_e46', name: 'Sam', region: 'Redditch', home: [52.31, -1.94],
+    id: 'sam', handle: 'sam_e46', name: 'Sam', home: [52.31, -1.94],
     builds: [{ kind: 'car', make: 'BMW', model: 'M3 E46', year: 2004, stockBhp: 338, weightKg: 1495, colour: '#9b5de5',
       mods: [['exhaust', 'Straight-through system'], ['suspension', 'Coilovers'], ['wheels', '19" CSL replicas'], ['interior', 'Bucket seats']] }],
   },
@@ -169,68 +180,7 @@ function makeMods(buildId: string, specs: ModSpec[]): Mod[] {
   return specs.map(([category, name, bhpGain], i) => ({ id: `${buildId}-m${i}`, category, name, bhpGain }));
 }
 
-type SpotSeed = Omit<Spot, 'status' | 'createdAt' | 'completions' | 'ratings'> & {
-  /** Sample people who finished or visited it, with the stars they gave (if any). */
-  done?: [string, number?][];
-};
-
-/** Real roads and places. Authors and ratings are sample data. */
-const SPOT_SEEDS: SpotSeed[] = [
-  {
-    id: 'sp-ladybower', kind: 'photo', name: 'Ladybower viaduct', at: { lat: 53.387, lng: -1.724 }, authorId: 'liv',
-    description: 'Reservoir and stone viaduct. Best at blue hour.',
-    done: [['dan', 5], ['aimee', 5], ['sully', 4], ['gaz', 5], ['deano', 4], ['tom']],
-  },
-  {
-    id: 'sp-winnats', kind: 'photo', name: 'Winnats Pass', at: { lat: 53.341, lng: -1.818 }, authorId: 'sully',
-    description: 'Limestone gorge road. Pull fully off the road for photos.',
-    done: [['liv', 4], ['gaz', 3], ['aimee', 4]],
-  },
-  {
-    id: 'sp-digbeth', kind: 'photo', name: 'Digbeth street art', at: { lat: 52.4757, lng: -1.8838 }, authorId: 'mo',
-    description: 'Murals and arches. Quiet late on a Sunday.',
-    done: [['priya', 4], ['sam', 3], ['kez', 2]],
-  },
-  {
-    id: 'sp-curborough-ph', kind: 'photo', name: 'Cannock Chase forest roads', at: { lat: 52.745, lng: -1.990 }, authorId: 'tay',
-    description: 'Pines and long straights for rolling shots.',
-    done: [['ash', 4], ['raf', 5]],
-  },
-  {
-    id: 'sr-snake', kind: 'drive', name: 'Snake Pass (A57)', miles: 12.4, at: { lat: 53.4325, lng: -1.8689 }, authorId: 'dan',
-    description: 'Glossop to Ladybower over the moors. Rep for finishing it within the speed limits. Never timed.',
-    path: [{ lat: 53.444, lng: -1.929 }, { lat: 53.4325, lng: -1.8689 }, { lat: 53.413, lng: -1.813 }, { lat: 53.395, lng: -1.765 }, { lat: 53.379, lng: -1.727 }],
-    done: [['aimee', 5], ['mo', 5], ['sully', 4], ['cal', 5], ['tom', 4], ['kez', 5], ['em', 4], ['liv', 5], ['gaz'], ['dan', 5]],
-  },
-  {
-    id: 'sr-catfiddle', kind: 'drive', name: 'Cat and Fiddle (A537)', miles: 7.8, at: { lat: 53.2393, lng: -2.0114 }, authorId: 'aimee',
-    description: 'Macclesfield to Buxton. Average-speed cameras the whole way.',
-    path: [{ lat: 53.258, lng: -2.08 }, { lat: 53.247, lng: -2.045 }, { lat: 53.2393, lng: -2.0114 }, { lat: 53.247, lng: -1.965 }, { lat: 53.255, lng: -1.93 }],
-    done: [['sully', 4], ['liv', 3], ['deano', 4], ['gaz', 3]],
-  },
-  { id: 'tr-donington', kind: 'track', name: 'Donington Park', at: { lat: 52.8306, lng: -1.3797 }, description: 'Track days most weeks. Lap times count here.' },
-  { id: 'tr-curborough', kind: 'track', name: 'Curborough Sprint Course', at: { lat: 52.7097, lng: -1.8053 }, description: 'Short sprint course near Lichfield.' },
-  { id: 'tr-mallory', kind: 'track', name: 'Mallory Park', at: { lat: 52.5986, lng: -1.3378 }, description: 'Club circuit, popular with bikes.' },
-  { id: 'tr-silverstone', kind: 'track', name: 'Silverstone', at: { lat: 52.0786, lng: -1.0169 }, description: 'National and GP circuits.' },
-];
-
-function spots(now: Date): Spot[] {
-  const created = at(now, -60, 12);
-  const day = at(now, -7, 12).slice(0, 10);
-  return SPOT_SEEDS.map(({ done = [], ...s }) => ({
-    ...s,
-    status: 'approved' as const,
-    createdAt: created,
-    completions: done.map(([userId]) => ({ userId, on: day })),
-    ratings: done.flatMap(([userId, stars]) => (stars ? [{ userId, stars }] : [])),
-  }));
-}
-
-/** Sample zones only. Councils change these; check the current order before relying on it. */
-export const BAN_ZONES: BanZone[] = [
-  { id: 'bz-bham', name: 'Birmingham city centre', centre: { lat: 52.48, lng: -1.89 }, radiusMiles: 4, note: 'Sample zone based on the West Midlands car-cruising injunction. Check the current order.' },
-  { id: 'bz-blackcountry', name: 'Black Country', centre: { lat: 52.55, lng: -2.06 }, radiusMiles: 6, note: 'Sample zone based on the Black Country street-racing injunction. Check the current order.' },
-];
+export { BAN_ZONES } from './banZones';
 
 function at(now: Date, dayOffset: number, hour: number, minute = 0): string {
   const d = new Date(now);
@@ -263,17 +213,38 @@ function withAreas(list: NightEvent[]): NightEvent[] {
   });
 }
 
-function events(now: Date): NightEvent[] {
+/** Neutral area name until the geocoder names the town. */
+export const NEAR_YOU = 'Near you';
+
+/** Start, halfway and finish of a real drive, for the sample cruises. */
+function driveStops(prefix: string, d: PlaceSeed) {
+  const path = d.path ?? [d.at];
+  return [
+    { id: `${prefix}-1`, name: `Start: ${d.name}`, at: path[0] },
+    { id: `${prefix}-2`, name: 'Regroup: Halfway lay-by', at: path[Math.floor(path.length / 2)] },
+    { id: `${prefix}-3`, name: 'Finish: End of the road', at: path[path.length - 1] },
+  ];
+}
+
+const isCircuit = (p: PlaceSeed) => p.kind === 'track' && p.trackType === 'circuit';
+const isSprint = (p: PlaceSeed) => p.kind === 'track' && p.trackType !== 'circuit';
+
+/** Sample events: meets moved onto your area, cruises on the nearest real drives, shows and track days at the nearest real venues. */
+function events(now: Date, home: LatLng): NightEvent[] {
+  const here = (lat: number, lng: number) => translate({ lat, lng }, DEMO_HOME, home);
+  const [d1, d2] = nearest(PLACES.filter((p) => p.kind === 'drive'), home, 2);
+  const [circuit] = nearest(PLACES.filter(isCircuit), home, 1);
+  const [sprint] = nearest(PLACES.filter(isSprint), home, 1);
   return withAreas([
     {
-      id: 'ev-rolling-live', type: 'rolling', title: 'Lichfield rolling meet',
+      id: 'ev-rolling-live', type: 'rolling', title: 'Late rolling meet',
       description: 'Three spots, all planned in advance. Check in at each spot to get the next one.',
       startsAt: minutesFrom(now, -45), endsAt: minutesFrom(now, 180),
-      area: { lat: 52.67, lng: -1.76 }, areaName: 'Lichfield / Tamworth',
+      area: home, areaName: NEAR_YOU,
       stops: [
-        { id: 'rl-1', name: 'Lichfield retail park', at: { lat: 52.6842, lng: -1.8105 }, revealedAt: minutesFrom(now, -105) },
-        { id: 'rl-2', name: 'Ventura Park, Tamworth', at: { lat: 52.6205, lng: -1.7265 }, revealedAt: minutesFrom(now, -10) },
-        { id: 'rl-3', name: 'Hams Hall retail park', at: { lat: 52.5156, lng: -1.7072 }, note: 'Planned, hidden until you move on' },
+        { id: 'rl-1', name: 'Retail park car park', at: here(52.6842, -1.8105), revealedAt: minutesFrom(now, -105) },
+        { id: 'rl-2', name: 'Shopping park car park', at: here(52.6205, -1.7265), revealedAt: minutesFrom(now, -10) },
+        { id: 'rl-3', name: 'Business park car park', at: here(52.5156, -1.7072), note: 'Planned, hidden until you move on' },
       ],
       currentStop: 1, revealMinutesBefore: 60, hostIds: ['dan'], filter: { ...DEFAULT_FILTER, minMods: 3, radiusMiles: 30 },
       going: [ME, 'dan', 'kez', 'tom', 'em', 'aimee', 'jord'],
@@ -283,10 +254,10 @@ function events(now: Date): NightEvent[] {
       id: 'ev-rolling-host', type: 'rolling', title: 'NightRunners late one',
       description: 'Crew-run rolling meet. NightRunners hosts move it on.',
       startsAt: minutesFrom(now, 30), endsAt: minutesFrom(now, 240),
-      area: { lat: 52.63, lng: -1.69 }, areaName: 'Tamworth',
+      area: home, areaName: NEAR_YOU,
       stops: [
-        { id: 'rh-1', name: 'Tamworth Snowdome car park', at: { lat: 52.6302, lng: -1.6962 } },
-        { id: 'rh-2', name: 'Kingsbury water park entrance', at: { lat: 52.5711, lng: -1.6745 }, note: 'Planned, hidden until you move on' },
+        { id: 'rh-1', name: 'Leisure centre car park', at: here(52.6302, -1.6962) },
+        { id: 'rh-2', name: 'Country park car park', at: here(52.5711, -1.6745), note: 'Planned, hidden until you move on' },
       ],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['mo'], crewId: 'nr',
       filter: { ...DEFAULT_FILTER, classes: ['S', 'A', 'B'], radiusMiles: 25 },
@@ -296,80 +267,79 @@ function events(now: Date): NightEvent[] {
     {
       // An invite a few hours away that you aren't going to yet: tap Going to try the reminders and the reveal.
       id: 'ev-meet-soon', type: 'meet', title: 'Coffee and cars, late edition',
-      description: 'Open to any car or bike near Tamworth. Arranged with the site. Park up, no revving, leave it clean.',
+      description: 'Open to any car or bike nearby. Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: minutesFrom(now, 180), endsAt: minutesFrom(now, 330),
-      area: { lat: 52.63, lng: -1.69 }, areaName: 'Tamworth',
-      stops: [{ id: 'ms-1', name: 'Tamworth Castle Grounds car park', at: { lat: 52.6333, lng: -1.6951 } }],
+      area: home, areaName: NEAR_YOU,
+      stops: [{ id: 'ms-1', name: 'Town centre car park', at: here(52.6333, -1.6951) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
       // No mod minimum, so it still matches after you change the example build to your own.
       filter: { ...DEFAULT_FILTER, minMods: 0, radiusMiles: 30 },
       going: ['tom', 'em', 'jord', 'bex'], checkIns: {},
     },
     {
-      id: 'ev-cruise-peak', type: 'cruise', title: 'Peak District night cruise',
-      description: 'Ladybower to Glossop over Snake Pass, regroup at the top. Speed limits all the way.',
-      startsAt: at(now, 2, 22, 30), area: { lat: 53.40, lng: -1.80 }, areaName: 'Peak District', routeMiles: 48,
-      stops: [
-        { id: 'pc-1', name: 'Start: Ladybower car park', at: { lat: 53.3786, lng: -1.7271 } },
-        { id: 'pc-2', name: 'Regroup: Snake Pass summit lay-by', at: { lat: 53.4325, lng: -1.8689 } },
-        { id: 'pc-3', name: 'Finish: Glossop retail park', at: { lat: 53.4437, lng: -1.9505 } },
-      ],
+      id: 'ev-cruise-peak', type: 'cruise', title: `Night cruise: ${d1.name}`,
+      description: `${d1.name}, start to finish with a regroup halfway. Speed limits all the way.`,
+      startsAt: at(now, 2, 22, 30), area: d1.at, areaName: d1.region, routeMiles: Math.round(d1.miles ?? 20),
+      stops: driveStops('pc', d1),
       currentStop: 0, revealMinutesBefore: 60, hostIds: [ME], crewId: 'nr',
-      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 60 },
+      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 100 },
       going: [ME, 'dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
       requests: ['jord', 'nina'],
     },
     {
       id: 'ev-meet-tam', type: 'meet', title: 'Late S/A meet',
       description: 'S and A class only. Arranged with the site. Park up, no revving, leave it clean.',
-      startsAt: at(now, 5, 23, 0), area: { lat: 52.62, lng: -1.72 }, areaName: 'Tamworth',
-      stops: [{ id: 'mt-1', name: 'Ventura Park, Tamworth', at: { lat: 52.6205, lng: -1.7265 } }],
+      startsAt: at(now, 5, 23, 0), area: home, areaName: NEAR_YOU,
+      stops: [{ id: 'mt-1', name: 'Shopping park car park', at: here(52.6205, -1.7265) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'], crewId: 'ts',
       filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 25 },
       going: ['kez', 'cal', 'priya'], checkIns: {},
     },
     {
-      id: 'ev-bike-cat', type: 'cruise', title: 'Cat and Fiddle sunrise ride',
+      id: 'ev-bike-cat', type: 'cruise', title: `Sunrise ride: ${d2.name}`,
       description: 'Bikes only. Breakfast at the finish.',
-      startsAt: at(now, 6, 6, 0), area: { lat: 53.25, lng: -2.0 }, areaName: 'Macclesfield / Buxton', routeMiles: 22,
-      stops: [
-        { id: 'bc-1', name: 'Start: Macclesfield services', at: { lat: 53.258, lng: -2.08 } },
-        { id: 'bc-2', name: 'Regroup: Cat and Fiddle summit', at: { lat: 53.2393, lng: -2.0114 } },
-        { id: 'bc-3', name: 'Finish: Buxton café', at: { lat: 53.2587, lng: -1.9112 } },
-      ],
+      startsAt: at(now, 6, 6, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
+      stops: driveStops('bc', d2),
       currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'], crewId: 'pk',
-      filter: { ...DEFAULT_FILTER, cars: false, bikes: true, classes: ['S', 'A', 'B'], minMods: 0, radiusMiles: 70 },
+      filter: { ...DEFAULT_FILTER, cars: false, bikes: true, classes: ['S', 'A', 'B'], minMods: 0, radiusMiles: 100 },
       going: ['aimee', 'sully', 'liv', 'gaz'], checkIns: {},
     },
     {
-      id: 'ev-past-snowdome', type: 'meet', title: 'Snowdome Sunday meet',
-      description: 'Sunday night at the Snowdome. Voting has closed, trophies are out.',
-      startsAt: lastSunday(now, 2, 19, 0), endsAt: lastSunday(now, 2, 22, 0), area: { lat: 52.63, lng: -1.70 }, areaName: 'Tamworth',
-      stops: [{ id: 'ps-1', name: 'Tamworth Snowdome car park', at: { lat: 52.6302, lng: -1.6962 } }],
+      id: 'ev-past-snowdome', type: 'meet', title: 'Sunday night meet',
+      description: 'Sunday night meet. Voting has closed, trophies are out.',
+      startsAt: lastSunday(now, 2, 19, 0), endsAt: lastSunday(now, 2, 22, 0), area: home, areaName: NEAR_YOU,
+      stops: [{ id: 'ps-1', name: 'Leisure centre car park', at: here(52.6302, -1.6962) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
       filter: { ...DEFAULT_FILTER, minMods: 2, radiusMiles: 30 },
       going: [ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'],
       checkIns: Object.fromEntries([ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'].map((u) => [u, ['ps-1']])),
     },
     {
-      id: 'ev-show-don', type: 'show', title: 'Midlands Modified Show',
-      description: 'Show-and-shine, club stands and a trade area. Public event.',
-      startsAt: at(now, 12, 9, 0), endsAt: at(now, 12, 17, 0), area: { lat: 52.8306, lng: -1.3797 }, areaName: 'Donington Park',
-      stops: [{ id: 'sd-1', name: 'Donington Park', at: { lat: 52.8306, lng: -1.3797 } }],
+      id: 'ev-show-don', type: 'show', title: 'Modified show day',
+      description: 'Sample event: show-and-shine, club stands and a trade area. Real shows are booked through the venue.',
+      startsAt: at(now, 12, 9, 0), endsAt: at(now, 12, 17, 0), area: circuit.at, areaName: circuit.name,
+      stops: [{ id: 'sd-1', name: circuit.name, at: circuit.at }],
       currentStop: 0, revealMinutesBefore: 0, hostIds: ['cal'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 100 },
       going: ['cal', 'jord', 'nina', 'bex', 'em'], checkIns: {},
     },
     {
-      id: 'ev-track-curb', type: 'trackday', title: 'Curborough sprint evening',
-      description: 'Sprint course evening run by the venue. Helmets required, noise limits apply. Book through the circuit.',
-      startsAt: at(now, 9, 17, 30), endsAt: at(now, 9, 21, 0), area: { lat: 52.7097, lng: -1.8053 }, areaName: 'Lichfield',
-      stops: [{ id: 'tc-1', name: 'Curborough Sprint Course', at: { lat: 52.7097, lng: -1.8053 } }],
+      id: 'ev-track-curb', type: 'trackday', title: `${sprint.name} evening`,
+      description: 'Sample event: an evening run by the venue. Helmets required, noise limits apply. Book through the venue.',
+      startsAt: at(now, 9, 17, 30), endsAt: at(now, 9, 21, 0), area: sprint.at, areaName: sprint.name,
+      stops: [{ id: 'tc-1', name: sprint.name, at: sprint.at }],
       currentStop: 0, revealMinutesBefore: 0, hostIds: ['tom'],
-      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 80 },
+      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 100 },
       going: ['tom', 'ash', 'nina'], checkIns: {},
     },
   ]);
+}
+
+/** The seeded name, place and area name of every sample stop, by stop id (what the geocoder may rename). */
+export function seededStops(home: LatLng = DEMO_HOME): Map<string, { name: string; at?: LatLng; areaName: string; eventId: string }> {
+  const out = new Map<string, { name: string; at?: LatLng; areaName: string; eventId: string }>();
+  for (const e of events(new Date(0), home)) for (const st of e.stops) out.set(st.id, { name: st.name, at: st.at, areaName: e.areaName, eventId: e.id });
+  return out;
 }
 
 function chat(now: Date): ChatMessage[] {
@@ -380,7 +350,7 @@ function chat(now: Date): ChatMessage[] {
     m('c1', 'ev-rolling-live', 'dan', 'Moving on in 5. Check in if you have not, or you will not get the next spot.', 16),
     m('c2', 'ev-rolling-live', 'tom', 'Here, parked at the far end.', 8),
     m('c3', 'ev-rolling-live', 'em', 'Stuck at the lights, 5 mins.', 6),
-    m('c4', 'ev-cruise-peak', 'mo', 'Fuel up before Ladybower, nothing open after.', 300),
+    m('c4', 'ev-cruise-peak', 'mo', 'Fuel up before the start, nothing open after.', 300),
     m('c5', 'ev-cruise-peak', 'aimee', 'Bringing the R1, will sit at the back.', 120),
   ];
 }
@@ -407,10 +377,21 @@ export interface SeedState {
   spots: Spot[];
 }
 
-export function seed(now: Date = new Date()): SeedState {
+/** Sample people's ids: everyone in the scene but you. */
+export const SAMPLE_PEOPLE = PEOPLE.filter((p) => p.id !== ME).map((p) => p.id);
+
+/** Sample people's rough homes, moved onto your area. Never shown to anyone. */
+export function sampleHomes(home: LatLng): Map<string, LatLng> {
+  return new Map(PEOPLE.map((p) => [p.id, translate({ lat: p.home[0], lng: p.home[1] }, DEMO_HOME, home)]));
+}
+
+export function seed(now: Date = new Date(), scene: SceneOptions = {}): SeedState {
+  const home = scene.home ?? DEMO_HOME;
+  const homes = sampleHomes(home);
+  const region = nearestRegion(home);
   const users: User[] = PEOPLE.map((p) => ({
-    id: p.id, handle: p.handle, name: p.name, region: p.region, crewId: p.crew,
-    home: { lat: p.home[0], lng: p.home[1] },
+    id: p.id, handle: p.handle, name: p.name, region, crewId: p.crew,
+    home: homes.get(p.id)!,
   }));
   const builds: Build[] = PEOPLE.flatMap((p) =>
     p.builds.map((b, i) => {
@@ -422,5 +403,8 @@ export function seed(now: Date = new Date()): SeedState {
       };
     }),
   );
-  return { users, builds, crews: CREWS, events: events(now), chat: chat(now), votes: votes(now), spots: spots(now) };
+  const evs = events(now, home);
+  const named = scene.names && Object.keys(scene.names).length ? applySceneNames(evs, scene.names, seededStops(home)) : evs;
+  const spots: Spot[] = placeSpots(at(now, -60, 12));
+  return { users, builds, crews: CREWS, events: named, chat: chat(now), votes: votes(now), spots };
 }

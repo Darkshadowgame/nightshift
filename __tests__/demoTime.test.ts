@@ -82,7 +82,7 @@ describe('restarting the demo events', () => {
       chat: [...s.chat, { id: 'x1', eventId: 'ev-mine', userId: 'me', text: 'mine', at: ANCHOR.toISOString() }, { id: 'x2', eventId: 'ev-rolling-live', userId: 'me', text: 'old', at: ANCHOR.toISOString() }],
       votes: s.votes,
       spots: [
-        ...s.spots.map((x) => (x.id === 'sr-snake' ? { ...x, completions: [...x.completions, { userId: 'me', on: '2026-11-17' }] } : x)),
+        ...s.spots.map((x) => (x.id === 'dr-snake-pass' ? { ...x, completions: [...x.completions, { userId: 'me', on: '2026-11-17' }] } : x)),
         { ...s.spots[0], id: 'sp-mine', authorId: 'me', name: 'Mine' },
       ],
     };
@@ -93,7 +93,7 @@ describe('restarting the demo events', () => {
     expect(byId(out.events, 'ev-mine')).toBe(mine);
     expect(out.chat.map((m) => m.id)).toContain('x1');
     expect(out.chat.map((m) => m.id)).not.toContain('x2');
-    expect(out.spots.find((x) => x.id === 'sr-snake')!.completions.some((c) => c.userId === 'me')).toBe(false);
+    expect(out.spots.find((x) => x.id === 'dr-snake-pass')!.completions.some((c) => c.userId === 'me')).toBe(false);
     expect(out.spots.some((x) => x.id === 'sp-mine')).toBe(true);
     expect(phaseOf(byId(out.events, 'ev-rolling-live'), LATER)).toBe('live');
   });
