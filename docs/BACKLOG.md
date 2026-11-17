@@ -81,3 +81,28 @@ After each two or three chunks, a fresh reviewer reads the code and screenshots 
 web preview (`npx expo export --platform web` and a static server with SPA fallback),
 and writes findings to `docs/REVIEW.md`: bugs, UX problems, and ideas to improve.
 The next pass fixes them.
+
+## Queue (owner requests, 17 Nov 2026, after the overnight build)
+
+Work in this order. Each item ships over the air unless marked native.
+
+1. **Review round 4 fix pass** (in progress): map performance, places read from
+   the bundle, storage, check-in vehicle, pin styles, ban-zone shapes, road-illegal
+   mods (no rep, labelled), smaller OTA bundle, update fingerprint display, stable
+   shop ids. Plus: remove kart tracks; Shops and Speed cameras behind a small
+   layers icon on the right edge (both off by default); ban-zone circles only in
+   hosting flows, with an info card explaining the order.
+2. **In-app turn-by-turn navigation (native build)** (in progress): MapKit
+   directions through stops, en-GB voice, rerouting, driving view with speed and
+   camera warnings, average-speed zones. "Go here" defaults to in-app navigation
+   with a chooser for Apple Maps, Google Maps, Waze or another app ("Always
+   use…" option). Includes the pending Expo patch upgrades.
+3. **Waze-style community reports** (needs the Supabase app wiring): report
+   incidents from the driving view in one or two taps (crash, hazard, roadworks,
+   closure, traffic jam, mobile speed camera, police: see SPEC safety notes),
+   other drivers confirm or clear them ("still there?"), reports expire, and
+   reporters earn small rep for confirmed reports. Live traffic from Apple's layer;
+   closures and diversions from UK open data (National Highways, Street Manager,
+   TfL) imported on the server; rerouting around closures.
+4. **Final cohesion review**: one designer-led pass over every screen for
+   consistency, copy and flow once 1–3 have landed, then a fix pass.
