@@ -15,6 +15,7 @@ export default function Welcome() {
       contentContainerStyle={{ padding: 16, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40, gap: 24 }}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       <View style={{ gap: 8 }}>
         <Row gap={10}>

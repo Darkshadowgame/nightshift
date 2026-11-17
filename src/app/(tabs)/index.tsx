@@ -146,7 +146,7 @@ export default function MapScreen() {
         <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} accessibilityRole="button">
           <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
             <Txt v="h3" style={{ flex: 1 }} numberOfLines={1}>{sel.title}</Txt>
-            <Pressable onPress={() => setSelected(null)} hitSlop={12} accessibilityLabel="Close">
+            <Pressable onPress={() => setSelected(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
               <Txt v="label">Close</Txt>
             </Pressable>
           </Row>

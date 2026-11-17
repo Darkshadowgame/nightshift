@@ -72,7 +72,7 @@ export function PlateReview({
       </View>
       <Txt v="muted" style={{ fontSize: 12 }}>We try to blur plates automatically, but check before saving. The original photo isn't kept.</Txt>
       <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label={busy ? 'Blurring…' : `Blur ${boxes.length} and add`} kind="neon" onPress={() => onDone(boxes)} disabled={busy} style={{ flex: 1 }} />
+        <Button label={busy ? 'Blurring…' : `Blur ${boxes.length} and add`} kind="neon" onPress={() => onDone(boxes)} busy={busy} style={{ flex: 1 }} />
         <Button label="Cancel" kind="ghost" onPress={onCancel} />
       </Row>
     </Card>

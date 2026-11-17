@@ -25,7 +25,13 @@ export default function BuildScreen() {
     if (!b || b.ownerId !== me) return;
     nav.setOptions({
       headerRight: () => (
-        <Pressable onPress={() => router.push({ pathname: '/build/edit', params: { id: b.id } })} hitSlop={10} style={{ marginRight: 16 }}>
+        <Pressable
+          onPress={() => router.push({ pathname: '/build/edit', params: { id: b.id } })}
+          hitSlop={10}
+          style={{ marginRight: 16 }}
+          accessibilityRole="button"
+          accessibilityLabel="Edit build"
+        >
           <Txt v="label" style={{ color: C.sodium, fontSize: 14 }}>Edit</Txt>
         </Pressable>
       ),

@@ -60,7 +60,7 @@ export default function SuggestPlace() {
   }));
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <Row gap={6}>
         <Chip label="Drive" on={kind === 'drive'} colour={SPOT_COLOURS.drive} onPress={() => pick('drive')} />
         <Chip label="Photo spot" on={kind === 'photo'} colour={SPOT_COLOURS.photo} onPress={() => pick('photo')} />

@@ -12,6 +12,7 @@ import { UserLink } from '../../components/UserLink';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { banZoneWarning } from '../../lib/events';
+import { feel } from '../../lib/feel';
 import { findPlates, finishPhoto, plateRedactorAvailable } from '../../lib/photos';
 import {
   advanceRun,
@@ -271,6 +272,7 @@ function DrivePanel({
     const verdict = store.finishDrive(spot.id, run);
     setRun(null);
     if (verdict.ok) {
+      feel.success();
       setPassed(true);
       onFinished();
     } else setError(verdict.reason);
@@ -368,7 +370,7 @@ function DrivePanel({
             : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
         </Txt>
         {settings.simulateGps ? (
-          <Button label={simulating ? 'Driving…' : 'Simulate the drive'} kind="neon" onPress={simulate} disabled={simulating} />
+          <Button label={simulating ? 'Driving…' : 'Simulate the drive'} kind="neon" onPress={simulate} busy={simulating} />
         ) : null}
         <Button label="Stop" kind="ghost" onPress={cancel} />
       </Card>
@@ -412,6 +414,7 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
   function save(photo?: string) {
     try {
       store.visitSpot(spot.id, photo);
+      feel.success();
       setStep('done');
       setPending(null);
       onVisited();
@@ -467,7 +470,7 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
             <Txt v="muted">
               Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved.
             </Txt>
-            <Button label={busy ? 'Checking…' : 'Check in here'} kind="neon" onPress={checkIn} disabled={busy} />
+            <Button label={busy ? 'Checking…' : 'Check in here'} kind="neon" onPress={checkIn} busy={busy} />
           </>
         ) : step === 'photo' ? (
           <>

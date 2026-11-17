@@ -33,6 +33,7 @@ export default function EventScreen() {
   const [busy, setBusy] = useState(false);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
   const [unlock, setUnlock] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   // "Event unlocked": the first time this person can see a stop, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -54,8 +55,9 @@ export default function EventScreen() {
 
   if (!e) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: 16, gap: 12 }}>
         <Txt>This event no longer exists.</Txt>
+        <Button label="Back to events" kind="ghost" onPress={() => router.navigate('/events')} />
       </View>
     );
   }
@@ -209,7 +211,7 @@ export default function EventScreen() {
                   </Row>
                 </Card>
               ) : (
-                <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} disabled={busy} />
+                <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} busy={busy} />
               )
             ) : null}
             {host && ev.type === 'rolling' && phase === 'live' ? (
@@ -292,6 +294,7 @@ export default function EventScreen() {
 
         <Section title={`Going (${ev.going.length})`}>
           <Card>
+            {ev.going.length === 0 ? <Txt v="muted">Nobody yet. Share it to get people along.</Txt> : null}
             {ev.going.map((uid) => {
               const u = users.find((x) => x.id === uid);
               const b = builds.find((x) => x.ownerId === uid);
@@ -381,14 +384,26 @@ export default function EventScreen() {
         </Section>
 
         {host && phase !== 'over' && phase !== 'cancelled' ? (
-          <Button
-            label="Cancel event"
-            kind="danger"
-            onPress={() => {
-              store.cancelEvent(ev.id);
-              router.back();
-            }}
-          />
+          confirmCancel ? (
+            <Card accent={C.alert}>
+              <Txt>Cancel {ev.title}? Everyone going will see it as cancelled and their reminders stop.</Txt>
+              <Row style={{ flexWrap: 'nowrap' }}>
+                <Button
+                  label="Yes, cancel it"
+                  kind="danger"
+                  style={{ flex: 1 }}
+                  onPress={() => {
+                    store.cancelEvent(ev.id);
+                    feel.warning();
+                    router.back();
+                  }}
+                />
+                <Button label="Keep it" kind="ghost" onPress={() => setConfirmCancel(false)} />
+              </Row>
+            </Card>
+          ) : (
+            <Button label="Cancel event" kind="danger" onPress={() => setConfirmCancel(true)} />
+          )
         ) : null}
       </ScrollView>
     </KeyboardAvoidingView>

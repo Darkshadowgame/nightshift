@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { ClassUpMoment } from '../../components/motion';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BIKE_MAKES, CAR_MAKES, MOD_CATEGORIES } from '../../data/catalog';
@@ -117,9 +117,14 @@ export default function EditBuild() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={70}>
+    <>
     {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={() => router.back()} /> : null}
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+    <ScrollView
+      contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets
+    >
       <Section title="Car or bike">
         <Row gap={6}>
           <Chip label="Car" on={kind === 'car'} onPress={() => setKind('car')} />
@@ -196,7 +201,7 @@ export default function EditBuild() {
         {pending ? (
           <PlateReview photo={pending} onDone={confirmPhoto} onCancel={() => setPending(null)} busy={photoBusy} />
         ) : (
-          <Button label={photoBusy ? 'Checking for plates…' : '+ Add a photo'} kind="ghost" onPress={addPhoto} disabled={photoBusy} />
+          <Button label={photoBusy ? 'Checking for plates…' : '+ Add a photo'} kind="ghost" onPress={addPhoto} busy={photoBusy} />
         )}
         <Txt v="muted" style={{ fontSize: 12 }}>
           Number plates are blurred on your phone before a photo is saved, and location data is removed.
@@ -234,7 +239,7 @@ export default function EditBuild() {
         )
       ) : null}
     </ScrollView>
-    </KeyboardAvoidingView>
+    </>
   );
 }
 

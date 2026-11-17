@@ -180,7 +180,7 @@ export function EventForm({
   ];
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <Section title="Type">
         <Row gap={6}>
           {(editing ? [type] : TYPES).map((t) => (
@@ -294,7 +294,7 @@ export function EventForm({
             <Txt>Everyone welcome</Txt>
             <Txt v="muted">Skip the build filters. The radius still applies.</Txt>
           </View>
-          <Switch value={filter.everyone} onValueChange={(everyone) => setFilter((f) => ({ ...f, everyone }))} trackColor={{ true: C.sodium, false: C.kerb }} />
+          <Switch accessibilityLabel="Everyone welcome" value={filter.everyone} onValueChange={(everyone) => setFilter((f) => ({ ...f, everyone }))} trackColor={{ true: C.sodium, false: C.kerb }} />
         </Row>
         {!filter.everyone ? (
           <>
@@ -355,7 +355,7 @@ export function EventForm({
               <Txt>Crew event: {myCrew.name}</Txt>
               <Txt v="muted">Any crew member can host, move on and edit.</Txt>
             </View>
-            <Switch value={crewOwned} onValueChange={setCrewOwned} trackColor={{ true: C.sodium, false: C.kerb }} />
+            <Switch accessibilityLabel="Crew event" value={crewOwned} onValueChange={setCrewOwned} trackColor={{ true: C.sodium, false: C.kerb }} />
           </Row>
         ) : null}
         <Txt v="label">Co-hosts</Txt>

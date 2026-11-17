@@ -7,7 +7,7 @@ export default function EditProfile() {
   const { users, me, saveProfile } = useStore();
   const user = users.find((u) => u.id === me)!;
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <ProfileForm
         initial={{ handle: user.handle, name: user.name, region: user.region, home: user.home }}
         submitLabel="Save"

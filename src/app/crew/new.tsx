@@ -26,7 +26,7 @@ export default function NewCrew() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <Section title="Crew name">
         <TextInput value={name} onChangeText={setName} placeholder="e.g. NightRunners" placeholderTextColor={C.fog} style={ui.input} maxLength={30} />
       </Section>

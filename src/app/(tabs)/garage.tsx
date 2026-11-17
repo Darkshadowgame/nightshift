@@ -23,6 +23,7 @@ export default function Garage() {
           key={b.id}
           onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
           accessibilityRole="button"
+          accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${b.mods.length} mods`}
           style={({ pressed }) => [{ gap: 10 }, pressed && { opacity: 0.85 }]}
         >
           {b.photos[0] ? (
