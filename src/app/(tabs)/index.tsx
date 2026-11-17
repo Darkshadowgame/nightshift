@@ -19,6 +19,7 @@ import { fitRegion } from '../../lib/geo';
 import { currentPosition } from '../../lib/location';
 import type { LatLng } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
+import { driveTier } from '../../lib/rep';
 import { cameraIndex } from '../../lib/cameraData';
 import { CAMERA_CAVEAT, CAMERA_CREDIT, camerasForView, describeCamera, describeZone, zoneMidpoint } from '../../lib/cameras';
 import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks';
@@ -200,7 +201,7 @@ export default function MapScreen() {
     return {
       title: s.name,
       meta:
-        (s.kind === 'drive' ? `Drive · ${s.miles} mi · untimed` : s.kind === 'track' ? 'Track' : s.kind === 'venue' ? 'Venue' : 'Photo spot') +
+        (s.kind === 'drive' ? `Drive · ${s.miles} mi · ${driveTier(s.miles).label} · +${driveTier(s.miles).rep} rep · untimed` : s.kind === 'track' ? 'Track' : s.kind === 'venue' ? 'Venue' : 'Photo spot') +
         (s.region ? ` · ${s.region}` : '') + stars + status,
       body: s.description,
       colour: SPOT_COLOURS[s.kind],

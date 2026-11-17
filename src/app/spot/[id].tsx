@@ -17,6 +17,7 @@ import { SYSTEM_AUTHOR } from '../../data/places';
 import { radiusFor } from '../../lib/commons';
 import { banZoneWarning } from '../../lib/events';
 import { trackOutline } from '../../lib/tracks';
+import { driveTier } from '../../lib/rep';
 import { feel } from '../../lib/feel';
 import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
 import {
@@ -128,6 +129,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
             .filter(Boolean)
             .join(' · ')}
         </Txt>
+        {spot.kind === 'drive' ? <DriveTierChip spot={spot} done={done} /> : null}
         {count > 0 ? (
           <Row>
             <Stars value={average} size={18} />
@@ -573,6 +575,21 @@ function Photos({ spot }: { spot: Spot }) {
       {/* Suggestions waiting for approval don't ask Commons yet. */}
       {!pending ? <CommonsStrip at={at} radiusM={radius} placeName={spot.name} /> : null}
     </Section>
+  );
+}
+
+/** "Long drive · +175 rep": what finishing this drive for the first time is worth (rep.ts driveTier). */
+function DriveTierChip({ spot, done }: { spot: Spot; done: boolean }) {
+  const tier = driveTier(spot.miles);
+  return (
+    <View
+      style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: C.neon, backgroundColor: `${C.neon}1f`, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3 }}
+      accessibilityLabel={`${tier.label}. ${done ? `${tier.rep} rep earned` : `${tier.rep} rep the first time you finish it`}`}
+    >
+      <Txt v="label" style={{ color: C.neon }}>
+        {tier.label} · +{tier.rep} rep{done ? ' earned' : ''}
+      </Txt>
+    </View>
   );
 }
 
