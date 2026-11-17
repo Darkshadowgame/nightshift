@@ -15,9 +15,12 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120300_rpc.sql` | The RPC functions the app calls, the `awards` view |
 | `supabase/migrations/20261117120400_storage.sql` | The `photos` bucket and its policies |
 | `supabase/migrations/20261117120500_reminders.sql` | Server-side reminder queue (Phase 2 push) |
+| `supabase/migrations/20261117120600_notice_kind_nearby.sql` | The `nearby` notice kind (on its own: a new enum value can't be used in the transaction that adds it) |
+| `supabase/migrations/20261117120700_discovery.sql` | Staff read access, travel settings, new-event notices, `search_events()` |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
 | `supabase/tests/rpc_test.sql` | pgTAP: every RPC end to end, storage, reminders (63 checks) |
+| `supabase/tests/discovery_test.sql` | pgTAP: travel settings, new-event notices, `search_events()`, discovery and staff (75 checks) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
 | `supabase/functions/import-closures/` | Phase 2 sketch: UK open-data road closures |
 | `supabase/templates/otp.html` | Sign-in email that shows the 6-digit code |
@@ -62,6 +65,8 @@ Rules of thumb:
 |---|---|---|---|
 | `profiles` | handle (unique), display name, region, onboarded | signed-in users | `save_profile()` only; a trigger makes the row at sign-up |
 | `profile_homes` | rough home area, **snapped to ~1 km by a trigger** | **only the owner** | `save_profile()` only |
+| `profile_settings` | willing to travel (`travel_miles`, 1–300) and `new_event_alerts` (`notify` / `search` / `off`); no row means 25 and `notify` | **only the owner** | `save_travel_prefs()` only |
+| `staff` | who is an admin (moderation read access) | yourself; staff see the list | service role only |
 | `push_tokens` | Expo push tokens (Phase 2) | owner | owner |
 | `builds`, `build_mods` | garage | signed-in users | owner |
 | `build_photos` | Storage path per photo, `{owner}/...` enforced | signed-in users | owner |
@@ -78,7 +83,7 @@ Rules of thumb:
 | `plan_changes` | audit log of every stop placed, edited, moved, removed, moved on to (with a copy of the location) | **hosts only** | event RPCs |
 | `chat_messages` | event chat, `system` flag | hosts and people going | hosts and people going (never `system`) |
 | `votes` | one per voter per category | **only your own** | `cast_vote()` |
-| `notices` | in-app notices and the push queue | owner | RPCs; owner may set `read_at` |
+| `notices` | in-app notices and the push queue: reminders, "moved on", and `nearby` (new event near you) | owner | RPCs and triggers; owner may set `read_at` |
 | `spots` | drive / photo / track / venue, `path` LineString for drives, author, pending/approved/rejected | approved ones, plus your own pending | `suggest_spot()`; approval by staff |
 | `spot_completions` | **day only** (`completed_on`), optional photo path | owner | `complete_drive()`, `visit_spot()` |
 | `spot_ratings` | 1–5 stars | owner | `rate_spot()` |
@@ -118,8 +123,10 @@ street name), so they're hidden too.
 `profile_homes` is a separate table whose only policy is "owner reads own row".
 It's written only by `save_profile()`, and a trigger snaps it to the 0.01° grid
 (about 1 km) whatever the caller sends. Invite matching (`private.is_invited()`,
-used by `events_for_me()`, `event_role()` and `set_going()`) runs as security
-definer and only returns yes/no. `invite_count()` (the host form's live count)
+used by `events_for_me()`, `event_role()`, `set_going()`, `search_events()` and
+the new-event trigger) runs as security definer and only returns yes/no.
+`search_events()` returns your distance to each event's rough area, measured
+from your own home inside the function; it never returns the home itself. `invite_count()` (the host form's live count)
 returns counts only, reports 1–2 as `null` ("fewer than 3") and refuses a radius
 under 10 mi, so narrow filters can't be used to locate one person's home.
 
@@ -163,7 +170,45 @@ the server: the demo switch only exists in local mode.
   counts and averages without saying who or when.
 * Event rows (rough area, time, filters) are readable by every signed-in
   user. This is the same as the share text, which only ever carries the rough
-  area. See "Open decisions" below.
+  area. **Decided** by the owner (section 8): every signed-in user can see that
+  an event exists.
+
+### Staff (admins)
+
+`public.staff` lists admins; `private.is_admin()` checks it. Staff get extra
+SELECT policies on every table that isn't already readable by all signed-in
+users (stops, going, requests, check-ins, plan changes, chat, votes, notices,
+spots of any status, completions, ratings, partner venues), so they can
+moderate. They do **not** get:
+
+* homes (`profile_homes`), travel settings (`profile_settings`) or push tokens:
+  the app promises the home area is never shown to anyone, and moderation
+  doesn't need them;
+* host powers: `private.is_event_host()` is unchanged, so staff can't edit,
+  cancel, move on or answer requests, and `event_role()` is `none` for them;
+* any write access. Staff are added and removed with the service role
+  (dashboard or SQL editor): `insert into public.staff (user_id, note) values ('<uuid>', 'moderator');`
+
+### New events near you
+
+`private.queue_nearby_notices(event)` (mirrors `isNearbyMatch()` in
+`src/lib/discover.ts`) adds a `nearby` notice for each person who:
+
+* has `new_event_alerts = 'notify'` (the default; `search` and `off` get nothing);
+* has a home within their own `travel_miles` of the event's rough area
+  (PostGIS `ST_DWithin` on `profile_homes`, inside the function: homes are never returned);
+* can go: a show or track day, or `private.is_invited()` (a build fits the
+  filter and they live inside the host's radius; "everyone welcome" skips the build check);
+* isn't the creator, a host (named or crew), going, or in `event_requests`;
+* and the event hasn't started and isn't cancelled.
+
+The text is `New <type> near you` / `<title> · <Dy DD Mon HH24:MI> · <area name>`:
+never a stop or a distance. The key `ns.<event>.nearby` makes it once per person
+per event. A **deferred constraint trigger** on `events` runs it at the end of the
+transaction (so `save_event()` has added co-hosts first), on insert and on
+updates of the area, time, type or invite filter (an edit can let new people
+in; people already told aren't told again). `push-notices` pushes these with the
+reminders in Phase 2. Only the trigger can call it.
 
 ## 4. RPC reference
 
@@ -193,6 +238,8 @@ All are `supabase.rpc(name, { p_…: … })`, signed in only.
 | `create_crew(p_name, p_tag)` / `join_crew(p_crew_id)` / `leave_crew()` | crew actions | One crew at a time; an owner who leaves hands over to a host, else the longest-standing member |
 | `set_crew_role(p_crew_id, p_user_id, p_role)` | `setCrewHost` | Owner only; `host` or `member` |
 | `mark_notices_read()` | `markNoticesRead` | |
+| `save_travel_prefs(p_travel_miles, p_new_event_alerts)` | `setTravelPrefs`, and the travel fields of `saveProfile` | Same checks and sentences as `travelProblem()` / `alertProblem()`: whole miles 1–300; `notify`, `search` or `off` |
+| `search_events(p_max_miles, p_types, p_when, p_can_go_only, p_vehicles, p_from_lat, p_from_lng)` | `searchEvents()` (Find events) | All optional. Distance from **your own home** (read inside, never returned), or from the point you send **snapped to ~1 km**, to each event's rough area; nearest first, then soonest; up to 100. `p_max_miles` null = your travel distance; 1–600 (600 = the app's "Any distance"). `p_when`: `any` / `tonight` (to 5am) / `week` / `weekend` (Fri 5pm–Mon 5am), Europe/London. `p_vehicles`: `any` / `cars` / `bikes`. Returns the event fields, `role`, `can_go`, `phase`, `miles` (0.1), `shown_stop`, and `stop_name`/`stop_lat`/`stop_lng` **only for a stop you may see** (null for locked events: rough area only) |
 | `queue_due_reminders()` | (server only) | Service role only; used by `push-notices` |
 
 ## 5. Moving the app off the local store
@@ -220,7 +267,10 @@ interface Repository {
 
 | `Store` action (store.tsx) | Supabase |
 |---|---|
-| `saveProfile` | `rpc('save_profile')` |
+| `saveProfile` | `rpc('save_profile')`, then `rpc('save_travel_prefs')` |
+| `setTravelPrefs` | `rpc('save_travel_prefs')` (read back from `profile_settings`) |
+| Find events (`searchEvents()`) | `rpc('search_events')` with the screen's filters ("Any distance" sends 600; "Where I am" sends the GPS fix, which the server snaps to ~1 km) |
+| New events near you | none on the phone: the trigger writes `nearby` notices, read with the rest of `notices`. "I'll search" NEW tags: events in `search_events()` created since the last visit (keep the time on the phone) |
 | `saveBuild` / `deleteBuild` | `builds` upsert/delete, `build_mods` replace, photos: upload to `photos/{uid}/builds/{buildId}/{uuid}.jpg` then `build_photos` insert; delete dropped files with `storage.remove` |
 | `saveEvent` / `editEvent` | `rpc('save_event')` (stops + co-hosts in one call) |
 | `changePlan` | `rpc('change_plan')` |
@@ -238,7 +288,7 @@ interface Repository {
 | `joinCrew` / `leaveCrew` / `createCrew` / `setCrewHost` | `rpc('join_crew' / 'leave_crew' / 'create_crew' / 'set_crew_role')` |
 | `addToCrew` (demo only) | none: becomes an invite the other person accepts (not built yet) |
 | `markNoticesRead` | `rpc('mark_notices_read')` |
-| `setSettings`, `markUnlockSeen`, `markLocationNoticeSeen` | stay on the phone (AsyncStorage) |
+| `setSettings`, `markUnlockSeen`, `markLocationNoticeSeen`, `markNearbySeen` | stay on the phone (AsyncStorage) |
 | `resetDemo`, `restartDemoEvents` | local mode only |
 | `refreshReminders` | stays local until Phase 2 push |
 
@@ -363,11 +413,30 @@ $$);
 **Local test harness used while writing this.** The SQL was checked in a
 throwaway `postgis/postgis:17-3.5` Podman container. A small stub stood in for
 Supabase's `auth` and `storage` schemas and its roles, and pgTAP 1.3.3 was
-loaded as plain SQL. All 6 migrations and the seed applied cleanly, and the 110
-pgTAP checks passed. `supabase test db` against the real stack is still the
+loaded as plain SQL. All 8 migrations and the seed applied cleanly, and the 185
+pgTAP checks passed (47 + 63 + 75). The new-event trigger is deferred, and the
+tests never commit, so `discovery_test.sql` uses `set constraints
+public.events_queue_nearby immediate` to stand in for the commit. `supabase test db` against the real stack is still the
 check that counts. The Edge Functions type-check with Deno 2.9.
 
-## 8. Limits and known gaps
+## 8. Owner decisions (17 Nov 2026)
+
+1. **Event discovery: decided.** Every signed-in user, and admins, can see that
+   an event exists: title, type, time, rough area and the invite filter summary
+   (the `events` row, readable by `authenticated`). Exact stops stay hidden by the
+   reveal rules in section 3; finding an event never reveals a stop.
+   `search_events()` lists them nearest first, and shared links and "Request to
+   go" work for anyone.
+2. **Admins** (`staff`) read everything for moderation, except homes, travel
+   settings and push tokens, and never get host powers (section 3, "Staff").
+3. **Willing to travel** (5/10/25/50/100 mi or custom, 1–300) is stored per
+   person in `profile_settings`, readable only by its owner.
+4. **New-event alerts:** "Notify me" (a `nearby` notice, pushed in Phase 2),
+   "I'll search" (no notice; they browse) or "Off". Worked out on the server
+   with PostGIS against `profile_homes` (section 3, "New events near you").
+5. **Search:** `search_events()` mirrors the app's Find events screen.
+
+## 9. Limits and known gaps
 
 * **GPS is client-reported.** Check-ins, photo spot visits and drive fixes
   are positions the phone sends, so a modified client could fake them. The
@@ -383,7 +452,17 @@ check that counts. The Edge Functions type-check with Deno 2.9.
   `roughArea()` to SQL would close this.
 * **`events_for_me()` scans every recent event.** It's fine for a test group.
   At scale it should filter by distance from the caller's home first, and the
-  helpers may need caching.
+  helpers may need caching. `search_events()` already filters by distance first
+  (gist index on `events.area`), then works out roles for what's left.
+* **New-event notices fan out in the saving transaction.** The trigger checks
+  every home within each person's travel distance (at most 300 mi) when an event
+  is saved. Fine for a test group; at scale, move it to a queue the
+  `push-notices` job drains. The `nearby` key stops repeats.
+* **"I'll search" has no server state.** The NEW tags in Find events are kept on
+  the phone (`nearby.unseen` in the local store); with the backend, compare
+  `events.created_at` with the last time the phone opened Find events.
+* **Staff have no app screens yet.** Their read access is there for the
+  dashboard, SQL or a later moderation screen; the app doesn't check `staff`.
 * **Spot approval** has no moderator UI: approve by setting `spots.status` in
   the dashboard (service role). The demo's 10-second auto-approve doesn't exist
   on the server.
@@ -404,12 +483,10 @@ check that counts. The Edge Functions type-check with Deno 2.9.
 * TfL and National Highways endpoints in `import-closures` are sketches: check
   them against each portal's docs before relying on them.
 
-## 9. Open decisions for the owner
+## 10. Open decisions for the owner
 
-1. **Event discovery:** event rows (title, time, rough area, filters) are
-   readable by every signed-in user, so shared links work and "request to go"
-   is possible. The other option is to show only events you're invited to,
-   going to, hosting or that are public, which needs an RPC for shared links.
+1. **Event discovery:** decided 17 Nov 2026 (section 8): everyone signed in sees
+   that an event exists; stops stay hidden.
 2. **Seeding:** the database seed has places only (ban zones and circuits).
    Sample people and events stay in the app's demo mode, so real users never
    meet fake people. The bundled drives and photo spots (`src/data/places.ts`)

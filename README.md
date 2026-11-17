@@ -57,8 +57,13 @@ note anything odd for the next pass. Each step says what you should see.
       wait a moment, tap a result: the map and home area move there. Nonsense text says
       no places were found; with flight mode on it says it couldn't search.
 - [ ] **Testing: use the demo area (Tamworth)** is still there if you want the old setup.
-- [ ] Tap **Let's go**: you land on the map, with no old notifications waiting. Me
-      shows your new handle in your own case.
+- [ ] **Events near you**: Willing to travel shows 25 mi picked and New events near you
+      shows **Notify me**. Leave them for now (step 4b changes them).
+- [ ] Tap **Let's go**: you land on the map. The bell (top right) shows a count: the only
+      notices waiting are **New … near you** ones for sample events you can go to within
+      25 mi (e.g. **Coffee and cars, late edition**, and the show or track day if the
+      nearest venue is that close), never one you host or are already going to. No
+      reminders from before you joined. Me shows your new handle in your own case.
 - [ ] The map centres on you with the blue dot. The round **you** button (top right,
       under the chips) brings it back after you pan away.
 - [ ] The sample people and events (marked **Sample**) are around your own area now, not
@@ -108,6 +113,31 @@ note anything odd for the next pass. Each step says what you should see.
       shows it locked ("you asked to go"). Open it to **Withdraw request**.
 - [ ] Open your event > **Edit**, change the time, save. **Share** opens the share
       sheet with a `nightshift://event/...` link. **Cancel event** asks first.
+
+### 4b. Find events and new events near you
+
+- [ ] Events tab > **Find** (top right), or the green **Find events** chip on the map: every
+      upcoming event within 25 mi of your home area, nearest first, each saying "about N mi
+      from home" and "you can go" or "ask to go". Locked ones show only the area name and
+      "location locked", never a stop. Live ones are included.
+- [ ] Try the filters: **Within** (5–100 mi, Any distance), **What** (tap Cruise and Show
+      together), **When** (Tonight keeps the live rolling meet; Weekend is Fri 5pm to Mon
+      5am), **Show: I can go** drops events you'd have to ask for (e.g. the bikes-only
+      Sunrise ride), and **Bikes** drops cars-only ones. **Back to my usual search** resets.
+- [ ] **Where I am**: asks for location if needed and measures from your position, rounded
+      to about 1 km. With location off it says so and stays on your home area.
+- [ ] Tap a result: the event opens, with **I'm going** or **Request to go** as usual.
+- [ ] Me > **Events near you**: tap **Custom** and type 40: the chip reads 40 mi, and Find
+      events now starts at 40 mi. Type 0 or 500: it says 1 to 300 miles and keeps the old one.
+- [ ] The bell's **New … near you** notices (step 2) say the event's title, time and area
+      name only: no stop, street or distance. Tapping one opens the event.
+- [ ] Phone notification: with notifications allowed (step 4 or Me > Reminders), set **Notify
+      me**, then Me > **Restart the demo events** and lock the phone: one notification,
+      "N new events near you", which opens Find events (or the event, if there's just one).
+- [ ] Set **I'll search** and restart the demo events again: no notification and nothing new
+      under the bell, but Events shows **Find · N new** and the map chip says **N new**; the
+      new ones carry a green **NEW** tag in Find events until you leave it.
+- [ ] Set **Off** and restart: nothing at all, and Find events still lists everything.
 
 ### 5. Rolling meet: check in, move on, change the plan
 
@@ -186,7 +216,9 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] **Demo: skip the GPS check** is off by default (and was turned off once on an old
       install). Off: check-ins, drives and photo spots need you to be there. On: the
       distance check is skipped and drives can be simulated.
-- [ ] Me > **Edit profile** > set a different home area: the sample scene moves there.
+- [ ] Me > **Edit profile** > set a different home area: the sample scene moves there (and its
+      events count as new near you again). Willing to travel and New events near you are on
+      this screen too, and on Me under **Events near you**.
 - [ ] Turn on iOS Reduce Motion (Settings > Accessibility > Motion): pulses go
       static and reveals become quick fades. Haptics still work.
 - [ ] **Reset demo data** (asks first) takes you back to the welcome screen.
@@ -211,6 +243,12 @@ note anything odd for the next pass. Each step says what you should see.
   a backend and a paid Apple developer account.
 - Reminders are local notifications scheduled on this phone. iOS keeps up to 64, so
   the app schedules at most 48, soonest first.
+- New events near you are worked out on this phone from the sample scene, so they only
+  ever come from sample events (or after **Restart the demo events**). On the backend the
+  server works them out and they reach you by push once that's set up (Phase 2). An app
+  updated from an older version treats the events it already had as not new.
+- Find events searches what's on this phone. Distances are straight lines to the event's
+  rough area, not driving distances.
 - Ban zones are rough circles round real orders (West Midlands, London, East Anglia and
   Kent; see `src/data/banZones.ts`), each marked "Sample — check the current order". They
   are not a live legal list. Places inside one still show, with the warning.
@@ -241,6 +279,7 @@ note anything odd for the next pass. Each step says what you should see.
 | `src/lib/profile.ts` | First-run profile checks; home saved fuzzed to about 1 km |
 | `src/lib/people.ts` | What other people can see about someone (never a location) |
 | `src/lib/invites.ts` | Invite filters and who matches |
+| `src/lib/discover.ts` | Willing to travel, new events near you (who hears about what, once) and the Find events search |
 | `src/lib/rep.ts` | Rep ledger (attendance, hosting, drives, spots, authored places, trophies, mods), levels, author rep |
 | `src/lib/spots.ts` | Drives and photo spots: checkpoint runs (pass or fail only), visits, ratings, suggestions and demo approval |
 | `src/lib/crews.ts` | Join, leave and start crews; owner and host roles; crew events |

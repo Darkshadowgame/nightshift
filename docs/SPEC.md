@@ -91,6 +91,43 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 
 Code: `src/lib/events.ts` and `src/lib/invites.ts`, with tests.
 
+## Finding events (built, Nov 2026)
+
+Owner's decisions, 17 Nov 2026:
+
+* **Anyone signed in can see that an event exists:** its title, type, time, rough
+  area and invite filter summary. Exact stops stay hidden by the reveal rules above,
+  so finding an event never shows where it is. Admins (staff) can read everything
+  on the backend for moderation, but get no host powers.
+* **Willing to travel:** each person sets how far they'd go for an event: 5, 10, 25,
+  50 or 100 mi, or a custom whole number from 1 to 300 (default 25). It's personal:
+  only you see it.
+* **New events near you:** each person picks **Notify me** (default: a notice under the
+  bell and, if notifications are allowed, a phone notification), **I'll search** (no
+  notification; new ones get a NEW tag in Find events) or **Off** (nothing). You hear
+  about an event once, when it appears, if:
+  * you can go: it's a show or track day, or you match the invite (a build fits the
+    filter and you live inside the host's radius; "everyone welcome" skips the build
+    check). This is the same "invited" rule as the Events tab;
+  * its rough area is within your travel distance of your home area;
+  * you aren't already hosting, going, waiting on a request or turned down;
+  * it hasn't started and isn't cancelled.
+  The message has the title, the time and the area name only: never a stop, a street
+  or how far it is from home. Several at once make one phone notification ("3 new
+  events near you") that opens Find events.
+* **Find events** (Events tab header and the map): every upcoming or live event you can
+  see, nearest first (then soonest), measured from your home area or, if you choose,
+  where you are (rounded to about 1 km). Filters: distance (starts at your travel
+  distance; 5–100 mi or any), type (cruise, rolling meet, meet, show, track day), when
+  (tonight to 5am, the next 7 days, or the weekend from Friday 5pm to Monday 5am), "I can
+  go" or everything, and cars, bikes or both. Distances are to the rough area, so locked
+  events only ever show that area. Tapping a result opens the event.
+* Settings: on the profile form (first run and Edit profile) and on Me under
+  **Events near you**.
+
+Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
+`search_events()`, `save_travel_prefs()` and the new-event trigger (docs/BACKEND.md).
+
 ## Drives and photo spots (built, demo)
 
 * Drives and photo spots live in the store with an author, a status (pending or
@@ -278,7 +315,8 @@ Owner's request: "Obviously you need to use real maps and location."
 
 ## Privacy and safety in Phase 1
 
-* Other people's home locations are never shown, only the event area. Your own
+* Other people's home locations are never shown, only the event area. Your travel
+  distance and alert setting are private too. Your own
   home is always saved fuzzed to ~1 km; your live position is used for the map's
   blue dot and distance checks and is never stored.
 * Plates: no plate field at all. Photos are the owner's responsibility until
@@ -292,7 +330,7 @@ Owner's request: "Obviously you need to use real maps and location."
 1. **Map:** a dark map, game-style hexagon pins, filter chips (events, spots,
    drives, tracks), a "Suggest a place" chip, and a peek card that opens the
    event, drive, photo spot or track.
-2. **Events:** Going, Invited, Hosting and Public lists, with a create button.
+2. **Events:** Going, Invited, Hosting and Public lists, with a create button and **Find**.
 3. **Event detail:** hero, hosts, invite filter summary, the stops timeline
    (locked or revealed), RSVP, check-in, Move on (hosts), attendees and chat.
 4. **New event:** type, name, time, area, stops, filters with a live count of
@@ -301,12 +339,14 @@ Owner's request: "Obviously you need to use real maps and location."
 6. **Build:** a game-style stats screen with specs, mods by category and photos.
 7. **Edit build:** car or bike, make, model, year, nickname, stock bhp, weight,
    dyno figure, and the mods list with bhp gains.
-8. **Me:** profile, rep and level with a breakdown, crew, your suggested places, privacy toggles for later phases, demo controls
+8. **Me:** profile, rep and level with a breakdown, crew, your suggested places, events near you
+   (willing to travel, new-event alerts), reminders, privacy toggles for later phases, demo controls
    (Demo: skip the GPS check, restart the demo events, reset data).
 
 9. **Drive / photo spot:** details, map, Start drive or Check in, rating, photos.
 10. **Suggest a place:** draw a drive or drop a photo spot on the map.
 11. **Crews:** browse crews, crew page, start a crew.
+12. **Find events:** filters and results nearest first; opens the event.
 
 ## Next steps after Phase 1
 
