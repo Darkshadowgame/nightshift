@@ -1,3 +1,4 @@
+import { alertProblem, travelProblem, type AlertMode } from './discover';
 import { fuzz } from './geo';
 import type { LatLng, User } from './types';
 
@@ -31,6 +32,10 @@ export interface ProfileDraft {
   name: string;
   region: string;
   home: LatLng | null;
+  /** Willing to travel, in whole miles. Left out: keep what's saved (or the default). */
+  travelMiles?: number;
+  /** New events near you: notify, search or off. Left out: keep what's saved. */
+  alerts?: AlertMode;
 }
 
 /** "@Dan_R " -> "dan_r". */
@@ -55,6 +60,14 @@ export function profileProblem(draft: ProfileDraft, users: User[], me: string): 
   if (draft.name.trim().length > 30) return 'Keep your name to 30 characters or fewer.';
   if (!REGIONS.some((r) => r.name === draft.region)) return 'Pick your region.';
   if (!draft.home) return 'Set your rough home area: use your current location, search your town or postcode, or long-press the map.';
+  if (draft.travelMiles !== undefined) {
+    const t = travelProblem(draft.travelMiles);
+    if (t) return t;
+  }
+  if (draft.alerts !== undefined) {
+    const a = alertProblem(draft.alerts);
+    if (a) return a;
+  }
   return null;
 }
 
@@ -66,5 +79,7 @@ export function applyProfile(user: User, draft: ProfileDraft): User {
     name: draft.name.trim(),
     region: draft.region,
     home: draft.home ? fuzz(draft.home) : user.home,
+    travelMiles: draft.travelMiles ?? user.travelMiles,
+    alerts: draft.alerts ?? user.alerts,
   };
 }

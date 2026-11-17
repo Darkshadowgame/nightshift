@@ -10,7 +10,8 @@ import type { Crew, NightEvent } from './types';
  * only the event's title and its rough area.
  */
 
-export type ReminderKind = 'reveal' | 'soon' | 'moved';
+/** `nearby`: a new event near you that you can go to (src/lib/discover.ts). */
+export type ReminderKind = 'reveal' | 'soon' | 'moved' | 'nearby';
 
 export const SOON_MINUTES = 30;
 

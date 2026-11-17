@@ -57,6 +57,10 @@ export interface User {
   home: LatLng;
   region: string;
   crewId?: string;
+  /** How far you'd travel for an event, in miles. Private: only you see it. */
+  travelMiles?: number;
+  /** How you hear about new events near you. Private: only you see it. */
+  alerts?: 'notify' | 'search' | 'off';
 }
 
 export interface Crew {
