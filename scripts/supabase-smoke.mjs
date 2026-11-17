@@ -90,7 +90,7 @@ async function until(fn, ms = 10_000) {
   return fn();
 }
 
-const made = { eventId: null, spotId: null, crewId: null, photoPath: null, roadIds: [] };
+const made = { eventId: null, spotId: null, crewId: null, photoPath: null, roadIds: [], dmPhoto: null };
 let A;
 let B;
 let C;
@@ -268,6 +268,7 @@ async function main() {
   check('feedback: insert without select', !fbErr, fbErr?.message);
 
   await roadReports();
+  await community();
 }
 
 // --- Road reports ------------------------------------------------------------------
@@ -336,10 +337,112 @@ async function roadReports() {
   check('road_reports_near: refused signed out', !!anonErr, anonErr?.message);
 }
 
+// --- Community: Cars near you, connections, messages, forum, feed, blocks ----------------
+// A and B live in Birmingham; C (set up here) in London. Nothing here is real.
+async function community() {
+  await rpc(C, 'save_profile', { p_handle: `smoke_c_${RUN}`, p_name: 'Smoke C', p_region: 'London', p_home_lat: 51.5074, p_home_lng: -0.1278 });
+
+  const near = await rpc(B, 'people_near', { p_max_miles: 50 });
+  const a = near.find((r) => r.user_id === A.id);
+  check('people_near: B sees A with a rough distance and nothing else', a && typeof a.miles === 'number' && Object.keys(a).sort().join(',') === 'miles,user_id', JSON.stringify(a));
+  check('people_near: C (London) is not near B', !near.some((r) => r.user_id === C.id));
+
+  // B listens for connection requests and messages.
+  const heard = { conn: [], msg: [] };
+  const ch = B.client
+    .channel(`community:${RUN}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, (p) => heard.conn.push(p))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => heard.msg.push(p));
+  let status = '';
+  ch.subscribe((x) => (status = x));
+  await until(() => status === 'SUBSCRIBED', 15_000);
+  check('community: B listens to connections and messages on Realtime', status === 'SUBSCRIBED', status);
+  await wait(1500);
+
+  check('request_connection: A asks B', (await rpc(A, 'request_connection', { p_user: B.id })) === 'requested');
+  await until(() => heard.conn.length > 0);
+  check('realtime: B hears the connection request', heard.conn.length > 0);
+  const mine = await rpc(B, 'my_connections', {});
+  check('my_connections: B sees the request as incoming', mine.some((r) => r.user_id === A.id && r.state === 'incoming'));
+  const early = await rpcError(A, 'start_direct', { p_user: B.id });
+  check('start_direct: refused before the request is accepted', early === "You can only message people you're connected with.", early ?? 'no error');
+  await rpc(B, 'answer_connection', { p_user: A.id, p_accept: true });
+  const conv = await rpc(A, 'start_direct', { p_user: B.id });
+  check('start_direct: A opens a chat once B accepts', typeof conv === 'string');
+
+  const sent = await rpc(A, 'send_message', { p_conversation_id: conv, p_body: `smoke message ${RUN}` });
+  await until(() => heard.msg.some((p) => p.new?.conversation_id === conv));
+  check('realtime: B hears the message', heard.msg.some((p) => p.new?.body === `smoke message ${RUN}`));
+  const list = await rpc(B, 'my_conversations', {});
+  check('my_conversations: one unread for B', list.find((c) => c.id === conv)?.unread === 1, JSON.stringify(list.map((c) => c.unread)));
+  await rpc(B, 'mark_conversation_read', { p_conversation_id: conv });
+  const { data: seen } = await A.client.from('conversation_members').select('user_id,last_read_at').eq('conversation_id', conv);
+  check('Seen: A reads that B has read it', seen?.some((m) => m.user_id === B.id && new Date(m.last_read_at) >= new Date(sent[0].created_at)));
+  const { data: cMsgs } = await C.client.from('messages').select('id').eq('conversation_id', conv);
+  check("messages: C can't read A and B's chat", (cMsgs ?? []).length === 0);
+  const cSend = await rpcError(C, 'send_message', { p_conversation_id: conv, p_body: 'hi' });
+  check("send_message: C can't write in it", !!cSend, cSend ?? 'no error');
+
+  made.dmPhoto = `${A.id}/${conv}/${RUN}.jpg`;
+  const jpeg = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==', 'base64');
+  const { error: upErr } = await A.client.storage.from('messages').upload(made.dmPhoto, jpeg, { contentType: 'image/jpeg' });
+  await rpc(A, 'send_message', { p_conversation_id: conv, p_body: '', p_photo_path: made.dmPhoto });
+  const { data: bUrl } = await B.client.storage.from('messages').createSignedUrl(made.dmPhoto, 60);
+  const { data: cUrl } = await C.client.storage.from('messages').createSignedUrl(made.dmPhoto, 60);
+  check('message photos: A uploads, B can open it, C cannot', !upErr && !!bUrl?.signedUrl && !cUrl?.signedUrl, upErr?.message ?? '');
+
+  // Forum.
+  const thread = await rpc(A, 'create_thread', { p_board: 'advice', p_region: null, p_title: `Smoke thread ${RUN}`, p_body: 'Which tyres?', p_photos: [], p_build_id: null });
+  const police = await rpcError(A, 'create_thread', { p_board: 'meets', p_region: null, p_title: 'Heads up', p_body: 'Police spotted on the ring road', p_photos: [], p_build_id: null });
+  check('forum: no police spotting', police === "Posts about where police or speed checks are aren't allowed on Nightshift.", police ?? 'no error');
+  const reply = await rpc(B, 'reply_thread', { p_thread_id: thread, p_body: 'All-seasons', p_photos: [], p_build_id: null });
+  await rpc(A, 'mark_solved', { p_thread_id: thread, p_reply_id: reply });
+  const frep = await rpc(C, 'forum_rep_for', { p_user_ids: [B.id] });
+  check('forum: a reply marked Solved earns +25 rep', frep[0]?.rep === 25 && frep[0]?.solved === 1, JSON.stringify(frep));
+  const { data: threadC } = await C.client.from('forum_threads').select('reply_count,solved_reply_id').eq('id', thread).single();
+  check('forum: C reads the thread with its reply count and answer', threadC?.reply_count === 1 && threadC?.solved_reply_id === reply);
+
+  // Feed posts.
+  const nearHome = await rpcError(A, 'create_post', { p_body: 'From home', p_photos: [], p_lat: 52.487, p_lng: -1.891, p_place_name: null, p_visibility: 'public', p_build_id: null });
+  check('create_post: never near your home area', nearHome?.startsWith("That's within about 1 km of your home area"), nearHome ?? 'no error');
+  const post = await rpc(A, 'create_post', { p_body: `smoke post ${RUN}`, p_photos: [], p_lat: 52.52, p_lng: -1.85, p_place_name: 'Smoke car park', p_visibility: 'public', p_build_id: null });
+  const friends = await rpc(A, 'create_post', { p_body: `smoke friends ${RUN}`, p_photos: [], p_lat: null, p_lng: null, p_place_name: null, p_visibility: 'connections', p_build_id: null });
+  const localB = await rpc(B, 'feed_posts', { p_scope: 'local' });
+  check('feed_posts: A\'s public post is local to B, with its place', localB.some((p) => p.id === post && Math.abs(p.lat - 52.52) < 1e-6));
+  const connB = await rpc(B, 'feed_posts', { p_scope: 'connections' });
+  check('feed_posts: B (connected) sees the connections-only post', connB.some((p) => p.id === friends));
+  const { data: cPosts } = await C.client.from('posts').select('id').in('id', [post, friends]);
+  check('posts: C sees the public post but not the connections-only one', cPosts?.length === 1 && cPosts[0].id === post);
+  const box = await rpc(B, 'posts_in_box', { p_south: 52.4, p_west: -2.0, p_north: 52.6, p_east: -1.7 });
+  check('posts_in_box: the post is on B\'s map', box.some((p) => p.id === post));
+  await rpc(B, 'like_post', { p_post_id: post, p_on: true });
+  await rpc(B, 'comment_post', { p_post_id: post, p_body: 'Nice spot' });
+  const { data: counted } = await C.client.from('posts').select('like_count,comment_count').eq('id', post).single();
+  check('like_post and comment_post: counted', counted?.like_count === 1 && counted?.comment_count === 1, JSON.stringify(counted));
+
+  // Report and block.
+  await rpc(B, 'report_content', { p_target: 'message', p_target_id: sent[0].id, p_reason: 'harassment', p_note: 'smoke test' });
+  const { data: reports } = await B.client.from('reports').select('id');
+  check("reports: B can send one but can't read reports", (reports ?? []).length === 0);
+  await rpc(A, 'block_user', { p_user: B.id });
+  const blocked = await rpcError(B, 'send_message', { p_conversation_id: conv, p_body: 'still there?' });
+  check('block_user: B can no longer message A', blocked === "You can only message people you're connected with.", blocked ?? 'no error');
+  const after = await rpc(B, 'my_connections', {});
+  check('block_user: the connection is gone', !after.some((r) => r.user_id === A.id));
+  const { data: hiddenFromA } = await A.client.from('forum_replies').select('id').eq('id', reply);
+  check("block_user: B's replies are hidden from A", (hiddenFromA ?? []).length === 0);
+  await B.client.removeChannel(ch);
+
+  const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error: anonErr } = await anon.rpc('feed_posts', { p_scope: 'local' });
+  check('feed_posts: refused signed out', !!anonErr, anonErr?.message);
+}
+
 async function cleanup() {
   console.log('\nCleaning up…');
   try {
     if (A && made.photoPath) await A.client.storage.from('photos').remove([made.photoPath]);
+    if (A && made.dmPhoto) await A.client.storage.from('messages').remove([made.dmPhoto]);
     const { data: left } = A ? await A.client.storage.from('photos').list(`${A.id}/builds`) : { data: [] };
     if (A) check("storage: A's photos removed before deleting the account", (left ?? []).length === 0 || left.every((f) => !f.id));
   } catch (e) {
@@ -369,8 +472,14 @@ async function cleanup() {
     (select count(*) from storage.objects where bucket_id = 'photos' and name like ${lit(`${A?.id ?? 'none'}/%`)}) files,
     (select count(*) from public.road_reports where id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_reports,
     (select count(*) from public.road_report_votes where report_id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_votes,
-    (select count(*) from public.road_rep where report_id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_rep`);
-  check('cleanup: no test users, events, places, feedback, files or road reports left', Object.values(left).every((n) => Number(n) === 0), JSON.stringify(left));
+    (select count(*) from public.road_rep where report_id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[])) road_rep,
+    (select count(*) from storage.objects where bucket_id = 'messages' and name like ${lit(`${A?.id ?? 'none'}/%`)}) message_files,
+    (select count(*) from public.conversation_members where user_id = any (${ids}::uuid[])) chat_members,
+    (select count(*) from public.connections where requester_id = any (${ids}::uuid[]) or addressee_id = any (${ids}::uuid[])) connections,
+    (select count(*) from public.forum_threads where title like 'Smoke thread %') threads,
+    (select count(*) from public.posts where body like 'smoke %') posts,
+    (select count(*) from public.reports where note = 'smoke test') reports`);
+  check('cleanup: no test users, events, places, feedback, files, road reports or community rows left', Object.values(left).every((n) => Number(n) === 0), JSON.stringify(left));
 }
 
 try {

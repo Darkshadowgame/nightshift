@@ -21,7 +21,9 @@ insert into auth.users (id, email) values
   ('44444444-4444-4444-4444-444444444444', 'o@example.test'),
   ('55555555-5555-5555-5555-555555555555', 'a@example.test');
 
-select is((select count(*) from public.profiles)::int, 5, 'a profile row is made for every new auth user');
+-- Only the test users: the hosted database has real people too.
+select is((select count(*) from public.profiles p join auth.users u on u.id = p.id where u.email like '%@example.test')::int, 5,
+  'a profile row is made for every new auth user');
 
 update public.profiles set handle = 'host', display_name = 'Host', region = 'East', onboarded = true where id = '11111111-1111-1111-1111-111111111111';
 update public.profiles set handle = 'going', display_name = 'Going', region = 'East', onboarded = true where id = '22222222-2222-2222-2222-222222222222';

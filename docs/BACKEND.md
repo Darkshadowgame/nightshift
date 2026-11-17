@@ -2,12 +2,12 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 13 migrations and the seeds are applied and the 376 pgTAP checks pass
-against the hosted database (road reports added 17 Nov 2026, section 3a; Nightshift's
+All 14 migrations and the seeds are applied and the 539 pgTAP checks pass
+against the hosted database (Community added 17 Nov 2026, section 3b) (road reports added 17 Nov 2026, section 3a; Nightshift's
 own drives and photo spots on the server, section 7a-4). **The app is wired to it** (17 Nov 2026): signed in,
 every store action goes to the tables and RPCs below (section 5); "Try the demo
 without an account" keeps the local sample scene. The end-to-end smoke test
-(`scripts/supabase-smoke.mjs`, section 7c) passes 65 of 65 checks as three real
+(`scripts/supabase-smoke.mjs`, section 7c) passes 93 of 93 checks as three real
 users. Sign-in emails need custom SMTP before testers other than the project team
 can get one: see section 7b, "Still to do".
 
@@ -29,6 +29,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117170000_road_reports.sql` | Community road reports: `road_reports`, `road_report_votes`, `road_rep`, the report/vote/near RPCs, `road_closures_near()`, `road_rep_for()`, Realtime on `road_reports`; extra `road_closures` columns (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
 | `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
+| `supabase/migrations/20261117220000_community.sql` | Community: Cars near you, connections, blocks, the forum, messages, feed posts, rate builds, reports, rate limits, the private `messages` bucket (section 3b) |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits (with their bundled ids) |
 | `supabase/seed_bundled_places.sql` | **Generated** by `scripts/seed-bundled-places.mjs` from `src/data/places.ts`: the 129 bundled drives and 111 photo spots, an upsert on `bundled_id` |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
@@ -39,6 +40,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
 | `supabase/tests/bundled_places_test.sql` | pgTAP: bundled ids (unique, format, no author), nobody signed in can add, change or delete one, finishing (with the road's own limit), visiting and rating one through the RPCs, `spot_stats` and `place_rep_for` the same for others, signed out refused (30 checks) |
+| `supabase/tests/community_test.sql` | pgTAP: Cars near you (rounding, hiding, blocks), connections (requests, declines and their 30 days, rate limit), 1-to-1 and group messages only between connections, blocks, the forum (filter, Solved rep and its caps, rate limits), feed posts (never near home, connections-only), reports and staff, message photos (163 checks) |
 | `scripts/seed-bundled-places.mjs` | Writes `seed_bundled_places.sql` from the app's place list (`src/lib/backend/bundledSeed.ts`, unit-tested) and, with `--apply`, runs it on the hosted project |
 | `scripts/supabase-smoke.mjs` | End to end against the hosted project as three throwaway users (section 7c) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
@@ -353,6 +355,84 @@ earn rep like other reports once other drivers confirm them.
 * **Realtime:** `road_reports` is in `supabase_realtime`; the app listens to any change and
   re-reads `road_reports_near()` (at most once a second).
 * **Account deletion** deletes your reports, answers and rep (cascades from `auth.users`).
+
+## 3b. Community (owner request, 17 Nov 2026)
+
+The Community tab: Feed, People (Cars near you), Forum and Messages. Owner decision, 17 Nov
+2026: **private messages only between connected people** (a request the other person
+accepts); everyone else talks on the forum or under posts. Rules mirror
+`src/lib/connections.ts`, `carsNear.ts`, `forum.ts`, `posts.ts`, `messages.ts` and
+`moderation.ts`.
+
+| Table | Holds | Who can read | Who can write |
+|---|---|---|---|
+| `profile_settings.show_in_nearby` | "Show me in Cars near you" (default on) | owner | `save_community_prefs()` |
+| `connections` | requester, addressee, `pending` / `accepted` / `declined`; one row per pair | both people, **never a declined row** | `request_connection()`, `answer_connection()`, `remove_connection()`, `block_user()` |
+| `blocks` | who blocked whom | the blocker only | `block_user()`, `unblock_user()` |
+| `build_ratings` | like / pass per build per person | own rows (`build_likes()` gives counts) | `rate_build()` |
+| `forum_threads`, `forum_replies` | board (`advice`, `builds`, `cars`, `bikes`, `detailing`, `meets`, `for_sale`, `local` + region), title, body, up to 4 photo paths (`photos/{uid}/forum/…`), linked build, counts, `solved_reply_id`, `hidden_at` | signed-in users, minus hidden posts (the author still sees theirs) and **people you blocked** | `create_thread()`, `reply_thread()`, `mark_solved()`; the author deletes |
+| `forum_helpful` | "Helpful" per reply per person | own rows | `mark_helpful()` |
+| `forum_rep` | +25 per thread whose Solved reply is yours (0 over a cap) | own rows (`forum_rep_for()` for anyone) | `mark_solved()` |
+| `posts`, `post_likes`, `post_comments` | feed posts: text, up to 4 photo paths (`photos/{uid}/posts/…`), optional place (4 dp) and name, `public` / `connections`, counts | `can_see_post()`: public, or connections-only for connections; never across a block; hidden only to the author | `create_post()`, `like_post()`, `comment_post()`; authors delete (a post's author can delete comments on it) |
+| `conversations`, `conversation_members`, `messages` | 1-to-1 (`direct_key`) and group chats (name, up to 50, admins), `last_read_at` ("Seen"), text, a photo in the private `messages` bucket, a shared card (`share`: kind event/place/build, id, title, subtitle) | **members only** (staff too: no blanket read; reports carry a copy) | RPCs only (below) |
+| `reports` | target (thread, reply, message, post, comment, profile, build), reason, note, a copy of the text, status | **staff only** | `report_content()`; staff `moderate_report()` |
+| `private.rate_hits` | one row per rate-limited action (kept a day) | nobody (functions only) | the RPCs |
+| `private.banned_terms` | the word list for public text | nobody | staff with SQL |
+
+**RPCs** (signed in only):
+
+| RPC | Notes |
+|---|---|
+| `people_near(p_max_miles)` | `user_id`, `miles` only. Both homes snapped again to 0.05° (~5 km) and the distance rounded (`rough_miles`: under 5 → 5 "under 5 mi", to 2 under 20, to 5 under 50, to 10 beyond). Not you, not hidden people, not blocked either way; default distance is your travel distance |
+| `save_community_prefs(p_show_in_nearby)` | |
+| `request_connection(p_user)` | `'requested'` or `'connected'` (they'd asked you). 20 a day. Blocked either way: "You can't connect with this person." A decline isn't shown to the asker: asking again within 30 days changes nothing and `my_connections()` keeps saying `outgoing` |
+| `answer_connection(p_user, p_accept)` / `remove_connection(p_user)` / `my_connections()` | `my_connections()`: `user_id`, `state` (`connected` / `incoming` / `outgoing`), `since` |
+| `block_user(p_user)` / `unblock_user(p_user)` | A block deletes the connection, hides their posts, replies, comments and messages from you, and stops 1-to-1 messages both ways. Unblocking doesn't reconnect |
+| `start_direct(p_user)` | Connected and no block, else "You can only message people you're connected with." One conversation per pair |
+| `create_group(p_name, p_member_ids)` / `add_group_members` / `remove_group_member` / `set_group_admin` / `rename_group` / `leave_conversation` | Only your connections; up to 50 people; admins add, remove and rename; when the last admin leaves the longest-standing member takes over (trigger, also on account deletion); an empty conversation is deleted; system lines ("@a added @b") |
+| `send_message(p_conversation_id, p_body, p_photo_path, p_share)` | `private.can_post()`: a group member, or in a 1-to-1 still connected with no block. 20 a minute, 1,000 a day. Photo path must be `{you}/{conversation}/…` |
+| `mark_conversation_read(p_conversation_id)` / `my_conversations()` | Unread counts leave out your own lines, hidden lines and people you blocked; `can_send` |
+| `create_thread`, `reply_thread`, `mark_helpful`, `mark_solved`, `forum_rep_for` | Threads: 3 in 10 minutes, 15 a day. Replies: 5 a minute, 200 a day. Solved: +25 to the reply's author, once per thread, never your own reply, at most 3 paid a day and one a week from the same thread author |
+| `create_post(p_body, p_photos, p_lat, p_lng, p_place_name, p_visibility, p_build_id)` | 10 an hour, 30 a day. UK only; **refused within 1 km of your own home area** |
+| `like_post`, `comment_post` | Comments: 5 a minute, 200 a day |
+| `feed_posts(p_scope, p_before, p_author)` | `local` (public posts placed within your travel distance of your home area, or by people living within it), `connections` (theirs and yours) or `author`; 50 at a time; lat/lng, counts, `liked_by_me` |
+| `posts_in_box(p_south, p_west, p_north, p_east)` | The map's Posts layer: posts with a place from the last 30 days, at most 200 |
+| `rate_build(p_build_id, p_like)` / `build_likes(p_build_ids)` | Not your own build; 500 a day; counts only |
+| `report_content(p_target, p_target_id, p_reason, p_note)` | Not yourself, only things you can see, 30 a day, once per thing. **Three different people** reporting a thread, reply, message, post or comment hides it (`hidden_at`) until staff look |
+| `moderate_report(p_report_id, p_action)` | Staff only: `hide`, `restore` or `dismiss` (closes every open report on that thing) |
+
+**Public text filter** (`private.text_problem()`, mirrored by `textProblem()` in
+`src/lib/moderation.ts`; thread titles and bodies, replies, posts, comments, group names): a word
+list (`private.banned_terms`: slurs and the strongest swearing, matched on whole words after
+undoing 0→o, 1→i, 3→e, 4→a, 5→s, 7→t, 9→g, @→a, $→s, !→i and dots between letters), and the legal
+rules: **no police spotting** ("police spotted…", "speed trap at the A15…": police reports stay
+in the driving view only) and **no racing on public roads** ("street racing", "race on the A46").
+Talking about the police ("pulled by police at a meet") is fine. Private messages aren't
+filtered; they can be reported.
+
+**Moderation with SQL** (dashboard SQL editor, or signed in as staff through the app's API):
+
+```sql
+-- What's waiting, most reported first (staff see it through RLS; the SQL editor sees everything)
+select * from public.moderation_queue order by reports desc, first_reported;
+-- Hide it (or 'restore', or 'dismiss'): as staff through the API, or in the SQL editor:
+update public.forum_threads set hidden_at = now() where id = '<id>';   -- forum_replies, posts, post_comments, messages the same
+update public.reports set status = 'actioned', handled_at = now() where target_id = '<id>' and status = 'new';
+-- Someone who keeps breaking the rules: delete the account (cascades), or ban the auth user from the dashboard.
+-- Add a word: insert into private.banned_terms (term) values ('...');
+```
+
+**Realtime:** `messages`, `conversation_members` (for "Seen") and `connections` are in
+`supabase_realtime`; RLS decides who hears what, so a block or leaving a chat stops it.
+**Storage:** `messages` bucket (private, 10 MB images): upload to `{you}/{conversation}/…` in a
+conversation you're in; members read; you delete your own. Forum and post photos use
+`photos` (signed-in users read, as for builds). **Account deletion** cascades everything
+(threads, replies, posts, comments, messages, connections, blocks, ratings); the app removes
+`photos/{uid}/` and `messages/{uid}/` first.
+
+Known gaps: photos on Connections-only posts are in `photos`, which any signed-in user can read
+with the path (paths are random and never listed); the word list is short on purpose
+(owner to extend); there's no in-app moderation screen yet (SQL above).
 
 ## 4. RPC reference
 
@@ -686,6 +766,20 @@ push every other difference in `config.toml` (MFA, storage, API settings).
   B reading the same stats and `place_rep_for`, and the cleanup counting place progress).
   One earlier run that day stopped at 62 of 65; three runs after it passed 65 of 65.
 * Afterwards: no test users, completions, ratings, fixtures or `pgtap` extension left.
+
+### 7a-5. What's live (17 Nov 2026, Community)
+
+* **Migration** `20261117220000_community.sql` pushed with `db push --remote --yes` (a
+  `pg_dump` of `public` taken first, kept off the repo). Checked first in a rolled-back
+  transaction on the hosted database with the migration applied inside it.
+* **pgTAP:** 539 of 539 on the hosted database (the 376 before plus `community_test.sql`, 163).
+  `rls_test.sql`'s first check now counts only its own test users: the hosted database has
+  real people now.
+* **Smoke test:** 93 of 93 (the 65 before plus Cars near you, a connection request heard on
+  Realtime, a 1-to-1 chat only once accepted, a message heard on Realtime, unread and Seen,
+  C locked out of the chat and its photo, the forum and Solved rep, feed posts (never near
+  home, connections-only, the map box), likes and comments, a report, and a block). Cleanup
+  checks no community rows or message photos are left.
 
 ### 7c. The smoke test
 
