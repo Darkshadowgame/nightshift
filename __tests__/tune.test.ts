@@ -196,7 +196,7 @@ describe('quick-pick mods', () => {
   test('add typical parts skips what is there and adds no gain', () => {
     const have: Mod[] = [{ id: 'a', category: 'engine', name: 'ECU remap', bhpGain: 30 }];
     const out = addTypicalParts(have, typicalParts('car', 't', 'stage2'), id);
-    expect(out.map((m) => m.name)).toEqual(['ECU remap', 'Induction kit', 'Downpipe / decat', 'Uprated intercooler']);
+    expect(out.map((m) => m.name)).toEqual(['ECU remap', 'Induction kit', 'Downpipe with sports cat', 'Uprated intercooler']);
     expect(out.slice(1).every((m) => m.bhpGain === undefined)).toBe(true);
     expect(hasQuickMod(out, quick('intercooler'))).toBe(true);
   });

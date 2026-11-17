@@ -1,4 +1,5 @@
 import { awardRep, type Award } from './awards';
+import { rewardedMods } from './legality';
 import { isHost, phaseOf } from './events';
 import { hasCompleted, statsOf } from './spots';
 import type { Build, Crew, NightEvent, Spot } from './types';
@@ -182,7 +183,8 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
   const authoredRep = authored.reduce((sum, s) => sum + authorRep(statsOf(s)), 0);
 
   const mine = input.awards.filter((a) => a.ownerId === userId);
-  const mods = input.builds.filter((b) => b.ownerId === userId).reduce((n, b) => n + b.mods.length, 0);
+  // Mods: road-legal ones only, each kind once per build, at most 10 per build (legality.ts).
+  const mods = input.builds.filter((b) => b.ownerId === userId).reduce((n, b) => n + rewardedMods(b.mods).length, 0);
 
   const lines: RepLine[] = [
     { source: 'attended', label: 'Meets attended', count: attended, rep: attended * REP.attended },

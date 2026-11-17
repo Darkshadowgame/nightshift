@@ -80,20 +80,30 @@ export interface QuickMod {
   gain?: number;
   /** Only offered for turbo or supercharged engines. */
   forced?: boolean;
+  /**
+   * False: illegal on the road or an MOT failure (removing a catalyst,
+   * de-restricting, pops-and-bangs or anti-lag maps). Shown with a "Not road
+   * legal — track/off-road only" tag, never added by "Add typical parts", and
+   * worth no rep. People can still log them: they do own them.
+   */
+  roadLegal?: false;
 }
 
 const q = (key: string, name: string, group: ModGroup, vfor: QuickMod['for'], gain?: number, forced?: boolean): QuickMod =>
   ({ key, name, group, for: vfor, gain, forced });
+/** A part that's illegal on the road or fails the MOT (see QuickMod.roadLegal). */
+const offRoad = (m: QuickMod): QuickMod => ({ ...m, roadLegal: false });
 
 export const QUICK_MODS: QuickMod[] = [
   // Engine
   q('remap', 'ECU remap', 'engine', 'car', 0.1),
   q('flash', 'ECU flash', 'engine', 'bike', 0.04),
   q('fuel-map', 'Fuel controller / map', 'engine', 'bike', 0.02),
-  q('derestrict', 'De-restricted', 'engine', 'bike'),
+  offRoad(q('derestrict', 'De-restricted', 'engine', 'bike')),
   q('dyno-map', 'Custom dyno map', 'engine', 'both', 0.03),
-  q('pops', 'Pops and bangs map', 'engine', 'car'),
-  q('launch', 'Launch control / anti-lag', 'engine', 'car'),
+  offRoad(q('pops', 'Pops and bangs map', 'engine', 'car')),
+  q('launch', 'Launch control', 'engine', 'car'),
+  offRoad(q('antilag', 'Anti-lag', 'engine', 'car', undefined, true)),
   q('cams', 'Fast road cams', 'engine', 'both', 0.05),
   q('forged', 'Forged internals', 'engine', 'car'),
   q('big-bore', 'Big bore kit', 'engine', 'bike', 0.08),
@@ -113,14 +123,16 @@ export const QUICK_MODS: QuickMod[] = [
   // Exhaust
   q('cat-back', 'Cat-back exhaust', 'exhaust', 'car', 0.02),
   q('turbo-back', 'Turbo-back exhaust', 'exhaust', 'car', 0.05, true),
-  q('downpipe', 'Downpipe / decat', 'exhaust', 'car', 0.04, true),
+  q('downpipe', 'Downpipe with sports cat', 'exhaust', 'car', 0.04, true),
+  offRoad(q('decat', 'Decat / cat delete', 'exhaust', 'car', 0.01)),
+  offRoad(q('straight-through', 'Straight-through (no cat)', 'exhaust', 'car', 0.01)),
   q('sports-cat', 'Sports cat', 'exhaust', 'car', 0.02),
   q('manifold', 'Exhaust manifold', 'exhaust', 'car', 0.03),
   q('full-exhaust', 'Full exhaust', 'exhaust', 'car', 0.04),
   q('valved', 'Valved exhaust', 'exhaust', 'car'),
   q('slip-on', 'Slip-on / end can', 'exhaust', 'bike', 0.02),
   q('full-system', 'Full system exhaust', 'exhaust', 'bike', 0.05),
-  q('decat-bike', 'De-cat link pipe', 'exhaust', 'bike', 0.02),
+  offRoad(q('decat-bike', 'De-cat link pipe', 'exhaust', 'bike', 0.02)),
   // Turbo / forced induction
   q('intercooler', 'Uprated intercooler', 'turbo', 'car', 0.03, true),
   q('hybrid-turbo', 'Hybrid turbo', 'turbo', 'car', 0.2, true),

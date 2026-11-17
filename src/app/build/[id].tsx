@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
 import { photoUri } from '../../lib/photos';
 import { useLayoutEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
@@ -141,7 +142,10 @@ export default function BuildScreen() {
                 ]}
               >
                 <Txt v="label" style={{ width: 62, color: C.fog, fontSize: 11 }}>{modCategoryShort(m.category)}</Txt>
-                <Txt style={{ flex: 1 }}>{m.name}</Txt>
+                <View style={{ flex: 1 }}>
+                  <Txt>{m.name}</Txt>
+                  {isRoadIllegal(m) ? <Txt v="label" style={{ color: C.alert, fontSize: 11 }}>⚠ {OFF_ROAD_TAG}</Txt> : null}
+                </View>
                 {m.bhpGain ? <Txt v="mono" style={{ color: C.sodium }}>+{m.bhpGain} BHP</Txt> : null}
               </Row>
             </FadeUp>

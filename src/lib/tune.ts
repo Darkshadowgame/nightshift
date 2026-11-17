@@ -24,16 +24,18 @@ export function stageLabel(stage: TuneStage): string {
 
 interface StageInfo {
   includes: string;
-  /** Quick-mod keys the "add typical parts" button adds. */
+  /** Quick-mod keys the "add typical parts" button adds. Road-legal parts only. */
   parts: string[];
+  /** Parts often fitted at this stage that aren't road legal: shown as optional, with the tag, never added for you. */
+  offRoad?: string[];
 }
 
 const CAR_TURBO: Record<TuneStage, StageInfo> = {
   stock: { includes: 'As it left the factory.', parts: [] },
   stage1: { includes: 'ECU remap on the standard hardware. Often with a panel filter.', parts: ['remap', 'air-filter'] },
-  stage2: { includes: 'Remap plus intake, downpipe or decat and an uprated intercooler.', parts: ['remap', 'induction', 'downpipe', 'intercooler'] },
+  stage2: { includes: 'Remap plus intake, a downpipe with a sports cat and an uprated intercooler.', parts: ['remap', 'induction', 'downpipe', 'intercooler'], offRoad: ['decat', 'pops'] },
   stage2plus: { includes: 'Stage 2 plus turbo inlet, boost pipes and fuelling (HPFP).', parts: ['remap', 'induction', 'downpipe', 'intercooler', 'turbo-inlet', 'boost-pipes', 'hpfp'] },
-  stage3: { includes: 'Hybrid or bigger turbo with fuelling, full exhaust and a custom map.', parts: ['dyno-map', 'hybrid-turbo', 'turbo-back', 'intercooler', 'hpfp', 'injectors', 'clutch'] },
+  stage3: { includes: 'Hybrid or bigger turbo with fuelling, full exhaust and a custom map.', parts: ['dyno-map', 'hybrid-turbo', 'turbo-back', 'intercooler', 'hpfp', 'injectors', 'clutch'], offRoad: ['decat', 'antilag'] },
   stage4: { includes: 'Big turbo, built engine (forged internals), full fuel system.', parts: ['dyno-map', 'big-turbo', 'forged', 'injectors', 'lpfp', 'hpfp', 'clutch'] },
   custom: { includes: 'Your own spec. Add the gain yourself.', parts: [] },
 };
@@ -41,7 +43,7 @@ const CAR_TURBO: Record<TuneStage, StageInfo> = {
 const CAR_DIESEL: Record<TuneStage, StageInfo> = {
   ...CAR_TURBO,
   stage1: { includes: 'ECU remap on the standard hardware.', parts: ['remap'] },
-  stage2: { includes: 'Remap plus intake, downpipe and an uprated intercooler.', parts: ['remap', 'induction', 'downpipe', 'intercooler'] },
+  stage2: { includes: 'Remap plus intake, a downpipe with a sports cat and an uprated intercooler.', parts: ['remap', 'induction', 'downpipe', 'intercooler'], offRoad: ['decat'] },
   stage2plus: { includes: 'Stage 2 plus a uprated clutch or flywheel to hold the torque.', parts: ['remap', 'induction', 'downpipe', 'intercooler', 'clutch'] },
   stage3: { includes: 'Hybrid turbo, bigger injectors and a custom map.', parts: ['dyno-map', 'hybrid-turbo', 'injectors', 'intercooler', 'clutch'] },
 };
@@ -59,7 +61,7 @@ const CAR_NA: Record<TuneStage, StageInfo> = {
 const BIKE: Record<TuneStage, StageInfo> = {
   stock: CAR_TURBO.stock,
   stage1: { includes: 'Slip-on or end can, air filter and an ECU flash or fuel map.', parts: ['slip-on', 'air-filter', 'flash'] },
-  stage2: { includes: 'Full system exhaust, high-flow filter and a flash or dyno map. Often de-cat and de-restrict.', parts: ['full-system', 'air-filter', 'flash', 'decat-bike', 'derestrict'] },
+  stage2: { includes: 'Full system exhaust (road-legal, with its cat), high-flow filter and a flash or dyno map.', parts: ['full-system', 'air-filter', 'flash'], offRoad: ['decat-bike', 'derestrict'] },
   stage2plus: { includes: 'Stage 2 plus intake or velocity stacks, quickshifter and auto-blipper set-up, race map.', parts: ['full-system', 'air-filter', 'dyno-map', 'stacks', 'quickshifter', 'autoblipper'] },
   stage3: { includes: 'Internal engine work: cams, head work, big bore.', parts: ['full-system', 'dyno-map', 'cams', 'big-bore'] },
   stage4: { includes: 'Race build or forced induction.', parts: ['full-system', 'dyno-map', 'turbo-kit', 'cams'] },
@@ -103,9 +105,16 @@ export function stageIncludes(kind: VehicleKind, asp: Aspiration | undefined, st
   return infoTable(kind, asp)[stage].includes;
 }
 
+/** What "Add typical parts" adds: road-legal parts only, whatever the stage table says. */
 export function typicalParts(kind: VehicleKind, asp: Aspiration | undefined, stage: TuneStage): QuickMod[] {
   const keys = infoTable(kind, asp)[stage].parts;
-  return keys.flatMap((k) => QUICK_MODS.filter((m) => m.key === k));
+  return keys.flatMap((k) => QUICK_MODS.filter((m) => m.key === k && m.roadLegal !== false));
+}
+
+/** Parts often fitted at this stage that aren't road legal: offered as optional chips with the tag, never added for you. */
+export function offRoadParts(kind: VehicleKind, asp: Aspiration | undefined, stage: TuneStage): QuickMod[] {
+  const keys = infoTable(kind, asp)[stage].offRoad ?? [];
+  return keys.flatMap((k) => QUICK_MODS.filter((m) => m.key === k && (m.for === kind || m.for === 'both')));
 }
 
 /**

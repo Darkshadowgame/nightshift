@@ -6,6 +6,7 @@ import {
   addTypicalParts,
   hasQuickMod,
   isStageMod,
+  offRoadParts,
   quickModsFor,
   stageEstimate,
   stageIncludes,
@@ -18,6 +19,7 @@ import {
   type StageEngine,
 } from '../lib/tune';
 import type { Mod, ModCategory, TuneStage, VehicleKind } from '../lib/types';
+import { isRoadIllegal, MAX_REWARDED_MODS, OFF_ROAD_TAG } from '../lib/legality';
 import type { Aspiration } from '../lib/vehicles';
 import { C, F } from '../theme';
 import { SuggestMissing } from './SuggestMissing';
@@ -74,6 +76,7 @@ export function ModPicker({
   const estimate = engine ? stageEstimate(engine, stage) : null;
   const parts = typicalParts(kind, engine?.asp, stage);
   const missingParts = parts.filter((p) => !hasQuickMod(mods, p));
+  const optionalOffRoad = offRoadParts(kind, engine?.asp, stage);
   const stockBhp = engine?.bhp ?? 0;
 
   function pickStage(next: TuneStage) {
@@ -143,6 +146,22 @@ export function ModPicker({
         {missingParts.length ? (
           <Button label={`Add typical parts (${missingParts.length})`} kind="ghost" onPress={() => onChange(addTypicalParts(mods, parts, mid), stage)} accessibilityHint={missingParts.map((p) => p.name).join(', ')} />
         ) : null}
+        {optionalOffRoad.length ? (
+          <View style={{ gap: 6 }}>
+            <Txt v="muted" style={{ fontSize: 12 }}>Often fitted at this stage, but not added for you: {OFF_ROAD_TAG.toLowerCase()}, and no rep.</Txt>
+            <Row gap={6}>
+              {optionalOffRoad.map((c) => (
+                <Chip
+                  key={c.key}
+                  label={hasQuickMod(mods, c) ? `✓ ${c.name}` : `⚠ ${c.name}`}
+                  on={hasQuickMod(mods, c)}
+                  colour={C.alert}
+                  onPress={() => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage)}
+                />
+              ))}
+            </Row>
+          </View>
+        ) : null}
       </Card>
 
       <View style={{ gap: 8 }}>
@@ -157,14 +176,16 @@ export function ModPicker({
           {shown.map((c) => (
             <Chip
               key={c.key}
-              label={hasQuickMod(mods, c) ? `✓ ${c.name}` : c.name}
+              label={hasQuickMod(mods, c) ? `✓ ${c.name}` : c.roadLegal === false ? `⚠ ${c.name}` : c.name}
               on={hasQuickMod(mods, c)}
+              colour={c.roadLegal === false ? C.alert : undefined}
               onPress={() => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage)}
             />
           ))}
         </Row>
         <Txt v="muted" style={{ fontSize: 12 }}>
           Tap to add, tap again to remove.{stage !== 'stock' ? ' With a tune stage set, power parts start at +0 because the stage figure covers them.' : ''}
+          {shown.some((c) => c.roadLegal === false) ? ` ⚠ ${OFF_ROAD_TAG}: you can log it, but it earns no rep.` : ''} Rep counts each road-legal mod once, up to {MAX_REWARDED_MODS} per build.
         </Txt>
       </View>
 
@@ -172,7 +193,10 @@ export function ModPicker({
         <Card>
           {mods.map((m) => (
             <Row key={m.id} style={{ flexWrap: 'nowrap' }} gap={8}>
-              <Txt style={{ flex: 1 }} numberOfLines={2}>{m.name}</Txt>
+              <View style={{ flex: 1 }}>
+                <Txt numberOfLines={2}>{m.name}</Txt>
+                {isRoadIllegal(m) ? <Txt v="label" style={{ color: C.alert, fontSize: 11 }}>⚠ {OFF_ROAD_TAG}</Txt> : null}
+              </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <Txt v="mono">+</Txt>
                 <TextInput
