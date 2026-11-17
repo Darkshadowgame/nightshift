@@ -32,7 +32,9 @@ npx tsc --noEmit        # typecheck
 | Path | What it does |
 |---|---|
 | `src/lib/classes.ts` | S–D class from power-to-weight, separate car and bike scales |
-| `src/lib/events.ts` | Reveal timing, who sees which stop, check-ins, rolling "Move on" |
+| `src/lib/events.ts` | Reveal timing, who sees which stop, check-ins, rolling "Move on", changing the plan on the night, editing, share links |
+| `src/lib/profile.ts` | First-run profile checks; home saved fuzzed to about 1 km |
+| `src/lib/people.ts` | What other people can see about someone (never a location) |
 | `src/lib/invites.ts` | Invite filters and who matches |
 | `src/lib/rep.ts` | Rep for suggested routes and photo spots (Phase 3 maths) |
 | `src/lib/store.tsx` | All state, saved on the phone. The one layer to swap for Supabase |

@@ -1,15 +1,16 @@
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Share, TextInput, View } from 'react-native';
 import { AwardsSection } from '../../components/AwardsSection';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
+import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { classOf } from '../../lib/classes';
-import { canCheckIn, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
+import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { roleOf } from '../../lib/eventView';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
 import { describeFilter } from '../../lib/invites';
@@ -95,6 +96,19 @@ export default function EventScreen() {
     }
   }
 
+  async function doShare() {
+    setError(null);
+    try {
+      await Share.share({ message: shareText(ev, formatWhen(ev.startsAt, new Date())), title: ev.title });
+    } catch {
+      setError('Could not open the share sheet.');
+    }
+  }
+
+  const canEdit = host && canEditEvent(ev, now).ok;
+  const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
+  const userLabel = (uid: string) => (uid === me ? 'You' : `@${users.find((u) => u.id === uid)?.handle ?? uid}`);
+
   const mapCentre = mapPins.find((p) => p.id === ev.stops[current]?.id)?.at ?? mapPins[0]?.at ?? ev.area;
 
   return (
@@ -164,6 +178,15 @@ export default function EventScreen() {
                 </Card>
               )
             ) : null}
+            {canPlan ? (
+              <Button label="Change the plan" kind="ghost" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} />
+            ) : null}
+            <Row style={{ flexWrap: 'nowrap' }}>
+              {canEdit ? (
+                <Button label="Edit" kind="ghost" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} />
+              ) : null}
+              <Button label="Share" kind="ghost" style={{ flex: 1 }} onPress={doShare} />
+            </Row>
           </View>
         ) : null}
 
@@ -218,7 +241,8 @@ export default function EventScreen() {
               const b = builds.find((x) => x.ownerId === uid);
               const checked = (ev.checkIns[uid] ?? []).length;
               return (
-                <Row key={uid} style={{ flexWrap: 'nowrap' }} gap={10}>
+                <UserLink key={uid} id={uid} label={`Open ${userLabel(uid)}`}>
+                <Row style={{ flexWrap: 'nowrap' }} gap={10}>
                   {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
                   <View style={{ flex: 1 }}>
                     <Txt numberOfLines={1}>
@@ -229,6 +253,7 @@ export default function EventScreen() {
                   </View>
                   {checked > 0 ? <Txt v="mono" style={{ color: C.lime }}>{checked} ✓</Txt> : null}
                 </Row>
+                </UserLink>
               );
             })}
           </Card>
@@ -236,17 +261,43 @@ export default function EventScreen() {
 
         <AwardsSection event={ev} />
 
+        {host && (ev.changes?.length ?? 0) > 0 ? (
+          <Section title="Plan changes (hosts only)">
+            <Card>
+              {[...(ev.changes ?? [])].reverse().map((c) => (
+                <View key={c.id} style={{ gap: 2 }}>
+                  <Txt v="label">
+                    {userLabel(c.by)} · {formatTime(c.at)}
+                  </Txt>
+                  <Txt>{c.text}</Txt>
+                  {c.banZone ? <Txt v="mono" style={{ color: C.alert }}>IN THE {c.banZone.toUpperCase()} BAN ZONE</Txt> : null}
+                </View>
+              ))}
+            </Card>
+          </Section>
+        ) : null}
+
         <Section title="Chat">
           <Card>
             {messages.length === 0 ? <Txt v="muted">No messages yet.</Txt> : null}
-            {messages.map((m) => (
-              <View key={m.id} style={{ gap: 2 }}>
-                <Txt v="label" style={{ color: m.userId === me ? C.neon : C.sodium }}>
-                  {m.userId === me ? 'You' : `@${users.find((u) => u.id === m.userId)?.handle ?? m.userId}`} · {formatTime(m.at)}
-                </Txt>
-                <Txt>{m.text}</Txt>
-              </View>
-            ))}
+            {messages.map((m) =>
+              m.system ? (
+                <View key={m.id} style={{ borderLeftWidth: 2, borderLeftColor: C.neon, paddingLeft: 8 }}>
+                  <Txt v="label" style={{ color: C.neon }}>
+                    {m.text} · {formatTime(m.at)}
+                  </Txt>
+                </View>
+              ) : (
+                <View key={m.id} style={{ gap: 2 }}>
+                  <UserLink id={m.userId} style={{ alignSelf: 'flex-start' }}>
+                    <Txt v="label" style={{ color: m.userId === me ? C.neon : C.sodium }}>
+                      {userLabel(m.userId)} · {formatTime(m.at)}
+                    </Txt>
+                  </UserLink>
+                  <Txt>{m.text}</Txt>
+                </View>
+              ),
+            )}
             <Row style={{ flexWrap: 'nowrap' }}>
               <TextInput
                 value={message}

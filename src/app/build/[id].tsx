@@ -3,6 +3,7 @@ import { useLayoutEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { BuildArt } from '../../components/BuildArt';
 import { Cover, Trophy } from '../../components/Cover';
+import { UserLink } from '../../components/UserLink';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { Card, ClassBadge, Row, Section, StatBar, Txt } from '../../components/ui';
 import { MOD_CATEGORIES, modCategoryShort } from '../../data/catalog';
@@ -54,8 +55,13 @@ export default function BuildScreen() {
         <View style={{ flex: 1, gap: 2 }}>
           <Txt v="h1">{b.make} {b.model}</Txt>
           <Txt v="label">
-            {b.year ? `${b.year} · ` : ''}{b.kind === 'bike' ? 'Bike' : 'Car'} · @{owner?.handle} · {owner?.region}
+            {b.year ? `${b.year} · ` : ''}{b.kind === 'bike' ? 'Bike' : 'Car'} · {owner?.region}
           </Txt>
+          {owner ? (
+            <UserLink id={owner.id} style={{ alignSelf: 'flex-start' }} label={`Open @${owner.handle}`}>
+              <Txt v="label" style={{ color: C.neon }}>{owner.id === me ? 'Yours' : `@${owner.handle}`} ›</Txt>
+            </UserLink>
+          ) : null}
           {b.nickname ? <Txt v="muted">{b.nickname}</Txt> : null}
         </View>
       </Row>

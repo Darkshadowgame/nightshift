@@ -1,19 +1,24 @@
-import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, Switch, TextInput, View } from 'react-native';
-import { NightMap } from '../../components/NightMap';
-import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
-import { FILTER_BRANDS } from '../../data/catalog';
-import { BAN_ZONES, SPOTS } from '../../data/seed';
-import { EVENT_LABELS, isPublicType } from '../../lib/events';
-import { milesBetween } from '../../lib/geo';
-import { DEFAULT_FILTER, invitees } from '../../lib/invites';
-import { newId, useStore } from '../../lib/store';
-import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type LatLng, type Stop } from '../../lib/types';
-import { C } from '../../theme';
+import { NightMap } from './NightMap';
+import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
+import { FILTER_BRANDS } from '../data/catalog';
+import { BAN_ZONES, SPOTS } from '../data/seed';
+import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
+import { formatWhen } from '../lib/format';
+import { DEFAULT_FILTER, invitees } from '../lib/invites';
+import { newId, useStore } from '../lib/store';
+import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type LatLng, type NightEvent } from '../lib/types';
+import { C } from '../theme';
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
-const DAY_CHOICES = [
+interface DayChoice {
+  label: string;
+  days: number;
+  /** Editing: keep the event's own date. */
+  date?: string;
+}
+const DAY_CHOICES: DayChoice[] = [
   { label: 'Tonight', days: 0 },
   { label: 'Tomorrow', days: 1 },
   { label: 'In 2 days', days: 2 },
@@ -23,44 +28,72 @@ const DAY_CHOICES = [
 const TIME_CHOICES = ['19:00', '20:30', '22:00', '22:30', '23:00', '23:59', '06:00', '09:00'];
 const REVEAL_CHOICES = [0, 30, 60, 120];
 
-interface DraftStop {
-  key: string;
-  name: string;
-  at?: LatLng;
+function hhmm(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function startDate(days: number, time: string): Date {
+function startDate(choice: DayChoice, time: string): Date {
+  const [h, m] = time.split(':').map(Number);
+  if (choice.date) {
+    const d = new Date(choice.date);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+  const days = choice.days;
   const d = new Date();
   if (days === -1) {
     const toSat = (6 - d.getDay() + 7) % 7;
     d.setDate(d.getDate() + toSat);
   } else d.setDate(d.getDate() + days);
-  const [h, m] = time.split(':').map(Number);
   d.setHours(h, m, 0, 0);
   if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
   return d;
 }
 
-export default function NewEvent() {
+/**
+ * The host form, used to create an event and to edit one before it starts.
+ * `onSubmit` gets the finished event and may throw with a readable reason.
+ */
+export function EventForm({
+  initial,
+  submitLabel,
+  onSubmit,
+}: {
+  initial?: NightEvent;
+  submitLabel: string;
+  onSubmit: (event: NightEvent) => void;
+}) {
   const store = useStore();
-  const { users, builds, me, crews } = store;
+  const { users, builds, me, crews, now } = store;
   const meUser = users.find((u) => u.id === me)!;
   const myCrew = crews.find((c) => c.id === meUser.crewId);
+  const editing = !!initial;
 
-  const [type, setType] = useState<EventType>('cruise');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [dayChoices] = useState<DayChoice[]>(() =>
+    initial ? [{ label: formatWhen(initial.startsAt, now).replace(/ \d\d:\d\d$/, '') + ' (as planned)', days: 0, date: initial.startsAt }, ...DAY_CHOICES] : DAY_CHOICES,
+  );
+  const [timeChoices] = useState<string[]>(() =>
+    initial && !TIME_CHOICES.includes(hhmm(initial.startsAt)) ? [hhmm(initial.startsAt), ...TIME_CHOICES] : TIME_CHOICES,
+  );
+  const [type, setType] = useState<EventType>(initial?.type ?? 'cruise');
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
   const [day, setDay] = useState(0);
-  const [time, setTime] = useState('22:30');
-  const [stops, setStops] = useState<DraftStop[]>([
-    { key: 's0', name: '' },
-    { key: 's1', name: '' },
-  ]);
+  const [time, setTime] = useState(initial ? hhmm(initial.startsAt) : '22:30');
+  const [stops, setStops] = useState<DraftStop[]>(() =>
+    initial
+      ? initial.stops.map((st) => ({ key: st.id, name: st.name, at: st.at }))
+      : [
+          { key: 's0', name: '' },
+          { key: 's1', name: '' },
+        ],
+  );
   const [activeStop, setActiveStop] = useState(0);
-  const [filter, setFilter] = useState<InviteFilter>({ ...DEFAULT_FILTER });
-  const [reveal, setReveal] = useState(60);
-  const [crewOwned, setCrewOwned] = useState(!!myCrew);
-  const [coHosts, setCoHosts] = useState<string[]>([]);
+  const [filter, setFilter] = useState<InviteFilter>(initial ? { ...initial.filter } : { ...DEFAULT_FILTER });
+  const [reveal, setReveal] = useState(initial?.revealMinutesBefore || 60);
+  const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : !!myCrew);
+  const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : []);
   const [error, setError] = useState<string | null>(null);
 
   const placed = stops.filter((st) => st.at);
@@ -69,7 +102,7 @@ export default function NewEvent() {
     : meUser.home;
   const matches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
   const bans = placed
-    .map((st) => ({ st, zone: BAN_ZONES.find((z) => milesBetween(z.centre, st.at!) <= z.radiusMiles) }))
+    .map((st) => ({ st, zone: banZoneAt(st.at!, BAN_ZONES) }))
     .filter((x) => x.zone);
   const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
   const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
@@ -99,33 +132,42 @@ export default function NewEvent() {
     if (type === 'cruise' && used.filter((s) => s.at).length < 2) return setError('A cruise needs at least a start and a finish.');
     if (type === 'rolling' && used.some((s) => !s.at)) return setError('Place every stop on the map. Rolling meets are planned in full before they start.');
     if (!filter.cars && !filter.bikes && !filter.everyone) return setError('Invite cars, bikes or both.');
-    const id = newId('ev');
-    const finalStops: Stop[] = used
-      .filter((st) => st.at)
-      .map((st, i, arr) => ({
-        id: `${id}-s${i}`,
-        name: st.name.trim() || stopLabel(i, arr.length),
-        at: st.at,
-      }));
-    const start = startDate(DAY_CHOICES[day].days, time);
-    store.saveEvent({
+    const id = initial?.id ?? newId('ev');
+    const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], stopLabel);
+    const start = startDate(dayChoices[day], time);
+    if (start.getTime() <= Date.now()) return setError('Pick a start time in the future.');
+    // Editing as a crew member who isn't a named host keeps the named hosts as they were.
+    let hostIds = initial ? Array.from(new Set([...(initial.hostIds.includes(me) ? [me] : []), ...coHosts])) : [me, ...coHosts];
+    if (hostIds.length === 0) hostIds = [me];
+    const event: NightEvent = {
+      ...(initial ?? {}),
       id,
       type,
       title: title.trim(),
       description: description.trim() || undefined,
       startsAt: start.toISOString(),
       area,
-      areaName: meUser.region,
+      areaName: initial?.areaName ?? meUser.region,
       stops: finalStops,
-      currentStop: 0,
+      currentStop: initial?.currentStop ?? 0,
       revealMinutesBefore: isPublicType(type) ? 0 : reveal,
-      hostIds: [me, ...coHosts],
-      crewId: crewOwned ? myCrew?.id : undefined,
+      hostIds,
+      crewId: crewOwned ? (initial?.crewId ?? myCrew?.id) : undefined,
       filter,
-      going: [me],
-      checkIns: {},
-    });
-    router.replace({ pathname: '/event/[id]', params: { id } });
+      going: initial?.going ?? [me],
+      checkIns: initial?.checkIns ?? {},
+    };
+    if (initial?.endsAt) {
+      // Keep the same length when the start moves.
+      const length = new Date(initial.endsAt).getTime() - new Date(initial.startsAt).getTime();
+      event.endsAt = new Date(start.getTime() + length).toISOString();
+    }
+    setError(null);
+    try {
+      onSubmit(event);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save.');
+    }
   }
 
   const pickPins = [
@@ -136,11 +178,11 @@ export default function NewEvent() {
   ];
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
       <Section title="Type">
         <Row gap={6}>
-          {TYPES.map((t) => (
-            <Chip key={t} label={EVENT_LABELS[t]} on={type === t} onPress={() => setType(t)} />
+          {(editing ? [type] : TYPES).map((t) => (
+            <Chip key={t} label={EVENT_LABELS[t]} on={type === t} onPress={editing ? undefined : () => setType(t)} />
           ))}
         </Row>
         <Txt v="muted">
@@ -166,12 +208,12 @@ export default function NewEvent() {
 
       <Section title="When">
         <Row gap={6}>
-          {DAY_CHOICES.map((d, i) => (
+          {dayChoices.map((d, i) => (
             <Chip key={d.label} label={d.label} on={day === i} onPress={() => setDay(i)} />
           ))}
         </Row>
         <Row gap={6}>
-          {TIME_CHOICES.map((t) => (
+          {timeChoices.map((t) => (
             <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} colour={C.neon} />
           ))}
         </Row>
@@ -238,7 +280,7 @@ export default function NewEvent() {
         {bans.map(({ st, zone }) => (
           <Card key={st.key} accent={C.alert}>
             <Txt>
-              {st.name || 'A stop'} is inside the {zone!.name} ban zone. Court orders here can ban organising or promoting late-night meets and cruises (often 3pm to 7am), and hosts have been taken to court. {zone!.note}
+              {banZoneWarning(st.name || 'A stop', zone!)}
             </Txt>
           </Card>
         ))}
@@ -333,7 +375,7 @@ export default function NewEvent() {
           <Txt>{error}</Txt>
         </Card>
       ) : null}
-      <Button label="Send invites" onPress={save} />
+      <Button label={submitLabel} onPress={save} />
     </ScrollView>
   );
 }

@@ -8,6 +8,7 @@ import type { NightEvent } from '../lib/types';
 import { C } from '../theme';
 import { Cover, Trophy } from './Cover';
 import { Card, ClassBadge, Row, Section, Txt } from './ui';
+import { UserLink } from './UserLink';
 
 /** Voting while it's open, then the trophies. */
 export function AwardsSection({ event }: { event: NightEvent }) {
@@ -39,7 +40,8 @@ export function AwardsSection({ event }: { event: NightEvent }) {
             const b = builds.find((x) => x.id === a.buildId);
             const owner = users.find((u) => u.id === a.ownerId);
             return (
-              <Row key={a.category} style={{ flexWrap: 'nowrap' }} gap={10}>
+              <UserLink key={a.category} id={a.ownerId} label={`${categoryInfo(a.category).label}: open ${owner?.handle ?? 'profile'}`}>
+              <Row style={{ flexWrap: 'nowrap' }} gap={10}>
                 <Trophy colour={categoryInfo(a.category).cover ? C.sodium : C.fog} size={28} />
                 <View style={{ flex: 1 }}>
                   <Txt>{categoryInfo(a.category).label}</Txt>
@@ -49,6 +51,7 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                 </View>
                 <Txt v="mono" style={{ color: C.sodium }}>+{categoryInfo(a.category).rep}</Txt>
               </Row>
+              </UserLink>
             );
           })}
         </Card>
@@ -109,7 +112,9 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                       >
                         <Row style={{ flexWrap: 'nowrap' }} gap={6}>
                           <ClassBadge letter={classOf(b)} size="sm" />
-                          <Txt v="label" numberOfLines={1} style={{ flex: 1 }}>@{owner?.handle}</Txt>
+                          <UserLink id={b.ownerId} style={{ flex: 1 }} label={`Open @${owner?.handle}`}>
+                            <Txt v="label" numberOfLines={1} style={{ color: C.neon }}>@{owner?.handle}</Txt>
+                          </UserLink>
                         </Row>
                         <Txt numberOfLines={2}>{b.make} {b.model}</Txt>
                       </Pressable>
