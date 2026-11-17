@@ -2,10 +2,13 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 10 migrations and the seed are applied and the 260 pgTAP checks pass
-against the hosted database. The app still runs on the local store until it is
-wired to Supabase. Sign-in emails need custom SMTP before testers can get a
-code: see section 7a, "Still to do".
+All 11 migrations and the seed are applied and the 280 pgTAP checks pass
+against the hosted database. **The app is wired to it** (17 Nov 2026): signed in,
+every store action goes to the tables and RPCs below (section 5); "Try the demo
+without an account" keeps the local sample scene. The end-to-end smoke test
+(`scripts/supabase-smoke.mjs`, section 7c) passes 41 of 41 checks as two real
+users. Sign-in emails need custom SMTP before testers other than the project team
+can get one: see section 7b, "Still to do".
 
 Everything lives in `supabase/` (Supabase CLI layout):
 
@@ -22,12 +25,15 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120700_discovery.sql` | Staff read access, travel settings, new-event notices, `search_events()` |
 | `supabase/migrations/20261117120800_feedback.sql` | In-app feedback (insert-only) and the private `feedback` screenshot bucket |
 | `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
+| `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
 | `supabase/tests/rpc_test.sql` | pgTAP: every RPC end to end, storage, reminders (63 checks) |
 | `supabase/tests/discovery_test.sql` | pgTAP: travel settings, new-event notices, `search_events()`, discovery and staff (75 checks) |
 | `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, staff-only reading, the screenshot bucket, the flood guard (33 checks) |
 | `supabase/tests/vehicles_test.sql` | pgTAP: what you're bringing: own builds only, going vs asking per build, changing it, check-in, awards from brought builds, the garage columns (42 checks) |
+| `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
+| `scripts/supabase-smoke.mjs` | End to end against the hosted project as two throwaway users (section 7c) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
 | `supabase/functions/import-closures/` | Phase 2 sketch: UK open-data road closures |
 | `supabase/templates/otp.html` | Sign-in email that shows the 6-digit code |
@@ -36,9 +42,10 @@ Everything lives in `supabase/` (Supabase CLI layout):
 
 ```
 iPhone app (Expo SDK 58)
-  └─ src/lib/store.tsx  →  (next) a Repository with two implementations:
-        LocalRepository   (AsyncStorage, today's code, used for the demo scene)
-        SupabaseRepository (supabase-js: tables for plain reads/writes, RPCs for rules)
+  └─ src/lib/store.tsx  →  a Repository (src/lib/repository.ts) with two implementations:
+        LocalRepository   (src/lib/localRepository.ts: AsyncStorage, the demo scene)
+        SupabaseRepository (src/lib/backend/remote.ts: supabase-js, tables for plain
+                            reads/writes, RPCs for rules, Realtime for the open event)
                 │  HTTPS, publishable (anon) key + the user's session JWT
                 ▼
 Supabase (eu-west-1, Ireland)
@@ -326,28 +333,36 @@ All are `supabase.rpc(name, { p_…: … })`, signed in only.
 | `search_events(p_max_miles, p_types, p_when, p_can_go_only, p_vehicles, p_from_lat, p_from_lng)` | `searchEvents()` (Find events) | All optional. Distance from **your own home** (read inside, never returned), or from the point you send **snapped to ~1 km**, to each event's rough area; nearest first, then soonest; up to 100. `p_max_miles` null = your travel distance; 1–600 (600 = the app's "Any distance"). `p_when`: `any` / `tonight` (to 5am) / `week` / `weekend` (Fri 5pm–Mon 5am), Europe/London. `p_vehicles`: `any` / `cars` / `bikes`. Returns the event fields, `role`, `can_go`, `phase`, `miles` (0.1), `shown_stop`, and `stop_name`/`stop_lat`/`stop_lng` **only for a stop you may see** (null for locked events: rough area only) |
 | `queue_due_reminders()` | (server only) | Service role only; used by `push-notices` |
 
-## 5. Moving the app off the local store
+## 5. The app on the backend (built 17 Nov 2026)
 
-`store.tsx` says "moving to Supabase later only replaces this file". The plan
-is to keep the `Store` interface the screens use and put a **repository**
-behind it:
+The screens use one `Store` (`src/lib/store.tsx`); its actions are async and
+reject with a sentence the screen shows as it is. Who's using the app decides
+which repository the actions go to (`src/lib/auth.tsx`):
 
-```ts
-interface Repository {
-  // reads
-  loadMe(): Promise<{ profile; home; crewId }>;
-  listEvents(): Promise<EventView[]>;            // events_for_me + events + get_event_stops + hosts/going
-  listSpots(bbox): Promise<Spot[]>;               // spots (RLS) + spot_stats
-  listCrews(): Promise<Crew[]>;                   // crews + crew_members
-  listBuilds(ownerIds?): Promise<Build[]>;        // builds + build_mods + build_photos
-  chat(eventId): Promise<ChatMessage[]>;          // chat_messages (+ Realtime later)
-  notices(): Promise<Notice[]>;
-  // writes: one per Store action below
-}
-```
+* **Signed out:** the Sign in screen (`src/app/signin.tsx`), with "Try the demo
+  without an account". Phones that used the app before accounts existed go
+  straight to the demo, with their data.
+* **Demo:** `LocalRepository` (`src/lib/localRepository.ts`), the code the app has
+  always run, on the sample scene in AsyncStorage (`nightshift.v2.*`).
+* **Signed in:** `SupabaseRepository` (`src/lib/backend/remote.ts`). The state has
+  the same shape (`src/lib/localState.ts`), filled from the server by the mappers in
+  `src/lib/backend/mapping.ts` (unit-tested in `__tests__/backendMapping.test.ts`
+  and `__tests__/supabaseRepository.test.ts`, which mocks supabase-js).
 
-`LocalRepository` wraps today's code and keeps the labelled sample scene.
-`SupabaseRepository` maps the actions like this:
+**Reads** (one `refresh()` on launch, when the app comes to the front, and every
+20 s while offline): `profiles` (onboarded people), `my_home`, `profile_settings`,
+`crews` + `crew_members`, `builds` + `build_mods` + `build_photos` (signed URLs,
+7 days), `events_list` (from 8 days ago) with `event_hosts`, `event_going`,
+`event_requests`, `check_ins`, `plan_changes` (hosts only, by RLS), `chat_messages`
+and **`get_event_stops()`** (stops are never read from `event_stops`; a locked
+stop arrives with no place, so the phone's own `canSeeStop()` can't show it), your
+own `votes` + the `awards` view (each award becomes that many anonymous tallies, so
+`awards.ts` gives the same winners), `notices`, and `spots_list` + `spot_stats()` +
+your own completions and ratings (others' are anonymous stand-ins with the right
+counts and average). Other people's `User.home` is a placeholder (0, 0): homes
+never leave the server, so the host form's count comes from `invite_count()`.
+
+**Actions** map like this:
 
 | `Store` action (store.tsx) | Supabase |
 |---|---|
@@ -376,18 +391,67 @@ interface Repository {
 | `setSettings`, `markUnlockSeen`, `markLocationNoticeSeen`, `markNearbySeen` | stay on the phone (AsyncStorage) |
 | `resetDemo`, `restartDemoEvents` | local mode only |
 | `refreshReminders` | stays local until Phase 2 push |
+| Delete my account (Me > Account) | remove every object under `photos/{uid}/` with the Storage API (SQL can't delete Storage rows), then `rpc('delete_my_account')`, then sign out and clear the cache |
+| Host form's live count | `rpc('invite_count')` ("fewer than 3" for null) |
+
+As built, a few rows differ from the plan above:
+
+* **Ids.** Ids made on the phone are now UUIDs (`src/lib/ids.ts`), so a build keeps
+  its id when upserted. `save_event` is told create or edit explicitly.
+* **Places.** The bundled drives, photo spots and circuits stay in the app; only
+  places people suggest are on the server. Finishing or rating a bundled place is
+  kept on the phone (per account) until they're imported (section 10, item 2).
+  `finishDrive` on a server drive sends the fixes `advanceRun()` now keeps
+  (`DriveRun.fixes`); the phone judges first for a quick answer, the server again.
+* **Suggested photo spot photos.** `spots` has no photo column, so the suggester's
+  photo goes to a fixed path, `photos/{author}/spots/{spot}/suggested.jpg`, which
+  the app signs when it reads the place.
+* **Crews.** `addToCrew` (demo only) says an invite is needed; it isn't built.
+* **GPS.** "Demo: skip the GPS check" only exists in the demo. Signed in, check-ins
+  and photo spot visits always send a real fix.
+* **Feedback.** The pickers' and shop screens' queued suggestions are sent to
+  `feedback` (insert only, no `.select()`) with `app_version`
+  (`EXPO_PUBLIC_APP_VERSION`), `update_id` (expo-updates) and `device`: signed in
+  through the repository, in the demo as `anon` (the table allows it).
+
+**Realtime.** The open event screen subscribes (one channel) to its `events` row,
+`chat_messages`, `event_going`, `event_requests` and `check_ins`; a change re-reads
+that event through `get_event_stops()`, so a move-on reveals the next stop only to
+the people allowed it. The app also listens to your own `notices` inserts: a
+"moved on" notice lands under the bell, shows as a phone notification while the app
+is open, and refreshes that event. Realtime checks RLS per subscriber; `event_stops`
+is not published. Real push to a locked phone is Phase 2.
+
+**Offline.** The state is cached per account in AsyncStorage
+(`nightshift.sb.<uid>.state`), shown at once on launch and refreshed in the
+background; it's cleared on sign-out. A request that never reaches the server marks
+the app offline (an **OFFLINE** pill at the top). Chat, build saves and deletes and
+"mark read" go to an outbox (`nightshift.sb.<uid>.outbox`, `src/lib/backend/outbox.ts`)
+and are sent in order when the connection's back; anything the server then refuses
+is dropped with a notice. Rule-checked actions fail with "You're offline. Try again
+when you have a signal." instead.
 
 Derived things that stay pure on the phone: classes (`classes.ts`, also
 mirrored in `private.build_class()`), rep and levels (`rep.ts`, fed from
 `spot_stats`, `awards` and check-in counts), HUD and formatting.
 
-Sign-in: `supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })`,
-then `supabase.auth.verifyOtp({ email, token, type: 'email' })`. Store the
-session with AsyncStorage (`auth.storage`) and turn on `autoRefreshToken`.
-Use the publishable key only; it's safe in the app because RLS does the work.
-The key lives in a secrets file outside the repo on the dev machine and goes
-into the app through `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_KEY` in an
-untracked `.env`. The service role or secret key never goes in the app.
+Sign-in (`src/lib/auth.tsx`): `signInWithOtp({ email, options: { shouldCreateUser: true,
+emailRedirectTo: 'nightshift://' } })`, then `verifyOtp({ email, token, type: 'email' })`
+for the 6-digit code. Until SMTP is set up the built-in sender mails a **link**
+instead; the app takes it three ways (`src/lib/authLink.ts`): the redirect
+`nightshift://#access_token=…&refresh_token=…` (tapped on the phone; `setSession`),
+`?code=` (PKCE), or the email's own `…/auth/v1/verify?token=…&type=magiclink` link
+pasted in (`verifyOtp({ token_hash, type })`). The session lives in AsyncStorage
+(`nightshift.auth`) with `autoRefreshToken`, paused in the background.
+
+**Keys.** Only the URL and the **publishable** key are in the app, in
+`src/lib/backend/config.ts` (overridable with `EXPO_PUBLIC_SUPABASE_URL` /
+`EXPO_PUBLIC_SUPABASE_KEY`). Supabase's docs: publishable keys are "safe to expose
+online: web page, mobile or desktop app, GitHub actions, CLIs, source code"; RLS
+does the work. They are **not** in `app.json` `extra`: app.json is part of the
+runtime fingerprint, and changing it would have stopped OTA updates reaching the
+installed build (checked: `f9269ad…` → `a9f1a31…`). Adding `@supabase/supabase-js`
+(pure JS) left the fingerprint unchanged. The secret key never goes in the app.
 
 ### Offline cache plan
 
@@ -508,6 +572,44 @@ push every other difference in `config.toml` (MFA, storage, API settings).
   already on in the hosted project and was left alone (`config.toml` has it off).
   `exp://**` is only in the local config.
 
+### 7a-2. What's live (17 Nov 2026, app wiring)
+
+* **Migration** `20261117150000_app_wiring.sql` pushed with `db push --remote --yes`.
+* **pgTAP:** 280 of 280 on the hosted database (the 260 above plus `account_test.sql`, 20).
+* **Realtime publication** `supabase_realtime`: `events`, `chat_messages`,
+  `event_going`, `event_requests`, `check_ins`, `notices`.
+* **Smoke test** (section 7c): 41 of 41, cleanup left no users, events, places,
+  feedback or files.
+* **Web build check** (Playwright, 17 Nov 2026): sign-in screen, demo path, and a
+  signed-in run with a throwaway user (profile saved on the server, Find events from
+  `search_events()`, Me > Account, Delete my account back to Sign in, user gone).
+
+### 7c. The smoke test
+
+```bash
+set -a; . ~/.config/homelab-secrets.env; set +a
+node scripts/supabase-smoke.mjs
+```
+
+There's no service role key on the dev machine, so the script makes two throwaway
+users with SQL through the Management API (`POST /v1/projects/<ref>/database/query`
+with `SUPABASE_ACCESS_TOKEN`): a row in `auth.users` (bcrypt password via
+`extensions.crypt`, confirmed, the token columns as empty strings, which GoTrue
+needs) and one in `auth.identities`, on the reserved `.invalid` domain so nothing is
+ever emailed. It signs in with that password and the publishable key, so everything
+after that goes through the same API, RLS and RPCs as the app: profile and travel
+settings, `my_home`, a build with a mod and a photo (and B can't upload into A's
+folder, but can read it signed), a rolling meet with 3 stops, no stop rows before
+going, every stop locked before the reveal, only stop 1 once live (the start is moved
+into the past with SQL: a fixture, the app never does this), check-in refused from
+3 mi away and at a locked stop, then accepted, Realtime (the event row, chat and the
+"moved on" notice reach B, and the notice never names the place), `move_on` returning
+the audience, stop 2 unlocking for B only, votes (not your own, secret), `event_awards`
+empty before voting closes, `search_events`, crews, a pending suggestion only its
+author sees, notices marked read, feedback inserted without a read-back. Cleanup:
+Storage first, `delete_my_account()` for both, then a SQL sweep and a count that must
+be all zeros. It never prints a key, token or password.
+
 ### 7b. Still to do
 
 1. **Custom SMTP (Brevo). TODO for the owner:** add `BREVO_SENDER_EMAIL`
@@ -534,9 +636,9 @@ push every other difference in `config.toml` (MFA, storage, API settings).
    and check it arrives as a 6-digit code. Until this is done the built-in
    sender only mails the project's team (about 2 an hour) and sends a link,
    not a code.
-2. **Signed-in API check from the app:** the pgTAP suite covers every signed-in
-   path on the hosted database, but no real session has been used yet (that
-   needs a code by email, item 1).
+2. **Signed-in check on a real iPhone:** done with real sessions by the smoke test
+   and the web build; on the phone it needs the owner to sign in with the email link
+   (README "Try this tomorrow", step 2). Mates need item 1 first.
 3. **`SUPABASE_ACCESS_TOKEN` expires** about 30 days after 17 Nov 2026. Make a
    new one (scoped to this project) before the next migration.
 4. Phase 2 (below) and the gaps in section 9.
@@ -629,9 +731,18 @@ database (section 7a), which is the check that counts. The Edge Functions type-c
 * **Spot approval** has no moderator UI: approve by setting `spots.status` in
   the dashboard (service role). The demo's 10-second auto-approve doesn't exist
   on the server.
-* **Account deletion** (Apple 5.1.1(v)) needs an Edge Function using the
-  admin API to delete the auth user. Profile rows cascade. Photos in Storage
-  need deleting too. Not written yet.
+* **Account deletion** (Apple 5.1.1(v)) is built: Me > Account > Delete my account
+  removes the person's Storage files (Storage API), then `delete_my_account()`
+  (security definer, owned by `postgres`) hands over their crew, cancels unfinished
+  events only they host and deletes the auth user; everything else cascades. If the
+  app is killed between the two steps, the files are gone and the account isn't:
+  deleting again finishes it. Files can't be deleted from SQL, so a client that
+  skipped step one would leave orphans under `photos/{uid}/` (a scheduled cleanup
+  with the secret key would catch them; not written).
+* **Reads at scale.** Signed in, `refresh()` reads every onboarded profile, every
+  build and every event from the last 8 days (with their parts and chat). Fine for a
+  test group; before a public launch, page these by distance (`events_for_me()`,
+  `search_events()`) and load people and builds on demand.
 * **Retention** (legal.md: check-ins 90 days, chat 90 days after the event,
   stop logs 12 months) isn't automated yet. Add a daily pg_cron job before launch.
 * **Ban zones only warn**, as the owner decided. legal.md recommends hard

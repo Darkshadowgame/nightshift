@@ -17,14 +17,27 @@ with the focus on modified builds.
 | Events: cruise, rolling meet, meet, show, track day | Badges; leaderboards beyond track times (never for public roads) |
 | Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Hazard reports, push-to-talk (turn-by-turn and camera alerts are built: see "Driving view") |
 | Co-hosts and crew-owned events | Real push notifications (need a paid Apple developer account) |
-| RSVP, check-in, timed reveal, rolling "Move on" | Backend sync between phones (Supabase, next step) |
-| Event chat (local only for now) | Sign in with Apple |
+| RSVP, check-in, timed reveal, rolling "Move on" | Real push to a locked phone (Phase 2) |
+| Event chat (live when signed in) | Sign in with Apple |
+| Email sign-in (one-time code or link), demo without an account, delete account | |
 
-Phase 1 runs on **local demo data** stored on the phone (AsyncStorage). The map,
-your position and place names are real; the other people and their events are a
-clearly labelled sample scene drawn round your own home area (see "Real places and
-location" below). All app logic goes through `src/lib/store.tsx`, so swapping
-in Supabase later changes one layer only.
+Phase 1 runs two ways (Nov 2026):
+
+* **Signed in** (email one-time code, or the sign-in link while custom SMTP isn't set
+  up): the live Supabase backend. Profiles, homes (fuzzed, owner-only), garages and
+  photos, events, going, requests, check-ins, chat, votes, crews, suggested places and
+  notices are shared; every rule is checked again on the server. The current event's
+  chat, going, check-ins and stop reveals update live (Supabase Realtime). Reads are
+  cached on the phone; chat, garage edits and "mark read" queue while offline.
+* **Demo** ("Try the demo without an account"): **local demo data** stored on the
+  phone (AsyncStorage). The map, your position and place names are real; the other
+  people and their events are a clearly labelled sample scene drawn round your own
+  home area (see "Real places and location" below).
+
+All app logic goes through `src/lib/store.tsx`, which sends writes to a Repository
+(`src/lib/repository.ts`): `LocalRepository` for the demo, `SupabaseRepository`
+(`src/lib/backend/remote.ts`) signed in. Account deletion is in the app (Me >
+Account), as Apple requires.
 
 ## Classes
 
@@ -581,7 +594,9 @@ Owner's request: "Obviously you need to use real maps and location."
 
 ## Next steps after Phase 1
 
-1. Supabase project with PostGIS: auth, builds, events, RSVPs, check-ins and chat.
+1. ~~Supabase project with PostGIS: auth, builds, events, RSVPs, check-ins and chat.~~
+   Live and wired into the app (17 Nov 2026). Left: custom SMTP so mates get a code,
+   importing the bundled drives and photo spots, crew invites.
 2. A paid Apple developer account, then TestFlight and real push notifications
    for Move on.
 3. Phase 2: cruise mode presence, crews, matching.

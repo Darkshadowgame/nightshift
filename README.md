@@ -8,8 +8,11 @@ and cruises, rolling meets, meets, shows and track days with filtered invites.
 
 ## Status
 
-Phase 1 demo. Everything is stored on the phone, and the other people in the app
-are sample data. Next: a Supabase backend so phones share data.
+Phase 1, now multi-user. **Sign in** with your email and the app runs on the live
+Supabase backend (eu-west-1): your profile, garage, events, going, check-ins, chat,
+votes, crews and suggested places are shared between phones, and a rolling meet
+updates live for everyone. **Try the demo without an account** keeps the old sample
+scene, stored only on the phone. Backend details: [docs/BACKEND.md](docs/BACKEND.md).
 
 ## Run it
 
@@ -69,7 +72,39 @@ note anything odd for the next pass. Each step says what you should see.
    If iOS asks, turn on Developer Mode (Settings > Privacy & Security) and restart.
 5. A free Apple ID install lasts 7 days. Re-run Sideloadly to refresh it.
 
-### 2. First run
+### 2. Sign in, or the demo
+
+The app now opens on **Sign in** (phones that used Nightshift before accounts stay in
+the demo with their data; Me > Account > **Sign in or create an account** gets you here).
+
+- [ ] Type your email and tap **Email me a code**. Until custom email (SMTP) is set up,
+      Supabase only mails **the project team's addresses**, about 2 an hour, and the email
+      has a **sign-in link, not a code** (docs/BACKEND.md section 7b). So for now: use the
+      owner's address, then **tap the link in the email on the iPhone**: iOS asks to open
+      Nightshift and you're signed in. Reading the email on a computer instead? Tap **The
+      email has a link, not a code**, copy the link from the email and paste it in.
+- [ ] Once SMTP is on, the email has a 6-digit code: type it and tap **Sign in**. A wrong
+      or old code says so; **Send it again** works once a minute.
+- [ ] Mates can't sign in until SMTP is set up: they get a clear message and can tap **Try
+      the demo without an account**.
+- [ ] Signed in, the first run below is the same, but saved on the server: a taken handle
+      is anyone's on Nightshift now, not a sample person's. There are no sample people or
+      events when signed in: you'll see what real people host.
+- [ ] Me > Account shows **Signed in as …**, **Sign out** and **Delete my account**.
+      Deleting asks first, then removes your profile, home, garage and photos, check-ins,
+      chat and votes, cancels events only you host, and goes back to Sign in. The Demo
+      section (skip the GPS check, restart, reset) only shows in the demo.
+- [ ] Flight mode while signed in: an **OFFLINE** pill appears at the top, the app shows
+      what it last saw, and chat, garage edits and "mark read" queue up (**· 1 WAITING**)
+      and send when you're back. Going, check-ins, votes, move on and plan changes say
+      **You're offline** instead (they depend on time and place).
+- [ ] Two phones (or the phone and `node scripts/supabase-smoke.mjs`, which plays the
+      whole flow as two throwaway users): host a rolling meet on one, go on the other,
+      check in, move on: the other phone's event screen updates by itself, the next stop
+      unlocks, and a **moved on** notice lands under the bell (and as a phone notification
+      while the app is open; real push is Phase 2).
+
+### 2b. First run
 
 - [ ] The app opens on the welcome screen, not the map.
 - [ ] Pick a handle and display name. Try a handle that's taken (e.g. `dan_r`): you get a
@@ -387,18 +422,28 @@ while moving: the driving screen is built to be glanced at, not used.
 
 ### Known limits
 
-- Everything is stored on this phone only. There's no backend, so nothing is shared
-  between phones, and other people are sample data from `src/data/seed.ts`.
-- Chat, votes and "moved on" messages only reach you. Real push between phones needs
-  a backend and a paid Apple developer account.
+- **Demo:** everything is stored on this phone only and other people are sample data from
+  `src/data/seed.ts`. **Signed in:** the backend is shared, but sign-in emails only reach
+  the project team until SMTP is set up (docs/BACKEND.md 7b), so in practice it's one
+  real person for now.
+- Signed in, live updates (chat, going, check-ins, move on, notices) arrive while the app
+  is open. Real push to a locked phone needs Phase 2 and a paid Apple developer account.
+- Signed in: Nightshift's own bundled drives, photo spots and circuits aren't on the server
+  yet, so finishing or rating one is kept on the phone (places people suggest are on the
+  server and checked there). "Demo: skip the GPS check" doesn't exist signed in: the server
+  always checks you're there. Adding someone to your crew needs an invite (not built): they
+  tap Join. "I'll search" NEW tags in Find events are demo only.
+- Signed in, the app reads every profile, build and recent event (fine for a test group;
+  see docs/BACKEND.md section 9 for what changes at scale).
 - Reminders are local notifications scheduled on this phone. iOS keeps up to 64, so
   the app schedules at most 48, soonest first.
 - New events near you are worked out on this phone from the sample scene, so they only
   ever come from sample events (or after **Restart the demo events**). On the backend the
   server works them out and they reach you by push once that's set up (Phase 2). An app
   updated from an older version treats the events it already had as not new.
-- Find events searches what's on this phone. Distances are straight lines to the event's
-  rough area, not driving distances.
+- Find events searches what's on this phone in the demo, and on the server
+  (`search_events()`) when signed in. Distances are straight lines to the event's rough
+  area, not driving distances.
 - Ban zones (car-meet order areas) are drawn round real orders (`src/data/banZones.ts`):
   borough- and city-wide orders as simplified council boundaries from OpenStreetMap
   (Birmingham; Wolverhampton, Sandwell and Walsall; Dudley; Coventry; Broadland and South
@@ -467,7 +512,11 @@ while moving: the driving screen is built to be glanced at, not used.
 | `src/app/drive.tsx`, `components/DriveMap.tsx`, `NavLaunch.tsx` | The full-screen driving view; its heading-up map; the Start navigation button and app chooser |
 | `modules/nav-directions` | Local Expo module (Swift): MapKit directions leg by leg, the en-GB voice (AVSpeechSynthesizer, ducking music) and the over-limit chime |
 | `src/components/motion.tsx` | Reanimated motion (live pulse, check-in, reveals, class-up, unlocked), all with reduced-motion versions |
-| `src/lib/store.tsx` | All state, saved on the phone. The one layer to swap for Supabase |
+| `src/lib/store.tsx` | All state the screens read, and every action, sent to a Repository: the demo's or the backend's |
+| `src/lib/repository.ts`, `localRepository.ts`, `localState.ts` | The Repository interface; the demo's implementation (rules on the phone); the state's shape and the demo scene's helpers |
+| `src/lib/backend/` | Signed in: `remote.ts` (SupabaseRepository: tables, RPCs, Realtime, offline cache and outbox), `mapping.ts` (rows to app types), `outbox.ts`, `feedback.ts`, `client.ts`, `config.ts` (the project URL and publishable key, both public by design) |
+| `src/lib/auth.tsx`, `authLink.ts`, `src/app/signin.tsx` | Sign in with an email code or link, the demo choice, sign out; `components/AccountSection.tsx` has Delete my account |
+| `scripts/supabase-smoke.mjs` | End-to-end test against the hosted backend as two throwaway users (docs/BACKEND.md 7c) |
 | `src/data/seed.ts` | Demo scene: sample people and events drawn round your home area, and sample ban zones |
 | `src/data/places.ts` | Real UK circuits, sprint and hill-climb venues, drives, photo spots and meet-friendly venues (bundled) |
 | `src/data/banZones.ts` | Sample ban zones round real injunctions, PSPOs and dispersal hotspots |
