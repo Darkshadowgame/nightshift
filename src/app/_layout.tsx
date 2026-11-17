@@ -17,6 +17,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { OfflinePill } from '../components/OfflinePill';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { onNotificationTap } from '../lib/notify';
+import { RoadsProvider } from '../lib/roadStore';
 import { StoreProvider, useStore } from '../lib/store';
 import { C, F } from '../theme';
 
@@ -96,9 +97,11 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <StoreProvider>
-        <StatusBar style="light" />
-        <Gate />
-        <OfflinePill />
+        <RoadsProvider>
+          <StatusBar style="light" />
+          <Gate />
+          <OfflinePill />
+        </RoadsProvider>
       </StoreProvider>
     </AuthProvider>
   );

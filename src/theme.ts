@@ -52,3 +52,6 @@ export const SPOT_COLOURS = {
 /** The Shops layer (OpenStreetMap listings) and partners (always labelled, see src/lib/partners.ts). */
 export const SHOP_COLOUR = '#b48cff';
 export const PARTNER_COLOUR = '#ffd23f';
+
+/** Road reports on the map and in the driving view (roadReports.ts): coral, not the cameras' red or the meets' orange. */
+export const ROAD_COLOUR = '#ff7a59';

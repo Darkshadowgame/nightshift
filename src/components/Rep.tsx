@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { allAwards } from '../lib/awards';
 import { levelFor, repLedger, type LevelInfo, type RepLedger } from '../lib/rep';
+import { useRoads } from '../lib/roadStore';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import { C, F } from '../theme';
@@ -10,6 +11,7 @@ import { Card, Row, Txt } from './ui';
 /** Everyone's rep, worked out from the store. */
 export function useRepFor(): (userId: string) => { ledger: RepLedger; level: LevelInfo } {
   const { events, spots, builds, votes, crews } = useStore();
+  const { rep: roadRep } = useRoads();
   const now = useNow();
   return useMemo(() => {
     const awards = allAwards(votes, events, builds, now);
@@ -17,13 +19,13 @@ export function useRepFor(): (userId: string) => { ledger: RepLedger; level: Lev
     return (userId: string) => {
       let hit = cache.get(userId);
       if (!hit) {
-        const ledger = repLedger(userId, { events, spots, builds, awards, now, crews });
+        const ledger = repLedger(userId, { events, spots, builds, awards, now, crews, roadRep: roadRep[userId] });
         hit = { ledger, level: levelFor(ledger.total) };
         cache.set(userId, hit);
       }
       return hit;
     };
-  }, [events, spots, builds, votes, now, crews]);
+  }, [events, spots, builds, votes, now, crews, roadRep]);
 }
 
 export function useRep(userId: string) {

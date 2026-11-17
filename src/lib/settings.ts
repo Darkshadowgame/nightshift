@@ -37,6 +37,11 @@ export interface Settings {
   navVoice: boolean;
   /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
   navCameraAlerts: boolean;
+  /**
+   * Map: the Road reports layer (drivers' reports and open-data closures, under the layers
+   * button). Off by default. Never shows police reports: those are only in the driving view.
+   */
+  roadReports?: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

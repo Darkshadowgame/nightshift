@@ -12,7 +12,8 @@ import type { LatLng } from './types';
  * Safety rules (docs/SPEC.md, "Driving view"): nothing here records, scores or
  * ranks speed or time. Your speed is compared with the limit a camera or zone
  * enforces, live, and is never stored. Cameras are speed-limit information only
- * (OpenStreetMap's dataset); there is nothing about police anywhere.
+ * (OpenStreetMap's dataset). Drivers' road reports, including the owner-approved
+ * "Police / speed check", live in roadReports.ts with their own safeguards.
  */
 
 // ---------------------------------------------------------------------------
@@ -551,7 +552,7 @@ export function routeBox(route: NavRoute, margin = 0.01): { south: number; west:
 }
 
 /** Every pass of the route within `corridor` metres of a point: one per stretch, at its nearest. */
-function passesNear(route: NavRoute, p: LatLng, corridor: number): Snap[] {
+export function passesNear(route: NavRoute, p: LatLng, corridor: number): Snap[] {
   const out: Snap[] = [];
   let run: Snap | null = null;
   // Cheap test first: a segment whose box is clearly further than the corridor can't be near.

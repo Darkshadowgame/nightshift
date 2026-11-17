@@ -1,6 +1,7 @@
 import { awardRep, type Award } from './awards';
 import { rewardedMods } from './legality';
 import { isHost, phaseOf } from './events';
+import { NO_ROAD_REP, type RoadRep } from './roadReports';
 import { hasCompleted, statsOf } from './spots';
 import type { Build, Crew, NightEvent, Spot } from './types';
 
@@ -119,7 +120,7 @@ export const REP = {
   mod: 20,
 } as const;
 
-export type RepSource = 'attended' | 'hosted' | 'drives' | 'spots' | 'authored' | 'awards' | 'mods';
+export type RepSource = 'attended' | 'hosted' | 'drives' | 'spots' | 'authored' | 'awards' | 'mods' | 'roadReports' | 'roadChecks';
 
 export interface RepLine {
   source: RepSource;
@@ -142,6 +143,12 @@ export interface RepInputs {
   now: Date;
   /** For crew events: the crew's owner and hosts count as hosts. */
   crews?: Crew[];
+  /**
+   * Road reports (roadReports.ts), worked out by the server (or the demo): +10 per
+   * report two other drivers confirmed, +2 per "Still there?" answer, with daily caps.
+   * Never anything for speed.
+   */
+  roadRep?: RoadRep;
 }
 
 function checkedInAt(e: NightEvent, userId: string): boolean {
@@ -185,6 +192,7 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
   const mine = input.awards.filter((a) => a.ownerId === userId);
   // Mods: road-legal ones only, each kind once per build, at most 10 per build (legality.ts).
   const mods = input.builds.filter((b) => b.ownerId === userId).reduce((n, b) => n + rewardedMods(b.mods).length, 0);
+  const road = input.roadRep ?? NO_ROAD_REP;
 
   const lines: RepLine[] = [
     { source: 'attended', label: 'Meets attended', count: attended, rep: attended * REP.attended },
@@ -194,6 +202,8 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
     { source: 'authored', label: 'Places you suggested', count: authored.length, rep: authoredRep },
     { source: 'awards', label: 'Trophies', count: mine.length, rep: awardRep(input.awards, userId) },
     { source: 'mods', label: 'Mods logged', count: mods, rep: mods * REP.mod },
+    { source: 'roadReports', label: 'Road reports confirmed', count: road.reportsConfirmed, rep: road.reportedRep },
+    { source: 'roadChecks', label: 'Road reports checked', count: road.reportsChecked, rep: road.checkedRep },
   ];
   return { total: lines.reduce((s, l) => s + l.rep, 0), lines };
 }
