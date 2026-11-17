@@ -58,6 +58,8 @@ const wiki = (page: string) => `https://en.wikipedia.org/wiki/${page}`;
 
 export const TRACK_INFO: Record<string, TrackInfo> = {
   'tr-silverstone': {
+    factSources: ['https://www.silverstone.co.uk/track-and-testing/bike-track-days', 'https://www.kart.silverstone.co.uk/'],
+    vehicles: ['car', 'bike', 'kart'],
     source: wiki('Silverstone_Circuit'),
     layouts: [
       { name: 'Grand Prix (Arena)', km: 5.891 },
@@ -120,6 +122,8 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     ],
   },
   'tr-thruxton': {
+    factSources: ['https://thruxtonracing.co.uk/karting'],
+    vehicles: ['car', 'bike', 'kart'],
     source: wiki('Thruxton_Circuit'),
     layouts: [{ name: 'Main circuit', km: 3.793 }],
     records: [
@@ -128,6 +132,7 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     ],
   },
   'tr-castle-combe': {
+    factSources: ['https://castlecombecircuit.co.uk/motorcycle-track-days/'],
     source: wiki('Castle_Combe_Circuit'),
     layouts: [{ name: 'Full circuit with chicanes', km: 2.977 }],
     records: [
@@ -159,6 +164,8 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     ],
   },
   'tr-knockhill': {
+    factSources: ['https://www.knockhill.com/trackdays/BikeTrackday', 'https://www.knockhill.com/karting/'],
+    vehicles: ['car', 'bike', 'kart'],
     source: wiki('Knockhill'),
     layouts: [
       { name: 'International (clockwise)', km: 2.039 },
@@ -202,6 +209,7 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     ],
   },
   'tr-lydden': {
+    factSources: ['https://lyddenhill.co.uk/trackdays/bikes/', 'https://lyddenhill.co.uk/trackdays/cars/'],
     source: wiki('Lydden_Hill_Race_Circuit'),
     layouts: [
       { name: 'Full circuit', km: 1.609 },
@@ -210,6 +218,8 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     records: [{ kind: 'outright', layout: 'Full circuit', time: '0:38.300', holder: 'Rob Cox', vehicle: 'Lola LC88', series: 'Formula One car', year: 1989 }],
   },
   'tr-pembrey': {
+    factSources: ['https://www.pembreycircuit.co.uk/'],
+    vehicles: ['car', 'bike', 'kart'],
     source: wiki('Pembrey_Circuit'),
     layouts: [{ name: 'Full circuit', km: 2.343 }],
     records: [
@@ -218,6 +228,8 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     ],
   },
   'tr-kirkistown': {
+    factSources: ['https://kirkistown.com/events/category/kart-events/'],
+    vehicles: ['car', 'bike', 'kart'],
     source: wiki('Kirkistown_Circuit'),
     layouts: [{ name: 'Full circuit', km: 2.433 }],
     records: [{ kind: 'outright', layout: 'Full circuit', time: '0:50.782', holder: 'Philip Shields', vehicle: 'Dallara', series: 'GP2 car', year: 2013 }],
@@ -233,9 +245,14 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     records: [],
   },
   'tr-three-sisters': {
+    arriveAndDrive: true,
+    factSources: ['https://threesisterscircuit.co.uk/adults/adult-karting-sessions', 'https://threesisterscircuit.co.uk/bikes', 'https://threesisterscircuit.co.uk/cars/car-track-days'],
     vehicles: ['car', 'bike', 'kart'],
     source: wiki('Three_Sisters_Circuit'),
-    layouts: [{ name: 'Circuit', km: 1.497 }],
+    layouts: [
+      { name: 'Circuit', km: 1.497 },
+      { name: 'Kart club circuit', km: 1.0 },
+    ],
     records: [],
   },
   'tr-shelsley': {
@@ -266,6 +283,13 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     records: [{ kind: 'outright', layout: 'Hill (1,058 yd)', time: '25.00', holder: 'Alex Summers', vehicle: 'DJ Firestorm', series: 'British Hill Climb Championship', year: 2022 }],
     run: true,
   },
+  'tr-teesside': {
+    vehicles: ['car', 'bike', 'kart'],
+    arriveAndDrive: true,
+    factSources: ['https://teessidemotorsports.co.uk/karting/public-hire/arrive-drive/', 'https://teessidemotorsports.co.uk/autodrome/'],
+    layouts: [],
+    records: [],
+  },
   'tr-curborough': { vehicles: ['car'], layouts: [], records: [], run: true },
   'tr-loton': { vehicles: ['car'], layouts: [], records: [], run: true },
   'tr-forrestburn': { vehicles: ['car'], layouts: [], records: [], run: true },
@@ -279,4 +303,58 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
   'ea-t-bentwaters': { vehicles: ['car'], layouts: [], records: [] },
   'ea-t-hit-the-dirt': { vehicles: ['bike'], layouts: [], records: [] },
   'ea-t-santa-pod': { vehicles: ['car', 'bike'], layouts: [{ name: 'Quarter mile', km: 0.402 }], records: [], run: true },
+  // Kart circuits (src/data/kartTracks.ts, plus Buckmore Park and Ellough Park). From each venue's own site, read 17 Nov 2026.
+  'k-t-buckmore': { vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.buckmore.co.uk/adults'], layouts: [], records: [] },
+  'ea-t-ellough': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.elloughpark.co.uk/hire-karts', 'https://www.elloughpark.co.uk/owner-drivers'],
+    layouts: [{ name: 'Circuit', km: 1.1 }], records: [],
+  },
+  'kt-pf-international': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://kartpfi.com/arrive-n-drive', 'https://kartpfi.com/the-circuit'],
+    layouts: [{ name: 'Circuit', km: 1.382 }], records: [],
+  },
+  'kt-whilton-mill': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.whiltonmill.co.uk/individuals/arrive-drive/', 'https://www.whiltonmill.co.uk/individuals/owner-practice/'],
+    layouts: [{ name: 'International', km: 1.2 }, { name: 'National', km: 0.96 }], records: [],
+  },
+  'kt-shenington': {
+    vehicles: ['kart'], arriveAndDrive: false, source: 'https://sheningtonkrc.co.uk/lap-records', factSources: ['https://sheningtonkrc.co.uk/start-karting.html'],
+    layouts: [{ name: 'Direct drive', km: 1.018 }, { name: 'Gearbox', km: 1.211 }],
+    records: [{ kind: 'outright', layout: 'Direct drive', time: '39.94', holder: 'Mark Litchfield', series: 'Super KF (all-time fastest, class no longer run)', year: 2010 }],
+  },
+  'kt-rowrah': { vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.cumbriakrc.co.uk/arrive-and-drive'], layouts: [], records: [] },
+  'kt-larkhall': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://larkhallcircuit.com/arrive-and-drive/', 'https://larkhallcircuit.com/'],
+    layouts: [{ name: 'Circuit', km: 1.14 }], records: [],
+  },
+  'kt-fulbeck': { vehicles: ['kart'], factSources: ['https://www.fulbeckkartclub.co.uk/'], layouts: [], records: [] },
+  'kt-clay-pigeon': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.claypigeonraceway.com/hire-karts'],
+    layouts: [{ name: 'Circuit', km: 0.815 }], records: [],
+  },
+  'kt-glan-y-gors': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://gygkarting.com/familyfun/arrive-and-drive/', 'https://gygkarting.com/dragon-kart-club-dkc/'],
+    layouts: [{ name: 'Circuit', km: 1.1 }], records: [],
+  },
+  'kt-llandow': {
+    vehicles: ['kart'], arriveAndDrive: false, factSources: ['https://www.llandow.com/karting/'],
+    layouts: [{ name: 'Kart circuit', km: 1.05 }], records: [],
+  },
+  'kt-rissington': { vehicles: ['kart'], factSources: ['https://rissingtonkartclub.co.uk/'], layouts: [], records: [] },
+  'kt-forest-edge': {
+    vehicles: ['kart'], source: 'https://fekc.co.uk/track.html', factSources: ['https://fekc.co.uk/practice.html'], layouts: [],
+    records: [{ kind: 'outright', layout: 'Circuit', time: '36.42', holder: 'James Beacroft', series: 'KZ2', year: 2026 }],
+  },
+  'kt-kimbolton': {
+    vehicles: ['kart'], arriveAndDrive: false, source: 'https://hkrc.co.uk/lap-records/', factSources: ['https://hkrc.co.uk/hkrc-faqs/'], layouts: [],
+    records: [{ kind: 'outright', layout: 'Circuit 1', time: '34.79', holder: 'Noah Wolfe', series: 'KZ UK', year: 2026 }],
+  },
+  'kt-lydd': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://lyddkartcircuit.com/hire-karts/', 'https://lyddkartcircuit.com/owner-drivers/'],
+    layouts: [{ name: 'Senior circuit', km: 1.04 }], records: [],
+  },
+  'kt-bayford-meadows': {
+    vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://bayfordmeadows.co.uk/adult-karting/adult-karting-options', 'https://bayfordmeadows.co.uk/owner-drivers/circuit-rules'],
+    layouts: [{ name: 'Circuit', km: 1.1 }], records: [],
+  },
 };

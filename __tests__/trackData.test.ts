@@ -16,7 +16,7 @@ describe('bundled track details', () => {
       const names = info.layouts.map((l) => l.name);
       for (const r of info.records) {
         expect(info.source).toMatch(/^https:\/\//);
-        expect(names).toContain(r.layout);
+        if (names.length) expect(names).toContain(r.layout);
         expect(recordMs(r.time)).toBeGreaterThan(10_000);
         expect(r.year).toBeGreaterThan(1900);
         expect(r.year).toBeLessThanOrEqual(2026);
@@ -26,11 +26,23 @@ describe('bundled track details', () => {
 
   test('what runs where', () => {
     const byId = (id: string) => tracks.find((t) => t.id === id)!;
-    expect(trackVehicles(byId('tr-silverstone'))).toEqual(['car', 'bike']);
+    expect(trackVehicles(byId('tr-silverstone'))).toEqual(['car', 'bike', 'kart']);
+    expect(trackVehicles(byId('tr-brands-hatch'))).toEqual(['car', 'bike']);
     expect(trackVehicles(byId('tr-shelsley'))).toEqual(['car']);
-    expect(trackVehicles(byId('k-t-buckmore'))).toContain('kart');
+    expect(trackVehicles(byId('k-t-buckmore'))).toEqual(['kart']);
+    expect(trackVehicles(byId('kt-whilton-mill'))).toEqual(['kart']);
+    expect(trackVehicles(byId('tr-teesside'))).toEqual(['car', 'bike', 'kart']);
     expect(matchesVehicles(byId('k-t-buckmore'), ['car'])).toBe(false);
     expect(matchesVehicles(byId('tr-silverstone'), ['bike', 'kart'])).toBe(true);
+  });
+
+  test('kart circuits: at least a dozen, each with a site to check and arrive-and-drive only where the venue says', () => {
+    const karts = tracks.filter((t) => trackVehicles(t).includes('kart') && !trackVehicles(t).includes('car'));
+    expect(karts.length).toBeGreaterThanOrEqual(12);
+    for (const k of karts) expect(TRACK_INFO[k.id]?.factSources?.length).toBeGreaterThan(0);
+    expect(TRACK_INFO['kt-llandow'].arriveAndDrive).toBe(false);
+    expect(TRACK_INFO['kt-pf-international'].arriveAndDrive).toBe(true);
+    expect(TRACK_INFO['kt-rissington'].arriveAndDrive).toBeUndefined();
   });
 
   test('lengths read well', () => {

@@ -227,7 +227,8 @@ function driveStops(prefix: string, d: PlaceSeed) {
 }
 
 const isCircuit = (p: PlaceSeed) => p.kind === 'track' && p.trackType === 'circuit';
-const isSprint = (p: PlaceSeed) => p.kind === 'track' && p.trackType !== 'circuit';
+// Sprint courses and hill climbs only: not kart tracks or oval stadiums.
+const isSprint = (p: PlaceSeed) => p.kind === 'track' && (p.trackType === 'sprint' || p.trackType === 'hillclimb');
 
 /** Sample events: meets moved onto your area, cruises on the nearest real drives, shows and track days at the nearest real venues. */
 function events(now: Date, home: LatLng): NightEvent[] {

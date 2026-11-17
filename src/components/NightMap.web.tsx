@@ -94,6 +94,23 @@ export function NightMap({
           <Pin glyph="you" colour={C.neon} size={40} />
         </View>
       ) : null}
+      {/* The stand-in can't pinch: zoom buttons, so zoom-dependent layers (cameras, circuit outlines) can be checked. */}
+      <View style={{ position: 'absolute', right: 8, top: '42%', gap: 6 }}>
+        {[
+          { label: '+', factor: 0.5 },
+          { label: '−', factor: 2 },
+        ].map((z) => (
+          <Pressable
+            key={z.label}
+            onPress={() => setMoved({ centre, span: Math.min(12, Math.max(0.005, span * z.factor)) })}
+            accessibilityRole="button"
+            accessibilityLabel={z.factor < 1 ? 'Zoom in' : 'Zoom out'}
+            style={{ width: 32, height: 32, borderRadius: 6, borderWidth: 1, borderColor: C.kerb, backgroundColor: 'rgba(11,15,23,0.9)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text style={{ color: C.chalk, fontSize: 18 }}>{z.label}</Text>
+          </Pressable>
+        ))}
+      </View>
       {credit ? (
         <View pointerEvents="none" style={{ position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}>
           <Text style={{ color: C.fog, fontSize: 9 }}>{credit}</Text>

@@ -12,7 +12,7 @@
 //
 // Data © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright).
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLACES } from '../src/data/places.ts';
@@ -29,24 +29,42 @@ const tracks = PLACES.filter((p) => p.kind === 'track');
 /** Big circuits spread further from their pin than a kart track or a stadium oval. */
 const radius = (t) => (t.id.startsWith('tr-') ? 2500 : 1200);
 
+/**
+ * Cached answers list the venues they covered, so adding venues later only
+ * asks Overpass about the new ones.
+ */
+function cachedAnswers() {
+  if (!cacheDir || !existsSync(cacheDir)) return [];
+  return readdirSync(cacheDir)
+    .filter((f) => /^circuits.*\.json$/.test(f))
+    .map((f) => JSON.parse(readFileSync(join(cacheDir, f), 'utf8')));
+}
+
 async function fetchWays() {
-  const file = cacheDir ? join(cacheDir, 'circuits.json') : null;
-  if (file && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8'));
-  const parts = tracks.flatMap((t) => {
-    const around = `around:${radius(t)},${t.at.lat},${t.at.lng}`;
-    return [
-      `way(${around})["highway"="raceway"];`,
-      `way(${around})["leisure"="track"]["sport"~"motor|karting|speedway|motocross|rallycross|drag|stock_car|autocross"];`,
-    ];
-  });
-  const query = `[out:json][timeout:180];\n(\n${parts.join('\n')}\n);\nout geom;`;
-  console.log(`Overpass: ${tracks.length} venues in one query…`);
-  const json = await overpass(query);
-  if (file) {
-    mkdirSync(cacheDir, { recursive: true });
-    writeFileSync(file, JSON.stringify(json));
+  const cached = cachedAnswers();
+  const covered = new Set(cached.flatMap((c) => c.venues ?? []));
+  const missing = tracks.filter((t) => !covered.has(t.id));
+  const answers = [...cached];
+  if (missing.length) {
+    const parts = missing.flatMap((t) => {
+      const around = `around:${radius(t)},${t.at.lat},${t.at.lng}`;
+      return [
+        `way(${around})["highway"="raceway"];`,
+        `way(${around})["leisure"="track"]["sport"~"motor|karting|speedway|motocross|rallycross|drag|stock_car|autocross"];`,
+      ];
+    });
+    const query = `[out:json][timeout:180];\n(\n${parts.join('\n')}\n);\nout geom;`;
+    console.log(`Overpass: ${missing.length} venues in one query…`);
+    const json = { ...(await overpass(query)), venues: missing.map((t) => t.id) };
+    if (cacheDir) {
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(join(cacheDir, `circuits-${Date.now()}.json`), JSON.stringify(json));
+    }
+    answers.push(json);
   }
-  return json;
+  const byId = new Map();
+  for (const a of answers) for (const el of a.elements) byId.set(`${el.type}/${el.id}`, el);
+  return { elements: [...byId.values()] };
 }
 
 const json = await fetchWays();

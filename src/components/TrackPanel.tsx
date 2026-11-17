@@ -91,7 +91,7 @@ function TrackDetails({ spot, outline }: { spot: Spot; outline: TrackOutline | n
           {info?.source ? (
             <Pressable onPress={() => Linking.openURL(info.source!).catch(() => {})} accessibilityRole="link" hitSlop={6}>
               <Txt v="muted" style={{ fontSize: 12, color: C.neon }}>
-                Source: Wikipedia, read {RECORDS_READ_ON} ›
+                Source: {/wikipedia\.org/.test(info.source) ? 'Wikipedia' : info.source.replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '')}, read {RECORDS_READ_ON} ›
               </Txt>
             </Pressable>
           ) : null}
