@@ -1,5 +1,6 @@
-import { seed } from '../src/data/seed';
-import { inferAnchor, isUntouchedDemo, needsRefresh, refreshDemo, REFRESH_AFTER_MS } from '../src/lib/demoTime';
+import { DEMO_HOME, seed } from '../src/data/seed';
+import { roleOf } from '../src/lib/eventView';
+import { inferAnchor, isUntouchedDemo, needsRefresh, refreshDemo, restartDemo, REFRESH_AFTER_MS } from '../src/lib/demoTime';
 import { phaseOf } from '../src/lib/events';
 import type { NightEvent } from '../src/lib/types';
 
@@ -69,5 +70,56 @@ describe('keeping the demo fresh', () => {
 
   test('older saves without an anchor work it out from the live meet', () => {
     expect(inferAnchor(slice(ANCHOR).events)).toEqual(ANCHOR);
+  });
+});
+
+describe('restarting the demo events', () => {
+  test('sample events, chat, votes and spot visits go back to a fresh seed; your own things stay', () => {
+    const s = seed(ANCHOR);
+    const mine: NightEvent = { ...byId(s.events, 'ev-meet-tam'), id: 'ev-mine', title: 'Mine' };
+    const used = {
+      events: [mine, ...s.events.map((e) => (e.id === 'ev-rolling-host' ? { ...e, currentStop: 1, checkIns: { me: ['rh-1'] } } : e))],
+      chat: [...s.chat, { id: 'x1', eventId: 'ev-mine', userId: 'me', text: 'mine', at: ANCHOR.toISOString() }, { id: 'x2', eventId: 'ev-rolling-live', userId: 'me', text: 'old', at: ANCHOR.toISOString() }],
+      votes: s.votes,
+      spots: [
+        ...s.spots.map((x) => (x.id === 'sr-snake' ? { ...x, completions: [...x.completions, { userId: 'me', on: '2026-11-17' }] } : x)),
+        { ...s.spots[0], id: 'sp-mine', authorId: 'me', name: 'Mine' },
+      ],
+    };
+    const out = restartDemo(used, LATER);
+    const again = seed(LATER);
+    expect(out.events.map((e) => e.id).sort()).toEqual(['ev-mine', ...again.events.map((e) => e.id)].sort());
+    expect(byId(out.events, 'ev-rolling-host')).toEqual(byId(again.events, 'ev-rolling-host'));
+    expect(byId(out.events, 'ev-mine')).toBe(mine);
+    expect(out.chat.map((m) => m.id)).toContain('x1');
+    expect(out.chat.map((m) => m.id)).not.toContain('x2');
+    expect(out.spots.find((x) => x.id === 'sr-snake')!.completions.some((c) => c.userId === 'me')).toBe(false);
+    expect(out.spots.some((x) => x.id === 'sp-mine')).toBe(true);
+    expect(phaseOf(byId(out.events, 'ev-rolling-live'), LATER)).toBe('live');
+  });
+});
+
+describe('the sample scene', () => {
+  test('has an invite a few hours away that you are not going to yet', () => {
+    const e = byId(seed(ANCHOR).events, 'ev-meet-soon');
+    const hours = (new Date(e.startsAt).getTime() - ANCHOR.getTime()) / 3_600_000;
+    expect(hours).toBeGreaterThanOrEqual(2);
+    expect(hours).toBeLessThanOrEqual(4);
+    expect(e.going).not.toContain('me');
+    expect(phaseOf(e, ANCHOR)).toBe('upcoming');
+    const s = seed(ANCHOR);
+    const users = s.users.map((u) => (u.id === 'me' ? { ...u, home: DEMO_HOME } : u));
+    expect(roleOf(e, 'me', s.crews, users, s.builds)).toBe('invited');
+  });
+
+  test('the Sunday meet is on a Sunday, at least two days back', () => {
+    for (let d = 0; d < 7; d++) {
+      const now = new Date(2026, 10, 15 + d, 21, 0);
+      const e = byId(seed(now).events, 'ev-past-snowdome');
+      const start = new Date(e.startsAt);
+      expect(start.getDay()).toBe(0);
+      expect(now.getTime() - start.getTime()).toBeGreaterThanOrEqual(2 * 86_400_000 - 3 * 3_600_000);
+      expect(phaseOf(e, now)).toBe('over');
+    }
   });
 });

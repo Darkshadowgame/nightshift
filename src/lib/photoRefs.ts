@@ -25,3 +25,12 @@ export function nameFromPath(ref: string): string | null {
 export function newPhotoName(random: () => number = Math.random, now = Date.now()): string {
   return `ph-${now.toString(36)}${Math.floor(random() * 36 ** 6).toString(36).padStart(6, '0')}.jpg`;
 }
+
+/**
+ * Photos a save no longer uses, so their files can go. Only our stored names,
+ * and never one still used elsewhere (e.g. by another build or a spot visit).
+ */
+export function droppedPhotos(before: string[], after: string[], stillUsed: string[] = []): string[] {
+  const keep = new Set([...after, ...stillUsed]);
+  return Array.from(new Set(before.filter((ref) => isStoredName(ref) && !keep.has(ref))));
+}

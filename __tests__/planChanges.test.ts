@@ -2,6 +2,8 @@ import {
   applyEventEdit, applyPlanChange, banZoneAt, canEditEvent, canMoveStop, canRemoveStop, canSeeStop, checkIn, eventLink,
   moveOn, PLAN_CHANGED_TEXT, planChangedMessage, shareText, stopsFromDraft,
 } from '../src/lib/events';
+import { areaGivesAway } from '../src/lib/area';
+import { milesBetween } from '../src/lib/geo';
 import { DEFAULT_FILTER } from '../src/lib/invites';
 import type { BanZone, Crew, NightEvent } from '../src/lib/types';
 
@@ -52,6 +54,19 @@ describe('changing a rolling meet on the night', () => {
     expect(canMoveStop(e, 1).ok).toBe(true);
     // The meet has left stop 1.
     expect(canMoveStop(rolling({ currentStop: 1 }), 0).ok).toBe(false);
+  });
+
+  test('adding or moving a stop works the rough area out again', () => {
+    const far = { lat: 52.9, lng: -1.4 };
+    const added = applyPlanChange(rolling(), { kind: 'add', name: 'Far', at: far }, 'host', NOW, zones, makeId).event;
+    expect(milesBetween(added.area, far)).toBeLessThanOrEqual(added.areaRadiusMiles!);
+    expect(areaGivesAway(added)).toBe(false);
+    const moved = applyPlanChange(rolling(), { kind: 'move', stopId: 's1', at: { lat: 52.6, lng: -1.7 } }, 'host', NOW, zones, makeId).event;
+    expect(areaGivesAway(moved)).toBe(false);
+    for (const st of moved.stops) expect(milesBetween(moved.area, st.at!)).toBeLessThanOrEqual(moved.areaRadiusMiles!);
+    // Renaming leaves the area alone.
+    const renamed = applyPlanChange(rolling(), { kind: 'rename', stopId: 's1', name: 'Uno' }, 'host', NOW, zones, makeId).event;
+    expect(renamed.area).toEqual(rolling().area);
   });
 
   test('the current stop with nobody checked in can move', () => {

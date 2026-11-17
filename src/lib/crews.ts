@@ -1,5 +1,13 @@
 import type { Crew, CrewRole, NightEvent, User } from './types';
 
+/** Mirrors events.ts phase rules without importing it (events.ts imports this file). */
+const EVENT_LENGTH_MS = 4 * 60 * 60 * 1000;
+function stillOn(e: NightEvent, now: Date): boolean {
+  if (e.cancelled) return false;
+  const end = e.endsAt ? new Date(e.endsAt).getTime() : new Date(e.startsAt).getTime() + EVENT_LENGTH_MS;
+  return now.getTime() < end;
+}
+
 /**
  * Crews. Someone is in at most one crew. Membership is kept in two places
  * (crew.memberIds and user.crewId), so every change goes through here to keep
@@ -106,4 +114,35 @@ export function crewEvents(crew: Crew, events: NightEvent[]): NightEvent[] {
 /** Crews with the most members first, then by name. */
 export function sortCrews(crews: Crew[]): Crew[] {
   return [...crews].sort((a, b) => b.memberIds.length - a.memberIds.length || a.name.localeCompare(b.name));
+}
+
+/**
+ * Events you'd stop hosting if you left your crew (or joined or started
+ * another): crew events you host only through your crew role. Events that name
+ * you as a host stay yours. Upcoming and live only.
+ */
+export function crewHostLoss(userId: string, state: CrewState, events: NightEvent[], now: Date): NightEvent[] {
+  const crewId = state.users.find((u) => u.id === userId)?.crewId;
+  const crew = state.crews.find((c) => c.id === crewId);
+  if (!crew || !isCrewHost(crew, userId)) return [];
+  return events.filter((e) => e.crewId === crew.id && !e.hostIds.includes(userId) && stillOn(e, now));
+}
+
+/** People not in any crew, who could be asked to join one. */
+export function crewless(state: CrewState, except: string[] = []): User[] {
+  return state.users.filter((u) => !u.crewId && !except.includes(u.id));
+}
+
+/**
+ * Demo only: the owner or a host adds someone who isn't in a crew. With a
+ * backend this becomes an invite they accept. Throws with a readable reason.
+ */
+export function addToCrew(state: CrewState, actorId: string, crewId: string, userId: string): CrewState {
+  const crew = state.crews.find((c) => c.id === crewId);
+  if (!crew) throw new Error('That crew no longer exists.');
+  if (!isCrewHost(crew, actorId)) throw new Error('Only the owner and hosts can bring people in.');
+  const user = state.users.find((u) => u.id === userId);
+  if (!user) throw new Error('They are not on Nightshift any more.');
+  if (user.crewId) throw new Error('They are already in a crew.');
+  return joinCrew(state, userId, crewId);
 }

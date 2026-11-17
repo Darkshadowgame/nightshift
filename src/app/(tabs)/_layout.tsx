@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
 import { Pin, type Glyph } from '../../components/Pin';
-import { useStore } from '../../lib/store';
 import { C, F } from '../../theme';
 
 function icon(glyph: Glyph) {
@@ -8,8 +7,6 @@ function icon(glyph: Glyph) {
 }
 
 export default function TabsLayout() {
-  const { notices } = useStore();
-  const unread = notices.filter((n) => !n.read).length;
   return (
     <Tabs
       screenOptions={{
@@ -27,7 +24,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Map', headerShown: false, tabBarIcon: icon('you') }} />
       <Tabs.Screen
         name="events"
-        options={{ title: 'Events', tabBarIcon: icon('meet'), tabBarBadge: unread > 0 ? unread : undefined, tabBarBadgeStyle: { backgroundColor: C.sodium, color: C.ink } }}
+        options={{ title: 'Events', tabBarIcon: icon('meet') }}
       />
       <Tabs.Screen name="garage" options={{ title: 'Garage', tabBarIcon: icon('track') }} />
       <Tabs.Screen name="me" options={{ title: 'Me', tabBarIcon: icon('area') }} />

@@ -54,7 +54,7 @@ export async function syncReminders(wanted: Reminder[]): Promise<void> {
   for (const key of plan.cancel) await Notifications.cancelScheduledNotificationAsync(key);
   for (const r of plan.schedule) {
     await Notifications.scheduleNotificationAsync({
-      identifier: r.key,
+      identifier: r.scheduleId,
       content: content(r),
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.at },
     });
@@ -64,7 +64,7 @@ export async function syncReminders(wanted: Reminder[]): Promise<void> {
 /** Show a notification now (e.g. "the meet moved on"). */
 export async function notifyNow(r: Reminder): Promise<void> {
   if (!(await permissionGranted())) return;
-  await Notifications.scheduleNotificationAsync({ identifier: r.key, content: content(r), trigger: null });
+  await Notifications.scheduleNotificationAsync({ identifier: r.scheduleId, content: content(r), trigger: null });
 }
 
 /** Calls `open(url)` when someone taps a notification, including the one that launched the app. */

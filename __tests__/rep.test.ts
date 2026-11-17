@@ -1,5 +1,6 @@
 import { DEFAULT_FILTER } from '../src/lib/invites';
-import { authorRep, levelFor, repForLevel, repLedger, REP, routeScore, validRatings, ROUTE_APPROVED_REP } from '../src/lib/rep';
+import { attendedEvents, authorRep, hostedEvents, levelFor, repForLevel, repLedger, REP, routeScore, validRatings, ROUTE_APPROVED_REP } from '../src/lib/rep';
+import { publicProfile } from '../src/lib/people';
 import type { NightEvent } from '../src/lib/types';
 
 const people = (n: number, prefix = 'u') => Array.from({ length: n }, (_, i) => `${prefix}${i}`);
@@ -99,5 +100,33 @@ describe('rep ledger and levels', () => {
     expect(levelFor(249).level).toBe(1);
     expect(levelFor(250).level).toBe(2);
     expect(levelFor(1000)).toMatchObject({ level: 3, floor: 750, next: 1500, progress: 250 / 750 });
+  });
+});
+
+describe('rep and public profile agree', () => {
+  const NOW = new Date('2026-11-20T22:00:00Z');
+  const home = { lat: 52.6, lng: -1.7 };
+  const ev = (id: string, startsAt: string, endsAt: string, extra: Partial<NightEvent> = {}): NightEvent => ({
+    id, type: 'meet', title: id, startsAt, endsAt, area: home, areaName: '',
+    stops: [{ id: `${id}-s`, name: 'Stop', at: home }], currentStop: 0, revealMinutesBefore: 60, hostIds: ['x'],
+    filter: DEFAULT_FILTER, going: ['me'], checkIns: { me: [`${id}-s`] }, ...extra,
+  });
+  const crews = [{ id: 'c', name: 'C', tag: 'CC', memberIds: ['me', 'x'], ownerId: 'x', hostIds: ['me'] }];
+  const events = [
+    ev('done', '2026-11-10T20:00:00Z', '2026-11-10T23:00:00Z', { crewId: 'c' }),
+    ev('live', '2026-11-20T21:00:00Z', '2026-11-21T01:00:00Z'),
+  ];
+
+  test('attended and hosted count finished events only, crew hosts included', () => {
+    expect(attendedEvents(events, 'me', NOW).map((e) => e.id)).toEqual(['done']);
+    expect(hostedEvents(events, 'me', crews, NOW).map((e) => e.id)).toEqual(['done']);
+    const ledger = repLedger('me', { now: NOW, events, spots: [], builds: [], awards: [], crews });
+    const by = Object.fromEntries(ledger.lines.map((l) => [l.source, l]));
+    expect(by.attended.count).toBe(1);
+    expect(by.hosted.count).toBe(1);
+    const users = [{ id: 'me', handle: 'me', name: 'Me', region: 'Midlands', home, crewId: 'c' }];
+    const p = publicProfile('me', users, [], crews, events, [], NOW)!;
+    expect(p.meetsAttended).toBe(by.attended.count);
+    expect(p.hosted).toBe(by.hosted.count);
   });
 });

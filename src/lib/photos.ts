@@ -58,6 +58,20 @@ function keep(uri: string): string {
   return name;
 }
 
+/** Delete stored photos (file names in our photos folder). Best effort; anything else is left alone. */
+export function deletePhotos(refs: string[]): void {
+  if (!native) return;
+  for (const ref of refs) {
+    if (!isStoredName(ref)) continue;
+    try {
+      const f = new File(Paths.document, PHOTO_DIR, ref);
+      if (f.exists) f.delete();
+    } catch {
+      // A file we can't delete just stays; it isn't shown anywhere.
+    }
+  }
+}
+
 /** The URI to show for a stored photo. */
 export function photoUri(ref: string): string {
   if (!native || !isStoredName(ref)) return ref;

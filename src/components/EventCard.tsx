@@ -9,12 +9,17 @@ import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import { Row, Txt } from './ui';
 
-const ROLE_TEXT = { host: 'Hosting', going: 'Going', invited: 'Invited', public: 'Public', none: '' } as const;
+const ROLE_TEXT = { host: 'Hosting', going: 'Going', invited: 'Invited', public: 'Public', requested: 'Requested', declined: 'Declined', none: '' } as const;
 
 export function EventCard({ view, now }: { view: EventView; now: Date }) {
   const { event: e, role, phase, shownStop } = view;
   const colour = EVENT_COLOURS[e.type];
-  const place = shownStop >= 0 ? e.stops[shownStop].name : `${e.areaName} · location locked`;
+  const place =
+    shownStop >= 0
+      ? e.stops[shownStop].name
+      : role === 'requested'
+        ? `${e.areaName} · waiting for a host to say yes`
+        : `${e.areaName} · location locked`;
   const when = phase === 'live' ? 'Live now' : phase === 'cancelled' ? 'Cancelled' : phase === 'over' ? 'Finished' : formatWhen(e.startsAt, now);
   return (
     <Pressable
@@ -34,7 +39,7 @@ export function EventCard({ view, now }: { view: EventView; now: Date }) {
         <View style={{ flex: 1, gap: 4 }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Txt v="label" style={{ color: colour }}>{EVENT_LABELS[e.type]}</Txt>
-            <Txt v="label" style={{ color: role === 'host' ? C.neon : C.fog }}>{ROLE_TEXT[role]}</Txt>
+            <Txt v="label" style={{ color: role === 'host' ? C.neon : role === 'requested' ? C.sodium : role === 'declined' ? C.alert : C.fog }}>{ROLE_TEXT[role]}</Txt>
           </Row>
           <Txt v="h3">{e.title}</Txt>
           <Txt v="mono" style={{ color: phase === 'live' ? C.neon : C.chalk }}>

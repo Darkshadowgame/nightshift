@@ -1,7 +1,7 @@
 import { awardRep, type Award } from './awards';
-import { phaseOf } from './events';
+import { isHost, phaseOf } from './events';
 import { hasCompleted, statsOf } from './spots';
-import type { Build, NightEvent, Spot } from './types';
+import type { Build, Crew, NightEvent, Spot } from './types';
 
 /**
  * Rep for people who suggest drives and photo spots (Phase 3 feature; the maths lives here now).
@@ -105,6 +105,8 @@ export interface RepInputs {
   builds: Build[];
   awards: Award[];
   now: Date;
+  /** For crew events: the crew's owner and hosts count as hosts. */
+  crews?: Crew[];
 }
 
 function checkedInAt(e: NightEvent, userId: string): boolean {
@@ -115,12 +117,24 @@ function crowd(e: NightEvent): number {
   return Object.values(e.checkIns).filter((ids) => ids.length > 0).length;
 }
 
+/**
+ * One rule for "meets attended" and "events hosted", used by the rep ledger and
+ * by public profiles so the numbers agree: finished events only (not
+ * cancelled). Attended means checked in; hosted includes crew hosts.
+ */
+export function attendedEvents(events: NightEvent[], userId: string, now: Date): NightEvent[] {
+  return events.filter((e) => phaseOf(e, now) === 'over' && checkedInAt(e, userId));
+}
+
+export function hostedEvents(events: NightEvent[], userId: string, crews: Crew[], now: Date): NightEvent[] {
+  return events.filter((e) => phaseOf(e, now) === 'over' && isHost(e, userId, crews));
+}
+
 /** Every source of someone's rep, with counts. Pure, so it's the same on every phone. */
 export function repLedger(userId: string, input: RepInputs): RepLedger {
-  const live = input.events.filter((e) => !e.cancelled);
-  const attended = live.filter((e) => checkedInAt(e, userId)).length;
+  const attended = attendedEvents(input.events, userId, input.now).length;
 
-  const hosted = live.filter((e) => e.hostIds.includes(userId) && phaseOf(e, input.now) === 'over');
+  const hosted = hostedEvents(input.events, userId, input.crews ?? [], input.now);
   const hostedRep = hosted.reduce((s, e) => s + (crowd(e) >= REP.hostedBigCrowd ? REP.hostedBig : REP.hostedSmall), 0);
 
   // Your own places don't pay you for driving or visiting them.

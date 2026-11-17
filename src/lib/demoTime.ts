@@ -1,6 +1,6 @@
 import { seed, SEED_EVENT_IDS } from '../data/seed';
 import type { Vote } from './awards';
-import type { ChatMessage, NightEvent } from './types';
+import type { ChatMessage, NightEvent, Spot } from './types';
 
 /**
  * Keeps the demo scene fresh. The seed is laid out relative to when it was made
@@ -84,4 +84,34 @@ export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date): DemoSlic
     return d ? { ...v, at: shift(v.at, d) } : v;
   });
   return { events, chat, votes };
+}
+
+export interface RestartSlice extends DemoSlice {
+  spots: Spot[];
+}
+
+/**
+ * "Restart the demo events": lay the sample events out again as if the demo
+ * was installed now, with their seeded chat, votes and check-ins, and put the
+ * sample drives and photo spots back to their seeded visits and ratings.
+ * Everything you made stays: events and places you created, and (outside this
+ * slice) your profile, builds, photos and crews.
+ */
+export function restartDemo(slice: RestartSlice, now: Date): RestartSlice {
+  const fresh = seed(now);
+  const seedSpots = new Map(fresh.spots.map((x) => [x.id, x]));
+  return {
+    events: [...slice.events.filter((e) => !SEED_IDS.has(e.id)), ...fresh.events],
+    chat: [...slice.chat.filter((m) => !SEED_IDS.has(m.eventId)), ...fresh.chat],
+    votes: [...slice.votes.filter((v) => !SEED_IDS.has(v.eventId)), ...fresh.votes],
+    spots: [
+      ...slice.spots.map((x) => seedSpots.get(x.id) ?? x),
+      ...fresh.spots.filter((x) => !slice.spots.some((y) => y.id === x.id)),
+    ],
+  };
+}
+
+/** Is this one of the sample events (as opposed to one made on the phone)? */
+export function isSeedEvent(eventId: string): boolean {
+  return SEED_IDS.has(eventId);
 }

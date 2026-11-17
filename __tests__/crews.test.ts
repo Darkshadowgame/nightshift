@@ -1,4 +1,4 @@
-import { createCrew, crewEvents, crewProblem, crewRole, isCrewHost, joinCrew, leaveCrew, normaliseTag, setCrewHost, sortCrews, withRoles } from '../src/lib/crews';
+import { addToCrew, createCrew, crewEvents, crewHostLoss, crewless, crewProblem, crewRole, isCrewHost, joinCrew, leaveCrew, normaliseTag, setCrewHost, sortCrews, withRoles } from '../src/lib/crews';
 import { isHost } from '../src/lib/events';
 import { DEFAULT_FILTER } from '../src/lib/invites';
 import type { Crew, NightEvent, User } from '../src/lib/types';
@@ -103,5 +103,54 @@ describe('crews', () => {
     test('crews saved before roles get their first member as owner', () => {
       expect(withRoles({ id: 'x', name: 'Old', tag: 'OLD', memberIds: ['a', 'b'] })).toMatchObject({ ownerId: 'a', hostIds: [] });
     });
+  });
+});
+
+describe('crew host rights when you move crews', () => {
+  const now = new Date('2026-11-20T20:00:00Z');
+  const ev = (id: string, hostIds: string[], startsInMin: number, extra: Partial<NightEvent> = {}): NightEvent => ({
+    id, type: 'meet', title: id, startsAt: new Date(now.getTime() + startsInMin * 60_000).toISOString(),
+    area: home, areaName: 'Here', stops: [{ id: `${id}-s`, name: 'Spot', at: home }], currentStop: 0, revealMinutesBefore: 60,
+    hostIds, crewId: 'a', filter: DEFAULT_FILTER, going: [], checkIns: {}, ...extra,
+  });
+  const roled: Crew[] = [{ id: 'a', name: 'Alpha', tag: 'ALP', memberIds: ['me', 'x'], ownerId: 'x', hostIds: ['me'] }, crews[1]];
+  const events = [
+    ev('crew-only', ['x'], 30),
+    ev('named', ['x', 'me'], 30),
+    ev('finished', ['x'], -600),
+    ev('cancelled', ['x'], 30, { cancelled: true }),
+  ];
+
+  test('lists only crew events you host through the crew, still to come', () => {
+    expect(crewHostLoss('me', { crews: roled, users }, events, now).map((e) => e.id)).toEqual(['crew-only']);
+  });
+
+  test('after leaving, named co-host rights stay and crew-only ones go', () => {
+    const left = leaveCrew({ crews: roled, users }, 'me');
+    expect(isHost(events[1], 'me', left.crews)).toBe(true);
+    expect(isHost(events[0], 'me', left.crews)).toBe(false);
+  });
+
+  test('plain members lose nothing', () => {
+    const plain: Crew[] = [{ ...roled[0], hostIds: [] }];
+    expect(crewHostLoss('me', { crews: plain, users }, events, now)).toEqual([]);
+  });
+});
+
+describe('bringing sample people into your crew (demo)', () => {
+  test('the owner adds someone crewless, who can then be made a host', () => {
+    const started = createCrew({ crews, users }, 'me', 'Night Owls', 'owl', 'c');
+    expect(crewless(started, ['me']).map((u) => u.id)).toEqual(['y']);
+    const added = addToCrew(started, 'me', 'c', 'y');
+    expect(added.crews.find((c) => c.id === 'c')!.memberIds).toEqual(['me', 'y']);
+    expect(added.users.find((u) => u.id === 'y')!.crewId).toBe('c');
+    const hosted = setCrewHost(added, 'me', 'c', 'y', true);
+    expect(crewRole(hosted.crews.find((c) => c.id === 'c')!, 'y')).toBe('host');
+  });
+
+  test('only owners and hosts add people, and never someone already in a crew', () => {
+    const started = createCrew({ crews, users }, 'me', 'Night Owls', 'owl', 'c');
+    expect(() => addToCrew(started, 'y', 'c', 'y')).toThrow('Only the owner');
+    expect(() => addToCrew(started, 'me', 'c', 'x')).toThrow('already in a crew');
   });
 });

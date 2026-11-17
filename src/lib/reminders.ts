@@ -15,8 +15,14 @@ export type ReminderKind = 'reveal' | 'soon' | 'moved';
 export const SOON_MINUTES = 30;
 
 export interface Reminder {
-  /** Stable id. Changes whenever the time or text changes, so edits reschedule. */
+  /**
+   * Stable id for the in-app list: the event and the kind of reminder (and the
+   * stop, for "moved on"). It doesn't include the time, so the demo moving its
+   * times back into place never adds the same reminder to the list twice.
+   */
   key: string;
+  /** Id of the scheduled phone notification. Changes whenever the time or text changes, so edits reschedule. */
+  scheduleId: string;
   eventId: string;
   kind: ReminderKind;
   at: Date;
@@ -37,9 +43,14 @@ function hash(text: string): string {
   return (h >>> 0).toString(36);
 }
 
-function make(event: NightEvent, kind: ReminderKind, at: Date, title: string, body: string): Reminder {
+export function reminderKey(eventId: string, kind: ReminderKind, stop?: number): string {
+  return `ns.${eventId}.${kind}${stop === undefined ? '' : `.${stop}`}`;
+}
+
+function make(event: NightEvent, kind: ReminderKind, at: Date, title: string, body: string, stop?: number): Reminder {
   return {
-    key: `ns.${event.id}.${kind}.${at.getTime().toString(36)}.${hash(title + body)}`,
+    key: reminderKey(event.id, kind, stop),
+    scheduleId: `ns.${event.id}.${kind}.${at.getTime().toString(36)}.${hash(title + body)}`,
     eventId: event.id,
     kind,
     at,
@@ -123,11 +134,11 @@ export interface ReminderPlan {
  */
 export function planReminders(scheduledKeys: string[], wanted: Reminder[]): ReminderPlan {
   const keep = wanted.slice(0, MAX_SCHEDULED);
-  const want = new Set(keep.map((r) => r.key));
+  const want = new Set(keep.map((r) => r.scheduleId));
   const have = new Set(scheduledKeys.filter((k) => k.startsWith('ns.')));
   return {
     cancel: [...have].filter((k) => !want.has(k)),
-    schedule: keep.filter((r) => !have.has(r.key)),
+    schedule: keep.filter((r) => !have.has(r.scheduleId)),
   };
 }
 
@@ -138,11 +149,20 @@ export const NEWS_WINDOW_MS = 6 * 60 * 60 * 1000;
  * Reminders that have come due and aren't in the in-app list yet, so the list
  * matches what the phone showed (or would have shown).
  */
-export function dueReminders(events: NightEvent[], me: string, crews: Crew[], now: Date, seenKeys: Set<string>): Reminder[] {
+export function dueReminders(
+  events: NightEvent[],
+  me: string,
+  crews: Crew[],
+  now: Date,
+  seenKeys: Set<string>,
+  /** Reminders from before this (e.g. before the person joined) aren't news. */
+  since?: Date,
+): Reminder[] {
   const t = now.getTime();
+  const from = since?.getTime() ?? -Infinity;
   return events
     .flatMap((e) => remindersFor(e, me, crews))
-    .filter((r) => r.at.getTime() <= t && t - r.at.getTime() < NEWS_WINDOW_MS && !seenKeys.has(r.key))
+    .filter((r) => r.at.getTime() <= t && r.at.getTime() >= from && t - r.at.getTime() < NEWS_WINDOW_MS && !seenKeys.has(r.key))
     .sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
@@ -157,5 +177,32 @@ export function movedOnReminder(before: NightEvent, me: string, now: Date): Remi
   const next = before.currentStop + 2;
   const title = `${before.title} moved on`;
   const body = `Stop ${next} is unlocked. Open Nightshift to see where.`;
-  return make(before, 'moved', now, title, body);
+  return make(before, 'moved', now, title, body, before.currentStop + 1);
+}
+
+/**
+ * Older saves keyed list entries by time ("ns.<event>.<kind>.<time>.<hash>"),
+ * so each time the demo moved its times the same reminder landed again.
+ * Turn those keys into the stable form and drop the repeats, newest first.
+ * "Moved on" entries are left alone: each one was a real move.
+ */
+export function stableNoticeKey(key: string): string {
+  const m = key.match(/^ns\.([^.]+)\.(reveal|soon)\.[0-9a-z]+\.[0-9a-z]+$/);
+  return m ? reminderKey(m[1], m[2] as ReminderKind) : key;
+}
+
+export function dedupeNotices<T extends { key?: string }>(notices: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const n of notices) {
+    if (!n.key) {
+      out.push(n);
+      continue;
+    }
+    const key = stableNoticeKey(n.key);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key === n.key ? n : { ...n, key });
+  }
+  return out;
 }

@@ -1,8 +1,17 @@
-import { activeStopIndex, canSeeStop, isHost, isPublicType, phaseOf, type Phase } from './events';
+import { activeStopIndex, canSeeStop, hasRequested, isHost, isPublicType, phaseOf, type Phase } from './events';
 import { invitees } from './invites';
 import type { Build, Crew, NightEvent, User } from './types';
 
-export type Role = 'host' | 'going' | 'invited' | 'public' | 'none';
+/**
+ * How this person relates to an event. `requested`: they asked to go and a host
+ * hasn't answered. `declined`: a host said no. Neither can see the place.
+ */
+export type Role = 'host' | 'going' | 'invited' | 'public' | 'requested' | 'declined' | 'none';
+
+/** Roles that can tap "I'm going" and go straight in. */
+export function canJoinDirectly(role: Role): boolean {
+  return role === 'host' || role === 'going' || role === 'invited' || role === 'public';
+}
 
 export interface EventView {
   event: NightEvent;
@@ -18,6 +27,8 @@ export function roleOf(event: NightEvent, me: string, crews: Crew[], users: User
   if (isPublicType(event.type)) return 'public';
   const meUser = users.find((u) => u.id === me);
   if (meUser && invitees([meUser], builds, event.filter, event.area).userIds.includes(me)) return 'invited';
+  if (hasRequested(event, me)) return 'requested';
+  if (event.declined?.includes(me)) return 'declined';
   return 'none';
 }
 
@@ -56,6 +67,9 @@ export function newlyUnlocked(
   seen: string[],
 ): string[] {
   if (isHost(event, me, crews) || isPublicType(event.type)) return [];
+  // A finished or cancelled event has nothing left to unlock.
+  const phase = phaseOf(event, now);
+  if (phase === 'over' || phase === 'cancelled') return [];
   return event.stops
     .filter((s, i) => canSeeStop(event, i, me, crews, now) && !seen.includes(s.id))
     .map((s) => s.id);

@@ -1,5 +1,5 @@
 import { awardRep, hasLegend, type Award } from './awards';
-import { phaseOf } from './events';
+import { attendedEvents, hostedEvents } from './rep';
 import type { Build, Crew, NightEvent, User } from './types';
 
 /**
@@ -34,7 +34,6 @@ export function publicProfile(
 ): PublicProfile | null {
   const user = users.find((u) => u.id === userId);
   if (!user) return null;
-  const finished = events.filter((e) => phaseOf(e, now) === 'over');
   return {
     id: user.id,
     handle: user.handle,
@@ -45,7 +44,7 @@ export function publicProfile(
     trophies: awards.filter((a) => a.ownerId === userId),
     awardRep: awardRep(awards, userId),
     legend: hasLegend(awards, userId, now),
-    meetsAttended: finished.filter((e) => (e.checkIns[userId] ?? []).length > 0).length,
-    hosted: finished.filter((e) => e.hostIds.includes(userId)).length,
+    meetsAttended: attendedEvents(events, userId, now).length,
+    hosted: hostedEvents(events, userId, crews, now).length,
   };
 }

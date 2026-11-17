@@ -1,3 +1,4 @@
+import { eventArea } from './area';
 import { isCrewHost } from './crews';
 import { milesBetween } from './geo';
 import type { BanZone, ChatMessage, Crew, EventType, LatLng, NightEvent, PlanChangeLog, Stop } from './types';
@@ -303,8 +304,12 @@ export function applyPlanChange(
   }
 
   const log: PlanChangeLog = { id: makeId(), at: now.toISOString(), by, text, banZone: zone?.name };
+  // Added or moved stops: work the rough area out again so it still holds every
+  // stop and never sits on one (the same rule as when the event was made).
+  const placed = stops.flatMap((st) => (st.at ? [st.at] : []));
+  const area = (change.kind === 'add' || change.kind === 'move') && placed.length ? eventArea(placed, event.id, isPublicType(event.type)) : {};
   return {
-    event: { ...event, stops, changes: [...(event.changes ?? []), log] },
+    event: { ...event, ...area, stops, changes: [...(event.changes ?? []), log] },
     log,
     warning: zone ? banZoneWarning(placeName, zone) : undefined,
   };

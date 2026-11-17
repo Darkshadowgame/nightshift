@@ -8,20 +8,20 @@ import { Card, Row, Txt } from './ui';
 
 /** Everyone's rep, worked out from the store. */
 export function useRepFor(): (userId: string) => { ledger: RepLedger; level: LevelInfo } {
-  const { events, spots, builds, votes, now } = useStore();
+  const { events, spots, builds, votes, now, crews } = useStore();
   return useMemo(() => {
     const awards = allAwards(votes, events, builds, now);
     const cache = new Map<string, { ledger: RepLedger; level: LevelInfo }>();
     return (userId: string) => {
       let hit = cache.get(userId);
       if (!hit) {
-        const ledger = repLedger(userId, { events, spots, builds, awards, now });
+        const ledger = repLedger(userId, { events, spots, builds, awards, now, crews });
         hit = { ledger, level: levelFor(ledger.total) };
         cache.set(userId, hit);
       }
       return hit;
     };
-  }, [events, spots, builds, votes, now]);
+  }, [events, spots, builds, votes, now, crews]);
 }
 
 export function useRep(userId: string) {

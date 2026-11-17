@@ -12,6 +12,13 @@ import { isPublicType } from '../lib/events';
 
 export const ME = 'me';
 
+/**
+ * Where the sample scene is: around Tamworth in the Midlands. First run starts
+ * your rough home area here so the invites and the map have something in them.
+ */
+export const DEMO_HOME = { lat: 52.63, lng: -1.7 };
+export const DEMO_REGION = 'Midlands';
+
 type ModSpec = [ModCategory, string, number?];
 
 interface BuildSpec {
@@ -191,7 +198,7 @@ const SPOT_SEEDS: SpotSeed[] = [
   },
   {
     id: 'sr-snake', kind: 'drive', name: 'Snake Pass (A57)', miles: 12.4, at: { lat: 53.4325, lng: -1.8689 }, authorId: 'dan',
-    description: 'Glossop to Ladybower over the moors. Rep for finishing it at the speed limit. Never timed.',
+    description: 'Glossop to Ladybower over the moors. Rep for finishing it within the speed limits. Never timed.',
     path: [{ lat: 53.444, lng: -1.929 }, { lat: 53.4325, lng: -1.8689 }, { lat: 53.413, lng: -1.813 }, { lat: 53.395, lng: -1.765 }, { lat: 53.379, lng: -1.727 }],
     done: [['aimee', 5], ['mo', 5], ['sully', 4], ['cal', 5], ['tom', 4], ['kez', 5], ['em', 4], ['liv', 5], ['gaz'], ['dan', 5]],
   },
@@ -232,13 +239,20 @@ function at(now: Date, dayOffset: number, hour: number, minute = 0): string {
   return d.toISOString();
 }
 
+/** The most recent Sunday at least `minDaysBack` days ago, at this time of day. */
+function lastSunday(now: Date, minDaysBack: number, hour: number, minute = 0): string {
+  let back = now.getDay(); // days since Sunday
+  if (back < minDaysBack) back += 7;
+  return at(now, -back, hour, minute);
+}
+
 function minutesFrom(now: Date, minutes: number): string {
   return new Date(now.getTime() + minutes * 60_000).toISOString();
 }
 
 /** Seed event ids: everything else in the events list was made on the phone. */
 export const SEED_EVENT_IDS = [
-  'ev-rolling-live', 'ev-rolling-host', 'ev-cruise-peak', 'ev-meet-tam', 'ev-bike-cat', 'ev-past-snowdome', 'ev-show-don', 'ev-track-curb',
+  'ev-rolling-live', 'ev-rolling-host', 'ev-meet-soon', 'ev-cruise-peak', 'ev-meet-tam', 'ev-bike-cat', 'ev-past-snowdome', 'ev-show-don', 'ev-track-curb',
 ];
 
 /** Rough areas are worked out the same way as for events made in the app: fuzzed, never on a stop. */
@@ -280,6 +294,17 @@ function events(now: Date): NightEvent[] {
       requests: ['ash'],
     },
     {
+      // An invite a few hours away that you aren't going to yet: tap Going to try the reminders and the reveal.
+      id: 'ev-meet-soon', type: 'meet', title: 'Coffee and cars, late edition',
+      description: 'Open to any car or bike near Tamworth. Arranged with the site. Park up, no revving, leave it clean.',
+      startsAt: minutesFrom(now, 180), endsAt: minutesFrom(now, 330),
+      area: { lat: 52.63, lng: -1.69 }, areaName: 'Tamworth',
+      stops: [{ id: 'ms-1', name: 'Tamworth Castle Grounds car park', at: { lat: 52.6333, lng: -1.6951 } }],
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
+      filter: { ...DEFAULT_FILTER, radiusMiles: 30 },
+      going: ['tom', 'em', 'jord', 'bex'], checkIns: {},
+    },
+    {
       id: 'ev-cruise-peak', type: 'cruise', title: 'Peak District night cruise',
       description: 'Ladybower to Glossop over Snake Pass, regroup at the top. Speed limits all the way.',
       startsAt: at(now, 2, 22, 30), area: { lat: 53.40, lng: -1.80 }, areaName: 'Peak District', routeMiles: 48,
@@ -317,8 +342,8 @@ function events(now: Date): NightEvent[] {
     },
     {
       id: 'ev-past-snowdome', type: 'meet', title: 'Snowdome Sunday meet',
-      description: 'Last weekend. Voting has closed, trophies are out.',
-      startsAt: at(now, -3, 19, 0), endsAt: at(now, -3, 22, 0), area: { lat: 52.63, lng: -1.70 }, areaName: 'Tamworth',
+      description: 'Sunday night at the Snowdome. Voting has closed, trophies are out.',
+      startsAt: lastSunday(now, 2, 19, 0), endsAt: lastSunday(now, 2, 22, 0), area: { lat: 52.63, lng: -1.70 }, areaName: 'Tamworth',
       stops: [{ id: 'ps-1', name: 'Tamworth Snowdome car park', at: { lat: 52.6302, lng: -1.6962 } }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
       filter: { ...DEFAULT_FILTER, minMods: 2, radiusMiles: 30 },
@@ -360,7 +385,7 @@ function chat(now: Date): ChatMessage[] {
 }
 
 function votes(now: Date): Vote[] {
-  const when = at(now, -3, 21, 30);
+  const when = lastSunday(now, 2, 21, 30);
   const v = (voterId: string, category: Vote['category'], buildId: string): Vote => ({ eventId: 'ev-past-snowdome', voterId, category, buildId, at: when });
   return [
     v('tom', 'best-in-show', 'b-dan-0'), v('kez', 'best-in-show', 'b-dan-0'), v('em', 'best-in-show', 'b-dan-0'), v(ME, 'best-in-show', 'b-dan-0'), v('jord', 'best-in-show', 'b-aimee-0'),

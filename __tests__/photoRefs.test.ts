@@ -1,4 +1,4 @@
-import { isStoredName, nameFromPath, newPhotoName } from '../src/lib/photoRefs';
+import { droppedPhotos, isStoredName, nameFromPath, newPhotoName } from '../src/lib/photoRefs';
 
 describe('photo references', () => {
   test('stored names are bare file names', () => {
@@ -16,5 +16,13 @@ describe('photo references', () => {
   test('new names are unique-looking jpgs', () => {
     expect(newPhotoName(() => 0.5, 1000)).toMatch(/^ph-[a-z0-9]+\.jpg$/);
     expect(newPhotoName(() => 0.1, 1000)).not.toBe(newPhotoName(() => 0.2, 1000));
+  });
+});
+
+describe('photos a save no longer uses', () => {
+  test('only stored names that were dropped, and not ones still used elsewhere', () => {
+    expect(droppedPhotos(['ph-a.jpg', 'ph-b.jpg', 'file:///tmp/x.jpg'], ['ph-a.jpg'])).toEqual(['ph-b.jpg']);
+    expect(droppedPhotos(['ph-a.jpg', 'ph-b.jpg'], [], ['ph-b.jpg'])).toEqual(['ph-a.jpg']);
+    expect(droppedPhotos([], ['ph-a.jpg'])).toEqual([]);
   });
 });

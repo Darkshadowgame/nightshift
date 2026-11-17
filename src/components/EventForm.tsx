@@ -7,6 +7,7 @@ import { BAN_ZONES } from '../data/seed';
 import { visibleSpots } from '../lib/spots';
 import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen } from '../lib/format';
+import { startFrom, type DayChoice } from '../lib/when';
 import { eventArea } from '../lib/area';
 import { isCrewHost } from '../lib/crews';
 import { DEFAULT_FILTER, invitees } from '../lib/invites';
@@ -16,12 +17,6 @@ import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, typ
 import { C, F } from '../theme';
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
-interface DayChoice {
-  label: string;
-  days: number;
-  /** Editing: keep the event's own date. */
-  date?: string;
-}
 const DAY_CHOICES: DayChoice[] = [
   { label: 'Tonight', days: 0 },
   { label: 'Tomorrow', days: 1 },
@@ -35,24 +30,6 @@ const REVEAL_CHOICES = [0, 30, 60, 120];
 function hhmm(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-function startDate(choice: DayChoice, time: string): Date {
-  const [h, m] = time.split(':').map(Number);
-  if (choice.date) {
-    const d = new Date(choice.date);
-    d.setHours(h, m, 0, 0);
-    return d;
-  }
-  const days = choice.days;
-  const d = new Date();
-  if (days === -1) {
-    const toSat = (6 - d.getDay() + 7) % 7;
-    d.setDate(d.getDate() + toSat);
-  } else d.setDate(d.getDate() + days);
-  d.setHours(h, m, 0, 0);
-  if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
-  return d;
 }
 
 /**
@@ -104,6 +81,8 @@ export function EventForm({
   const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : []);
   const [error, setError] = useState<string | null>(null);
 
+  const chosen = startFrom(dayChoices[day], time, now);
+
   const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
   const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
   // Only the stops this type uses: a hidden second stop left over from a cruise doesn't count.
@@ -152,8 +131,9 @@ export function EventForm({
     const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], stopLabel);
     // The rough area is fuzzed from the stops with the event's own id, so it never sits on a stop.
     const where = eventArea(finalStops.map((st) => st.at!), id, isPublicType(type));
-    const start = startDate(dayChoices[day], time);
-    if (start.getTime() <= Date.now()) return setError('Pick a start time in the future.');
+    const when = startFrom(dayChoices[day], time, new Date());
+    if (!when.ok) return setError(when.reason);
+    const start = when.start;
     // Editing as a crew member who isn't a named host keeps the named hosts as they were.
     let hostIds = initial ? Array.from(new Set([...(initial.hostIds.includes(me) ? [me] : []), ...coHosts])) : [me, ...coHosts];
     if (hostIds.length === 0) hostIds = [me];
@@ -236,6 +216,11 @@ export function EventForm({
             <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} colour={C.neon} />
           ))}
         </Row>
+        {chosen.ok ? (
+          <Txt v="mono" style={{ color: C.lime }}>STARTS {formatWhen(chosen.start.toISOString(), now).toUpperCase()}</Txt>
+        ) : (
+          <Txt v="mono" style={{ color: C.alert }}>{chosen.reason.toUpperCase()}</Txt>
+        )}
       </Section>
 
       <Section title={type === 'cruise' ? 'Route' : type === 'rolling' ? 'Stops' : 'Place'}>

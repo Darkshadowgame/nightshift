@@ -31,10 +31,11 @@ export default function EventsScreen() {
   const views = useMemo(() => viewEvents(events, me, crews, users, builds, now), [events, me, crews, users, builds, now]);
   const active = (v: EventView) => v.phase !== 'over' && v.phase !== 'cancelled';
   const lists: Record<Tab, EventView[]> = {
-    mine: views.filter((v) => active(v) && (v.role === 'host' || v.role === 'going')),
+    mine: views.filter((v) => active(v) && (v.role === 'host' || v.role === 'going' || v.role === 'requested')),
     invited: views.filter((v) => active(v) && v.role === 'invited'),
     public: views.filter((v) => active(v) && v.role === 'public'),
-    past: views.filter((v) => !active(v)).reverse(),
+    // A host said no: it moves to Past so it's still there to look back at.
+    past: views.filter((v) => !active(v) || v.role === 'declined').reverse(),
   };
   const live = lists.mine.filter((v) => v.phase === 'live');
   const rest = tab === 'mine' ? lists.mine.filter((v) => v.phase !== 'live') : lists[tab];
@@ -56,12 +57,12 @@ export default function EventsScreen() {
         </Section>
       ) : null}
 
-      <Section title={tab === 'mine' ? 'Coming up' : tab === 'invited' ? 'You match the invite' : tab === 'public' ? 'Shows and track days' : 'Finished and cancelled'}>
+      <Section title={tab === 'mine' ? 'Coming up' : tab === 'invited' ? 'You match the invite' : tab === 'public' ? 'Shows and track days' : 'Finished, cancelled and declined'}>
         {rest.length === 0 ? (
           <Card>
             <Txt v="muted">
               {tab === 'mine'
-                ? 'Nothing planned. Tap Going on an invite, or host your own with + Host.'
+                ? 'Nothing planned. Tap Going on an invite, or host your own with + Host. Events you ask to go to show here too.'
                 : tab === 'invited'
                   ? 'No invites right now. Invites depend on your builds, so add your car or bike in the Garage.'
                   : 'Nothing here yet.'}

@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { BAN_ZONES, ME, seed, type SeedState } from '../data/seed';
+import { AppState } from 'react-native';
+import { BAN_ZONES, ME, seed, SEED_EVENT_IDS, type SeedState } from '../data/seed';
 import { castVote as applyVote, type AwardCategory } from './awards';
 import { areaGivesAway, eventArea } from './area';
-import { inferAnchor, needsRefresh, refreshDemo } from './demoTime';
-import { roleOf } from './eventView';
-import { migratePhotoRef } from './photos';
+import { inferAnchor, isSeedEvent, needsRefresh, refreshDemo, restartDemo } from './demoTime';
+import { canJoinDirectly, roleOf } from './eventView';
+import { deletePhotos, migratePhotoRef } from './photos';
+import { droppedPhotos } from './photoRefs';
 import {
   answerRequest as applyAnswer,
   applyEventEdit,
@@ -20,6 +22,7 @@ import {
   type PlanChange,
 } from './events';
 import {
+  addToCrew as applyAddToCrew,
   createCrew as applyCreateCrew,
   joinCrew as applyJoinCrew,
   leaveCrew as applyLeaveCrew,
@@ -40,7 +43,7 @@ import {
   type Verdict,
 } from './spots';
 import { notifyNow, syncReminders } from './notify';
-import { dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
+import { dedupeNotices, dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
 import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
 
 /**
@@ -68,6 +71,8 @@ interface Persisted extends SeedState {
   notices: Notice[];
   /** False until the person has set up their profile on first run. */
   onboarded: boolean;
+  /** When they finished first run (ISO). Reminders from before then don't land in the list. */
+  onboardedAt?: string;
   /** eventId -> stop ids this person has already seen the "unlocked" moment for. */
   unlockSeen: Record<string, string[]>;
   /** When the demo scene's times were last laid out (ISO). Used to keep the demo fresh. */
@@ -113,6 +118,10 @@ interface Store extends Persisted {
   /** Remember that the "unlocked" moment has been shown for these stops. */
   markUnlockSeen: (eventId: string, stopIds: string[]) => void;
   resetDemo: () => void;
+  /** Lay the sample events, chat, votes and spot visits out fresh. Keeps your profile, builds, photos, crews and what you made. */
+  restartDemoEvents: () => void;
+  /** Schedule reminders again now, e.g. once notifications have just been allowed. */
+  refreshReminders: () => void;
   /** Finish a drive. Checks the run (every checkpoint, in order, at a believable pace); records only pass or fail. */
   finishDrive: (spotId: string, run: DriveRun) => Verdict;
   /** Record a photo spot visit, with an optional plate-blurred photo. The distance check happens before this. */
@@ -127,6 +136,8 @@ interface Store extends Persisted {
   createCrew: (name: string, tag: string) => string;
   /** Crew owner makes a member a host, or takes it away. Throws with a readable reason. */
   setCrewHost: (crewId: string, userId: string, host: boolean) => void;
+  /** Demo: bring a sample person who isn't in a crew into yours. Throws with a readable reason. */
+  addToCrew: (crewId: string, userId: string) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -194,6 +205,12 @@ function migrate(parsed: Persisted): Persisted {
       completions: x.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)),
     })),
   };
+  // Sample events added since this save was made (e.g. the invite a few hours away).
+  const have = new Set(next.events.map((e) => e.id));
+  const added = base.events.filter((e) => SEED_EVENT_IDS.includes(e.id) && !have.has(e.id));
+  if (added.length) next = { ...next, events: [...next.events, ...added] };
+  // In-app reminders used to be keyed by time, so the demo moving its times added repeats.
+  next = { ...next, notices: dedupeNotices(next.notices ?? []) };
   return next;
 }
 
@@ -205,6 +222,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Persisted>(fresh);
   const [ready, setReady] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  /** Bumped when notifications are allowed or the app comes back to the front, to sync reminders again. */
+  const [reminderTick, setReminderTick] = useState(0);
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -234,6 +253,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, []);
 
+  // Back from the background (or from the Settings app): catch up on the time and the reminders.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') return;
+      setNow(new Date());
+      setReminderTick((n) => n + 1);
+    });
+    return () => sub.remove();
+  }, []);
+
   // Demo: suggestions are approved a few seconds after they're made.
   useEffect(() => {
     const pending = state.spots.filter((x) => x.status === 'pending');
@@ -253,21 +282,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       syncReminders(wanted).catch(() => {});
     }, 400);
     return () => clearTimeout(t);
-  }, [ready, allEvents, allCrews, remindersOn]);
+  }, [ready, allEvents, allCrews, remindersOn, reminderTick]);
 
   // ...and put reminders that have come due into the in-app list.
+  const onboarded = state.onboarded;
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !onboarded) return;
     setState((s) => {
       const seen = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
-      const due = dueReminders(s.events, ME, s.crews, now, seen);
+      const due = dueReminders(s.events, ME, s.crews, now, seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
       if (due.length === 0) return s;
       const added: Notice[] = due.map((r) => ({
         id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: r.kind, key: r.key, text: `${r.title}. ${r.body}`,
       }));
       return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100) };
     });
-  }, [ready, now, allEvents]);
+  }, [ready, onboarded, now, allEvents]);
 
   const updateSpot = useCallback((id: string, fn: (x: Spot) => Spot) => {
     setState((s) => ({ ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) }));
@@ -283,12 +313,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ready,
       me: ME,
       now,
-      saveBuild: (b) =>
+      saveBuild: (b) => {
+        // Photos taken off the build: delete their files (they were only ever this build's).
+        const before = state.builds.find((x) => x.id === b.id)?.photos ?? [];
+        const elsewhere = state.builds.filter((x) => x.id !== b.id).flatMap((x) => x.photos);
+        deletePhotos(droppedPhotos(before, b.photos, elsewhere));
         setState((s) => ({
           ...s,
           builds: s.builds.some((x) => x.id === b.id) ? s.builds.map((x) => (x.id === b.id ? b : x)) : [...s.builds, b],
-        })),
-      deleteBuild: (id) => setState((s) => ({ ...s, builds: s.builds.filter((b) => b.id !== id) })),
+        }));
+      },
+      deleteBuild: (id) => {
+        const before = state.builds.find((x) => x.id === id)?.photos ?? [];
+        const elsewhere = state.builds.filter((x) => x.id !== id).flatMap((x) => x.photos);
+        deletePhotos(droppedPhotos(before, [], elsewhere));
+        setState((s) => ({ ...s, builds: s.builds.filter((b) => b.id !== id) }));
+      },
       saveEvent: (e) =>
         setState((s) => ({
           ...s,
@@ -318,14 +358,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       saveProfile: (draft) => {
         const problem = profileProblem(draft, state.users, ME);
         if (problem) throw new Error(problem);
-        setState((s) => ({ ...s, onboarded: true, users: s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u)) }));
+        setState((s) => ({ ...s, onboarded: true, onboardedAt: s.onboardedAt ?? new Date().toISOString(), users: s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u)) }));
       },
       setGoing: (eventId, going) => {
         const event = state.events.find((e) => e.id === eventId);
         if (!event) throw new Error('Event not found.');
         if (!going) return updateEvent(eventId, (e) => dropOut(e, ME));
         const role = roleOf(event, ME, state.crews, state.users, state.builds);
-        const eligible = role !== 'none';
+        const eligible = canJoinDirectly(role);
         rsvp(event, ME, eligible); // throws with the reason if a host already said no
         updateEvent(eventId, (e) => rsvp(e, ME, eligible));
       },
@@ -376,6 +416,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })),
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
       resetDemo: () => setState(fresh()),
+      restartDemoEvents: () => {
+        const nowDate = new Date();
+        setState((s) => {
+          const restarted = restartDemo(s, nowDate);
+          const unlockSeen = Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id)));
+          return {
+            ...s,
+            ...restarted,
+            unlockSeen,
+            notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
+            seededAt: nowDate.toISOString(),
+            // Reminders from the restarted events count as news again.
+            onboardedAt: nowDate.toISOString(),
+          };
+        });
+      },
+      refreshReminders: () => setReminderTick((n) => n + 1),
       finishDrive: (spotId, run) => {
         const spot = state.spots.find((x) => x.id === spotId);
         if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
@@ -417,6 +474,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCrewHost: (crewId, userId, host) => {
         const next = applySetCrewHost({ crews: state.crews, users: state.users }, ME, crewId, userId, host);
         setState((s) => ({ ...s, crews: next.crews }));
+      },
+      addToCrew: (crewId, userId) => {
+        const next = applyAddToCrew({ crews: state.crews, users: state.users }, ME, crewId, userId);
+        setState((s) => ({ ...s, crews: next.crews, users: next.users }));
       },
     }),
     [state, ready, now, updateEvent, updateSpot],
