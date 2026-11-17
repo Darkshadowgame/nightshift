@@ -2,14 +2,21 @@ import { Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold } from '@expo-g
 import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
 import { ChakraPetch_600SemiBold, ChakraPetch_700Bold } from '@expo-google-fonts/chakra-petch';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { onNotificationTap } from '../lib/notify';
 import { StoreProvider, useStore } from '../lib/store';
 import { C, F } from '../theme';
 
 function Gate() {
   const { ready, onboarded } = useStore();
+  // Tapping a reminder opens its event (also when the tap launched the app).
+  useEffect(() => {
+    if (!ready || !onboarded) return;
+    return onNotificationTap((url) => router.push(url as Href));
+  }, [ready, onboarded]);
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: C.asphalt, alignItems: 'center', justifyContent: 'center' }}>
@@ -46,6 +53,7 @@ function Gate() {
         <Stack.Screen name="crews" options={{ title: 'Crews' }} />
         <Stack.Screen name="crew/[id]" options={{ title: '' }} />
         <Stack.Screen name="crew/new" options={{ title: 'Start a crew', presentation: 'modal' }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       </Stack.Protected>
     </Stack>
   );

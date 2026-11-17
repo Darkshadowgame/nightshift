@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin } from '../../components/mapTypes';
+import { NoticeBell } from '../../components/NoticeBell';
 import { Chip, Row, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
 import { viewEvents } from '../../lib/eventView';
@@ -121,11 +122,14 @@ export default function MapScreen() {
               NIGHT<Txt v="h3" style={{ color: C.sodium, fontStyle: 'italic' }}>SHIFT</Txt>
             </Txt>
           </View>
-          {liveCount > 0 ? (
-            <View style={st.live}>
-              <Txt v="label" style={{ color: '#00222c' }}>{liveCount} live now</Txt>
-            </View>
-          ) : null}
+          <Row gap={8} style={{ flexWrap: 'nowrap' }}>
+            {liveCount > 0 ? (
+              <View style={st.live} accessibilityLabel={`${liveCount} events live now`}>
+                <Txt v="label" style={{ color: '#00222c' }}>{liveCount} live now</Txt>
+              </View>
+            ) : null}
+            <NoticeBell boxed />
+          </Row>
         </Row>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 8 }}>
           {LAYERS.map((l) => (

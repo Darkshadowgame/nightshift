@@ -25,6 +25,8 @@ import {
   type SpotDraft,
   type Verdict,
 } from './spots';
+import { notifyNow, syncReminders } from './notify';
+import { dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
 import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
 
 /**
@@ -40,9 +42,11 @@ export interface Settings {
   cruiseMode: boolean;
   hideHomeZone: boolean;
   pttStrangers: boolean;
+  /** Local reminders at the reveal and 30 min before the start. */
+  reminders: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { simulateGps: true, cruiseMode: false, hideHomeZone: true, pttStrangers: false };
+const DEFAULT_SETTINGS: Settings = { simulateGps: true, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true };
 
 interface Persisted extends SeedState {
   settings: Settings;
@@ -50,6 +54,8 @@ interface Persisted extends SeedState {
   notices: Notice[];
   /** False until the person has set up their profile on first run. */
   onboarded: boolean;
+  /** eventId -> stop ids this person has already seen the "unlocked" moment for. */
+  unlockSeen: Record<string, string[]>;
 }
 
 export interface Notice {
@@ -58,6 +64,9 @@ export interface Notice {
   text: string;
   at: string;
   read: boolean;
+  kind?: ReminderKind | 'host';
+  /** Reminder key, so a reminder only lands in the list once. */
+  key?: string;
 }
 
 interface Store extends Persisted {
@@ -82,6 +91,8 @@ interface Store extends Persisted {
   vote: (eventId: string, category: AwardCategory, buildId: string) => void;
   setSettings: (patch: Partial<Settings>) => void;
   markNoticesRead: () => void;
+  /** Remember that the "unlocked" moment has been shown for these stops. */
+  markUnlockSeen: (eventId: string, stopIds: string[]) => void;
   resetDemo: () => void;
   /** Finish a drive. Checks the run (every checkpoint, in order, at a believable pace); records only pass or fail. */
   finishDrive: (spotId: string, run: DriveRun) => Verdict;
@@ -100,7 +111,7 @@ interface Store extends Persisted {
 const Ctx = createContext<Store | null>(null);
 
 function fresh(): Persisted {
-  return { ...seed(new Date()), settings: DEFAULT_SETTINGS, notices: [], onboarded: false };
+  return { ...seed(new Date()), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {} };
 }
 
 /** Data saved by an older version of the app: fill in anything that's new since. */
@@ -166,6 +177,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [state.spots]);
 
+  // Reminders: keep the phone's scheduled notifications in line with what you're going to.
+  const { events: allEvents, crews: allCrews } = state;
+  const remindersOn = state.settings.reminders;
+  useEffect(() => {
+    if (!ready) return;
+    const wanted = remindersOn ? upcomingReminders(allEvents, ME, allCrews, new Date()) : [];
+    const t = setTimeout(() => {
+      syncReminders(wanted).catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, [ready, allEvents, allCrews, remindersOn]);
+
+  // ...and put reminders that have come due into the in-app list.
+  useEffect(() => {
+    if (!ready) return;
+    setState((s) => {
+      const seen = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
+      const due = dueReminders(s.events, ME, s.crews, now, seen);
+      if (due.length === 0) return s;
+      const added: Notice[] = due.map((r) => ({
+        id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: r.kind, key: r.key, text: `${r.title}. ${r.body}`,
+      }));
+      return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100) };
+    });
+  }, [ready, now, allEvents]);
+
   const updateSpot = useCallback((id: string, fn: (x: Spot) => Spot) => {
     setState((s) => ({ ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) }));
   }, []);
@@ -223,22 +260,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           going: going ? Array.from(new Set([...e.going, ME])) : e.going.filter((u) => u !== ME),
         })),
       checkIn: (eventId, stopIndex) => updateEvent(eventId, (e) => applyCheckIn(e, stopIndex, ME)),
-      moveOn: (eventId) =>
-        setState((s) => {
-          const nowDate = new Date();
-          let notice: Notice | null = null;
-          const events = s.events.map((e) => {
-            if (e.id !== eventId) return e;
-            const next = applyMoveOn(e, nowDate);
-            const stop = next.stops[next.currentStop];
-            notice = {
-              id: newId('n'), eventId, at: nowDate.toISOString(), read: false,
-              text: `${e.title} moved on to ${stop.name}. Everyone checked in at ${e.stops[e.currentStop].name} has been told.`,
+      moveOn: (eventId) => {
+        const event = state.events.find((e) => e.id === eventId);
+        if (!event) throw new Error('Event not found.');
+        const nowDate = new Date();
+        const next = applyMoveOn(event, nowDate);
+        const stop = next.stops[next.currentStop];
+        // In the demo you're the host and may also be checked in: then you get the
+        // same "moved on" notification as everyone else at the stop.
+        const moved = movedOnReminder(event, ME, nowDate);
+        const notice: Notice = moved
+          ? { id: newId('n'), eventId, at: nowDate.toISOString(), read: false, kind: 'moved', key: moved.key, text: `${moved.title}. ${moved.body}` }
+          : {
+              id: newId('n'), eventId, at: nowDate.toISOString(), read: false, kind: 'host',
+              text: `${event.title} moved on to ${stop.name}. Everyone checked in at ${event.stops[event.currentStop].name} has been told.`,
             };
-            return next;
-          });
-          return { ...s, events, notices: notice ? [notice, ...s.notices] : s.notices };
-        }),
+        if (moved && state.settings.reminders) notifyNow(moved).catch(() => {});
+        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? next : e)), notices: [notice, ...s.notices] }));
+      },
       cancelEvent: (eventId) => updateEvent(eventId, (e) => ({ ...e, cancelled: true })),
       sendChat: (eventId, text) => {
         const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text, at: new Date().toISOString() };
@@ -251,6 +290,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, votes }));
       },
       setSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
+      markUnlockSeen: (eventId, stopIds) =>
+        setState((s) => ({
+          ...s,
+          unlockSeen: { ...s.unlockSeen, [eventId]: Array.from(new Set([...(s.unlockSeen[eventId] ?? []), ...stopIds])) },
+        })),
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
       resetDemo: () => setState(fresh()),
       finishDrive: (spotId, run) => {

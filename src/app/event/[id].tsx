@@ -14,6 +14,7 @@ import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowO
 import { roleOf } from '../../lib/eventView';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
 import { describeFilter } from '../../lib/invites';
+import { askPermission } from '../../lib/notify';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, EVENT_COLOURS } from '../../theme';
@@ -153,7 +154,11 @@ export default function EventScreen() {
               ) : (
                 <Button
                   label={role === 'invited' || role === 'public' ? "I'm going" : "Request to go"}
-                  onPress={() => store.setGoing(ev.id, true)}
+                  onPress={() => {
+                    store.setGoing(ev.id, true);
+                    // First Going is the moment reminders make sense, so ask then (iOS only asks once).
+                    if (settings.reminders) askPermission().catch(() => {});
+                  }}
                 />
               )
             ) : null}

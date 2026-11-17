@@ -44,6 +44,12 @@
           "photosPermission": "Nightshift uses your photos so you can add pictures of your build.",
           "cameraPermission": "Nightshift uses the camera so you can photograph your build."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false
+        }
       ]
     ],
     "scheme": "nightshift",

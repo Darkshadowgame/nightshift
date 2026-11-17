@@ -63,3 +63,14 @@ export const CLASS_COLOURS: Record<ClassLetter, string> = {
   C: '#3fd6ff',
   D: '#9dfa5a',
 };
+
+/** S is the top class (4), D the bottom (0). */
+export function classRank(letter: ClassLetter): number {
+  return ['D', 'C', 'B', 'A', 'S'].indexOf(letter);
+}
+
+/** The class change worth celebrating after an edit, or null if it didn't go up. */
+export function classUp(before: ClassLetter | null, after: ClassLetter): { from: ClassLetter; to: ClassLetter } | null {
+  if (!before || classRank(after) <= classRank(before)) return null;
+  return { from: before, to: after };
+}

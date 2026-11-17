@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { Pin } from '../../components/Pin';
 import { LevelTag, RepPanel, useRep } from '../../components/Rep';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { allAwards, hasLegend } from '../../lib/awards';
+import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../../lib/notify';
 import { SPOT_LABELS } from '../../lib/spots';
 import { useStore, type Settings } from '../../lib/store';
 import { C, SPOT_COLOURS } from '../../theme';
@@ -15,6 +16,11 @@ export default function Me() {
   const awards = allAwards(votes, events, builds, now);
   const myAwards = awards.filter((a) => a.ownerId === me);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [testNote, setTestNote] = useState<string | null>(null);
+  useEffect(() => {
+    permissionGranted().then(setAllowed);
+  }, []);
   const user = users.find((u) => u.id === me);
   const crew = crews.find((c) => c.id === user?.crewId);
   const mySpots = spots.filter((x) => x.authorId === me);
@@ -102,6 +108,38 @@ export default function Me() {
         </Card>
       </Section>
 
+      <Section title="Reminders">
+        <Toggle
+          label="Event reminders"
+          hint="When an event's location unlocks and 30 minutes before the start, for events you're going to or hosting. Also when a rolling meet you're checked in at moves on."
+          value={settings.reminders}
+          onChange={(v) => {
+            setSettings({ reminders: v });
+            if (v) askPermission().then(setAllowed);
+          }}
+        />
+        {!notificationsSupported ? (
+          <Txt v="muted" style={{ fontSize: 12 }}>Notifications only work in the iPhone app. The list under the bell works everywhere.</Txt>
+        ) : allowed === false && settings.reminders ? (
+          <Card accent={C.alert}>
+            <Txt v="muted">Notifications are off for Nightshift. Allow them in the iPhone Settings app › Nightshift › Notifications, or tap below.</Txt>
+            <Button label="Allow notifications" kind="ghost" onPress={() => askPermission().then(setAllowed)} />
+          </Card>
+        ) : null}
+        {notificationsSupported ? (
+          <Button
+            label="Send a test reminder"
+            kind="ghost"
+            onPress={async () => {
+              const ok = await testReminder(5);
+              setAllowed(ok);
+              setTestNote(ok ? 'Coming in 5 seconds. Lock the phone to see it on the lock screen.' : 'Notifications are not allowed yet.');
+            }}
+          />
+        ) : null}
+        {testNote ? <Txt v="muted" style={{ fontSize: 12 }}>{testNote}</Txt> : null}
+      </Section>
+
       <Section title="Privacy">
         <Toggle
           label="Cruise mode"
@@ -158,7 +196,7 @@ function Toggle({ label, hint, value, onChange, later }: { label: string; hint: 
         <Txt>{label}</Txt>
         <Txt v="muted">{hint}</Txt>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: later ? C.kerbHi : C.sodium, false: C.kerb }} />
+      <Switch value={value} onValueChange={onChange} accessibilityLabel={label} trackColor={{ true: later ? C.kerbHi : C.sodium, false: C.kerb }} />
     </Row>
   );
 }

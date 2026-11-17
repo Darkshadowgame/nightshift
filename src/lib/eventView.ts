@@ -43,3 +43,20 @@ export function viewEvents(events: NightEvent[], me: string, crews: Crew[], user
     .filter((v) => v.role !== 'none')
     .sort((a, b) => new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime());
 }
+
+/**
+ * Stops this person can now see but hasn't been shown the "unlocked" moment for.
+ * Hosts and public events never get the moment: nothing was ever hidden from them.
+ */
+export function newlyUnlocked(
+  event: NightEvent,
+  me: string,
+  crews: Crew[],
+  now: Date,
+  seen: string[],
+): string[] {
+  if (isHost(event, me, crews) || isPublicType(event.type)) return [];
+  return event.stops
+    .filter((s, i) => canSeeStop(event, i, me, crews, now) && !seen.includes(s.id))
+    .map((s) => s.id);
+}
