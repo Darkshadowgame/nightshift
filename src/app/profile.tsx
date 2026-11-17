@@ -11,8 +11,8 @@ export default function EditProfile() {
       <ProfileForm
         initial={{ handle: user.handle, name: user.name, region: user.region, home: user.home, travelMiles: user.travelMiles, alerts: user.alerts }}
         submitLabel="Save"
-        onSubmit={(draft) => {
-          saveProfile(draft);
+        onSubmit={async (draft) => {
+          await saveProfile(draft);
           router.back();
         }}
       />

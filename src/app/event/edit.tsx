@@ -32,8 +32,8 @@ export default function EditEvent() {
     <EventForm
       initial={event}
       submitLabel="Save changes"
-      onSubmit={(edited) => {
-        editEvent(edited);
+      onSubmit={async (edited) => {
+        await editEvent(edited);
         router.back();
       }}
     />

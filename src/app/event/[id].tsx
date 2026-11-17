@@ -64,6 +64,25 @@ export default function EventScreen() {
 
   const messages = useMemo(() => chat.filter((m) => m.eventId === id), [chat, id]);
 
+  // Signed in: live chat, who's going, check-ins and the meet moving on, while this screen is open.
+  const remote = store.remote;
+  useEffect(() => {
+    if (!remote || !id) return;
+    return remote.watchEvent(id);
+  }, [remote, id]);
+
+  /** Run an action and show its reason if it's refused. */
+  async function attempt(run: () => Promise<unknown>, fallback: string): Promise<boolean> {
+    setError(null);
+    try {
+      await run();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : fallback);
+      return false;
+    }
+  }
+
   if (!e) {
     return (
       <View style={{ flex: 1, padding: 16, gap: 12 }}>
@@ -120,12 +139,15 @@ export default function EventScreen() {
   // Start navigation: through the stops you can see (a rolling meet: only the one it's at now).
   const navPlan = !closed && !guestView ? planForEvent(ev, me, crews, now) : null;
 
+  // "Skip the GPS check" is the demo's only: signed in, the server checks the distance itself.
+  const skipGps = settings.simulateGps && store.backend === 'local';
+
   async function doCheckIn() {
     setError(null);
     setBusy(true);
     try {
       let pos: LatLng | null = null;
-      if (!settings.simulateGps) {
+      if (!skipGps) {
         // Real GPS: one precise fix, used for the distance check and never stored.
         const fix = await preciseFix();
         if (!fix.ok) {
@@ -138,12 +160,12 @@ export default function EventScreen() {
         }
         pos = fix.at;
       }
-      const result = canCheckIn(ev, current, me, crews, new Date(), pos, settings.simulateGps);
+      const result = canCheckIn(ev, current, me, crews, new Date(), pos, skipGps);
       if (!result.ok) setError(result.reason);
       else {
         try {
           // Only send a build when it's news: a different one, or the first pick on record.
-          store.checkIn(ev.id, current, atCheckIn && atCheckIn.id !== chosen?.id ? atCheckIn.id : undefined);
+          await store.checkIn(ev.id, current, atCheckIn && atCheckIn.id !== chosen?.id ? atCheckIn.id : undefined, pos);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Could not check in.');
           return;
@@ -167,11 +189,11 @@ export default function EventScreen() {
     setPicking('go');
   }
 
-  function commitGoing(buildId?: string) {
+  async function commitGoing(buildId?: string) {
     setError(null);
     const wasGoing = going;
     try {
-      const result = store.setGoing(ev.id, true, buildId);
+      const result = await store.setGoing(ev.id, true, buildId);
       setPicking(null);
       feel.tap();
       // First Going is the moment reminders make sense, so ask then (iOS only asks once).
@@ -182,10 +204,10 @@ export default function EventScreen() {
     }
   }
 
-  function doMoveOn() {
+  async function doMoveOn() {
     setError(null);
     try {
-      store.moveOn(ev.id);
+      await store.moveOn(ev.id);
       feel.warning();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not move on.');
@@ -424,7 +446,7 @@ export default function EventScreen() {
                     You'll see the place at the reveal time if they say yes.
                     {role === 'invited' && mine.length > 1 ? ' Bring a build the invite covers and you can go straight in.' : ''}
                   </Txt>
-                  <Button label="Withdraw request" kind="ghost" onPress={() => store.setGoing(ev.id, false)} />
+                  <Button label="Withdraw request" kind="ghost" onPress={() => attempt(() => store.setGoing(ev.id, false), 'Could not change that.')} />
                 </Card>
               ) : role === 'invited' || role === 'public' ? (
                 <Button label="I'm going" onPress={startGoing} />
@@ -464,7 +486,7 @@ export default function EventScreen() {
                   kind="ghost"
                   style={{ flex: 1 }}
                   accessibilityHint="Drops you out and cancels your reminders"
-                  onPress={() => store.setGoing(ev.id, false)}
+                  onPress={() => attempt(() => store.setGoing(ev.id, false), 'Could not change that.')}
                 />
               ) : null}
               {canEdit ? (
@@ -555,8 +577,7 @@ export default function EventScreen() {
                         style={{ flex: 1 }}
                         accessibilityLabel={`Approve ${userLabel(uid)}`}
                         onPress={() => {
-                          store.answerRequest(ev.id, uid, true);
-                          feel.success();
+                          attempt(() => store.answerRequest(ev.id, uid, true), 'Could not approve that.').then((ok) => ok && feel.success());
                         }}
                       />
                       <Button
@@ -564,7 +585,7 @@ export default function EventScreen() {
                         kind="ghost"
                         style={{ flex: 1 }}
                         accessibilityLabel={`Decline ${userLabel(uid)}`}
-                        onPress={() => store.answerRequest(ev.id, uid, false)}
+                        onPress={() => attempt(() => store.answerRequest(ev.id, uid, false), 'Could not decline that.')}
                       />
                     </Row>
                   </View>
@@ -669,7 +690,8 @@ export default function EventScreen() {
                 style={[ui.input, { flex: 1 }]}
                 returnKeyType="send"
                 onSubmitEditing={() => {
-                  if (message.trim()) store.sendChat(ev.id, message.trim());
+                  const text = message.trim();
+                  if (text) attempt(() => store.sendChat(ev.id, text), 'Could not send that.');
                   setMessage('');
                 }}
               />
@@ -677,12 +699,15 @@ export default function EventScreen() {
                 label="Send"
                 kind="ghost"
                 onPress={() => {
-                  if (message.trim()) store.sendChat(ev.id, message.trim());
+                  const text = message.trim();
+                  if (text) attempt(() => store.sendChat(ev.id, text), 'Could not send that.');
                   setMessage('');
                 }}
               />
             </Row>
-            <Txt v="muted" style={{ fontSize: 12 }}>Chat stays on this phone until the app has a backend.</Txt>
+            <Txt v="muted" style={{ fontSize: 12 }}>
+              {store.backend === 'supabase' ? 'Everyone going and the hosts see the chat, live.' : 'Demo: chat stays on this phone.'}
+            </Txt>
           </Card>
           )}
         </Section>
@@ -697,9 +722,11 @@ export default function EventScreen() {
                   kind="danger"
                   style={{ flex: 1 }}
                   onPress={() => {
-                    store.cancelEvent(ev.id);
-                    feel.warning();
-                    router.back();
+                    attempt(() => store.cancelEvent(ev.id), 'Could not cancel it.').then((ok) => {
+                      if (!ok) return;
+                      feel.warning();
+                      router.back();
+                    });
                   }}
                 />
                 <Button label="Keep it" kind="ghost" onPress={() => setConfirmCancel(false)} />

@@ -22,7 +22,8 @@ export function ProfileForm({
   initial: ProfileDraft;
   submitLabel: string;
   /** Throw with a readable message if the draft can't be saved. */
-  onSubmit: (draft: ProfileDraft) => void;
+  /** May reject with a readable reason, shown under the form. */
+  onSubmit: (draft: ProfileDraft) => void | Promise<void>;
 }) {
   const [handle, setHandle] = useState(initial.handle);
   const [name, setName] = useState(initial.name);
@@ -32,6 +33,7 @@ export function ProfileForm({
   const [travelMiles, setTravelMiles] = useState(initial.travelMiles ?? DEFAULT_TRAVEL_MILES);
   const [alerts, setAlerts] = useState<AlertMode>(initial.alerts ?? DEFAULT_ALERTS);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -74,12 +76,16 @@ export function ProfileForm({
     setCentre(DEMO_HOME);
   }
 
-  function submit() {
+  async function submit() {
+    if (saving) return;
     setError(null);
+    setSaving(true);
     try {
-      onSubmit({ handle, name, region, home, travelMiles, alerts });
+      await onSubmit({ handle, name, region, home, travelMiles, alerts });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -166,7 +172,7 @@ export function ProfileForm({
           <Txt>{error}</Txt>
         </Card>
       ) : null}
-      <Button label={submitLabel} onPress={submit} />
+      <Button label={submitLabel} onPress={submit} busy={saving} />
 
       <MapPicker
         visible={picking}

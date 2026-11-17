@@ -70,6 +70,7 @@ export default function EditBuild() {
   const [weightDelta, setWeightDelta] = useState(swap0?.weightDeltaKg ? String(swap0.weightDeltaKg) : '');
   const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [celebrate, setCelebrate] = useState<{ from: ClassLetter; to: ClassLetter } | null>(null);
 
@@ -151,7 +152,8 @@ export default function EditBuild() {
     setDonorId(undefined);
   }
 
-  function save() {
+  async function save() {
+    if (saving) return;
     if (!draft.make || !draft.model) return setError('Add the make and model.');
     const swapIssue = swapProblem(swap);
     if (swapIssue) return setError(swapIssue);
@@ -159,7 +161,16 @@ export default function EditBuild() {
     // The stage and the swap are also kept as engine mods (see tune.ts and swap.ts).
     const staged = stage === 'stock' ? withStage(mods, 'stock', undefined, mid) : mods;
     const final: Build = { ...draft, mods: withSwapMod(staged, swap, mid) };
-    store.saveBuild(final);
+    setError(null);
+    setSaving(true);
+    try {
+      await store.saveBuild(final);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the build.');
+      return;
+    } finally {
+      setSaving(false);
+    }
     // An edit that lifts the class gets its moment before closing.
     const up = classUp(existing ? classOf(existing) : null, classOf(final));
     if (up) setCelebrate(up);
@@ -299,11 +310,13 @@ export default function EditBuild() {
           <Txt>{error}</Txt>
         </Card>
       ) : null}
-      <Button label="Save build" onPress={save} />
+      <Button label="Save build" onPress={save} busy={saving} />
       {existing ? (
         confirmDelete ? (
           <Row style={{ flexWrap: 'nowrap' }}>
-            <Button label="Yes, delete it" kind="danger" style={{ flex: 1 }} onPress={() => { store.deleteBuild(existing.id); router.dismissAll(); }} />
+            <Button label="Yes, delete it" kind="danger" style={{ flex: 1 }} onPress={() => {
+              store.deleteBuild(existing.id).then(() => router.dismissAll()).catch((e) => setError(e instanceof Error ? e.message : 'Could not delete the build.'));
+            }} />
             <Button label="Keep" kind="ghost" onPress={() => setConfirmDelete(false)} />
           </Row>
         ) : (

@@ -62,7 +62,7 @@ export default function BuildScreen() {
       <BuildHero build={b} height={b.photos[0] ? 240 : 200} trophies={won.length} />
       {b.ownerId === me ? (
         <Section title={`Photos (${b.photos.length})`}>
-          <PhotoManager photos={b.photos} onChange={(photos) => saveBuild({ ...b, photos })} onError={setPhotoError} />
+          <PhotoManager photos={b.photos} onChange={(photos) => saveBuild({ ...b, photos }).catch((e) => setPhotoError(e instanceof Error ? e.message : 'Could not save the photos.'))} onError={setPhotoError} />
           {photoError ? <Txt style={{ color: C.alert }} accessibilityLiveRegion="polite">{photoError}</Txt> : null}
         </Section>
       ) : b.photos.length > 1 ? (

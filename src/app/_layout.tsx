@@ -14,18 +14,24 @@ import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { OfflinePill } from '../components/OfflinePill';
+import { AuthProvider, useAuth } from '../lib/auth';
 import { onNotificationTap } from '../lib/notify';
 import { StoreProvider, useStore } from '../lib/store';
 import { C, F } from '../theme';
 
 function Gate() {
-  const { ready, onboarded } = useStore();
+  const auth = useAuth();
+  const { ready, onboarded: profileDone } = useStore();
+  const signedOut = auth.status === 'signedOut';
+  // Signed out: only the sign-in screen. Then the profile on first run, then the app.
+  const onboarded = !signedOut && profileDone;
   // Tapping a reminder opens its event (also when the tap launched the app).
   useEffect(() => {
     if (!ready || !onboarded) return;
     return onNotificationTap((url) => router.push(url as Href));
   }, [ready, onboarded]);
-  if (!ready) {
+  if (auth.status === 'loading' || !ready) {
     return (
       <View style={{ flex: 1, backgroundColor: C.asphalt, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={C.sodium} />
@@ -44,7 +50,10 @@ function Gate() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      <Stack.Protected guard={!onboarded}>
+      <Stack.Protected guard={signedOut}>
+        <Stack.Screen name="signin" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!signedOut && !onboarded}>
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={onboarded}>
@@ -85,9 +94,12 @@ export default function RootLayout() {
   });
   if (!loaded) return <View style={{ flex: 1, backgroundColor: C.asphalt }} />;
   return (
-    <StoreProvider>
-      <StatusBar style="light" />
-      <Gate />
-    </StoreProvider>
+    <AuthProvider>
+      <StoreProvider>
+        <StatusBar style="light" />
+        <Gate />
+        <OfflinePill />
+      </StoreProvider>
+    </AuthProvider>
   );
 }

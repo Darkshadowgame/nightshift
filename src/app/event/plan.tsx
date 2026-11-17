@@ -71,15 +71,16 @@ export default function ChangePlan() {
     setError(null);
   }
 
-  function apply(change: PlanChange, text: string) {
+  async function apply(change: PlanChange, text: string) {
     setError(null);
+    const stopsBefore = ev!.stops.length;
     try {
-      const r = changePlan(ev!.id, change);
+      const r = await changePlan(ev!.id, change);
       setDone({ text, warning: r.warning });
       setPending(null);
       setName('');
       setConfirmRemove(false);
-      if (change.kind === 'add') setSelected(ev!.stops.length);
+      if (change.kind === 'add') setSelected(stopsBefore);
       if (change.kind === 'remove') setSelected(Math.max(0, index - 1));
     } catch (e) {
       setDone(null);

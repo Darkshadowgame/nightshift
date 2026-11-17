@@ -55,7 +55,7 @@ export function EventForm({
 }: {
   initial?: NightEvent;
   submitLabel: string;
-  onSubmit: (event: NightEvent) => void;
+  onSubmit: (event: NightEvent) => void | Promise<void>;
 }) {
   const store = useStore();
   const SPOTS = visibleSpots(store.spots, store.me);
@@ -93,6 +93,7 @@ export function EventForm({
   const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : canCrewHost);
   const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : []);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const chosen = startFrom(dayChoices[day], time, now);
 
@@ -120,7 +121,33 @@ export function EventForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area.lat, area.lng]);
   const suggestedAreaName = placed.length ? (town ?? nearestRegion(area)) : meUser.region;
-  const matches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
+  const localMatches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
+  // Signed in, other people's homes never reach the phone: the server counts (invite_count(), "fewer than 3" as null).
+  const remote = store.remote;
+  const [serverCount, setServerCount] = useState<{ people: number | null; builds: number | null } | 'loading' | 'offline'>('loading');
+  const filterKey = JSON.stringify(filter);
+  useEffect(() => {
+    if (!remote) return;
+    let live = true;
+    const t = setTimeout(() => {
+      remote
+        .inviteCount(filter, area)
+        .then((c) => live && setServerCount(c))
+        .catch(() => live && setServerCount('offline'));
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remote, filterKey, area.lat, area.lng]);
+  const countText = (n: number | null) => (n === null ? 'fewer than 3' : String(n));
+  const matchHeadline = !remote
+    ? String(localMatches.userIds.length)
+    : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : countText(serverCount.people);
+  const matchLine = !remote
+    ? `people match (${localMatches.buildIds.length} builds)`
+    : serverCount === 'loading' ? 'counting who this reaches…' : serverCount === 'offline' ? "people match (can't count while offline)" : `people match (${countText(serverCount.builds)} builds)`;
   const bans = placed
     .map((st) => ({ st, zone: banZoneAt(st.at!, BAN_ZONES) }))
     .filter((x) => x.zone);
@@ -172,7 +199,8 @@ export function EventForm({
     setFilter((f) => ({ ...f, brands: f.brands.includes(b) ? f.brands.filter((x) => x !== b) : [...f.brands, b] }));
   }
 
-  function save() {
+  async function save() {
+    if (saving) return;
     const used = visibleStops;
     if (!title.trim()) return setError('Give the event a name.');
     if (!used[0]?.at) return setError(`Choose the ${stopLabel(0, used.length).toLowerCase()} on the map.`);
@@ -214,10 +242,13 @@ export function EventForm({
       event.endsAt = new Date(start.getTime() + length).toISOString();
     }
     setError(null);
+    setSaving(true);
     try {
-      onSubmit(event);
+      await onSubmit(event);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -424,8 +455,8 @@ export function EventForm({
         </Row>
         <Card accent={C.sodium}>
           <Row style={{ alignItems: 'baseline' }}>
-            <Txt v="h1" style={{ color: C.sodium, fontFamily: F.display }}>{matches.userIds.length}</Txt>
-            <Txt v="muted">people match ({matches.buildIds.length} builds)</Txt>
+            <Txt v="h1" style={{ color: C.sodium, fontFamily: F.display }}>{matchHeadline}</Txt>
+            <Txt v="muted">{matchLine}</Txt>
           </Row>
         </Card>
       </Section>
@@ -471,7 +502,7 @@ export function EventForm({
           <Txt>{error}</Txt>
         </Card>
       ) : null}
-      <Button label={submitLabel} onPress={save} />
+      <Button label={submitLabel} onPress={save} busy={saving} />
 
       <MapPicker
         visible={picking !== null}

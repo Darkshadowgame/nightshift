@@ -128,12 +128,9 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                         accessibilityLabel={`Vote ${b.make} ${b.model} by @${owner?.handle ?? 'unknown'} for ${categoryInfo(cat).label}`}
                         onPress={() => {
                           setError(null);
-                          try {
-                            vote(event.id, cat, b.id);
-                            feel.select();
-                          } catch (e) {
-                            setError(e instanceof Error ? e.message : 'That vote did not count.');
-                          }
+                          vote(event.id, cat, b.id)
+                            .then(() => feel.select())
+                            .catch((e) => setError(e instanceof Error ? e.message : 'That vote did not count.'));
                         }}
                         style={{
                           width: 150, padding: 10, gap: 6, borderRadius: 8, borderWidth: 1,

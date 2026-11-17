@@ -17,7 +17,7 @@ export default function NewCrew() {
   const losing = crewHostLoss(me, { crews, users }, events, now);
   const [confirmed, setConfirmed] = useState(false);
 
-  function submit() {
+  async function submit() {
     setError(null);
     const problem = crewProblem(name, tag, crews);
     if (problem) return setError(problem);
@@ -27,7 +27,7 @@ export default function NewCrew() {
       return;
     }
     try {
-      const id = createCrew(name, tag);
+      const id = await createCrew(name, tag);
       router.replace({ pathname: '/crew/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start the crew.');

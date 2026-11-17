@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, View } from 'react-native';
+import { AccountSection } from '../../components/AccountSection';
 import { AppUpdates } from '../../components/AppUpdates';
 import { Pin } from '../../components/Pin';
 import { TravelPrefs } from '../../components/TravelPrefs';
@@ -20,8 +21,9 @@ import { useNow } from '../../lib/clock';
 import { C, SPOT_COLOURS } from '../../theme';
 
 export default function Me() {
-  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, spots, setTravelPrefs } =
+  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, spots, setTravelPrefs, backend } =
     useStore();
+  const [travelError, setTravelError] = useState<string | null>(null);
   const now = useNow();
   const rep = useRep(me);
   const awards = allAwards(votes, events, builds, now);
@@ -127,10 +129,12 @@ export default function Me() {
             miles={travel.miles}
             alerts={travel.alerts}
             onChange={(next) => {
-              setTravelPrefs(next);
+              setTravelError(null);
+              setTravelPrefs(next).catch((e) => setTravelError(e instanceof Error ? e.message : 'Could not save that.'));
               if (next.alerts === 'notify') askPermission().then(setAllowed);
             }}
           />
+          {travelError ? <Txt style={{ color: C.alert }}>{travelError}</Txt> : null}
           {travel.alerts === 'notify' && notificationsSupported && allowed === false ? (
             <Txt v="muted" style={{ fontSize: 12, color: C.alert }}>
               Notifications are off for Nightshift, so new events land under the bell only. Allow them under Reminders below.
@@ -238,10 +242,13 @@ export default function Me() {
         </Txt>
       </Section>
 
+      <AccountSection />
+
       <Section title="App updates">
         <AppUpdates />
       </Section>
 
+      {backend === 'local' ? (
       <Section title="Demo">
         <Toggle
           label="Demo: skip the GPS check"
@@ -267,7 +274,7 @@ export default function Me() {
         </Card>
         <Card>
           <Txt v="muted">
-            Everything is stored on this phone for now and the other people are sample data. Sharing between phones arrives when the app gets its backend. Resetting also clears your profile.
+            The demo is stored on this phone and the other people are sample data. Sign in (Account, above) to share with real people. Resetting also clears your demo profile.
           </Txt>
           {confirmReset ? (
             <Row style={{ flexWrap: 'nowrap' }}>
@@ -279,6 +286,7 @@ export default function Me() {
           )}
         </Card>
       </Section>
+      ) : null}
     </ScrollView>
   );
 }

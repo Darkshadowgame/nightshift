@@ -8,10 +8,10 @@ export default function NewEvent() {
   return (
     <EventForm
       submitLabel="Send invites"
-      onSubmit={(event) => {
-        saveEvent(event);
+      onSubmit={async (event) => {
+        const id = await saveEvent(event);
         if (settings.reminders) askPermission().catch(() => {});
-        router.replace({ pathname: '/event/[id]', params: { id: event.id } });
+        router.replace({ pathname: '/event/[id]', params: { id } });
       }}
     />
   );

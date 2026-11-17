@@ -65,10 +65,10 @@ export default function CrewScreen() {
   const canAdd = member && canHost;
   const free = canAdd ? crewless({ crews, users }, [me]) : [];
 
-  function act(fn: () => void) {
+  async function act(fn: () => void | Promise<void>) {
     setError(null);
     try {
-      fn();
+      await fn();
       setConfirmLeave(false);
       setConfirmJoin(false);
     } catch (e) {

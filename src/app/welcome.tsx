@@ -1,10 +1,11 @@
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeUp, PulseRing } from '../components/motion';
 import { Pin, type Glyph } from '../components/Pin';
 import { ProfileForm } from '../components/ProfileForm';
 import { Row, Txt } from '../components/ui';
 import { DEMO_REGION } from '../data/seed';
+import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
 import { C } from '../theme';
 
@@ -16,7 +17,8 @@ const PITCH: { glyph: Glyph; colour: string; text: string }[] = [
 
 /** First run: the person sets up their own profile. The guard in _layout moves on once it's saved. */
 export default function Welcome() {
-  const { saveProfile } = useStore();
+  const { saveProfile, backend } = useStore();
+  const auth = useAuth();
   const insets = useSafeAreaInsets();
   return (
     <ScrollView
@@ -46,6 +48,21 @@ export default function Welcome() {
           ))}
         </View>
         <Txt v="label">18+ only · Set up your profile to get invites near you</Txt>
+        {backend === 'supabase' ? (
+          <Row gap={12}>
+            <Txt v="muted" style={{ flexShrink: 1 }}>Signed in{auth.email ? ` as ${auth.email}` : ''}.</Txt>
+            <Pressable onPress={() => auth.signOut()} accessibilityRole="button" hitSlop={8}>
+              <Txt v="label" style={{ color: C.sodium }}>Not you?</Txt>
+            </Pressable>
+          </Row>
+        ) : (
+          <Row gap={12}>
+            <Txt v="muted" style={{ flexShrink: 1 }}>Demo: sample people, nothing leaves this phone.</Txt>
+            <Pressable onPress={() => auth.leaveDemo()} accessibilityRole="button" hitSlop={8}>
+              <Txt v="label" style={{ color: C.sodium }}>Sign in instead</Txt>
+            </Pressable>
+          </Row>
+        )}
       </View>
       <ProfileForm initial={{ handle: '', name: '', region: DEMO_REGION, home: null }} submitLabel="Let's go" onSubmit={saveProfile} />
     </ScrollView>

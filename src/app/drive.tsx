@@ -143,7 +143,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const store = useStore();
   const { settings } = store;
   const stops = plan.stops;
-  const simulate = settings.simulateGps;
+  // The demo's simulated drive; signed in, the server judges real fixes only.
+  const simulate = settings.simulateGps && store.backend === 'local';
   const cameraAlerts = settings.navCameraAlerts !== false;
 
   const [phase, setPhase] = useState<'locating' | 'routing' | 'driving' | 'arrived' | 'error'>('locating');
@@ -273,8 +274,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             run.current = advanceRun(run.current, spot.path, f.at, f.t);
             if (run.current.passed >= spot.path.length) {
               runDone.current = true;
-              const verdict = store.finishDrive(spot.id, run.current);
-              setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed.' : verdict.reason);
+              store
+                .finishDrive(spot.id, run.current)
+                .then((verdict) => setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed.' : verdict.reason))
+                .catch((e) => setDriveNote(e instanceof Error ? e.message : 'Could not record the drive.'));
             }
           }
         }
@@ -463,17 +466,20 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     if (f) doRoute(f.at, 'start');
   }
 
-  function doCheckIn(i: number) {
+  async function doCheckIn(i: number) {
     const stop = stops[i];
     const ev = store.events.find((e) => e.id === plan.eventId);
     if (!ev || stop.eventStop === undefined) return;
-    const res = canCheckIn(ev, stop.eventStop, store.me, store.crews, new Date(), fixRef.current?.at ?? null, settings.simulateGps);
+    // "Skip the GPS check" is the demo's only: signed in, the server always checks the distance.
+    const skip = simulate;
+    const at = fixRef.current?.at ?? null;
+    const res = canCheckIn(ev, stop.eventStop, store.me, store.crews, new Date(), at, skip);
     if (!res.ok) {
       setNotice(res.reason);
       return;
     }
     try {
-      store.checkIn(ev.id, stop.eventStop);
+      await store.checkIn(ev.id, stop.eventStop, undefined, at);
       feel.success();
       setCheckedIn((c) => [...c, stop.id]);
       setCheckInAt(null);

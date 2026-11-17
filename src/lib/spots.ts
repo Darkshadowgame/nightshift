@@ -75,6 +75,12 @@ export interface DriveRun {
   startedAt?: number;
   /** When the latest checkpoint was passed (ms). Kept in memory only. */
   lastAt?: number;
+  /**
+   * The fix that passed each checkpoint, in order (t in ms). Kept in memory
+   * only, and sent once to the server's complete_drive(), which judges the run
+   * again and stores only the day.
+   */
+  fixes?: { lat: number; lng: number; t: number }[];
 }
 
 export const NEW_RUN: DriveRun = { passed: 0 };
@@ -84,7 +90,8 @@ export function advanceRun(run: DriveRun, checkpoints: LatLng[], position: LatLn
   const next = checkpoints[run.passed];
   if (!next) return run;
   if (milesBetween(position, next) > CHECKPOINT_RADIUS_MILES) return run;
-  return { passed: run.passed + 1, startedAt: run.startedAt ?? atMs, lastAt: atMs };
+  const fixes = [...(run.fixes ?? []), { lat: position.lat, lng: position.lng, t: atMs }];
+  return { passed: run.passed + 1, startedAt: run.startedAt ?? atMs, lastAt: atMs, fixes };
 }
 
 export function runExpired(run: DriveRun, miles: number, nowMs: number): boolean {

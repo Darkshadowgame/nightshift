@@ -100,10 +100,10 @@ function SpotDetail({ spot }: { spot: Spot }) {
         }))
       : [{ id: 'spot', at: spot.at, glyph: spot.kind, colour, title: spot.name, size: 40 }];
 
-  function rate(n: number) {
+  async function rate(n: number) {
     setError(null);
     try {
-      store.rateSpot(spot.id, n);
+      await store.rateSpot(spot.id, n);
       setRated(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save your rating.');
@@ -290,6 +290,8 @@ function DrivePanel({
 }) {
   const store = useStore();
   const { settings } = store;
+  // The demo's "skip the GPS check"; signed in, the server always checks where you are.
+  const simGps = settings.simulateGps && store.backend === 'local';
   const checkpoints = spot.path ?? [];
   const miles = driveMiles(spot);
   const watch = useRef<Location.LocationSubscription | null>(null);
@@ -322,13 +324,17 @@ function DrivePanel({
   useEffect(() => {
     if (!run || run.passed < checkpoints.length) return;
     stop();
-    const verdict = store.finishDrive(spot.id, run);
     setRun(null);
-    if (verdict.ok) {
-      feel.success();
-      setPassed(true);
-      onFinished();
-    } else setError(verdict.reason);
+    store
+      .finishDrive(spot.id, run)
+      .then((verdict) => {
+        if (verdict.ok) {
+          feel.success();
+          setPassed(true);
+          onFinished();
+        } else setError(verdict.reason);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not record the drive.'));
   }, [run, checkpoints.length, spot.id, store, stop, setRun, setError, onFinished]);
 
   async function start() {
@@ -338,7 +344,7 @@ function DrivePanel({
     setError(null);
     setPassed(false);
     setRun(NEW_RUN);
-    if (settings.simulateGps) return;
+    if (simGps) return;
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) {
@@ -428,11 +434,11 @@ function DrivePanel({
           </Row>
         ))}
         <Txt v="muted" style={{ fontSize: 12 }}>
-          {settings.simulateGps
+          {simGps
             ? 'Demo: skip the GPS check is on (Me), so the app walks the checkpoints for you at a legal pace.'
             : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
         </Txt>
-        {settings.simulateGps ? (
+        {simGps ? (
           <Button label={simulating ? 'Driving…' : 'Simulate the drive'} kind="neon" onPress={simulate} busy={simulating} />
         ) : null}
         <Button label="Stop" kind="ghost" onPress={cancel} />
@@ -448,15 +454,19 @@ function DrivePanel({
 function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: string | null) => void; onVisited: () => void }) {
   const store = useStore();
   const { settings } = store;
+  // The demo's "skip the GPS check"; signed in, the server always checks where you are.
+  const simGps = settings.simulateGps && store.backend === 'local';
   const [step, setStep] = useState<'idle' | 'photo' | 'done'>('idle');
   const [busy, setBusy] = useState(false);
+  /** The fix the distance check used, sent with the visit (signed in, the server checks it again). */
+  const visitFix = useRef<LatLng | null>(null);
 
   async function checkIn() {
     setError(null);
     setBusy(true);
     try {
       let pos: LatLng | null = null;
-      if (!settings.simulateGps) {
+      if (!simGps) {
         const fix = await preciseFix();
         if (!fix.ok) {
           setError(
@@ -468,7 +478,8 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
         }
         pos = fix.at;
       }
-      const ok = canVisit(spot, pos, settings.simulateGps);
+      visitFix.current = pos;
+      const ok = canVisit(spot, pos, simGps);
       if (!ok.ok) setError(ok.reason);
       else setStep('photo');
     } catch {
@@ -478,9 +489,9 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
     }
   }
 
-  function save(photo?: string) {
+  async function save(photo?: string) {
     try {
-      store.visitSpot(spot.id, photo);
+      await store.visitSpot(spot.id, photo, visitFix.current);
       feel.success();
       setStep('done');
       onVisited();

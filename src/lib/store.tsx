@@ -1,142 +1,92 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AppState } from 'react-native';
-import { BAN_ZONES, DEMO_HOME, ME, sampleHomes, seed, seededStops, SEED_EVENT_IDS, type SeedState } from '../data/seed';
-import { bundledSpots, isBundled, joinSpots, setProgress, splitSavedSpots, type ProgressMap } from './placeStore';
-import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SCHEMA_VERSION, SLICE_KEYS, sliceKey, splitState } from './persist';
+import { AppState, Platform } from 'react-native';
+import { ME, seededStops } from '../data/seed';
+import { accountKey, clearAccountCache, useAuth } from './auth';
+import type { AwardCategory } from './awards';
+import { supabase } from './backend/client';
+import { sendPendingFeedback, type AppInfo } from './backend/feedback';
+import { UNKNOWN_HOME } from './backend/mapping';
+import type { OutboxItem } from './backend/outbox';
+import { createSupabaseRepository, type SupabaseRepository } from './backend/remote';
 import { ClockProvider } from './clock';
-import { tidyModel } from './vehicles';
+import { alertProblem, travelProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, type AlertMode } from './discover';
+import { isPublicType, type PlanChange } from './events';
+import { isSeedEvent, restartDemo } from './demoTime';
+import type { PendingFeedback } from './feedbackQueue';
+import { newId } from './ids';
+import { createLocalRepository } from './localRepository';
+import { allPhotos, EMPTY, everyLoad, forgetSeedEvents, fresh, freshen, migrate, type Persisted } from './localState';
 import { geocoderAvailable, nameForPlace, townForPlace } from './location';
-import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
-import { castVote as applyVote, type AwardCategory } from './awards';
-import { areaGivesAway, eventArea } from './area';
-import { inferAnchor, isSeedEvent, needsRefresh, refreshDemo, restartDemo } from './demoTime';
-import { canGoWith, chosenBuild, ownBuilds } from './bringing';
-import { deletePhotos, migratePhotoRef } from './photos';
-import { droppedPhotos } from './photoRefs';
-import {
-  answerRequest as applyAnswer,
-  applyEventEdit,
-  applyPlanChange,
-  canEditEvent,
-  dropOut,
-  isPublicType,
-  rsvp,
-  checkIn as applyCheckIn,
-  moveOn as applyMoveOn,
-  planChangedMessage,
-  type PlanChange,
-} from './events';
-import {
-  addToCrew as applyAddToCrew,
-  createCrew as applyCreateCrew,
-  joinCrew as applyJoinCrew,
-  leaveCrew as applyLeaveCrew,
-  setCrewHost as applySetCrewHost,
-  withRoles,
-} from './crews';
-import { applyProfile, profileProblem, type ProfileDraft } from './profile';
-import {
-  approveDue,
-  DEMO_APPROVAL_MS,
-  driveMiles,
-  judgeRun,
-  makeSpot,
-  rateSpot as applyRating,
-  recordCompletion,
-  type DriveRun,
-  type SpotDraft,
-  type Verdict,
-} from './spots';
+import type { Notice } from './notice';
 import { notifyNow, syncReminders } from './notify';
-import { alertProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, travelProblem, type AlertMode } from './discover';
-import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
-import { dedupeNotices, dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
-import { markLegacyShopRefs, type PendingFeedback } from './feedbackQueue';
-import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
+import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SLICE_KEYS, sliceKey, splitState } from './persist';
+import { deletePhotos } from './photos';
+import { bundledSpots, joinSpots } from './placeStore';
+import type { ProfileDraft } from './profile';
+import { dueReminders, upcomingReminders } from './reminders';
+import type { BackendExtras, Repository } from './repository';
+import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
+import { DEFAULT_SETTINGS, type Settings } from './settings';
+import { approveDue, DEMO_APPROVAL_MS, type DriveRun, type SpotDraft, type Verdict } from './spots';
+import type { Build, LatLng, NightEvent } from './types';
 
 /**
- * Phase 1 keeps everything on the phone. Every read and write goes through this
- * store, so moving to Supabase later only replaces this file.
+ * The one store every screen reads and writes through. Its writes go to a
+ * Repository (repository.ts): the demo's LocalRepository, or the
+ * SupabaseRepository when signed in. Reads are the same shape either way
+ * (localState.ts): signed in it holds what the server returned, cached on the
+ * phone so the app opens instantly and works offline.
  */
 
 /** How long to wait after a change before saving (the latest state wins; flushed when the app goes to the background). */
 const SAVE_DELAY_MS = 500;
+/** Signed in and offline: try the server again this often. */
+const RETRY_MS = 20_000;
 
-interface Persisted extends SeedState {
-  /** Saved shape (persist.ts). Missing on saves from before slices. */
-  schemaVersion?: number;
-  /** Bundled places: what people did there, by place id. `spots` only holds places people suggested. */
-  placeProgress: ProgressMap;
-  settings: Settings;
-  /** Notices for the current user, e.g. "the meet moved on". */
-  notices: Notice[];
-  /** False until the person has set up their profile on first run. */
-  onboarded: boolean;
-  /** When they finished first run (ISO). Reminders from before then don't land in the list. */
-  onboardedAt?: string;
-  /** eventId -> stop ids this person has already seen the "unlocked" moment for. */
-  unlockSeen: Record<string, string[]>;
-  /** When the demo scene's times were last laid out (ISO). Used to keep the demo fresh. */
-  seededAt?: string;
-  /** Where the sample scene was drawn (your fuzzed home area) and the geocoder's names for its stops. */
-  scene?: { home: LatLng; names: SceneNames };
-  /** Set once "skip the GPS check" has been turned off for saves from before real GPS was the default. */
-  realGpsDefault?: boolean;
-  /** The Map tab has said once that location is off and it's showing your home area. */
-  locationNoticeSeen?: boolean;
-  /**
-   * New events near you. `known`: every event id already looked at, so each
-   * event is only ever "new" once. `unseen`: new ones near you not yet seen in
-   * Find events (the "I'll search" setting marks these instead of notifying).
-   */
-  nearby?: { known: string[]; unseen: string[] };
-  /** Suggestions from the vehicle and mod pickers, waiting to be sent to the backend's feedback table. */
-  pendingFeedback?: PendingFeedback[];
-}
-
-export interface Notice {
-  id: string;
-  eventId: string;
-  text: string;
-  at: string;
-  read: boolean;
-  kind?: ReminderKind | 'host';
-  /** Reminder key, so a reminder only lands in the list once. */
-  key?: string;
-}
+export type { Notice };
 
 interface Store extends Persisted {
   ready: boolean;
   me: string;
-  saveBuild: (b: Build) => void;
-  deleteBuild: (id: string) => void;
-  saveEvent: (e: NightEvent) => void;
-  /** Host edits an event before it starts. Throws with a readable reason if not allowed. */
-  editEvent: (e: NightEvent) => void;
-  /** Host changes a rolling meet's stops on the night. Throws if not allowed; returns any ban-zone warning. */
-  changePlan: (eventId: string, change: PlanChange) => { warning?: string };
-  /** Save the person's own profile. Throws with a readable reason if something is missing. */
-  saveProfile: (draft: ProfileDraft) => void;
+  /** Where writes go: the demo on the phone, or the backend. */
+  backend: 'local' | 'supabase';
+  /** Signed in: whether the server answered the last request. Always true in the demo. */
+  online: boolean;
+  /** Signed in: writes made offline waiting to be sent. */
+  pendingWrites: number;
+  /** Signed-in extras (live updates, server search, invite counts). Null in the demo. */
+  remote: BackendExtras | null;
+  saveBuild: (b: Build) => Promise<void>;
+  deleteBuild: (id: string) => Promise<void>;
+  /** Create an event. Resolves with its id (the server's when signed in). */
+  saveEvent: (e: NightEvent) => Promise<string>;
+  /** Host edits an event before it starts. Rejects with a readable reason if not allowed. */
+  editEvent: (e: NightEvent) => Promise<void>;
+  /** Host changes a rolling meet's stops on the night. Resolves with any ban-zone warning. */
+  changePlan: (eventId: string, change: PlanChange) => Promise<{ warning?: string }>;
+  /** Save the person's own profile. Rejects with a readable reason if something is missing. */
+  saveProfile: (draft: ProfileDraft) => Promise<void>;
   /**
    * Going, or for people the invite doesn't cover (with that build), a request a host must approve.
    * `buildId`: the car or bike you're bringing; another one later is a vehicle change. False drops out or withdraws.
-   * Returns where you ended up. Throws with a readable reason.
+   * Resolves with where you ended up.
    */
-  setGoing: (eventId: string, going: boolean, buildId?: string) => 'going' | 'requested' | 'none';
+  setGoing: (eventId: string, going: boolean, buildId?: string) => Promise<'going' | 'requested' | 'none'>;
   /** Host approves or declines a request to go. */
-  answerRequest: (eventId: string, userId: string, approve: boolean) => void;
-  /** `buildId`: the build you actually turned up in, if it isn't the one you said. Throws with a readable reason. */
-  checkIn: (eventId: string, stopIndex: number, buildId?: string) => void;
-  moveOn: (eventId: string) => void;
-  cancelEvent: (eventId: string) => void;
-  sendChat: (eventId: string, text: string) => void;
-  /** Throws with a readable reason if the vote isn't allowed. */
-  vote: (eventId: string, category: AwardCategory, buildId: string) => void;
+  answerRequest: (eventId: string, userId: string, approve: boolean) => Promise<void>;
+  /** `buildId`: the build you actually turned up in, if it isn't the one you said. `position`: the GPS fix (needed signed in). */
+  checkIn: (eventId: string, stopIndex: number, buildId?: string, position?: LatLng | null) => Promise<void>;
+  moveOn: (eventId: string) => Promise<void>;
+  cancelEvent: (eventId: string) => Promise<void>;
+  sendChat: (eventId: string, text: string) => Promise<void>;
+  /** Rejects with a readable reason if the vote isn't allowed. */
+  vote: (eventId: string, category: AwardCategory, buildId: string) => Promise<void>;
   setSettings: (patch: Partial<Settings>) => void;
   markNoticesRead: () => void;
   markLocationNoticeSeen: () => void;
-  /** Queue a suggestion (see feedbackQueue.ts) to be sent later. */
+  /** Queue a suggestion (see feedbackQueue.ts); it's sent to the team when there's a connection. */
   queueFeedback: (item: PendingFeedback) => void;
   /** Remember that the "unlocked" moment has been shown for these stops. */
   markUnlockSeen: (eventId: string, stopIds: string[]) => void;
@@ -145,243 +95,214 @@ interface Store extends Persisted {
   restartDemoEvents: () => void;
   /** Schedule reminders again now, e.g. once notifications have just been allowed. */
   refreshReminders: () => void;
-  /** Willing to travel and how you hear about new events near you. Throws with a readable reason. */
-  setTravelPrefs: (prefs: { travelMiles?: number; alerts?: AlertMode }) => void;
+  /** Willing to travel and how you hear about new events near you. Rejects with a readable reason. */
+  setTravelPrefs: (prefs: { travelMiles?: number; alerts?: AlertMode }) => Promise<void>;
   /** Find events has been opened: new ones near you are no longer new. */
   markNearbySeen: () => void;
   /** Finish a drive. Checks the run (every checkpoint, in order, at a believable pace); records only pass or fail. */
-  finishDrive: (spotId: string, run: DriveRun) => Verdict;
-  /** Record a photo spot visit, with an optional plate-blurred photo. The distance check happens before this. */
-  visitSpot: (spotId: string, photo?: string) => void;
-  /** 1–5 stars. Throws if you haven't finished it or you suggested it. */
-  rateSpot: (spotId: string, stars: number) => void;
-  /** Suggest a drive or photo spot. It starts pending. Throws if the draft isn't ready. */
-  suggestSpot: (draft: SpotDraft) => { id: string; warning?: string };
-  joinCrew: (crewId: string) => void;
-  leaveCrew: () => void;
-  /** Start a crew and join it. Throws with a readable reason. Returns the new crew's id. */
-  createCrew: (name: string, tag: string) => string;
-  /** Crew owner makes a member a host, or takes it away. Throws with a readable reason. */
-  setCrewHost: (crewId: string, userId: string, host: boolean) => void;
-  /** Demo: bring a sample person who isn't in a crew into yours. Throws with a readable reason. */
-  addToCrew: (crewId: string, userId: string) => void;
+  finishDrive: (spotId: string, run: DriveRun) => Promise<Verdict>;
+  /** Record a photo spot visit, with an optional plate-blurred photo. `position`: the fix the distance check used. */
+  visitSpot: (spotId: string, photo?: string, position?: LatLng | null) => Promise<void>;
+  /** 1–5 stars. Rejects if you haven't finished it or you suggested it. */
+  rateSpot: (spotId: string, stars: number) => Promise<void>;
+  /** Suggest a drive or photo spot. It starts pending. Rejects if the draft isn't ready. */
+  suggestSpot: (draft: SpotDraft) => Promise<{ id: string; warning?: string }>;
+  joinCrew: (crewId: string) => Promise<void>;
+  leaveCrew: () => Promise<void>;
+  /** Start a crew and join it. Resolves with the new crew's id. */
+  createCrew: (name: string, tag: string) => Promise<string>;
+  /** Crew owner makes a member a host, or takes it away. */
+  setCrewHost: (crewId: string, userId: string, host: boolean) => Promise<void>;
+  /** Demo: bring a sample person who isn't in a crew into yours. */
+  addToCrew: (crewId: string, userId: string) => Promise<void>;
+  /** Signed in: delete the account, everything in it and its photos (Apple 5.1.1(v)), then sign out. */
+  deleteAccount: () => Promise<void>;
 }
 
 const Ctx = createContext<Store | null>(null);
 
-function fresh(): Persisted {
-  const now = new Date();
+export { newId };
+
+/** App version, update and device, sent with feedback. */
+function appInfo(): AppInfo {
   return {
-    ...seed(now), schemaVersion: SCHEMA_VERSION, placeProgress: {}, settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString(),
-    scene: { home: DEMO_HOME, names: {} }, realGpsDefault: true,
-    // Nothing is known yet, so the sample events count as new near you once you've set up.
+    app_version: process.env.EXPO_PUBLIC_APP_VERSION ?? null,
+    update_id: Updates.updateId ?? null,
+    device: `${Platform.OS} ${String(Platform.Version ?? '')}`.trim().slice(0, 200),
+  };
+}
+
+/** A signed-in person's state before the server has answered (and nothing is cached). */
+function accountStart(uid: string): Persisted {
+  return {
+    ...EMPTY,
+    users: [{ id: uid, handle: '', name: '', region: '', home: UNKNOWN_HOME }],
+    settings: DEFAULT_SETTINGS,
     nearby: { known: [], unseen: [] },
   };
 }
 
-/** Before the save has been read: nothing yet (screens wait for `ready`). Cheap, unlike fresh(). */
-const EMPTY: Persisted = {
-  users: [], builds: [], crews: [], events: [], chat: [], votes: [], spots: [], placeProgress: {},
-  settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, schemaVersion: SCHEMA_VERSION,
-};
+type Mode = { kind: 'demo' } | { kind: 'account'; uid: string } | { kind: 'none' };
 
-/** Keep the demo scene's times current (see demoTime.ts). Events made on the phone are left alone. */
-function freshen(state: Persisted, now: Date): Persisted {
-  if (!state.scene) return state; // older save: migrate() redraws the scene round your home
-  const anchor = state.seededAt ? new Date(state.seededAt) : inferAnchor(state.events);
-  if (!anchor || isNaN(anchor.getTime())) return { ...state, seededAt: state.seededAt ?? now.toISOString() };
-  if (!needsRefresh(state, anchor, now, state.scene)) return { ...state, seededAt: anchor.toISOString() };
-  return { ...state, ...refreshDemo(state, anchor, now, state.scene), seededAt: now.toISOString() };
-}
-
-/**
- * Draw the sample scene round a new home area: sample events, chat, votes and
- * real places laid out fresh (your own events, builds and crews stay), and
- * sample people's rough homes moved with it.
- */
-function redrawScene(s: Persisted, home: LatLng, now: Date): Persisted {
-  const scene = { home, names: {} };
-  const restarted = restartDemo(s, now, scene);
-  const homes = sampleHomes(home);
-  const region = seed(now, scene).users.find((u) => u.id !== ME)?.region;
-  return {
-    ...s,
-    ...restarted,
-    users: s.users.map((u) => (u.id !== ME && homes.has(u.id) ? { ...u, home: homes.get(u.id)!, region: region ?? u.region } : u)),
-    unlockSeen: Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id))),
-    notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
-    nearby: forgetSeedEvents(s.nearby),
-    seededAt: now.toISOString(),
-    onboardedAt: s.onboarded ? now.toISOString() : s.onboardedAt,
-    scene,
-  };
-}
-
-/** The sample events are laid out again: they count as new near you again, like their reminders. */
-function forgetSeedEvents(nearby: Persisted['nearby']): Persisted['nearby'] {
-  if (!nearby) return nearby;
-  return { known: nearby.known.filter((id) => !isSeedEvent(id)), unseen: nearby.unseen.filter((id) => !isSeedEvent(id)) };
-}
-
-/** Data saved by an older version of the app: fill in anything that's new since. */
-function migrate(parsed: Persisted): Persisted {
-  const base = fresh();
-  // Real GPS is now the default: the old "simulate GPS" default goes off, once.
-  let next: Persisted = { ...base, ...parsed, settings: upgradeSettings(parsed.settings, !!parsed.realGpsDefault), realGpsDefault: true };
-  // Saved before bundled places were read from the bundle: the save held a copy of every one.
-  // Keep only what people did there, and the places people suggested.
-  if (!parsed.placeProgress) {
-    const { own, progress } = splitSavedSpots(next.spots ?? [], ME);
-    next = { ...next, spots: own, placeProgress: progress };
-  }
-  if (!parsed.spots) {
-    // Saved before drives, photo spots and more crews arrived: add the new sample crews.
-    const known = new Set(next.crews.map((c) => c.id));
-    const added = base.crews.filter((c) => !known.has(c.id));
-    const sampleCrew = new Map(base.users.map((u) => [u.id, u.crewId]));
-    next = {
-      ...next,
-      crews: [...next.crews, ...added],
-      users: next.users.map((u) => {
-        const c = sampleCrew.get(u.id);
-        return u.id !== ME && c && added.some((a) => a.id === c) ? { ...u, crewId: c } : u;
-      }),
-    };
-  }
-  // Crew roles arrived later: sample crews get their seeded owner and hosts, crews made on the phone get their first member.
-  const seededCrew = new Map(base.crews.map((c) => [c.id, c]));
-  next = {
-    ...next,
-    crews: next.crews.map((c) => {
-      if (c.ownerId && c.hostIds) return c;
-      const sample = seededCrew.get(c.id);
-      if (sample) {
-        const hostIds = (sample.hostIds ?? []).filter((h) => c.memberIds.includes(h));
-        return { ...c, ownerId: c.memberIds.includes(sample.ownerId ?? '') ? sample.ownerId : c.memberIds[0], hostIds };
-      }
-      return withRoles(c.memberIds.includes(ME) ? { ...c, ownerId: ME } : c);
-    }),
-  };
-  // Rough areas saved before they were fuzzed could sit right on the place: work them out again.
-  next = {
-    ...next,
-    events: next.events.map((e) => {
-      if (isPublicType(e.type) || (e.areaRadiusMiles && !areaGivesAway(e))) return e;
-      const placed = e.stops.flatMap((st) => (st.at ? [st.at] : []));
-      return placed.length ? { ...e, ...eventArea(placed, e.id, false) } : e;
-    }),
-  };
-  // Photos saved as full paths: keep only the file name when it's in our photos folder.
-  next = {
-    ...next,
-    builds: next.builds.map((b) => ({ ...b, photos: b.photos.map(migratePhotoRef) })),
-    spots: next.spots.map((x) => ({
-      ...x,
-      completions: x.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)),
-    })),
-    placeProgress: Object.fromEntries(
-      Object.entries(next.placeProgress).map(([id, p]) => [
-        id,
-        { ...p, completions: p.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)) },
-      ]),
-    ),
-  };
-  // Sample events added since this save was made (e.g. the invite a few hours away).
-  const have = new Set(next.events.map((e) => e.id));
-  const sceneBase = parsed.scene ? seed(new Date(), parsed.scene).events : base.events;
-  const added = sceneBase.filter((e) => SEED_EVENT_IDS.includes(e.id) && !have.has(e.id));
-  if (added.length) next = { ...next, events: [...next.events, ...added] };
-  // In-app reminders used to be keyed by time, so the demo moving its times added repeats.
-  next = { ...next, notices: dedupeNotices(next.notices ?? []) };
-  if (!parsed.scene) {
-    // Saved before the sample scene followed your home area and the real UK places arrived:
-    // drop the old Midlands sample places (keep your own) and draw the scene round your home once.
-    const mine = next.spots.filter((x) => x.authorId === ME);
-    const home = next.users.find((u) => u.id === ME)?.home ?? DEMO_HOME;
-    next = redrawScene({ ...next, spots: mine }, home, new Date());
-  }
-  // Saved before "new events near you": what's already there isn't new.
-  if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };
-  // Bike builds titled with their years twice ("Yamaha YZF-R6 2017-2020", schema 3): the model alone.
-  if ((parsed.schemaVersion ?? 1) < 3) next = { ...next, builds: next.builds.map((b) => (b.vehicleId ? { ...b, model: tidyModel(b.model) } : b)) };
-  // Shop suggestions queued before shop ids were stable (schema 3): mark the old listing numbers.
-  if ((parsed.schemaVersion ?? 1) < 3 && next.pendingFeedback) next = { ...next, pendingFeedback: markLegacyShopRefs(next.pendingFeedback) };
-  return { ...next, schemaVersion: SCHEMA_VERSION };
-}
-
-/** On every load, however new the save: settings added since get their defaults. */
-function everyLoad(saved: Persisted): Persisted {
-  return { ...saved, settings: upgradeSettings(saved.settings, true) };
-}
-
-/** Every photo file the state refers to (builds, visits, suggested places), for Reset everything. */
-function allPhotos(s: Persisted): string[] {
-  const visits = (cs: { photo?: string }[]) => cs.flatMap((c) => (c.photo ? [c.photo] : []));
-  return [
-    ...s.builds.flatMap((b) => b.photos),
-    ...s.spots.flatMap((x) => [...(x.photo ? [x.photo] : []), ...visits(x.completions)]),
-    ...Object.values(s.placeProgress ?? {}).flatMap((p) => visits(p.completions)),
-  ];
-}
-
-export function newId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-}
-
+/** Picks the store for who's using the app; a new person gets a fresh one. */
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const mode: Mode =
+    auth.status === 'signedIn' && auth.userId ? { kind: 'account', uid: auth.userId } : auth.status === 'demo' ? { kind: 'demo' } : { kind: 'none' };
+  const key = mode.kind === 'account' ? `account:${mode.uid}` : mode.kind;
+  return (
+    <StoreForMode key={key} mode={mode} signOut={auth.signOut}>
+      {children}
+    </StoreForMode>
+  );
+}
+
+function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => Promise<void>; children: ReactNode }) {
+  const demo = mode.kind === 'demo';
+  const uid = mode.kind === 'account' ? mode.uid : null;
+  const me = uid ?? ME;
   // A cheap placeholder until the save is read: the demo scene is only built when there's no save.
-  const [state, setState] = useState<Persisted>(EMPTY);
-  const [ready, setReady] = useState(false);
+  const [state, setState] = useState<Persisted>(() => (uid ? accountStart(uid) : EMPTY));
+  const [ready, setReady] = useState(mode.kind === 'none');
+  const [online, setOnline] = useState(true);
+  const [outbox, setOutboxState] = useState<OutboxItem[]>([]);
   /** Ticks every 30 s inside the store only (due reminders). Screens get the time from useNow(), not from here. */
   const [tick, setTick] = useState(0);
   /** Bumped when notifications are allowed or the app comes back to the front, to sync reminders again. */
   const [reminderTick, setReminderTick] = useState(0);
   const loaded = useRef(false);
+  /** The latest state, for repositories (a render's `state` can be stale inside async work). */
+  const latest = useRef(state);
+  latest.current = state;
+  const outboxRef = useRef<OutboxItem[]>([]);
   /** What's on the phone now (for writing only the slices that changed), the latest state waiting to be saved, and its timer. */
   const savedState = useRef<Persisted | null>(null);
   const pendingSave = useRef<Persisted | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const legacySave = useRef(false);
 
+  const set = useCallback((fn: (s: Persisted) => Persisted) => {
+    setState((s) => {
+      const next = fn(s);
+      latest.current = next;
+      return next;
+    });
+  }, []);
+
+  /** Bundled places joined with what people did there, then the places people suggested (the server's, signed in). */
+  const spots = useMemo(() => joinSpots(bundledSpots(), state.placeProgress, state.spots), [state.placeProgress, state.spots]);
+
+  const repo = useMemo<Repository | null>(() => {
+    const get = () => latest.current;
+    const allSpots = () => joinSpots(bundledSpots(), latest.current.placeProgress, latest.current.spots);
+    if (mode.kind === 'demo') return createLocalRepository({ get, set, spots: allSpots });
+    if (mode.kind === 'account') {
+      return createSupabaseRepository({
+        client: supabase(),
+        uid: mode.uid,
+        get,
+        set,
+        spots: allSpots,
+        setOnline,
+        appInfo,
+        outbox: {
+          get: () => outboxRef.current,
+          set: (items) => {
+            outboxRef.current = items;
+            setOutboxState(items);
+            AsyncStorage.setItem(accountKey(mode.uid, 'outbox'), JSON.stringify(items)).catch(() => {});
+          },
+        },
+      });
+    }
+    return null;
+    // The mode never changes for this store (a new mode is a new store).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const remote = repo && repo.kind === 'supabase' ? (repo as SupabaseRepository) : null;
+
+  // Load: the demo's slices, or the signed-in person's cache, then the server.
   useEffect(() => {
+    if (mode.kind === 'none') return;
+    let live = true;
     (async () => {
-      let next: Persisted | null = null;
-      try {
-        let saved = joinSlices(await AsyncStorage.multiGet(SLICE_KEYS)) as Persisted | null;
-        if (saved) savedState.current = saved;
-        else {
-          const raw = await AsyncStorage.getItem(LEGACY_KEY);
-          if (raw) {
-            saved = JSON.parse(raw) as Persisted;
-            legacySave.current = true;
+      if (mode.kind === 'demo') {
+        let next: Persisted | null = null;
+        try {
+          let saved = joinSlices(await AsyncStorage.multiGet(SLICE_KEYS)) as Persisted | null;
+          if (saved) savedState.current = saved;
+          else {
+            const raw = await AsyncStorage.getItem(LEGACY_KEY);
+            if (raw) {
+              saved = JSON.parse(raw) as Persisted;
+              legacySave.current = true;
+            }
           }
+          if (saved) {
+            // Freshen before migrating, so "is this still the untouched demo?" compares like with like.
+            const freshened = freshen(saved, new Date());
+            next = everyLoad(needsMigration(saved) ? migrate(freshened) : freshened);
+          }
+        } catch {
+          // Unreadable storage: start from the demo scene.
+          savedState.current = null;
         }
-        if (saved) {
-          // Freshen before migrating, so "is this still the untouched demo?" compares like with like.
-          const freshened = freshen(saved, new Date());
-          next = everyLoad(needsMigration(saved) ? migrate(freshened) : freshened);
+        if (!live) return;
+        set(() => next ?? fresh());
+        loaded.current = true;
+        setReady(true);
+        return;
+      }
+      // Signed in: show the cache at once, then refresh from the server.
+      const uidKey = mode.uid;
+      let cached: Persisted | null = null;
+      try {
+        const [rawState, rawOutbox] = await Promise.all([AsyncStorage.getItem(accountKey(uidKey, 'state')), AsyncStorage.getItem(accountKey(uidKey, 'outbox'))]);
+        if (rawState) cached = { ...accountStart(uidKey), ...(JSON.parse(rawState) as Persisted) };
+        if (rawOutbox) {
+          outboxRef.current = JSON.parse(rawOutbox) as OutboxItem[];
+          setOutboxState(outboxRef.current);
         }
       } catch {
-        // Unreadable storage: start from the demo scene.
-        savedState.current = null;
+        cached = null;
       }
-      setState(next ?? fresh());
+      if (!live) return;
+      if (cached) {
+        const c = cached;
+        set(() => ({ ...c, settings: { ...DEFAULT_SETTINGS, ...c.settings } }));
+        loaded.current = true;
+        setReady(true);
+      }
+      try {
+        await remote!.refresh();
+      } catch {
+        // Offline (or the server is down): the cache stands; the retry below tries again.
+      }
+      if (!live) return;
       loaded.current = true;
       setReady(true);
     })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Write the latest state: only the slices that changed since the last write. */
+  /** Write the latest state: the demo's changed slices, or the signed-in cache. */
   const flush = useCallback(async () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = null;
     const next = pendingSave.current;
     if (!next) return;
     pendingSave.current = null;
-    const changed = changedSlices(savedState.current, next);
-    if (changed.length === 0) return;
-    const parts = splitState(next);
     try {
+      if (mode.kind === 'account') {
+        await AsyncStorage.setItem(accountKey(mode.uid, 'state'), JSON.stringify(next));
+        return;
+      }
+      const changed = changedSlices(savedState.current, next);
+      if (changed.length === 0) return;
+      const parts = splitState(next);
       await AsyncStorage.multiSet(changed.map((n) => [sliceKey(n), JSON.stringify(parts[n])] as [string, string]));
       savedState.current = next;
       if (legacySave.current) {
@@ -391,15 +312,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch {
       // Try again with the next change.
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!loaded.current) return;
+    if (!loaded.current || mode.kind === 'none') return;
     pendingSave.current = state;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       flush();
     }, SAVE_DELAY_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, flush]);
 
   useEffect(() => {
@@ -407,7 +330,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, []);
 
-  // Going to the background: save now. Back to the front (or from the Settings app): catch up on the reminders.
+  // Going to the background: save now. Back to the front: catch up on reminders (and, signed in, the server).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
       if (st !== 'active') {
@@ -416,69 +339,104 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       setTick((n) => n + 1);
       setReminderTick((n) => n + 1);
+      if (remote) remote.refresh().catch(() => {});
     });
     return () => sub.remove();
-  }, [flush]);
+  }, [flush, remote]);
 
-  /** Bundled places joined with what people did there, then the places people suggested. */
-  const spots = useMemo(() => joinSpots(bundledSpots(), state.placeProgress, state.spots), [state.placeProgress, state.spots]);
+  // Signed in: live notices ("moved on"), and retry the server while offline.
+  useEffect(() => {
+    if (!remote || !ready) return;
+    return remote.watchNotices();
+  }, [remote, ready]);
+  useEffect(() => {
+    if (!remote || online) return;
+    const t = setInterval(() => remote.refresh().catch(() => {}), RETRY_MS);
+    return () => clearInterval(t);
+  }, [remote, online]);
+
+  // The demo: suggestions waiting to go to the team are sent as feedback (allowed signed out).
+  const pendingCount = state.pendingFeedback?.length ?? 0;
+  useEffect(() => {
+    if (!demo || !ready || pendingCount === 0) return;
+    let live = true;
+    const t = setTimeout(() => {
+      sendPendingFeedback(supabase(), latest.current.pendingFeedback ?? [], appInfo())
+        .then(({ done }) => {
+          if (live && done.length) set((s) => ({ ...s, pendingFeedback: (s.pendingFeedback ?? []).filter((f) => !done.includes(f.id)) }));
+        })
+        .catch(() => {});
+    }, 2000);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [demo, ready, pendingCount, reminderTick, set]);
+  // Signed in: the same, through the repository (after the outbox).
+  useEffect(() => {
+    if (!remote || !ready || pendingCount === 0 || !online) return;
+    const t = setTimeout(() => remote.flush().catch(() => {}), 2000);
+    return () => clearTimeout(t);
+  }, [remote, ready, pendingCount, online]);
 
   // Demo: suggestions are approved a few seconds after they're made.
   useEffect(() => {
+    if (!demo) return;
     const pending = state.spots.filter((x) => x.status === 'pending');
     if (pending.length === 0) return;
     const due = Math.min(...pending.map((x) => new Date(x.createdAt).getTime() + DEMO_APPROVAL_MS));
-    const t = setTimeout(() => setState((s) => ({ ...s, spots: approveDue(s.spots, new Date()) })), Math.max(0, due - Date.now()) + 50);
+    const t = setTimeout(() => set((s) => ({ ...s, spots: approveDue(s.spots, new Date()) })), Math.max(0, due - Date.now()) + 50);
     return () => clearTimeout(t);
-  }, [state.spots]);
+  }, [demo, state.spots, set]);
 
   // Reminders: keep the phone's scheduled notifications in line with what you're going to.
   const { events: allEvents, crews: allCrews } = state;
   const remindersOn = state.settings.reminders;
   useEffect(() => {
-    if (!ready) return;
-    const wanted = remindersOn ? upcomingReminders(allEvents, ME, allCrews, new Date()) : [];
+    if (!ready || mode.kind === 'none') return;
+    const wanted = remindersOn ? upcomingReminders(allEvents, me, allCrews, new Date()) : [];
     const t = setTimeout(() => {
       syncReminders(wanted).catch(() => {});
     }, 400);
     return () => clearTimeout(t);
-  }, [ready, allEvents, allCrews, remindersOn, reminderTick]);
+  }, [ready, allEvents, allCrews, remindersOn, reminderTick, me, mode.kind]);
 
   // ...and put reminders that have come due into the in-app list.
   const onboarded = state.onboarded;
   useEffect(() => {
     if (!ready || !onboarded) return;
-    setState((s) => {
+    set((s) => {
       const seen = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
-      const due = dueReminders(s.events, ME, s.crews, new Date(), seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
+      const due = dueReminders(s.events, me, s.crews, new Date(), seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
       if (due.length === 0) return s;
       const added: Notice[] = due.map((r) => ({
         id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: r.kind, key: r.key, text: `${r.title}. ${r.body}`,
       }));
       return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100) };
     });
-  }, [ready, onboarded, tick, allEvents]);
+  }, [ready, onboarded, tick, allEvents, me, set]);
 
-  // New events near you: an in-app notice (and a phone notification) for "Notify me",
+  // Demo: new events near you: an in-app notice (and a phone notification) for "Notify me",
   // a NEW tag in Find events for "I'll search", nothing for "Off". Each event only once.
+  // Signed in, the server writes these notices (private.queue_nearby_notices).
   const { users: allUsers, builds: allBuilds, nearby } = state;
   const notifiedFor = useRef<object | null>(null);
   useEffect(() => {
-    if (!ready || !onboarded || !nearby) return;
+    if (!demo || !ready || !onboarded || !nearby) return;
     const nowDate = new Date();
     const who = { me: ME, crews: allCrews, users: allUsers, builds: allBuilds };
     const { arrived, matches } = nearbyArrivals(allEvents, nearby.known, who, nowDate);
     if (arrived.length === 0) return;
-    const mode = travelOf(allUsers.find((u) => u.id === ME)).alerts;
-    setState((s) => {
+    const alerts = travelOf(allUsers.find((u) => u.id === ME)).alerts;
+    set((s) => {
       const known = new Set(s.nearby?.known ?? []);
       const newly = new Set(arrived.filter((id) => !known.has(id)));
       if (newly.size === 0) return s;
-      const fresh = matches.filter((e) => newly.has(e.id));
+      const freshOnes = matches.filter((e) => newly.has(e.id));
       const keys = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
       const added: Notice[] =
-        mode === 'notify'
-          ? fresh
+        alerts === 'notify'
+          ? freshOnes
               .map((e) => nearbyNotice(e, nowDate))
               .filter((r) => !keys.has(r.key))
               .map((r) => ({ id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: 'nearby', key: r.key, text: `${r.title}. ${r.body}` }))
@@ -486,22 +444,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const unseen = s.nearby?.unseen ?? [];
       return {
         ...s,
-        nearby: { known: [...known, ...newly], unseen: mode === 'search' ? [...unseen, ...fresh.map((e) => e.id)] : unseen },
+        nearby: { known: [...known, ...newly], unseen: alerts === 'search' ? [...unseen, ...freshOnes.map((e) => e.id)] : unseen },
         notices: added.length > 0 ? [...added, ...s.notices].slice(0, 100) : s.notices,
       };
     });
     // One phone notification per batch (React may run this effect twice for the same state in development).
-    if (mode === 'notify' && notifiedFor.current !== nearby) {
+    if (alerts === 'notify' && notifiedFor.current !== nearby) {
       notifiedFor.current = nearby;
       const batch = nearbyBatch(matches, nowDate);
       if (batch) notifyNow(batch).catch(() => {});
     }
-  }, [ready, onboarded, nearby, allEvents, allUsers, allBuilds, allCrews]);
+  }, [demo, ready, onboarded, nearby, allEvents, allUsers, allBuilds, allCrews, set]);
 
-  // Name the sample stops after real places near them, with the phone's geocoder (a few lookups, one at a time).
+  // Demo: name the sample stops after real places near them, with the phone's geocoder (a few lookups, one at a time).
   const scene = state.scene;
   useEffect(() => {
-    if (!ready || !onboarded || !scene || !geocoderAvailable) return;
+    if (!demo || !ready || !onboarded || !scene || !geocoderAvailable) return;
     const seeded = seededStops(scene.home);
     const todo = stopsToName(allEvents, seeded, scene.names).slice(0, 12);
     const areas = allEvents.filter((e) => isSeedEvent(e.id) && !isPublicType(e.type) && !scene.names[`area:${e.id}`]);
@@ -519,7 +477,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         found[`area:${e.id}`] = (await townForPlace(e.area)) ?? e.areaName;
       }
       if (cancelled) return;
-      setState((s) => {
+      set((s) => {
         if (!s.scene || !sameHome(s.scene.home, scene.home)) return s;
         const names = { ...s.scene.names, ...found };
         return { ...s, scene: { ...s.scene, names }, events: applySceneNames(s.events, names, seeded) };
@@ -528,255 +486,104 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, onboarded, scene, allEvents]);
+  }, [demo, ready, onboarded, scene, allEvents, set]);
 
-  const updateSpot = useCallback((id: string, fn: (x: Spot) => Spot) => {
-    setState((s) => {
-      if (!isBundled(id)) return { ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) };
-      // A bundled place: only what people did there is saved.
-      const base = bundledSpots().find((x) => x.id === id);
-      if (!base) return s;
-      const p = s.placeProgress[id];
-      return { ...s, placeProgress: setProgress(s.placeProgress, fn(p ? { ...base, ...p } : base)) };
-    });
-  }, []);
-
-  const updateEvent = useCallback((id: string, fn: (e: NightEvent) => NightEvent) => {
-    setState((s) => ({ ...s, events: s.events.map((e) => (e.id === id ? fn(e) : e)) }));
-  }, []);
-
-  const store = useMemo<Store>(
-    () => ({
+  const store = useMemo<Store>(() => {
+    const need = (): Repository => {
+      if (!repo) throw new Error('Sign in or try the demo first.');
+      return repo;
+    };
+    return {
       ...state,
       spots,
       ready,
-      me: ME,
-      saveBuild: (b) => {
-        // Photos taken off the build: delete their files (they were only ever this build's).
-        const before = state.builds.find((x) => x.id === b.id)?.photos ?? [];
-        const elsewhere = state.builds.filter((x) => x.id !== b.id).flatMap((x) => x.photos);
-        deletePhotos(droppedPhotos(before, b.photos, elsewhere));
-        setState((s) => ({
-          ...s,
-          builds: s.builds.some((x) => x.id === b.id) ? s.builds.map((x) => (x.id === b.id ? b : x)) : [...s.builds, b],
-        }));
-      },
-      deleteBuild: (id) => {
-        const before = state.builds.find((x) => x.id === id)?.photos ?? [];
-        const elsewhere = state.builds.filter((x) => x.id !== id).flatMap((x) => x.photos);
-        deletePhotos(droppedPhotos(before, [], elsewhere));
-        setState((s) => ({ ...s, builds: s.builds.filter((b) => b.id !== id) }));
-      },
-      saveEvent: (e) =>
-        setState((s) => ({
-          ...s,
-          events: s.events.some((x) => x.id === e.id) ? s.events.map((x) => (x.id === e.id ? e : x)) : [e, ...s.events],
-        })),
-      editEvent: (edited) => {
-        const event = state.events.find((e) => e.id === edited.id);
-        if (!event) throw new Error('Event not found.');
-        const nowDate = new Date();
-        const ok = canEditEvent(event, nowDate);
-        if (!ok.ok) throw new Error(ok.reason);
-        const next = applyEventEdit(event, edited, ME, nowDate, newId('pc'));
-        const msg: ChatMessage = {
-          id: newId('c'), eventId: event.id, userId: ME, text: 'Hosts updated the event details', at: nowDate.toISOString(), system: true,
-        };
-        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === event.id ? next : e)), chat: [...s.chat, msg] }));
-      },
-      changePlan: (eventId, change) => {
-        const event = state.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found.');
-        const nowDate = new Date();
-        const result = applyPlanChange(event, change, ME, nowDate, BAN_ZONES, () => newId(`${eventId}-x`));
-        const msg = planChangedMessage(eventId, ME, nowDate, newId('c'));
-        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? result.event : e)), chat: [...s.chat, msg] }));
-        return { warning: result.warning };
-      },
-      saveProfile: (draft) => {
-        const problem = profileProblem(draft, state.users, ME);
+      me,
+      backend: remote ? 'supabase' : 'local',
+      online: remote ? online : true,
+      pendingWrites: outbox.length,
+      remote,
+      saveBuild: async (b) => need().saveBuild(b),
+      deleteBuild: async (id) => need().deleteBuild(id),
+      saveEvent: async (e) => need().saveEvent(e),
+      editEvent: async (e) => need().editEvent(e),
+      changePlan: async (id, change) => need().changePlan(id, change),
+      saveProfile: async (draft) => need().saveProfile(draft),
+      setGoing: async (id, going, buildId) => need().setGoing(id, going, buildId),
+      answerRequest: async (id, userId, approve) => need().answerRequest(id, userId, approve),
+      checkIn: async (id, stop, buildId, position) => need().checkIn(id, stop, buildId, position),
+      moveOn: async (id) => need().moveOn(id),
+      cancelEvent: async (id) => need().cancelEvent(id),
+      sendChat: async (id, text) => need().sendChat(id, text),
+      vote: async (id, category, buildId) => need().vote(id, category, buildId),
+      setTravelPrefs: async (prefs) => {
+        // The same sentences as the server's save_travel_prefs(), without a round trip.
+        const problem = (prefs.travelMiles !== undefined && travelProblem(prefs.travelMiles)) || (prefs.alerts !== undefined && alertProblem(prefs.alerts));
         if (problem) throw new Error(problem);
-        setState((s) => {
-          const users = s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u));
-          const next = { ...s, onboarded: true, onboardedAt: s.onboardedAt ?? new Date().toISOString(), users };
-          // A new home area: the sample scene moves with it.
-          const home = users.find((u) => u.id === ME)!.home;
-          return sameHome(s.scene?.home, home) ? next : redrawScene(next, home, new Date());
-        });
+        return need().setTravelPrefs(prefs);
       },
-      setGoing: (eventId, going, buildId) => {
-        const event = state.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found.');
-        if (!going) {
-          updateEvent(eventId, (e) => dropOut(e, ME));
-          return 'none';
-        }
-        const own = ownBuilds(ME, state.builds);
-        if (buildId && !own.some((b) => b.id === buildId)) throw new Error("That isn't one of your builds.");
-        const already = event.going.includes(ME) || !!event.requests?.includes(ME);
-        // One build: that's the one (the picker only shows for two or more).
-        const pick = buildId ?? (!already && own.length === 1 ? own[0].id : undefined);
-        const build = pick ? own.find((b) => b.id === pick) : chosenBuild(event, ME, state.builds);
-        const eligible = canGoWith(event, ME, state.crews, state.users, state.builds, build);
-        const nowDate = new Date();
-        const next = rsvp(event, ME, eligible, pick, nowDate); // throws with the reason (a host said no, checked in...)
-        updateEvent(eventId, (e) => rsvp(e, ME, eligible, pick, nowDate));
-        return next.going.includes(ME) ? 'going' : next.requests?.includes(ME) ? 'requested' : 'none';
+      finishDrive: async (spotId, run) => need().finishDrive(spotId, run),
+      visitSpot: async (spotId, photo, position) => need().visitSpot(spotId, photo, position),
+      rateSpot: async (spotId, stars) => need().rateSpot(spotId, stars),
+      suggestSpot: async (draft) => need().suggestSpot(draft),
+      joinCrew: async (crewId) => need().joinCrew(crewId),
+      leaveCrew: async () => need().leaveCrew(),
+      createCrew: async (name, tag) => need().createCrew(name, tag),
+      setCrewHost: async (crewId, userId, host) => need().setCrewHost(crewId, userId, host),
+      addToCrew: async (crewId, userId) => need().addToCrew(crewId, userId),
+      markNoticesRead: () => {
+        repo?.markNoticesRead().catch(() => {});
       },
-      answerRequest: (eventId, userId, approve) => {
-        const event = state.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found.');
-        const next = applyAnswer(event, ME, state.crews, userId, approve);
-        updateEvent(eventId, () => next);
-      },
-      checkIn: (eventId, stopIndex, buildId) => {
-        const event = state.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found.');
-        let vehicle: { buildId: string; fits: boolean } | undefined;
-        if (buildId) {
-          const build = ownBuilds(ME, state.builds).find((b) => b.id === buildId);
-          if (!build) throw new Error("That isn't one of your builds.");
-          vehicle = { buildId, fits: canGoWith(event, ME, state.crews, state.users, state.builds, build) };
-        }
-        applyCheckIn(event, stopIndex, ME, vehicle); // throws with the reason
-        updateEvent(eventId, (e) => applyCheckIn(e, stopIndex, ME, vehicle));
-      },
-      moveOn: (eventId) => {
-        const event = state.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found.');
-        const nowDate = new Date();
-        const next = applyMoveOn(event, nowDate);
-        const stop = next.stops[next.currentStop];
-        // In the demo you're the host and may also be checked in: then you get the
-        // same "moved on" notification as everyone else at the stop.
-        const moved = movedOnReminder(event, ME, nowDate);
-        const notice: Notice = moved
-          ? { id: newId('n'), eventId, at: nowDate.toISOString(), read: false, kind: 'moved', key: moved.key, text: `${moved.title}. ${moved.body}` }
-          : {
-              id: newId('n'), eventId, at: nowDate.toISOString(), read: false, kind: 'host',
-              text: `${event.title} moved on to ${stop.name}. Everyone checked in at ${event.stops[event.currentStop].name} has been told.`,
-            };
-        if (moved && state.settings.reminders) notifyNow(moved).catch(() => {});
-        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? next : e)), notices: [notice, ...s.notices] }));
-      },
-      cancelEvent: (eventId) => {
-        const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text: 'Hosts cancelled the event', at: new Date().toISOString(), system: true };
-        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? { ...e, cancelled: true } : e)), chat: [...s.chat, msg] }));
-      },
-      sendChat: (eventId, text) => {
-        const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text, at: new Date().toISOString() };
-        setState((s) => ({ ...s, chat: [...s.chat, msg] }));
-      },
-      vote: (eventId, category, buildId) => {
-        const event = state.events.find((e) => e.id === eventId);
-        if (!event) throw new Error('Event not found.');
-        const votes = applyVote(state.votes, event, state.builds, ME, category, buildId, new Date());
-        setState((s) => ({ ...s, votes }));
-      },
-      setSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
+      setSettings: (patch) => set((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
       markUnlockSeen: (eventId, stopIds) =>
-        setState((s) => ({
-          ...s,
-          unlockSeen: { ...s.unlockSeen, [eventId]: Array.from(new Set([...(s.unlockSeen[eventId] ?? []), ...stopIds])) },
-        })),
-      markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
-      markLocationNoticeSeen: () => setState((s) => ({ ...s, locationNoticeSeen: true })),
-      queueFeedback: (item) => setState((s) => ({ ...s, pendingFeedback: [...(s.pendingFeedback ?? []), item].slice(-50) })),
+        set((s) => ({ ...s, unlockSeen: { ...s.unlockSeen, [eventId]: Array.from(new Set([...(s.unlockSeen[eventId] ?? []), ...stopIds])) } })),
+      markLocationNoticeSeen: () => set((s) => ({ ...s, locationNoticeSeen: true })),
+      queueFeedback: (item) => set((s) => ({ ...s, pendingFeedback: [...(s.pendingFeedback ?? []), item].slice(-50) })),
       resetDemo: () => {
+        if (!demo) return;
         // Photo files go too: nothing would point at them any more.
-        deletePhotos(allPhotos(state));
-        setState(fresh());
+        deletePhotos(allPhotos(latest.current));
+        set(() => fresh());
       },
       restartDemoEvents: () => {
+        if (!demo) return;
         const nowDate = new Date();
-        setState((s) => {
-          const restarted = restartDemo(s, nowDate, s.scene);
-          const unlockSeen = Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id)));
-          // Drives and visits on the real places start again too (their photo files with them).
-          deletePhotos(Object.values(s.placeProgress).flatMap((p) => p.completions.flatMap((c) => (c.photo ? [c.photo] : []))));
-          return {
-            ...s,
-            ...restarted,
-            placeProgress: {},
-            unlockSeen,
-            notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
-            nearby: forgetSeedEvents(s.nearby),
-            seededAt: nowDate.toISOString(),
-            // Reminders from the restarted events count as news again.
-            onboardedAt: nowDate.toISOString(),
-          };
-        });
+        set((s) => restartDemoScene(s, nowDate));
       },
       refreshReminders: () => setReminderTick((n) => n + 1),
-      setTravelPrefs: ({ travelMiles, alerts }) => {
-        const problem = (travelMiles !== undefined && travelProblem(travelMiles)) || (alerts !== undefined && alertProblem(alerts));
-        if (problem) throw new Error(problem);
-        setState((s) => ({
-          ...s,
-          users: s.users.map((u) =>
-            u.id === ME ? { ...u, ...(travelMiles !== undefined ? { travelMiles } : {}), ...(alerts !== undefined ? { alerts } : {}) } : u,
-          ),
-          // Leaving "I'll search" clears the NEW tags it was keeping.
-          nearby: alerts && alerts !== 'search' && s.nearby ? { ...s.nearby, unseen: [] } : s.nearby,
-        }));
+      markNearbySeen: () => set((s) => (s.nearby && s.nearby.unseen.length > 0 ? { ...s, nearby: { ...s.nearby, unseen: [] } } : s)),
+      deleteAccount: async () => {
+        if (!remote || !uid) throw new Error('Only an account can be deleted. The demo lives on this phone: use Reset everything.');
+        await remote.deleteAccount();
+        await clearAccountCache(uid);
+        await signOut();
       },
-      markNearbySeen: () =>
-        setState((s) => (s.nearby && s.nearby.unseen.length > 0 ? { ...s, nearby: { ...s.nearby, unseen: [] } } : s)),
-      finishDrive: (spotId, run) => {
-        const spot = spots.find((x) => x.id === spotId);
-        if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
-        const verdict = judgeRun(run, spot.path, driveMiles(spot), spot.limitMph);
-        if (!verdict.ok) return verdict;
-        try {
-          recordCompletion(spot, ME, new Date());
-        } catch (e) {
-          return { ok: false, reason: e instanceof Error ? e.message : 'Could not record the drive.' };
-        }
-        updateSpot(spotId, (x) => recordCompletion(x, ME, new Date()));
-        return { ok: true };
-      },
-      visitSpot: (spotId, photo) => {
-        const spot = spots.find((x) => x.id === spotId);
-        if (!spot) throw new Error('Spot not found.');
-        recordCompletion(spot, ME, new Date(), photo);
-        updateSpot(spotId, (x) => recordCompletion(x, ME, new Date(), photo));
-      },
-      rateSpot: (spotId, stars) => {
-        const spot = spots.find((x) => x.id === spotId);
-        if (!spot) throw new Error('Place not found.');
-        const rated = applyRating(spot, ME, stars);
-        updateSpot(spotId, () => rated);
-      },
-      suggestSpot: (draft) => {
-        const { spot, warning } = makeSpot(draft, ME, new Date(), newId('sp'), spots, BAN_ZONES);
-        setState((s) => ({ ...s, spots: [...s.spots, spot] }));
-        return { id: spot.id, warning };
-      },
-      joinCrew: (crewId) => setState((s) => ({ ...s, ...applyJoinCrew({ crews: s.crews, users: s.users }, ME, crewId) })),
-      leaveCrew: () => setState((s) => ({ ...s, ...applyLeaveCrew({ crews: s.crews, users: s.users }, ME) })),
-      createCrew: (name, tag) => {
-        const id = newId('crew');
-        const next = applyCreateCrew({ crews: state.crews, users: state.users }, ME, name, tag, id);
-        setState((s) => ({ ...s, crews: next.crews, users: next.users }));
-        return id;
-      },
-      setCrewHost: (crewId, userId, host) => {
-        const next = applySetCrewHost({ crews: state.crews, users: state.users }, ME, crewId, userId, host);
-        setState((s) => ({ ...s, crews: next.crews }));
-      },
-      addToCrew: (crewId, userId) => {
-        const next = applyAddToCrew({ crews: state.crews, users: state.users }, ME, crewId, userId);
-        setState((s) => ({ ...s, crews: next.crews, users: next.users }));
-      },
-    }),
-    [state, spots, ready, updateEvent, updateSpot],
-  );
+    };
+  }, [state, spots, ready, me, remote, online, outbox, repo, set, demo, uid, signOut]);
 
   return (
     <Ctx.Provider value={store}>
       <ClockProvider>{children}</ClockProvider>
     </Ctx.Provider>
   );
+}
+
+/** Demo: lay the sample events out fresh (see restartDemoEvents). */
+function restartDemoScene(s: Persisted, nowDate: Date): Persisted {
+  const restarted = restartDemo(s, nowDate, s.scene);
+  const unlockSeen = Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id)));
+  // Drives and visits on the real places start again too (their photo files with them).
+  deletePhotos(Object.values(s.placeProgress).flatMap((p) => p.completions.flatMap((c) => (c.photo ? [c.photo] : []))));
+  return {
+    ...s,
+    ...restarted,
+    placeProgress: {},
+    unlockSeen,
+    notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
+    nearby: forgetSeedEvents(s.nearby),
+    seededAt: nowDate.toISOString(),
+    // Reminders from the restarted events count as news again.
+    onboardedAt: nowDate.toISOString(),
+  };
 }
 
 export function useStore(): Store {

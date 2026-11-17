@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { EventCard } from '../components/EventCard';
 import { Card, Chip, Row, Section, Txt } from '../components/ui';
@@ -16,6 +16,7 @@ import {
   type When,
 } from '../lib/discover';
 import { EVENT_LABELS } from '../lib/events';
+import { viewEvent } from '../lib/eventView';
 import { plural } from '../lib/format';
 import { fuzz } from '../lib/geo';
 import { currentPosition } from '../lib/location';
@@ -36,7 +37,7 @@ const VEHICLES: { key: Vehicles; label: string }[] = [
  * only ever show their rough area; the distance is to that area, never a stop.
  */
 export default function FindEvents() {
-  const { events, me, crews, users, builds, nearby, markNearbySeen } = useStore();
+  const { events, me, crews, users, builds, nearby, markNearbySeen, remote } = useStore();
   const now = useNow();
   const meUser = users.find((u) => u.id === me)!;
   const travel = travelOf(meUser);
@@ -50,10 +51,37 @@ export default function FindEvents() {
   useFocusEffect(useCallback(() => () => markNearbySeen(), [markNearbySeen]));
 
   const origin = useHere && here ? here : meUser.home;
-  const hits = useMemo(
+  const localHits = useMemo(
     () => searchEvents(events, { me, crews, users, builds }, origin, filters, now),
     [events, me, crews, users, builds, origin, filters, now],
   );
+  // Signed in: the server searches (search_events(): distance from your home inside the database, or from
+  // the point you send, snapped to ~1 km). Offline, or before it answers: the same search on what the phone has.
+  const [server, setServer] = useState<{ eventId: string; miles: number; canGo: boolean }[] | null>(null);
+  const fromKey = useHere && here ? `${here.lat},${here.lng}` : 'home';
+  useEffect(() => {
+    if (!remote) return;
+    let live = true;
+    remote
+      .searchEvents(filters, useHere && here ? here : null)
+      .then((rows) => live && setServer(rows))
+      .catch(() => live && setServer(null));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remote, filters, fromKey]);
+  const hits = useMemo(() => {
+    if (!remote || !server) return localHits;
+    const views = new Map(localHits.map((h) => [h.view.event.id, h.view]));
+    const all = new Map(events.map((e) => [e.id, e]));
+    return server.flatMap((r) => {
+      const event = all.get(r.eventId);
+      if (!event) return [];
+      const view = views.get(r.eventId) ?? viewEvent(event, me, crews, users, builds, now);
+      return [{ view, miles: r.miles, canGo: r.canGo }];
+    });
+  }, [remote, server, localHits, events, me, crews, users, builds, now]);
   const set = (patch: Partial<SearchFilters>) => setFilters((f) => ({ ...f, ...patch }));
   const distances = Array.from(new Set<number>([...TRAVEL_CHOICES, travel.miles])).sort((a, b) => a - b);
 

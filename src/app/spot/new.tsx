@@ -68,12 +68,12 @@ export default function SuggestPlace() {
     }
   }
 
-  function submit() {
+  async function submit() {
     setError(null);
     const problem = draftProblem(draft, spots);
     if (problem) return setError(problem);
     try {
-      const { id } = suggestSpot(draft);
+      const { id } = await suggestSpot(draft);
       router.replace({ pathname: '/spot/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save your suggestion.');
