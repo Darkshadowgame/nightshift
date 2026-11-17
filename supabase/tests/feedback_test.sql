@@ -1,4 +1,4 @@
--- Feedback: anyone sends, only staff read, change or delete; screenshots in
+-- Feedback: anyone sends, senders read their own (20261117230000), only staff change or delete; screenshots in
 -- the private `feedback` bucket. Run with `npx supabase test db` (rolled back).
 --
 -- Users: U signed-in tester, V another tester, A staff.
@@ -74,7 +74,7 @@ select throws_ok($$ insert into public.feedback (kind, message) values ('bug', r
   '23514', null, 'feedback: at most 4000 characters');
 select lives_ok($$ insert into public.feedback (kind, message) values ('bug', repeat('x', 4000)) $$,
   'feedback: 4000 characters is fine');
-select is((select count(*) from public.feedback)::int, 0, 'feedback: testers can''t read any, even their own');
+select is((select count(*) from public.feedback)::int, 3, 'feedback: testers read only their own (not unsigned ones they sent)');
 select is((select count(*) from storage.objects where bucket_id = 'feedback')::int, 0,
   'feedback bucket: testers can''t read screenshots, even their own');
 update public.feedback set status = 'done';

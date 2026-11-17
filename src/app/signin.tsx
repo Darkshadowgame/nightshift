@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -228,6 +229,8 @@ export default function SignIn() {
         <Button label="Try the demo without an account" kind="secondary" busy={busy === 'demo'} onPress={() => run('demo', () => auth.startDemo())} />
         <InlineError message={errorAt('demo')} />
       </Card>
+
+      <LinkText label="Trouble signing in? Send feedback ›" onPress={() => router.push({ pathname: '/feedback', params: { from: '/signin', kind: 'bug' } })} />
     </ScrollView>
   );
 }

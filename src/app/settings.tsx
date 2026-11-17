@@ -167,6 +167,13 @@ export default function SettingsScreen() {
         </Card>
       </Section>
 
+      <Section title="Feedback">
+        <Card>
+          <Txt v="muted">Found a bug, got an idea, or is a place or event wrong? It goes straight to the Nightshift team, and you can see what happens to it.</Txt>
+          <Button label="Send feedback" kind="secondary" onPress={() => router.push({ pathname: '/feedback', params: { from: '/settings' } })} />
+        </Card>
+      </Section>
+
       <AccountSection />
 
       <AboutSection />

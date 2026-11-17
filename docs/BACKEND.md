@@ -28,6 +28,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
 | `supabase/migrations/20261117170000_road_reports.sql` | Community road reports: `road_reports`, `road_report_votes`, `road_rep`, the report/vote/near RPCs, `road_closures_near()`, `road_rep_for()`, Realtime on `road_reports`; extra `road_closures` columns (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
+| `supabase/migrations/20261117230000_feedback_triage.sql` | Feedback triage (`triage_notes`, `fixed_in`, `handled_at`), senders read their own, `feedback_status()`, kind `other`, screenshots list, context and opt-in location, `pg_net` and the email trigger (section 3, "Feedback"; 7e) |
 | `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
 | `supabase/migrations/20261117220000_community.sql` | Community: Cars near you, connections, blocks, the forum, messages, feed posts, rate builds, reports, rate limits, the private `messages` bucket (section 3b) |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits (with their bundled ids) |
@@ -35,7 +36,8 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
 | `supabase/tests/rpc_test.sql` | pgTAP: every RPC end to end, storage, reminders (63 checks) |
 | `supabase/tests/discovery_test.sql` | pgTAP: travel settings, new-event notices, `search_events()`, discovery and staff (75 checks) |
-| `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, staff-only reading, the screenshot bucket, the flood guard (33 checks) |
+| `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, reading (own and staff), the screenshot bucket, the flood guard (33 checks) |
+| `supabase/tests/feedback_triage_test.sql` | pgTAP: the form's fields, a retry can't duplicate, senders read their own (not the notes), `feedback_status()` by id signed out, staff-only triage, `handled_at`, the email trigger queues a call (37 checks) |
 | `supabase/tests/vehicles_test.sql` | pgTAP: what you're bringing: own builds only, going vs asking per build, changing it, check-in, awards from brought builds, the garage columns (42 checks) |
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
@@ -43,6 +45,8 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/community_test.sql` | pgTAP: Cars near you (rounding, hiding, blocks), connections (requests, declines and their 30 days, rate limit), 1-to-1 and group messages only between connections, blocks, the forum (filter, Solved rep and its caps, rate limits), feed posts (never near home, connections-only), reports and staff, message photos (163 checks) |
 | `scripts/seed-bundled-places.mjs` | Writes `seed_bundled_places.sql` from the app's place list (`src/lib/backend/bundledSeed.ts`, unit-tested) and, with `--apply`, runs it on the hosted project |
 | `scripts/supabase-smoke.mjs` | End to end against the hosted project as three throwaway users (section 7c) |
+| `supabase/functions/feedback-notify/` | Emails the team about each new report through Brevo SMTP (section 7e); `message.ts` is pure and tested in Jest |
+| `scripts/feedback-inbox.mjs` | The feedback inbox: list, download screenshots outside the repo, mark seen/planned/fixed (docs/FEEDBACK.md) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
 | `supabase/functions/import-closures/` | UK open-data road closures: TfL (keyless) and National Highways (needs a key); `parse.ts` is pure and tested in Jest. Written and type-checked, **not deployed** (section 7d) |
 | `supabase/templates/otp.html` | Sign-in email that shows the 6-digit code |
@@ -290,28 +294,50 @@ reminders in Phase 2. Only the trigger can call it.
 
 ### Feedback
 
-`public.feedback` takes reports from the app's feedback sheet. Anyone can send
-one, signed in or not (a sign-in problem is worth hearing about), and that is
-all they can do:
+`public.feedback` takes reports from the app's Send feedback form and the
+pickers' and shop screens' suggestions. Anyone can send one, signed in or not
+(a sign-in problem is worth hearing about). How to work through it:
+[FEEDBACK.md](FEEDBACK.md).
 
-* **Insert only.** `anon` and `authenticated` may fill in `kind`
-  (`bug` / `idea` / `looks_wrong`), `message` (1–4000 characters, not blank),
-  `screen`, `app_version`, `update_id`, `device`, `photo_path` and `user_id`.
-  They can't set `id`, `created_at` or `status` (it starts as `new`).
+* **Sending is insert-only.** `anon` and `authenticated` may fill in `id` (the
+  phone's UUID, so a retry is refused as a duplicate instead of sent twice),
+  `kind` (`bug` / `idea` / `looks_wrong` / `other`), `message` (1–4000
+  characters, not blank), `screen`, `app_version`, `update_id`, `device`,
+  `context` (a small JSON object: runtime, channel, model, os, route, backend;
+  under 2000 bytes), `lat`/`lng` (both or neither: only when the sender ticks
+  "include my location"), `photo_path`/`photo_paths` (at most 4) and `user_id`.
+  They can't set `status` (it starts as `new`), `triage_notes`, `fixed_in`,
+  `handled_at` or `notified_at`.
 * `user_id` defaults to `auth.uid()` and may only be the sender or null, so
   nobody can send feedback in someone else's name. Signed out it is null.
-* Nobody reads, changes or deletes feedback except staff
-  (`private.is_admin()`): they read it all, set `status`
-  (`new` / `seen` / `planned` / `done` / `wont_do`) and delete. Staff can't
-  rewrite a message.
+* **Senders read their own** (signed in): every column except `triage_notes` and
+  `notified_at` (column grants). Signed out there's no user, so
+  `feedback_status(p_ids uuid[])` (security definer, anon and authenticated)
+  returns id, created_at, kind, status, fixed_in and handled_at for up to 100 ids
+  the phone made itself; the random UUID is the secret. "Your feedback" in the app
+  uses both.
+* **Triage is staff only** (`private.is_admin()`): staff read everything, set
+  `status` (`new` / `seen` / `planned` / `done` / `wont_do`), `fixed_in`,
+  `triage_notes` and `handled_at`, and delete. Nobody can rewrite a message or its
+  context through the API. `handled_at` is stamped by a trigger when the status
+  changes and cleared when it goes back to `new`. The inbox script
+  (`scripts/feedback-inbox.mjs`) does triage as the service path.
 * **Flood guard:** at most 20 an hour per signed-in person and 300 an hour in
   total (a trigger; the sender sees "You've sent a lot of feedback in the last
   hour…" or "Lots of feedback is coming in right now…").
 * **Screenshots** go in a separate private `feedback` bucket (5 MB, images),
   not `photos`: every signed-in user can read `photos`, and a screenshot can
-  show a stop or a name. Signed-in users upload to `feedback/{user_id}/...`;
-  only staff read or delete there. `photo_path` must be in the sender's own
-  folder. Signed-out people send text only.
+  show a stop or a name. Signed-in users upload to
+  `feedback/{user_id}/{feedback id}/{n}.jpg`; only staff read or delete there.
+  Every path in `photo_path`/`photo_paths` must be in the sender's own folder.
+  Signed-out people send text only.
+* **Email to the team:** an `AFTER INSERT` trigger (`private.feedback_notify()`,
+  security definer) posts `{"id": …}` to the `feedback-notify` Edge Function with
+  `pg_net`, using the base URL in Vault (`functions_url`); without it, it does
+  nothing, and an error there never blocks a report. The function claims the row
+  (`notified_at`) with the service role and emails a summary with 7-day signed
+  screenshot links (section 7e). Reports with `context.test = true` (the smoke
+  test) are never emailed.
 
 ## 3a. Road reports (mirrors `src/lib/roadReports.ts`)
 
@@ -781,6 +807,63 @@ push every other difference in `config.toml` (MFA, storage, API settings).
   home, connections-only, the map box), likes and comments, a report, and a block). Cleanup
   checks no community rows or message photos are left.
 
+### 7a-6. What's live (17 Nov 2026, feedback triage and email)
+
+* **Migration** `20261117230000_feedback_triage.sql` pushed with `db push --remote --yes`
+  (a `pg_dump` of `public` was taken first, kept off the repo). It installed `pg_net`
+  (schema `extensions`).
+* **Vault:** `functions_url` = `https://vuftzeianmqjboivqmws.supabase.co/functions/v1`
+  (not a secret; the feedback trigger and later cron jobs read it).
+* **Edge Function secrets set** (Management API, values never printed):
+  `BREVO_SMTP_HOST`, `BREVO_SMTP_PORT`, `BREVO_SMTP_USER`, `BREVO_SMTP_KEY`.
+* **pgTAP:** 576 of 576 on the hosted database (the 539 above plus
+  `feedback_triage_test.sql`, 37). Checked first in rolled-back transactions with
+  the migration applied inside them.
+* **Smoke test:** 103 of 103 (the 93 above plus 10 feedback checks: own id, retry
+  refused, the sender reads their own but not the notes and can't change the status,
+  signed-out sending, `feedback_status()` showing "Fixed in" by id, `handled_at`).
+* **End to end:** an anonymous report through the REST API, a screenshot, the inbox
+  listing it and downloading the screenshot to `~/nightshift-feedback/<id>/`,
+  `--mark … fixed --version …` seen by the anonymous `feedback_status()`, the trigger's
+  `pg_net` call reaching the functions gateway, then `--delete`; nothing left.
+* **Not live yet:** the `feedback-notify` function itself (the CLI asks the owner to
+  confirm a deploy) and the email settings: section 7e.
+
+### 7e. Feedback email: TODO for the owner
+
+The `feedback-notify` function is written and type-checked (Deno 2.9) but **not
+deployed**, and it needs two settings the owner chooses. Until then each new report
+still lands in the table (the trigger's call gets a 404 and nothing else happens),
+and the inbox script works.
+
+**Brevo refused the SMTP login** (17 Nov 2026: `535 5.7.8 Authentication failed` on
+ports 465 and 587, for the `BREVO_SMTP_USER` / `BREVO_SMTP_KEY` in the secrets file).
+Check the Brevo account is activated for transactional email, then in Brevo › SMTP &
+API › SMTP make a new SMTP key and put it in the secrets file as `BREVO_SMTP_KEY`
+(this also blocks custom SMTP for sign-in codes, section 7b item 1).
+
+Then, once (add the two lines to `~/.config/homelab-secrets.env` first:
+`FEEDBACK_NOTIFY_EMAIL=you@example.com` and `BREVO_SENDER_EMAIL=` the sender
+verified in Brevo):
+
+```bash
+cd ~/nightshift && set -a && . ~/.config/homelab-secrets.env && set +a
+# 1. The function's secrets (values go through stdin, never on screen):
+jq -n --arg to "$FEEDBACK_NOTIFY_EMAIL" --arg from "$BREVO_SENDER_EMAIL" --arg k "$BREVO_SMTP_KEY" '[{name:"FEEDBACK_NOTIFY_EMAIL",value:$to},{name:"BREVO_SENDER_EMAIL",value:$from},{name:"BREVO_SMTP_KEY",value:$k}]' | curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" https://api.supabase.com/v1/projects/vuftzeianmqjboivqmws/secrets --data @-
+# 2. Deploy it (verify_jwt = false comes from config.toml):
+npx supabase@3.2.0 functions deploy feedback-notify --use-api --project-ref vuftzeianmqjboivqmws
+# 3. Try it: send feedback from the app (or Settings › Send feedback in the web build), then
+node scripts/feedback-inbox.mjs            # copy its id, and if no email arrived within a minute:
+node scripts/feedback-inbox.mjs --notify <id>
+```
+
+Expect `201` from step 1. The function logs (dashboard › Edge Functions ›
+feedback-notify › Logs) say `not configured (missing …)` when a setting is missing,
+`emailed <id>` when it worked, and `SMTP AUTH password refused: 535 …` when the Brevo
+key is wrong. Edge Functions can't use ports 25 or 587, so it always connects to
+Brevo on 465 (implicit TLS), whatever `BREVO_SMTP_PORT` says. More than one
+recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
+
 ### 7c. The smoke test
 
 ```bash
@@ -815,6 +898,13 @@ the crash on Realtime **without `created_by`** and never hears the police report
 A can't confirm their own report, B can't from 3 mi away, B confirms once (a second answer
 is refused), the reporter has no rep after one confirmation and +10 after C's, B and C +2
 each; `road_closures_near` answers; signed out is refused.
+
+Feedback: B sends a report with its own id and context (a retry with the same id is
+refused), reads it back but not `triage_notes`, and can't change its status; a signed-out
+client sends one (kind `other`) and can't read the table; after the team marks it fixed
+(SQL, as the inbox script does), the signed-out client's `feedback_status()` shows
+`done` and the version, with no message or notes. Both are marked `context.test`, so
+they're never emailed.
 
 Bundled places: B reads Nightshift's own drives and photo spots by `bundled_id`; A
 finishes the Snake Pass (`dr-snake-pass`) with fixes on the seeded line and rates it; B

@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 import { ME, seededStops } from '../data/seed';
 import { accountKey, clearAccountCache, useAuth } from './auth';
 import type { AwardCategory } from './awards';
 import { supabase } from './backend/client';
-import { sendPendingFeedback, type AppInfo } from './backend/feedback';
+import { fetchFeedbackStatus, sendPendingFeedback, type AppInfo } from './backend/feedback';
 import { UNKNOWN_HOME } from './backend/mapping';
 import type { OutboxItem } from './backend/outbox';
 import { createSupabaseRepository, type SupabaseRepository } from './backend/remote';
@@ -14,7 +15,7 @@ import { ClockProvider } from './clock';
 import { alertProblem, travelProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, type AlertMode } from './discover';
 import { isPublicType, type PlanChange } from './events';
 import { isSeedEvent, restartDemo } from './demoTime';
-import type { PendingFeedback } from './feedbackQueue';
+import { isUuid, mergeStatuses, sentEntry, type FeedbackContext, type PendingFeedback, type SentFeedback } from './feedbackQueue';
 import { newId } from './ids';
 import { createLocalRepository } from './localRepository';
 import { allPhotos, EMPTY, everyLoad, forgetSeedEvents, fresh, freshen, migrate, type Persisted } from './localState';
@@ -22,7 +23,7 @@ import { geocoderAvailable, nameForPlace, townForPlace } from './location';
 import type { Notice } from './notice';
 import { notifyNow, syncReminders } from './notify';
 import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SLICE_KEYS, sliceKey, splitState } from './persist';
-import { deletePhotos } from './photos';
+import { deletePhotos, photoUri } from './photos';
 import { bundledSpots, joinServerSpots, joinSpots } from './placeStore';
 import type { ProfileDraft } from './profile';
 import { dueReminders, upcomingReminders } from './reminders';
@@ -89,8 +90,12 @@ interface Store extends Persisted {
   updatePlaces: (fn: (p: SavedPlaces) => SavedPlaces) => void;
   markNoticesRead: () => void;
   markLocationNoticeSeen: () => void;
-  /** Queue a suggestion (see feedbackQueue.ts); it's sent to the team when there's a connection. */
+  /** Queue a suggestion or report (see feedbackQueue.ts); it's sent to the team when there's a connection. */
   queueFeedback: (item: PendingFeedback) => void;
+  /** "Your feedback": ask the server what's happened to this phone's reports (and, signed in, your own). */
+  refreshFeedback: () => Promise<void>;
+  /** Sent automatically with a report: versions, device, the screen it came from, the backend mode. */
+  feedbackContext: (route: string) => FeedbackContext;
   /** Remember that the "unlocked" moment has been shown for these stops. */
   markUnlockSeen: (eventId: string, stopIds: string[]) => void;
   resetDemo: () => void;
@@ -134,6 +139,30 @@ function appInfo(): AppInfo {
     device: `${Platform.OS} ${String(Platform.Version ?? '')}`.trim().slice(0, 200),
   };
 }
+
+/** The device model ("iPhone 15 Pro"), never the phone's own name. Null when the build can't tell. */
+function deviceModel(): string | null {
+  try {
+    const ios = Constants.platform?.ios;
+    return (ios?.model || ios?.platform || null)?.slice(0, 60) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function contextFor(route: string, backend: string): FeedbackContext {
+  return {
+    runtime: Updates.runtimeVersion ?? null,
+    channel: Updates.channel ?? null,
+    model: deviceModel(),
+    os: `${Platform.OS} ${String(Platform.Version ?? '')}`.trim(),
+    route: route.slice(0, 200),
+    backend,
+  };
+}
+
+/** Signed out (the sign-in screen), feedback waits here: that mode keeps nothing else on the phone. */
+const SIGNED_OUT_FEEDBACK_KEY = 'nightshift.feedback.signedOut';
 
 /** A signed-in person's state before the server has answered (and nothing is cached). */
 function accountStart(uid: string): Persisted {
@@ -368,10 +397,35 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
     return () => clearInterval(t);
   }, [remote, online]);
 
-  // The demo: suggestions waiting to go to the team are sent as feedback (allowed signed out).
+  // Signed out (sign-in screen): keep the feedback queue and "Your feedback" on the phone.
+  const signedOutLoaded = useRef(false);
+  useEffect(() => {
+    if (mode.kind !== 'none') return;
+    AsyncStorage.getItem(SIGNED_OUT_FEEDBACK_KEY)
+      .then((raw) => {
+        const saved = raw ? (JSON.parse(raw) as { pendingFeedback?: PendingFeedback[]; sentFeedback?: SentFeedback[] }) : {};
+        set((s) => ({
+          ...s,
+          pendingFeedback: [...(saved.pendingFeedback ?? []), ...(s.pendingFeedback ?? [])].slice(-50),
+          sentFeedback: [...(s.sentFeedback ?? []), ...(saved.sentFeedback ?? [])].slice(0, 50),
+        }));
+      })
+      .catch(() => {})
+      .finally(() => {
+        signedOutLoaded.current = true;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (mode.kind !== 'none' || !signedOutLoaded.current) return;
+    AsyncStorage.setItem(SIGNED_OUT_FEEDBACK_KEY, JSON.stringify({ pendingFeedback: state.pendingFeedback ?? [], sentFeedback: state.sentFeedback ?? [] })).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.pendingFeedback, state.sentFeedback]);
+
+  // The demo and signed out: feedback waiting to go to the team is sent (allowed signed out).
   const pendingCount = state.pendingFeedback?.length ?? 0;
   useEffect(() => {
-    if (!demo || !ready || pendingCount === 0) return;
+    if (remote || !ready || pendingCount === 0) return;
     let live = true;
     const t = setTimeout(() => {
       sendPendingFeedback(supabase(), latest.current.pendingFeedback ?? [], appInfo())
@@ -384,7 +438,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       live = false;
       clearTimeout(t);
     };
-  }, [demo, ready, pendingCount, reminderTick, set]);
+  }, [remote, ready, pendingCount, reminderTick, set]);
   // Signed in: the same, through the repository (after the outbox).
   useEffect(() => {
     if (!remote || !ready || pendingCount === 0 || !online) return;
@@ -551,7 +605,26 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       markUnlockSeen: (eventId, stopIds) =>
         set((s) => ({ ...s, unlockSeen: { ...s.unlockSeen, [eventId]: Array.from(new Set([...(s.unlockSeen[eventId] ?? []), ...stopIds])) } })),
       markLocationNoticeSeen: () => set((s) => ({ ...s, locationNoticeSeen: true })),
-      queueFeedback: (item) => set((s) => ({ ...s, pendingFeedback: [...(s.pendingFeedback ?? []), item].slice(-50) })),
+      queueFeedback: (item) =>
+        set((s) => ({
+          ...s,
+          pendingFeedback: [...(s.pendingFeedback ?? []), item].slice(-50),
+          sentFeedback: isUuid(item.id) ? [sentEntry(item), ...(s.sentFeedback ?? []).filter((f) => f.id !== item.id)].slice(0, 50) : s.sentFeedback,
+        })),
+      refreshFeedback: async () => {
+        const mine = latest.current.sentFeedback ?? [];
+        const rows = await fetchFeedbackStatus(supabase(), mine.map((f) => f.id), mode.kind === 'account');
+        set((s) => {
+          const list = s.sentFeedback ?? [];
+          const known = new Set(list.map((f) => f.id));
+          // Signed in: reports sent from another phone join the list.
+          const others: SentFeedback[] = rows
+            .filter((r) => !known.has(r.id) && r.message && r.created_at)
+            .map((r) => ({ ...sentEntry({ id: r.id, kind: (r.kind ?? 'other') as SentFeedback['kind'], message: r.message!, screen: '', at: r.created_at! }) }));
+          return { ...s, sentFeedback: mergeStatuses([...list, ...others], rows) };
+        });
+      },
+      feedbackContext: (route) => contextFor(route, mode.kind === 'account' ? 'signed-in' : mode.kind === 'demo' ? 'demo' : 'signed-out'),
       resetDemo: () => {
         if (!demo) return;
         // Photo files go too: nothing would point at them any more.

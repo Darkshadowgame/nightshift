@@ -70,6 +70,42 @@ async function makeUser(label) {
   return { id, email, client };
 }
 
+/**
+ * Send feedback (docs/FEEDBACK.md): signed in and signed out with the phone's own
+ * id, "Your feedback" by id, and the team's triage seen by the sender. Marked as a
+ * test (context.test), so feedback-notify never emails it.
+ */
+async function feedbackFlow(B) {
+  const ctx = { test: true, runtime: 'smoke', route: '/smoke', backend: 'signed-in' };
+  const mine = randomUUID();
+  const { error: e1 } = await B.client.from('feedback').insert({ id: mine, kind: 'bug', message: `smoke test ${RUN} signed in`, screen: '/smoke', context: ctx });
+  check('feedback: signed in sends with its own id and context', !e1, e1?.message);
+  const { error: again } = await B.client.from('feedback').insert({ id: mine, kind: 'bug', message: `smoke test ${RUN} again`, screen: '/smoke' });
+  check('feedback: a retry with the same id is refused, not duplicated', again?.code === '23505', again?.code);
+  const { data: own } = await B.client.from('feedback').select('id,status,fixed_in');
+  check('feedback: the sender reads their own', (own ?? []).some((r) => r.id === mine && r.status === 'new'), `${own?.length} rows`);
+  const { error: notes } = await B.client.from('feedback').select('triage_notes');
+  check("feedback: but not the team's notes", !!notes, notes?.code);
+  const { error: setIt } = await B.client.from('feedback').update({ status: 'done' }).eq('id', mine).select('id');
+  const [{ status: still }] = await sql(`select status from public.feedback where id = ${lit(mine)}`);
+  check("feedback: the sender can't change the status", still === 'new', setIt?.message ?? 'no error, nothing changed');
+
+  const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const theirs = randomUUID();
+  const { error: e2 } = await anon.from('feedback').insert({ id: theirs, kind: 'other', message: `smoke test ${RUN} signed out`, screen: '/signin', context: { ...ctx, backend: 'signed-out' } });
+  check('feedback: signed out sends (kind other)', !e2, e2?.message);
+  const { error: e3 } = await anon.from('feedback').select('id');
+  check("feedback: signed out can't read the table", !!e3, e3?.code);
+  // The team marks it fixed (the inbox script's service path).
+  await sql(`update public.feedback set status = 'done', fixed_in = 'v-smoke', triage_notes = 'smoke' where id = ${lit(theirs)}`);
+  const { data: st, error: e4 } = await anon.rpc('feedback_status', { p_ids: [theirs, mine] });
+  const byId = Object.fromEntries((st ?? []).map((r) => [r.id, r]));
+  check('feedback: the phone sees "Fixed in" by id, signed out', !e4 && byId[theirs]?.status === 'done' && byId[theirs]?.fixed_in === 'v-smoke' && byId[mine]?.status === 'new', e4?.message);
+  check('feedback_status: no message or notes in it', st?.[0] && !('message' in st[0]) && !('triage_notes' in st[0]));
+  const [{ handled }] = await sql(`select handled_at is not null as handled from public.feedback where id = ${lit(theirs)}`);
+  check('feedback: handled_at stamped by the status change', handled === true);
+}
+
 /** rpc() that throws with the server's sentence. */
 async function rpc(user, name, args) {
   const { data, error } = await user.client.rpc(name, args);
@@ -266,6 +302,7 @@ async function main() {
   check('notices: B has notices and marks them read', (noticesB ?? []).length > 0 && readB.every((n) => n.read_at), `${noticesB?.length} notices`);
   const { error: fbErr } = await B.client.from('feedback').insert({ kind: 'idea', message: `smoke test ${RUN}`, screen: 'smoke', app_version: 'smoke', device: 'node' });
   check('feedback: insert without select', !fbErr, fbErr?.message);
+  await feedbackFlow(B);
 
   await roadReports();
   await community();

@@ -9,7 +9,7 @@ import { migratePhotoRef } from './photos';
 import { withRoles } from './crews';
 import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
 import { dedupeNotices } from './reminders';
-import { markLegacyShopRefs, type PendingFeedback } from './feedbackQueue';
+import { markLegacyShopRefs, type PendingFeedback, type SentFeedback } from './feedbackQueue';
 import type { Notice } from './notice';
 import type { LatLng, PlaceRep } from './types';
 import type { SceneNames } from './scene';
@@ -51,6 +51,8 @@ export interface Persisted extends SeedState {
   nearby?: { known: string[]; unseen: string[] };
   /** Suggestions from the vehicle and mod pickers, waiting to be sent to the backend's feedback table. */
   pendingFeedback?: PendingFeedback[];
+  /** "Your feedback": what this phone sent (and, signed in, your reports from other phones), with the server's status. */
+  sentFeedback?: SentFeedback[];
   /**
    * Signed in only: Nightshift's own drives and photo spots as the server has
    * them (spots.bundled_id). `ids`: bundled id -> the server row's id, for the

@@ -409,7 +409,11 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
   /** The vehicle and mod pickers' and shop screens' suggestions, sent to `feedback`. */
   async function sendFeedback(items: PendingFeedback[]): Promise<void> {
     if (items.length === 0) return;
-    const { done, offline: off } = await sendPendingFeedback(client, items, ctx.appInfo());
+    const { done, offline: off } = await sendPendingFeedback(client, items, ctx.appInfo(), {
+      uid,
+      readPhoto: async (ref) => (await fetch(photoUri(ref))).arrayBuffer(),
+      dropPhotos: deletePhotos,
+    });
     if (off) ctx.setOnline(false);
     if (done.length) set((s) => ({ ...s, pendingFeedback: (s.pendingFeedback ?? []).filter((f) => !done.includes(f.id)) }));
   }

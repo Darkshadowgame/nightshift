@@ -53,6 +53,8 @@ function Gate() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
+      {/* Feedback works for everyone: signed out (the sign-in screen), the demo and signed in. */}
+      <Stack.Screen name="feedback" options={{ title: title(T.feedback), presentation: 'modal' }} />
       <Stack.Protected guard={signedOut}>
         <Stack.Screen name="signin" options={{ headerShown: false }} />
       </Stack.Protected>

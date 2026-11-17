@@ -466,3 +466,10 @@ verify_jwt = false
 [functions.import-closures]
 enabled = true
 verify_jwt = false
+
+# Emails the team about new feedback. Called by the feedback table's AFTER
+# INSERT trigger through pg_net with no key; the function claims the row
+# itself (notified_at), so a forged call can't send anything new.
+[functions.feedback-notify]
+enabled = true
+verify_jwt = false

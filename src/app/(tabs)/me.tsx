@@ -95,6 +95,12 @@ export default function Me() {
         </Card>
       </Section>
 
+      <Card>
+        <Txt>Something not right, or got an idea?</Txt>
+        <Button label="Send feedback" kind="secondary" size="sm" onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
+        <Txt v="caption">See what happened to what you sent under Send feedback › Your feedback.</Txt>
+      </Card>
+
       <LinkText label="All settings ›" onPress={() => router.push('/settings')} />
     </ScrollView>
   );

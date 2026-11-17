@@ -137,6 +137,7 @@ export const SCREEN_TITLES = {
   find: 'Find',
   whereTo: 'Where to?',
   settings: 'Settings',
+  feedback: 'Send feedback',
 } as const;
 
 /** Confirm-in-place: "{Verb} it / Keep it". */
