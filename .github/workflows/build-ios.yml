@@ -40,6 +40,9 @@ jobs:
             exit 1
           fi
 
+      - name: Plate blurring module is present
+        run: |
+          test -f modules/plate-redactor/ios/PlateRedactor.podspec || { echo "::error::modules/plate-redactor/ios is missing: the app would ship without plate blurring."; exit 1; }
       - run: npm ci
 
       - name: Typecheck and test
