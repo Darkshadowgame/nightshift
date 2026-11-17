@@ -10,7 +10,7 @@ import { Pin } from '../../components/Pin';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { classOf } from '../../lib/classes';
-import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
+import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { roleOf } from '../../lib/eventView';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
 import { describeFilter } from '../../lib/invites';
@@ -157,7 +157,12 @@ export default function EventScreen() {
                 />
               )
             ) : null}
-            {(going || host) && canSeeStop(ev, current, me, crews, now) ? (
+            {(going || host) && !checkInWindowOpen(ev, now) ? (
+              <Card>
+                <Txt v="muted">Check-in opens {formatRelative(checkInOpensAt(ev).toISOString(), now)}, 30 minutes before the start.</Txt>
+              </Card>
+            ) : null}
+            {(going || host) && checkInWindowOpen(ev, now) && canSeeStop(ev, current, me, crews, now) ? (
               myCheckIns.includes(ev.stops[current]?.id) ? (
                 <Card accent={C.lime}>
                   <Txt>Checked in at {ev.stops[current].name}.{ev.type === 'rolling' ? " You'll get the next spot when the hosts move on." : ''}</Txt>
@@ -166,7 +171,7 @@ export default function EventScreen() {
                 <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} disabled={busy} />
               )
             ) : null}
-            {host && ev.type === 'rolling' && phase !== 'upcoming' ? (
+            {host && ev.type === 'rolling' && phase === 'live' ? (
               nextStop?.at ? (
                 <View style={{ gap: 4 }}>
                   <Button label={`Move on to ${nextStop.name}`} onPress={doMoveOn} />

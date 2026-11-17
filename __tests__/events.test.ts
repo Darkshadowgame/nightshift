@@ -1,4 +1,4 @@
-import { canCheckIn, canSeeStop, checkIn, isHost, missingStops, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
+import { canCheckIn, canSeeStop, checkIn, checkInOpensAt, checkInWindowOpen, isHost, missingStops, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
 import { DEFAULT_FILTER, buildMatches, invitees } from '../src/lib/invites';
 import type { Build, Crew, NightEvent, User } from '../src/lib/types';
 
@@ -143,5 +143,16 @@ describe('invites', () => {
     expect(buildMatches(builds[0], { ...DEFAULT_FILTER, minMods: 4 })).toBe(false);
     expect(buildMatches(builds[0], { ...DEFAULT_FILTER, brands: ['bmw'] })).toBe(true);
     expect(buildMatches(builds[0], { ...DEFAULT_FILTER, brands: ['Audi'] })).toBe(false);
+  });
+});
+
+describe('check-in window', () => {
+  test('opens 30 minutes before the start and closes at the end', () => {
+    const e = rolling({ startsAt: mins(60 * 48), endsAt: mins(60 * 50) });
+    expect(checkInWindowOpen(e, NOW)).toBe(false);
+    expect(checkInOpensAt(e).toISOString()).toBe(mins(60 * 48 - 30));
+    expect(checkInWindowOpen(e, new Date(NOW.getTime() + (60 * 48 - 30) * 60_000))).toBe(true);
+    expect(checkInWindowOpen(e, new Date(NOW.getTime() + 60 * 50 * 60_000))).toBe(false);
+    expect(checkInWindowOpen({ ...rolling(), cancelled: true }, NOW)).toBe(false);
   });
 });

@@ -73,6 +73,19 @@ export function activeStopIndex(event: NightEvent): number {
   return event.type === 'rolling' ? event.currentStop : 0;
 }
 
+/** Check-in opens 30 minutes before the start. */
+export const CHECK_IN_OPENS_MINUTES = 30;
+
+export function checkInOpensAt(event: NightEvent): Date {
+  return new Date(new Date(event.startsAt).getTime() - CHECK_IN_OPENS_MINUTES * 60_000);
+}
+
+/** Is the check-in window open (30 min before the start until the end)? Ignores who and where. */
+export function checkInWindowOpen(event: NightEvent, now: Date): boolean {
+  if (event.cancelled) return false;
+  return now >= checkInOpensAt(event) && now < endTime(event);
+}
+
 export type CheckInResult = { ok: true } | { ok: false; reason: string };
 
 export function canCheckIn(
@@ -87,8 +100,7 @@ export function canCheckIn(
   const phase = phaseOf(event, now);
   if (phase === 'cancelled') return { ok: false, reason: 'This event was cancelled.' };
   if (phase === 'over') return { ok: false, reason: 'This event has finished.' };
-  const opensAt = new Date(new Date(event.startsAt).getTime() - 30 * 60_000);
-  if (now < opensAt) return { ok: false, reason: 'Check-in opens 30 minutes before the start.' };
+  if (now < checkInOpensAt(event)) return { ok: false, reason: 'Check-in opens 30 minutes before the start.' };
   if (!event.going.includes(userId) && !isHost(event, userId, crews))
     return { ok: false, reason: "Tap Going first, then check in." };
   if (!canSeeStop(event, stopIndex, userId, crews, now)) return { ok: false, reason: "You can't see this stop yet." };
