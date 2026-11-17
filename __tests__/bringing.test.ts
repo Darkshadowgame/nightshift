@@ -5,6 +5,7 @@ import {
   buildLine,
   buildTag,
   canGoWith,
+  checkInBuild,
   chosenBuild,
   classMix,
   classMixText,
@@ -270,5 +271,27 @@ describe('award candidates', () => {
     // Three votes for the car `me` left at home (e.g. cast before a pick changed) don't win.
     const votes = [v('a', 'car', 1), v('b', 'car', 1.1), v('c', 'car', 1.2), v('d', 'bike', 1.3)];
     expect(results(votes, picked, all, at(40))).toEqual([]);
+  });
+});
+
+describe('check-in records the build the screen says you are bringing', () => {
+  test('going with no pick on record, two builds, the last brought differs: both read the same build', () => {
+    // Going to an everyone-welcome meet saved before vehicle picks (no vehicles[me]).
+    const tonight: NightEvent = { ...everyone, id: 'tonight', going: ['host', 'me'] };
+    // Last time, the bike was brought to another event.
+    const before: NightEvent = { ...everyone, id: 'before', startsAt: at(-48).toISOString(), endsAt: at(-45).toISOString(), going: ['me'], vehicles: { me: 'bike' } };
+    const mine = [car, bike];
+    expect(defaultBuild(tonight, 'me', mine, [tonight, before])?.id).toBe('bike');
+    const shown = broughtBuild(tonight, 'me', mine);
+    expect(checkInBuild(tonight, 'me', mine)?.id).toBe(shown?.id);
+    expect(shown?.id).toBe('car');
+  });
+
+  test('a pick on record wins, and "Something else?" at check-in wins over that', () => {
+    const tonight: NightEvent = { ...everyone, id: 'tonight', going: ['host', 'me'], vehicles: { me: 'bike' } };
+    expect(checkInBuild(tonight, 'me', builds)?.id).toBe('bike');
+    expect(checkInBuild(tonight, 'me', builds, 'daily')?.id).toBe('daily');
+    // Someone else's build can't be picked.
+    expect(checkInBuild(tonight, 'me', builds, 'o1')?.id).toBe('bike');
   });
 });

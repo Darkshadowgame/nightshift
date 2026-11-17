@@ -87,6 +87,17 @@ export function broughtBuild(event: NightEvent, userId: string, builds: Build[])
   return own.find((b) => fitsInvite(event, b)) ?? own[0];
 }
 
+/**
+ * The build a check-in records: the one picked at check-in ("Something
+ * else?"), else the one on record for this event, else the same build the
+ * screen shows as "You're bringing" (broughtBuild). One rule, so the line
+ * above the button and what's saved can never differ.
+ */
+export function checkInBuild(event: NightEvent, userId: string, builds: Build[], pickedId?: string): Build | undefined {
+  const own = ownBuilds(userId, builds);
+  return own.find((b) => b.id === pickedId) ?? chosenBuild(event, userId, builds) ?? broughtBuild(event, userId, builds);
+}
+
 /** Award candidates: what each person who checked in brought (all their builds only when there's no pick on record). */
 export function awardBuilds(event: NightEvent, builds: Build[]): Build[] {
   const people = Object.entries(event.checkIns)

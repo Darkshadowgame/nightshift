@@ -11,7 +11,7 @@ import { Pin } from '../../components/Pin';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Stat, Txt, s as ui } from '../../components/ui';
 import { areaRadius } from '../../lib/area';
-import { broughtBuild, buildLine, canGoWith, chosenBuild, classMixText, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
+import { broughtBuild, buildLine, canGoWith, checkInBuild, chosenBuild, classMixText, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { canChangePlan, canChangeVehicle, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf, viewEvent } from '../../lib/eventView';
@@ -94,11 +94,13 @@ export default function EventScreen() {
   const goesWith = (b?: Build) => canGoWith(ev, me, crews, users, builds, b);
   const pickedBuild = mine.find((b) => b.id === picked);
   const canChange = (going || requested) && mine.length > 0 && (mine.length > 1 || !chosen) && canChangeVehicle(ev, me, now).ok;
-  // At check-in: what you said, or what you've just picked; for no pick on record, the default if the invite covers it.
-  const fallbackAtCheckIn = defaultBuild(ev, me, builds, events);
-  const atCheckIn =
-    mine.find((b) => b.id === checkInPick) ?? chosen ?? (fallbackAtCheckIn && goesWith(fallbackAtCheckIn) ? fallbackAtCheckIn : undefined);
+  // At check-in: what you've just picked, else what you said, else the same build "You're bringing" shows (bringing.ts).
+  const atCheckIn = checkInBuild(ev, me, builds, checkInPick);
 
+  // While the check-in button shows, its own line says what you're checking in with: no second "You're bringing" card.
+  const checkInShown =
+    !(phase === 'over' || phase === 'cancelled') && (going || host) && checkInWindowOpen(ev, now) && canSeeStop(ev, current, me, crews, now) &&
+    !myCheckIns.includes(ev.stops[current]?.id) && !!atCheckIn;
   const canPreview = host && !isPublicType(ev.type) && phase !== 'over' && phase !== 'cancelled';
   const guestView = canPreview && asGuest;
   // Seeing as a guest: every stop shows locked, as for invited people before the reveal.
@@ -330,7 +332,7 @@ export default function EventScreen() {
                   {atCheckIn && picking !== 'checkin' ? (
                     <Row style={{ flexWrap: 'nowrap' }} gap={8}>
                       <ClassBadge letter={classOf(atCheckIn)} size="sm" />
-                      <Txt v="muted" style={{ flex: 1 }} numberOfLines={2}>In the {buildLine(atCheckIn)}</Txt>
+                      <Txt v="muted" style={{ flex: 1 }} numberOfLines={2}>Checking in with the {buildLine(atCheckIn)}</Txt>
                       {mine.length > 1 ? (
                         <Pressable
                           onPress={() => {
@@ -350,7 +352,7 @@ export default function EventScreen() {
                 </View>
               )
             ) : null}
-            {(going || requested) && (bringing || mine.length === 0) && picking !== 'change' ? (
+            {(going || requested) && (bringing || mine.length === 0) && picking !== 'change' && !checkInShown ? (
               <Card>
                 <Row style={{ flexWrap: 'nowrap' }} gap={10}>
                   {bringing ? <ClassBadge letter={classOf(bringing)} size="sm" /> : <View style={{ width: 22 }} />}
