@@ -376,7 +376,7 @@ export default function MapScreen() {
     const c = placeView.clusters.find((x) => x.id === id);
     if (!c) return;
     feel.select();
-    setView((x) => ({ centre: c.at, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
+    setView((x) => ({ centre: c.zoomCentre, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
   }
   const onSelectPin = useCallback((id: string) => {
     if (id.startsWith('cl:')) zoomClusterRef.current(id);

@@ -1,5 +1,6 @@
 import { inBox, viewBox } from './cameras';
-import { milesBetween } from './geo';
+import { fitRegion, milesBetween } from './geo';
+import { landmassOf } from './landmass';
 import type { LatLng, Spot, SpotKind } from './types';
 
 /**
@@ -9,7 +10,11 @@ import type { LatLng, Spot, SpotKind } from './types';
  * * Zoomed in: only places inside the view plus a margin, at most
  *   MAX_PER_KIND of each kind, nearest the centre first.
  * * Zoomed out (span above CLUSTER_SPAN): places of a kind that share a grid
- *   cell become one count pin ("14"), which zooms in when tapped.
+ *   cell, the same piece of land (landmass.ts) and lie within
+ *   maxClusterKm(span) of each other become one count pin ("14"), which zooms
+ *   in to fit them when tapped. The pin sits on the group's medoid (the member
+ *   nearest the members' centre), never the centre itself: the centre of pins
+ *   in Norfolk and Kent is in the Thames estuary; the medoid is on land.
  * * Drive lines only when zoomed in (or for the drive you've selected).
  *
  * Pure: the screen passes the region; the result is the same for the same input.
@@ -18,7 +23,7 @@ import type { LatLng, Spot, SpotKind } from './types';
 /** Above this span (degrees of latitude shown), places are grouped into count pins. */
 export const CLUSTER_SPAN = 1.0;
 /** Grid cells across the view's height when grouping; cells are square-ish on the ground. */
-export const CLUSTER_CELLS = 5;
+export const CLUSTER_CELLS = 4;
 /** At most this many pins of one kind when zoomed in. */
 export const MAX_PER_KIND = 40;
 /** Drive lines are drawn at or below this span. */
@@ -32,7 +37,8 @@ export interface PlaceCluster {
   kind: SpotKind;
   at: LatLng;
   count: number;
-  /** The span to zoom to when it's tapped. */
+  /** Where to zoom to when it's tapped: fits every member. */
+  zoomCentre: LatLng;
   zoomSpan: number;
 }
 
@@ -55,8 +61,54 @@ export function regionKey(centre: LatLng, span: number): { centre: LatLng; span:
   return { centre: c, span: s, key: `${c.lat.toFixed(4)},${c.lng.toFixed(4)},${level}` };
 }
 
-/** Where each kind's count pin sits in its cell (fractions of the cell: up/down, left/right). */
-const KIND_OFFSET: Record<SpotKind, [number, number]> = { drive: [0.2, -0.2], photo: [0.2, 0.2], track: [-0.2, -0.2], venue: [-0.2, 0.2] };
+/**
+ * The furthest a group's members may be from its pin, in km, at this span:
+ * about a quarter of the view's height, between 5 and 120 km. Keeps groups
+ * tight, so a group never bridges a big bay or estuary, and from right out
+ * the UK reads as a few dozen regional counts.
+ */
+export function maxClusterKm(span: number): number {
+  return Math.min(120, Math.max(5, (span * 111) / 4));
+}
+
+const KM_PER_MILE = 1.609344;
+function km(a: LatLng, b: LatLng): number {
+  return milesBetween(a, b) * KM_PER_MILE;
+}
+
+/** The member nearest the members' centre (longitude scaled for latitude). Ties go to the lower id, so it's stable. */
+export function medoid<T extends { id: string; at: LatLng }>(list: readonly T[]): T {
+  const lat = list.reduce((n, s) => n + s.at.lat, 0) / list.length;
+  const lng = list.reduce((n, s) => n + s.at.lng, 0) / list.length;
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best = list[0];
+  let bestD = Infinity;
+  for (const s of list) {
+    const d = (s.at.lat - lat) ** 2 + ((s.at.lng - lng) * k) ** 2;
+    if (d < bestD || (d === bestD && s.id < best.id)) {
+      best = s;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Split one cell's places into tight groups: take the medoid of what's left,
+ * everything within `maxKm` of it is a group, repeat. Each group is then
+ * placed at its own medoid.
+ */
+function tightGroups<T extends { id: string; at: LatLng }>(list: readonly T[], maxKm: number): T[][] {
+  const groups: T[][] = [];
+  let rest = [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  while (rest.length) {
+    const m = medoid(rest);
+    const near = rest.filter((s) => km(m.at, s.at) <= maxKm);
+    groups.push(near);
+    rest = rest.filter((s) => !near.includes(s));
+  }
+  return groups;
+}
 
 function cellSize(span: number): number {
   return span / CLUSTER_CELLS;
@@ -71,10 +123,12 @@ export function placesForView(all: readonly Spot[], centre: LatLng, span: number
 
   if (span > CLUSTER_SPAN) {
     const size = cellSize(span);
+    const maxKm = maxClusterKm(span);
     const cells = new Map<string, Spot[]>();
     for (const s of inView) {
       if (s.id === selectedId) continue;
-      const key = `${s.kind}:${Math.floor(s.at.lat / size)}_${Math.floor(s.at.lng / (size * 1.6))}`;
+      // Kind, island and grid cell: Northern Ireland, the Isle of Wight and the other islands never share a group with the mainland.
+      const key = `${s.kind}:${landmassOf(s.at)}:${Math.floor(s.at.lat / size)}_${Math.floor(s.at.lng / (size * 1.6))}`;
       const list = cells.get(key);
       if (list) list.push(s);
       else cells.set(key, [s]);
@@ -82,15 +136,23 @@ export function placesForView(all: readonly Spot[], centre: LatLng, span: number
     const places: Spot[] = inView.filter((s) => s.id === selectedId);
     const clusters: PlaceCluster[] = [];
     for (const [key, list] of cells) {
-      if (list.length === 1) {
-        places.push(list[0]);
-        continue;
+      for (const group of tightGroups(list, maxKm)) {
+        if (group.length === 1) {
+          places.push(group[0]);
+          continue;
+        }
+        const at = medoid(group);
+        const fit = fitRegion(group.map((s) => s.at))!;
+        clusters.push({
+          id: `cl:${key}:${at.id}`,
+          kind: group[0].kind,
+          at: at.at,
+          count: group.length,
+          zoomCentre: fit.centre,
+          // Fit the group, but always zoom in at least a step, and far enough that it opens up.
+          zoomSpan: Math.min(span / 2, Math.max(CLUSTER_SPAN * 0.9, fit.span)),
+        });
       }
-      // At the cell's centre, nudged by kind, so a cell's drives, photo spots, tracks and venues sit side by side, not on top of each other.
-      const [row, col] = key.slice(key.indexOf(':') + 1).split('_').map(Number);
-      const [dy, dx] = KIND_OFFSET[list[0].kind];
-      const at = { lat: (row + 0.5 + dy) * size, lng: (col + 0.5 + dx) * size * 1.6 };
-      clusters.push({ id: `cl:${key}`, kind: list[0].kind, at, count: list.length, zoomSpan: Math.max(0.3, span / 3) });
     }
     return { places, clusters, lines };
   }
