@@ -1,3 +1,4 @@
+import { CLASS } from '../theme';
 import type { Build, ClassLetter } from './types';
 
 /** A build counts as modified with this many logged mods. */
@@ -56,13 +57,8 @@ export function powerBar(build: Pick<Build, 'kind' | 'stockBhp' | 'dynoBhp' | 'm
   return Math.max(0.04, Math.min(1, figure / top));
 }
 
-export const CLASS_COLOURS: Record<ClassLetter, string> = {
-  S: '#ff4d4d',
-  A: '#ff9a2e',
-  B: '#ffd166',
-  C: '#3fd6ff',
-  D: '#9dfa5a',
-};
+/** Class letter colours: their own ladder in theme.ts, never a map layer or state colour. */
+export const CLASS_COLOURS: Record<ClassLetter, string> = CLASS;
 
 /** S is the top class (4), D the bottom (0). */
 export function classRank(letter: ClassLetter): number {
