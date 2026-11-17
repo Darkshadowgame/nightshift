@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { canVote, categoriesFor, categoryInfo, eligibleFor, results, votingCloses } from '../lib/awards';
 import { classOf } from '../lib/classes';
+import { endTime } from '../lib/events';
 import { feel } from '../lib/feel';
 import { formatRelative } from '../lib/format';
 import { useStore } from '../lib/store';
@@ -16,6 +17,7 @@ import { UserLink } from './UserLink';
 export function AwardsSection({ event }: { event: NightEvent }) {
   const { builds, users, votes, me, now, vote } = useStore();
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   if (event.cancelled || now < new Date(event.startsAt)) return null;
 
   const awards = results(votes, event, builds, now);
@@ -65,6 +67,26 @@ export function AwardsSection({ event }: { event: NightEvent }) {
   const check = canVote(event, me, now);
   const cats = categoriesFor(event, builds);
   const myVote = (cat: string) => votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === cat)?.buildId;
+
+  // While the event is on, chat matters more: keep voting to one row until it's opened.
+  if (now < endTime(event) && !open) {
+    const done = cats.filter((c) => myVote(c)).length;
+    return (
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`Vote, ${cats.length} awards`}
+        style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+      >
+        <Card accent={C.sodium}>
+          <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+            <Txt v="eyebrow">Vote ({cats.length} award{cats.length === 1 ? '' : 's'})</Txt>
+            <Txt v="label" style={{ color: C.sodium }}>{check.ok ? (done ? `${done} done ›` : 'Open ›') : 'See ›'}</Txt>
+          </Row>
+        </Card>
+      </Pressable>
+    );
+  }
 
   return (
     <Section title="Vote" right={<Txt v="mono">CLOSES {formatRelative(votingCloses(event).toISOString(), now).toUpperCase()}</Txt>}>
@@ -118,7 +140,7 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                         <Row style={{ flexWrap: 'nowrap' }} gap={6}>
                           <ClassBadge letter={classOf(b)} size="sm" />
                           <UserLink id={b.ownerId} style={{ flex: 1 }} label={`Open @${owner?.handle}`}>
-                            <Txt v="label" numberOfLines={1} style={{ color: C.neon }}>@{owner?.handle}</Txt>
+                            <Txt v="mono" numberOfLines={1} style={{ color: C.neon, textTransform: 'none' }}>@{owner?.handle}</Txt>
                           </UserLink>
                         </Row>
                         <Txt numberOfLines={2}>{b.make} {b.model}</Txt>

@@ -5,6 +5,7 @@ import { Pin } from '../../components/Pin';
 import { LevelTag, RepPanel, useRep } from '../../components/Rep';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { allAwards, hasLegend } from '../../lib/awards';
+import { isHost, phaseOf } from '../../lib/events';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../../lib/notify';
 import { SPOT_LABELS } from '../../lib/spots';
 import { useStore, type Settings } from '../../lib/store';
@@ -24,7 +25,7 @@ export default function Me() {
   const user = users.find((u) => u.id === me);
   const crew = crews.find((c) => c.id === user?.crewId);
   const mySpots = spots.filter((x) => x.authorId === me);
-  const hosting = events.filter((e) => e.hostIds.includes(me) || (e.crewId && crew?.id === e.crewId)).length;
+  const hosting = events.filter((e) => !e.cancelled && phaseOf(e, now) !== 'over' && isHost(e, me, crews)).length;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
@@ -38,7 +39,7 @@ export default function Me() {
         <Txt v="muted">{user?.region}{crew ? ` · Crew: ${crew.name}` : ''}</Txt>
         <Row gap={16}>
           <Txt v="mono">{builds.filter((b) => b.ownerId === me).length} BUILDS</Txt>
-          <Txt v="mono">{hosting} EVENTS HOSTED</Txt>
+          <Txt v="mono">HOSTING {hosting}</Txt>
           <Txt v="mono">{myAwards.length} TROPHIES</Txt>
         </Row>
         <Row style={{ flexWrap: 'nowrap' }}>

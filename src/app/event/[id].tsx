@@ -10,8 +10,9 @@ import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
+import { areaRadius } from '../../lib/area';
 import { classOf } from '../../lib/classes';
-import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
+import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf } from '../../lib/eventView';
 import { feel } from '../../lib/feel';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
@@ -67,6 +68,9 @@ export default function EventScreen() {
   const host = isHost(ev, me, crews);
   const role = roleOf(ev, me, crews, users, builds);
   const going = ev.going.includes(me);
+  const requested = hasRequested(ev, me);
+  const declined = !!ev.declined?.includes(me);
+  const requests = ev.requests ?? [];
   const phase = phaseOf(ev, now);
   const crew = ev.crewId ? crews.find((c) => c.id === ev.crewId) : undefined;
   const hostNames = ev.hostIds.map((h) => (h === me ? 'You' : `@${users.find((u) => u.id === h)?.handle ?? h}`));
@@ -160,9 +164,9 @@ export default function EventScreen() {
           <NightMap
             pins={anyVisible ? mapPins : [{ id: 'area', at: ev.area, glyph: 'locked', colour, title: ev.areaName }]}
             paths={mapPaths}
-            circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: 3, colour }]}
+            circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaRadius(ev), colour }]}
             centre={mapCentre}
-            span={ev.type === 'cruise' ? 0.25 : 0.12}
+            span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.12) : Math.max(0.12, (areaRadius(ev) * 2.6) / 69)}
           />
           {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
         </View>
@@ -183,9 +187,9 @@ export default function EventScreen() {
                   accessibilityHint="Drops you out and cancels your reminders"
                   onPress={() => store.setGoing(ev.id, false)}
                 />
-              ) : (
+              ) : role === 'invited' || role === 'public' ? (
                 <Button
-                  label={role === 'invited' || role === 'public' ? "I'm going" : "Request to go"}
+                  label="I'm going"
                   onPress={() => {
                     store.setGoing(ev.id, true);
                     feel.tap();
@@ -193,6 +197,34 @@ export default function EventScreen() {
                     if (settings.reminders) askPermission().catch(() => {});
                   }}
                 />
+              ) : declined ? (
+                <Card>
+                  <Txt v="muted">A host said no to this one. Keep an eye out for the next.</Txt>
+                </Card>
+              ) : requested ? (
+                <Card accent={C.neon}>
+                  <Txt>Request sent. A host will say yes or no.</Txt>
+                  <Txt v="muted">You'll see the place at the reveal time if they say yes.</Txt>
+                  <Button label="Withdraw request" kind="ghost" onPress={() => store.setGoing(ev.id, false)} />
+                </Card>
+              ) : (
+                <View style={{ gap: 6 }}>
+                  <Button
+                    label="Request to go"
+                    onPress={() => {
+                      setError(null);
+                      try {
+                        store.setGoing(ev.id, true);
+                        feel.tap();
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Could not send the request.');
+                      }
+                    }}
+                  />
+                  <Txt v="muted" style={{ fontSize: 12 }}>
+                    Your builds or home area don't match this invite ({describeFilter(ev.filter)}). A host can still say yes.
+                  </Txt>
+                </View>
               )
             ) : null}
             {(going || host) && !checkInWindowOpen(ev, now) ? (
@@ -276,7 +308,7 @@ export default function EventScreen() {
           <Card>
             <Txt>{describeFilter(ev.filter)}</Txt>
             <Txt v="muted">
-              Hosted by {crew ? `${crew.name} (any member) with ` : ''}
+              Hosted by {crew ? `${crew.name} (crew hosts) with ` : ''}
               {hostNames.join(', ')}
             </Txt>
             {crew ? (
@@ -291,6 +323,49 @@ export default function EventScreen() {
             ) : null}
           </Card>
         </Section>
+
+        {host && requests.length > 0 && phase !== 'over' && phase !== 'cancelled' ? (
+          <Section title={`Requests (${requests.length})`}>
+            <Card accent={C.neon}>
+              <Txt v="muted">They don't match the invite. Say yes and they see the place at the reveal time, like everyone going.</Txt>
+              {requests.map((uid) => {
+                const b = builds.find((x) => x.ownerId === uid);
+                return (
+                  <View key={uid} style={{ gap: 6 }}>
+                    <UserLink id={uid} label={`Open ${userLabel(uid)}`}>
+                      <Row style={{ flexWrap: 'nowrap' }} gap={10}>
+                        {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
+                        <View style={{ flex: 1 }}>
+                          <Txt numberOfLines={1}>{userLabel(uid)}</Txt>
+                          <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model} · ${b.mods.length} mods` : 'No build yet'}</Txt>
+                        </View>
+                      </Row>
+                    </UserLink>
+                    <Row style={{ flexWrap: 'nowrap' }}>
+                      <Button
+                        label="Approve"
+                        kind="neon"
+                        style={{ flex: 1 }}
+                        accessibilityLabel={`Approve ${userLabel(uid)}`}
+                        onPress={() => {
+                          store.answerRequest(ev.id, uid, true);
+                          feel.success();
+                        }}
+                      />
+                      <Button
+                        label="Decline"
+                        kind="ghost"
+                        style={{ flex: 1 }}
+                        accessibilityLabel={`Decline ${userLabel(uid)}`}
+                        onPress={() => store.answerRequest(ev.id, uid, false)}
+                      />
+                    </Row>
+                  </View>
+                );
+              })}
+            </Card>
+          </Section>
+        ) : null}
 
         <Section title={`Going (${ev.going.length})`}>
           <Card>
@@ -337,6 +412,11 @@ export default function EventScreen() {
         ) : null}
 
         <Section title="Chat">
+          {!host && !going ? (
+            <Card>
+              <Txt v="muted">Chat is for the hosts and people going. It can carry details of where to park, so it opens once you're in.</Txt>
+            </Card>
+          ) : (
           <Card>
             {messages.length === 0 ? <Txt v="muted">No messages yet.</Txt> : null}
             {messages.map((m) =>
@@ -381,6 +461,7 @@ export default function EventScreen() {
             </Row>
             <Txt v="muted" style={{ fontSize: 12 }}>Chat stays on this phone until the app has a backend.</Txt>
           </Card>
+          )}
         </Section>
 
         {host && phase !== 'over' && phase !== 'cancelled' ? (

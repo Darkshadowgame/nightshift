@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { photoUri } from '../../lib/photos';
 import { useLayoutEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { BuildArt } from '../../components/BuildArt';
@@ -47,11 +48,11 @@ export default function BuildScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
-      {b.photos[0] ? <Image source={{ uri: b.photos[0] }} style={{ height: 220, borderRadius: 10 }} /> : <BuildArt kind={b.kind} colour={b.colour} height={180} />}
+      {b.photos[0] ? <Image source={{ uri: photoUri(b.photos[0]) }} style={{ height: 220, borderRadius: 10 }} /> : <BuildArt kind={b.kind} colour={b.colour} height={180} />}
       {b.photos.length > 1 ? (
         <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
           {b.photos.slice(1).map((p) => (
-            <Image key={p} source={{ uri: p }} style={{ width: 110, height: 80, borderRadius: 6 }} />
+            <Image key={p} source={{ uri: photoUri(p) }} style={{ width: 110, height: 80, borderRadius: 6 }} />
           ))}
         </ScrollView>
       ) : null}

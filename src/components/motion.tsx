@@ -333,7 +333,7 @@ const st = StyleSheet.create({
   centre: { alignItems: 'center', justifyContent: 'center' },
   scrim: { backgroundColor: 'rgba(5,8,14,0.92)', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
   eyebrow: { fontFamily: F.labelBold, fontSize: 14, color: C.sodium, letterSpacing: 3, textTransform: 'uppercase' },
-  big: { fontFamily: F.display, fontSize: 34, fontStyle: 'italic' },
+  big: { fontFamily: F.displayItalic, fontSize: 34 },
   hint: { fontFamily: F.body, fontSize: 14, color: C.fog, textAlign: 'center' },
   streak: { position: 'absolute', top: -20, bottom: -20, width: 14, backgroundColor: 'rgba(255,255,255,0.75)' },
   card: {

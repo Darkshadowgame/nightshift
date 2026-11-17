@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { areaRadius } from '../../lib/area';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +14,7 @@ import { describeFilter } from '../../lib/invites';
 import { formatWhen } from '../../lib/format';
 import { averageStars, visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
-import { C, EVENT_COLOURS, SPOT_COLOURS } from '../../theme';
+import { C, EVENT_COLOURS, F, SPOT_COLOURS } from '../../theme';
 
 type Layer = 'events' | 'photo' | 'drive' | 'track' | 'bans';
 const LAYERS: { key: Layer; label: string; colour: string }[] = [
@@ -54,7 +55,7 @@ export default function MapScreen() {
             paths.push({ id: `rt:${e.id}`, coords, colour, dashed: true });
           }
         } else {
-          circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: 3, colour });
+          circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour });
           pins.push({ id: `ev:${e.id}`, at: e.area, glyph: 'locked', colour, title: `${e.title} (location locked)`, size: 34 });
         }
       }
@@ -118,8 +119,8 @@ export default function MapScreen() {
       <View style={[st.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <Row style={{ justifyContent: 'space-between' }}>
           <View style={st.brand}>
-            <Txt v="h3" style={{ fontStyle: 'italic' }}>
-              NIGHT<Txt v="h3" style={{ color: C.sodium, fontStyle: 'italic' }}>SHIFT</Txt>
+            <Txt v="h3" style={{ fontFamily: F.displayMedItalic }}>
+              NIGHT<Txt v="h3" style={{ color: C.sodium, fontFamily: F.displayMedItalic }}>SHIFT</Txt>
             </Txt>
           </View>
           <Row gap={8} style={{ flexWrap: 'nowrap' }}>

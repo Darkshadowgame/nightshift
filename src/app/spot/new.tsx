@@ -6,7 +6,7 @@ import type { MapPin } from '../../components/mapTypes';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { banZoneWarning } from '../../lib/events';
-import { draftBanZone, draftProblem, pathMiles, type SpotDraft } from '../../lib/spots';
+import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, SPOT_COLOURS } from '../../theme';
@@ -26,6 +26,7 @@ export default function SuggestPlace() {
   const zone = draftBanZone(points, BAN_ZONES);
   const colour = SPOT_COLOURS[kind];
   const miles = pathMiles(points);
+  const gap = kind === 'drive' ? longGap(points) : null;
 
   function pick(k: SpotDraft['kind']) {
     setKind(k);
@@ -75,7 +76,14 @@ export default function SuggestPlace() {
       <View style={{ height: 300, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colour }}>
         <NightMap
           pins={pins}
-          paths={kind === 'drive' && points.length > 1 ? [{ id: 'draft', coords: points, colour }] : []}
+          paths={
+            kind === 'drive' && points.length > 1
+              ? [
+                  { id: 'draft', coords: points, colour },
+                  ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: C.alert, dashed: true }] : []),
+                ]
+              : []
+          }
           circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
           centre={meUser?.home ?? { lat: 52.7, lng: -1.7 }}
           span={0.6}
@@ -96,6 +104,20 @@ export default function SuggestPlace() {
           <Chip label="Clear" onPress={() => setPoints([])} />
         </Row>
       </Row>
+
+      {kind === 'drive' ? (
+        gap ? (
+          <Card accent={C.alert}>
+            <Txt>
+              Points {gap.index + 1} and {gap.index + 2} are {gap.miles.toFixed(1)} mi apart (red line). Add points along the road in
+              between, at least every {MAX_POINT_GAP_MILES} mi, so the drive follows the road and the pace check is fair.
+            </Txt>
+            <Txt v="muted">New points go on the end, so Undo back to point {gap.index + 1} and drop the missing ones in order.</Txt>
+          </Card>
+        ) : (
+          <Txt v="muted">Drop a point at least every {MAX_POINT_GAP_MILES} mi along the road.</Txt>
+        )
+      ) : null}
 
       {zone ? (
         <Card accent={C.alert}>

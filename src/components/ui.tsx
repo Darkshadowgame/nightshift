@@ -26,7 +26,7 @@ export function Txt({
 }
 
 const t = StyleSheet.create({
-  h1: { fontFamily: F.display, fontSize: 28, color: C.chalk, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 30 },
+  h1: { fontFamily: F.displayItalic, fontSize: 28, color: C.chalk, textTransform: 'uppercase', lineHeight: 30 },
   h2: { fontFamily: F.display, fontSize: 20, color: C.chalk, textTransform: 'uppercase', lineHeight: 23 },
   h3: { fontFamily: F.displayMed, fontSize: 16, color: C.chalk, textTransform: 'uppercase' },
   body: { fontFamily: F.body, fontSize: 15, color: C.chalk, lineHeight: 21 },
@@ -113,7 +113,7 @@ export function ClassBadge({ letter, size = 'md' }: { letter: ClassLetter; size?
   const colour = CLASS_COLOURS[letter];
   return (
     <View style={[s.badge, { width: dim, height: dim, borderColor: colour }]} accessibilityLabel={`Class ${letter}`}>
-      <Text style={{ fontFamily: F.display, color: colour, fontSize: dim * 0.55, lineHeight: dim * 0.7, fontStyle: 'italic' }}>{letter}</Text>
+      <Text style={{ fontFamily: F.displayItalic, color: colour, fontSize: dim * 0.55, lineHeight: dim * 0.7 }}>{letter}</Text>
     </View>
   );
 }

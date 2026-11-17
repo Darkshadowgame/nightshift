@@ -16,6 +16,9 @@ export const C = {
 
 export const F = {
   display: 'ChakraPetch_700Bold',
+  /** Real italic faces: iOS won't fake italics for custom fonts. Use these, not fontStyle. */
+  displayItalic: 'ChakraPetch_700Bold_Italic',
+  displayMedItalic: 'ChakraPetch_600SemiBold_Italic',
   displayMed: 'ChakraPetch_600SemiBold',
   body: 'Barlow_400Regular',
   bodyMed: 'Barlow_500Medium',

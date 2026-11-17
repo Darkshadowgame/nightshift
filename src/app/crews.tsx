@@ -15,7 +15,7 @@ export default function Crews() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 48 }}>
-      <Txt v="muted">Crews host events together: any member can run them. You can be in one crew at a time.</Txt>
+      <Txt v="muted">Crews host events together: the owner and the hosts they pick run them. You can be in one crew at a time.</Txt>
       {sortCrews(crews).map((c) => {
         const total = c.memberIds.reduce((s, uid) => s + repFor(uid).ledger.total, 0);
         const upcoming = crewEvents(c, events).length;

@@ -1,11 +1,14 @@
-import { Image } from 'react-native';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Image, Pressable, ScrollView, View } from 'react-native';
+import { photoUri } from '../../lib/photos';
 import { BuildArt } from '../../components/BuildArt';
 import { Button, Card, ClassBadge, Row, Txt } from '../../components/ui';
 import { classOf, effectivePower, isModified } from '../../lib/classes';
 import { useStore } from '../../lib/store';
 import { C } from '../../theme';
+
+/** The demo's example build for you (see seed.ts). */
+const SAMPLE_BUILD = 'b-me-0';
 
 export default function Garage() {
   const { builds, me } = useStore();
@@ -18,6 +21,11 @@ export default function Garage() {
           <Txt v="muted">Add your car or bike. Invites to meets and cruises are matched against your builds.</Txt>
         </Card>
       ) : null}
+      {mine.some((b) => b.id === SAMPLE_BUILD && b.nickname?.startsWith('Example')) ? (
+        <Card accent={C.neon}>
+          <Txt v="muted">The Golf R is a sample build, with sample trophies from the demo meet. Edit it into your own car or bike, or add yours.</Txt>
+        </Card>
+      ) : null}
       {mine.map((b) => (
         <Pressable
           key={b.id}
@@ -27,7 +35,7 @@ export default function Garage() {
           style={({ pressed }) => [{ gap: 10 }, pressed && { opacity: 0.85 }]}
         >
           {b.photos[0] ? (
-            <Image source={{ uri: b.photos[0] }} style={{ height: 180, borderRadius: 10 }} />
+            <Image source={{ uri: photoUri(b.photos[0]) }} style={{ height: 180, borderRadius: 10 }} />
           ) : (
             <BuildArt kind={b.kind} colour={b.colour} height={150} />
           )}

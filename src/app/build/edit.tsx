@@ -7,7 +7,7 @@ import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../.
 import { BIKE_MAKES, CAR_MAKES, MOD_CATEGORIES } from '../../data/catalog';
 import { classOf, classUp, effectivePower } from '../../lib/classes';
 import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
-import { findPlates, finishPhoto, plateRedactorAvailable } from '../../lib/photos';
+import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, ClassLetter, Mod, ModCategory, VehicleKind } from '../../lib/types';
 import { C } from '../../theme';
@@ -194,7 +194,7 @@ export default function EditBuild() {
         <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
           {photos.map((p) => (
             <Pressable key={p} onLongPress={() => setPhotos((xs) => xs.filter((x) => x !== p))} accessibilityHint="Long-press to remove">
-              <Image source={{ uri: p }} style={{ width: 110, height: 80, borderRadius: 6 }} />
+              <Image source={{ uri: photoUri(p) }} style={{ width: 110, height: 80, borderRadius: 6 }} />
             </Pressable>
           ))}
         </ScrollView>

@@ -2,16 +2,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BAN_ZONES, ME, seed, type SeedState } from '../data/seed';
 import { castVote as applyVote, type AwardCategory } from './awards';
+import { areaGivesAway, eventArea } from './area';
+import { inferAnchor, needsRefresh, refreshDemo } from './demoTime';
+import { roleOf } from './eventView';
+import { migratePhotoRef } from './photos';
 import {
+  answerRequest as applyAnswer,
   applyEventEdit,
   applyPlanChange,
   canEditEvent,
+  dropOut,
+  isPublicType,
+  rsvp,
   checkIn as applyCheckIn,
   moveOn as applyMoveOn,
   planChangedMessage,
   type PlanChange,
 } from './events';
-import { createCrew as applyCreateCrew, joinCrew as applyJoinCrew, leaveCrew as applyLeaveCrew } from './crews';
+import {
+  createCrew as applyCreateCrew,
+  joinCrew as applyJoinCrew,
+  leaveCrew as applyLeaveCrew,
+  setCrewHost as applySetCrewHost,
+  withRoles,
+} from './crews';
 import { applyProfile, profileProblem, type ProfileDraft } from './profile';
 import {
   approveDue,
@@ -56,6 +70,8 @@ interface Persisted extends SeedState {
   onboarded: boolean;
   /** eventId -> stop ids this person has already seen the "unlocked" moment for. */
   unlockSeen: Record<string, string[]>;
+  /** When the demo scene's times were last laid out (ISO). Used to keep the demo fresh. */
+  seededAt?: string;
 }
 
 export interface Notice {
@@ -82,7 +98,10 @@ interface Store extends Persisted {
   changePlan: (eventId: string, change: PlanChange) => { warning?: string };
   /** Save the person's own profile. Throws with a readable reason if something is missing. */
   saveProfile: (draft: ProfileDraft) => void;
+  /** Going, or for people the invite doesn't cover, a request a host must approve. False drops out or withdraws. */
   setGoing: (eventId: string, going: boolean) => void;
+  /** Host approves or declines a request to go. */
+  answerRequest: (eventId: string, userId: string, approve: boolean) => void;
   checkIn: (eventId: string, stopIndex: number) => void;
   moveOn: (eventId: string) => void;
   cancelEvent: (eventId: string) => void;
@@ -106,12 +125,23 @@ interface Store extends Persisted {
   leaveCrew: () => void;
   /** Start a crew and join it. Throws with a readable reason. Returns the new crew's id. */
   createCrew: (name: string, tag: string) => string;
+  /** Crew owner makes a member a host, or takes it away. Throws with a readable reason. */
+  setCrewHost: (crewId: string, userId: string, host: boolean) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
 
 function fresh(): Persisted {
-  return { ...seed(new Date()), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {} };
+  const now = new Date();
+  return { ...seed(now), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString() };
+}
+
+/** Keep the demo scene's times current (see demoTime.ts). Events made on the phone are left alone. */
+function freshen(state: Persisted, now: Date): Persisted {
+  const anchor = state.seededAt ? new Date(state.seededAt) : inferAnchor(state.events);
+  if (!anchor || isNaN(anchor.getTime())) return { ...state, seededAt: state.seededAt ?? now.toISOString() };
+  if (!needsRefresh(state, anchor, now)) return { ...state, seededAt: anchor.toISOString() };
+  return { ...state, ...refreshDemo(state, anchor, now), seededAt: now.toISOString() };
 }
 
 /** Data saved by an older version of the app: fill in anything that's new since. */
@@ -132,6 +162,38 @@ function migrate(parsed: Persisted): Persisted {
       }),
     };
   }
+  // Crew roles arrived later: sample crews get their seeded owner and hosts, crews made on the phone get their first member.
+  const seededCrew = new Map(base.crews.map((c) => [c.id, c]));
+  next = {
+    ...next,
+    crews: next.crews.map((c) => {
+      if (c.ownerId && c.hostIds) return c;
+      const sample = seededCrew.get(c.id);
+      if (sample) {
+        const hostIds = (sample.hostIds ?? []).filter((h) => c.memberIds.includes(h));
+        return { ...c, ownerId: c.memberIds.includes(sample.ownerId ?? '') ? sample.ownerId : c.memberIds[0], hostIds };
+      }
+      return withRoles(c.memberIds.includes(ME) ? { ...c, ownerId: ME } : c);
+    }),
+  };
+  // Rough areas saved before they were fuzzed could sit right on the place: work them out again.
+  next = {
+    ...next,
+    events: next.events.map((e) => {
+      if (isPublicType(e.type) || (e.areaRadiusMiles && !areaGivesAway(e))) return e;
+      const placed = e.stops.flatMap((st) => (st.at ? [st.at] : []));
+      return placed.length ? { ...e, ...eventArea(placed, e.id, false) } : e;
+    }),
+  };
+  // Photos saved as full paths: keep only the file name when it's in our photos folder.
+  next = {
+    ...next,
+    builds: next.builds.map((b) => ({ ...b, photos: b.photos.map(migratePhotoRef) })),
+    spots: next.spots.map((x) => ({
+      ...x,
+      completions: x.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)),
+    })),
+  };
   return next;
 }
 
@@ -149,7 +211,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(KEY);
-        if (raw) setState(migrate(JSON.parse(raw) as Persisted));
+        if (raw) {
+          const parsed = JSON.parse(raw) as Persisted;
+          // Freshen before migrating, so "is this still the untouched demo?" compares like with like.
+          setState(migrate(freshen(parsed, new Date())));
+        }
       } catch {
         // Unreadable storage: start from the demo scene.
       }
@@ -254,11 +320,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (problem) throw new Error(problem);
         setState((s) => ({ ...s, onboarded: true, users: s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u)) }));
       },
-      setGoing: (eventId, going) =>
-        updateEvent(eventId, (e) => ({
-          ...e,
-          going: going ? Array.from(new Set([...e.going, ME])) : e.going.filter((u) => u !== ME),
-        })),
+      setGoing: (eventId, going) => {
+        const event = state.events.find((e) => e.id === eventId);
+        if (!event) throw new Error('Event not found.');
+        if (!going) return updateEvent(eventId, (e) => dropOut(e, ME));
+        const role = roleOf(event, ME, state.crews, state.users, state.builds);
+        const eligible = role !== 'none';
+        rsvp(event, ME, eligible); // throws with the reason if a host already said no
+        updateEvent(eventId, (e) => rsvp(e, ME, eligible));
+      },
+      answerRequest: (eventId, userId, approve) => {
+        const event = state.events.find((e) => e.id === eventId);
+        if (!event) throw new Error('Event not found.');
+        const next = applyAnswer(event, ME, state.crews, userId, approve);
+        updateEvent(eventId, () => next);
+      },
       checkIn: (eventId, stopIndex) => updateEvent(eventId, (e) => applyCheckIn(e, stopIndex, ME)),
       moveOn: (eventId) => {
         const event = state.events.find((e) => e.id === eventId);
@@ -278,7 +354,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (moved && state.settings.reminders) notifyNow(moved).catch(() => {});
         setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? next : e)), notices: [notice, ...s.notices] }));
       },
-      cancelEvent: (eventId) => updateEvent(eventId, (e) => ({ ...e, cancelled: true })),
+      cancelEvent: (eventId) => {
+        const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text: 'Hosts cancelled the event', at: new Date().toISOString(), system: true };
+        setState((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? { ...e, cancelled: true } : e)), chat: [...s.chat, msg] }));
+      },
       sendChat: (eventId, text) => {
         const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text, at: new Date().toISOString() };
         setState((s) => ({ ...s, chat: [...s.chat, msg] }));
@@ -334,6 +413,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const next = applyCreateCrew({ crews: state.crews, users: state.users }, ME, name, tag, id);
         setState((s) => ({ ...s, crews: next.crews, users: next.users }));
         return id;
+      },
+      setCrewHost: (crewId, userId, host) => {
+        const next = applySetCrewHost({ crews: state.crews, users: state.users }, ME, crewId, userId, host);
+        setState((s) => ({ ...s, crews: next.crews }));
       },
     }),
     [state, ready, now, updateEvent, updateSpot],

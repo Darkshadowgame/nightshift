@@ -1,6 +1,6 @@
 import { Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold } from '@expo-google-fonts/barlow';
 import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '@expo-google-fonts/barlow-condensed';
-import { ChakraPetch_600SemiBold, ChakraPetch_700Bold } from '@expo-google-fonts/chakra-petch';
+import { ChakraPetch_600SemiBold, ChakraPetch_600SemiBold_Italic, ChakraPetch_700Bold, ChakraPetch_700Bold_Italic } from '@expo-google-fonts/chakra-petch';
 import { useFonts } from 'expo-font';
 import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -68,6 +68,8 @@ export default function RootLayout() {
     BarlowCondensed_700Bold,
     ChakraPetch_600SemiBold,
     ChakraPetch_700Bold,
+    ChakraPetch_600SemiBold_Italic,
+    ChakraPetch_700Bold_Italic,
   });
   if (!loaded) return <View style={{ flex: 1, backgroundColor: C.asphalt }} />;
   return (

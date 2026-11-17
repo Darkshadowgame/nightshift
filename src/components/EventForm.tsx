@@ -7,10 +7,13 @@ import { BAN_ZONES } from '../data/seed';
 import { visibleSpots } from '../lib/spots';
 import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen } from '../lib/format';
+import { eventArea } from '../lib/area';
+import { isCrewHost } from '../lib/crews';
 import { DEFAULT_FILTER, invitees } from '../lib/invites';
+import { nearestRegion } from '../lib/profile';
 import { newId, useStore } from '../lib/store';
-import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type LatLng, type NightEvent } from '../lib/types';
-import { C } from '../theme';
+import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
+import { C, F } from '../theme';
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
 interface DayChoice {
@@ -70,6 +73,8 @@ export function EventForm({
   const { users, builds, me, crews, now } = store;
   const meUser = users.find((u) => u.id === me)!;
   const myCrew = crews.find((c) => c.id === meUser.crewId);
+  /** Only crew owners and hosts can put an event under the crew. */
+  const canCrewHost = isCrewHost(myCrew, me);
   const editing = !!initial;
 
   const [dayChoices] = useState<DayChoice[]>(() =>
@@ -81,6 +86,7 @@ export function EventForm({
   const [type, setType] = useState<EventType>(initial?.type ?? 'cruise');
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
+  const [areaName, setAreaName] = useState(initial?.areaName ?? '');
   const [day, setDay] = useState(0);
   const [time, setTime] = useState(initial ? hhmm(initial.startsAt) : '22:30');
   const [stops, setStops] = useState<DraftStop[]>(() =>
@@ -93,21 +99,27 @@ export function EventForm({
   );
   const [activeStop, setActiveStop] = useState(0);
   const [filter, setFilter] = useState<InviteFilter>(initial ? { ...initial.filter } : { ...DEFAULT_FILTER });
-  const [reveal, setReveal] = useState(initial?.revealMinutesBefore || 60);
-  const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : !!myCrew);
+  const [reveal, setReveal] = useState(initial?.revealMinutesBefore ?? 60);
+  const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : canCrewHost);
   const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : []);
   const [error, setError] = useState<string | null>(null);
 
-  const placed = stops.filter((st) => st.at);
-  const area: LatLng = placed.length
-    ? { lat: placed.reduce((a, s) => a + s.at!.lat, 0) / placed.length, lng: placed.reduce((a, s) => a + s.at!.lng, 0) / placed.length }
-    : meUser.home;
+  const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
+  const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
+  // Only the stops this type uses: a hidden second stop left over from a cruise doesn't count.
+  const placed = visibleStops.filter((st) => st.at);
+  const placedKey = placed.map((p) => `${p.at!.lat},${p.at!.lng}`).join('|');
+  const areaKey = initial?.id ?? 'draft';
+  const { area, areaRadiusMiles } = useMemo(
+    () => (placed.length ? eventArea(placed.map((p) => p.at!), areaKey, isPublicType(type)) : { area: meUser.home, areaRadiusMiles: 3 }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [placedKey, areaKey, type, meUser.home],
+  );
+  const suggestedAreaName = placed.length ? nearestRegion(area) : meUser.region;
   const matches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
   const bans = placed
     .map((st) => ({ st, zone: banZoneAt(st.at!, BAN_ZONES) }))
     .filter((x) => x.zone);
-  const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
-  const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
   const friends = meUser.crewId ? users.filter((u) => u.id !== me && u.crewId === meUser.crewId) : [];
 
   function setStop(i: number, patch: Partial<DraftStop>) {
@@ -117,7 +129,9 @@ export function EventForm({
   function stopLabel(i: number, n: number) {
     if (type === 'cruise') return i === 0 ? 'Start' : i === n - 1 ? 'Finish' : `Regroup ${i}`;
     if (type === 'rolling') return `Stop ${i + 1}`;
-    return 'Place';
+    if (type === 'show') return 'Show venue';
+    if (type === 'trackday') return 'Circuit';
+    return 'Meet spot';
   }
 
   function toggleClass(l: ClassLetter) {
@@ -136,6 +150,8 @@ export function EventForm({
     if (!filter.cars && !filter.bikes && !filter.everyone) return setError('Invite cars, bikes or both.');
     const id = initial?.id ?? newId('ev');
     const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], stopLabel);
+    // The rough area is fuzzed from the stops with the event's own id, so it never sits on a stop.
+    const where = eventArea(finalStops.map((st) => st.at!), id, isPublicType(type));
     const start = startDate(dayChoices[day], time);
     if (start.getTime() <= Date.now()) return setError('Pick a start time in the future.');
     // Editing as a crew member who isn't a named host keeps the named hosts as they were.
@@ -148,13 +164,14 @@ export function EventForm({
       title: title.trim(),
       description: description.trim() || undefined,
       startsAt: start.toISOString(),
-      area,
-      areaName: initial?.areaName ?? meUser.region,
+      area: where.area,
+      areaRadiusMiles: where.areaRadiusMiles,
+      areaName: areaName.trim() || suggestedAreaName,
       stops: finalStops,
       currentStop: initial?.currentStop ?? 0,
       revealMinutesBefore: isPublicType(type) ? 0 : reveal,
       hostIds,
-      crewId: crewOwned ? (initial?.crewId ?? myCrew?.id) : undefined,
+      crewId: crewOwned ? (initial?.crewId ?? (canCrewHost ? myCrew?.id : undefined)) : undefined,
       filter,
       going: initial?.going ?? [me],
       checkIns: initial?.checkIns ?? {},
@@ -190,7 +207,7 @@ export function EventForm({
         <Txt v="muted">
           {type === 'cruise' && 'A planned route with regroup stops. Everyone going sees the whole route at the reveal time.'}
           {type === 'rolling' && 'A meet in several parts. Place every stop now; each is checked against ban zones. People only see the next stop once they have checked in at the current one and a host moves on.'}
-          {type === 'meet' && 'One spot. Static meets get moved on by police more often, so consider a cruise or rolling meet.'}
+          {type === 'meet' && 'One spot. Pick somewhere with permission or a venue that welcomes meets.'}
           {type === 'show' && 'A public show. The place is visible to everyone.'}
           {type === 'trackday' && 'A circuit or sprint venue. Public, and the only place lap times count.'}
         </Txt>
@@ -279,6 +296,21 @@ export function EventForm({
             }}
           />
         ) : null}
+        <Txt v="label">Area name</Txt>
+        <TextInput
+          value={areaName}
+          onChangeText={setAreaName}
+          placeholder={`e.g. ${suggestedAreaName}`}
+          placeholderTextColor={C.fog}
+          style={ui.input}
+          maxLength={30}
+          accessibilityLabel="Area name"
+        />
+        <Txt v="muted">
+          {isPublicType(type)
+            ? 'Shown with the event.'
+            : `Before the reveal, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any stop.`}
+        </Txt>
         {bans.map(({ st, zone }) => (
           <Card key={st.key} accent={C.alert}>
             <Txt>
@@ -331,7 +363,7 @@ export function EventForm({
         </Row>
         <Card accent={C.sodium}>
           <Row style={{ alignItems: 'baseline' }}>
-            <Txt v="h1" style={{ color: C.sodium, fontStyle: 'normal' }}>{matches.userIds.length}</Txt>
+            <Txt v="h1" style={{ color: C.sodium, fontFamily: F.display }}>{matches.userIds.length}</Txt>
             <Txt v="muted">people match ({matches.buildIds.length} builds)</Txt>
           </Row>
         </Card>
@@ -349,11 +381,11 @@ export function EventForm({
       ) : null}
 
       <Section title="Hosts">
-        {myCrew ? (
+        {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
           <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
             <View style={{ flex: 1 }}>
               <Txt>Crew event: {myCrew.name}</Txt>
-              <Txt v="muted">Any crew member can host, move on and edit.</Txt>
+              <Txt v="muted">The crew owner and hosts can host, move on and edit.</Txt>
             </View>
             <Switch accessibilityLabel="Crew event" value={crewOwned} onValueChange={setCrewOwned} trackColor={{ true: C.sodium, false: C.kerb }} />
           </Row>

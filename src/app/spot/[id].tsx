@@ -13,7 +13,7 @@ import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { banZoneWarning } from '../../lib/events';
 import { feel } from '../../lib/feel';
-import { findPlates, finishPhoto, plateRedactorAvailable } from '../../lib/photos';
+import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
 import {
   advanceRun,
   averageStars,
@@ -499,7 +499,7 @@ function Photos({ spot }: { spot: Spot }) {
     <Section title={`Photos (${photos.length})`}>
       <Row gap={8}>
         {photos.map((c, i) => (
-          <Image key={`${c.userId}-${i}`} source={{ uri: c.photo }} style={{ width: 104, height: 104, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
+          <Image key={`${c.userId}-${i}`} source={{ uri: photoUri(c.photo!) }} style={{ width: 104, height: 104, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
         ))}
       </Row>
     </Section>
