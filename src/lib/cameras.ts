@@ -151,7 +151,7 @@ export function camerasForView(
  * driving zoom, a little bigger only when zoomed right in to street level.
  */
 export function cameraPinSize(span: number): number {
-  return span <= 0.04 ? 20 : 15;
+  return span <= 0.04 ? 12 : 9;
 }
 
 /** "Speed camera · 30 mph · faces north-east". */
@@ -168,7 +168,7 @@ export function describeZone(z: AverageZone): string {
   return ['Average speed zone', z.mph ? `${z.mph} mph` : 'limit not recorded', `about ${miles.toFixed(1)} mi`].join(' · ');
 }
 
-/** Where to put a zone's tappable pin: the point halfway along its line. */
+/** The point halfway along a zone's line. */
 export function zoneMidpoint(z: AverageZone): LatLng {
   return z.path[Math.floor(z.path.length / 2)];
 }

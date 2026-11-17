@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
 import { areaRadius } from '../../lib/area';
-import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
-import { Pin } from '../../components/Pin';
+import { Pin, type Glyph } from '../../components/Pin';
+import { LayerBar } from '../../components/LayerBar';
+import { feel } from '../../lib/feel';
 import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
-import { Chip, Row, Txt } from '../../components/ui';
+import { Row, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
@@ -21,22 +23,23 @@ import type { LatLng } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
 import { driveTier } from '../../lib/rep';
 import { cameraIndex } from '../../lib/cameraData';
-import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCamera, describeZone, zoneMidpoint } from '../../lib/cameras';
+import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCamera, describeZone } from '../../lib/cameras';
 import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks';
 import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
 import { C, EVENT_COLOURS, F, SPOT_COLOURS } from '../../theme';
 
 type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'bans' | 'cameras';
-const LAYERS: { key: Layer; label: string; colour: string }[] = [
-  { key: 'events', label: 'Events', colour: C.sodium },
-  { key: 'photo', label: 'Photo spots', colour: C.magenta },
-  { key: 'drive', label: 'Drives', colour: C.neon },
-  { key: 'track', label: 'Tracks', colour: C.lime },
-  { key: 'venue', label: 'Venues', colour: C.sodium },
-  { key: 'bans', label: 'Ban zones', colour: C.alert },
+/** The layer bar, in order. Add a layer here (and to `shown` below) to give it a pill. */
+const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
+  { key: 'events', label: 'Events', glyph: 'meet', colour: C.sodium },
+  { key: 'photo', label: 'Photos', glyph: 'photo', colour: C.magenta },
+  { key: 'drive', label: 'Drives', glyph: 'drive', colour: C.neon },
+  { key: 'track', label: 'Tracks', glyph: 'track', colour: C.lime },
+  { key: 'venue', label: 'Venues', glyph: 'venue', colour: C.sodium },
+  { key: 'bans', label: 'Bans', glyph: 'area', colour: C.alert },
   // Kept in settings (Me > Map), so it stays as you left it.
-  { key: 'cameras', label: 'Cameras', colour: C.alert },
+  { key: 'cameras', label: 'Cameras', glyph: 'camera', colour: C.alert },
 ];
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
@@ -73,15 +76,13 @@ export default function MapScreen() {
   const trackKinds: TrackVehicle[] = settings.trackVehicles?.length ? settings.trackVehicles : ALL_VEHICLES;
   function toggleKind(v: TrackVehicle) {
     const next = trackKinds.includes(v) ? trackKinds.filter((x) => x !== v) : ALL_VEHICLES.filter((x) => x === v || trackKinds.includes(x));
-    if (next.length) setSettings({ trackVehicles: next });
+    if (!next.length) return;
+    feel.select();
+    setSettings({ trackVehicles: next });
   }
   /** The Tracks ▾ menu, anchored under the chip (window coordinates). */
   const [kindMenu, setKindMenu] = useState<{ x: number; y: number } | null>(null);
   const screen = useWindowDimensions();
-  const trackChip = useRef<ComponentRef<typeof View>>(null);
-  function openKindMenu() {
-    trackChip.current?.measureInWindow((x, y, _w, h) => setKindMenu({ x, y: y + h + 4 }));
-  }
   const places = useMemo(
     () => visibleSpots(spots, me).filter((s) => s.kind !== 'track' || matchesVehicles(s, trackKinds)),
     [spots, me, trackKinds],
@@ -136,7 +137,11 @@ export default function MapScreen() {
     if (cams) {
       for (const z of cams.zones) {
         paths.push({ id: `az:${z.id}`, coords: z.path, colour: C.alert, dashed: true, width: 1.5 });
-        pins.push({ id: `avg:${z.id}`, at: zoneMidpoint(z), glyph: 'average', colour: C.alert, title: describeZone(z), size: cameraPinSize(region.span) + 2 });
+        // An "average speed" camera at each end of the zone; the line between follows the road.
+        const ends = [z.path[0], z.path[z.path.length - 1]];
+        ends.forEach((at, i) =>
+          pins.push({ id: `avg:${z.id}:${i}`, at, glyph: 'average', colour: C.alert, title: describeZone(z), size: cameraPinSize(region.span) + 3 }),
+        );
       }
       for (const c of cams.cameras)
         pins.push({ id: `cam:${c.id}`, at: c.at, glyph: 'camera', colour: C.alert, title: describeCamera(c), size: cameraPinSize(region.span) });
@@ -273,59 +278,39 @@ export default function MapScreen() {
             <NoticeBell boxed />
           </Row>
         </Row>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 8 }}>
-          {LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) =>
-            l.key === 'track' ? (
-              // Tap toggles the layer; the caret (or a long-press) opens the Cars / Bikes / Karts menu.
-              <View key={l.key} ref={trackChip} collapsable={false} style={[st.chipBg, st.splitChip, layers.track && { borderColor: l.colour, backgroundColor: `${l.colour}1f` }]}>
-                <Pressable
-                  onPress={() => toggleLayer('track')}
-                  onLongPress={openKindMenu}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: layers.track }}
-                  accessibilityHint="Long-press to choose cars, bikes or karts"
-                  hitSlop={4}
-                  style={({ pressed }) => [st.splitMain, pressed && { opacity: 0.7 }]}
-                >
-                  <Txt v="label" style={[st.splitText, layers.track && { color: l.colour }]}>
-                    {trackKinds.length === ALL_VEHICLES.length ? l.label : `${l.label} · ${trackKinds.map((v) => VEHICLE_LABELS[v]).join(', ')}`}
-                  </Txt>
-                </Pressable>
-                <Pressable
-                  onPress={() => (kindMenu ? setKindMenu(null) : openKindMenu())}
-                  accessibilityRole="button"
-                  accessibilityLabel="Choose which tracks: cars, bikes or karts"
-                  hitSlop={6}
-                  style={({ pressed }) => [st.caret, pressed && { opacity: 0.7 }]}
-                >
-                  <Txt v="label" style={[st.splitText, layers.track && { color: l.colour }]}>▾</Txt>
-                </Pressable>
-              </View>
-            ) : (
-              <View key={l.key} style={st.chipBg}>
-                <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => toggleLayer(l.key)} />
-              </View>
-            ),
-          )}
-          <View style={st.chipBg}>
-            <Chip label={newNear > 0 ? `Find events · ${newNear} new` : 'Find events'} on colour={C.lime} onPress={() => router.push('/find')} />
-          </View>
-          <View style={st.chipBg}>
-            <Chip
-              label="Show everything"
-              on
-              colour={C.chalk}
-              onPress={() => {
+        <LayerBar
+          onToggle={(key) => {
+            setKindMenu(null);
+            toggleLayer(key as Layer);
+          }}
+          layers={LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) => ({
+            key: l.key,
+            label: l.label,
+            glyph: l.glyph,
+            colour: l.colour,
+            on: layers[l.key],
+            ...(l.key === 'track'
+              ? {
+                  note: trackKinds.length === ALL_VEHICLES.length ? undefined : trackKinds.map((v) => VEHICLE_LABELS[v]).join(' · '),
+                  menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : anchor)),
+                }
+              : {}),
+          }))}
+          actions={[
+            { key: 'find', label: newNear > 0 ? `Find events · ${newNear} new` : 'Find events', colour: C.lime, onPress: () => router.push('/find') },
+            {
+              key: 'fit',
+              label: 'Show everything',
+              colour: C.chalk,
+              onPress: () => {
                 // Everything you can open: cameras are background, so they don't count.
                 const r = fitRegion(pins.filter((p) => p.glyph !== 'camera' && p.glyph !== 'average').map((p) => p.at));
                 if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
-              }}
-            />
-          </View>
-          <View style={st.chipBg}>
-            <Chip label="+ Suggest a place" on colour={C.chalk} onPress={() => router.push('/spot/new')} />
-          </View>
-        </ScrollView>
+              },
+            },
+            { key: 'suggest', label: '+ Suggest a place', colour: C.chalk, onPress: () => router.push('/spot/new') },
+          ]}
+        />
         <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
           {cams ? (
             <View style={st.credit} pointerEvents="none">
@@ -471,11 +456,6 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   note: { backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1, borderRadius: 8, padding: 12, gap: 8, marginTop: 8 },
-  chipBg: { backgroundColor: 'rgba(11,15,23,0.88)', borderRadius: 4 },
-  splitChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.kerbHi },
-  splitMain: { paddingLeft: 10, paddingRight: 6, paddingVertical: 6 },
-  splitText: { fontSize: 13, letterSpacing: 1, color: C.fog },
-  caret: { paddingHorizontal: 8, paddingVertical: 6, borderLeftWidth: 1, borderLeftColor: C.kerb },
   menu: {
     position: 'absolute', backgroundColor: 'rgba(19,26,38,0.98)', borderColor: C.kerb, borderWidth: 1, borderRadius: 6,
     paddingHorizontal: 10, paddingVertical: 8, gap: 2, minWidth: 140,
