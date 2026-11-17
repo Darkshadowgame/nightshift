@@ -232,6 +232,20 @@ export interface Spot {
   region?: string;
   /** Suggested photo spots: the suggester's photo of the place with a car or bike in it (stored name, plate-blurred). */
   photo?: string;
+  /**
+   * Signed in, on a bundled place: what this phone recorded there before
+   * Nightshift's own places were on the server. Shown as "Only on this phone";
+   * never counted in rep, "Driven by" or the star average.
+   */
+  phoneOnly?: { completions: number; stars?: number };
+}
+
+/** Someone's drives and photo spots as the server counts them (place_rep_for()): the same on every phone. */
+export interface PlaceRep {
+  drives: number;
+  /** Rep for those drives (each drive's length tier, rep.ts driveTier). */
+  drivesRep: number;
+  photoSpots: number;
 }
 
 export interface BanZone {

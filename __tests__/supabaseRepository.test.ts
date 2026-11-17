@@ -10,7 +10,7 @@ jest.mock('../src/lib/photos', () => ({
 }));
 jest.mock('../src/lib/notify', () => ({ notifyNow: jest.fn(() => Promise.resolve()) }));
 
-import { createSupabaseRepository } from '../src/lib/backend/remote';
+import { createSupabaseRepository, NOT_ON_SERVER } from '../src/lib/backend/remote';
 import { OFFLINE, type OutboxItem } from '../src/lib/backend/outbox';
 import { EMPTY, type Persisted } from '../src/lib/localState';
 import { DEFAULT_SETTINGS } from '../src/lib/settings';
@@ -226,7 +226,7 @@ describe('rule-checked actions go to their RPCs', () => {
     ]);
   });
 
-  it('places: suggest_spot; drives on the server go to complete_drive with the fixes; bundled ones stay on the phone', async () => {
+  it('places: suggest_spot; drives on the server go to complete_drive with the fixes; a run the phone refuses never reaches it', async () => {
     const m = mockClient({ rpcs: { suggest_spot: () => ({ id: 'sp-new', warning: null }), complete_drive: () => ({ ok: false, reason: 'Pass every checkpoint in order to finish.' }) } });
     const path = [{ lat: 53.4, lng: -1.8 }, { lat: 53.41, lng: -1.82 }];
     const serverDrive = {
@@ -251,6 +251,87 @@ describe('rule-checked actions go to their RPCs', () => {
     expect(verdict.ok).toBe(false);
     expect(m.rpcCalls.length).toBe(before);
     expect(state().placeProgress[bundled.id]).toBeUndefined();
+  });
+});
+
+describe("Nightshift's own places on the server (spots.bundled_id)", () => {
+  const SNAKE = 'dr-snake-pass';
+  const SNAKE_ROW = 'dddddddd-0000-4000-8000-0000000000aa';
+  const SUGGESTED = 'dddddddd-0000-4000-8000-0000000000bb';
+  const snake = () => bundledSpots().find((s) => s.id === SNAKE)!;
+  const photo = () => bundledSpots().find((s) => s.kind === 'photo')!;
+  const PHOTO_ROW = 'dddddddd-0000-4000-8000-0000000000cc';
+  const row = (over: Record<string, unknown>) => ({
+    kind: 'drive', name: 'x', description: '', lat: 53, lng: -1.9, path: null, miles: null, author_id: null, status: 'approved',
+    created_at: 't', ban_zone: null, warnings: null, region: null, bundled_id: null, limit_mph: null, ...over,
+  });
+  const tables = (q: Query) =>
+    q.table === 'spots_list'
+      ? { data: [
+          row({ id: SNAKE_ROW, name: 'Snake Pass (A57)', bundled_id: SNAKE, path: snake().path, miles: 12.7 }),
+          row({ id: PHOTO_ROW, kind: 'photo', name: photo().name, bundled_id: photo().id }),
+          row({ id: SUGGESTED, kind: 'photo', name: 'Quarry view', author_id: DAN }),
+        ] }
+      : q.table === 'spot_ratings'
+        ? { data: [{ spot_id: SNAKE_ROW, stars: 5 }] }
+        : q.table === 'spot_completions'
+          ? { data: [{ spot_id: SNAKE_ROW, completed_on: '2026-11-16', photo_path: null }] }
+          : undefined;
+  const rpcs = {
+    spot_stats: () => [{ spot_id: SNAKE_ROW, people: 3, rating_average: 4, rating_count: 2, completed_by_me: true }],
+    place_rep_for: () => [
+      { user_id: ME, drives: 1, drives_rep: 100, photo_spots: 0 },
+      { user_id: DAN, drives: 4, drives_rep: 525, photo_spots: 2 },
+    ],
+    complete_drive: () => ({ ok: true }),
+  };
+
+  it("reads them as progress on the bundled place, not as places of their own, with everyone's rep", async () => {
+    const m = mockClient({ tables, rpcs });
+    const { repo, state } = setup(m, { users: [{ id: ME, handle: 'me', name: 'Me', region: 'East', home: { lat: 52.2, lng: 0.1 } }, { id: DAN, handle: 'dan', name: 'Dan', region: 'East', home: { lat: 0, lng: 0 } }] });
+    await repo.rateSpot(SNAKE, 5);
+    const s = state();
+    expect(s.spots.map((x) => x.id)).toEqual([SUGGESTED]);
+    expect(s.bundledServer!.ids).toEqual({ [SNAKE]: SNAKE_ROW, [photo().id]: PHOTO_ROW });
+    const p = s.bundledServer!.progress[SNAKE];
+    expect(p.completions.length).toBe(3);
+    expect(p.completions.filter((c) => c.userId === ME)).toEqual([{ userId: ME, on: '2026-11-16' }]);
+    expect(p.ratings.reduce((n, r) => n + r.stars, 0) / p.ratings.length).toBeCloseTo(4);
+    expect(s.placeRep![DAN]).toEqual({ drives: 4, drivesRep: 525, photoSpots: 2 });
+    expect(m.rpcCalls.find(([n]) => n === 'place_rep_for')![1]).toEqual({ p_user_ids: [ME, DAN] });
+  });
+
+  it('finishDrive, rateSpot and visitSpot on a bundled place go to the RPCs with the server row id', async () => {
+    const m = mockClient({ tables, rpcs });
+    const { repo, state } = setup(m, { bundledServer: { ids: { [SNAKE]: SNAKE_ROW, [photo().id]: PHOTO_ROW }, progress: {} } });
+    const path = snake().path!;
+    const t0 = Date.now() - 35 * 60_000;
+    const step = (30 * 60_000) / (path.length - 1);
+    const fixes = path.map((p, i) => ({ ...p, t: Math.round(t0 + i * step) }));
+    const run = { passed: path.length, startedAt: fixes[0].t, lastAt: fixes[fixes.length - 1].t, fixes };
+    await expect(repo.finishDrive(SNAKE, run)).resolves.toEqual({ ok: true });
+    expect(m.rpcCalls.find(([n]) => n === 'complete_drive')![1]).toEqual({ p_spot_id: SNAKE_ROW, p_fixes: fixes });
+    await repo.rateSpot(SNAKE, 4);
+    expect(m.rpcCalls.find(([n]) => n === 'rate_spot')![1]).toEqual({ p_spot_id: SNAKE_ROW, p_stars: 4 });
+    await expect(repo.visitSpot(photo().id, undefined, null)).rejects.toThrow(/Turn on location/);
+    await repo.visitSpot(photo().id, undefined, photo().at);
+    expect(m.rpcCalls.find(([n]) => n === 'visit_spot')![1]).toEqual({ p_spot_id: PHOTO_ROW, p_lat: photo().at.lat, p_lng: photo().at.lng, p_photo_path: null });
+    // Nothing is kept on the phone any more.
+    expect(state().placeProgress).toEqual({});
+  });
+
+  it("a bundled place the server doesn't have yet can't count (and is looked up once)", async () => {
+    const m = mockClient({ rpcs });
+    const { repo } = setup(m);
+    await expect(repo.rateSpot(SNAKE, 4)).rejects.toThrow(NOT_ON_SERVER);
+    expect(m.rpcCalls.some(([n]) => n === 'rate_spot')).toBe(false);
+    expect(m.queries.filter((q) => q.table === 'spots_list').length).toBe(1);
+  });
+
+  it('offline: says so instead', async () => {
+    const m = mockClient({ offline: true });
+    const { repo } = setup(m);
+    await expect(repo.rateSpot(SNAKE, 4)).rejects.toThrow(OFFLINE);
   });
 });
 

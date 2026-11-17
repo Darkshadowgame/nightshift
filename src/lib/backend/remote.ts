@@ -5,11 +5,11 @@ import type { Persisted } from '../localState';
 import type { Notice } from '../notice';
 import { notifyNow } from '../notify';
 import { deletePhotos, photoUri } from '../photos';
-import { bundledSpots, isBundled, setProgress } from '../placeStore';
+import { BUNDLED_IDS, isBundled } from '../placeStore';
 import { profileProblem } from '../profile';
 import type { BackendExtras, Repository } from '../repository';
-import { draftProblem, driveMiles, judgeRun, rateSpot as applyRating, recordCompletion } from '../spots';
-import type { Build, ChatMessage, Spot, User } from '../types';
+import { draftProblem, driveMiles, judgeRun } from '../spots';
+import type { Build, ChatMessage, PlaceRep, Spot, User } from '../types';
 import { uuid } from '../ids';
 import type { PendingFeedback } from '../feedbackQueue';
 import {
@@ -23,6 +23,8 @@ import {
   isUuid,
   modsToRows,
   noticeFromRow,
+  placeRepFromRows,
+  splitBundledRows,
   spotFromRow,
   spotPhotoPath,
   suggestedPhotoPath,
@@ -40,6 +42,7 @@ import {
   type HomeRow,
   type HostRow,
   type NoticeRow,
+  type PlaceRepRow,
   type PlanChangeRow,
   type ProfileRow,
   type RatingRow,
@@ -57,6 +60,8 @@ import { enqueue, flushOutbox, isNetworkError, OFFLINE, type OutboxItem } from '
 const SIGNED_URL_SECONDS = 7 * 24 * 3600;
 /** Events that ended longer ago than this drop off the phone (events_for_me()'s default). */
 const PAST_DAYS = 8;
+/** A bundled place the server doesn't have a row for (the seed hasn't been run for it yet). */
+export const NOT_ON_SERVER = "This place isn't on the server yet, so it can't count. Try again after the next update.";
 
 export interface RemoteContext {
   client: SupabaseClient;
@@ -64,7 +69,7 @@ export interface RemoteContext {
   /** The latest state (not a render's snapshot). */
   get(): Persisted;
   set(fn: (s: Persisted) => Persisted): void;
-  /** Every place on the map: bundled ones (with progress kept on the phone), then the server's. */
+  /** Every place on the map: bundled ones (with the server's progress), then the server's others. */
   spots(): Spot[];
   /** Reached the server, or couldn't. */
   setOnline(online: boolean): void;
@@ -163,7 +168,8 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       .flatMap((x) => (x.kind === 'chat' && (!eventIds || eventIds.has(x.eventId)) ? [{ id: x.id, eventId: x.eventId, userId: uid, text: x.text, at: x.at }] : []));
   }
 
-  async function loadSpots(): Promise<Spot[]> {
+  /** The server's places: people's suggestions as places, Nightshift's own as progress on the bundled ones. */
+  async function loadSpots(): Promise<{ spots: Spot[]; bundledServer: NonNullable<Persisted['bundledServer']> }> {
     const rows = await call<SpotRow[]>(() => client.from('spots_list').select('*').limit(2000));
     const ids = rows.map((r) => r.id);
     const [stats, mine, ratings] = await Promise.all([
@@ -175,13 +181,21 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     const urls = await signed([...mine.flatMap((c) => (c.photo_path ? [c.photo_path] : [])), ...suggested]);
     const byId = new Map(stats.map((s) => [s.spot_id, s]));
     const rated = new Map(ratings.map((r) => [r.spot_id, r]));
-    return rows
+    const mapped = rows
       .filter((r) => r.status !== 'rejected' || r.author_id === uid)
       .map((r) => {
         const spot = spotFromRow(r, { me: uid, stats: byId.get(r.id), mine, myRating: rated.get(r.id), photoUrl: (p) => urls.get(p) ?? p });
         const photo = r.author_id ? urls.get(suggestedPhotoPath(r.author_id, r.id)) : undefined;
-        return photo ? { ...spot, photo } : spot;
+        return { row: r, spot: photo ? { ...spot, photo } : spot };
       });
+    const { own, ids: bundledIds, progress } = splitBundledRows(mapped, BUNDLED_IDS);
+    return { spots: own, bundledServer: { ids: bundledIds, progress } };
+  }
+
+  /** Everyone's drives and photo spots as the server counts them, so rep is the same on every phone. */
+  async function loadPlaceRep(userIds: string[]): Promise<Record<string, PlaceRep>> {
+    const ids = Array.from(new Set([uid, ...userIds.filter(isUuid)]));
+    return placeRepFromRows(await rpc<PlaceRepRow[]>('place_rep_for', { p_user_ids: ids }));
   }
 
   async function loadBuilds(): Promise<Build[]> {
@@ -239,8 +253,10 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       .slice(0, 100);
 
   async function refresh(): Promise<void> {
-    const [people, events, builds, spots, notices] = await Promise.all([loadPeople(), loadEvents(), loadBuilds(), loadSpots(), loadNotices()]);
-    set((s) => ({ ...s, ...people, ...events, builds, spots, notices: mergeNotices(s.notices, notices) }));
+    const [people, events, builds, places, notices] = await Promise.all([loadPeople(), loadEvents(), loadBuilds(), loadSpots(), loadNotices()]);
+    set((s) => ({ ...s, ...people, ...events, builds, ...places, notices: mergeNotices(s.notices, notices) }));
+    const placeRep = await loadPlaceRep(people.users.map((u) => u.id)).catch(() => null);
+    if (placeRep) set((s) => ({ ...s, placeRep }));
   }
 
   async function refreshEvent(eventId: string): Promise<void> {
@@ -276,9 +292,20 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     set((s) => ({ ...s, builds }));
   };
   const refreshSpots = async () => {
-    const spots = await loadSpots();
-    set((s) => ({ ...s, spots }));
+    const [places, placeRep] = await Promise.all([loadSpots(), loadPlaceRep(get().users.map((u) => u.id))]);
+    set((s) => ({ ...s, ...places, placeRep: { ...s.placeRep, ...placeRep } }));
   };
+  /**
+   * The server row for a place: its own id, or for one of Nightshift's own
+   * places the row seeded with its bundled id (read again once if it's not known yet).
+   */
+  async function serverSpotId(spotId: string): Promise<string | null> {
+    if (!isBundled(spotId)) return spotId;
+    const known = get().bundledServer?.ids[spotId];
+    if (known) return known;
+    await refreshSpots();
+    return get().bundledServer?.ids[spotId] ?? null;
+  }
   /** After a write: read back, but a failed read-back isn't the write failing. */
   const quietly = (p: Promise<void>) => p.catch(() => {});
 
@@ -392,13 +419,6 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     if (!e) throw new Error('Event not found.');
     return e;
   };
-  const updateLocalSpot = (id: string, fn: (x: Spot) => Spot) =>
-    set((s) => {
-      const base = bundledSpots().find((x) => x.id === id);
-      if (!base) return s;
-      const p = s.placeProgress[id];
-      return { ...s, placeProgress: setProgress(s.placeProgress, fn(p ? { ...base, ...p } : base)) };
-    });
 
   // -------------------------------------------------------------------------
   // Realtime
@@ -585,17 +605,11 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
       const verdict = judgeRun(run, spot.path, driveMiles(spot), spot.limitMph);
       if (!verdict.ok) return verdict;
-      if (isBundled(spotId)) {
-        // Nightshift's own drives aren't on the server yet: the day is kept on the phone.
-        try {
-          updateLocalSpot(spotId, (x) => recordCompletion(x, uid, new Date()));
-        } catch (e) {
-          return { ok: false, reason: e instanceof Error ? e.message : 'Could not record the drive.' };
-        }
-        return { ok: true };
-      }
+      // Nightshift's own drives too: the server judges the same fixes, so the drive counts on every phone.
       try {
-        const r = await rpc<{ ok: boolean; reason?: string }>('complete_drive', { p_spot_id: spotId, p_fixes: run.fixes ?? [] });
+        const id = await serverSpotId(spotId);
+        if (!id) return { ok: false, reason: NOT_ON_SERVER };
+        const r = await rpc<{ ok: boolean; reason?: string }>('complete_drive', { p_spot_id: id, p_fixes: run.fixes ?? [] });
         if (!r.ok) return { ok: false, reason: r.reason ?? 'That run doesn’t count.' };
       } catch (e) {
         return { ok: false, reason: e instanceof Error ? e.message : 'Could not record the drive.' };
@@ -604,32 +618,22 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       return { ok: true };
     },
     async visitSpot(spotId, photo, position) {
-      if (isBundled(spotId)) {
-        const spot = ctx.spots().find((x) => x.id === spotId);
-        if (!spot) throw new Error('Spot not found.');
-        recordCompletion(spot, uid, new Date(), photo);
-        updateLocalSpot(spotId, (x) => recordCompletion(x, uid, new Date(), photo));
-        return;
-      }
       if (!position) throw new Error('Turn on location so the app can see you are at the spot.');
+      const id = await serverSpotId(spotId);
+      if (!id) throw new Error(NOT_ON_SERVER);
       let path: string | null = null;
       if (photo) {
-        path = storagePathOf(photo) ?? spotPhotoPath(uid, spotId, uuid());
+        path = storagePathOf(photo) ?? spotPhotoPath(uid, id, uuid());
         if (!storagePathOf(photo)) await upload(path, photo);
       }
-      await rpc('visit_spot', { p_spot_id: spotId, p_lat: position.lat, p_lng: position.lng, p_photo_path: path });
+      await rpc('visit_spot', { p_spot_id: id, p_lat: position.lat, p_lng: position.lng, p_photo_path: path });
       if (photo && !storagePathOf(photo)) deletePhotos([photo]);
       await quietly(refreshSpots());
     },
     async rateSpot(spotId, stars) {
-      if (isBundled(spotId)) {
-        const spot = ctx.spots().find((x) => x.id === spotId);
-        if (!spot) throw new Error('Place not found.');
-        const rated = applyRating(spot, uid, stars);
-        updateLocalSpot(spotId, () => rated);
-        return;
-      }
-      await rpc('rate_spot', { p_spot_id: spotId, p_stars: stars });
+      const id = await serverSpotId(spotId);
+      if (!id) throw new Error(NOT_ON_SERVER);
+      await rpc('rate_spot', { p_spot_id: id, p_stars: stars });
       await quietly(refreshSpots());
     },
     async suggestSpot(draft) {

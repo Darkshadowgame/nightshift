@@ -63,6 +63,34 @@ export function joinSpots(base: readonly Spot[], progress: ProgressMap, own: rea
   return out;
 }
 
+/**
+ * Signed in: bundled places carry the server's progress (everyone's counts,
+ * your own days and stars), so every phone shows the same. What this phone
+ * kept from before (`phoneOnly`, the old per-account progress) is only marked
+ * on the place as "Only on this phone", and never counted, unless the server
+ * already has you there.
+ */
+export function joinServerSpots(
+  base: readonly Spot[],
+  server: ProgressMap,
+  phoneOnly: ProgressMap,
+  own: readonly Spot[],
+  me: string,
+  zones: readonly BanZone[] = BAN_ZONES,
+): Spot[] {
+  const out: Spot[] = base.map((s) => {
+    const p = server[s.id];
+    const spot = hasProgress(p) ? { ...s, completions: p.completions, ratings: p.ratings } : s;
+    const old = phoneOnly[s.id];
+    const days = old ? old.completions.filter((c) => c.userId === me).length : 0;
+    const stars = old?.ratings.find((r) => r.userId === me)?.stars;
+    if ((days === 0 && stars === undefined) || spot.completions.some((c) => c.userId === me)) return spot;
+    return { ...spot, phoneOnly: { completions: days, ...(stars !== undefined ? { stars } : {}) } };
+  });
+  for (const s of own) out.push(withZones(s, zones));
+  return out;
+}
+
 /** Record a bundled place's progress after a change (an empty one is dropped). */
 export function setProgress(progress: ProgressMap, spot: Spot): ProgressMap {
   const next = { ...progress };

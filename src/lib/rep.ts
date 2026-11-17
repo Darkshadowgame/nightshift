@@ -3,7 +3,7 @@ import { rewardedMods } from './legality';
 import { isHost, phaseOf } from './events';
 import { NO_ROAD_REP, type RoadRep } from './roadReports';
 import { hasCompleted, statsOf } from './spots';
-import type { Build, Crew, NightEvent, Spot } from './types';
+import type { Build, Crew, NightEvent, PlaceRep, Spot } from './types';
 
 /**
  * Rep for people who suggest drives and photo spots (Phase 3 feature; the maths lives here now).
@@ -149,6 +149,12 @@ export interface RepInputs {
    * Never anything for speed.
    */
   roadRep?: RoadRep;
+  /**
+   * Signed in: this person's drives and photo spots as the server counts them
+   * (place_rep_for()), so everyone's phone shows the same rep. Without it (the
+   * demo), they're worked out from `spots`.
+   */
+  placeRep?: PlaceRep;
 }
 
 function checkedInAt(e: NightEvent, userId: string): boolean {
@@ -181,10 +187,10 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
 
   // Your own places don't pay you for driving or visiting them.
   const others = input.spots.filter((s) => s.status === 'approved' && s.authorId !== userId);
-  const doneDrives = others.filter((s) => s.kind === 'drive' && hasCompleted(s, userId));
-  const drives = doneDrives.length;
-  const drivesRep = doneDrives.reduce((sum, s) => sum + driveTier(s.miles).rep, 0);
-  const spots = others.filter((s) => s.kind === 'photo' && hasCompleted(s, userId)).length;
+  const doneDrives = input.placeRep ? [] : others.filter((s) => s.kind === 'drive' && hasCompleted(s, userId));
+  const drives = input.placeRep ? input.placeRep.drives : doneDrives.length;
+  const drivesRep = input.placeRep ? input.placeRep.drivesRep : doneDrives.reduce((sum, s) => sum + driveTier(s.miles).rep, 0);
+  const spots = input.placeRep ? input.placeRep.photoSpots : others.filter((s) => s.kind === 'photo' && hasCompleted(s, userId)).length;
 
   const authored = input.spots.filter((s) => s.authorId === userId && s.status === 'approved' && s.kind !== 'track' && s.kind !== 'venue');
   const authoredRep = authored.reduce((sum, s) => sum + authorRep(statsOf(s)), 0);
@@ -195,7 +201,7 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
   const road = input.roadRep ?? NO_ROAD_REP;
 
   const lines: RepLine[] = [
-    { source: 'attended', label: 'Meets attended', count: attended, rep: attended * REP.attended },
+    { source: 'attended', label: 'Events attended', count: attended, rep: attended * REP.attended },
     { source: 'hosted', label: 'Events hosted', count: hosted.length, rep: hostedRep },
     { source: 'drives', label: 'Drives finished', count: drives, rep: drivesRep },
     { source: 'spots', label: 'Photo spots visited', count: spots, rep: spots * REP.photoSpot },

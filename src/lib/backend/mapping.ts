@@ -7,7 +7,8 @@
 import type { Award, AwardCategory, Vote } from '../awards';
 import type { AlertMode } from '../discover';
 import type { Notice } from '../notice';
-import type { Build, ClassLetter, Crew, EngineSwap, EventType, LatLng, Mod, ModCategory, NightEvent, PlanChangeLog, Spot, Stop, TuneStage, User, VehicleKind, ChatMessage } from '../types';
+import type { ProgressMap } from '../placeStore';
+import type { Build, ClassLetter, Crew, EngineSwap, EventType, LatLng, Mod, ModCategory, NightEvent, PlaceRep, PlanChangeLog, Spot, Stop, TuneStage, User, VehicleKind, ChatMessage } from '../types';
 
 // ---------------------------------------------------------------------------
 // Rows (only the columns the app reads)
@@ -47,10 +48,14 @@ export interface NoticeRow { id: string; event_id: string | null; kind: string; 
 export interface SpotRow {
   id: string; kind: Spot['kind']; name: string; description: string; lat: number; lng: number; path: LatLng[] | null; miles: number | null;
   author_id: string | null; status: 'pending' | 'approved' | 'rejected'; created_at: string; ban_zone: string | null; warnings: string[] | null; region: string | null;
+  /** Nightshift's own places: the app's stable id (src/data/places.ts). Null for places people suggest. */
+  bundled_id?: string | null;
+  limit_mph?: number | null;
 }
 export interface SpotStatsRow { spot_id: string; people: number; rating_average: number | null; rating_count: number; completed_by_me: boolean }
 export interface CompletionRow { spot_id: string; completed_on: string; photo_path: string | null }
 export interface RatingRow { spot_id: string; stars: number }
+export interface PlaceRepRow { user_id: string; drives: number; drives_rep: number; photo_spots: number }
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -339,5 +344,36 @@ export function spotFromRow(r: SpotRow, opts: { me: string; stats?: SpotStatsRow
   if (r.ban_zone) spot.banZone = r.ban_zone;
   if (r.warnings?.length) spot.warnings = r.warnings;
   if (r.region) spot.region = r.region;
+  if (r.limit_mph !== null && r.limit_mph !== undefined) spot.limitMph = Number(r.limit_mph);
   return spot;
+}
+
+/**
+ * Server places split in two: rows for Nightshift's own places this app has
+ * (matched by bundled_id, never by name) become progress on the bundled place
+ * plus the server id the RPCs need; everything else is a place in its own
+ * right (people's suggestions, or a bundled place this app version doesn't know yet).
+ */
+export function splitBundledRows(
+  rows: { row: SpotRow; spot: Spot }[],
+  bundledIds: ReadonlySet<string>,
+): { own: Spot[]; ids: Record<string, string>; progress: ProgressMap } {
+  const own: Spot[] = [];
+  const ids: Record<string, string> = {};
+  const progress: ProgressMap = {};
+  for (const { row, spot } of rows) {
+    const key = row.bundled_id;
+    if (!key || !bundledIds.has(key)) {
+      own.push(spot);
+      continue;
+    }
+    ids[key] = row.id;
+    if (spot.completions.length || spot.ratings.length) progress[key] = { completions: spot.completions, ratings: spot.ratings };
+  }
+  return { own, ids, progress };
+}
+
+/** place_rep_for() rows by user id. */
+export function placeRepFromRows(rows: PlaceRepRow[]): Record<string, PlaceRep> {
+  return Object.fromEntries(rows.map((r) => [r.user_id, { drives: Number(r.drives) || 0, drivesRep: Number(r.drives_rep) || 0, photoSpots: Number(r.photo_spots) || 0 }]));
 }

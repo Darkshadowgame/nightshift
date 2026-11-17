@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
 import { dedupeNotices } from './reminders';
 import { markLegacyShopRefs, type PendingFeedback } from './feedbackQueue';
 import type { Notice } from './notice';
-import type { LatLng } from './types';
+import type { LatLng, PlaceRep } from './types';
 import type { SceneNames } from './scene';
 
 /**
@@ -51,6 +51,16 @@ export interface Persisted extends SeedState {
   nearby?: { known: string[]; unseen: string[] };
   /** Suggestions from the vehicle and mod pickers, waiting to be sent to the backend's feedback table. */
   pendingFeedback?: PendingFeedback[];
+  /**
+   * Signed in only: Nightshift's own drives and photo spots as the server has
+   * them (spots.bundled_id). `ids`: bundled id -> the server row's id, for the
+   * RPCs. `progress`: completions and ratings by bundled id (yours, plus
+   * anonymous stand-ins for everyone else's counts). `placeProgress` then only
+   * holds what this phone recorded before, shown as "Only on this phone".
+   */
+  bundledServer?: { ids: Record<string, string>; progress: ProgressMap };
+  /** Signed in only: everyone's drives and photo spots as the server counts them (place_rep_for), by user id. */
+  placeRep?: Record<string, PlaceRep>;
 }
 
 

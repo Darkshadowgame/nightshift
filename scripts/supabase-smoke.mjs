@@ -240,6 +240,26 @@ async function main() {
   const { data: spotA } = await A.client.from('spots_list').select('id,status,lat').eq('id', spot.id);
   const { data: spotB } = await B.client.from('spots_list').select('id').eq('id', spot.id);
   check('suggest_spot: pending; the author sees it, others don\'t', spotA?.[0]?.status === 'pending' && spotB?.length === 0);
+
+  // Nightshift's own places (spots.bundled_id): A drives the Snake Pass, rates it; B sees the same numbers.
+  const { data: bundled } = await B.client.from('spots_list').select('id,kind,bundled_id').not('bundled_id', 'is', null).limit(1000);
+  check("bundled places: B reads Nightshift's own drives and photo spots by their stable ids",
+    (bundled ?? []).filter((r) => r.kind === 'drive').length >= 100 && (bundled ?? []).filter((r) => r.kind === 'photo').length >= 100,
+    `${bundled?.length} rows`);
+  const { data: snakeRows } = await A.client.from('spots_list').select('id,path,miles').eq('bundled_id', 'dr-snake-pass');
+  const snake = snakeRows?.[0];
+  const end = Date.now() - 60_000;
+  const step = (30 * 60_000) / ((snake?.path?.length ?? 2) - 1);
+  const fixes = (snake?.path ?? []).map((p, i, all) => ({ lat: p.lat, lng: p.lng, t: Math.round(end - (all.length - 1 - i) * step) }));
+  const done = snake ? await rpc(A, 'complete_drive', { p_spot_id: snake.id, p_fixes: fixes }) : null;
+  check('complete_drive: A finishes a bundled drive (judged on the seeded line)', done?.ok === true, JSON.stringify(done));
+  if (snake) await rpc(A, 'rate_spot', { p_spot_id: snake.id, p_stars: 5 });
+  const stats = snake ? await rpc(B, 'spot_stats', { p_spot_ids: [snake.id] }) : [];
+  check('spot_stats: B sees A\'s drive and rating on the bundled place (not who)',
+    stats[0]?.people >= 1 && stats[0]?.rating_count >= 1 && stats[0]?.completed_by_me === false, JSON.stringify(stats));
+  const placeRep = await rpc(B, 'place_rep_for', { p_user_ids: [A.id] });
+  check('place_rep_for: B sees A\'s drive rep (12.7 mi, medium: 100), the same as A\'s own phone',
+    placeRep[0]?.drives === 1 && placeRep[0]?.drives_rep === 100, JSON.stringify(placeRep));
   const { data: noticesB } = await B.client.from('notices').select('id,kind,read_at');
   await rpc(B, 'mark_notices_read', {});
   const { data: readB } = await B.client.from('notices').select('read_at');
@@ -338,8 +358,11 @@ async function cleanup() {
     delete from public.feedback where message like 'smoke test %';
     delete from public.road_reports where id = any (${lit(`{${made.roadIds.join(',')}}`)}::uuid[]);
     delete from auth.users where email like '%@${DOMAIN}';`);
+  const ids = lit(`{${[A?.id, B?.id, C?.id].filter(Boolean).join(',')}}`);
   const [left] = await sql(`select
     (select count(*) from auth.users where email like '%@${DOMAIN}') users,
+    (select count(*) from public.spot_completions where user_id = any (${ids}::uuid[]))
+      + (select count(*) from public.spot_ratings where user_id = any (${ids}::uuid[])) place_progress,
     (select count(*) from public.events where title like 'Smoke test %') events,
     (select count(*) from public.spots where name like 'Smoke spot %') spots,
     (select count(*) from public.feedback where message like 'smoke test %') feedback,

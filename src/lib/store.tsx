@@ -23,7 +23,7 @@ import type { Notice } from './notice';
 import { notifyNow, syncReminders } from './notify';
 import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SLICE_KEYS, sliceKey, splitState } from './persist';
 import { deletePhotos } from './photos';
-import { bundledSpots, joinSpots } from './placeStore';
+import { bundledSpots, joinServerSpots, joinSpots } from './placeStore';
 import type { ProfileDraft } from './profile';
 import { dueReminders, upcomingReminders } from './reminders';
 import type { BackendExtras, Repository } from './repository';
@@ -189,12 +189,22 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
     });
   }, []);
 
-  /** Bundled places joined with what people did there, then the places people suggested (the server's, signed in). */
-  const spots = useMemo(() => joinSpots(bundledSpots(), state.placeProgress, state.spots), [state.placeProgress, state.spots]);
+  /**
+   * Bundled places joined with what people did there, then the places people suggested.
+   * Signed in, "what people did there" is the server's (the same on every phone); what this
+   * phone kept before is only marked "Only on this phone" (placeStore.ts joinServerSpots).
+   */
+  const joinAll = (s: Persisted) =>
+    uid ? joinServerSpots(bundledSpots(), s.bundledServer?.progress ?? {}, s.placeProgress, s.spots, uid) : joinSpots(bundledSpots(), s.placeProgress, s.spots);
+  const spots = useMemo(
+    () => joinAll(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.placeProgress, state.spots, state.bundledServer],
+  );
 
   const repo = useMemo<Repository | null>(() => {
     const get = () => latest.current;
-    const allSpots = () => joinSpots(bundledSpots(), latest.current.placeProgress, latest.current.spots);
+    const allSpots = () => joinAll(latest.current);
     if (mode.kind === 'demo') return createLocalRepository({ get, set, spots: allSpots });
     if (mode.kind === 'account') {
       return createSupabaseRepository({

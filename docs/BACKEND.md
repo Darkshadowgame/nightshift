@@ -2,11 +2,12 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 12 migrations and the seed are applied and the 346 pgTAP checks pass
-against the hosted database (road reports added 17 Nov 2026, section 3a). **The app is wired to it** (17 Nov 2026): signed in,
+All 13 migrations and the seeds are applied and the 376 pgTAP checks pass
+against the hosted database (road reports added 17 Nov 2026, section 3a; Nightshift's
+own drives and photo spots on the server, section 7a-4). **The app is wired to it** (17 Nov 2026): signed in,
 every store action goes to the tables and RPCs below (section 5); "Try the demo
 without an account" keeps the local sample scene. The end-to-end smoke test
-(`scripts/supabase-smoke.mjs`, section 7c) passes 61 of 61 checks as three real
+(`scripts/supabase-smoke.mjs`, section 7c) passes 65 of 65 checks as three real
 users. Sign-in emails need custom SMTP before testers other than the project team
 can get one: see section 7b, "Still to do".
 
@@ -27,7 +28,9 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
 | `supabase/migrations/20261117170000_road_reports.sql` | Community road reports: `road_reports`, `road_report_votes`, `road_rep`, the report/vote/near RPCs, `road_closures_near()`, `road_rep_for()`, Realtime on `road_reports`; extra `road_closures` columns (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
-| `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits |
+| `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
+| `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits (with their bundled ids) |
+| `supabase/seed_bundled_places.sql` | **Generated** by `scripts/seed-bundled-places.mjs` from `src/data/places.ts`: the 129 bundled drives and 111 photo spots, an upsert on `bundled_id` |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
 | `supabase/tests/rpc_test.sql` | pgTAP: every RPC end to end, storage, reminders (63 checks) |
 | `supabase/tests/discovery_test.sql` | pgTAP: travel settings, new-event notices, `search_events()`, discovery and staff (75 checks) |
@@ -35,6 +38,8 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/vehicles_test.sql` | pgTAP: what you're bringing: own builds only, going vs asking per build, changing it, check-in, awards from brought builds, the garage columns (42 checks) |
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
+| `supabase/tests/bundled_places_test.sql` | pgTAP: bundled ids (unique, format, no author), nobody signed in can add, change or delete one, finishing (with the road's own limit), visiting and rating one through the RPCs, `spot_stats` and `place_rep_for` the same for others, signed out refused (30 checks) |
+| `scripts/seed-bundled-places.mjs` | Writes `seed_bundled_places.sql` from the app's place list (`src/lib/backend/bundledSeed.ts`, unit-tested) and, with `--apply`, runs it on the hosted project |
 | `scripts/supabase-smoke.mjs` | End to end against the hosted project as three throwaway users (section 7c) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
 | `supabase/functions/import-closures/` | UK open-data road closures: TfL (keyless) and National Highways (needs a key); `parse.ts` is pure and tested in Jest. Written and type-checked, **not deployed** (section 7d) |
@@ -412,7 +417,9 @@ stop arrives with no place, so the phone's own `canSeeStop()` can't show it), yo
 own `votes` + the `awards` view (each award becomes that many anonymous tallies, so
 `awards.ts` gives the same winners), `notices`, and `spots_list` + `spot_stats()` +
 your own completions and ratings (others' are anonymous stand-ins with the right
-counts and average). Other people's `User.home` is a placeholder (0, 0): homes
+counts and average). Rows with a `bundled_id` the app knows become progress on that
+bundled place (`state.bundledServer`), not places of their own; `place_rep_for()` gives
+everyone's drives and photo spots for the rep ledger (`state.placeRep`). Other people's `User.home` is a placeholder (0, 0): homes
 never leave the server, so the host form's count comes from `invite_count()`.
 
 **Actions** map like this:
@@ -433,9 +440,9 @@ never leave the server, so the host form's count comes from `invite_count()`.
 | `moveOn` | `rpc('move_on')` (the returned audience drives the host's "everyone has been told" notice) |
 | `sendChat` | `chat_messages` insert `{ event_id, body }` |
 | `vote` | `rpc('cast_vote')` |
-| `finishDrive` | `rpc('complete_drive')` with the fixes `advanceRun()` collected (keep each checkpoint's fix and time in memory, not just a count) |
-| `visitSpot` | upload to `photos/{uid}/spots/{spotId}/{uuid}.jpg`, then `rpc('visit_spot')` |
-| `rateSpot` | `rpc('rate_spot')` |
+| `finishDrive` | `rpc('complete_drive')` with the fixes `advanceRun()` collected (keep each checkpoint's fix and time in memory, not just a count); a bundled drive sends its server row's id |
+| `visitSpot` | upload to `photos/{uid}/spots/{spotId}/{uuid}.jpg`, then `rpc('visit_spot')` (bundled photo spots too, by their server row) |
+| `rateSpot` | `rpc('rate_spot')` (bundled places too, by their server row) |
 | `suggestSpot` | `rpc('suggest_spot')` |
 | `joinCrew` / `leaveCrew` / `createCrew` / `setCrewHost` | `rpc('join_crew' / 'leave_crew' / 'create_crew' / 'set_crew_role')` |
 | `addToCrew` (demo only) | none: becomes an invite the other person accepts (not built yet) |
@@ -452,11 +459,21 @@ As built, a few rows differ from the plan above:
 
 * **Ids.** Ids made on the phone are now UUIDs (`src/lib/ids.ts`), so a build keeps
   its id when upserted. `save_event` is told create or edit explicitly.
-* **Places.** The bundled drives, photo spots and circuits stay in the app; only
-  places people suggest are on the server. Finishing or rating a bundled place is
-  kept on the phone (per account) until they're imported (section 10, item 2).
-  `finishDrive` on a server drive sends the fixes `advanceRun()` now keeps
-  (`DriveRun.fixes`); the phone judges first for a quick answer, the server again.
+* **Places.** The bundled places stay in the app (it draws them from
+  `src/data/places.ts`), and since 17 Nov 2026 the bundled **drives and photo spots**
+  also have server rows keyed by their stable id (`spots.bundled_id`, section 7a-4).
+  Signed in, finishing, visiting and rating one goes to `complete_drive` /
+  `visit_spot` / `rate_spot` with that row's id, so "Driven by", the stars and rep are
+  the same on every phone. Rep for drives and photo spots comes from `place_rep_for()`
+  (`repLedger`'s `placeRep`), for you and for everyone else. What a phone recorded on
+  a bundled place before this (old `placeProgress` for the account) is no longer
+  counted anywhere; the place shows it as "Only on this phone" (`Spot.phoneOnly`).
+  A bundled place without a server row can't be finished signed in ("This place isn't
+  on the server yet…"). Tracks and meet spots have nothing to count, so they stay in
+  the app only (the 8 seeded circuits carry their bundled ids so they show once).
+  `finishDrive` sends the fixes `advanceRun()` keeps (`DriveRun.fixes`); the phone
+  judges first for a quick answer, the server again (with the road's own limit,
+  `spots.limit_mph`, where the app has one).
 * **Suggested photo spot photos.** `spots` has no photo column, so the suggester's
   photo goes to a fixed path, `photos/{author}/spots/{spot}/suggested.jpg`, which
   the app signs when it reads the place.
@@ -650,6 +667,26 @@ push every other difference in `config.toml` (MFA, storage, API settings).
 * **Not deployed:** the `import-closures` function and its schedule (section 7d), so
   `road_closures` is empty and the app shows drivers' reports only.
 
+### 7a-4. What's live (17 Nov 2026, Nightshift's own places on the server)
+
+* **Migration** `20261117190000_bundled_places.sql` pushed with `db push --remote --yes`
+  (a `pg_dump` of `public` was taken first, kept off the repo).
+* **Seed** `seed_bundled_places.sql` applied through the Management API
+  (`node --import ./scripts/lib/resolve-ts.mjs scripts/seed-bundled-places.mjs --apply`):
+  **129 drives and 111 photo spots**, plus the 8 seeded circuits given their bundled ids
+  (248 rows with a `bundled_id`, none with an author). Every photo spot is seeded, the
+  unvetted ones too: the app still keeps those off the map by id (`photoVetting.ts`).
+  Run the script again after changing a bundled drive or photo spot; a place taken out
+  of the app keeps its row (and history), and an app that doesn't know a bundled id
+  shows that row as an ordinary place.
+* **pgTAP:** 376 of 376 on the hosted database (the 346 above plus
+  `bundled_places_test.sql`, 30), checked first in a rolled-back transaction on the
+  hosted database with the migration and seed applied inside it.
+* **Smoke test:** 65 of 65 (the 61 above plus a bundled drive finished and rated by A,
+  B reading the same stats and `place_rep_for`, and the cleanup counting place progress).
+  One earlier run that day stopped at 62 of 65; three runs after it passed 65 of 65.
+* Afterwards: no test users, completions, ratings, fixtures or `pgtap` extension left.
+
 ### 7c. The smoke test
 
 ```bash
@@ -684,6 +721,12 @@ the crash on Realtime **without `created_by`** and never hears the police report
 A can't confirm their own report, B can't from 3 mi away, B confirms once (a second answer
 is refused), the reporter has no rep after one confirmation and +10 after C's, B and C +2
 each; `road_closures_near` answers; signed out is refused.
+
+Bundled places: B reads Nightshift's own drives and photo spots by `bundled_id`; A
+finishes the Snake Pass (`dr-snake-pass`) with fixes on the seeded line and rates it; B
+sees one more person and a rating in `spot_stats` (never who), and A's drive rep
+(medium, 100) in `place_rep_for`. The cleanup also checks no completions or ratings are
+left for the test users.
 
 ### 7b. Still to do
 
@@ -888,10 +931,10 @@ database (section 7a), which is the check that counts. The Edge Functions type-c
 
 1. **Event discovery:** decided 17 Nov 2026 (section 8): everyone signed in sees
    that an event exists; stops stay hidden.
-2. **Seeding:** the database seed has places only (ban zones and circuits).
-   Sample people and events stay in the app's demo mode, so real users never
-   meet fake people. The bundled drives and photo spots (`src/data/places.ts`)
-   should be imported by a one-off script generated from that file, so the two
-   lists stay in step.
+2. **Seeding:** done 17 Nov 2026. The database seed has places only (ban zones,
+   circuits, and the bundled drives and photo spots in `seed_bundled_places.sql`,
+   generated from `src/data/places.ts` by `scripts/seed-bundled-places.mjs` so the
+   two lists stay in step; section 7a-4). Sample people and events stay in the app's
+   demo mode, so real users never meet fake people.
 3. **Check-in demo switch:** none on the server. Testing in a back garden
    means a fake event near you, or a host-only test flag (not added).
