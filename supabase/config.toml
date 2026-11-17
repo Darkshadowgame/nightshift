@@ -140,6 +140,13 @@ public = false
 file_size_limit = "10MiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/heic", "image/webp"]
 
+# Feedback screenshots. Private, insert-only for signed-in users under
+# {user_id}/...; only staff read them. Policies: migrations/*_feedback.sql.
+[storage.buckets.feedback]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/heic", "image/webp"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true

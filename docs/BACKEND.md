@@ -1,8 +1,11 @@
 # Nightshift backend (Supabase)
 
-Status: **written and tested locally, not applied yet.** The hosted project
-exists (ref `vuftzeianmqjboivqmws`, London region, free plan). Nothing in
-`supabase/` has been pushed to it, and the app still runs on the local store.
+Status: **live on the hosted project since 17 Nov 2026** (ref
+`vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
+All 9 migrations and the seed are applied and the 218 pgTAP checks pass
+against the hosted database. The app still runs on the local store until it is
+wired to Supabase. Sign-in emails need custom SMTP before testers can get a
+code: see section 7a, "Still to do".
 
 Everything lives in `supabase/` (Supabase CLI layout):
 
@@ -17,10 +20,12 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120500_reminders.sql` | Server-side reminder queue (Phase 2 push) |
 | `supabase/migrations/20261117120600_notice_kind_nearby.sql` | The `nearby` notice kind (on its own: a new enum value can't be used in the transaction that adds it) |
 | `supabase/migrations/20261117120700_discovery.sql` | Staff read access, travel settings, new-event notices, `search_events()` |
+| `supabase/migrations/20261117120800_feedback.sql` | In-app feedback (insert-only) and the private `feedback` screenshot bucket |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
 | `supabase/tests/rpc_test.sql` | pgTAP: every RPC end to end, storage, reminders (63 checks) |
 | `supabase/tests/discovery_test.sql` | pgTAP: travel settings, new-event notices, `search_events()`, discovery and staff (75 checks) |
+| `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, staff-only reading, the screenshot bucket, the flood guard (33 checks) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
 | `supabase/functions/import-closures/` | Phase 2 sketch: UK open-data road closures |
 | `supabase/templates/otp.html` | Sign-in email that shows the 6-digit code |
@@ -34,12 +39,13 @@ iPhone app (Expo SDK 58)
         SupabaseRepository (supabase-js: tables for plain reads/writes, RPCs for rules)
                 │  HTTPS, publishable (anon) key + the user's session JWT
                 ▼
-Supabase (London)
+Supabase (eu-west-1, Ireland)
   ├─ Auth: email one-time code (6 digits). Sign in with Apple later.
   ├─ Postgres 17 + PostGIS
   │    public   : tables (RLS on every one), RPC functions, `awards` view
   │    private  : helpers used by policies and RPCs (not exposed over the API)
   ├─ Storage: `photos` (private bucket, {user_id}/... folders)
+  │           `feedback` (private, insert-only screenshots; staff read)
   └─ Edge Functions (Phase 2): push-notices, import-closures, run by pg_cron
 ```
 
@@ -88,6 +94,7 @@ Rules of thumb:
 | `spot_completions` | **day only** (`completed_on`), optional photo path | owner | `complete_drive()`, `visit_spot()` |
 | `spot_ratings` | 1–5 stars | owner | `rate_spot()` |
 | `road_closures` | imported closures (Phase 2) | signed-in users | import function |
+| `feedback` | bug / idea / looks_wrong reports: message (1–4000), screen, app version, update id, device, optional screenshot path, `status` | **staff only** | anyone, signed in or not (insert only); staff set `status` or delete |
 
 The invite filter is stored as columns (`invite_everyone`, `invite_cars`,
 `invite_bikes`, `invite_classes`, `invite_min_mods`, `invite_brands`,
@@ -210,6 +217,31 @@ updates of the area, time, type or invite filter (an edit can let new people
 in; people already told aren't told again). `push-notices` pushes these with the
 reminders in Phase 2. Only the trigger can call it.
 
+### Feedback
+
+`public.feedback` takes reports from the app's feedback sheet. Anyone can send
+one, signed in or not (a sign-in problem is worth hearing about), and that is
+all they can do:
+
+* **Insert only.** `anon` and `authenticated` may fill in `kind`
+  (`bug` / `idea` / `looks_wrong`), `message` (1–4000 characters, not blank),
+  `screen`, `app_version`, `update_id`, `device`, `photo_path` and `user_id`.
+  They can't set `id`, `created_at` or `status` (it starts as `new`).
+* `user_id` defaults to `auth.uid()` and may only be the sender or null, so
+  nobody can send feedback in someone else's name. Signed out it is null.
+* Nobody reads, changes or deletes feedback except staff
+  (`private.is_admin()`): they read it all, set `status`
+  (`new` / `seen` / `planned` / `done` / `wont_do`) and delete. Staff can't
+  rewrite a message.
+* **Flood guard:** at most 20 an hour per signed-in person and 300 an hour in
+  total (a trigger; the sender sees "You've sent a lot of feedback in the last
+  hour…" or "Lots of feedback is coming in right now…").
+* **Screenshots** go in a separate private `feedback` bucket (5 MB, images),
+  not `photos`: every signed-in user can read `photos`, and a screenshot can
+  show a stop or a name. Signed-in users upload to `feedback/{user_id}/...`;
+  only staff read or delete there. `photo_path` must be in the sender's own
+  folder. Signed-out people send text only.
+
 ## 4. RPC reference
 
 All are `supabase.rpc(name, { p_…: … })`, signed in only.
@@ -288,6 +320,7 @@ interface Repository {
 | `joinCrew` / `leaveCrew` / `createCrew` / `setCrewHost` | `rpc('join_crew' / 'leave_crew' / 'create_crew' / 'set_crew_role')` |
 | `addToCrew` (demo only) | none: becomes an invite the other person accepts (not built yet) |
 | `markNoticesRead` | `rpc('mark_notices_read')` |
+| Send feedback | optional screenshot: upload to the `feedback` bucket at `{uid}/{uuid}.jpg` (signed in only), then `from('feedback').insert({ kind, message, screen, app_version, update_id, device, photo_path })` **without `.select()`** (senders can't read rows back, so `return=representation` fails) |
 | `setSettings`, `markUnlockSeen`, `markLocationNoticeSeen`, `markNearbySeen` | stay on the phone (AsyncStorage) |
 | `resetDemo`, `restartDemoEvents` | local mode only |
 | `refreshReminders` | stays local until Phase 2 push |
@@ -339,7 +372,10 @@ untracked `.env`. The service role or secret key never goes in the app.
   and codes last 10 minutes.
 * **Email template:** the hosted project's "Magic link" and "Confirm signup"
   templates must show `{{ .Token }}` (copy `supabase/templates/otp.html`), or
-  people get a link instead of a code.
+  people get a link instead of a code. **Free projects can't change templates
+  while they use the built-in sender** (the API answers `entitlement_required`),
+  so custom SMTP has to go on first. Until then the hosted emails carry the
+  default sign-in *link*, which the app can't use.
 * **Quotas:** 2 free projects; 500 MB database; 1 GB file storage; 5 GB egress;
   50,000 monthly active users; 500,000 Edge Function calls a month. Photos are
   the first thing to hit a limit: keep uploads at about 1600 px JPEG (~300 KB),
@@ -350,44 +386,107 @@ untracked `.env`. The service role or secret key never goes in the app.
   Expo). Until then `push-notices` isn't deployed and the phone keeps its local
   reminders.
 
-## 7. Applying it (once `SUPABASE_ACCESS_TOKEN` and the DB password exist)
+## 7. Applying it
 
-Use a pinned CLI so the commands match: `npx supabase@3.2.0`. In CLI 3.x,
+Done on 17 Nov 2026 with the pinned CLI, `npx supabase@3.2.0`. In CLI 3.x,
 commands target the **local** database unless you pass `--remote`, and changes
 to the hosted project need `--yes` (or `SUPABASE_YES=1` exported in the shell).
+`link` and `db push` work with just `SUPABASE_ACCESS_TOKEN`: the CLI makes a
+short-lived login role through the Management API.
 
 ```bash
 cd ~/nightshift
 # Secrets come from the file and are never echoed, logged or committed.
-set -a; . /path/to/your/secrets.env; set +a   # SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD (outside the repo)
+set -a; . ~/.config/homelab-secrets.env; set +a   # SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, ...
 
-# 1. Optional but recommended: run everything locally first (needs Docker or Podman).
-npx supabase@3.2.0 start
-npx supabase@3.2.0 db reset          # applies migrations + seed.sql to the local stack
-npx supabase@3.2.0 test db           # runs supabase/tests/*.sql (pgTAP)
-npx supabase@3.2.0 stop
-
-# 2. Link the hosted project.
 npx supabase@3.2.0 link --project-ref vuftzeianmqjboivqmws
-
-# 3. See what would change, then apply.
-npx supabase@3.2.0 db push --remote --dry-run
-npx supabase@3.2.0 db push --remote --include-seed --yes   # seed only the first time
-
-# 4. Run the tests against the hosted database (they roll back; nothing is kept).
-npx supabase@3.2.0 test db --remote
-
-# 5. Auth settings: email code template, redirect URLs, OTP expiry.
-#    Either review and push config.toml, or set the same values in the dashboard.
-npx supabase@3.2.0 config push --yes
+npx supabase@3.2.0 db push --remote --dry-run                 # lists the new migrations
+npx supabase@3.2.0 db push --remote --yes                     # add --include-seed only the first time
 ```
 
-After applying, check in the dashboard that:
+**New migrations** go in as new files with a later timestamp; never edit one
+that has been applied (`supabase_migrations.schema_migrations` lists them).
 
-* Security Advisor shows no "RLS disabled" or "security definer view" findings.
-  The `awards` view is `security_invoker`, so it shouldn't appear.
-* Storage shows a private `photos` bucket.
-* Database → Extensions shows `postgis` in the `extensions` schema.
+**Tests against the hosted database.** `supabase test db --remote` does **not**
+work with the token alone in CLI 3.2.0: its temporary login role is a
+`NOINHERIT` member of `postgres`, so pg_prove can't see the `extensions` schema
+and every file fails with `function plan(integer) does not exist`. Run
+pg_prove yourself as `postgres` through the session pooler instead (the tests
+roll back; nothing is kept). The DB password was reset through the Management
+API on 17 Nov 2026 and lives only in the secrets file as `SUPABASE_DB_PASSWORD`.
+
+```bash
+export PGPASSWORD="$SUPABASE_DB_PASSWORD" PGHOST=aws-1-eu-west-1.pooler.supabase.com PGPORT=5432 \
+       PGUSER=postgres.vuftzeianmqjboivqmws PGDATABASE=postgres PGSSLMODE=require
+podman run --rm -e PGPASSWORD -e PGHOST -e PGPORT -e PGUSER -e PGDATABASE -e PGSSLMODE \
+  -v "$PWD/supabase/tests:/tests:ro,Z" public.ecr.aws/supabase/pg_prove:3.36 pg_prove --ext .sql /tests
+```
+
+**Auth settings** were set with the Management API
+(`PATCH https://api.supabase.com/v1/projects/vuftzeianmqjboivqmws/config/auth`),
+changing only the fields below. `config push` was **not** used: it would also
+push every other difference in `config.toml` (MFA, storage, API settings).
+
+### 7a. What's live (17 Nov 2026)
+
+* **Database:** all 9 migrations (`20261117120000` … `20261117120800`) and
+  `seed.sql` (2 ban zones, 8 circuits). PostGIS 3.3.7 in `extensions`.
+* **Storage:** private `photos` (10 MB) and `feedback` (5 MB) buckets with their policies.
+* **Tests on the hosted database:** 218 of 218 pgTAP checks pass
+  (rls 47, rpc 63, discovery 75, feedback 33). Afterwards no test rows, no
+  test users and no `pgtap` extension were left behind.
+* **API checks with the publishable key (signed out):** reading `events`,
+  `profiles`, `profile_homes`, `event_stops`, `spots` or `feedback` is refused
+  (`42501`); `search_events`, `save_profile` and `queue_due_reminders` are
+  refused; a feedback insert works (`201`, stored with no user and status
+  `new`), but not in someone else's name, not with a status, and not with an
+  unknown kind; updating or deleting feedback is refused; uploads to `photos`
+  or `feedback` are refused, and listing `feedback` returns nothing.
+* **Security Advisor:** no RLS or security definer view findings. It warns
+  that signed-in users can run the `security definer` RPCs; that is the design
+  (the RPCs are the API and check every rule). It also lists Supabase's own
+  `public.rls_auto_enable()` event-trigger helper. The Performance Advisor has
+  a few "multiple permissive policies" warnings (the staff read policies) and
+  "unindexed foreign key" notes; fine for a test group.
+* **Auth:** email sign-in on, sign-ups on, **6-digit codes, 10-minute expiry**
+  (`mailer_otp_length` 6, `mailer_otp_exp` 600), one email a minute per address,
+  site URL `nightshift://`, redirect URLs `nightshift://` and `nightshift://**`.
+  Sign-in and verify limits stay at 30 per 5 minutes per IP. MFA (TOTP) was
+  already on in the hosted project and was left alone (`config.toml` has it off).
+  `exp://**` is only in the local config.
+
+### 7b. Still to do
+
+1. **Custom SMTP (Brevo). TODO for the owner:** add `BREVO_SENDER_EMAIL`
+   (the sender address verified in the Brevo account) to the secrets file. The
+   Brevo host, port, login and key are already there. Then set SMTP and, now
+   allowed, the code template, and raise the email limit for the test group:
+
+   ```bash
+   jq -n --rawfile t supabase/templates/otp.html \
+     --arg host "$BREVO_SMTP_HOST" --arg port "$BREVO_SMTP_PORT" --arg user "$BREVO_SMTP_USER" \
+     --arg pass "$BREVO_SMTP_KEY" --arg from "$BREVO_SENDER_EMAIL" '{
+       smtp_host: $host, smtp_port: $port, smtp_user: $user, smtp_pass: $pass,
+       smtp_admin_email: $from, smtp_sender_name: "Nightshift", smtp_max_frequency: 60,
+       rate_limit_email_sent: 30,
+       mailer_subjects_magic_link: "Your Nightshift code", mailer_templates_magic_link_content: $t,
+       mailer_subjects_confirmation: "Your Nightshift code", mailer_templates_confirmation_content: $t }' \
+   | curl -sS -o /dev/null -w '%{http_code}\n' -X PATCH \
+       -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+       https://api.supabase.com/v1/projects/vuftzeianmqjboivqmws/config/auth --data @-
+   ```
+
+   Then request a code for the sender address itself
+   (`POST $SUPABASE_URL/auth/v1/otp` with `{"email": …, "create_user": true}`)
+   and check it arrives as a 6-digit code. Until this is done the built-in
+   sender only mails the project's team (about 2 an hour) and sends a link,
+   not a code.
+2. **Signed-in API check from the app:** the pgTAP suite covers every signed-in
+   path on the hosted database, but no real session has been used yet (that
+   needs a code by email, item 1).
+3. **`SUPABASE_ACCESS_TOKEN` expires** about 30 days after 17 Nov 2026. Make a
+   new one (scoped to this project) before the next migration.
+4. Phase 2 (below) and the gaps in section 9.
 
 **Phase 2 (functions and schedules), later:**
 
@@ -413,11 +512,11 @@ $$);
 **Local test harness used while writing this.** The SQL was checked in a
 throwaway `postgis/postgis:17-3.5` Podman container. A small stub stood in for
 Supabase's `auth` and `storage` schemas and its roles, and pgTAP 1.3.3 was
-loaded as plain SQL. All 8 migrations and the seed applied cleanly, and the 185
-pgTAP checks passed (47 + 63 + 75). The new-event trigger is deferred, and the
+loaded as plain SQL. All 9 migrations and the seed applied cleanly, and the 218
+pgTAP checks passed (47 + 63 + 75 + 33). The new-event trigger is deferred, and the
 tests never commit, so `discovery_test.sql` uses `set constraints
-public.events_queue_nearby immediate` to stand in for the commit. `supabase test db` against the real stack is still the
-check that counts. The Edge Functions type-check with Deno 2.9.
+public.events_queue_nearby immediate` to stand in for the commit. The same 218 checks also pass on the hosted
+database (section 7a), which is the check that counts. The Edge Functions type-check with Deno 2.9.
 
 ## 8. Owner decisions (17 Nov 2026)
 
