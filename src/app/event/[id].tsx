@@ -8,12 +8,10 @@ import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
 import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
-import { BAN_ZONES } from '../../data/seed';
 import { classOf } from '../../lib/classes';
 import { canCheckIn, canSeeStop, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
 import { roleOf } from '../../lib/eventView';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
-import { milesBetween } from '../../lib/geo';
 import { describeFilter } from '../../lib/invites';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
@@ -28,9 +26,6 @@ export default function EventScreen() {
   const e = events.find((x) => x.id === id);
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [picked, setPicked] = useState<LatLng | null>(null);
-  const [pickedName, setPickedName] = useState('');
   const [busy, setBusy] = useState(false);
 
   useLayoutEffect(() => {
@@ -93,26 +88,14 @@ export default function EventScreen() {
 
   function doMoveOn() {
     setError(null);
-    if (nextStop?.at) {
+    try {
       store.moveOn(ev.id);
-      return;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not move on.');
     }
-    setPicking(true);
   }
 
-  function confirmPicked() {
-    if (!picked) {
-      setError('Long-press the map to drop the next spot.');
-      return;
-    }
-    store.moveOn(ev.id, { name: pickedName.trim() || 'Next spot', at: picked });
-    setPicking(false);
-    setPicked(null);
-    setPickedName('');
-  }
-
-  const banWarning = picked ? BAN_ZONES.find((z) => milesBetween(z.centre, picked) <= z.radiusMiles) : undefined;
-  const mapCentre = picking ? (ev.stops[current]?.at ?? ev.area) : (mapPins.find((p) => p.id === ev.stops[current]?.id)?.at ?? mapPins[0]?.at ?? ev.area);
+  const mapCentre = mapPins.find((p) => p.id === ev.stops[current]?.id)?.at ?? mapPins[0]?.at ?? ev.area;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
@@ -132,40 +115,15 @@ export default function EventScreen() {
           {ev.description ? <Txt v="muted">{ev.description}</Txt> : null}
         </View>
 
-        <View style={{ height: picking ? 320 : 220, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
+        <View style={{ height: 220, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
           <NightMap
             pins={anyVisible ? mapPins : [{ id: 'area', at: ev.area, glyph: 'locked', colour, title: ev.areaName }]}
             paths={mapPaths}
             circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: 3, colour }]}
             centre={mapCentre}
             span={ev.type === 'cruise' ? 0.25 : 0.12}
-            onLongPress={picking ? setPicked : undefined}
-            picked={picking ? picked : null}
           />
         </View>
-
-        {picking ? (
-          <Card accent={C.neon}>
-            <Txt v="h3">Where next?</Txt>
-            <Txt v="muted">Long-press the map to drop the spot, then name it. Only the {audience} people checked in here get told.</Txt>
-            <TextInput
-              value={pickedName}
-              onChangeText={setPickedName}
-              placeholder="Name the spot, e.g. Ventura Park"
-              placeholderTextColor={C.fog}
-              style={ui.input}
-            />
-            {banWarning ? (
-              <Txt v="muted" style={{ color: C.alert }}>
-                Warning: this spot is inside the {banWarning.name} meet-ban zone. {banWarning.note}
-              </Txt>
-            ) : null}
-            <Row>
-              <Button label="Send everyone here" kind="neon" onPress={confirmPicked} style={{ flex: 1 }} />
-              <Button label="Back" kind="ghost" onPress={() => { setPicking(false); setPicked(null); }} />
-            </Row>
-          </Card>
-        ) : null}
 
         {error ? (
           <Card accent={C.alert}>
@@ -173,7 +131,7 @@ export default function EventScreen() {
           </Card>
         ) : null}
 
-        {phase !== 'over' && phase !== 'cancelled' && !picking ? (
+        {phase !== 'over' && phase !== 'cancelled' ? (
           <View style={{ gap: 10 }}>
             {!host ? (
               going ? (
@@ -195,7 +153,16 @@ export default function EventScreen() {
               )
             ) : null}
             {host && ev.type === 'rolling' && phase !== 'upcoming' ? (
-              <Button label={nextStop?.at ? `Move on to ${nextStop.name}` : 'Move on: pick the next spot'} onPress={doMoveOn} />
+              nextStop?.at ? (
+                <View style={{ gap: 4 }}>
+                  <Button label={`Move on to ${nextStop.name}`} onPress={doMoveOn} />
+                  <Txt v="muted" style={{ fontSize: 12 }}>Only the {audience} people checked in here get the new spot.</Txt>
+                </View>
+              ) : (
+                <Card>
+                  <Txt v="muted">This is the last planned stop.</Txt>
+                </Card>
+              )
             ) : null}
           </View>
         ) : null}
@@ -211,7 +178,7 @@ export default function EventScreen() {
                   ? ev.type === 'rolling' && i > 0
                     ? 'Revealed when the hosts move on'
                     : `Unlocks ${formatRelative(revealTime(ev).toISOString(), now)} for people going`
-                  : 'Picked on the night';
+                  : 'Not placed yet';
               return (
                 <Row key={st.id} style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={10}>
                   <Pin glyph={visible ? ev.type : 'locked'} colour={isCurrent ? colour : visible ? C.chalk : C.fog} size={26} />

@@ -111,23 +111,23 @@ export function checkIn(event: NightEvent, stopIndex: number, userId: string): N
 }
 
 /**
- * Host moves a rolling meet on. Uses the next planned stop, or adds `newStop`
- * when the host picks the spot on the night.
+ * Host moves a rolling meet on to the next planned stop.
+ * Every stop is planned (and checked against ban zones) before the event, so
+ * nothing is decided in secret on the night; stops are only revealed one by one.
  */
-export function moveOn(event: NightEvent, now: Date, newStop?: Omit<Stop, 'id' | 'revealedAt'>): NightEvent {
+export function moveOn(event: NightEvent, now: Date): NightEvent {
   if (event.type !== 'rolling') throw new Error('Only rolling meets move on.');
   const nextIndex = event.currentStop + 1;
+  const planned = event.stops[nextIndex];
+  if (!planned || !planned.at) throw new Error('This is the last planned stop.');
   const stops = [...event.stops];
-  if (newStop) {
-    const stop: Stop = { ...newStop, id: `${event.id}-s${Date.now().toString(36)}`, revealedAt: now.toISOString() };
-    if (stops[nextIndex] && !stops[nextIndex].at) stops[nextIndex] = { ...stops[nextIndex], ...stop };
-    else stops.splice(nextIndex, 0, stop);
-  } else {
-    const planned = stops[nextIndex];
-    if (!planned || !planned.at) throw new Error('Pick where the meet is moving to.');
-    stops[nextIndex] = { ...planned, revealedAt: now.toISOString() };
-  }
+  stops[nextIndex] = { ...planned, revealedAt: now.toISOString() };
   return { ...event, stops, currentStop: nextIndex };
+}
+
+/** Every stop needs a place before an event can be created. */
+export function missingStops(stops: Stop[]): Stop[] {
+  return stops.filter((s) => !s.at);
 }
 
 /** Who gets the "moved on" notification: people checked in at the stop being left. */
@@ -137,8 +137,4 @@ export function moveOnAudience(event: NightEvent, fromIndex: number): string[] {
   return Object.entries(event.checkIns)
     .filter(([, stops]) => stops.includes(from.id))
     .map(([userId]) => userId);
-}
-
-export function hasMoreStops(event: NightEvent): boolean {
-  return event.type === 'rolling';
 }

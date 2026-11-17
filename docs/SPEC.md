@@ -46,7 +46,7 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 | Type | Places | Who sees the place, and when |
 |---|---|---|
 | Cruise | Start, regroup stops, finish (a route) | Everyone going sees the whole route from the reveal time |
-| Rolling meet | Stop 1, then stops added or revealed on the night | Stop 1 shows from the reveal time. A host taps **Move on**, and only people checked in at the current stop see the next one |
+| Rolling meet | Every stop planned before the event (checked against ban zones) | Stop 1 shows from the reveal time. A host taps **Move on**, and only people checked in at the current stop see the next one |
 | Meet | One spot | Everyone going, from the reveal time |
 | Show | One spot | Public: always visible |
 | Track day | A circuit | Public: always visible |
@@ -56,8 +56,13 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
 * **Reveal time** is set by the host, as minutes before the start (default 60).
 * **Hosts:** one or more named co-hosts, or a whole crew (any crew member can
   host). Hosts always see every stop and can move on, edit and cancel.
-* **Rolling meets:** stops can be planned in advance (hidden until moved on to),
-  or the host adds the next stop at the moment they tap Move on.
+* **Rolling meets:** every stop is placed when the event is created, and nothing is
+  picked on the night (owner's decision after the legal research, 17 Nov 2026).
+  Stops stay hidden until a host moves on.
+* **Ban zones:** the app shows a warning (it doesn't block) when a stop of any
+  event type is inside a sample injunction or PSPO zone, explaining that
+  organisers have been taken to court.
+* **Drives** (formerly "sprints"): rated roads, never timed or ranked.
 * **Check-in:** you must be within 0.5 mi of the current stop while the event is
   on. On the demo build a "simulate" switch in Settings skips the GPS check.
 * **Invites:** someone is invited when any of their builds matches the filter and
@@ -149,8 +154,11 @@ Full reports are in `docs/research/`.
   meets (Black Country, Birmingham, Enfield and others). Rolling meets with hidden
   next stops look like evading police. Timed or "sprint" road routes clash with
   App Store rule 1.4.4. The Online Safety Act applies from launch. Live location
-  needs a data protection impact assessment (DPIA). The design decisions these
-  raise are open with the owner.
+  needs a data protection impact assessment (DPIA). Owner's decisions:
+  rolling-meet stops are all planned ahead, ban zones warn but don't block,
+  "sprints" are renamed "Drives", and "Nightshift" stays the working name.
+  Before a public launch: proper age checks, a DPIA, the ICO fee, Online Safety
+  Act paperwork, a trademark search and a solicitor's review.
 
 ## Privacy and safety in Phase 1
 

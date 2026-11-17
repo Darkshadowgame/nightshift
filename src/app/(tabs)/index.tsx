@@ -13,11 +13,11 @@ import { formatWhen } from '../../lib/format';
 import { useStore } from '../../lib/store';
 import { C, EVENT_COLOURS, SPOT_COLOURS } from '../../theme';
 
-type Layer = 'events' | 'photo' | 'sprint' | 'track' | 'bans';
+type Layer = 'events' | 'photo' | 'drive' | 'track' | 'bans';
 const LAYERS: { key: Layer; label: string; colour: string }[] = [
   { key: 'events', label: 'Events', colour: C.sodium },
   { key: 'photo', label: 'Photo spots', colour: C.magenta },
-  { key: 'sprint', label: 'Sprints', colour: C.neon },
+  { key: 'drive', label: 'Drives', colour: C.neon },
   { key: 'track', label: 'Tracks', colour: C.lime },
   { key: 'bans', label: 'Ban zones', colour: C.alert },
 ];
@@ -26,7 +26,7 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
   const { events, me, crews, users, builds, now } = store;
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, sprint: true, track: true, bans: false });
+  const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, bans: false });
   const [selected, setSelected] = useState<string | null>(null);
   const meUser = users.find((u) => u.id === me);
 
@@ -59,7 +59,7 @@ export default function MapScreen() {
     for (const s of SPOTS) {
       if (!layers[s.kind]) continue;
       pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: SPOT_COLOURS[s.kind], title: s.name, size: 32 });
-      if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour: SPOT_COLOURS.sprint });
+      if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour: SPOT_COLOURS.drive });
     }
     if (layers.bans) for (const z of BAN_ZONES) circles.push({ id: `bz:${z.id}`, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert });
     return { pins, paths, circles };
@@ -86,7 +86,7 @@ export default function MapScreen() {
     if (!s) return null;
     return {
       title: s.name,
-      meta: s.kind === 'sprint' ? `Sprint route · ${s.miles} mi` : s.kind === 'track' ? 'Track' : 'Photo spot',
+      meta: s.kind === 'drive' ? `Drive · ${s.miles} mi · untimed` : s.kind === 'track' ? 'Track' : 'Photo spot',
       body: s.description,
       colour: SPOT_COLOURS[s.kind],
       open: undefined,

@@ -1,5 +1,5 @@
 /**
- * Rep for people who suggest sprint routes and photo spots (Phase 3 feature; the maths lives here now).
+ * Rep for people who suggest drives and photo spots (Phase 3 feature; the maths lives here now).
  *
  * - Suggesting a route or spot that gets approved: +50.
  * - Every time someone else completes the route or visits the spot (GPS-checked; a spot
@@ -25,7 +25,7 @@ export interface RouteRating {
 }
 
 export interface RouteStats {
-  /** Sprint route or photo spot. Defaults to route. */
+  /** Drive or photo spot. Defaults to a drive (route). */
   kind?: 'route' | 'spot';
   authorId: string;
   /** User ids of GPS-verified completions, one entry per drive. */

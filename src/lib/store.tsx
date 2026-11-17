@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ME, seed, type SeedState } from '../data/seed';
 import { castVote as applyVote, type AwardCategory } from './awards';
 import { checkIn as applyCheckIn, moveOn as applyMoveOn } from './events';
-import type { Build, ChatMessage, LatLng, NightEvent, Stop } from './types';
+import type { Build, ChatMessage, LatLng, NightEvent } from './types';
 
 /**
  * Phase 1 keeps everything on the phone. Every read and write goes through this
@@ -45,7 +45,7 @@ interface Store extends Persisted {
   saveEvent: (e: NightEvent) => void;
   setGoing: (eventId: string, going: boolean) => void;
   checkIn: (eventId: string, stopIndex: number) => void;
-  moveOn: (eventId: string, newStop?: Omit<Stop, 'id' | 'revealedAt'>) => void;
+  moveOn: (eventId: string) => void;
   cancelEvent: (eventId: string) => void;
   sendChat: (eventId: string, text: string) => void;
   /** Throws with a readable reason if the vote isn't allowed. */
@@ -124,13 +124,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           going: going ? Array.from(new Set([...e.going, ME])) : e.going.filter((u) => u !== ME),
         })),
       checkIn: (eventId, stopIndex) => updateEvent(eventId, (e) => applyCheckIn(e, stopIndex, ME)),
-      moveOn: (eventId, newStop) =>
+      moveOn: (eventId) =>
         setState((s) => {
           const nowDate = new Date();
           let notice: Notice | null = null;
           const events = s.events.map((e) => {
             if (e.id !== eventId) return e;
-            const next = applyMoveOn(e, nowDate, newStop);
+            const next = applyMoveOn(e, nowDate);
             const stop = next.stops[next.currentStop];
             notice = {
               id: newId('n'), eventId, at: nowDate.toISOString(), read: false,

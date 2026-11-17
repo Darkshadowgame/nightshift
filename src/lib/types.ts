@@ -123,7 +123,7 @@ export interface ChatMessage {
   at: string;
 }
 
-export type SpotKind = 'photo' | 'sprint' | 'track';
+export type SpotKind = 'photo' | 'drive' | 'track';
 
 export interface Spot {
   id: string;
@@ -131,7 +131,7 @@ export interface Spot {
   name: string;
   at: LatLng;
   description: string;
-  /** Sprint routes: the line of the road. */
+  /** Drives: the line of the road. */
   path?: LatLng[];
   miles?: number;
 }

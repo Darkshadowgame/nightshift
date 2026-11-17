@@ -162,12 +162,12 @@ export const SPOTS: Spot[] = [
   { id: 'sp-digbeth', kind: 'photo', name: 'Digbeth street art', at: { lat: 52.4757, lng: -1.8838 }, description: 'Murals and arches. Quiet late on a Sunday.' },
   { id: 'sp-curborough-ph', kind: 'photo', name: 'Cannock Chase forest roads', at: { lat: 52.745, lng: -1.990 }, description: 'Pines and long straights for rolling shots.' },
   {
-    id: 'sr-snake', kind: 'sprint', name: 'Snake Pass (A57)', miles: 12.4, at: { lat: 53.4325, lng: -1.8689 },
-    description: 'Glossop to Ladybower over the moors. Points for completing it, never for your time.',
+    id: 'sr-snake', kind: 'drive', name: 'Snake Pass (A57)', miles: 12.4, at: { lat: 53.4325, lng: -1.8689 },
+    description: 'Glossop to Ladybower over the moors. Rep for completing it at the speed limit. Never timed.',
     path: [{ lat: 53.444, lng: -1.929 }, { lat: 53.4325, lng: -1.8689 }, { lat: 53.413, lng: -1.813 }, { lat: 53.395, lng: -1.765 }, { lat: 53.379, lng: -1.727 }],
   },
   {
-    id: 'sr-catfiddle', kind: 'sprint', name: 'Cat and Fiddle (A537)', miles: 7.8, at: { lat: 53.2393, lng: -2.0114 },
+    id: 'sr-catfiddle', kind: 'drive', name: 'Cat and Fiddle (A537)', miles: 7.8, at: { lat: 53.2393, lng: -2.0114 },
     description: 'Macclesfield to Buxton. Average-speed cameras the whole way.',
     path: [{ lat: 53.258, lng: -2.08 }, { lat: 53.247, lng: -2.045 }, { lat: 53.2393, lng: -2.0114 }, { lat: 53.247, lng: -1.965 }, { lat: 53.255, lng: -1.93 }],
   },
@@ -198,13 +198,13 @@ function events(now: Date): NightEvent[] {
   return [
     {
       id: 'ev-rolling-live', type: 'rolling', title: 'Lichfield rolling meet',
-      description: 'Three spots, one night. Check in at each spot to get the next one.',
+      description: 'Three spots, all planned in advance. Check in at each spot to get the next one.',
       startsAt: minutesFrom(now, -45), endsAt: minutesFrom(now, 180),
       area: { lat: 52.67, lng: -1.76 }, areaName: 'Lichfield / Tamworth',
       stops: [
         { id: 'rl-1', name: 'Lichfield retail park', at: { lat: 52.6842, lng: -1.8105 }, revealedAt: minutesFrom(now, -105) },
         { id: 'rl-2', name: 'Ventura Park, Tamworth', at: { lat: 52.6205, lng: -1.7265 }, revealedAt: minutesFrom(now, -10) },
-        { id: 'rl-3', name: 'Stop 3 (host picks on the night)' },
+        { id: 'rl-3', name: 'Hams Hall retail park', at: { lat: 52.5156, lng: -1.7072 }, note: 'Planned, hidden until you move on' },
       ],
       currentStop: 1, revealMinutesBefore: 60, hostIds: ['dan'], filter: { ...DEFAULT_FILTER, minMods: 3, radiusMiles: 30 },
       going: [ME, 'dan', 'kez', 'tom', 'em', 'aimee', 'jord'],

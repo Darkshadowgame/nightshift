@@ -34,6 +34,6 @@ export const EVENT_COLOURS = {
 
 export const SPOT_COLOURS = {
   photo: C.magenta,
-  sprint: C.neon,
+  drive: C.neon,
   track: C.lime,
 } as const;

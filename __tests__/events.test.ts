@@ -1,4 +1,4 @@
-import { canCheckIn, canSeeStop, checkIn, isHost, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
+import { canCheckIn, canSeeStop, checkIn, isHost, missingStops, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
 import { DEFAULT_FILTER, buildMatches, invitees } from '../src/lib/invites';
 import type { Build, Crew, NightEvent, User } from '../src/lib/types';
 
@@ -13,7 +13,7 @@ function rolling(overrides: Partial<NightEvent> = {}): NightEvent {
     stops: [
       { id: 's1', name: 'One', at: { lat: 52.6, lng: -1.7 } },
       { id: 's2', name: 'Two', at: { lat: 52.65, lng: -1.75 } },
-      { id: 's3', name: 'Three (on the night)' },
+      { id: 's3', name: 'Three (not placed)' },
     ],
     currentStop: 0, revealMinutesBefore: 60, hostIds: ['host'], crewId: 'c1',
     filter: DEFAULT_FILTER, going: ['a', 'b'], checkIns: {}, ...overrides,
@@ -47,24 +47,13 @@ describe('rolling meets', () => {
     expect(moveOnAudience(e, 0)).toEqual(['a']);
   });
 
-  test('a host can pick the next spot on the night', () => {
-    let e = rolling({ currentStop: 1 });
-    e = moveOn(e, NOW, { name: 'Picked live', at: { lat: 52.7, lng: -1.8 } });
-    expect(e.currentStop).toBe(2);
-    expect(e.stops).toHaveLength(3);
-    expect(e.stops[2].name).toBe('Picked live');
-    expect(e.stops[2].at).toEqual({ lat: 52.7, lng: -1.8 });
+  test('moving on stops at the last planned stop', () => {
+    const e = rolling({ stops: rolling().stops.slice(0, 2), currentStop: 1 });
+    expect(() => moveOn(e, NOW)).toThrow();
   });
 
-  test('moving on past the planned stops adds a new one', () => {
-    let e = rolling({ stops: rolling().stops.slice(0, 2), currentStop: 1 });
-    e = moveOn(e, NOW, { name: 'Extra', at: { lat: 1, lng: 1 } });
-    expect(e.stops).toHaveLength(3);
-    expect(e.currentStop).toBe(2);
-  });
-
-  test('moving on to an unplanned stop without a place fails', () => {
-    expect(() => moveOn(rolling({ currentStop: 1 }), NOW)).toThrow();
+  test('every stop must be placed before the event', () => {
+    expect(missingStops(rolling().stops).map((s) => s.id)).toEqual(['s3']);
   });
 
   test('check-in needs you near the current stop', () => {

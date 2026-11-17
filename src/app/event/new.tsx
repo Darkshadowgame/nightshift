@@ -70,7 +70,7 @@ export default function NewEvent() {
   const matches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
   const bans = placed
     .map((st) => ({ st, zone: BAN_ZONES.find((z) => milesBetween(z.centre, st.at!) <= z.radiusMiles) }))
-    .filter((x) => x.zone && type !== 'cruise');
+    .filter((x) => x.zone);
   const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
   const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
   const friends = users.filter((u) => u.id !== me && u.crewId === meUser.crewId);
@@ -97,13 +97,14 @@ export default function NewEvent() {
     if (!title.trim()) return setError('Give the event a name.');
     if (!used[0]?.at) return setError(`Drop the ${stopLabel(0, used.length).toLowerCase()} on the map (long-press).`);
     if (type === 'cruise' && used.filter((s) => s.at).length < 2) return setError('A cruise needs at least a start and a finish.');
+    if (type === 'rolling' && used.some((s) => !s.at)) return setError('Place every stop on the map. Rolling meets are planned in full before they start.');
     if (!filter.cars && !filter.bikes && !filter.everyone) return setError('Invite cars, bikes or both.');
     const id = newId('ev');
     const finalStops: Stop[] = used
-      .filter((st, i) => st.at || type === 'rolling' || i === 0)
+      .filter((st) => st.at)
       .map((st, i, arr) => ({
         id: `${id}-s${i}`,
-        name: st.name.trim() || (st.at ? stopLabel(i, arr.length) : `${stopLabel(i, arr.length)} (pick on the night)`),
+        name: st.name.trim() || stopLabel(i, arr.length),
         at: st.at,
       }));
     const start = startDate(DAY_CHOICES[day].days, time);
@@ -128,7 +129,7 @@ export default function NewEvent() {
   }
 
   const pickPins = [
-    ...SPOTS.filter((s) => s.kind !== 'sprint').map((s) => ({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: C.fog, title: s.name, size: 26 })),
+    ...SPOTS.filter((s) => s.kind !== 'drive').map((s) => ({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: C.fog, title: s.name, size: 26 })),
     ...visibleStops.flatMap((st, i) =>
       st.at ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? C.sodium : C.chalk, title: st.name || stopLabel(i, visibleStops.length), size: 36 }] : [],
     ),
@@ -144,7 +145,7 @@ export default function NewEvent() {
         </Row>
         <Txt v="muted">
           {type === 'cruise' && 'A planned route with regroup stops. Everyone going sees the whole route at the reveal time.'}
-          {type === 'rolling' && 'A meet in several parts. Only people checked in at a spot get the next one when a host moves on. Plan the stops now or pick them on the night.'}
+          {type === 'rolling' && 'A meet in several parts. Place every stop now; each is checked against ban zones. People only see the next stop once they have checked in at the current one and a host moves on.'}
           {type === 'meet' && 'One spot. Static meets get moved on by police more often, so consider a cruise or rolling meet.'}
           {type === 'show' && 'A public show. The place is visible to everyone.'}
           {type === 'trackday' && 'A circuit or sprint venue. Public, and the only place lap times count.'}
@@ -198,7 +199,7 @@ export default function NewEvent() {
             <Row style={{ justifyContent: 'space-between' }}>
               <Chip label={stopLabel(i, visibleStops.length)} on={i === activeStop} onPress={() => setActiveStop(i)} />
               <Txt v="mono" style={{ color: st.at ? C.lime : C.fog }}>
-                {st.at ? 'PLACED' : type === 'rolling' && i > 0 ? 'PICK ON THE NIGHT' : 'NOT PLACED'}
+                {st.at ? 'PLACED' : 'NOT PLACED'}
               </Txt>
             </Row>
             <TextInput
@@ -237,7 +238,7 @@ export default function NewEvent() {
         {bans.map(({ st, zone }) => (
           <Card key={st.key} accent={C.alert}>
             <Txt>
-              {st.name || 'A stop'} is inside the {zone!.name} meet-ban zone. {zone!.note}
+              {st.name || 'A stop'} is inside the {zone!.name} ban zone. Court orders here can ban organising or promoting late-night meets and cruises (often 3pm to 7am), and hosts have been taken to court. {zone!.note}
             </Txt>
           </Card>
         ))}
