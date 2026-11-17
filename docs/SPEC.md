@@ -240,8 +240,9 @@ shown; no timing on public roads).
   average-speed zones are a thin red dashed line that follows the road between the zone's start
   and end (routed over OpenStreetMap roads at build time), with an average-speed camera at each end. Tapping says the
   limit and the direction where OSM has them, that the data may be incomplete, and the credit.
-  Wording is speed-limit information only. There is no way to report cameras or police, and
-  the OSM data stays a separate dataset (ODbL). Credit on the map and in the README.
+  Wording is speed-limit information only. The OSM data stays a separate dataset (ODbL),
+  never merged with drivers' road reports (see "Road reports" below). Credit on the map and
+  in the README.
 * **Photo spots are for car and bike photos** (owner, 17 Nov 2026). Bundled photo spots show
   on the map only with evidence that cars or bikes are photographed or meet there: a car or bike
   source (PistonHeads, Porsche Roads, BestBikingRoads, The Biker Guide…), a description that
@@ -368,7 +369,9 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
    and thrown away. The zone average lives only while you're in the zone. No "fastest",
    no trip times, no leaderboards. A drive finished by navigation records the day only.
 2. **Speed-limit information only:** cameras and zones are OpenStreetMap data with the
-   caveat and credit; never police positions, never user reports of police.
+   caveat and credit, kept apart from drivers' reports. Drivers' "Police / speed check"
+   reports (owner decision, 17 Nov 2026) appear only here, under the safeguards in
+   "Road reports" below.
 3. **Minimal interaction while moving:** no panning, zooming or menus on the map; two big
    buttons (voice, **END**); check-in only appears once you've stopped. Large text, dark.
    Set the route before setting off; the phone belongs in a cradle (reg 110).
@@ -381,6 +384,69 @@ Code: `src/lib/nav.ts` (engine, tests in `__tests__/nav.test.ts` with a fixture 
 `navPlan.ts`, `directions.ts`, `src/app/drive.tsx`, `components/DriveMap.tsx`,
 `NavLaunch.tsx`, and the native module `modules/nav-directions` (Swift: MapKit directions,
 AVSpeechSynthesizer, system chime). Needs a new IPA (the fingerprint changes).
+
+## Road reports (built, 17 Nov 2026)
+
+Owner's request (BACKLOG queue item 3), with the owner's police decision of 17 Nov 2026.
+Waze-style: drivers report what's on the road, other drivers confirm or clear it, and
+reports run out on their own.
+
+* **Reporting** is in the driving view only: a big **REPORT** button, then one of seven big
+  tiles: Crash, Hazard, Roadworks, Closure, Traffic, Mobile camera, **Police / speed check**.
+  Two taps, "Thanks, reported" spoken (with voice on), and **UNDO** for 5 seconds before it's
+  sent. The report is where the phone is (its direction too, so the other carriageway isn't
+  warned), snapped to about 10 m. The server checks it's within half a mile of the phone's
+  position, which it compares and throws away. At most one report every 2 minutes and 30 a day.
+  The same kind already reported within 150 m (same direction) counts as a confirmation.
+* **Lifetimes:** police 30 min, mobile camera 60 min, traffic 30 min, hazard and crash 2 h,
+  roadworks and closure 24 h. Each "still there" gives a report its usual time again from
+  then, up to a cap (camera 2 h, traffic 90 min, hazard and crash 4 h, roadworks and closure
+  72 h). **Police reports are never extended:** 30 minutes from the report.
+* **"Still there?"** Just after you drive past someone's report the driving view asks, with
+  big **YES** / **NO, GONE** buttons; it goes by itself after 8 s and ignoring it costs
+  nothing. On the map's report card, **Still there** / **Gone** show when you're within a
+  mile. One answer per person per report, never on your own. Two "gone" in a row (no "still
+  there" between) clear it.
+* **Alerts ahead:** reports within 40 m of the route, up to about three quarters of a mile
+  ahead, are said once ("Crash reported ahead, half a mile") and shown in a coral strip
+  under the turn banner for 10 s. Turn instructions come first.
+* **Closures and rerouting:** a driver's closure confirmed by 2 others, or an open-data full
+  closure, on the leg you're driving: MapKit can't be told to avoid a road, so the app tries
+  detour points 0.5 and 1 km either side of the closure, square to the road, and takes the
+  first route that keeps 100 m clear of it (checked on the phone). If none does: **Road closed
+  ahead — follow diversion signs** (shown and said). Off the detour, it starts again from where
+  you are. Lane closures don't reroute.
+* **Main map:** a **Road reports** layer under the layers button, off by default: crashes,
+  hazards, roadworks, closures, traffic and mobile cameras (coral pins; open-data closures as
+  lines), each with a card: age ("12 min ago"), confirmations, when it ends, and the answer
+  buttons when you're near. Open-data closures carry their credit (e.g. "Powered by TfL
+  Open Data").
+* **Police safeguards** (keep them): labelled "Police / speed check"; shown **only in the
+  driving view** (the app asks the server with context `driving` from that screen alone; the
+  server returns them only then and only within 10 miles; they can't be read from the table,
+  so Realtime never sends them); 30-minute expiry, never extended; **never on the map, and
+  never on event, cruise or meet screens** (none of those screens read road reports at all);
+  rep only once two other drivers confirm, like every other report. Nothing about speed is
+  recorded, scored or rewarded.
+* **Rep:** +10 to the reporter when two other drivers confirm a report (at most 5 a day),
+  +2 for answering "Still there?" either way (once per report, at most 10 a day). Nothing
+  for an unconfirmed report. The rep ledger shows **Road reports confirmed** and **Road
+  reports checked**.
+* **Privacy:** who made a report is never readable by anyone else (column grants; Realtime
+  payloads leave it out, checked by the smoke test). Reports are deleted two days after they
+  end; rep rows stay. Deleting your account deletes your reports and answers.
+* **Demo:** sample reports round your home area (one of each kind, a confirmed closure, and a
+  police check for the driving view), your own reports kept on the phone, and two sample
+  drivers confirm yours 20 s after you send it so the rep shows.
+* **Open data (server):** `supabase/functions/import-closures` imports TfL street closures
+  (keyless) and, once the owner adds a key, National Highways road and lane closures into
+  `road_closures` (docs/BACKEND.md). Not deployed yet.
+
+Code: `src/lib/roadReports.ts` (rules, alerts, prompts, detours; tests in
+`__tests__/roadReports.test.ts`), `roadService.ts`, `roadStore.tsx`, `backend/roads.ts`,
+`components/RoadReportControls.tsx`, `src/app/drive.tsx`, the map's layer in
+`src/app/(tabs)/index.tsx`; server in `supabase/migrations/20261117170000_road_reports.sql`
+with `supabase/tests/road_reports_test.sql`.
 
 ## Author rep for drives and photo spots
 
@@ -418,6 +484,8 @@ Anti-gaming rules:
 | Places you suggested | author rep above |
 | Trophies | 500 / 300 / 200 / 150 (see below) |
 | Each logged mod: road-legal only, each kind once per build, at most 10 per build | 20 |
+| Each road report of yours two other drivers confirmed (at most 5 a day) | 10 |
+| Each "Still there?" answer, once per report (at most 10 a day) | 2 |
 
 Level n starts at 250 × (n − 1) × n ÷ 2 rep: level 2 at 250, 3 at 750, 4 at 1,500.
 Me shows the total, level, a progress bar and the breakdown; profiles show the level.
@@ -483,7 +551,9 @@ Full reports are in `docs/research/`.
     a real iPhone, because the GitHub build is blocked by billing.
 * **Other apps, design and branding** (`competitors-design-branding.md`):
   * UK meet apps are calendars. None has classes, rep, voting or rolling meets.
-  * Never time or rank public-road routes. No police spotting.
+  * Never time or rank public-road routes. No police spotting (the owner later allowed
+    drivers' "Police / speed check" reports in the driving view only, with the safeguards in
+    "Road reports").
   * Plan how the app makes money early, since Drivetribe and Zenly both closed.
   * Don't use "Need for Speed", "NFS" or "Underground" in the name. "Nightshift"
     clashes with Apple's Night Shift feature and a 2026 UK trademark filing for

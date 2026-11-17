@@ -97,7 +97,8 @@ Work in this order. Each item ships over the air unless marked native.
    camera warnings, average-speed zones. "Go here" defaults to in-app navigation
    with a chooser for Apple Maps, Google Maps, Waze or another app ("Always
    use…" option). Includes the pending Expo patch upgrades.
-3. **Waze-style community reports** (needs the Supabase app wiring): report
+3. **Waze-style community reports** (built 17 Nov 2026, over the air; see SPEC "Road
+   reports". Open-data closures import written, not deployed: BACKEND 7d): report
    incidents from the driving view in one or two taps (crash, hazard, roadworks,
    closure, traffic jam, mobile speed camera, police — owner decision 17 Nov 2026:
    police reports are included, labelled "Police / speed check", shown only in the

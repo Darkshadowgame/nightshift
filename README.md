@@ -285,7 +285,8 @@ the demo with their data; Me > Account > **Sign in or create an account** gets y
       towns or Tamworth). Red camera pins appear, with red dashed lines for average-speed
       zones (their pin sits halfway along). Tap one: the card says the limit (e.g. **Speed
       camera · 30 mph · faces north-east**), that the data may be incomplete, and the
-      OpenStreetMap credit. Nothing to open, and nothing about police anywhere.
+      OpenStreetMap credit. Nothing to open, and nothing about police (drivers' reports are
+      a separate layer, 7e).
 - [ ] Cameras are off at first: turn them on from the layers button (or Me > Map > **Speed
       cameras**, the same setting). Zoomed out further, the pins go and a small note says
       **Zoom in to see cameras**. Cameras with no recorded limit are smaller and dimmer.
@@ -354,8 +355,7 @@ while moving: the driving screen is built to be glanced at, not used.
       roundel next to your speed, and "Speed camera ahead, 30 miles per hour". Above the
       limit, the speed box turns red with one soft chime and a buzz (not again for 10 s).
       In an average-speed zone the panel says **AVG ZONE 50 · YOURS 47 · 1.2 mi LEFT**;
-      "Average speed zone starts / ends" are spoken. Nothing is saved, and there's nothing
-      about police anywhere.
+      "Average speed zone starts / ends" are spoken. Nothing is saved.
 - [ ] Real drive (demo switch off): GPS starts when the screen opens and stops when you press
       **END** or leave the app (no background location). Take a wrong turn: after about 5
       seconds more than 50 m off the line it says "Finding a new route" and reroutes from
@@ -369,6 +369,40 @@ while moving: the driving screen is built to be glanced at, not used.
       **Always use this** and pick Waze: the main button now says **Directions in Waze**.
       Me > **Navigation** sets it back to Nightshift. Other apps get the first stop only.
 - [ ] Web preview: the driving screen says it needs the iPhone app and offers the other apps.
+
+### 7e. Road reports (over the air)
+
+Waze-style reports from drivers. In the demo there are sample reports round your home area
+and everything stays on the phone; signed in they're shared through the server.
+
+- [ ] Map > layers button > **Road reports** (off at first): coral pins for a crash, hazard,
+      roadworks, a closure, traffic and a mobile camera round your home area. **Never a
+      police report on the map.** Tap one: **CRASH · REPORTED 12 MIN AGO · CONFIRMED BY 1
+      DRIVER**, when it ends, and (demo) "Sample report for the demo".
+- [ ] Within a mile of it (or with Me > **Demo: skip the GPS check** on), the card has
+      **Still there** and **Gone**. Tap **Still there**: "Thanks. Marked as still there.",
+      the count goes up, and Me > Rep shows **Road reports checked ×1 +2**. Tap it again:
+      it says you've already answered. Further away it says you need to be within a mile.
+- [ ] Driving view (demo drive or real): a big coral **REPORT** button between VOICE and
+      END. Tap it: seven big tiles: Crash, Hazard, Roadworks, Closure, Traffic, Mobile
+      camera, **Police / speed check**. Tap one: "Thanks, reported" (with voice on) and a
+      bar **CRASH REPORTED · UNDO 5** counting down; **UNDO** takes it back. After 5 s it's
+      sent. Report again within 2 minutes: "You've just sent a report…".
+- [ ] Demo: 20 s after you report, two sample drivers confirm it, and Me > Rep shows
+      **Road reports confirmed ×1 +10**. Signed in, that needs two real drivers.
+- [ ] Route past a report (the demo drive near home goes past some): about three quarters
+      of a mile before, a coral strip **CRASH REPORTED AHEAD · 0.5 MI** and the voice says
+      "Crash reported ahead, half a mile". Just after passing it: **Crash still there?**
+      with big **YES** / **NO, GONE** (and **SKIP**); it goes by itself after 8 s.
+- [ ] Police reports show only here, in the driving view (shield pins, "Police speed check
+      reported ahead"), within 10 miles, and for 30 minutes. Not on the map, not on event,
+      cruise or meet screens.
+- [ ] A closure two other drivers confirmed (the demo has one, north-west of home), or a
+      TfL closure, on the leg you're driving: "Road closed ahead. Looking for a way round…",
+      then "Road closed ahead. Taking a way round." with a new route that keeps 100 m clear.
+      If MapKit can't find one: **Road closed ahead — follow diversion signs**.
+- [ ] Signed in, TfL closures show on the map's Road reports layer with **Powered by TfL
+      Open Data** once the import job is deployed (docs/BACKEND.md 7d: not yet).
 
 ### 8. People and crews
 
@@ -435,6 +469,10 @@ while moving: the driving screen is built to be glanced at, not used.
   tap Join. "I'll search" NEW tags in Find events are demo only.
 - Signed in, the app reads every profile, build and recent event (fine for a test group;
   see docs/BACKEND.md section 9 for what changes at scale).
+- Road reports: the server checks your distance, rate and answers, but positions are what
+  the phone says (as with check-ins). Open-data closures need the import job deployed and
+  scheduled (docs/BACKEND.md 7d); National Highways also needs a free key the owner
+  registers for. Until then only drivers' reports show.
 - Reminders are local notifications scheduled on this phone. iOS keeps up to 64, so
   the app schedules at most 48, soonest first.
 - New events near you are worked out on this phone from the sample scene, so they only
@@ -465,7 +503,7 @@ while moving: the driving screen is built to be glanced at, not used.
 - Speed cameras come from OpenStreetMap (bundled, fetched on the date in
   `src/data/cameras.ts`). Volunteers map them, so some are missing or out of date: the
   app says so and only ever shows them as speed-limit information. They are a separate
-  dataset from anything people report (there's no way to report cameras or police).
+  dataset from drivers' road reports (7e), which are never merged into it.
 - Shops on the map come from OpenStreetMap (an app asset, `assets/data/shops.nsdata`, read from the 16 Nov 2026 extract):
   21,662 UK businesses. Volunteers map them, so some are missing, closed or out of date, and only
   about one in seven has opening hours; the shop screen says so and has **Suggest an edit or a
@@ -509,6 +547,9 @@ while moving: the driving screen is built to be glanced at, not used.
 | `src/lib/notify.ts` | Thin layer over `expo-notifications`: permission, scheduling, taps that open the event (no-op on web) |
 | `src/lib/feel.ts` | Haptics for the key moments |
 | `src/lib/nav.ts`, `navPlan.ts`, `directions.ts` | Turn-by-turn engine (position on the route, ETA, when to speak, off-route, arrivals, cameras and average-speed zones ahead, speed against their limit); what a screen routes through; links for Apple Maps, Google Maps and Waze |
+| `src/lib/roadReports.ts`, `roadService.ts`, `roadStore.tsx`, `backend/roads.ts` | Road reports: kinds, expiry, what shows where (police only in the driving view), alerts ahead, "Still there?", closures and detours, demo samples; the demo and server implementations; the screens' hook and Realtime |
+| `components/RoadReportControls.tsx` | The driving view's REPORT grid, undo bar, "Still there?" prompt and alert strip |
+| `supabase/functions/import-closures/` | Open-data closures import (TfL keyless; National Highways once a key is set); `parse.ts` is pure and tested in Jest |
 | `src/app/drive.tsx`, `components/DriveMap.tsx`, `NavLaunch.tsx` | The full-screen driving view; its heading-up map; the Start navigation button and app chooser |
 | `modules/nav-directions` | Local Expo module (Swift): MapKit directions leg by leg, the en-GB voice (AVSpeechSynthesizer, ducking music) and the over-limit chime |
 | `src/components/motion.tsx` | Reanimated motion (live pulse, check-in, reveals, class-up, unlocked), all with reduced-motion versions |
@@ -516,7 +557,7 @@ while moving: the driving screen is built to be glanced at, not used.
 | `src/lib/repository.ts`, `localRepository.ts`, `localState.ts` | The Repository interface; the demo's implementation (rules on the phone); the state's shape and the demo scene's helpers |
 | `src/lib/backend/` | Signed in: `remote.ts` (SupabaseRepository: tables, RPCs, Realtime, offline cache and outbox), `mapping.ts` (rows to app types), `outbox.ts`, `feedback.ts`, `client.ts`, `config.ts` (the project URL and publishable key, both public by design) |
 | `src/lib/auth.tsx`, `authLink.ts`, `src/app/signin.tsx` | Sign in with an email code or link, the demo choice, sign out; `components/AccountSection.tsx` has Delete my account |
-| `scripts/supabase-smoke.mjs` | End-to-end test against the hosted backend as two throwaway users (docs/BACKEND.md 7c) |
+| `scripts/supabase-smoke.mjs` | End-to-end test against the hosted backend as throwaway users, road reports included (docs/BACKEND.md 7c) |
 | `src/data/seed.ts` | Demo scene: sample people and events drawn round your home area, and sample ban zones |
 | `src/data/places.ts` | Real UK circuits, sprint and hill-climb venues, drives, photo spots and meet-friendly venues (bundled) |
 | `src/data/banZones.ts` | Sample ban zones round real injunctions, PSPOs and dispersal hotspots |
@@ -546,6 +587,8 @@ while moving: the driving screen is built to be glanced at, not used.
 | Speed cameras and average-speed zones (`src/data/cameras.ts`) | OpenStreetMap `highway=speed_camera` nodes and `type=enforcement` relations, via the Overpass API | © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Kept as its own dataset, never merged with user reports. Credited on the map. |
 | Circuit outlines (`src/data/circuits.ts`), drive lines, car parks | OpenStreetMap (`highway=raceway`, motorsport `leisure=track`) | © OpenStreetMap contributors, ODbL 1.0. Credited on the track and drive maps. |
 | Shops (`assets/data/shops.nsdata`) | OpenStreetMap car and bike businesses (`shop=car_repair`, `car_parts`, `car`, `motorcycle`, `tyres`, `amenity=car_wash`, `vehicle_inspection`, biker cafés…), read from the Geofabrik UK extract of 16 Nov 2026 | © OpenStreetMap contributors, ODbL 1.0. Kept as its own dataset; edits people suggest go to the feedback queue, never into it. Credited on the map and every shop screen. |
+| Road closures (server, `road_closures`) | TfL Unified API road disruptions (London, no key); National Highways Road and Lane Closures v2 (England's motorways and major A roads, once a key is set) | TfL: its open data terms, credited "Powered by TfL Open Data" (terms not re-read for this; check before launch). National Highways: Open Government Licence v3.0. Credited on each closure. |
+| Road reports | Nightshift drivers | Kept on the server only while they're live (plus two days); never merged with the camera data |
 | Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
 | Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
 

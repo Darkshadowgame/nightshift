@@ -2,11 +2,11 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 11 migrations and the seed are applied and the 280 pgTAP checks pass
-against the hosted database. **The app is wired to it** (17 Nov 2026): signed in,
+All 12 migrations and the seed are applied and the 346 pgTAP checks pass
+against the hosted database (road reports added 17 Nov 2026, section 3a). **The app is wired to it** (17 Nov 2026): signed in,
 every store action goes to the tables and RPCs below (section 5); "Try the demo
 without an account" keeps the local sample scene. The end-to-end smoke test
-(`scripts/supabase-smoke.mjs`, section 7c) passes 41 of 41 checks as two real
+(`scripts/supabase-smoke.mjs`, section 7c) passes 61 of 61 checks as three real
 users. Sign-in emails need custom SMTP before testers other than the project team
 can get one: see section 7b, "Still to do".
 
@@ -25,6 +25,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120700_discovery.sql` | Staff read access, travel settings, new-event notices, `search_events()` |
 | `supabase/migrations/20261117120800_feedback.sql` | In-app feedback (insert-only) and the private `feedback` screenshot bucket |
 | `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
+| `supabase/migrations/20261117170000_road_reports.sql` | Community road reports: `road_reports`, `road_report_votes`, `road_rep`, the report/vote/near RPCs, `road_closures_near()`, `road_rep_for()`, Realtime on `road_reports`; extra `road_closures` columns (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
@@ -33,9 +34,10 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, staff-only reading, the screenshot bucket, the flood guard (33 checks) |
 | `supabase/tests/vehicles_test.sql` | pgTAP: what you're bringing: own builds only, going vs asking per build, changing it, check-in, awards from brought builds, the garage columns (42 checks) |
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
-| `scripts/supabase-smoke.mjs` | End to end against the hosted project as two throwaway users (section 7c) |
+| `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
+| `scripts/supabase-smoke.mjs` | End to end against the hosted project as three throwaway users (section 7c) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
-| `supabase/functions/import-closures/` | Phase 2 sketch: UK open-data road closures |
+| `supabase/functions/import-closures/` | UK open-data road closures: TfL (keyless) and National Highways (needs a key); `parse.ts` is pure and tested in Jest. Written and type-checked, **not deployed** (section 7d) |
 | `supabase/templates/otp.html` | Sign-in email that shows the 6-digit code |
 
 ## 1. Architecture
@@ -102,7 +104,10 @@ Rules of thumb:
 | `spots` | drive / photo / track / venue, `path` LineString for drives, author, pending/approved/rejected | approved ones, plus your own pending | `suggest_spot()`; approval by staff |
 | `spot_completions` | **day only** (`completed_on`), optional photo path | owner | `complete_drive()`, `visit_spot()` |
 | `spot_ratings` | 1–5 stars | owner | `rate_spot()` |
-| `road_closures` | imported closures (Phase 2) | signed-in users | import function |
+| `road_closures` | imported open-data closures: `road`, `direction`, `full_closure` (lanes only = false), line or point | signed-in users (`road_closures_near()` for the app) | import function (service role) |
+| `road_reports` | drivers' reports: kind, point (~10 m), heading, `created_by`, expiry, status, confirm/clear counts | signed-in users, **not police** and **never `created_by`** (column grants) | `report_road()`, `vote_road_report()` |
+| `road_report_votes` | one "still there" / "gone" per person per report | own answers | `vote_road_report()` (and `report_road()` merging) |
+| `road_rep` | rep from road reports (reported +10 / checked +2, 0 over the daily cap) | own rows (`road_rep_for()` gives counts for anyone) | the RPCs |
 | `feedback` | bug / idea / looks_wrong reports: message (1–4000), screen, app version, update id, device, optional screenshot path, `status` | **staff only** | anyone, signed in or not (insert only); staff set `status` or delete |
 
 The invite filter is stored as columns (`invite_everyone`, `invite_cars`,
@@ -301,6 +306,49 @@ all they can do:
   only staff read or delete there. `photo_path` must be in the sender's own
   folder. Signed-out people send text only.
 
+## 3a. Road reports (mirrors `src/lib/roadReports.ts`)
+
+Owner decision, 17 Nov 2026: police reports are allowed, labelled "Police / speed check",
+shown only in the driving view, 30 minutes, never on event, cruise or meet screens, and
+earn rep like other reports once other drivers confirm them.
+
+* **`report_road(p_kind, p_lat, p_lng, p_heading, p_from_lat, p_from_lng)`**: UK only;
+  `p_from` (where the phone is) must be within 0.5 mi of the report and is **not stored**;
+  one report every 2 minutes and 30 a day per person. The point is snapped to 4 decimal
+  places (~10 m). The same kind already reported by someone else within 150 m, heading the
+  same way (or no heading), becomes a "still there" for that report instead
+  (`{ id, merged: true }`). Returns `{ id, merged, expires_at }`. Finished reports are deleted
+  two days after they end (their rep rows stay, `report_id` set null).
+* **Expiry** (`private.road_ttl` / `road_cap`): police 30 min, mobile camera 60 min, traffic
+  30 min, hazard and crash 2 h, roadworks and closure 24 h. "Still there" sets
+  `expires_at = least(created_at + cap, greatest(expires_at, now() + ttl))`; caps 2 h, 90 min,
+  4 h, 4 h, 72 h, 72 h, and **30 min for police (never extended)**. Reports past their time are
+  marked `expired` by the RPCs as they run.
+* **`vote_road_report(p_report_id, p_vote, p_lat, p_lng)`**: active reports only, never your
+  own, one answer each, and within 1 mi of the report (the position isn't stored). Two "gone"
+  answers with no "still there" between them (ordered by `seq`) set `cleared`.
+* **`road_reports_near(p_lat, p_lng, p_radius_mi = 10, p_context = 'map')`**: active reports,
+  nearest first, at most 200, radius 0.1–50 mi, with `mine` and `my_vote`. **Police only
+  when `p_context = 'driving'`, and then only within 10 mi.** Any other context is refused.
+  The app sends `driving` from the driving view and nowhere else. The server can't know which
+  screen asked, so the other safeguards matter: police rows can't be read from the table
+  (RLS `kind <> 'police'`), so **Realtime never sends them**; the driving view re-reads every
+  minute instead.
+* **`road_closures_near(p_lat, p_lng, p_radius_mi = 10)`**: open-data closures in force now
+  (`starts_at <= now() < ends_at`), with a `path` of points for lines.
+* **Rep** (`road_rep`, `private.road_award`): +10 to the reporter the moment a report has 2
+  confirmations (`confirmed_at`, once), at most 5 paid a day (Europe/London); +2 to anyone who
+  answers, once per report, at most 10 paid a day. Over a cap the row is kept with 0 rep, so
+  the counts stay right. Nothing for unconfirmed reports; nothing ever about speed.
+  **`road_rep_for(p_user_ids)`** returns `reports_confirmed`, `reports_checked`,
+  `reported_rep`, `checked_rep`, `rep` per person (counts only) for the app's rep ledger.
+* **Who reported it** is never readable by others: `authenticated` has column-level `select`
+  on everything in `road_reports` except `created_by` (PostgREST refuses
+  `select=created_by`), and Realtime payloads leave it out (checked by the smoke test).
+* **Realtime:** `road_reports` is in `supabase_realtime`; the app listens to any change and
+  re-reads `road_reports_near()` (at most once a second).
+* **Account deletion** deletes your reports, answers and rep (cascades from `auth.users`).
+
 ## 4. RPC reference
 
 All are `supabase.rpc(name, { p_…: … })`, signed in only.
@@ -332,6 +380,11 @@ All are `supabase.rpc(name, { p_…: … })`, signed in only.
 | `save_travel_prefs(p_travel_miles, p_new_event_alerts)` | `setTravelPrefs`, and the travel fields of `saveProfile` | Same checks and sentences as `travelProblem()` / `alertProblem()`: whole miles 1–300; `notify`, `search` or `off` |
 | `search_events(p_max_miles, p_types, p_when, p_can_go_only, p_vehicles, p_from_lat, p_from_lng)` | `searchEvents()` (Find events) | All optional. Distance from **your own home** (read inside, never returned), or from the point you send **snapped to ~1 km**, to each event's rough area; nearest first, then soonest; up to 100. `p_max_miles` null = your travel distance; 1–600 (600 = the app's "Any distance"). `p_when`: `any` / `tonight` (to 5am) / `week` / `weekend` (Fri 5pm–Mon 5am), Europe/London. `p_vehicles`: `any` / `cars` / `bikes`. Returns the event fields, `role`, `can_go`, `phase`, `miles` (0.1), `shown_stop`, and `stop_name`/`stop_lat`/`stop_lng` **only for a stop you may see** (null for locked events: rough area only) |
 | `queue_due_reminders()` | (server only) | Service role only; used by `push-notices` |
+| `report_road(p_kind, p_lat, p_lng, p_heading, p_from_lat, p_from_lng)` | `roads.report` (driving view) | Section 3a. Returns `{ id, merged, expires_at }` |
+| `vote_road_report(p_report_id, p_vote, p_lat, p_lng)` | `roads.answer` ("Still there?", map card) | `still_there` / `gone`; returns `{ status, confirm_count, clear_count, expires_at }` |
+| `road_reports_near(p_lat, p_lng, p_radius_mi, p_context)` | `useRoadReports()` | `map` (default, never police) or `driving` |
+| `road_closures_near(p_lat, p_lng, p_radius_mi)` | `useRoadReports()` | Open-data closures in force, credited in the app |
+| `road_rep_for(p_user_ids uuid[])` | rep ledger ("Road reports confirmed" / "checked") | Counts only |
 
 ## 5. The app on the backend (built 17 Nov 2026)
 
@@ -388,6 +441,7 @@ never leave the server, so the host form's count comes from `invite_count()`.
 | `addToCrew` (demo only) | none: becomes an invite the other person accepts (not built yet) |
 | `markNoticesRead` | `rpc('mark_notices_read')` |
 | Send feedback | optional screenshot: upload to the `feedback` bucket at `{uid}/{uuid}.jpg` (signed in only), then `from('feedback').insert({ kind, message, screen, app_version, update_id, device, photo_path })` **without `.select()`** (senders can't read rows back, so `return=representation` fails) |
+| Road reports | Not in the Repository: `src/lib/roadStore.tsx` (`RoadsProvider`, `useRoadReports()`) picks `backend/roads.ts` signed in or `roadService.ts` (demo, AsyncStorage `nightshift.roads.demo`) |
 | `setSettings`, `markUnlockSeen`, `markLocationNoticeSeen`, `markNearbySeen` | stay on the phone (AsyncStorage) |
 | `resetDemo`, `restartDemoEvents` | local mode only |
 | `refreshReminders` | stays local until Phase 2 push |
@@ -584,6 +638,18 @@ push every other difference in `config.toml` (MFA, storage, API settings).
   signed-in run with a throwaway user (profile saved on the server, Find events from
   `search_events()`, Me > Account, Delete my account back to Sign in, user gone).
 
+### 7a-3. What's live (17 Nov 2026, road reports)
+
+* **Migration** `20261117170000_road_reports.sql` pushed with `db push --remote --yes`
+  (a `pg_dump` of `public` was taken first, kept off the repo).
+* **pgTAP:** 346 of 346 on the hosted database (the 280 above plus `road_reports_test.sql`,
+  66), and the same 346 in the local Podman harness first.
+* **Realtime publication** now also has `road_reports`.
+* **Smoke test:** 61 of 61, three throwaway users, cleanup left nothing (users, events,
+  places, feedback, files, road reports, answers or rep).
+* **Not deployed:** the `import-closures` function and its schedule (section 7d), so
+  `road_closures` is empty and the app shows drivers' reports only.
+
 ### 7c. The smoke test
 
 ```bash
@@ -609,6 +675,15 @@ empty before voting closes, `search_events`, crews, a pending suggestion only it
 author sees, notices marked read, feedback inserted without a read-back. Cleanup:
 Storage first, `delete_my_account()` for both, then a SQL sweep and a count that must
 be all zeros. It never prints a key, token or password.
+
+Road reports (a third user, C): B listens on Realtime; A reports a crash (and is refused a
+second within 2 minutes), C is refused from 3 mi away and reports a police check; B hears
+the crash on Realtime **without `created_by`** and never hears the police report; B's
+`road_reports_near` has the crash but no police for `map`, and the police check for
+`driving`; B can read the crash row but not the police row, and can't read `created_by`;
+A can't confirm their own report, B can't from 3 mi away, B confirms once (a second answer
+is refused), the reporter has no rep after one confirmation and +10 after C's, B and C +2
+each; `road_closures_near` answers; signed out is refused.
 
 ### 7b. Still to do
 
@@ -639,9 +714,11 @@ be all zeros. It never prints a key, token or password.
 2. **Signed-in check on a real iPhone:** done with real sessions by the smoke test
    and the web build; on the phone it needs the owner to sign in with the email link
    (README "Try this tomorrow", step 2). Mates need item 1 first.
-3. **`SUPABASE_ACCESS_TOKEN` expires** about 30 days after 17 Nov 2026. Make a
+3. **Open-data closures:** deploy and schedule `import-closures`, and register for a
+   National Highways key (section 7d).
+4. **`SUPABASE_ACCESS_TOKEN` expires** about 30 days after 17 Nov 2026. Make a
    new one (scoped to this project) before the next migration.
-4. Phase 2 (below) and the gaps in section 9.
+5. Phase 2 (below) and the gaps in section 9.
 
 **Phase 2 (functions and schedules), later:**
 
@@ -661,8 +738,54 @@ select cron.schedule('push-notices', '*/5 * * * *', $$
     headers := jsonb_build_object('x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')),
     body := '{}'::jsonb)
 $$);
--- import-closures: the same, every 15 minutes, once TFL_APP_KEY / NATIONAL_HIGHWAYS_KEY are set.
+-- import-closures: the same, every 15 minutes (section 7d). TfL needs no key.
 ```
+
+### 7d. Open-data closures: deploy and schedule (TODO for the owner)
+
+`supabase/functions/import-closures` is written, type-checked with Deno and its parsers are
+tested in Jest against a real TfL answer and National Highways' own examples. It is **not
+deployed**: setting the project's `CRON_SECRET` was held back for the owner (it's a new
+project secret). To turn it on:
+
+```bash
+set -a; . ~/.config/homelab-secrets.env; set +a
+# 1. A shared secret for the scheduler: generate it, keep it only in the secrets file.
+#    (Add NIGHTSHIFT_CRON_SECRET=<openssl rand -hex 32> to ~/.config/homelab-secrets.env.)
+npx supabase@3.2.0 secrets set "CRON_SECRET=$NIGHTSHIFT_CRON_SECRET" --project-ref vuftzeianmqjboivqmws
+npx supabase@3.2.0 functions deploy import-closures --use-api --project-ref vuftzeianmqjboivqmws
+# 2. Try it once (expect {"imported":{"tfl":~120},...}):
+curl -sS -X POST -H "x-cron-secret: $NIGHTSHIFT_CRON_SECRET" \
+  https://vuftzeianmqjboivqmws.supabase.co/functions/v1/import-closures
+```
+
+Then in the SQL editor: enable `pg_cron` and `pg_net`, put `functions_url`
+(`https://vuftzeianmqjboivqmws.supabase.co/functions/v1`) and `cron_secret` in Vault
+(`select vault.create_secret('<value>', 'cron_secret');`), and schedule it every 15 minutes
+with the `cron.schedule(...)` pattern in section 7 (`'*/15 * * * *'`, path
+`/import-closures`). About 2,900 calls a month, well inside the free quota. Turn it off with
+`select cron.unschedule('import-closures');`.
+
+* **TfL: on, no key.** `GET /Road/all/Street/Disruption?startDate&endDate` (50 requests a
+  minute without a key; checked 17 Nov 2026: 126 closed street segments in London, each with
+  a line). `TFL_APP_KEY`, if set, raises the limit; not needed.
+* **National Highways: wired, off until a key exists. TODO for the owner:** register on the
+  [Developer Portal](https://developer.data.nationalhighways.co.uk/) (self-service, free,
+  Open Government Licence v3.0 per the portal's API listing), subscribe to **Road and Lane
+  Closures Data Service v2**, then `npx supabase@3.2.0 secrets set NATIONAL_HIGHWAYS_KEY=…`.
+  The code calls `GET https://api.data.nationalhighways.co.uk/roads/v2.0/closures` with
+  `closureType=planned` and `unplanned`, `Ocp-Apim-Subscription-Key` and
+  `X-Response-MediaType: application/json`, follows `x-next` (at most 4 pages a type: the key
+  allows 10 calls a minute) and maps `roadClosed` / `carriagewayClosures` (or no open lanes)
+  to full closures, other lane closures to roadworks. Without a key the endpoint answers 401
+  "Invalid Subscription Key" (checked); the parser was built from the portal's published
+  examples, so check it against the first real response.
+* **Street Manager** (England's local roads) pushes through AWS SNS and needs its own
+  endpoint: not built.
+* Each run upserts by `(source, source_id)`, deletes that source's rows it didn't see again
+  (lifted early), and deletes closures that ended over a day ago. The app shows full closures
+  as **Closure** and lane closures as **Roadworks**, credited per source, and reroutes round
+  full closures only.
 
 **Local test harness used while writing this.** The SQL was checked in a
 throwaway `postgis/postgis:17-3.5` Podman container. A small stub stood in for
@@ -754,8 +877,12 @@ database (section 7a), which is the check that counts. The Edge Functions type-c
 * The Edge Functions read `SUPABASE_SERVICE_ROLE_KEY` from the runtime. With
   the new `sb_secret_` keys, check that variable is still injected. If not, use
   the secret key variable the dashboard documents.
-* TfL and National Highways endpoints in `import-closures` are sketches: check
-  them against each portal's docs before relying on them.
+* The National Highways parser in `import-closures` follows the portal's published examples;
+  check it against the first real response once a key exists (section 7d).
+* **Road report positions are client-reported**, like check-ins: the server checks distance,
+  rate and answers, but a modified client could report from anywhere. The police `driving`
+  context is likewise the app's word; the 10-mile limit, the table's RLS and the 30-minute
+  life are the server-side safeguards.
 
 ## 10. Open decisions for the owner
 
