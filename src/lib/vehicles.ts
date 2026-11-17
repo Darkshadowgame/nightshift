@@ -5,8 +5,11 @@ import type { VehicleKind } from './types';
  * compact text (one variant per line); this file parses and searches it.
  */
 
-/** t turbo petrol, d turbo diesel, n naturally aspirated, s supercharged, h hybrid or fully electric. */
-export type Aspiration = 't' | 'd' | 'n' | 's' | 'h';
+/**
+ * t turbo petrol, d turbo diesel, n naturally aspirated, s supercharged,
+ * h hybrid (full, mild or plug-in: there is still an engine to tune), e fully electric (no engine).
+ */
+export type Aspiration = 't' | 'd' | 'n' | 's' | 'h' | 'e';
 
 /** Tuner figures for one variant: total bhp after each stage. */
 export type StageFigures = Partial<Record<'stage1' | 'stage2' | 'stage2plus' | 'stage3' | 'stage4', number>>;
@@ -52,10 +55,17 @@ export interface DonorEngine {
 export const PS_TO_BHP = 0.986;
 export const KW_TO_BHP = 1.341;
 export const NM_TO_LBFT = 0.7376;
+/** kg·m (kgf·m, as Japanese catalogues quote torque) to lb-ft. */
+export const KGM_TO_LBFT = 7.233;
 /** Added to a published dry weight to estimate wet weight (fuel, oil, coolant). */
 export const DRY_TO_WET_KG = 20;
 
-const ASPS = new Set<Aspiration>(['t', 'd', 'n', 's', 'h']);
+const ASPS = new Set<Aspiration>(['t', 'd', 'n', 's', 'h', 'e']);
+
+/** Fully electric: no engine, so no remap, intake or exhaust stages. */
+export function isElectric(asp: Aspiration | undefined): boolean {
+  return asp === 'e';
+}
 
 /** "220p" (PS), "147k" (kW) or "326b" (bhp/hp) to whole bhp. */
 export function toBhp(raw: string): number | undefined {
@@ -67,12 +77,13 @@ export function toBhp(raw: string): number | undefined {
   return bhp > 0 ? Math.round(bhp) : undefined;
 }
 
-/** "350n" (Nm) or "258l" (lb-ft) to whole lb-ft. A bare number is lb-ft. */
+/** "350n" (Nm), "37k" (kg·m, JDM catalogues) or "258l" (lb-ft) to whole lb-ft. A bare number is lb-ft. */
 export function toLbFt(raw: string): number | undefined {
-  const m = /^\s*([0-9]+(?:\.[0-9]+)?)\s*([nl]?)\s*$/i.exec(raw);
+  const m = /^\s*([0-9]+(?:\.[0-9]+)?)\s*([nlk]?)\s*$/i.exec(raw);
   if (!m) return undefined;
   const n = Number(m[1]);
-  const v = m[2].toLowerCase() === 'n' ? n * NM_TO_LBFT : n;
+  const unit = m[2].toLowerCase();
+  const v = unit === 'n' ? n * NM_TO_LBFT : unit === 'k' ? n * KGM_TO_LBFT : n;
   return v > 0 ? Math.round(v) : undefined;
 }
 

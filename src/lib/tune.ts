@@ -1,5 +1,5 @@
 import { MOD_GROUPS, QUICK_MODS, type QuickMod } from '../data/catalog';
-import type { Aspiration, StageFigures } from './vehicles';
+import { isElectric, type Aspiration, type StageFigures } from './vehicles';
 import type { Mod, ModCategory, TuneStage, VehicleKind } from './types';
 
 /**
@@ -66,7 +66,33 @@ const BIKE: Record<TuneStage, StageInfo> = {
   custom: CAR_TURBO.custom,
 };
 
+/**
+ * Fully electric cars: no engine to remap, so "stages" are the maker's own paid
+ * power unlock (where one is sold) and then chassis work. No power gain is
+ * assumed without a maker figure for the variant.
+ */
+const CAR_EV: Record<TuneStage, StageInfo> = {
+  stock: CAR_TURBO.stock,
+  stage1: { includes: 'The maker\'s own paid software upgrade or power unlock, where one is sold for this car. Otherwise no power change: an EV\'s power is set by its motor and battery software.', parts: [] },
+  stage2: { includes: 'Handling, not power: performance tyres, coilovers or lowering springs and lighter wheels.', parts: ['tyres', 'coilovers', 'forged-wheels'] },
+  stage2plus: { includes: 'Stage 2 plus anti-roll bars, poly bushes and uprated pads and discs.', parts: ['tyres', 'coilovers', 'forged-wheels', 'arb', 'bushes', 'pads-discs'] },
+  stage3: { includes: 'Track set-up: semi-slicks, a big brake kit, adjustable arms and weight saving.', parts: ['semi-slicks', 'bbk', 'arms', 'buckets'] },
+  stage4: { includes: 'Specialist motor, inverter or battery work. Rare: add your own figure.', parts: [] },
+  custom: CAR_TURBO.custom,
+};
+
+const BIKE_EV: Record<TuneStage, StageInfo> = {
+  stock: CAR_TURBO.stock,
+  stage1: { includes: 'The maker\'s own paid software or ride-mode unlock, where one is sold for this bike. Otherwise no power change.', parts: [] },
+  stage2: { includes: 'Handling, not power: tyres, fork springs or cartridges and a rear shock.', parts: ['tyres', 'fork-springs', 'rear-shock'] },
+  stage2plus: { includes: 'Stage 2 plus brakes and a steering damper.', parts: ['tyres', 'fork-springs', 'rear-shock', 'pads-discs', 'braided', 'steering-damper'] },
+  stage3: { includes: 'Gearing (sprockets), lighter wheels and race bodywork.', parts: ['sprockets', 'forged-wheels', 'fairings'] },
+  stage4: { includes: 'Specialist controller or battery work. Rare: add your own figure.', parts: [] },
+  custom: CAR_TURBO.custom,
+};
+
 function infoTable(kind: VehicleKind, asp: Aspiration | undefined): Record<TuneStage, StageInfo> {
+  if (isElectric(asp)) return kind === 'bike' ? BIKE_EV : CAR_EV;
   if (kind === 'bike') return BIKE;
   if (asp === 'd') return CAR_DIESEL;
   if (asp === 'n' || asp === 'h') return CAR_NA;
@@ -86,18 +112,20 @@ export function typicalParts(kind: VehicleKind, asp: Aspiration | undefined, sta
  * Typical gain over stock for each stage, as a fraction. Conservative ends of
  * what UK tuners advertise: turbo petrol remaps make big gains, non-turbo
  * engines and bikes small ones. Hybrid and unknown engines get the cautious NA
- * figures.
+ * figures. Fully electric vehicles get nothing without a maker figure.
  */
-export const STAGE_GAINS: Record<'car-t' | 'car-d' | 'car-n' | 'car-s' | 'bike' | 'bike-s', Record<Exclude<TuneStage, 'stock' | 'custom'>, number>> = {
+export const STAGE_GAINS: Record<'car-t' | 'car-d' | 'car-n' | 'car-s' | 'bike' | 'bike-s' | 'ev', Record<Exclude<TuneStage, 'stock' | 'custom'>, number>> = {
   'car-t': { stage1: 0.2, stage2: 0.3, stage2plus: 0.38, stage3: 0.55, stage4: 0.8 },
   'car-d': { stage1: 0.22, stage2: 0.3, stage2plus: 0.35, stage3: 0.45, stage4: 0.6 },
   'car-n': { stage1: 0.04, stage2: 0.08, stage2plus: 0.12, stage3: 0.22, stage4: 0.5 },
   'car-s': { stage1: 0.1, stage2: 0.18, stage2plus: 0.24, stage3: 0.35, stage4: 0.5 },
   bike: { stage1: 0.04, stage2: 0.08, stage2plus: 0.11, stage3: 0.18, stage4: 0.35 },
   'bike-s': { stage1: 0.06, stage2: 0.12, stage2plus: 0.16, stage3: 0.25, stage4: 0.4 },
+  ev: { stage1: 0, stage2: 0, stage2plus: 0, stage3: 0, stage4: 0 },
 };
 
 function gainTable(kind: VehicleKind, asp: Aspiration | undefined) {
+  if (isElectric(asp)) return STAGE_GAINS.ev;
   if (kind === 'bike') return STAGE_GAINS[asp === 's' || asp === 't' ? 'bike-s' : 'bike'];
   if (asp === 't') return STAGE_GAINS['car-t'];
   if (asp === 'd') return STAGE_GAINS['car-d'];
@@ -129,7 +157,8 @@ const ORDER: Exclude<TuneStage, 'stock' | 'custom'>[] = ['stage1', 'stage2', 'st
 /**
  * Typical power after a stage. Tuner figures for the variant win; otherwise a
  * percentage by engine type. Never lower than the stage below it. Stock and
- * custom return no estimate (custom is the user's own number).
+ * custom return no estimate (custom is the user's own number). An EV with no
+ * maker figure stays at stock power (+0): its stages are chassis work.
  */
 export function stageEstimate(engine: StageEngine, stage: TuneStage): StageEstimate | null {
   if (stage === 'stock' || stage === 'custom' || !(engine.bhp > 0)) return null;
@@ -192,9 +221,18 @@ export function withStage(mods: Mod[], stage: TuneStage, gain: number | undefine
 // Quick-pick chips
 // ---------------------------------------------------------------------------
 
+/** Engine-group parts that still make sense without an engine. */
+const EV_DRIVETRAIN = new Set(['lsd', 'sprockets']);
+const EV_HIDDEN_GROUPS = new Set(['engine', 'intake', 'exhaust', 'turbo', 'fuel', 'cooling']);
+
+/** Chips for this vehicle. Turbo-only parts need a forced-induction engine; an EV gets chassis parts only. */
 export function quickModsFor(kind: VehicleKind, asp?: Aspiration): QuickMod[] {
   const forced = asp === 't' || asp === 'd' || asp === 's';
-  return QUICK_MODS.filter((m) => (m.for === 'both' || m.for === kind) && (!m.forced || forced || asp === undefined));
+  return QUICK_MODS.filter((m) => {
+    if (m.for !== 'both' && m.for !== kind) return false;
+    if (isElectric(asp)) return !EV_HIDDEN_GROUPS.has(m.group) || EV_DRIVETRAIN.has(m.key);
+    return !m.forced || forced || asp === undefined;
+  });
 }
 
 export function groupCategory(m: QuickMod): ModCategory {

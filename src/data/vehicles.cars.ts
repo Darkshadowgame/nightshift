@@ -1,15 +1,18 @@
 /* eslint-disable */
 /**
- * UK cars and vans: stock specs for the vehicle picker. Dataset 2026-11-17.2 (batch 2: JDM, modern classics, vans, EVs, more bikes, donors, tuner stages).
+ * UK cars and vans: stock specs for the vehicle picker. Dataset 2026-11-17.3 (batch 3: EV type, JDM kg·m torque, gaps, EVs; everyday cars are in vehicles.everyday.ts; earlier: batch 2: JDM, modern classics, vans, EVs, more bikes, donors, tuner stages).
  *
  * Format (parsed by src/lib/vehicles.ts): "@Make", "=Model", then
  * "gen|engine|years|power|weight|torque|asp[|stages]". Power is as the maker quotes it:
- * p = PS (converted to bhp x0.986), b = bhp, k = kW (x1.341). Torque n = Nm, l = lb-ft.
+ * p = PS (converted to bhp x0.986), b = bhp, k = kW (x1.341). Torque n = Nm, l = lb-ft, k = kg·m (JDM catalogues; x7.233 to lb-ft).
  * Weight kg: kerb for cars, wet for bikes; "d" = only a dry weight was published (+20 kg added).
- * asp: t turbo petrol, d diesel, n non-turbo, s supercharged, h hybrid or electric. Stages: total power after
+ * asp: t turbo petrol, d diesel, n non-turbo, s supercharged, h hybrid (full, mild or plug-in), e fully electric. Stages: total power after
  * a tuner's stage for that exact variant. "@@ENGINES": make|code|label|power|torque|asp swap donors.
  *
  * Notes:
+ *  - Batch 3: fully electric lines use asp e (was h); h is kept for full, mild and plug-in hybrids. EV tune "stages" in the app are the maker's
+ *    own paid power unlock (stage 1, only where a maker figure is published) and then chassis work, with no assumed power gain.
+ *  - Batch 3: JDM catalogue torque in kg·m is written with the k suffix (e.g. 37k) and converted x7.233 to lb-ft by the parser.
  *  - Power units: p = PS, b = bhp. Torque = standard (non-overboost) figure unless noted in gen label.
  *  - Weights: manufacturer/UK press kerb figures; van weights are typical SWB panel van kerb.
  *  - Stage figures: CSC Motors pages quote metric hp on PS baseline (written p); Wayside quotes bhp/hp at flywheel (written b).
@@ -41,7 +44,7 @@
  *  - Caterham Seven: Caterham quotes dry weights; figures as published by Caterham / UK press
  *  - Nissan Silvia / 180SX / Skyline / Stagea / Laurel / Cefiro / 300ZX (JDM lines): JDM grey imports, Japanese catalogue figures (carsensor.net); weights are the 5MT car where a manual existed, otherwise the AT car
  *  - Toyota Chaser / Mark II / Cresta / Verossa / Aristo / Soarer / Altezza / Starlet / Corolla Levin / Celica JDM / Supra MA70-JZA70: JDM grey imports (Japanese quoted figures)
- *  - Torque left empty where the only source quotes kg-m (not converted). Nm figures for S13/S14 engines come from the Wikipedia Silvia page; 180SX shares those engines (SR20DET 274n, CA18DET 225n, SR20DE 178n) - the Wikipedia SR20DET page gives 275 Nm instead
+ *  - Torque: batch 2 left it empty where the only source quoted kg-m; batch 3 fills these from the same carsensor grade pages as kg·m (k suffix, x7.233 to lb-ft). Nm figures for S13/S14 engines come from the Wikipedia Silvia page; 180SX shares those engines (SR20DET 274n, CA18DET 225n, SR20DE 178n) - the Wikipedia SR20DET page gives 275 Nm instead
  *  - Toyota Chaser JZX90 Tourer V: torque 362.8 Nm taken from the 221616.com Mark II/Cresta JZX90 Tourer V pages (same 1JZ-GTE rating, 37 kg-m on carsensor Chaser page)
  *  - Nissan Laurel C33 / Cefiro A31: RB20DET quoted at 205 PS in these cars (Skyline R32 GTS-t is 215 PS)
  *  - Nissan Laurel C35 Neo: 1450 kg is the 1998 Club S turbo; the 1999-2002 Club S turbo Type X is 1460 kg
@@ -55,14 +58,14 @@
  *  - Toyota Starlet EP82 GT: 830 kg (1989-90) and 860 kg (1994-95) catalogue figures
  *  - Lexus IS200: auto-data.net 1360 kg; cars-data.com gives 1355 kg (manual)
  *  - Suggested corrections to EXISTING lines (carsensor JDM catalogue, 5MT): Silvia "S13 K's 2.0 SR20DET" weight 1150 (file has 1220); Silvia "S15 Spec-R" 1240 (file 1250); Skyline "R32 GTS-t" Type M coupe 1260 (file 1300); Skyline "R33 GTS-t" GTS25t Type M coupe 1360 (file 1340); Skyline "R34 GT-T" 25GT turbo coupe 1410 (file 1400); 180SX "RPS13" 1991-93 Type II 1190 / 1994-95 Type X 1210 / 1996-97 Type X 1220 (file 1230). Chaser JZX100 Tourer V 1470 kg and S15 Spec-S 1200 kg confirmed
- *  - Honda/Mazda/Mitsubishi/Subaru/Daihatsu JDM lines: grey imports, Japanese catalogue figures (carsensor.net catalogue, MT grade where listed). Torque left empty where the Japanese catalogue only gives kg-m and no Nm figure was found.
+ *  - Honda/Mazda/Mitsubishi/Subaru/Daihatsu JDM lines: grey imports, Japanese catalogue figures (carsensor.net catalogue, MT grade where listed). Where the Japanese catalogue only gives kg-m, batch 3 writes it with the k suffix.
  *  - Honda Integra Type R: DC2 JDM 200 PS (UK/Euro DC2 190 PS line already present). JDM DC5 late (2004-06) catalogue says 1190 kg vs existing 1180 kg line.
  *  - Honda Civic: EG6 SiR-II weight from 1991-92 catalogue (1993-95 catalogue 1040 kg); EK4 SiR weight from 1995-96 MT catalogue.
  *  - Honda Prelude: BB4 weight from 1991-92 catalogue (1994-96 catalogue 1230 kg); carsensor lists Type S within the 1996-2000 BB6 period.
  *  - Honda CR-X Del Sol: SiR figures from the 1995-98 catalogue only.
  *  - Mazda Eunos Roadster: JDM NA (figures differ from UK MX-5 NA: 1.6 120 PS/940 kg vs 115 PS/955 kg; 1.8 130 PS/980 kg vs 131 PS/990 kg). Years are the verified catalogue periods only.
  *  - Mazda RX-7 FC "Euro" lines: ultimatespecs (market not stated; European-spec site). Its 1990 Turbo II page wrongly labels aspiration as NA.
- *  - Mazda RX-7 FD Type RS 280: 1999-2000 catalogue gives 32 kg-m only (Spirit R page gives 314 Nm for same rating) so torque left empty.
+ *  - Mazda RX-7 FD Type RS 280: 1999-2000 catalogue gives 32 kg-m only (Spirit R page gives 314 Nm for same rating); batch 3 writes the catalogue's 32 kg·m (32k).
  *  - Mitsubishi GTO: JDM grey import; torque in Nm from Wikipedia (417 Nm series 1, 427 Nm from 1993). Series-1 weight from 1990-91 catalogue; facelift weight from 1993-95 catalogue.
  *  - Mitsubishi 3000GT: UK/Euro twin-turbo 286 PS (Wikipedia); ultimatespecs weights 1730 kg (1992-95) and 1690 kg (1995-99), but it lists aspiration as single turbo/NA.
  *  - Mitsubishi Lancer Evolution: carsensor gives Evo VI as 1360 kg (existing line says 1365 kg). Evo III-V torque from Wikipedia.
@@ -91,7 +94,7 @@
  *  - Vauxhall Nova GSi: the Nova GTE was renamed GSi; figures for 1.6 GSi.
  *  - Vauxhall Astra G Coupe Turbo: ultimatespecs gives 2000-2006.
  *  - Most figures in this batch are from auto-data.net variant pages; auto-data "Hp" is metric hp, so written as p. Where auto-data gives a kerb-weight range, the lower figure is used.
- *  - VW/Audi/Cupra/BMW/Mercedes PHEVs and EVs: power and torque are system figures; asp h. Mercedes C43 W206 is a 48V mild hybrid (electric turbo), written as t.
+ *  - VW/Audi/Cupra/BMW/Mercedes PHEVs and EVs: power and torque are system figures; PHEVs asp h, EVs asp e (moved from h in batch 3). Mercedes C43 W206 is a 48V mild hybrid (electric turbo), written as t.
  *  - EV battery sizes in the engine label are the figures each maker usually advertises: usable for VW ID/Cupra Born (58/77/79 kWh); gross for Kia, Hyundai, MG, Mini, Polestar.
  *  - Hyundai Ioniq 5 N: 609 PS / 740 Nm normally, 650 PS / 770 Nm with N Grin Boost (Wikipedia). Kerb weight 2205-2235 kg (Wikipedia). Years start from auto-data production start (March 2024); Wikipedia says introduced 2023.
  *  - Kia EV6 GT: start year 2022 from Wikipedia ("released 4 October 2022"); auto-data gives 2021 for the whole EV6 range.
@@ -116,7 +119,7 @@
  *  - Ford Transit Connect: auto-data.net Panel Van L1 (SWB) figures, lower end of the kerb range
  *  - Mercedes Vito W639 facelift and W447: cars-data.com "short" (compact) panel van; years are cars-data generation ranges (W447 2014-2024 incl. 2020 facelift); 122 CDI V6 and 119 CDI are automatic
  *  - Mercedes Vito W447 111 CDI: cars-data states 230 Nm (same as the 109 CDI), which looks wrong, so torque left blank
- *  - Mercedes eVito: cars-data.com eVito Van long (no compact body), 41 kWh battery; asp h = electric
+ *  - Mercedes eVito: cars-data.com eVito Van long (no compact body), 41 kWh battery; asp e (electric)
  *  - Renault Trafic Mk3: cars-data lists all 1.6 dCi under 2014-2019; 115/140 are model-year 2014 engines, 95/120/125/145 model-year 2016 engines; Energy 125/140/145 = twin-turbo
  *  - Renault Trafic Mk3 facelift 2.0 dCi 145: cars-data quotes 146 hp (107 kW)
  *  - Vauxhall Vivaro: figures from cars-data.com Opel Vivaro (identical van, Opel badge); Opel quotes the 2.0 CDTi as 114 hp (Vauxhall sells it as "115")
@@ -156,6 +159,50 @@
  *  - Mercedes C43 W205: 367 (2014-2018) and 390 (2018-) CSC pages.
  *  - EVs (Ioniq 5 N, EV6 GT, MG4 XPower, Cupra Born, ID.3/ID.4 GTX, Mini Electric, Polestar 2, eVito) use asp h (electrified);
  *    power is the normal (non-boost) maker figure. Tesla omitted: Tesla publishes no power outputs and third-party figures conflict.
+ *  - Polestar 2 Performance Software Upgrade (maker-sold OTA, MY21-23 Long range Dual motor): Polestar UK news page says "power from 300 kW (402 bhp) to 350 kW (469 bhp)" and torque 660 -> 680 Nm. Written as 1:350k (kW is exact; = 476 PS). The 408 PS stock figure in the file is 300 kW.
+ *  - Polestar 2 MY24 (facelift, Jan 2023 production) Long range Dual motor: Polestar UK specifications page says "Performance software upgrade (increases power up to 350 kW / 476 hp, requires Long range Dual motor version)" and that it "is also available for Long range Dual motor variants without the Performance pack". Stock 310 kW / 421 hp, so stage 1 = 350k. The Performance pack car is already 350 kW, so no stage on that line.
+ *  - Polestar 2 MY24 weights are the low end of the Polestar UK ranges (SR single 1,949-2,042; LR single 2,009-2,081; LR dual 2,108-2,185; Performance pack 2,105-2,182 kg). The Polestar UK page says 70 kWh for the Standard range battery; auto-data says 69 kWh gross. Years start 2023 from the auto-data production start; neither page gives an end year.
+ *  - Polestar 2 MY21-23 single motor: auto-data figures (Standard Range 64 kWh Apr 2021-Mar 2022; Long Range 78 kWh Apr 2021-Jan 2023). These are pre-facelift FWD cars.
+ *  - VW ID.3 Pro / Pro S power upgrade (maker-sold, UK): Auto Express (Aug 2025) says VW UK's configurator lists the ID.3 Pro and Pro S at 201 bhp, with an optional paid upgrade to "the car's full potential of 228bhp", torque 265 -> 310 Nm (GBP 16.50/month, GBP 165/year or GBP 649 lifetime). The VW newsroom release confirms 150 -> 170 kW (231 PS) by "function-on-demand" outside Germany (German Pro S has 170 kW as standard). Stage written as 1:228b from the UK figure.
+ *  - VW ID.3 Pro / Pro S torque conflict: cars-data (Dutch-market pages, 204 hp 150 kW) gives 310 Nm stock; Auto Express says the UK MY25 car is 265 Nm stock (310 Nm only after the upgrade). The paid upgrade only applies to MY2025-on cars (ecomento/motor1 coverage, not fetched), while the line covers 2023-on, so 310 Nm (cars-data) was kept for the line. If you want the line to describe the MY25 upgradeable car, use 265n instead.
+ *  - VW ID.3 Pro S: cars-data lists 77 kWh (2023 model, 1,862 kg) and 79 kWh (2025 model, 1,857 kg) versions of the same 204 hp car; written as one 77 kWh line with the 77 kWh car's weight. Pro is the 59 kWh (2024 model) page, 1,715 kg. Battery sizes are VW usable figures, same as the existing ID lines.
+ *  - Cupra Born: no paid power upgrade found. The 204 -> 231 PS "e-Boost" was a factory option (Activator button), not a software purchase, and MY2025 cars reportedly got 231 PS as standard (search snippets only). Not added.
+ *  - Kia: the Kia Connect Store "Boost" upgrade is for the EV9 (not in the dataset) and reportedly Germany-only (search snippets only). No published power figure for a Kia/Hyundai/MG/Mini EV power upgrade was found.
+ *  - VW Polo GTI Edition 25: VW UK news gives 152 kW (207 PS) and 320 Nm (2,500-car limited run, 2023). Weight 1,297 kg is the Auto Express UK "minimum kerbweight"; cars-data gives 1,272 kg. UK press figure used. Years: cars-data model year 2023; ADAC (not fetched) suggests a 06/23-11/23 build, so written as 2023.
+ *  - Rover 25 GTi: Wikipedia says the 25 launched in 1999 with i/iE/iS/iL/GTi trims and "the Rover 25 GTi was discontinued" in summer 2001 when the MG ZR arrived. The 160 PS 1.8 VVC was the MG ZR 160 engine (already in the dataset), not the Rover 25 GTi. The GTi used the 145 PS 1.8 VVC; figures from auto-data "1.8 i 16V (145 Hp)", whose engine code is K18 VVC (1,090 kg, 174 Nm). No 2003-2005 Rover 25 GTi 160 exists in any source fetched.
+ *  - Ford Escort RS2000 Mk5: ultimatespecs has two Escort V RS 2000i pages: 1991-1992 (1,096 kg, already in the file) and 1992-1995 (FWD, 1,135 kg, same 150 PS / 190 Nm). Added as "Mk5 facelift". Wikipedia confirms the Sept 1992 facelift and the RS2000 4x4 that came with it.
+ *  - Ford Transit Custom MS-RT (Mk1 facelift): Auto Express "2.0 EcoBlue 185ps Low Roof MS-RT Van" lists 185 bhp (title 185 PS), 6-speed manual, minimum kerb weight 1,967 kg, no torque. Torque left empty because the Ford EcoBlue tech-spec PDF returned HTTP 503. Years 2019-2023: the 185 hp EcoBlue first appears as a 2019 model on cars-data and that van generation ends in 2023. No source gave the MS-RT launch year itself.
+ *  - Ford E-Transit Custom MS-RT (Mk2): ms-rt.com gives "210KW / 285PS". cars-data's L1H1 MS-RT van page has 2,117 kg and a 2023 model year, but it lists system power as 218 hp, which conflicts with the 286hp in its own title. Torque conflicts (cars-data 415 Nm; Auto Express double-cab van 630 Nm), so it is left empty. Auto Express gives 2,541 kg for the double-cab van; the panel-van figure is used.
+ *  - Ford Transit Custom Mk2 MS-RT diesel (ms-rt.com: 2.0 EcoBlue 150 PS 6MT and 170 PS 8AT) uses the same engines as the existing Mk2 150/170 lines. No MS-RT-specific weight was found, so not added.
+ *  - Mercedes Vito W639 facelift: cars-data's 2010 van range has only 110/113/116/122 CDI, which are all already in the file, so no missing facelift engines were found.
+ *  - Vauxhall Vivaro A (2001-2006): neither auto-data nor cars-data has a panel van page for this period, so figures are from auto-data's Opel Vivaro A "Tour" (9-seat minibus) pages. 1,927 kg is the minibus kerb weight, heavier than a panel van. auto-data names the engines 1.9 DI 82 / 1.9 DTI 101 (F9Q 762 / F9Q 760); Vauxhall sold them as 1.9 CDTi/DTi. An auto-data "1.9 DI 120 Hp / 190 Nm" entry looks wrong and was skipped.
+ *  - Vauxhall Vivaro A 2.0 CDTi 90/115: auto-data's Opel Vivaro A facelift pages only cover the 2.0 CDTi DPF from Apr 2010 to Nov 2013 (114 Hp 300 Nm; the file has 290 Nm from cars-data, so this is a conflict, not changed). No page covered the 2006-2010 non-DPF 2.0 CDTi, so the existing 2011-2014 lines were not extended.
+ *  - MG4 / Ioniq 5 / EV6 / i4 / 500e / Renault 5 / Corsa Electric: auto-data figures (auto-data "Hp" = PS, so p), using the lower figure where a kerb range is given (Ioniq 5 58 kWh 1,830-1,910; 72.6 RWD 1,910-1,990; 72.6 AWD 2,020-2,100; 77.4 RWD 1,905-2,002; 77.4 AWD 2,025-2,115; EV6 58 kWh 1,800-1,890; 77.4 RWD 1,910-2,000; AWD 2,015-2,105). Years follow auto-data production dates (Ioniq 5 77.4 kWh production started Dec 2021, so UK cars are 2022-on).
+ *  - MG4 trim naming: auto-data calls them Standard / Long / Extended Range. In the UK these are roughly SE (51 kWh), Trophy Long Range (64 kWh) and Trophy Extended Range (77 kWh).
+ *  - BMW i4 LCI M50: auto-data gives a July 2024 start with no end; the M60 that replaces it starts in July 2025, so the M50 LCI is probably 2024-2025. No maker power upgrade for the i4 was found (BMW quotes the M50's power without a boost figure on auto-data).
+ *  - Vauxhall Corsa-e (2019-2023): auto-data gives no weight, so the cars-data Opel Corsa-e page (1,455 kg, 260 Nm, same 100 kW car) was used.
+ *  - Torque unit k = kg·m (kgf·m) as printed in the Japanese catalogue; the parser converts x7.233 to lb-ft. Used only where the carsensor page gives kg·m alone; where it prints N·m (newer catalogues, e.g. Forester STi II 309 N·m) the n figure is used.
+ *  - All carsensor figures are the 5MT grade where a manual existed (weights as in the existing lines); Stagea RS Four / RS V, Laurel turbos, Aristo JZS147 and Soarer UZZ31 are 4AT-only grades.
+ *  - Torque edits: each kg·m figure is from the same carsensor grade page already used for that line (listed in the file header SOURCES), checked against power and weight on the page.
+ *  - Toyota Soarer JZZ30 2.5GT-T (1994-2001): 37 kg·m from the 1994-95 catalogue; the 1999-2001 catalogue gives 38.5 kg·m @2400 (VVT-i 1JZ), so the line could be split later.
+ *  - Integra Type R DC2: 96-spec 18.5 kg·m @7500; 98-spec and 00-spec 19 kg·m @6200 (carsensor and ja.wikipedia agree).
+ *  - Mazda RX-7 FD Type RS 280 (1999-2000): page gives 32 kg·m only, so 32k used (Spirit R page later prints 314 N·m for the same rating).
+ *  - Nissan R33 GTS25t Type M saloon and R34 25GT-t saloon torque from the skyline (saloon) pages; coupe pages show the same figures (30 / 35 kg·m).
+ *  - Integra Type R DB8 (4-door): carsensor has no 4-door Type R grade, so ja.wikipedia (infobox and engine section) used: 200 PS, torque 18.5 -> 19.0 kgf·m (96 spec -> 98 spec), 4-door weight given only as a 1,100-1,130 kg range, so the lower 1100 is used for both spec lines. 98/00-spec merged (Wikipedia: 00spec performance unchanged from 98spec).
+ *  - Prelude BA8 JDM 2.2 Si (F22B): 1991-92 5MT 1210 kg; 1994-96 5MT 1220 kg. Lower/early figure used.
+ *  - Prelude Mk4 UK lines: ultimatespecs (market not stated, European-spec site, like the existing RX-7 FC Euro lines). The 2.2 VTEC page is the 4WS car (the only 2.2 VTEC Euro page listed); ultimatespecs also lists BA8 160 PS and BB1 200 PS "Si" pages, which are the JDM cars.
+ *  - Supra MA70 UK lines: ultimatespecs 3.0i (204 PS, 1514 kg, 254 Nm, 1986-1993) and 3.0i Turbo (235 PS, 1611 kg, 344 Nm, 1988-1993); market not stated. Wikipedia A70 powertrain table lists both 7M-GE and 7M-GTE MA70 for Europe. UK sale years not separately verified.
+ *  - Celica ST185 GT-Four UK: ultimatespecs 2.0i Turbo 4WD (204 PS, 275 Nm, 1468 kg, 1990-1994). Wikipedia (citing a Toyota GB 1990 brochure) confirms only the 2.0 GT-i 16 and GT-Four were sold officially in the UK.
+ *  - Subaru Impreza GC8 WRX STi JDM: carsensor "impreza_sti" catalogue, WRX STi sedan 5MT grades. Version V and VI have identical figures (280 PS / 36 kg·m / 1270 kg) so are merged. Type RA versions (lighter) not added.
+ *  - Subaru Forester SF5 JDM: early S/tb 5MT 250 PS (1997-98); later S/tb and S/tb-STi are 240 PS 4AT; STi II Type M 5MT 250 PS / 309 N·m / 1410 kg (Dec 2000 - Jan 2002).
+ *  - Subaru Forester UK 2.0 S-Turbo: ultimatespecs gives 1380 kg for 1998-2000 and 1330 kg for 2000-2002 (lighter facelift kept as published). Engine code not given on the page, so written "2.0 turbo".
+ *  - Subaru Legacy Mk1 UK 2.0 Turbo 4WD: ultimatespecs 200 PS / 260 Nm / 1365 kg, page years 1991-1995; Wikipedia says the 2.0 turbo reached Europe and the UK in 1992 (manual only), so 1992 start used.
+ *  - Subaru Legacy UK turbo petrols beyond Mk1: Wikipedia 2nd/3rd/4th gen articles describe no officially UK-sold turbo petrol Legacy (2nd gen GT/B-Spec in the UK only as grey import; 4th gen Europe got the 2.0D turbodiesel). ultimatespecs Legacy II/III/IV lists only NA petrols (and 3.0R).
+ *  - Nissan Silvia S14 Autech Version K's MF-T: 250 PS / 28 kg·m / 1260 kg 5MT, catalogue period June 1996 - Dec 1998.
+ *  - Nissan 300ZX Z32 later JDM periods: all 280 PS / 39.6 kg·m; weights are the 5MT car per catalogue period (Aug 1992-Sep 1994, Oct 1994-Sep 1998, Oct 1998-Aug 2000). From Oct 1994 the 2-seater is sold as "Version S". Oct 1994-Dec 1996 and Jan 1997-Sep 1998 periods have the same figures, so merged.
+ *  - Method: carsensor and ultimatespecs pages were fetched with curl (raw HTML) and the spec-table cells parsed directly; Wikipedia via WebFetch and raw wikitext.
+ *  - Batch 3 not added (no fetched source or doubtful figures): VW Golf R 333 (not sold in the UK, no weight); Rover 25 GTi 160 (2003-05); Escort RS2000 4x4; Transit Custom MS-RT 187 PS and early 130/170; Mercedes Vito W639 pre-facelift (identical 1,820 kg on every page) and 2003-05 engines; Mazda RX-7 FC UK Turbo II (only the existing Euro lines); Subaru Legacy GT UK after Mk1 (grey import only); Tesla (no maker power figures).
+ *  - Batch 3 maker power unlocks: Polestar 2 Long Range Dual Motor Performance Software Upgrade 350 kW (stage 1 on MY21-23 and MY24 lines); VW ID.3 Pro / Pro S paid upgrade 150 -> 170 kW (228 bhp). No published-figure upgrade found for Cupra Born, Mini, Kia, Hyundai or MG.
  *
  * Sources checked (a sample; other figures are manufacturer figures as commonly quoted):
  *  https://www.cscmotors.com/remapping-stats/Volkswagen/golf/golf-7-2012-2016/golf-2-0-tsi-gti-220hp-5756
@@ -1134,6 +1181,88 @@
  *  https://www.cscmotors.com/remapping-stats/Volkswagen/transporter-multivan/t6-2015/transporter-multivan-2-0-tdi-cr-eur-6-84hp-6155
  *  https://www.forgemotorsport.co.uk/Hyundai_i30N_i30N_Facelift_Kona_N_Remap_Stage_1_and_2_Available--product--1757.html (checked, Kona N not given explicitly - not used)
  *  https://www.forgemotorsport.co.uk/Hyundai_i20N_Remap_Stage_1_Stage_2--product--2796.html (checked, no figures on page - not used)
+ *  https://www.autoexpress.co.uk/volkswagen/polo/prices-specs/103603/2.0-tsi-gti-edition-25-5dr-dsg
+ *  https://www.volkswagen.co.uk/en/life/news/polo-gti-edition-25.html
+ *  https://cars-data.com/en/volkswagen/polo/2021/2-0-tsi-gti-edition-25--107463/specs
+ *  https://cars-data.com/en/volkswagen/id-3/2023/59kwh-204hp-pro--109189/specs
+ *  https://autoexpress.co.uk/volkswagen/367566/forget-netflix-volkswagen-locks-horsepower-behind-paid-subscription
+ *  https://cars-data.com/en/volkswagen/id-3/2023/77kwh-204hp-pro-s--107177/specs
+ *  https://cars-data.com/en/volkswagen/id-3/2023/79kwh-204hp-pro-s-limited-edition--110655/specs
+ *  https://www.volkswagen-newsroom.com/en/press-releases/major-upgrade-for-the-id3-pre-sales-launch-with-pro-s-model-18359
+ *  https://www.ultimatespecs.com/car-specs/Ford/7097/Ford-Escort-V-RS-2000i.html
+ *  https://cars-data.com/en/ford/transit-custom/2018/l1h1-290-185hp-sport--97873/specs
+ *  https://ms-rt.com/model/ford-transit-custom-ms-rt
+ *  https://cars-data.com/en/ford/transit-custom/2023-van-4578/e-transit-custom-l1h1-286hp-ms-rt--108118/specs
+ *  https://www.auto-data.net/en/opel-vivaro-a-tour-1.9-di-82hp-26197
+ *  https://www.auto-data.net/en/opel-vivaro-a-tour-1.9-dti-101hp-26214
+ *  https://www.auto-data.net/en/opel-vivaro-a-tour-2.5-cdti-135hp-26290
+ *  https://www.auto-data.net/en/opel-vivaro-a-facelift-2006-2.5-cdti-146hp-26791
+ *  https://cars-data.com/en/opel/corsa/f-2019-hatchback-6371/11kw-launch-edition--97808/specs
+ *  https://www.auto-data.net/en/vauxhall-corsa-f-e-50-kwh-136hp-39161
+ *  https://www.auto-data.net/en/vauxhall-corsa-f-facelift-2023-50-kwh-136hp-electric-50977
+ *  https://www.auto-data.net/en/vauxhall-corsa-f-facelift-2023-51-kwh-156hp-electric-50978
+ *  https://www.auto-data.net/en/rover-25-rf-1.8-i-16v-145hp-11586
+ *  https://en.wikipedia.org/wiki/Rover_25
+ *  https://www.auto-data.net/en/polestar-2-64-kwh-224hp-standard-range-single-motor-45809
+ *  https://www.auto-data.net/en/polestar-2-78-kwh-231hp-long-range-single-motor-45810
+ *  https://www.polestar.com/uk/polestar-2/specifications/
+ *  https://www.auto-data.net/en/polestar-2-facelift-2023-69-kwh-272hp-standard-range-single-motor-47315
+ *  https://www.auto-data.net/en/polestar-2-facelift-2023-82-kwh-299hp-long-range-single-motor-47316
+ *  https://www.auto-data.net/en/mg-mg4-ev-i-51-kwh-170hp-standard-range-46259
+ *  https://www.auto-data.net/en/mg-mg4-ev-i-64-kwh-204hp-long-range-46260
+ *  https://www.auto-data.net/en/mg-mg4-ev-i-77-kwh-245hp-extended-range-54116
+ *  https://www.auto-data.net/en/hyundai-ioniq-5-standard-range-58-kwh-170hp-electric-42367
+ *  https://www.auto-data.net/en/hyundai-ioniq-5-long-range-72.6-kwh-218hp-electric-42369
+ *  https://www.auto-data.net/en/hyundai-ioniq-5-long-range-72.6-kwh-305hp-electric-awd-42370
+ *  https://www.auto-data.net/en/hyundai-ioniq-5-77.4-kwh-228hp-electric-44595
+ *  https://www.auto-data.net/en/hyundai-ioniq-5-77.4-kwh-325hp-electric-awd-44596
+ *  https://www.auto-data.net/en/kia-ev6-standard-range-58-kwh-170hp-42614
+ *  https://www.auto-data.net/en/kia-ev6-long-range-77.4-kwh-229hp-42612
+ *  https://www.auto-data.net/en/kia-ev6-long-range-77.4-kwh-325hp-awd-42613
+ *  https://www.auto-data.net/en/bmw-i4-g26-83.9-kwh-340hp-edrive40-43562
+ *  https://www.auto-data.net/en/bmw-i4-g26-m50-83.9-kwh-544hp-xdrive-43563
+ *  https://www.auto-data.net/en/bmw-i4-g26-lci-facelift-2024-m50-83.9-kwh-544hp-xdrive-51924
+ *  https://www.auto-data.net/en/bmw-i4-g26-lci-facelift-2024-m60-83.9-kwh-601hp-xdrive-54427
+ *  https://www.auto-data.net/en/fiat-500-332-e-42-kwh-118hp-42059
+ *  https://www.auto-data.net/en/fiat-500-332-e-23.8-kwh-95hp-42058
+ *  https://www.auto-data.net/en/renault-5-e-tech-electric-52-kwh-150hp-electric-51291
+ *  https://www.auto-data.net/en/renault-5-e-tech-electric-40-kwh-122hp-electric-51290
+ *  https://www.polestar.com/uk/news/polestar-2-performance-software-upgrade/
+ *  https://ja.wikipedia.org/wiki/%E3%83%9B%E3%83%B3%E3%83%80%E3%83%BB%E3%82%A4%E3%83%B3%E3%83%86%E3%82%B0%E3%83%A9%E3%82%BF%E3%82%A4%E3%83%97R
+ *  https://www.carsensor.net/catalog/honda/prelude/F002/M001G001/
+ *  https://www.carsensor.net/catalog/honda/prelude/F002/M004G001/
+ *  https://www.ultimatespecs.com/car-specs/Honda/7987/Honda-Prelude-IV-20i.html
+ *  https://www.ultimatespecs.com/car-specs/Honda/7986/Honda-Prelude-IV-23i.html
+ *  https://www.ultimatespecs.com/car-specs/Honda/7984/Honda-Prelude-IV-22i-VTEC-185HP-4WS-BB1.html
+ *  https://www.ultimatespecs.com/car-specs/Toyota/5399/Toyota-Supra-MK3-30i.html
+ *  https://en.wikipedia.org/wiki/Toyota_Supra
+ *  https://www.ultimatespecs.com/car-specs/Toyota/5398/Toyota-Supra-MK3-30i-Turbo.html
+ *  https://www.ultimatespecs.com/car-specs/Toyota/5246/Toyota-Celica-T180-20i-Turbo-4WD.html
+ *  https://en.wikipedia.org/wiki/Toyota_Celica
+ *  https://www.carsensor.net/catalog/subaru/impreza_sti/F001/M001G001/
+ *  https://www.carsensor.net/catalog/subaru/impreza_sti/F001/M002G001/
+ *  https://www.carsensor.net/catalog/subaru/impreza_sti/F001/M003G001/
+ *  https://www.carsensor.net/catalog/subaru/impreza_sti/F001/M004G001/
+ *  https://www.carsensor.net/catalog/subaru/impreza_sti/F001/M005G001/
+ *  https://www.carsensor.net/catalog/subaru/impreza_sti/F001/M006G001/
+ *  https://www.carsensor.net/catalog/subaru/forester/F001/M001G003/
+ *  https://www.carsensor.net/catalog/subaru/forester/F001/M004G011/
+ *  https://www.ultimatespecs.com/car-specs/Subaru/5724/Subaru-Forester-I-20-S-Turbo.html
+ *  https://www.ultimatespecs.com/car-specs/Subaru/5726/Subaru-Forester-I-20-S-Turbo.html
+ *  https://www.ultimatespecs.com/car-specs/Subaru/5764/Subaru-Legacy-I-20-Turbo-4WD.html
+ *  https://en.wikipedia.org/wiki/Subaru_Legacy_(first_generation)
+ *  https://www.carsensor.net/catalog/nissan/silvia/F002/M003G033/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M002G007/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M003G007/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M002G011/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M003G013/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M004G004/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M005G002/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M004G011/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M005G009/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M006G002/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M006G009/
+ *  https://www.carsensor.net/catalog/nissan/fairlady_z/F002/M006G011/
  */
 export const CAR_DATA = `
 @Volkswagen
@@ -1206,6 +1335,7 @@ Mk4 V6 4Motion|2.8 V6 24v|1999-2003|204p|1401|270n|n
 6C|1.8 TSI|2015-2017|192p|1272|320n|t|1:220p,2:230p,3:240p
 AW|2.0 TSI|2018-2021|200p|1355|320n|t|1:240p,2:250p,3:320p
 AW facelift|2.0 TSI|2021-|207p|1286|320n|t
+AW facelift Edition 25|2.0 TSI|2023|207p|1297|320n|t
 =Polo
 6R|1.2 60|2009-2014|60p|1067|108n|n
 6R|1.2 TSI 105|2009-2014|105p|1104|175n|t
@@ -1270,11 +1400,11 @@ Shooting Brake|2.0 TSI|2020-|320p|1718|420n|t
 =Tiguan R
 Mk2 facelift|2.0 TSI|2020-2023|320p|1671|420n|t
 =ID.3 GTX
-GTX|Single-motor electric 79 kWh|2024-2026|286p|1910|545n|h
-GTX Performance|Single-motor electric 79 kWh|2024-2026|326p|1925|545n|h
+GTX|Single-motor electric 79 kWh|2024-2026|286p|1910|545n|e
+GTX Performance|Single-motor electric 79 kWh|2024-2026|326p|1925|545n|e
 =ID.4 GTX
-GTX|Dual-motor electric 77 kWh|2021-2023|299p|2149|460n|h
-GTX 2023 update|Dual-motor electric 77 kWh|2023-2026|340p|2256||h
+GTX|Dual-motor electric 77 kWh|2021-2023|299p|2149|460n|e
+GTX 2023 update|Dual-motor electric 77 kWh|2023-2026|340p|2256||e
 =Caddy
 Mk3 facelift|1.6 TDI 102|2010-2015|102p|1334|250n|d
 Mk3 facelift|2.0 TDI 140|2010-2015|140p|1347|320n|d
@@ -1287,6 +1417,9 @@ Mk1|2.0 BiTDI 180 4MOTION|2010-2016|180p|1977|400n|d
 Mk1 facelift|3.0 V6 TDI 204|2016-2020|204p|2053|500n|d
 Mk1 facelift|3.0 V6 TDI 224|2016-2018|224p|2243|550n|d
 Mk1 facelift|3.0 V6 TDI 258|2018-2020|258p|2180|580n|d
+=ID.3
+Mk1 facelift Pro|Single-motor electric 59 kWh|2023-|204p|1715|310n|e|1:228b
+Mk1 facelift Pro S|Single-motor electric 77 kWh|2023-|204p|1862|310n|e|1:228b
 @Audi
 =S1
 8X|2.0 TFSI|2014-2018|231p|1315|370n|t|1:300p,2:320p,3:380p
@@ -1391,10 +1524,10 @@ VZ 333 facelift|2.0 TSI|2024-|333p|1566|420n|t
 300|2.0 TSI|2018-2020|300p|1557|400n|t
 300 facelift|2.0 TSI|2020-|300p|1551|400n|t
 =Born
-Mk1|Single-motor electric 58 kWh|2021-2024|204p|1736|310n|h
-Mk1 e-Boost|Single-motor electric 58 kWh|2021-2024|231p|1749|310n|h
-Mk1 e-Boost|Single-motor electric 77 kWh|2022-2024|231p|1871|310n|h
-VZ|Single-motor electric 79 kWh|2024-2026|326p|1999|545n|h
+Mk1|Single-motor electric 58 kWh|2021-2024|204p|1736|310n|e
+Mk1 e-Boost|Single-motor electric 58 kWh|2021-2024|231p|1749|310n|e
+Mk1 e-Boost|Single-motor electric 77 kWh|2022-2024|231p|1871|310n|e
+VZ|Single-motor electric 79 kWh|2024-2026|326p|1999|545n|e
 @Skoda
 =Octavia vRS
 Mk1|1.8T 20v|2001-2006|180p|1260|235n|t|1:210p
@@ -1465,6 +1598,8 @@ Mk2|2.0 EcoBlue 110|2023-|110p|1790|310n|d
 Mk2|2.0 EcoBlue 136|2023-|136p|1790|360n|d
 Mk2|2.0 EcoBlue 150|2023-|150p|1828|360n|d
 Mk2|2.0 EcoBlue 170|2023-|170p|1866|390n|d
+Mk1 facelift MS-RT|2.0 EcoBlue 185|2019-2023|185p|1967||d
+Mk2 E-Transit Custom MS-RT|Single-motor electric 210 kW|2023-|285p|2117||e
 =Escort RS Cosworth
 Mk5|2.0 YB turbo|1992-1996|227p|1275|300n|t
 =Sierra RS Cosworth
@@ -1475,6 +1610,7 @@ Sapphire 2WD|2.0 YB turbo|1988-1990|204p|1220|276n|t
 =Escort RS2000
 Mk5|2.0 16v DOHC|1991-1992|150p|1096|190n|n
 Mk6|2.0 16v DOHC|1995-1996|150p|1179|190n|n
+Mk5 facelift|2.0 16v DOHC|1992-1995|150p|1135|190n|n
 =Escort RS Turbo
 Series 1|1.6 CVH turbo|1985-1986|132p|861|180n|t
 Series 2|1.6 CVH turbo|1986-1990|132p|965|180n|t
@@ -1534,6 +1670,9 @@ E|1.0 Turbo 115|2014-2019|115p|1163|170n|t
 F|1.2 75|2020-|75p|1055|118n|n
 F|1.2 Turbo 100|2020-|100p|1090|205n|t
 F|1.2 Turbo 130|2020-|130p|1165|230n|t
+F Corsa-e|Single-motor electric 50 kWh|2019-2023|136p|1455|260n|e
+F facelift Electric|Single-motor electric 50 kWh 136|2023-|136p|1544|260n|e
+F facelift Electric|Single-motor electric 51 kWh 156|2023-|156p|1544|260n|e
 =Astra VXR
 H|2.0T Z20LEH|2005-2010|240p|1393|320n|t|1:265b,2:290b,3:305b
 J|2.0T A20NFT|2012-2019|280p|1475|400n|t|1:320b,2:335b,3:345b
@@ -1574,6 +1713,10 @@ C|1.5 Diesel 120|2019-2023|120p|1558|300n|d
 C|2.0 Diesel 122|2019-2023|122p|1620|340n|d
 C|2.0 Diesel 150|2019-2023|150p|1620|370n|d
 C|2.0 Diesel 180 auto|2019-2023|180p|1659|400n|d
+A|1.9 DI 82 (F9Q 762)|2001-2006|82p|1927|190n|d
+A|1.9 DTI 100 (F9Q 760)|2001-2006|101p|1927|240n|d
+A|2.5 CDTi 135|2003-2006|135p|1927|320n|d
+A 2006 facelift|2.5 CDTi 146|2006-2011|146p|1927|320n|d
 @Renault
 =Clio RS
 Clio II 172|2.0 16v F4R|2000-2004|172p|1110|200n|n|1:185p
@@ -1624,6 +1767,9 @@ Mk3|1.6 Energy dCi 145|2014-2019|145p|1725|340n|d
 Mk3 facelift|2.0 dCi 120|2019-2021|120p|1730|320n|d
 Mk3 facelift|2.0 dCi 145|2019-2021|146p|1736|350n|d
 Mk3 facelift|2.0 dCi 170|2019-2021|170p|1736|380n|d
+=5 E-Tech
+Mk1|Single-motor electric 52 kWh 150|2024-|150p|1450|245n|e
+Mk1|Single-motor electric 40 kWh 122|2024-|122p|1350|225n|e
 @Peugeot
 =205 GTi
 1.6|1.6 8v|1984-1986|105p|880|134n|n
@@ -1698,9 +1844,9 @@ R50|1.6 16v|2001-2006|115p|1050|149n|n
 R56|1.6 16v|2006-2010|120p|1065|160n|n
 F56|1.5 Turbo|2014-2024|136p|1085|220n|t|1:165p
 =Electric
-F56 Cooper SE|Single-motor electric 32.6 kWh|2019-2021|184p|1365|270n|h
-J01 Cooper SE|Single-motor electric 54.2 kWh|2024-|218p|1680|330n|h
-J01 JCW|Single-motor electric 54.2 kWh|2024-|258p|1655|350n|h
+F56 Cooper SE|Single-motor electric 32.6 kWh|2019-2021|184p|1365|270n|e
+J01 Cooper SE|Single-motor electric 54.2 kWh|2024-|218p|1680|330n|e
+J01 JCW|Single-motor electric 54.2 kWh|2024-|258p|1655|350n|e
 @Abarth
 =500
 135|1.4 T-Jet|2008-2012|135p|1110|180n|t
@@ -1724,6 +1870,8 @@ Grande Punto|1.4 8v|2006-2012|77p|1040|115n|n
 Mk1|1.2 8v|2008-2024|69p|865|102n|n
 Mk1|0.9 TwinAir 85|2010-2019|85p|930|145n|t
 Mk1|1.0 Mild Hybrid|2020-2024|70p|900|92n|h
+332 500e|Single-motor electric 42 kWh|2020-|118p|1365|220n|e
+332 500e|Single-motor electric 23.8 kWh|2020-|95p|1255|220n|e
 @Alfa Romeo
 =Giulia Quadrifoglio
 952|2.9 V6 biturbo|2016-2023|510p|1580|600n|t|1:580p
@@ -1748,15 +1896,17 @@ EK VTi|1.6 VTEC B16A2|1996-2000|160p|1090|150n|n
 FN|1.8 i-VTEC|2006-2011|140p|1205|174n|n
 FK7|1.0 VTEC Turbo|2017-2022|129p|1275|200n|t
 FK7|1.5 VTEC Turbo|2017-2022|182p|1307|240n|t
-EG6 SiR-II JDM|1.6 VTEC B16A|1991-1995|170p|1050||n
-EK4 SiR JDM|1.6 VTEC B16A|1995-2000|170p|1050||n
+EG6 SiR-II JDM|1.6 VTEC B16A|1991-1995|170p|1050|16k|n
+EK4 SiR JDM|1.6 VTEC B16A|1995-2000|170p|1050|16k|n
 Mk11 e:HEV|2.0 i-MMD hybrid|2022-2025|184p|1442|315n|h
 =Integra Type R
 DC2|1.8 VTEC B18C|1998-2001|190p|1125|178n|n
 DC5|2.0 i-VTEC K20A|2001-2006|220p|1180|206n|n
-DC2 96-spec JDM|1.8 VTEC B18C|1995-1997|200p|1060||n
-DC2 98-spec JDM|1.8 VTEC B18C|1998-1999|200p|1100||n
-DC2 00-spec JDM|1.8 VTEC B18C|1999-2001|200p|1100||n
+DC2 96-spec JDM|1.8 VTEC B18C|1995-1997|200p|1060|18.5k|n
+DC2 98-spec JDM|1.8 VTEC B18C|1998-1999|200p|1100|19k|n
+DC2 00-spec JDM|1.8 VTEC B18C|1999-2001|200p|1100|19k|n
+DB8 4-door 96-spec JDM|1.8 VTEC B18C|1995-1997|200p|1100|18.5k|n
+DB8 4-door 98-spec JDM|1.8 VTEC B18C|1998-2001|200p|1100|19k|n
 =S2000
 AP1|2.0 VTEC F20C|1999-2004|240p|1260|208n|n
 AP2|2.0 VTEC F20C|2004-2009|240p|1270|208n|n
@@ -1771,13 +1921,17 @@ CL7 JDM|2.0 i-VTEC K20A|2002-2008|220p|1390|206n|n
 =Accord Type R
 UK|2.2 VTEC H22A7|1998-2001|212p|1305|215n|n
 =Prelude
-BB4 Si VTEC JDM|2.2 VTEC H22A|1991-1996|200p|1240||n
-BB6 SiR JDM|2.2 VTEC H22A|1996-2000|200p|1260||n
-BB6 Type S JDM|2.2 VTEC H22A|1996-2000|220p|1310||n
+BB4 Si VTEC JDM|2.2 VTEC H22A|1991-1996|200p|1240|22.3k|n
+BB6 SiR JDM|2.2 VTEC H22A|1996-2000|200p|1260|22.3k|n
+BB6 Type S JDM|2.2 VTEC H22A|1996-2000|220p|1310|22.5k|n
+BA8 Si JDM|2.2 F22B|1991-1996|160p|1210|20.5k|n
+Mk4 UK|2.0 16v|1992-1996|133p|1193|179n|n
+Mk4 UK|2.3 16v|1992-1993|160p|1222|209n|n
+Mk4 UK|2.2 VTEC 4WS|1993-1995|185p|1305|212n|n
 =Beat
-PP1|0.66 MTREC E07A|1991-1996|64p|760||n
+PP1|0.66 MTREC E07A|1991-1996|64p|760|6.1k|n
 =CR-X Del Sol
-EG2 SiR JDM|1.6 VTEC B16A|1995-1998|170p|1100||n
+EG2 SiR JDM|1.6 VTEC B16A|1995-1998|170p|1100|16k|n
 @Toyota
 =GR Yaris
 Gen 1|1.6 turbo G16E-GTS|2020-2024|261p|1280|360n|t|1:310b,2:320b
@@ -1791,8 +1945,10 @@ Mk4 UK|3.0 twin-turbo 2JZ-GTE|1993-1996|326b|1550|315l|t
 Mk4 JDM RZ|3.0 twin-turbo 2JZ-GTE|1993-1996|280p|1510|431n|t
 Mk4 JDM RZ VVT-i|3.0 twin-turbo 2JZ-GTE VVT-i|1997-2002|280p|1510|451n|t
 Mk4 JDM SZ|3.0 2JZ-GE|1993-2002|225p|1450|284n|n
-MA70 3.0GT Turbo JDM|3.0 turbo 7M-GTEU|1988-1989|240p|1540||t
-JZA70 2.5GT Twin Turbo R|2.5 twin-turbo 1JZ-GTE|1990-1993|280p|1520||t
+MA70 3.0GT Turbo JDM|3.0 turbo 7M-GTEU|1988-1989|240p|1540|35k|t
+JZA70 2.5GT Twin Turbo R|2.5 twin-turbo 1JZ-GTE|1990-1993|280p|1520|37k|t
+MA70 UK 3.0i|3.0 7M-GE|1986-1993|204p|1514|254n|n
+MA70 UK 3.0i Turbo|3.0 turbo 7M-GTE|1988-1993|235p|1611|344n|t
 =GR Supra
 Mk5|3.0 turbo B58|2019-|340p|1495|500n|t|1:440b,2:475b
 Mk5|2.0 turbo B48|2020-2023|258p|1395|400n|t
@@ -1800,8 +1956,9 @@ Mk5|2.0 turbo B48|2020-2023|258p|1395|400n|t
 T23|1.8 VVT-i 1ZZ|1999-2006|143p|1070|170n|n
 T23 190|1.8 VVTL-i 2ZZ|1999-2006|192p|1115|180n|n
 ST205 GT-Four|2.0 turbo 3S-GTE|1994-1999|239b|1440|304n|t
-ST185 GT-Four JDM|2.0 turbo 3S-GTE|1989-1993|225p|1400||t
-ST205 GT-Four JDM|2.0 turbo 3S-GTE|1993-1999|255p|1380||t
+ST185 GT-Four JDM|2.0 turbo 3S-GTE|1989-1993|225p|1400|31k|t
+ST205 GT-Four JDM|2.0 turbo 3S-GTE|1993-1999|255p|1380|31k|t
+ST185 GT-Four UK|2.0 turbo 3S-GTE|1990-1994|204p|1468|275n|t
 =MR2
 SW20 GT|2.0 3S-GE|1990-1993|158b|1220|136l|n
 SW20 GT Rev3|2.0 3S-GE|1994-1999|173b|1240|137l|n
@@ -1813,14 +1970,14 @@ Mk1 T Sport|1.5 VVT-i|2001-2005|106p|950|144n|n
 Mk2 SR|1.8 VVT-i|2007-2011|133p|1105|173n|n
 =Corolla
 AE86 Levin/Trueno|1.6 16v 4A-GE|1983-1987|130p|940|149n|n
-AE101 Levin GT-Apex|1.6 20v 4A-GE silvertop|1991-1995|160p|1090||n
-AE101 Levin GT-Z|1.6 supercharged 4A-GZE|1991-1995|170p|1150||s
-AE111 Levin BZ-G|1.6 20v 4A-GE blacktop|1995-2000|165p|1020||n
-AE111 Levin BZ-R|1.6 20v 4A-GE blacktop|1997-2000|165p|1080||n
+AE101 Levin GT-Apex|1.6 20v 4A-GE silvertop|1991-1995|160p|1090|16.5k|n
+AE101 Levin GT-Z|1.6 supercharged 4A-GZE|1991-1995|170p|1150|21k|s
+AE111 Levin BZ-G|1.6 20v 4A-GE blacktop|1995-2000|165p|1020|16.5k|n
+AE111 Levin BZ-R|1.6 20v 4A-GE blacktop|1997-2000|165p|1080|16.5k|n
 =Starlet
 EP91 Glanza V|1.3 turbo 4E-FTE|1996-1999|135p|890|157n|t
-EP82 GT Turbo|1.3 turbo 4E-FTE|1989-1990|135p|830||t
-EP82 GT Turbo late|1.3 turbo 4E-FTE|1994-1995|135p|860||t
+EP82 GT Turbo|1.3 turbo 4E-FTE|1989-1990|135p|830|16k|t
+EP82 GT Turbo late|1.3 turbo 4E-FTE|1994-1995|135p|860|16k|t
 =Chaser
 JZX100 Tourer V|2.5 turbo 1JZ-GTE VVT-i|1996-2001|280p|1470|378n|t
 JZX90 Tourer V|2.5 twin-turbo 1JZ-GTE|1992-1996|280p|1450|362.8n|t
@@ -1834,14 +1991,14 @@ JZX100 Roulant G|2.5 turbo 1JZ-GTE VVT-i|1996-2001|280p|1480|377.6n|t
 =Verossa
 JZX110 VR25|2.5 turbo 1JZ-GTE VVT-i|2001-2004|280p|1520|378n|t
 =Aristo
-JZS147 3.0V|3.0 twin-turbo 2JZ-GTE|1991-1997|280p|1680||t
+JZS147 3.0V|3.0 twin-turbo 2JZ-GTE|1991-1997|280p|1680|44k|t
 JZS161 V300 Vertex|3.0 twin-turbo 2JZ-GTE|1997-2004|280p|1680|451n|t
 =Soarer
-JZZ30 2.5GT Twin Turbo|2.5 twin-turbo 1JZ-GTE|1991-1993|280p|1550||t
-JZZ30 2.5GT-T|2.5 turbo 1JZ-GTE|1994-2001|280p|1560||t
-UZZ31 4.0GT-L|4.0 V8 1UZ-FE|1994-1996|260p|1630||n
+JZZ30 2.5GT Twin Turbo|2.5 twin-turbo 1JZ-GTE|1991-1993|280p|1550|37k|t
+JZZ30 2.5GT-T|2.5 turbo 1JZ-GTE|1994-2001|280p|1560|37k|t
+UZZ31 4.0GT-L|4.0 V8 1UZ-FE|1994-1996|260p|1630|36k|n
 =Altezza
-SXE10 RS200|2.0 3S-GE|1998-2005|210p|1340||n
+SXE10 RS200|2.0 3S-GE|1998-2005|210p|1340|22k|n
 @Subaru
 =Impreza
 Classic Turbo 2000|2.0 turbo EJ20|1994-1996|208b|1235|201l|t
@@ -1851,6 +2008,11 @@ P1|2.0 turbo EJ20|2000|280p|1283|352n|t
 New Age WRX|2.0 turbo EJ205|2001-2002|218p|1405|292n|t
 New Age WRX|2.0 turbo EJ205|2003-2005|225p|1410|300n|t
 Hawkeye WRX|2.5 turbo EJ255|2006-2007|230p|1410|320n|t
+GC8 WRX STi JDM|2.0 turbo EJ20|1994-1995|250p|1220|31.5k|t
+GC8 WRX STi Version II JDM|2.0 turbo EJ20|1995-1996|275p|1240|32.5k|t
+GC8 WRX STi Version III JDM|2.0 turbo EJ20|1996-1997|280p|1250|35k|t
+GC8 WRX STi Version IV JDM|2.0 turbo EJ20|1997-1998|280p|1250|36k|t
+GC8 WRX STi Version V-VI JDM|2.0 turbo EJ20|1998-2000|280p|1270|36k|t
 =Impreza WRX STI
 New Age STI|2.0 turbo EJ207|2001-2005|265p|1470|343n|t
 Hawkeye STI|2.5 turbo EJ257|2006-2007|280p|1495|392n|t
@@ -1860,12 +2022,17 @@ VA|2.5 turbo EJ257|2014-2018|300p|1534|407n|t
 =BRZ
 Gen 1|2.0 boxer FA20|2012-2020|200p|1230|205n|n
 =Legacy
-BE5 B4 RSK JDM|2.0 twin-turbo EJ20|1998-1999|280p|1440||t
+BE5 B4 RSK JDM|2.0 twin-turbo EJ20|1998-1999|280p|1440|35k|t
 BE5 B4 RSK JDM late|2.0 twin-turbo EJ20|2001-2003|280p|1460|343n|t
-BH5 GT-B wagon JDM|2.0 twin-turbo EJ20|1998-1999|280p|1480||t
+BH5 GT-B wagon JDM|2.0 twin-turbo EJ20|1998-1999|280p|1480|35k|t
 BL5 B4 2.0GT JDM|2.0 turbo EJ20|2003-2004|280p|1410|343n|t
+Mk1 UK 2.0 Turbo 4WD|2.0 turbo|1992-1995|200p|1365|260n|t
 =Forester
 SG9 STI JDM|2.5 turbo EJ25|2004|265p|1440|378n|t
+SF5 S/tb JDM|2.0 turbo EJ20|1997-1998|250p|1350|31.2k|t
+SF5 STi II Type M JDM|2.0 turbo EJ20|2000-2002|250p|1410|309n|t
+SF S-Turbo UK|2.0 turbo|1998-2000|170p|1380|240n|t
+SF S-Turbo UK facelift|2.0 turbo|2000-2002|170p|1330|240n|t
 @Mitsubishi
 =Lancer Evolution
 Evo VI|2.0 turbo 4G63|1999-2000|280p|1365|373n|t
@@ -1895,10 +2062,10 @@ Z16A Twin Turbo JDM late|3.0 V6 twin-turbo 6G72|1998-2001|280p|1680|427n|t
 UK|3.0 V6 twin-turbo 6G72|1992-1995|286p|1730|407n|t
 UK facelift|3.0 V6 twin-turbo 6G72|1995-1999|286p|1690|407n|t
 =FTO
-GPX JDM|2.0 V6 MIVEC 6A12|1994-1996|200p|1170||n
-GP Version R JDM|2.0 V6 MIVEC 6A12|1997-1999|200p|1150||n
+GPX JDM|2.0 V6 MIVEC 6A12|1994-1996|200p|1170|20.4k|n
+GP Version R JDM|2.0 V6 MIVEC 6A12|1997-1999|200p|1150|20.4k|n
 =Galant VR-4
-EC5A JDM|2.5 V6 twin-turbo 6A13|1996-1997|280p|1480||t
+EC5A JDM|2.5 V6 twin-turbo 6A13|1996-1997|280p|1480|37k|t
 @Nissan
 =350Z
 Z33|3.5 V6 VQ35DE|2003-2005|280p|1532|363n|n
@@ -1920,13 +2087,13 @@ R34 GT-R|2.6 twin-turbo RB26DETT|1999-2002|280p|1560|392n|t
 R32 GTS-t|2.0 turbo RB20DET|1989-1993|215p|1300|265n|t
 R33 GTS-t|2.5 turbo RB25DET|1993-1998|250p|1340|294n|t
 R34 GT-T|2.5 turbo RB25DET Neo|1998-2001|280p|1400|343n|t
-R32 GTS Type S|2.0 RB20DE|1989-1991|155p|1230||n
-R32 GTS25 Type S|2.5 RB25DE|1991-1993|180p|1320||n
-R33 GTS25 Type S|2.5 RB25DE|1993-1994|200p|1320||n
-R33 GTS25t Type M saloon|2.5 turbo RB25DET|1993-1994|250p|1380||t
-R34 GT|2.0 RB20DE Neo|1998-2001|155p|1330||n
+R32 GTS Type S|2.0 RB20DE|1989-1991|155p|1230|18.8k|n
+R32 GTS25 Type S|2.5 RB25DE|1991-1993|180p|1320|23k|n
+R33 GTS25 Type S|2.5 RB25DE|1993-1994|200p|1320|23.5k|n
+R33 GTS25t Type M saloon|2.5 turbo RB25DET|1993-1994|250p|1380|30k|t
+R34 GT|2.0 RB20DE Neo|1998-2001|155p|1330|19k|n
 R34 25GT|2.5 RB25DE Neo|1998-2000|200p|1340|255n|n
-R34 25GT-t saloon|2.5 turbo RB25DET Neo|1998-2001|280p|1430||t
+R34 25GT-t saloon|2.5 turbo RB25DET Neo|1998-2001|280p|1430|35k|t
 =200SX
 S13|1.8 turbo CA18DET|1989-1994|171p|1240|225n|t
 S14|2.0 turbo SR20DET|1995-1996|200p|1255|265n|t
@@ -1938,9 +2105,10 @@ S15 Spec-S|2.0 SR20DE|1999-2002|165p|1200|191n|n
 S13 Q's|1.8 CA18DE|1988-1990|135p|1090|159n|n
 S13 K's 1.8|1.8 turbo CA18DET|1988-1990|175p|1120|225n|t
 S13 Q's|2.0 SR20DE|1991-1993|140p|1110|178n|n
-S14 Q's|2.0 SR20DE|1993-1995|160p|1160||n
+S14 Q's|2.0 SR20DE|1993-1995|160p|1160|19.2k|n
 S14 K's|2.0 turbo SR20DET|1993-1995|220p|1220|274n|t
 S14a K's|2.0 turbo SR20DET|1996-1998|220p|1240|274n|t
+S14a Autech K's MF-T|2.0 turbo SR20DET|1996-1998|250p|1260|28k|t
 =180SX
 RPS13|2.0 turbo SR20DET|1991-1998|205p|1230|274n|t
 RS13 Type II|1.8 turbo CA18DET|1989-1990|175p|1170|225n|t
@@ -1957,21 +2125,28 @@ K12 160SR|1.6 16v|2005-2010|110p|1080|153n|n
 F15 Nismo|1.6 DIG-T|2013-2014|200p|1306|250n|t
 F15 Nismo RS|1.6 DIG-T|2015-2017|218p|1315|280n|t
 =Stagea
-WGNC34 25t RS Four|2.5 turbo RB25DET|1997-1998|235p|1620||t
-WGC34 25t RS V|2.5 turbo RB25DET Neo|1998-2001|280p|1540||t
-WGNC34 25t RS Four S|2.5 turbo RB25DET Neo|1998-2001|280p|1650||t
-WGNC34 260RS Autech|2.6 twin-turbo RB26DETT|1997-2001|280p|1720||t
+WGNC34 25t RS Four|2.5 turbo RB25DET|1997-1998|235p|1620|28k|t
+WGC34 25t RS V|2.5 turbo RB25DET Neo|1998-2001|280p|1540|34k|t
+WGNC34 25t RS Four S|2.5 turbo RB25DET Neo|1998-2001|280p|1650|35k|t
+WGNC34 260RS Autech|2.6 twin-turbo RB26DETT|1997-2001|280p|1720|37.5k|t
 =Laurel
-C33 Medalist turbo|2.0 turbo RB20DET|1988-1990|205p|1380||t
-C34 25 Club S turbo|2.5 turbo RB25DET|1994-1996|235p|1430||t
-C35 25 Club S turbo|2.5 turbo RB25DET|1997-1998|235p|1440||t
-C35 25 Club S turbo Neo|2.5 turbo RB25DET Neo|1998-2002|280p|1450||t
+C33 Medalist turbo|2.0 turbo RB20DET|1988-1990|205p|1380|27k|t
+C34 25 Club S turbo|2.5 turbo RB25DET|1994-1996|235p|1430|28k|t
+C35 25 Club S turbo|2.5 turbo RB25DET|1997-1998|235p|1440|28k|t
+C35 25 Club S turbo Neo|2.5 turbo RB25DET Neo|1998-2002|280p|1450|34k|t
 =Cefiro
-A31 Sports Cruising|2.0 turbo RB20DET|1988-1990|205p|1330||t
+A31 Sports Cruising|2.0 turbo RB20DET|1988-1990|205p|1330|27k|t
 =300ZX
-Z32 JDM 2-seater|3.0 twin-turbo VG30DETT|1989-1992|280p|1510||t
-Z32 JDM 2by2 T-bar|3.0 twin-turbo VG30DETT|1989-1992|280p|1550||t
+Z32 JDM 2-seater|3.0 twin-turbo VG30DETT|1989-1992|280p|1510|39.6k|t
+Z32 JDM 2by2 T-bar|3.0 twin-turbo VG30DETT|1989-1992|280p|1550|39.6k|t
 Z32 Euro 2+2|3.0 twin-turbo VG30DETT|1990-1994|283p|1644|375n|t
+Z32 JDM 2-seater 1992-94|3.0 twin-turbo VG30DETT|1992-1994|280p|1540|39.6k|t
+Z32 JDM 2by2 T-bar 1992-94|3.0 twin-turbo VG30DETT|1992-1994|280p|1580|39.6k|t
+Z32 JDM Version S 2-seater|3.0 twin-turbo VG30DETT|1994-1998|280p|1530|39.6k|t
+Z32 JDM 2by2 T-bar 1994-98|3.0 twin-turbo VG30DETT|1994-1998|280p|1570|39.6k|t
+Z32 JDM Version S 2-seater late|3.0 twin-turbo VG30DETT|1998-2000|280p|1520|39.6k|t
+Z32 JDM 2by2 T-bar late|3.0 twin-turbo VG30DETT|1998-2000|280p|1570|39.6k|t
+Z32 JDM Version R 2by2 T-bar|3.0 twin-turbo VG30DETT|1998-2000|280p|1560|39.6k|t
 @Mazda
 =MX-5
 NA|1.6|1989-1993|115p|955|136n|n
@@ -1991,18 +2166,18 @@ ND2 RF|2.0 Skyactiv-G|2019-|184p|1080|205n|n
 FD UK|1.3 twin-rotor twin-turbo 13B-REW|1992-1995|239p|1284|294n|t
 FD JDM Type R|1.3 twin-rotor twin-turbo 13B-REW|1993-1995|255p|1260|294n|t
 FD JDM Spirit R era|1.3 twin-rotor twin-turbo 13B-REW|1999-2002|280p|1270|314n|t
-FC JDM GT-X|1.3 twin-rotor turbo 13B|1985-1989|185p|1240||t
-FC JDM GT-X S5|1.3 twin-rotor turbo 13B|1989-1991|205p|1250||t
+FC JDM GT-X|1.3 twin-rotor turbo 13B|1985-1989|185p|1240|25k|t
+FC JDM GT-X S5|1.3 twin-rotor turbo 13B|1989-1991|205p|1250|27.5k|t
 FC Turbo II Euro|1.3 twin-rotor turbo 13B|1987-1990|181p|1250|247n|t
 FC Turbo II Euro S5|1.3 twin-rotor turbo 13B|1990-1992|200p|1300|265n|t
-FD JDM Type RS 265|1.3 twin-rotor twin-turbo 13B-REW|1997-1998|265p|1280||t
-FD JDM Type RS 280|1.3 twin-rotor twin-turbo 13B-REW|1999-2000|280p|1280||t
+FD JDM Type RS 265|1.3 twin-rotor twin-turbo 13B-REW|1997-1998|265p|1280|30k|t
+FD JDM Type RS 280|1.3 twin-rotor twin-turbo 13B-REW|1999-2000|280p|1280|32k|t
 =RX-8
 SE3P 192|1.3 Renesis 13B-MSP 4-port|2003-2010|192p|1335|220n|n
 SE3P 231|1.3 Renesis 13B-MSP 6-port|2003-2010|231p|1310|211n|n
 =Eunos Roadster
-NA6CE JDM|1.6 B6-ZE|1989-1991|120p|940||n
-NA8C JDM|1.8 BP-ZE|1993-1994|130p|980||n
+NA6CE JDM|1.6 B6-ZE|1989-1991|120p|940|14k|n
+NA8C JDM|1.8 BP-ZE|1993-1994|130p|980|16k|n
 =3 MPS
 BK|2.3 DISI turbo MZR|2006-2009|260p|1485|380n|t
 BL|2.3 DISI turbo MZR|2011-2013|260p|1470|380n|t
@@ -2111,6 +2286,11 @@ E36 Compact|2.5 M52|1997-2001|170p|1330|245n|n
 E39|4.4 V8 M62|1996-2000|286p|1705|440n|n
 =330e
 G20|2.0 turbo PHEV|2019-2022|292p|1740|420n|h
+=i4
+G26 eDrive40|Single-motor electric 83.9 kWh|2021-2024|340p|2050|430n|e
+G26 M50|Dual-motor electric 83.9 kWh|2021-2024|544p|2215|795n|e
+G26 LCI M50|Dual-motor electric 83.9 kWh|2024-|544p|2215|795n|e
+G26 LCI M60|Dual-motor electric 83.9 kWh|2025-|601p|2210|795n|e
 @Mercedes
 =A35
 W177|2.0 turbo M260|2019-|306p|1480|400n|t|1:345p,2:355p
@@ -2153,7 +2333,7 @@ W447|111 CDI|2014-2024|114p|1795||d
 W447|114 CDI|2014-2024|136p|1920|330n|d
 W447|116 CDI|2014-2024|163p|1920|380n|d
 W447|119 CDI auto|2014-2024|190p|1925|440n|d
-W447 eVito|eVito 41 kWh|2019-2024|116p|2193|295n|h
+W447 eVito|eVito 41 kWh|2019-2024|116p|2193|295n|e
 @Hyundai
 =i20 N
 BC3|1.6 T-GDi|2021-2024|204p|1190|275n|t
@@ -2166,7 +2346,13 @@ PD Fastback facelift Performance|2.0 T-GDi|2021-2024|280p|1431|392n|t
 =Kona N
 OS N|2.0 T-GDi|2021-2023|280p|1510|392n|t
 =Ioniq 5 N
-N|Dual-motor electric 84 kWh|2024-|609p|2205|740n|h
+N|Dual-motor electric 84 kWh|2024-|609p|2205|740n|e
+=Ioniq 5
+Mk1 Standard Range|Single-motor electric 58 kWh|2021-2024|170p|1830|350n|e
+Mk1 Long Range|Single-motor electric 72.6 kWh|2021-2022|218p|1910|350n|e
+Mk1 Long Range AWD|Dual-motor electric 72.6 kWh|2021-2022|305p|2020|605n|e
+Mk1 Long Range|Single-motor electric 77.4 kWh|2021-2024|228p|1905|350n|e
+Mk1 Long Range AWD|Dual-motor electric 77.4 kWh|2021-2024|325p|2025|605n|e
 @Kia
 =Ceed GT
 Mk2 cee'd GT|1.6 T-GDi|2013-2018|204p|1359|265n|t
@@ -2178,7 +2364,10 @@ Mk3 ProCeed GT|1.6 T-GDi|2019-2023|204p|1475|265n|t
 GT S|3.3 V6 twin-turbo T-GDi|2018-2020|370p|1855|510n|t
 GT S facelift|3.3 V6 twin-turbo T-GDi|2021-2023|366p|1855|510n|t
 =EV6
-GT|Dual-motor electric 77.4 kWh|2022-2024|585p|2125|740n|h
+GT|Dual-motor electric 77.4 kWh|2022-2024|585p|2125|740n|e
+Mk1 Standard Range|Single-motor electric 58 kWh|2021-2024|170p|1800|350n|e
+Mk1 Long Range|Single-motor electric 77.4 kWh|2021-2024|229p|1910|350n|e
+Mk1 Long Range AWD|Dual-motor electric 77.4 kWh|2021-2024|325p|2015|605n|e
 @Porsche
 =911
 996 Carrera|3.4 flat-six|1998-2001|300p|1320|350n|n|1:320p
@@ -2293,12 +2482,17 @@ Trophy 160|1.8 VVC K-series 160|2001|160p|1035|174n|n
 135|1.8 K-series|2002-2005|136p|1105|165n|n
 160|1.8 VVC K-series|2002-2005|160p|1115|174n|n
 =MG4
-XPower|Dual-motor electric 64 kWh|2023-|435p|1800|600n|h
+XPower|Dual-motor electric 64 kWh|2023-|435p|1800|600n|e
+Standard Range|Single-motor electric 51 kWh|2022-|170p|1655|250n|e
+Long Range|Single-motor electric 64 kWh|2022-|204p|1685|250n|e
+Extended Range|Single-motor electric 77 kWh|2023-|245p|1751|350n|e
 @Rover
 =220 Coupe Turbo
 R8 Coupe|2.0 T16 turbo|1993-1994|200p|1185|237n|t
 =Mini Cooper
 Classic|1.3i A-series|1991-1996|63p|635|95n|n
+=25
+GTi|1.8 VVC K-series|1999-2001|145p|1090|174n|n
 @Alpine
 =A110
 A110|1.8 turbo M5P|2017-2021|252p|1103|320n|t
@@ -2308,7 +2502,13 @@ A110 GT|1.8 turbo M5P|2021-2025|300p|1119|340n|t
 A110 R|1.8 turbo M5P|2022-2025|300p|1082|340n|t
 @Polestar
 =2
-Long Range Dual Motor|Dual-motor electric 78 kWh|2020-2023|408p|2113|660n|h
+Long Range Dual Motor|Dual-motor electric 78 kWh|2020-2023|408p|2113|660n|e|1:350k
+Standard Range Single Motor|Single-motor electric 64 kWh|2021-2022|224p|1940|330n|e
+Long Range Single Motor|Single-motor electric 78 kWh|2021-2023|231p|1994|330n|e
+MY24 Standard range Single motor|Single-motor electric 70 kWh|2023-|272p|1949|490n|e
+MY24 Long range Single motor|Single-motor electric 82 kWh|2023-|299p|2009|490n|e
+MY24 Long range Dual motor|Dual-motor electric 82 kWh|2023-|421p|2108|740n|e|1:350k
+MY24 Long range Dual motor Performance pack|Dual-motor electric 82 kWh|2023-|476p|2105|740n|e
 @@ENGINES
 Volkswagen|AGU|1.8T 20v (Golf GTI Mk4)|150p|210n|t
 Volkswagen|AUQ|1.8T 20v (Golf GTI Mk4 25th Anniversary)|180p|235n|t

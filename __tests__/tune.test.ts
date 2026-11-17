@@ -82,6 +82,38 @@ describe('stage estimates: bikes', () => {
   });
 });
 
+describe('stage estimates: electric', () => {
+  const ev = { kind: 'car' as const, bhp: 402, asp: 'e' as const };
+  test('no maker figure: no power gain at any stage', () => {
+    for (const st of ['stage1', 'stage2', 'stage2plus', 'stage3', 'stage4'] as const) {
+      expect(stageEstimate(ev, st)).toEqual({ bhp: 402, gain: 0, source: 'typical' });
+    }
+  });
+  test('a maker software unlock is used, and later stages keep it', () => {
+    const unlock = { ...ev, stages: { stage1: 469 } };
+    expect(stageEstimate(unlock, 'stage1')).toEqual({ bhp: 469, gain: 67, source: 'tuner' });
+    expect(stageEstimate(unlock, 'stage3')!.bhp).toBe(469);
+  });
+  test('EV stages are software unlock then chassis work, never engine parts', () => {
+    const engineWords = /remap|intake|induction|exhaust|turbo|downpipe|intercooler|flash|slip-on|cams|injector/i;
+    for (const kind of ['car', 'bike'] as const) {
+      for (const st of TUNE_STAGES) {
+        expect([kind, st, engineWords.test(stageIncludes(kind, 'e', st))]).toEqual([kind, st, false]);
+        const powerParts = typicalParts(kind, 'e', st).filter((p) => ['engine', 'intake', 'exhaust', 'turbo', 'fuel', 'cooling'].includes(p.group) && p.key !== 'sprockets');
+        expect(powerParts).toEqual([]);
+        expect(typicalParts(kind, 'e', st).every((p) => p.for === 'both' || p.for === kind)).toBe(true);
+      }
+    }
+    expect(stageIncludes('car', 'e', 'stage1')).toMatch(/software|unlock/i);
+    expect(stageIncludes('car', 'e', 'stage2')).toMatch(/tyres/i);
+    expect(typicalParts('car', 'e', 'stage2').map((p) => p.key)).toEqual(expect.arrayContaining(['tyres', 'coilovers']));
+  });
+  test('hybrids still have an engine to tune', () => {
+    expect(stageIncludes('car', 'h', 'stage1')).toMatch(/remap/i);
+    expect(stageEstimate({ kind: 'car', bhp: 242, asp: 'h' }, 'stage1')!.gain).toBeGreaterThan(0);
+  });
+});
+
 describe('stage as a mod', () => {
   test('names round-trip', () => {
     for (const st of TUNE_STAGES) {
@@ -126,6 +158,15 @@ describe('quick-pick mods', () => {
     expect(car).not.toContain('slip-on');
     expect(bike).toEqual(expect.arrayContaining(['flash', 'slip-on', 'quickshifter', 'rearsets', 'tail-tidy', 'steering-damper']));
     expect(bike).not.toContain('coilovers');
+  });
+  test('an EV gets chassis chips only (plus a diff)', () => {
+    const ev = quickModsFor('car', 'e').map((m) => m.key);
+    expect(ev).toEqual(expect.arrayContaining(['coilovers', 'tyres', 'bbk', 'splitter', 'wrap', 'lsd']));
+    for (const k of ['remap', 'induction', 'downpipe', 'intercooler', 'hpfp', 'e85', 'clutch', 'oil-cooler', 'cat-back']) expect(ev).not.toContain(k);
+    const bike = quickModsFor('bike', 'e').map((m) => m.key);
+    expect(bike).toEqual(expect.arrayContaining(['sprockets', 'fork-springs', 'rearsets']));
+    expect(bike).not.toContain('slip-on');
+    expect(bike).not.toContain('flash');
   });
   test('turbo-only parts are hidden for non-turbo engines', () => {
     expect(quickModsFor('car', 'n').map((m) => m.key)).not.toContain('intercooler');

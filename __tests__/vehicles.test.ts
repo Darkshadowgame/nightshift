@@ -2,6 +2,7 @@ import {
   familyFor,
   findDonor,
   guessVariant,
+  isElectric,
   makesFor,
   matchScore,
   modelLabel,
@@ -71,6 +72,21 @@ describe('units', () => {
     expect(toLbFt('350n')).toBe(258);
     expect(toLbFt('258l')).toBe(258);
     expect(toLbFt('x')).toBeUndefined();
+  });
+  test('JDM kg·m converts to lb-ft (x7.233)', () => {
+    expect(toLbFt('37k')).toBe(268);
+    expect(toLbFt('16k')).toBe(116);
+    expect(toLbFt('16.0K')).toBe(116);
+  });
+});
+
+describe('electric', () => {
+  test('e parses as fully electric; h stays hybrid', () => {
+    const list = parseVehicles('@Polestar\n=2\nLR|Dual-motor electric 78 kWh|2020-2023|408p|2113|660n|e|1:476p\n@VW\n=Golf GTE\nMk8|1.4 TSI eHybrid|2020-2024|245p|1549|400n|h', 'car');
+    expect(list.map((v) => v.asp)).toEqual(['e', 'h']);
+    expect(isElectric(list[0].asp)).toBe(true);
+    expect(isElectric(list[1].asp)).toBe(false);
+    expect(list[0].stages).toEqual({ stage1: 469 });
   });
 });
 
