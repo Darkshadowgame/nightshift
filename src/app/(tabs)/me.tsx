@@ -5,12 +5,13 @@ import { AppUpdates } from '../../components/AppUpdates';
 import { Pin } from '../../components/Pin';
 import { TravelPrefs } from '../../components/TravelPrefs';
 import { LevelTag, RepPanel, useRep } from '../../components/Rep';
-import { Button, Card, Row, Section, Txt } from '../../components/ui';
+import { Button, Card, Chip, Row, Section, Txt } from '../../components/ui';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { travelOf } from '../../lib/discover';
 import { isHost, phaseOf } from '../../lib/events';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../../lib/notify';
 import { CAMERA_CAVEAT } from '../../lib/cameras';
+import { DIRECTIONS_APPS } from '../../lib/directions';
 import { clearLaps } from '../../lib/lapStore';
 import { plural } from '../../lib/format';
 import { SPOT_LABELS } from '../../lib/spots';
@@ -196,6 +197,33 @@ export default function Me() {
           hint={`Fixed speed cameras and average-speed zones from OpenStreetMap (© OpenStreetMap contributors, ODbL), shown once you zoom in to driving distance. Speed limits, never police positions. ${CAMERA_CAVEAT}`}
           value={settings.cameras}
           onChange={(v) => setSettings({ cameras: v })}
+        />
+      </Section>
+
+      <Section title="Navigation">
+        <Card>
+          <Txt>Start navigation opens</Txt>
+          <Row>
+            {DIRECTIONS_APPS.map((a) => (
+              <Chip key={a.id} label={a.label} on={(settings.directionsApp ?? 'nightshift') === a.id} onPress={() => setSettings({ directionsApp: a.id })} colour={C.neon} />
+            ))}
+          </Row>
+          <Txt v="muted" style={{ fontSize: 12 }}>
+            Nightshift guides you turn by turn in the app, with a voice and speed camera alerts. The others open that app instead. Any screen&apos;s
+            &quot;Open in another app&quot; still lets you pick each time.
+          </Txt>
+        </Card>
+        <Toggle
+          label="Spoken directions"
+          hint="Reads each turn out with a British voice, turning music down while it speaks. The mute button on the driving screen turns it off for one trip."
+          value={settings.navVoice !== false}
+          onChange={(v) => setSettings({ navVoice: v })}
+        />
+        <Toggle
+          label="Speed camera alerts while navigating"
+          hint={`Says when a fixed camera or an average-speed zone is about half a mile ahead on your route, with its limit. Speed limits only, never police. ${CAMERA_CAVEAT}`}
+          value={settings.navCameraAlerts !== false}
+          onChange={(v) => setSettings({ navCameraAlerts: v })}
         />
       </Section>
 

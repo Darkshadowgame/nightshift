@@ -2,6 +2,7 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { NightMap } from '../../components/NightMap';
+import { NavLaunch } from '../../components/NavLaunch';
 import { Pin } from '../../components/Pin';
 import { SuggestMissing } from '../../components/SuggestMissing';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
@@ -11,7 +12,7 @@ import { demoPartners, partnerBadge, type Partner } from '../../lib/partners';
 import { CATEGORY_LABELS, type ShopCategory } from '../../lib/shopCategories';
 import { useShopIndex } from '../../lib/shopData';
 import { isLegacyShopId } from '../../lib/shopCodec';
-import { directionsLinks, formatPhone, phoneLink, safeWebLink, SHOP_CAVEAT, websiteLabel } from '../../lib/shops';
+import { formatPhone, phoneLink, safeWebLink, SHOP_CAVEAT, websiteLabel } from '../../lib/shops';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
@@ -85,7 +86,6 @@ export default function ShopScreen() {
   const hours = parseOpeningHours(listing.hours);
   const state = hours ? openState(hours, now) : null;
   const web = safeWebLink(listing.website);
-  const links = directionsLinks(listing.at, listing.name);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 48 }}>
@@ -140,14 +140,7 @@ export default function ShopScreen() {
       </View>
 
       <Section title="Get there">
-        <Row style={{ flexWrap: 'nowrap' }}>
-          <View style={{ flex: 1 }}>
-            <Button label="Apple Maps" kind="neon" onPress={() => open(links.apple)} accessibilityLabel={`Directions to ${listing.name} in Apple Maps`} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Button label="Waze" kind="ghost" onPress={() => open(links.waze)} accessibilityLabel={`Directions to ${listing.name} in Waze`} />
-          </View>
-        </Row>
+        <NavLaunch target={{ kind: 'place', name: listing.name, lat: listing.at.lat, lng: listing.at.lng }} to={listing.at} />
         {web || listing.phone ? (
           <Row style={{ flexWrap: 'nowrap' }}>
             {web && !p?.demo ? (

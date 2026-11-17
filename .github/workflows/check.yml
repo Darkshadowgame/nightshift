@@ -25,6 +25,11 @@ jobs:
           for f in modules/plate-redactor/ios/PlateRedactor.podspec modules/plate-redactor/ios/PlateRedactorModule.swift; do
             git ls-files --error-unmatch "$f" > /dev/null || { echo "::error::$f is missing, so iPhone builds would ship without plate blurring."; exit 1; }
           done
+      - name: Navigation module is in git
+        run: |
+          for f in modules/nav-directions/expo-module.config.json modules/nav-directions/index.ts modules/nav-directions/ios/NavDirections.podspec modules/nav-directions/ios/NavDirectionsModule.swift; do
+            git ls-files --error-unmatch "$f" > /dev/null || { echo "::error::$f is missing, so iPhone builds would ship without turn-by-turn navigation."; exit 1; }
+          done
       - run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit

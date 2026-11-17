@@ -27,6 +27,13 @@ npx tsc --noEmit        # typecheck
 2. Download `Nightshift-unsigned.ipa` from the run's artifacts.
 3. Install it with Sideloadly using your Apple ID, as with Caristini.
 
+**Navigation needs a new IPA.** Turn-by-turn navigation (step 7d) adds a native module
+(`modules/nav-directions`) and `expo-keep-awake`, so it changes the app's runtime
+fingerprint. Build and install a fresh IPA. Over-the-air updates published after the
+navigation commit only reach installs built from it or later; an older install keeps
+the last update that fitted it and shows "needs the iPhone app" if it ever reaches
+the driving screen.
+
 ## Try this tomorrow
 
 A checklist for a first proper go on a real iPhone. Tick things off as you go and
@@ -254,8 +261,51 @@ note anything odd for the next pass. Each step says what you should see.
       shows just those.
 - [ ] Tap a shop: the card says its kinds and, where the hours are tagged, **Open now ·
       closes 17:30** or **Closed · opens …**. **Open shop ›**: hours for the week, website
-      and **Call** buttons where tagged, **Apple Maps** and **Waze** open directions to it,
-      and **Suggest an edit or a missing shop** saves a note for the team.
+      and **Call** buttons where tagged, **Start navigation** (step 7d) with **Open in another
+      app ›** for Apple Maps, Google Maps or Waze, and **Suggest an edit or a missing shop**
+      saves a note for the team.
+
+### 7d. Turn-by-turn navigation (new IPA needed)
+
+Set the route up before you set off, mount the phone in a cradle, and don't touch it
+while moving: the driving screen is built to be glanced at, not used.
+
+- [ ] Open any drive, track, venue, photo spot or shop: **Start navigation** (**Navigate the
+      drive** on drives) under the map, with **Open in another app ›** under it. On an
+      event you're going to, the button shows once its stops are revealed to you: a
+      cruise goes through every stop you can see, in order; a rolling meet only to the
+      stop it's at now; a meet to the spot.
+- [ ] Tap it at home with Me > **Demo: skip the GPS check** on: the driving screen opens full
+      screen, says **Planning the route… N of M legs** for longer routes, then drives the
+      route for you at four times the speed (**DEMO DRIVE · 4× SPEED**). You should see the
+      big arrow and distance at the top, the street, the map turning so your direction is
+      up, and hear "Starting route to …" in a British voice with music turned down.
+- [ ] The voice says each turn at 1 mile (after a long straight), a quarter of a mile,
+      200 yards and at the turn, and "You've reached …" / "You've arrived at …" at stops.
+      **VOICE ON / OFF** mutes it for this trip; Me > **Navigation** > **Spoken directions**
+      turns it off for good.
+- [ ] Bottom panel: your speed (MPH), the next stop with its distance and arrival time, and
+      the final stop's when there's more than one.
+- [ ] Route a drive or shop past a speed camera (the Cameras layer on the map shows where
+      they are): about half a mile before, **CAMERA IN 0.4 mi · 30 MPH**, a red-ringed 30
+      roundel next to your speed, and "Speed camera ahead, 30 miles per hour". Above the
+      limit, the speed box turns red with one soft chime and a buzz (not again for 10 s).
+      In an average-speed zone the panel says **AVG ZONE 50 · YOURS 47 · 1.2 mi LEFT**;
+      "Average speed zone starts / ends" are spoken. Nothing is saved, and there's nothing
+      about police anywhere.
+- [ ] Real drive (demo switch off): GPS starts when the screen opens and stops when you press
+      **END** or leave the app (no background location). Take a wrong turn: after about 5
+      seconds more than 50 m off the line it says "Finding a new route" and reroutes from
+      where you are through the stops still to come.
+- [ ] Cruise or meet: at a stop with check-in, once you've stopped the screen offers **Check in
+      at …** (with the usual distance and time checks). Drives: each checkpoint is called out
+      ("Checkpoint 3 of 12"), and passing them all in order counts the drive just like
+      **Start drive** (pass or fail, never timed).
+- [ ] **Open in another app ›**: Nightshift, Apple Maps, Google Maps (the app if installed,
+      else the website), Waze, or **Other app…** (share sheet with the coordinates). Turn on
+      **Always use this** and pick Waze: the main button now says **Directions in Waze**.
+      Me > **Navigation** sets it back to Nightshift. Other apps get the first stop only.
+- [ ] Web preview: the driving screen says it needs the iPhone app and offers the other apps.
 
 ### 8. People and crews
 
@@ -354,6 +404,12 @@ note anything odd for the next pass. Each step says what you should see.
 - Nearby photos come from Wikimedia Commons when you open a place (only the place's
   coordinates are sent) and are kept for a week. Commons' own geotags decide what shows.
 - Plate blurring needs the iPhone app; the web preview can't detect plates.
+- Navigation uses Apple's directions (MapKit). Only coordinates are sent to Apple, one leg
+  between two points at a time; Apple limits how many a phone can ask for in a minute, so
+  long drives are routed through at most 30 of their checkpoints and a busy minute is
+  retried with a wait. It needs a signal to plan or re-plan a route, works only while the
+  app is open, and has no lane guidance, traffic or road speed limits: the limit shown is
+  a camera's or an average-speed zone's, from OpenStreetMap, and only near them.
 - The web preview uses a flat stand-in map and has no notifications or haptics.
 
 ## Code map
@@ -377,6 +433,9 @@ note anything odd for the next pass. Each step says what you should see.
 | `src/lib/reminders.ts` | Which reminders an event needs (reveal, 30 min before, moved on), what to schedule or cancel, and what lands in the in-app list |
 | `src/lib/notify.ts` | Thin layer over `expo-notifications`: permission, scheduling, taps that open the event (no-op on web) |
 | `src/lib/feel.ts` | Haptics for the key moments |
+| `src/lib/nav.ts`, `navPlan.ts`, `directions.ts` | Turn-by-turn engine (position on the route, ETA, when to speak, off-route, arrivals, cameras and average-speed zones ahead, speed against their limit); what a screen routes through; links for Apple Maps, Google Maps and Waze |
+| `src/app/drive.tsx`, `components/DriveMap.tsx`, `NavLaunch.tsx` | The full-screen driving view; its heading-up map; the Start navigation button and app chooser |
+| `modules/nav-directions` | Local Expo module (Swift): MapKit directions leg by leg, the en-GB voice (AVSpeechSynthesizer, ducking music) and the over-limit chime |
 | `src/components/motion.tsx` | Reanimated motion (live pulse, check-in, reveals, class-up, unlocked), all with reduced-motion versions |
 | `src/lib/store.tsx` | All state, saved on the phone. The one layer to swap for Supabase |
 | `src/data/seed.ts` | Demo scene: sample people and events drawn round your home area, and sample ban zones |

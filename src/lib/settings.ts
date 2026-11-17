@@ -1,3 +1,4 @@
+import type { DirectionsApp } from './directions';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
 
 /** App settings, kept on the phone. */
@@ -30,11 +31,18 @@ export interface Settings {
   spectatorTracks?: boolean;
   /** Set once Shops and Speed cameras moved under "More" and went off by default (Nov 2026). */
   moreLayersOff?: boolean;
+  /** Where "Start navigation" goes. Nightshift's own driving view unless you chose "Always use" another app. */
+  directionsApp: DirectionsApp;
+  /** Driving view: spoken instructions. */
+  navVoice: boolean;
+  /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
+  navCameraAlerts: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: false, trackVehicles: ['car', 'bike'],
   shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true,
+  directionsApp: 'nightshift', navVoice: true, navCameraAlerts: true,
 };
 
 /**

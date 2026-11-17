@@ -6,6 +6,7 @@ import { CommonsStrip } from '../../components/CommonsStrip';
 import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
+import { NavLaunch } from '../../components/NavLaunch';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { Stars } from '../../components/Stars';
 import { TrackPanel } from '../../components/TrackPanel';
@@ -171,6 +172,14 @@ function SpotDetail({ spot }: { spot: Spot }) {
       {zones.map((zone) => (
         <ZoneNotice key={zone.id} zone={zone} />
       ))}
+
+      {!pending ? (
+        <NavLaunch
+          target={{ kind: 'spot', id: spot.id }}
+          to={spot.kind === 'drive' && checkpoints.length ? checkpoints[0] : spot.at}
+          label={spot.kind === 'drive' ? 'Navigate the drive' : 'Start navigation'}
+        />
+      ) : null}
 
       {pending ? (
         <Card>

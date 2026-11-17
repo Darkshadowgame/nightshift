@@ -10,10 +10,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.nightshift.ios",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Nightshift uses your location to show events and builds near you and to check you in at meets and cruise stops.",
+        "NSLocationWhenInUseUsageDescription": "Nightshift uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
         "NSPhotoLibraryUsageDescription": "Nightshift uses your photos so you can add pictures of your build.",
         "NSCameraUsageDescription": "Nightshift uses the camera so you can photograph your build.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["comgooglemaps", "waze"]
       },
       "icon": "./assets/icon.png"
     },
@@ -41,7 +42,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Nightshift uses your location to show events and builds near you and to check you in at meets and cruise stops."
+          "locationWhenInUsePermission": "Nightshift uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open."
         }
       ],
       [

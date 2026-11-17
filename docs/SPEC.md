@@ -15,7 +15,7 @@ with the focus on modified builds.
 | Class letter (S/A/B/C/D) per build | Swipe-to-match, follows, DMs |
 | Map with game-style pins: events, photo spots, drives, tracks | Crew chat |
 | Events: cruise, rolling meet, meet, show, track day | Badges; leaderboards beyond track times (never for public roads) |
-| Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Drive mode, camera alerts while driving and hazards, push-to-talk |
+| Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Hazard reports, push-to-talk (turn-by-turn and camera alerts are built: see "Driving view") |
 | Co-hosts and crew-owned events | Real push notifications (need a paid Apple developer account) |
 | RSVP, check-in, timed reveal, rolling "Move on" | Backend sync between phones (Supabase, next step) |
 | Event chat (local only for now) | Sign in with Apple |
@@ -296,6 +296,57 @@ Code: `src/lib/shopCategories.ts` (kinds and OSM tag rules), `shopCodec.ts`, `sh
 `shopData.ts`, `openingHours.ts`, `partners.ts`, with tests in `__tests__/shops.test.ts`,
 `openingHours.test.ts` and `shopData.test.ts`. Data: `scripts/fetch-shops.mjs`
 (`scripts/shops-from-pbf.py` when Overpass is down).
+
+## Driving view: turn-by-turn navigation (built, Nov 2026)
+
+Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 3 and 7
+(camera sites from a database are legal in the UK; no police positions; Apple 1.4.4 and
+1.4.5; reg 110 hand-held phone use) and the App Store notes.
+
+* **Entry points:** **Start navigation** on events (once their stops are revealed to you: a
+  cruise through every stop you can see, in order; a rolling meet only to the stop it's at
+  now; a meet to the spot), drives (**Navigate the drive**: to the start, then through the
+  checkpoints), tracks, venues, photo spots and shops. It opens Nightshift's driving view by
+  default. **Open in another app ›** offers Apple Maps, Google Maps (app, else website), Waze
+  or the share sheet, with **Always use this**; Me > **Navigation** changes the default.
+  Other apps get the first stop's coordinates only, never a stop or event name.
+* **Directions:** Apple MapKit (`MKDirections`, driving, no alternatives), one request per
+  leg, chained in order, two at a time, retried with backoff when Apple throttles. Only
+  coordinates are sent. Long drives route through at most 30 of their checkpoints.
+* **Guidance:** a big arrow, distance and instruction; spoken at 1 mile (after a long
+  straight), a quarter of a mile, 200 yards and at the turn, in an en-GB voice that ducks
+  other audio. Miles and yards. Off the route (over 50 m, or the GPS accuracy if worse, for
+  over 5 s, or heading the wrong way along it) it reroutes from where you are through the
+  stops still to come, at most every 20 s. Arrival is per stop: cruise and meet stops with
+  check-in offer **Check in** once you've stopped; drive checkpoints are called out, and
+  passing all of them in order counts the drive exactly like **Start drive** (pass or fail).
+* **Cameras and zones:** fixed cameras within 40 m of the route and up to about half a mile
+  ahead (a camera tagged as facing across your road is left out), and average-speed zones
+  driven in their own direction. Spoken as "Speed camera ahead, 30 miles per hour" and
+  "Average speed zone starts / ends". In a zone the panel shows your running average
+  through it. Your GPS speed is compared with the camera's or zone's limit only (there's no
+  road speed-limit data); above it the speed box turns red with one soft chime and a buzz,
+  at most every 10 s. On by default; Me > Navigation turns the alerts off.
+
+**Safety rules for the driving view** (code-level, keep them):
+
+1. **Nothing about speed or time is stored, scored, ranked or shared.** Speed is shown live
+   and thrown away. The zone average lives only while you're in the zone. No "fastest",
+   no trip times, no leaderboards. A drive finished by navigation records the day only.
+2. **Speed-limit information only:** cameras and zones are OpenStreetMap data with the
+   caveat and credit; never police positions, never user reports of police.
+3. **Minimal interaction while moving:** no panning, zooming or menus on the map; two big
+   buttons (voice, **END**); check-in only appears once you've stopped. Large text, dark.
+   Set the route before setting off; the phone belongs in a cradle (reg 110).
+4. **Foreground only:** GPS runs while the driving screen is open and the app is in front;
+   leaving the app or pressing END stops it. No background location permission.
+5. **Over the limit is a warning, never a reward:** red and one chime, no sounds or visuals
+   that celebrate speed. The demo drive (Me > Demo: skip the GPS check) never counts.
+
+Code: `src/lib/nav.ts` (engine, tests in `__tests__/nav.test.ts` with a fixture route),
+`navPlan.ts`, `directions.ts`, `src/app/drive.tsx`, `components/DriveMap.tsx`,
+`NavLaunch.tsx`, and the native module `modules/nav-directions` (Swift: MapKit directions,
+AVSpeechSynthesizer, system chime). Needs a new IPA (the fingerprint changes).
 
 ## Author rep for drives and photo spots
 

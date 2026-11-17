@@ -47,6 +47,12 @@ jobs:
       - name: Plate blurring module is present
         run: |
           test -f modules/plate-redactor/ios/PlateRedactor.podspec || { echo "::error::modules/plate-redactor/ios is missing: the app would ship without plate blurring."; exit 1; }
+
+      - name: Navigation module is present
+        run: |
+          for f in modules/nav-directions/expo-module.config.json modules/nav-directions/ios/NavDirections.podspec modules/nav-directions/ios/NavDirectionsModule.swift; do
+            test -f "$f" || { echo "::error::$f is missing: the app would ship without turn-by-turn navigation."; exit 1; }
+          done
       - run: npm ci
 
       - name: Typecheck and test
@@ -79,6 +85,12 @@ jobs:
       - name: Install CocoaPods
         working-directory: ios
         run: pod install
+
+      - name: Local native modules are linked
+        run: |
+          for pod in PlateRedactor NavDirections; do
+            grep -q "$pod" ios/Podfile.lock || { echo "::error::$pod was not linked by autolinking."; exit 1; }
+          done
 
       - name: Find workspace and scheme
         run: |

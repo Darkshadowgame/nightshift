@@ -8,6 +8,7 @@ import { allAwards, hasLegend } from '../../lib/awards';
 import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
+import { NavLaunch } from '../../components/NavLaunch';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Stat, Txt, s as ui } from '../../components/ui';
 import { areaRadius } from '../../lib/area';
@@ -15,6 +16,7 @@ import { broughtBuild, buildLine, canGoWith, checkInBuild, chosenBuild, classMix
 import { classOf } from '../../lib/classes';
 import { canChangePlan, canChangeVehicle, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf, viewEvent } from '../../lib/eventView';
+import { planForEvent } from '../../lib/navPlan';
 import { isSeedEvent } from '../../lib/demoTime';
 import { countdown, eventClock, unlocksIn } from '../../lib/hud';
 import { feel } from '../../lib/feel';
@@ -115,6 +117,8 @@ export default function EventScreen() {
     ev.type === 'cruise' && mapPins.length > 1 ? [{ id: 'route', coords: mapPins.map((p) => p.at), colour, dashed: true }] : [];
   const anyVisible = mapPins.length > 0;
   const closed = phase === 'over' || phase === 'cancelled';
+  // Start navigation: through the stops you can see (a rolling meet: only the one it's at now).
+  const navPlan = !closed && !guestView ? planForEvent(ev, me, crews, now) : null;
 
   async function doCheckIn() {
     setError(null);
@@ -452,6 +456,7 @@ export default function EventScreen() {
             {canPlan ? (
               <Button label="Change the plan" kind="ghost" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} />
             ) : null}
+            {navPlan ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navPlan.stops[0].at} /> : null}
             <Row style={{ flexWrap: 'nowrap' }}>
               {going && !host ? (
                 <Button

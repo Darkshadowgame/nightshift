@@ -65,6 +65,7 @@ function Gate() {
         <Stack.Screen name="crew/new" options={{ title: 'START A CREW', presentation: 'modal' }} />
         <Stack.Screen name="notifications" options={{ title: 'NOTIFICATIONS' }} />
         <Stack.Screen name="find" options={{ title: 'FIND EVENTS' }} />
+        <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
       </Stack.Protected>
     </Stack>
   );
