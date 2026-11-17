@@ -101,37 +101,3 @@ describe('where to', () => {
     await expect(searchDestinations('somewhere')).rejects.toBeInstanceOf(SearchError);
   });
 });
-
-describe('live suggestions', () => {
-  test('without the build 11 module: null, so the screen uses the geocoder', async () => {
-    const { suggestDestinations, liveSearchAvailable } = jest.requireActual('../src/lib/location') as typeof import('../src/lib/location');
-    expect(liveSearchAvailable).toBe(false);
-    await expect(suggestDestinations('tesco tamworth')).resolves.toBeNull();
-  });
-});
-
-describe('live suggestions on build 11', () => {
-  test('suggests, then resolves to two readable lines', async () => {
-    const searchPlaces = jest.fn().mockResolvedValue([{ id: '1:0', title: 'Tesco Extra', subtitle: 'Ventura Park Road, Tamworth' }]);
-    const resolvePlace = jest.fn().mockResolvedValue({
-      lat: 52.62, lng: -1.72, name: 'Tesco Extra', street: 'Ventura Park Road', streetNumber: '', district: '', city: 'Tamworth',
-      subregion: '', region: '', postalCode: 'B78 3HB', isoCountryCode: 'GB', country: 'United Kingdom',
-    });
-    let mod!: typeof import('../src/lib/location');
-    jest.isolateModules(() => {
-      jest.doMock('../modules/nav-directions', () => ({ placeSearchAvailable: true, searchPlaces, resolvePlace }));
-      mod = require('../src/lib/location');
-    });
-    const near = { lat: 52.6, lng: -1.7 };
-    const list = await mod.suggestDestinations('  tesco  tamworth ', near);
-    expect(searchPlaces).toHaveBeenCalledWith('tesco tamworth', near);
-    expect(list).toHaveLength(1);
-    await expect(mod.resolveSuggestion(list![0])).resolves.toEqual({
-      at: { lat: 52.62, lng: -1.72 },
-      name: 'Tesco Extra',
-      address: 'Ventura Park Road, Tamworth, B78 3HB',
-    });
-    resolvePlace.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'ERR_PLACE_STALE' }));
-    await expect(mod.resolveSuggestion(list![0])).rejects.toThrow('That result has gone. Search again.');
-  });
-});

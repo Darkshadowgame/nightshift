@@ -4,7 +4,6 @@ import { ScrollView, View } from 'react-native';
 import { AccountSection } from '../components/AccountSection';
 import { AppUpdates } from '../components/AppUpdates';
 import { TravelPrefs } from '../components/TravelPrefs';
-import { VoicePicker } from '../components/VoicePicker';
 import { Button, Card, Chip, ConfirmBox, InlineError, LinkText, Row, Section, ToggleRow, Txt } from '../components/ui';
 import { CAMERA_CAVEAT } from '../lib/cameras';
 import { DIRECTIONS_APPS } from '../lib/directions';
@@ -136,7 +135,6 @@ export default function SettingsScreen() {
             value={settings.navVoice !== false}
             onValueChange={(v) => setSettings({ navVoice: v })}
           />
-          {settings.navVoice !== false ? <VoicePicker /> : null}
           <ToggleRow
             label="Speed camera alerts"
             hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."

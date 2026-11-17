@@ -1,7 +1,6 @@
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import { placeSearchAvailable, resolvePlace, searchPlaces as appleSuggestions, type PlaceSuggestion } from '../../modules/nav-directions';
-import { inUk, MIN_QUERY, placeLabel, searchQuery, tidyHits, townLabel, type PlaceHit } from './placeNames';
+import { inUk, placeLabel, searchQuery, tidyHits, townLabel, type PlaceHit } from './placeNames';
 import type { LatLng } from './types';
 import { destinationLabel, tidyDestinations, whereQueries, type Destination } from './whereTo';
 
@@ -105,40 +104,6 @@ export async function searchDestinations(raw: string, limit = 5): Promise<Destin
     out.push({ at: c.at, ...destinationLabel(parts, typed) });
   }
   return out;
-}
-
-/** "Where to?" can suggest shops and businesses as you type (build 11 on); older builds use the geocoder. */
-export const liveSearchAvailable = placeSearchAvailable;
-
-export type { PlaceSuggestion };
-
-/**
- * Apple's live suggestions (addresses, shops, businesses), biased to where you
- * are or else the UK. Null when this build hasn't got them: use
- * searchDestinations(). Throws SearchError when the lookup failed.
- */
-export async function suggestDestinations(raw: string, near?: LatLng | null): Promise<PlaceSuggestion[] | null> {
-  const q = raw.trim().replace(/\s+/g, ' ');
-  if (!placeSearchAvailable) return null;
-  if (q.length < MIN_QUERY) return [];
-  try {
-    return (await appleSuggestions(q, near ?? null)) ?? null;
-  } catch {
-    throw new SearchError("Couldn't search just now. Check your signal and try again.");
-  }
-}
-
-/** A suggestion's position and two readable lines. Throws SearchError if Apple can't find it now. */
-export async function resolveSuggestion(s: PlaceSuggestion): Promise<Destination> {
-  let r: Awaited<ReturnType<typeof resolvePlace>> = null;
-  try {
-    r = await resolvePlace(s.id);
-  } catch (e) {
-    const stale = (e as { code?: string } | null)?.code === 'ERR_PLACE_STALE';
-    throw new SearchError(stale ? 'That result has gone. Search again.' : "Couldn't find that place. Try another result.");
-  }
-  if (!r || !Number.isFinite(r.lat) || !Number.isFinite(r.lng)) throw new SearchError("Couldn't find that place. Try another result.");
-  return { at: { lat: r.lat, lng: r.lng }, ...destinationLabel(r, s.title) };
 }
 
 /** A short name for a point, e.g. "Ventura Park Rd, Tamworth". Null if unknown or offline. */

@@ -112,6 +112,7 @@ Work in this order. Each item ships over the air unless marked native.
    consistency, copy and flow once 1–3 have landed, then a fix pass.
 5. **Sat nav fixes (owner test of build #10)**: the driving map faces the right way
    (GPS course when moving, else compass, eased) and centres on you; **Find › Where to?**
-   for any address with recent places, Home and Work (over the air). Native, build #11:
-   pick a better voice (Enhanced or Premium) in Settings, and shop and business search
-   with MapKit's autocomplete.
+   for any address with recent places, Home and Work (over the air, v1.0.34). Native, on
+   branch `native-voice-search`, not merged (the owner stays on build #10 for now): pick a
+   better voice (Enhanced or Premium) in Settings, and shop and business search with
+   MapKit's autocomplete. Merging it changes the fingerprint and needs a new IPA.

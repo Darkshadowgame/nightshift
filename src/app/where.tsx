@@ -3,7 +3,7 @@ import { ActivityIndicator, Keyboard, ScrollView, TextInput, View } from 'react-
 import { NavLaunch } from '../components/NavLaunch';
 import { NightMap } from '../components/NightMap';
 import { Card, InlineError, LinkText, ListRow, Row, Section, Tag, Txt, s as ui } from '../components/ui';
-import { currentPosition, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
+import { currentPosition, searchDestinations, SearchError } from '../lib/location';
 import { useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import {
@@ -20,32 +20,20 @@ import {
 } from '../lib/whereTo';
 import { BRAND, C, RADIUS } from '../theme';
 
-/** Wait for typing to stop: Apple's suggestions are quick, the geocoder slower. */
-const DEBOUNCE_MS = liveSearchAvailable ? 300 : 600;
-
-/** One row of results: a place from the geocoder, or one of Apple's suggestions (resolved on tap). */
-interface Hit {
-  key: string;
-  title: string;
-  subtitle: string;
-  dest?: Destination;
-  suggestion?: PlaceSuggestion;
-}
+const DEBOUNCE_MS = 600;
 const SLOTS: SavedSlot[] = ['home', 'work'];
 
 /**
  * "Where to?": search any address, postcode or place (UK first, abroad too),
  * see it on the map, then Go here: Nightshift's own turn-by-turn, or the app
  * chosen with "Always use…". Recent places, Home and Work stay on this phone.
- * Build 11 on, Apple's live suggestions (MapKit) find shops and businesses too;
- * older builds use the geocoder. Only Apple sees what's typed; nothing is logged.
+ * Only Apple's geocoder sees what's typed; nothing is logged.
  */
 export default function WhereTo() {
   const { settings, updatePlaces } = useStore();
   const places = savedPlaces(settings.places);
   const [text, setText] = useState('');
-  const [hits, setHits] = useState<Hit[]>([]);
-  const [opening, setOpening] = useState<string | null>(null);
+  const [hits, setHits] = useState<Destination[]>([]);
   const [state, setState] = useState<'idle' | 'searching' | 'none' | 'error'>('idle');
   const [error, setError] = useState('');
   const [picked, setPicked] = useState<Destination | null>(null);
@@ -71,17 +59,9 @@ export default function WhereTo() {
     }
     const t = setTimeout(async () => {
       setState('searching');
-      setError('');
       try {
-        // Apple's suggestions when this build has them; the geocoder when it hasn't, they fail or find nothing.
-        const live = await suggestDestinations(text, here).catch(() => null);
+        const found = await searchDestinations(text);
         if (mine !== seq.current) return;
-        let found: Hit[] = (live ?? []).map((x) => ({ key: x.id, title: x.title, subtitle: x.subtitle, suggestion: x }));
-        if (found.length === 0) {
-          const geo = await searchDestinations(text);
-          if (mine !== seq.current) return;
-          found = geo.map((d) => ({ key: `${d.at.lat},${d.at.lng}`, title: d.name, subtitle: [d.address, distanceNote(here, d.at)].filter(Boolean).join(' · '), dest: d }));
-        }
         setHits(found);
         setState(found.length ? 'idle' : 'none');
       } catch (e) {
@@ -92,22 +72,7 @@ export default function WhereTo() {
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-    // `here` only biases the search: a fix arriving shouldn't search again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
-
-  async function open(h: Hit) {
-    if (h.dest) return pick(h.dest);
-    if (!h.suggestion || opening) return;
-    setOpening(h.key);
-    try {
-      pick(await resolveSuggestion(h.suggestion));
-    } catch (e) {
-      setError(e instanceof SearchError ? e.message : "Couldn't find that place. Try another result.");
-    } finally {
-      setOpening(null);
-    }
-  }
 
   function pick(d: Destination) {
     Keyboard.dismiss();
@@ -159,17 +124,16 @@ export default function WhereTo() {
       ) : searching ? (
         <View style={{ gap: 8 }}>
           {state === 'none' ? <Txt v="muted">Nothing found. Try the full address, a postcode or a town.</Txt> : null}
-          {error ? <InlineError message={error} /> : null}
-          {hits.map((h) => (
+          {state === 'error' ? <InlineError message={error} /> : null}
+          {hits.map((d) => (
             <ListRow
-              key={h.key}
+              key={`${d.at.lat},${d.at.lng}`}
               glyph="destination"
               colour={BRAND}
-              title={h.title}
-              subtitle={h.subtitle}
-              onPress={() => open(h)}
-              right={opening === h.key ? <ActivityIndicator color={C.fog} /> : undefined}
-              accessibilityLabel={`${h.title}. ${h.subtitle}`}
+              title={d.name}
+              subtitle={subtitle(d)}
+              onPress={() => pick(d)}
+              accessibilityLabel={`${d.name}. ${subtitle(d)}`}
             />
           ))}
         </View>
@@ -213,7 +177,7 @@ export default function WhereTo() {
           </Section>
         </>
       )}
-      <Txt v="caption">Search uses Apple Maps. Your recent places, Home and Work stay on this phone.</Txt>
+      <Txt v="caption">Search uses Apple Maps. What you search for, Home and Work stay on this phone.</Txt>
     </ScrollView>
   );
 }

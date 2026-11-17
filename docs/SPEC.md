@@ -352,9 +352,8 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
   leg, chained in order, two at a time, retried with backoff when Apple throttles. Only
   coordinates are sent. Long drives route through at most 30 of their checkpoints.
 * **Guidance:** a big arrow, distance and instruction; spoken at 1 mile (after a long
-  straight), a quarter of a mile, 200 yards and at the turn, in a voice that ducks other
-  audio: the best installed British voice (Premium, then Enhanced, then standard), or the one
-  picked in Me › Settings › Navigation with its speed and a sample (build 11 on, `voices.ts`). Miles and yards. Off the route (over 50 m, or the GPS accuracy if worse, for
+  straight), a quarter of a mile, 200 yards and at the turn, in an en-GB voice that ducks
+  other audio. Miles and yards. Off the route (over 50 m, or the GPS accuracy if worse, for
   over 5 s, or heading the wrong way along it) it reroutes from where you are through the
   stops still to come, at most every 20 s. Arrival is per stop: cruise and meet stops with
   check-in offer **Check in** once you've stopped; drive checkpoints are called out, and
@@ -399,10 +398,8 @@ Nightshift as an everyday sat nav: **Find › Where to?** searches any address, 
 place (UK first, then anywhere), shows it on the map, and **Go here** starts the driving view
 (or the app picked with **Always use this**). Recent places (10, with **Clear**), **Home** and
 **Work** are kept in the phone's settings only. Lookups go to Apple's geocoder alone
-(expo-location), and from build 11 Apple's MapKit autocomplete (`MKLocalSearchCompleter`,
-then `MKLocalSearch` for the chosen one) so shops and businesses are found too; searches are
-never logged or sent to our server. Code: `src/lib/whereTo.ts`, `src/lib/location.ts`,
-`src/app/where.tsx`, `modules/nav-directions`.
+(expo-location); searches are never logged or sent to our server. Code: `src/lib/whereTo.ts`,
+`src/lib/location.ts`, `src/app/where.tsx`.
 
 ## Road reports (built, 17 Nov 2026)
 

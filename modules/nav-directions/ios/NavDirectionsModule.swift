@@ -6,15 +6,10 @@ import MapKit
 /// Driving directions and spoken instructions for the in-app driving view.
 /// - `route` asks Apple MapKit for driving directions leg by leg through the points, in order.
 ///   Only coordinates are sent: no names, addresses, account or event details.
-/// - `speak` / `stopSpeaking` read instructions out, ducking other audio: the voice picked in
-///   Settings, or the best installed en-GB voice (premium > enhanced > default).
-/// - `voices` lists the installed English voices for that picker.
+/// - `speak` / `stopSpeaking` read instructions out with an en-GB voice, ducking other audio.
 /// - `chime` plays a short system sound (it follows the ring/silent switch).
-/// - `searchPlaces` / `resolvePlace`: "Where to?" autocomplete (MKLocalSearchCompleter) and the
-///   chosen suggestion's position (MKLocalSearch). What's typed goes to Apple only; nothing is logged.
 public class NavDirectionsModule: Module {
   private lazy var speaker = NavSpeaker()
-  private lazy var places = NavPlaceSearch()
 
   public func definition() -> ModuleDefinition {
     Name("NavDirections")
@@ -48,32 +43,9 @@ public class NavDirectionsModule: Module {
       }
     }
 
-    AsyncFunction("speak") { (text: String, language: String, rate: Double, respectSilentSwitch: Bool, voice: String?) -> Bool in
-      self.speaker.speak(text, language: language, rate: Float(rate), respectSilentSwitch: respectSilentSwitch, voiceId: voice)
+    AsyncFunction("speak") { (text: String, language: String, rate: Double, respectSilentSwitch: Bool) -> Bool in
+      self.speaker.speak(text, language: language, rate: Float(rate), respectSilentSwitch: respectSilentSwitch)
       return true
-    }.runOnQueue(.main)
-
-    AsyncFunction("voices") { () -> [[String: Any]] in
-      return NavSpeaker.englishVoices().map { v -> [String: Any] in
-        [
-          "identifier": v.identifier,
-          "name": v.name,
-          "language": v.language,
-          "quality": NavSpeaker.qualityName(v.quality),
-        ]
-      }
-    }.runOnQueue(.main)
-
-    AsyncFunction("searchPlaces") { (query: String, near: [String: Double]?, promise: Promise) in
-      var centre: CLLocationCoordinate2D? = nil
-      if let lat = near?["lat"], let lng = near?["lng"] {
-        centre = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-      }
-      self.places.search(query, near: centre, promise: promise)
-    }.runOnQueue(.main)
-
-    AsyncFunction("resolvePlace") { (id: String, promise: Promise) in
-      self.places.resolve(id, promise: promise)
     }.runOnQueue(.main)
 
     AsyncFunction("stopSpeaking") { () -> Bool in
@@ -295,49 +267,7 @@ final class NavSpeaker: NSObject, AVSpeechSynthesizerDelegate {
     synth.delegate = self
   }
 
-  /// Installed English voices, without novelty and Personal Voices.
-  static func englishVoices() -> [AVSpeechSynthesisVoice] {
-    return AVSpeechSynthesisVoice.speechVoices().filter { v in
-      guard v.language.lowercased().hasPrefix("en") else { return false }
-      if #available(iOS 17.0, *) {
-        if v.voiceTraits.contains(.isNoveltyVoice) || v.voiceTraits.contains(.isPersonalVoice) { return false }
-      }
-      return true
-    }
-  }
-
-  static func qualityName(_ q: AVSpeechSynthesisVoiceQuality) -> String {
-    switch q {
-    case .premium: return "premium"
-    case .enhanced: return "enhanced"
-    default: return "default"
-    }
-  }
-
-  static func qualityRank(_ q: AVSpeechSynthesisVoiceQuality) -> Int {
-    switch q {
-    case .premium: return 2
-    case .enhanced: return 1
-    default: return 0
-    }
-  }
-
-  /// The best installed voice for the language: premium > enhanced > default, that language's
-  /// voices first (en-GB), then any English. Ties go to the system's own voice for the language.
-  static func bestVoice(language: String) -> AVSpeechSynthesisVoice? {
-    let all = englishVoices()
-    let same = all.filter { $0.language.caseInsensitiveCompare(language) == .orderedSame }
-    let pool = same.isEmpty ? all : same
-    let system = AVSpeechSynthesisVoice(language: language)?.identifier
-    return pool.max { a, b in
-      let ra = qualityRank(a.quality)
-      let rb = qualityRank(b.quality)
-      if ra != rb { return ra < rb }
-      return (a.identifier == system ? 1 : 0) < (b.identifier == system ? 1 : 0)
-    }
-  }
-
-  func speak(_ text: String, language: String, rate: Float, respectSilentSwitch: Bool, voiceId: String?) {
+  func speak(_ text: String, language: String, rate: Float, respectSilentSwitch: Bool) {
     let session = AVAudioSession.sharedInstance()
     do {
       if respectSilentSwitch {
@@ -355,11 +285,7 @@ final class NavSpeaker: NSObject, AVSpeechSynthesizerDelegate {
       synth.stopSpeaking(at: .immediate)
     }
     let utterance = AVSpeechUtterance(string: text)
-    var chosen: AVSpeechSynthesisVoice? = nil
-    if let id = voiceId, !id.isEmpty {
-      chosen = AVSpeechSynthesisVoice(identifier: id)
-    }
-    utterance.voice = chosen ?? NavSpeaker.bestVoice(language: language) ?? AVSpeechSynthesisVoice(language: language) ?? AVSpeechSynthesisVoice(language: "en-GB")
+    utterance.voice = AVSpeechSynthesisVoice(language: language) ?? AVSpeechSynthesisVoice(language: "en-GB")
     utterance.rate = max(AVSpeechUtteranceMinimumSpeechRate, min(AVSpeechUtteranceMaximumSpeechRate, rate))
     synth.speak(utterance)
   }
@@ -383,125 +309,6 @@ final class NavSpeaker: NSObject, AVSpeechSynthesizerDelegate {
   func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
     if !synthesizer.isSpeaking {
       deactivate()
-    }
-  }
-}
-
-// MARK: - Place search ("Where to?")
-
-/// Live suggestions as you type (addresses and places such as shops and businesses), then the
-/// chosen one's position. Only the latest search is answered; an older one gets an empty list.
-final class NavPlaceSearch: NSObject, MKLocalSearchCompleterDelegate {
-  private let completer = MKLocalSearchCompleter()
-  private var pending: Promise?
-  private var timeout: DispatchWorkItem?
-  private var results: [MKLocalSearchCompletion] = []
-  private var generation = 0
-  private var active: MKLocalSearch?
-
-  /// Rough box round the UK: the default bias when we don't know where you are. Not a limit.
-  private static let ukRegion = MKCoordinateRegion(
-    center: CLLocationCoordinate2D(latitude: 54.5, longitude: -3.0),
-    span: MKCoordinateSpan(latitudeDelta: 11.0, longitudeDelta: 11.0)
-  )
-
-  override init() {
-    super.init()
-    completer.delegate = self
-    completer.resultTypes = [.address, .pointOfInterest]
-  }
-
-  func search(_ query: String, near: CLLocationCoordinate2D?, promise: Promise) {
-    // Only the latest search counts.
-    answerPending(with: nil)
-    pending = promise
-    if let c = near {
-      completer.region = MKCoordinateRegion(center: c, latitudinalMeters: 80_000, longitudinalMeters: 80_000)
-    } else {
-      completer.region = NavPlaceSearch.ukRegion
-    }
-    let item = DispatchWorkItem { [weak self] in
-      guard let self = self else { return }
-      self.answerPending(with: self.completer.results)
-    }
-    timeout = item
-    DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: item)
-    if completer.queryFragment == query && !completer.isSearching {
-      // The same text again: no new results will come, so answer with what's there.
-      answerPending(with: completer.results)
-      return
-    }
-    completer.queryFragment = query
-  }
-
-  func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-    answerPending(with: completer.results)
-  }
-
-  func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-    timeout?.cancel()
-    timeout = nil
-    guard let p = pending else { return }
-    pending = nil
-    if let mk = error as? MKError, mk.code == .placemarkNotFound {
-      results = []
-      generation += 1
-      p.resolve([[String: Any]]())
-    } else {
-      p.reject("ERR_PLACES", "Couldn't search just now. Check your signal and try again.")
-    }
-  }
-
-  /// Answers the waiting search: `nil` means it was replaced by a newer one (an empty list).
-  private func answerPending(with list: [MKLocalSearchCompletion]?) {
-    timeout?.cancel()
-    timeout = nil
-    guard let p = pending else { return }
-    pending = nil
-    guard let list = list else {
-      p.resolve([[String: Any]]())
-      return
-    }
-    generation += 1
-    results = Array(list.prefix(8))
-    let gen = generation
-    let out: [[String: Any]] = results.enumerated().map { (i, c) in
-      ["id": "\(gen):\(i)", "title": c.title, "subtitle": c.subtitle]
-    }
-    p.resolve(out)
-  }
-
-  func resolve(_ id: String, promise: Promise) {
-    let parts = id.split(separator: ":")
-    guard parts.count == 2, let gen = Int(parts[0]), gen == generation, let i = Int(parts[1]), i >= 0, i < results.count else {
-      promise.reject("ERR_PLACE_STALE", "That result has gone. Search again.")
-      return
-    }
-    active?.cancel()
-    let search = MKLocalSearch(request: MKLocalSearch.Request(completion: results[i]))
-    active = search
-    search.start { [weak self] response, error in
-      self?.active = nil
-      guard let item = response?.mapItems.first else {
-        promise.reject("ERR_PLACE_NOT_FOUND", "Couldn't find that place. Try another result.")
-        return
-      }
-      let pm = item.placemark
-      let out: [String: Any] = [
-        "lat": pm.coordinate.latitude,
-        "lng": pm.coordinate.longitude,
-        "name": item.name ?? "",
-        "street": pm.thoroughfare ?? "",
-        "streetNumber": pm.subThoroughfare ?? "",
-        "district": pm.subLocality ?? "",
-        "city": pm.locality ?? "",
-        "subregion": pm.subAdministrativeArea ?? "",
-        "region": pm.administrativeArea ?? "",
-        "postalCode": pm.postalCode ?? "",
-        "isoCountryCode": pm.isoCountryCode ?? "",
-        "country": pm.country ?? "",
-      ]
-      promise.resolve(out)
     }
   }
 }
