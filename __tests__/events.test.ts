@@ -1,0 +1,158 @@
+import { canCheckIn, canSeeStop, checkIn, isHost, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
+import { DEFAULT_FILTER, buildMatches, invitees } from '../src/lib/invites';
+import type { Build, Crew, NightEvent, User } from '../src/lib/types';
+
+const NOW = new Date('2026-11-20T22:00:00Z');
+const mins = (m: number) => new Date(NOW.getTime() + m * 60_000).toISOString();
+const crews: Crew[] = [{ id: 'c1', name: 'Crew', tag: 'C', memberIds: ['crewmate'] }];
+
+function rolling(overrides: Partial<NightEvent> = {}): NightEvent {
+  return {
+    id: 'e1', type: 'rolling', title: 'Test', startsAt: mins(-30), endsAt: mins(120),
+    area: { lat: 52.6, lng: -1.7 }, areaName: 'Area',
+    stops: [
+      { id: 's1', name: 'One', at: { lat: 52.6, lng: -1.7 } },
+      { id: 's2', name: 'Two', at: { lat: 52.65, lng: -1.75 } },
+      { id: 's3', name: 'Three (on the night)' },
+    ],
+    currentStop: 0, revealMinutesBefore: 60, hostIds: ['host'], crewId: 'c1',
+    filter: DEFAULT_FILTER, going: ['a', 'b'], checkIns: {}, ...overrides,
+  };
+}
+
+describe('rolling meets', () => {
+  test('stop 1 is visible to people going after the reveal, not before', () => {
+    const e = rolling({ startsAt: mins(90) });
+    expect(canSeeStop(e, 0, 'a', crews, NOW)).toBe(false); // reveal is at +30
+    expect(canSeeStop(e, 0, 'a', crews, new Date(NOW.getTime() + 31 * 60_000))).toBe(true);
+    expect(canSeeStop(e, 0, 'stranger', crews, new Date(NOW.getTime() + 31 * 60_000))).toBe(false);
+  });
+
+  test('hosts, including crew members, see every planned stop', () => {
+    const e = rolling();
+    expect(isHost(e, 'crewmate', crews)).toBe(true);
+    expect(canSeeStop(e, 1, 'host', crews, NOW)).toBe(true);
+    expect(canSeeStop(e, 1, 'crewmate', crews, NOW)).toBe(true);
+    expect(canSeeStop(e, 2, 'host', crews, NOW)).toBe(false); // no place yet
+  });
+
+  test('moving on reveals the next stop only to people checked in at the last one', () => {
+    let e = rolling();
+    e = checkIn(e, 0, 'a');
+    e = moveOn(e, NOW);
+    expect(e.currentStop).toBe(1);
+    expect(e.stops[1].revealedAt).toBe(NOW.toISOString());
+    expect(canSeeStop(e, 1, 'a', crews, NOW)).toBe(true);
+    expect(canSeeStop(e, 1, 'b', crews, NOW)).toBe(false);
+    expect(moveOnAudience(e, 0)).toEqual(['a']);
+  });
+
+  test('a host can pick the next spot on the night', () => {
+    let e = rolling({ currentStop: 1 });
+    e = moveOn(e, NOW, { name: 'Picked live', at: { lat: 52.7, lng: -1.8 } });
+    expect(e.currentStop).toBe(2);
+    expect(e.stops).toHaveLength(3);
+    expect(e.stops[2].name).toBe('Picked live');
+    expect(e.stops[2].at).toEqual({ lat: 52.7, lng: -1.8 });
+  });
+
+  test('moving on past the planned stops adds a new one', () => {
+    let e = rolling({ stops: rolling().stops.slice(0, 2), currentStop: 1 });
+    e = moveOn(e, NOW, { name: 'Extra', at: { lat: 1, lng: 1 } });
+    expect(e.stops).toHaveLength(3);
+    expect(e.currentStop).toBe(2);
+  });
+
+  test('moving on to an unplanned stop without a place fails', () => {
+    expect(() => moveOn(rolling({ currentStop: 1 }), NOW)).toThrow();
+  });
+
+  test('check-in needs you near the current stop', () => {
+    const e = rolling();
+    expect(canCheckIn(e, 0, 'a', crews, NOW, { lat: 52.6, lng: -1.7 }).ok).toBe(true);
+    expect(canCheckIn(e, 0, 'a', crews, NOW, { lat: 52.7, lng: -1.7 }).ok).toBe(false);
+    expect(canCheckIn(e, 0, 'a', crews, NOW, null).ok).toBe(false);
+    expect(canCheckIn(e, 0, 'a', crews, NOW, null, true).ok).toBe(true);
+    expect(canCheckIn(e, 0, 'stranger', crews, NOW, null, true).ok).toBe(false);
+  });
+
+  test('you cannot check in at a stop the meet has left', () => {
+    let e = checkIn(rolling(), 0, 'a');
+    e = moveOn(e, NOW);
+    expect(canCheckIn(e, 0, 'a', crews, NOW, null, true).ok).toBe(false);
+    expect(canCheckIn(e, 1, 'a', crews, NOW, null, true).ok).toBe(true);
+  });
+
+  test('checking in twice does not duplicate', () => {
+    const e = checkIn(checkIn(rolling(), 0, 'a'), 0, 'a');
+    expect(e.checkIns.a).toEqual(['s1']);
+  });
+});
+
+describe('other event types', () => {
+  test('cruise route shows in full to people going after the reveal', () => {
+    const e = rolling({ type: 'cruise', currentStop: 0 });
+    expect(canSeeStop(e, 1, 'a', crews, NOW)).toBe(true);
+    expect(canSeeStop(e, 1, 'stranger', crews, NOW)).toBe(false);
+  });
+
+  test('shows and track days are public', () => {
+    const e = rolling({ type: 'show', startsAt: mins(10_000), going: [] });
+    expect(canSeeStop(e, 0, 'stranger', crews, NOW)).toBe(true);
+  });
+
+  test('cancelled events hide their stops from guests', () => {
+    const e = rolling({ type: 'meet', cancelled: true });
+    expect(canSeeStop(e, 0, 'a', crews, NOW)).toBe(false);
+    expect(phaseOf(e, NOW)).toBe('cancelled');
+  });
+
+  test('phases follow the clock', () => {
+    const e = rolling({ startsAt: mins(90), endsAt: mins(200) });
+    expect(phaseOf(e, NOW)).toBe('upcoming');
+    expect(phaseOf(e, new Date(NOW.getTime() + 40 * 60_000))).toBe('revealed');
+    expect(phaseOf(e, new Date(NOW.getTime() + 100 * 60_000))).toBe('live');
+    expect(phaseOf(e, new Date(NOW.getTime() + 300 * 60_000))).toBe('over');
+  });
+});
+
+describe('invites', () => {
+  const b = (id: string, ownerId: string, extra: Partial<Build>): Build => ({
+    id, ownerId, kind: 'car', make: 'BMW', model: 'M', stockBhp: 300, weightKg: 1450,
+    mods: [1, 2, 3].map((i) => ({ id: `${id}${i}`, category: 'other' as const, name: 'x' })), photos: [], ...extra,
+  });
+  const users: User[] = [
+    { id: 'near', handle: 'n', name: 'N', region: '', home: { lat: 52.6, lng: -1.7 } },
+    { id: 'far', handle: 'f', name: 'F', region: '', home: { lat: 51.5, lng: -0.1 } },
+    { id: 'bikeOnly', handle: 'b', name: 'B', region: '', home: { lat: 52.61, lng: -1.71 } },
+  ];
+  const builds: Build[] = [
+    b('b1', 'near', {}),
+    b('b2', 'far', {}),
+    b('b3', 'bikeOnly', { kind: 'bike', make: 'Yamaha', stockBhp: 197, weightKg: 201 }),
+  ];
+  const area = { lat: 52.6, lng: -1.7 };
+
+  test('radius keeps far-away people out', () => {
+    expect(invitees(users, builds, DEFAULT_FILTER, area).userIds.sort()).toEqual(['bikeOnly', 'near']);
+  });
+
+  test('cars-only filter skips bikes', () => {
+    expect(invitees(users, builds, { ...DEFAULT_FILTER, bikes: false }, area).userIds).toEqual(['near']);
+  });
+
+  test('class filter', () => {
+    expect(invitees(users, builds, { ...DEFAULT_FILTER, classes: ['S'] }, area).userIds).toEqual(['bikeOnly']);
+  });
+
+  test('everyone welcome ignores the build filter but keeps the radius', () => {
+    const f = { ...DEFAULT_FILTER, everyone: true, classes: ['S' as const], minMods: 10 };
+    expect(invitees(users, builds, f, area).userIds.sort()).toEqual(['bikeOnly', 'near']);
+  });
+
+  test('min mods and brands', () => {
+    expect(buildMatches(builds[0], { ...DEFAULT_FILTER, minMods: 4 })).toBe(false);
+    expect(buildMatches(builds[0], { ...DEFAULT_FILTER, brands: ['bmw'] })).toBe(true);
+    expect(buildMatches(builds[0], { ...DEFAULT_FILTER, brands: ['Audi'] })).toBe(false);
+  });
+});

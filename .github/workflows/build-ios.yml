@@ -1,0 +1,117 @@
+# Builds an UNSIGNED iPhone app (Nightshift-unsigned.ipa) without a Mac.
+# Sideloadly signs it with your own Apple ID when you install it.
+# Runs only when started by hand (Actions > Build iPhone app > Run workflow),
+# because macOS runners cost 10x Linux minutes.
+# ios/ is not in git: prebuild generates it from app.json each run.
+
+name: Build iPhone app
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ios-unsigned:
+    name: iOS unsigned IPA
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Check Xcode (Expo SDK 58 needs 26.4 or later)
+        run: |
+          xcodebuild -version
+          XCODE_VERSION=$(xcodebuild -version | awk '/^Xcode/ {print $2}')
+          MAJOR=$(echo "$XCODE_VERSION" | awk -F. '{print $1 + 0}')
+          MINOR=$(echo "$XCODE_VERSION" | awk -F. '{print $2 + 0}')
+          if [ "$MAJOR" -lt 26 ] || { [ "$MAJOR" -eq 26 ] && [ "$MINOR" -lt 4 ]; }; then
+            echo "::error::Xcode $XCODE_VERSION is older than 26.4, the minimum for Expo SDK 58."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Typecheck and test
+        run: |
+          npx tsc --noEmit
+          npm test -- --ci
+
+      - name: Generate native iOS project (expo prebuild)
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Cache CocoaPods downloads
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: pods-${{ runner.os }}-${{ hashFiles('package-lock.json', 'app.json') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install
+
+      - name: Find workspace and scheme
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)
+          PROJECT=$(find ios -maxdepth 1 -name '*.xcodeproj' | head -n 1)
+          if [ -z "$WORKSPACE" ] || [ -z "$PROJECT" ]; then
+            echo "::error::No .xcworkspace or .xcodeproj in ios/."
+            exit 1
+          fi
+          NAME=$(basename "$WORKSPACE" .xcworkspace)
+          SCHEME=$(xcodebuild -list -json -project "$PROJECT" | node -e '
+            let s = "";
+            process.stdin.on("data", d => (s += d)).on("end", () => {
+              const schemes = JSON.parse(s).project.schemes || [];
+              const want = process.argv[1];
+              console.log(schemes.includes(want) ? want : (schemes[0] || ""));
+            });' "$NAME")
+          [ -n "$SCHEME" ] || { echo "::error::No scheme found."; exit 1; }
+          echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+
+      # Release bundles the JS into the app. Signing is off; Sideloadly signs at install.
+      - name: Archive Release build (unsigned)
+        run: |
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Nightshift.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package Nightshift-unsigned.ipa
+        run: |
+          APP=$(find "$RUNNER_TEMP/Nightshift.xcarchive/Products/Applications" -maxdepth 1 -name '*.app' | head -n 1)
+          [ -n "$APP" ] || { echo "::error::No .app found in the archive."; exit 1; }
+          [ -f "$APP/main.jsbundle" ] || { echo "::error::main.jsbundle is missing."; exit 1; }
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/Nightshift.app"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qry "$GITHUB_WORKSPACE/Nightshift-unsigned.ipa" Payload
+          ls -lh "$GITHUB_WORKSPACE/Nightshift-unsigned.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
+        with:
+          path: Nightshift-unsigned.ipa
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
