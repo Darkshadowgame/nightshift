@@ -1,4 +1,5 @@
-import { banZoneAt, banZoneWarning } from './events';
+import { banZoneWarning } from './events';
+import { zonesForPoints } from './zones';
 import { milesBetween } from './geo';
 import type { RouteStats } from './rep';
 import type { BanZone, LatLng, Spot, SpotCompletion, SpotKind } from './types';
@@ -227,11 +228,7 @@ export function draftProblem(d: SpotDraft, spots: Spot[]): string | null {
 
 /** The first ban zone any point of the draft is inside. */
 export function draftBanZone(points: LatLng[], zones: BanZone[]): BanZone | undefined {
-  for (const p of points) {
-    const z = banZoneAt(p, zones);
-    if (z) return z;
-  }
-  return undefined;
+  return zonesForPoints(points, zones)[0];
 }
 
 /** Turn a draft into a pending place. Throws if the draft isn't ready. */

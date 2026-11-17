@@ -220,8 +220,10 @@ export interface Spot {
   createdAt: string;
   completions: SpotCompletion[];
   ratings: SpotRating[];
-  /** Set when any point is inside a ban zone (a warning, not a block). */
+  /** Set when any point is inside a ban zone (a warning, not a block): the most specific zone's name. */
   banZone?: string;
+  /** Every ban zone it's in (ids), worked out from the current zones when the app reads it. */
+  banZoneIds?: string[];
   /** Things to know before you go (single-track, snow gates, cameras). */
   warnings?: string[];
   /** Rough region, e.g. "Peak District". */
@@ -233,8 +235,14 @@ export interface Spot {
 export interface BanZone {
   id: string;
   name: string;
+  /** Circle zones: the centre. Polygon zones: a point inside, for labels and fitting the map. */
   centre: LatLng;
+  /** Circle zones: the radius. Polygon zones: roughly how far the outline reaches from the centre. */
   radiusMiles: number;
+  /** Borough- or city-wide orders: simplified council boundary rings (any ring counts). */
+  polygons?: LatLng[][];
+  /** When the order was last checked against its source (YYYY-MM-DD). */
+  checked?: string;
   note: string;
   /** Where the order is published. */
   source?: string;

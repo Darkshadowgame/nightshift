@@ -1,6 +1,7 @@
 import { eventArea } from './area';
 import { isCrewHost } from './crews';
 import { milesBetween } from './geo';
+import { zonesAt } from './zones';
 import type { BanZone, ChatMessage, Crew, EventType, LatLng, NightEvent, PlanChangeLog, Stop } from './types';
 
 export const CHECK_IN_RADIUS_MILES = 0.5;
@@ -242,9 +243,9 @@ export function moveOnAudience(event: NightEvent, fromIndex: number): string[] {
 // Ban zones
 // ---------------------------------------------------------------------------
 
-/** The first ban zone this place falls inside, if any. */
+/** The most specific ban zone this place falls inside, if any (zones.ts has every one). */
 export function banZoneAt(at: LatLng, zones: BanZone[]): BanZone | undefined {
-  return zones.find((z) => milesBetween(z.centre, at) <= z.radiusMiles);
+  return zonesAt(at, zones)[0];
 }
 
 export function banZoneWarning(placeName: string, zone: BanZone): string {

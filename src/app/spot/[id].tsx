@@ -77,7 +77,8 @@ function SpotDetail({ spot }: { spot: Spot }) {
   const done = hasCompleted(spot, me);
   const people = statsOf(spot).completions.length;
   const { average, count } = averageStars(spot);
-  const zone = spot.banZone ? BAN_ZONES.find((z) => z.name === spot.banZone) : undefined;
+  // Every zone it's in, by id (worked out from today's zones when the place is read).
+  const zones = (spot.banZoneIds ?? []).flatMap((id) => BAN_ZONES.filter((z) => z.id === id));
   const checkpoints = spot.path ?? [];
   const outline = spot.kind === 'track' ? trackOutline(spot.id) : null;
   const paths: MapPath[] = [
@@ -167,11 +168,12 @@ function SpotDetail({ spot }: { spot: Spot }) {
         />
       </View>
 
-      {zone ? (
-        <Card accent={C.alert}>
+      {zones.map((zone) => (
+        <Card key={zone.id} accent={C.alert}>
           <Txt>{banZoneWarning(spot.name, zone)}</Txt>
+          {zone.checked ? <Txt v="muted" style={{ fontSize: 12 }}>Order last checked {zone.checked}.</Txt> : null}
         </Card>
-      ) : null}
+      ))}
 
       {pending ? (
         <Card>
