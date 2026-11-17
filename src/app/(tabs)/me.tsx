@@ -2,9 +2,11 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { Pin } from '../../components/Pin';
+import { TravelPrefs } from '../../components/TravelPrefs';
 import { LevelTag, RepPanel, useRep } from '../../components/Rep';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { allAwards, hasLegend } from '../../lib/awards';
+import { travelOf } from '../../lib/discover';
 import { isHost, phaseOf } from '../../lib/events';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../../lib/notify';
 import { plural } from '../../lib/format';
@@ -13,7 +15,8 @@ import { useStore, type Settings } from '../../lib/store';
 import { C, SPOT_COLOURS } from '../../theme';
 
 export default function Me() {
-  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, now, spots } = useStore();
+  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, now, spots, setTravelPrefs } =
+    useStore();
   const rep = useRep(me);
   const awards = allAwards(votes, events, builds, now);
   const myAwards = awards.filter((a) => a.ownerId === me);
@@ -26,6 +29,7 @@ export default function Me() {
   }, []);
   const user = users.find((u) => u.id === me);
   const crew = crews.find((c) => c.id === user?.crewId);
+  const travel = travelOf(user);
   const mySpots = spots.filter((x) => x.authorId === me);
   const hosting = events.filter((e) => !e.cancelled && phaseOf(e, now) !== 'over' && isHost(e, me, crews)).length;
 
@@ -111,6 +115,24 @@ export default function Me() {
         </Card>
       </Section>
 
+      <Section title="Events near you" right={<Pressable onPress={() => router.push('/find')} hitSlop={8} accessibilityRole="link"><Txt v="label" style={{ color: C.sodium }}>Find events ›</Txt></Pressable>}>
+        <Card>
+          <TravelPrefs
+            miles={travel.miles}
+            alerts={travel.alerts}
+            onChange={(next) => {
+              setTravelPrefs(next);
+              if (next.alerts === 'notify') askPermission().then(setAllowed);
+            }}
+          />
+          {travel.alerts === 'notify' && notificationsSupported && allowed === false ? (
+            <Txt v="muted" style={{ fontSize: 12, color: C.alert }}>
+              Notifications are off for Nightshift, so new events land under the bell only. Allow them under Reminders below.
+            </Txt>
+          ) : null}
+        </Card>
+      </Section>
+
       <Section title="Reminders">
         <Toggle
           label="Event reminders"
@@ -127,7 +149,7 @@ export default function Me() {
         />
         {!notificationsSupported ? (
           <Txt v="muted" style={{ fontSize: 12 }}>Notifications only work in the iPhone app. The list under the bell works everywhere.</Txt>
-        ) : allowed === false && settings.reminders ? (
+        ) : allowed === false && (settings.reminders || travel.alerts === 'notify') ? (
           <Card accent={C.alert}>
             <Txt v="muted">Notifications are off for Nightshift. Allow them in the iPhone Settings app › Nightshift › Notifications, or tap below.</Txt>
             <Button

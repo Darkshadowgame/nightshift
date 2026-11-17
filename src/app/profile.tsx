@@ -9,7 +9,7 @@ export default function EditProfile() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <ProfileForm
-        initial={{ handle: user.handle, name: user.name, region: user.region, home: user.home }}
+        initial={{ handle: user.handle, name: user.name, region: user.region, home: user.home, travelMiles: user.travelMiles, alerts: user.alerts }}
         submitLabel="Save"
         onSubmit={(draft) => {
           saveProfile(draft);

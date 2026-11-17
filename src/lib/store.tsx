@@ -45,6 +45,7 @@ import {
   type Verdict,
 } from './spots';
 import { notifyNow, syncReminders } from './notify';
+import { alertProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, travelProblem, type AlertMode } from './discover';
 import { DEFAULT_SETTINGS, upgradeSettings, type Settings } from './settings';
 import { dedupeNotices, dueReminders, movedOnReminder, upcomingReminders, type ReminderKind } from './reminders';
 import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
@@ -74,6 +75,12 @@ interface Persisted extends SeedState {
   realGpsDefault?: boolean;
   /** The Map tab has said once that location is off and it's showing your home area. */
   locationNoticeSeen?: boolean;
+  /**
+   * New events near you. `known`: every event id already looked at, so each
+   * event is only ever "new" once. `unseen`: new ones near you not yet seen in
+   * Find events (the "I'll search" setting marks these instead of notifying).
+   */
+  nearby?: { known: string[]; unseen: string[] };
 }
 
 export interface Notice {
@@ -120,6 +127,10 @@ interface Store extends Persisted {
   restartDemoEvents: () => void;
   /** Schedule reminders again now, e.g. once notifications have just been allowed. */
   refreshReminders: () => void;
+  /** Willing to travel and how you hear about new events near you. Throws with a readable reason. */
+  setTravelPrefs: (prefs: { travelMiles?: number; alerts?: AlertMode }) => void;
+  /** Find events has been opened: new ones near you are no longer new. */
+  markNearbySeen: () => void;
   /** Finish a drive. Checks the run (every checkpoint, in order, at a believable pace); records only pass or fail. */
   finishDrive: (spotId: string, run: DriveRun) => Verdict;
   /** Record a photo spot visit, with an optional plate-blurred photo. The distance check happens before this. */
@@ -145,6 +156,8 @@ function fresh(): Persisted {
   return {
     ...seed(now), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString(),
     scene: { home: DEMO_HOME, names: {} }, realGpsDefault: true,
+    // Nothing is known yet, so the sample events count as new near you once you've set up.
+    nearby: { known: [], unseen: [] },
   };
 }
 
@@ -173,10 +186,17 @@ function redrawScene(s: Persisted, home: LatLng, now: Date): Persisted {
     users: s.users.map((u) => (u.id !== ME && homes.has(u.id) ? { ...u, home: homes.get(u.id)!, region: region ?? u.region } : u)),
     unlockSeen: Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id))),
     notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
+    nearby: forgetSeedEvents(s.nearby),
     seededAt: now.toISOString(),
     onboardedAt: s.onboarded ? now.toISOString() : s.onboardedAt,
     scene,
   };
+}
+
+/** The sample events are laid out again: they count as new near you again, like their reminders. */
+function forgetSeedEvents(nearby: Persisted['nearby']): Persisted['nearby'] {
+  if (!nearby) return nearby;
+  return { known: nearby.known.filter((id) => !isSeedEvent(id)), unseen: nearby.unseen.filter((id) => !isSeedEvent(id)) };
 }
 
 /** Data saved by an older version of the app: fill in anything that's new since. */
@@ -244,6 +264,8 @@ function migrate(parsed: Persisted): Persisted {
     const home = next.users.find((u) => u.id === ME)?.home ?? DEMO_HOME;
     next = redrawScene({ ...next, spots: mine }, home, new Date());
   }
+  // Saved before "new events near you": what's already there isn't new.
+  if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };
   return next;
 }
 
@@ -331,6 +353,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100) };
     });
   }, [ready, onboarded, now, allEvents]);
+
+  // New events near you: an in-app notice (and a phone notification) for "Notify me",
+  // a NEW tag in Find events for "I'll search", nothing for "Off". Each event only once.
+  const { users: allUsers, builds: allBuilds, nearby } = state;
+  const notifiedFor = useRef<object | null>(null);
+  useEffect(() => {
+    if (!ready || !onboarded || !nearby) return;
+    const nowDate = new Date();
+    const who = { me: ME, crews: allCrews, users: allUsers, builds: allBuilds };
+    const { arrived, matches } = nearbyArrivals(allEvents, nearby.known, who, nowDate);
+    if (arrived.length === 0) return;
+    const mode = travelOf(allUsers.find((u) => u.id === ME)).alerts;
+    setState((s) => {
+      const known = new Set(s.nearby?.known ?? []);
+      const newly = new Set(arrived.filter((id) => !known.has(id)));
+      if (newly.size === 0) return s;
+      const fresh = matches.filter((e) => newly.has(e.id));
+      const keys = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
+      const added: Notice[] =
+        mode === 'notify'
+          ? fresh
+              .map((e) => nearbyNotice(e, nowDate))
+              .filter((r) => !keys.has(r.key))
+              .map((r) => ({ id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: 'nearby', key: r.key, text: `${r.title}. ${r.body}` }))
+          : [];
+      const unseen = s.nearby?.unseen ?? [];
+      return {
+        ...s,
+        nearby: { known: [...known, ...newly], unseen: mode === 'search' ? [...unseen, ...fresh.map((e) => e.id)] : unseen },
+        notices: added.length > 0 ? [...added, ...s.notices].slice(0, 100) : s.notices,
+      };
+    });
+    // One phone notification per batch (React may run this effect twice for the same state in development).
+    if (mode === 'notify' && notifiedFor.current !== nearby) {
+      notifiedFor.current = nearby;
+      const batch = nearbyBatch(matches, nowDate);
+      if (batch) notifyNow(batch).catch(() => {});
+    }
+  }, [ready, onboarded, nearby, allEvents, allUsers, allBuilds, allCrews]);
 
   // Name the sample stops after real places near them, with the phone's geocoder (a few lookups, one at a time).
   const scene = state.scene;
@@ -498,6 +559,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ...restarted,
             unlockSeen,
             notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
+            nearby: forgetSeedEvents(s.nearby),
             seededAt: nowDate.toISOString(),
             // Reminders from the restarted events count as news again.
             onboardedAt: nowDate.toISOString(),
@@ -505,6 +567,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       },
       refreshReminders: () => setReminderTick((n) => n + 1),
+      setTravelPrefs: ({ travelMiles, alerts }) => {
+        const problem = (travelMiles !== undefined && travelProblem(travelMiles)) || (alerts !== undefined && alertProblem(alerts));
+        if (problem) throw new Error(problem);
+        setState((s) => ({
+          ...s,
+          users: s.users.map((u) =>
+            u.id === ME ? { ...u, ...(travelMiles !== undefined ? { travelMiles } : {}), ...(alerts !== undefined ? { alerts } : {}) } : u,
+          ),
+          // Leaving "I'll search" clears the NEW tags it was keeping.
+          nearby: alerts && alerts !== 'search' && s.nearby ? { ...s.nearby, unseen: [] } : s.nearby,
+        }));
+      },
+      markNearbySeen: () =>
+        setState((s) => (s.nearby && s.nearby.unseen.length > 0 ? { ...s, nearby: { ...s.nearby, unseen: [] } } : s)),
       finishDrive: (spotId, run) => {
         const spot = state.spots.find((x) => x.id === spotId);
         if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };

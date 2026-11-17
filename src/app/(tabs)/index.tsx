@@ -35,7 +35,8 @@ const LAYERS: { key: Layer; label: string; colour: string }[] = [
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
-  const { events, me, crews, users, builds, now, spots } = store;
+  const { events, me, crews, users, builds, now, spots, nearby } = store;
+  const newNear = nearby?.unseen.length ?? 0;
   const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
   const [selected, setSelected] = useState<string | null>(null);
   /** "Show everything": where to move the map, and a counter so the same button works twice. */
@@ -208,6 +209,9 @@ export default function MapScreen() {
               <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => setLayers((x) => ({ ...x, [l.key]: !x[l.key] }))} />
             </View>
           ))}
+          <View style={st.chipBg}>
+            <Chip label={newNear > 0 ? `Find events · ${newNear} new` : 'Find events'} on colour={C.lime} onPress={() => router.push('/find')} />
+          </View>
           <View style={st.chipBg}>
             <Chip
               label="Show everything"

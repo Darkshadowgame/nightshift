@@ -12,7 +12,8 @@ type Tab = 'mine' | 'invited' | 'public' | 'past';
 
 export default function EventsScreen() {
   const nav = useNavigation();
-  const { events, me, crews, users, builds, now } = useStore();
+  const { events, me, crews, users, builds, now, nearby } = useStore();
+  const newNear = nearby?.unseen.length ?? 0;
   const [tab, setTab] = useState<Tab>('mine');
 
   useLayoutEffect(() => {
@@ -20,13 +21,21 @@ export default function EventsScreen() {
       headerRight: () => (
         <Row gap={14} style={{ marginRight: 16, flexWrap: 'nowrap' }}>
           <NoticeBell />
+          <Pressable
+            onPress={() => router.push('/find')}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={newNear > 0 ? `Find events, ${newNear} new near you` : 'Find events'}
+          >
+            <Txt v="label" style={{ color: C.chalk, fontSize: 14 }}>Find{newNear > 0 ? <Txt v="label" style={{ color: C.lime, fontSize: 14 }}> · {newNear} new</Txt> : null}</Txt>
+          </Pressable>
           <Pressable onPress={() => router.push('/event/new')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Host an event">
             <Txt v="label" style={{ color: C.sodium, fontSize: 14 }}>+ Host</Txt>
           </Pressable>
         </Row>
       ),
     });
-  }, [nav]);
+  }, [nav, newNear]);
 
   const views = useMemo(() => viewEvents(events, me, crews, users, builds, now), [events, me, crews, users, builds, now]);
   const active = (v: EventView) => v.phase !== 'over' && v.phase !== 'cancelled';
@@ -64,7 +73,7 @@ export default function EventsScreen() {
               {tab === 'mine'
                 ? 'Nothing planned. Tap Going on an invite, or host your own with + Host. Events you ask to go to show here too.'
                 : tab === 'invited'
-                  ? 'No invites right now. Invites depend on your builds, so add your car or bike in the Garage.'
+                  ? 'No invites right now. Invites depend on your builds, so add your car or bike in the Garage. Find (top right) lists every event near you.'
                   : 'Nothing here yet.'}
             </Txt>
           </Card>

@@ -12,6 +12,7 @@ const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
   soon: 'Starting soon',
   moved: 'Moved on',
   host: 'You moved the meet on',
+  nearby: 'New near you',
 };
 
 export default function NotificationsScreen() {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { DEMO_HOME, DEMO_REGION } from '../data/seed';
+import { DEFAULT_ALERTS, DEFAULT_TRAVEL_MILES, type AlertMode } from '../lib/discover';
 import { fuzz } from '../lib/geo';
 import { currentPosition } from '../lib/location';
 import { nearestRegion, REGIONS, regionCentre, type ProfileDraft } from '../lib/profile';
@@ -8,9 +9,10 @@ import type { LatLng } from '../lib/types';
 import { C } from '../theme';
 import { NightMap } from './NightMap';
 import { PlaceSearch } from './PlaceSearch';
+import { TravelPrefs } from './TravelPrefs';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
 
-/** Handle, name, region and rough home area. Used on first run and on Me. */
+/** Handle, name, region, rough home area and how far you'd travel. Used on first run and on Me. */
 export function ProfileForm({
   initial,
   submitLabel,
@@ -26,6 +28,8 @@ export function ProfileForm({
   const [region, setRegion] = useState(initial.region);
   const [home, setHome] = useState<LatLng | null>(initial.home);
   const [centre, setCentre] = useState<LatLng>(initial.home ?? regionCentre(initial.region));
+  const [travelMiles, setTravelMiles] = useState(initial.travelMiles ?? DEFAULT_TRAVEL_MILES);
+  const [alerts, setAlerts] = useState<AlertMode>(initial.alerts ?? DEFAULT_ALERTS);
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
@@ -71,7 +75,7 @@ export function ProfileForm({
   function submit() {
     setError(null);
     try {
-      onSubmit({ handle, name, region, home });
+      onSubmit({ handle, name, region, home, travelMiles, alerts });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');
     }
@@ -130,6 +134,17 @@ export function ProfileForm({
             <Chip key={r.name} label={r.name} on={region === r.name} onPress={() => pickRegion(r.name)} />
           ))}
         </Row>
+      </Section>
+
+      <Section title="Events near you">
+        <TravelPrefs
+          miles={travelMiles}
+          alerts={alerts}
+          onChange={(next) => {
+            if (next.travelMiles !== undefined) setTravelMiles(next.travelMiles);
+            if (next.alerts) setAlerts(next.alerts);
+          }}
+        />
       </Section>
 
       {!isDemoHome ? (
