@@ -80,7 +80,7 @@ Rules of thumb:
 | `build_photos` | Storage path per photo, `{owner}/...` enforced | signed-in users | owner |
 | `crews` | name, tag, `official_club`, `club_links`, `club_verified_at` | signed-in users | crew RPCs; club fields staff only |
 | `crew_members` | role owner/host/member; one crew per person; one owner per crew | signed-in users | crew RPCs |
-| `partner_venues` | later: labelled partner venues (`partner_label` is required) | signed-in users (active only) | staff only |
+| `partner_venues` | labelled partners on the map's Shops layer (`partner_label` is required); app mapping in section 2a | signed-in users (active only) | staff only |
 | `ban_zones` | injunction/PSPO circles with source and expiry | signed-in users | staff only |
 | `events` | type, title, times, reveal minutes, **rough area** + radius, invite filter columns, `current_stop`, `crew_id`, `cancelled_at` | signed-in users | `save_event()`, `cancel_event()`, `move_on()`, `change_plan()` |
 | `event_stops` | ordered stops with exact `location`, `revealed_at` | **hosts only** (everyone else: `get_event_stops()`) | event RPCs |
@@ -102,6 +102,32 @@ The invite filter is stored as columns (`invite_everyone`, `invite_cars`,
 `invite_bikes`, `invite_classes`, `invite_min_mods`, `invite_brands`,
 `invite_radius_miles`) rather than JSON, so the server can match on it.
 `invite_radius_miles` must be 10–300 (the form offers 10/25/50/100).
+
+## 2a. Partners on the Shops layer (`partner_venues`)
+
+The app's `Partner` type (`src/lib/partners.ts`) is filled from `partner_venues` by
+`partnerFromRow()`, which drops inactive rows and rows without a label, so a partner is
+never shown unlabelled. Read it as plain lat/lng like the RPCs, e.g.
+`select id, name, description, st_y(location::geometry) as lat, st_x(location::geometry) as lng, address, website, partner_label, active from partner_venues`.
+
+| Column | `Partner` field | Notes |
+|---|---|---|
+| `id` | `id` | The shop screen opens `/shop/partner:<id>` |
+| `name` | `name` | |
+| `description` | `description` | |
+| `location` | `at` | As `lat`, `lng` |
+| `address` | `address` | |
+| `website` | `link` | Only http(s) links open |
+| `partner_label` | `label` | Shown as the badge; "Partner" is added if the label doesn't say it |
+| `active` | (filter) | Only active rows; RLS already hides the rest from non-staff |
+| *later:* `offer text` | `offer` | Needs a migration (not applied) |
+| *later:* `categories text[]` | `categories` | Shops-layer kinds (`tuning`, `parts`, `gear`, `dealer`, `tyres`, `detailing`, `dyno`, `garage`, `coffee`); unknown values dropped; none means `coffee` (the table was first meant for meet-friendly venues). Needs a migration |
+| *later:* `phone text`, `opening_hours text` | `phone`, `hours` | OSM `opening_hours` syntax, read by `src/lib/openingHours.ts`. Needs a migration |
+
+Proposed migration (not applied): `alter table public.partner_venues add column offer text
+check (char_length(offer) <= 300), add column categories text[] not null default '{}',
+add column phone text, add column opening_hours text;`. The OpenStreetMap shop listings
+are bundled in the app and are not stored in the database.
 
 ## 3. Visibility rules (enforced on the server)
 

@@ -28,9 +28,16 @@ import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCa
 import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks';
 import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
-import { C, EVENT_COLOURS, F, SPOT_COLOURS } from '../../theme';
+import { shopIndex } from '../../lib/shopData';
+import { describeCategories, SHOP_CREDIT, shopPinSize, shopsForView, toggleCategory, type ShopFilter } from '../../lib/shops';
+import { ALL_CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, MENU_ORDER, shopFilterNote, type ShopCategory } from '../../lib/shopCategories';
+import { parseOpeningHours, openState } from '../../lib/openingHours';
+import { demoPartners, partnerBadge } from '../../lib/partners';
+import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
+import { milesBetween } from '../../lib/geo';
+import { C, EVENT_COLOURS, F, PARTNER_COLOUR, SHOP_COLOUR, SPOT_COLOURS } from '../../theme';
 
-type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'bans' | 'cameras';
+type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'shops' | 'bans' | 'cameras';
 /** The layer bar, in order. Add a layer here (and to `shown` below) to give it a pill. */
 const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'events', label: 'Events', glyph: 'meet', colour: C.sodium },
@@ -38,6 +45,8 @@ const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'drive', label: 'Drives', glyph: 'drive', colour: C.neon },
   { key: 'track', label: 'Tracks', glyph: 'track', colour: C.lime },
   { key: 'venue', label: 'Venues', glyph: 'venue', colour: C.sodium },
+  // Kept in settings, with its filter (Shops ▾).
+  { key: 'shops', label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR },
   { key: 'bans', label: 'Bans', glyph: 'area', colour: C.alert },
   // Kept in settings (Me > Map), so it stays as you left it.
   { key: 'cameras', label: 'Cameras', glyph: 'camera', colour: C.alert },
@@ -61,11 +70,23 @@ export default function MapScreen() {
   const store = useStore();
   const { events, me, crews, users, builds, now, spots, nearby, settings, setSettings } = store;
   const newNear = nearby?.unseen.length ?? 0;
-  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
-  const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras };
+  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
+  const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras, shops: !!settings.shops };
   function toggleLayer(key: Layer) {
     if (key === 'cameras') setSettings({ cameras: !settings.cameras });
+    else if (key === 'shops') setSettings({ shops: !settings.shops });
     else setLayers((x) => ({ ...x, [key]: !x[key] }));
+  }
+  /** Shops: which kinds to show and "partners only", kept in settings (Shops ▾ menu). */
+  const savedCats = (settings.shopCategories ?? []).filter((c) => ALL_CATEGORIES.includes(c));
+  const shopFilter: ShopFilter = useMemo(
+    () => ({ categories: savedCats.length ? savedCats : [...ALL_CATEGORIES], partnersOnly: !!settings.shopPartnersOnly }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [savedCats.join(','), settings.shopPartnersOnly],
+  );
+  function toggleShopCategory(c: ShopCategory) {
+    feel.select();
+    setSettings({ shopCategories: toggleCategory(shopFilter.categories, c) });
   }
   const [selected, setSelected] = useState<string | null>(null);
   /** "Show everything": where to move the map, and a counter so the same button works twice. */
@@ -81,8 +102,8 @@ export default function MapScreen() {
     feel.select();
     setSettings({ trackVehicles: next });
   }
-  /** The Tracks ▾ menu, anchored under the chip (window coordinates). */
-  const [kindMenu, setKindMenu] = useState<{ x: number; y: number } | null>(null);
+  /** The Tracks ▾ or Shops ▾ menu, anchored under the chip (window coordinates). */
+  const [kindMenu, setKindMenu] = useState<{ which: 'track' | 'shops'; x: number; y: number } | null>(null);
   const screen = useWindowDimensions();
   const places = useMemo(
     () =>
@@ -93,6 +114,8 @@ export default function MapScreen() {
     [spots, me, trackKinds],
   );
   const hasVenues = places.some((x) => x.kind === 'venue');
+  // Meet-friendly venues count as "Coffee & meet spots" on the Shops layer, so they show with it even with Venues off.
+  const venuesViaShops = layers.shops && !shopFilter.partnersOnly && shopFilter.categories.includes('coffee');
 
   // Follow the person: ask for when-in-use location the first time, then centre on them.
   const map = useRef<NightMapHandle>(null);
@@ -134,6 +157,16 @@ export default function MapScreen() {
     [layers.cameras, region],
   );
 
+  /** Partners: the production list (empty until the backend) and the labelled demo samples near home. */
+  const partners = useMemo(() => [...PARTNERS, ...demoPartners(DEMO_PARTNERS, meUser?.home)], [meUser?.home]);
+  const shopView = useMemo(() => {
+    if (!layers.shops) return null;
+    const v = shopsForView(shopIndex(), region.centre, region.span, shopFilter, partners);
+    // A venue's own pin replaces the OpenStreetMap café under it.
+    const venues = venuesViaShops || layers.venue ? places.filter((p) => p.kind === 'venue') : [];
+    return { ...v, shops: v.shops.filter((s) => !(s.categories[0] === 'coffee' && venues.some((p) => milesBetween(p.at, s.at) < 0.12))) };
+  }, [layers.shops, layers.venue, region, shopFilter, partners, venuesViaShops, places]);
+
   const { pins, paths, circles } = useMemo(() => {
     const pins: MapPin[] = [];
     const paths: MapPath[] = [];
@@ -150,6 +183,10 @@ export default function MapScreen() {
       }
       for (const c of cams.cameras)
         pins.push({ id: `cam:${c.id}`, at: c.at, glyph: 'camera', colour: C.alert, title: describeCamera(c), size: cameraPinSize(region.span) });
+    }
+    if (shopView) {
+      for (const s of shopView.shops) pins.push({ id: `shop:${s.id}`, at: s.at, glyph: s.categories[0] ?? 'shop', colour: SHOP_COLOUR, title: s.name, size: shopPinSize(region.span) });
+      for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30 });
     }
     if (layers.track) {
       for (const { id, outline } of outlinesInView(places, region.centre, region.span))
@@ -174,7 +211,7 @@ export default function MapScreen() {
       }
     }
     for (const s of places) {
-      if (!layers[s.kind]) continue;
+      if (!layers[s.kind] && !(s.kind === 'venue' && venuesViaShops)) continue;
       const colour = s.status === 'pending' ? C.fog : SPOT_COLOURS[s.kind];
       pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour, title: s.name, size: 32 });
       if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour, dashed: s.status === 'pending' });
@@ -182,7 +219,7 @@ export default function MapScreen() {
     if (layers.bans) for (const z of BAN_ZONES) circles.push({ id: `bz:${z.id}`, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert });
     return { pins: orderPins(pins), paths, circles };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [views, shown, places, cams, region]);
+  }, [views, shown, places, cams, region, shopView, venuesViaShops]);
 
   const sel = selected ? describeSelection(selected) : null;
 
@@ -194,6 +231,32 @@ export default function MapScreen() {
       if (!pin) return null;
       const [what, ...rest] = pin.title.split(' · ');
       return { title: what, meta: rest.join(' · '), body: `${CAMERA_CAVEAT}\n${CAMERA_CREDIT}.`, colour: C.alert };
+    }
+    if (kind === 'shop') {
+      const s = shopIndex().find(key);
+      if (!s) return null;
+      const hours = parseOpeningHours(s.hours);
+      return {
+        title: s.name,
+        meta: [describeCategories(s.categories), hours ? openState(hours, now).label : null].filter(Boolean).join(' · '),
+        body: `${s.brand ? `${s.brand}. ` : ''}Listing from OpenStreetMap, not a Nightshift partner.`,
+        colour: SHOP_COLOUR,
+        open: () => router.push({ pathname: '/shop/[id]', params: { id: s.id } }),
+        cta: 'Open shop ›',
+      };
+    }
+    if (kind === 'ptn') {
+      const p = partners.find((x) => x.id === key);
+      if (!p) return null;
+      const hours = parseOpeningHours(p.hours);
+      return {
+        title: p.name,
+        meta: [partnerBadge(p), describeCategories(p.categories), hours ? openState(hours, now).label : null].filter(Boolean).join(' · '),
+        body: [p.offer, p.demo ? 'Made-up business for the demo.' : null].filter(Boolean).join('\n') || (p.description ?? ''),
+        colour: PARTNER_COLOUR,
+        open: () => router.push({ pathname: '/shop/[id]', params: { id: `partner:${p.id}` } }),
+        cta: 'Open partner ›',
+      };
     }
     if (kind === 'ev') {
       const v = views.find((x) => x.event.id === key);
@@ -297,9 +360,14 @@ export default function MapScreen() {
             ...(l.key === 'track'
               ? {
                   note: trackKinds.length === ALL_VEHICLES.length ? undefined : trackKinds.map((v) => VEHICLE_LABELS[v]).join(' · '),
-                  menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : anchor)),
+                  menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : { which: 'track', ...anchor })),
                 }
-              : {}),
+              : l.key === 'shops'
+                ? {
+                    note: shopFilterNote(shopFilter.categories, shopFilter.partnersOnly),
+                    menu: (anchor: { x: number; y: number }) => setKindMenu((m) => (m ? null : { which: 'shops', ...anchor })),
+                  }
+                : {}),
           }))}
           actions={[
             { key: 'find', label: newNear > 0 ? `Find events · ${newNear} new` : 'Find events', colour: C.lime, onPress: () => router.push('/find') },
@@ -308,8 +376,8 @@ export default function MapScreen() {
               label: 'Show everything',
               colour: C.chalk,
               onPress: () => {
-                // Everything you can open: cameras are background, so they don't count.
-                const r = fitRegion(pins.filter((p) => p.glyph !== 'camera' && p.glyph !== 'average').map((p) => p.at));
+                // Everything you can open: cameras and shop listings are background, so they don't count.
+                const r = fitRegion(pins.filter((p) => p.glyph !== 'camera' && p.glyph !== 'average' && !p.id.startsWith('shop:') && !p.id.startsWith('ptn:')).map((p) => p.at));
                 if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
               },
             },
@@ -317,11 +385,22 @@ export default function MapScreen() {
           ]}
         />
         <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-          {cams ? (
+          {cams || shopView ? (
             <View style={st.credit} pointerEvents="none">
-              <Txt v="mono" style={{ fontSize: 10, color: cams.tooWide ? C.chalk : C.fog }}>
-                {cams.tooWide ? 'ZOOM IN TO SEE SPEED CAMERAS' : `${CAMERA_CREDIT} · may be incomplete`}
-              </Txt>
+              {cams ? (
+                <Txt v="mono" style={{ fontSize: 10, color: cams.tooWide ? C.chalk : C.fog }}>
+                  {cams.tooWide ? 'ZOOM IN TO SEE SPEED CAMERAS' : `${CAMERA_CREDIT} · may be incomplete`}
+                </Txt>
+              ) : null}
+              {shopView ? (
+                <Txt v="mono" style={{ fontSize: 10, color: shopView.tooWide ? C.chalk : C.fog }}>
+                  {shopView.tooWide
+                    ? 'ZOOM IN TO SEE SHOPS'
+                    : shopFilter.partnersOnly
+                      ? `PARTNERS ONLY · ${shopView.partners.length} HERE`
+                      : `${SHOP_CREDIT}${shopView.more ? ' · nearest shown, zoom in for more' : ''}`}
+                </Txt>
+              ) : null}
             </View>
           ) : <View />}
           <Pressable
@@ -369,7 +448,63 @@ export default function MapScreen() {
       ) : lead ? (
         <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
       ) : null}
-      {kindMenu ? (
+      {kindMenu?.which === 'shops' ? (
+        <>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setKindMenu(null)} accessibilityLabel="Close the menu" />
+          <View style={[st.menu, { left: Math.max(8, Math.min(kindMenu.x, screen.width - 262)), top: kindMenu.y, width: 254 }]} accessibilityRole="menu">
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Txt v="label" style={{ fontSize: 10 }}>Show shops</Txt>
+              {shopFilter.categories.length < ALL_CATEGORIES.length ? (
+                <Pressable
+                  onPress={() => {
+                    feel.select();
+                    setSettings({ shopCategories: [...ALL_CATEGORIES] });
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Show all kinds of shop"
+                >
+                  <Txt v="label" style={{ fontSize: 10, color: SHOP_COLOUR }}>Show all</Txt>
+                </Pressable>
+              ) : null}
+            </Row>
+            {MENU_ORDER.map((c) => {
+              const on = shopFilter.categories.includes(c);
+              return (
+                <Pressable
+                  key={c}
+                  onPress={() => toggleShopCategory(c)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityHint={CATEGORY_HINTS[c]}
+                  style={({ pressed }) => [st.menuRow, { paddingVertical: 5 }, pressed && { opacity: 0.7 }]}
+                >
+                  <View style={[st.box, on && { backgroundColor: SHOP_COLOUR, borderColor: SHOP_COLOUR }]}>{on ? <Txt v="label" style={{ color: C.asphalt, fontSize: 11, lineHeight: 14 }}>✓</Txt> : null}</View>
+                  <Pin glyph={c} colour={on ? SHOP_COLOUR : C.fog} size={18} />
+                  <Txt style={{ color: on ? C.chalk : C.fog, fontSize: 14, flexShrink: 1 }} numberOfLines={1}>{CATEGORY_LABELS[c]}</Txt>
+                </Pressable>
+              );
+            })}
+            <View style={{ height: 1, backgroundColor: C.kerb, marginVertical: 4 }} />
+            <Pressable
+              onPress={() => {
+                feel.select();
+                setSettings({ shopPartnersOnly: !shopFilter.partnersOnly });
+              }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: shopFilter.partnersOnly }}
+              style={({ pressed }) => [st.menuRow, { paddingVertical: 5 }, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[st.box, shopFilter.partnersOnly && { backgroundColor: PARTNER_COLOUR, borderColor: PARTNER_COLOUR }]}>
+                {shopFilter.partnersOnly ? <Txt v="label" style={{ color: C.asphalt, fontSize: 11, lineHeight: 14 }}>✓</Txt> : null}
+              </View>
+              <Pin glyph="partner" colour={shopFilter.partnersOnly ? PARTNER_COLOUR : C.fog} size={18} />
+              <Txt style={{ color: shopFilter.partnersOnly ? C.chalk : C.fog, fontSize: 14 }}>Partners only</Txt>
+            </Pressable>
+            <Txt v="muted" style={{ fontSize: 11, lineHeight: 14 }}>Partners pay to be highlighted and are always marked Partner. Other listings come from OpenStreetMap.</Txt>
+          </View>
+        </>
+      ) : kindMenu ? (
         <>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setKindMenu(null)} accessibilityLabel="Close the menu" />
           <View style={[st.menu, { left: Math.max(8, Math.min(kindMenu.x, screen.width - 158)), top: kindMenu.y }]} accessibilityRole="menu">

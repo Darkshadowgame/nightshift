@@ -240,6 +240,23 @@ note anything odd for the next pass. Each step says what you should see.
       Tap one: its Commons page opens in Safari. In flight mode on a place you haven't
       opened before it says it couldn't load them; one you've opened shows them again.
 
+### 7c. Shops and partners
+
+- [ ] Map: tap the **Shops** pill (it's off at first). Zoomed out there's a note **Zoom in to
+      see shops**; zoom in on a town (about 20 miles across) and small purple pins appear,
+      each with a glyph for its kind (spanner for garages, tag for dealers, tyre, bolt for
+      tuning, cup for cafés…), with the OpenStreetMap credit under the bar.
+- [ ] Tap the **▾** on the pill (or long-press it): a small menu with the nine kinds and
+      **Partners only**. Untick some: the map updates and the pill's second line shows the
+      filter (e.g. **Tuning** or **2 kinds**). Close and reopen the app: the choice is kept.
+- [ ] Near home there are two gold star pins, **Sample Detailing Studio** and **Sample
+      Rolling Road**, marked **Sample partner** (made-up businesses). **Partners only**
+      shows just those.
+- [ ] Tap a shop: the card says its kinds and, where the hours are tagged, **Open now ·
+      closes 17:30** or **Closed · opens …**. **Open shop ›**: hours for the week, website
+      and **Call** buttons where tagged, **Apple Maps** and **Waze** open directions to it,
+      and **Suggest an edit or a missing shop** saves a note for the team.
+
 ### 8. People and crews
 
 - [ ] Tap anyone in a Going list, a vote card or chat: their builds, trophies,
@@ -322,6 +339,11 @@ note anything odd for the next pass. Each step says what you should see.
   `src/data/cameras.ts`). Volunteers map them, so some are missing or out of date: the
   app says so and only ever shows them as speed-limit information. They are a separate
   dataset from anything people report (there's no way to report cameras or police).
+- Shops on the map come from OpenStreetMap (bundled, read on the date in `src/data/shops.ts`):
+  21,662 UK businesses. Volunteers map them, so some are missing, closed or out of date, and only
+  about one in seven has opening hours; the shop screen says so and has **Suggest an edit or a
+  missing shop**. Partners are an empty list until the backend is wired: the two "Sample
+  partner" businesses near your home are made up for the demo.
 - Kart circuits are the outdoor ones whose own websites show them running in 2025/26
   (`src/data/kartTracks.ts`). Arrive-and-drive, lengths and club lap records show only
   where the venue publishes them.
@@ -368,7 +390,10 @@ note anything odd for the next pass. Each step says what you should see.
 | `src/lib/polyline.ts`, `outline.ts`, `tracks.ts` | Encoded lines, picking a circuit's main layout from OSM ways, circuit details and what runs where |
 | `src/lib/laptimes.ts`, `lapStore.ts` | Track times: checks (real tracks only, proof, layout, vehicle type), per-class leaderboards, kept on the phone |
 | `src/lib/commons.ts`, `commonsClient.ts` | Nearby Wikimedia Commons photos: request, parsing and filtering, a week's cache |
-| `src/data/cameras.ts`, `circuits.ts` | Generated from OpenStreetMap by `scripts/fetch-cameras.mjs` and `scripts/fetch-circuits.mjs` |
+| `src/lib/shopCategories.ts`, `shopCodec.ts`, `shops.ts`, `shopData.ts` | Shops layer: kinds and OSM tag rules, compact tile encoding, what to draw for the view and the filter, lazy loading |
+| `src/lib/openingHours.ts` | Reads common OSM `opening_hours` formats: the week, "open now", next opening |
+| `src/lib/partners.ts`, `src/data/partners.ts` | Partners (always labelled), the `partner_venues` row mapping, and the made-up demo samples |
+| `src/data/cameras.ts`, `circuits.ts`, `shops.ts` | Generated from OpenStreetMap by `scripts/fetch-cameras.mjs`, `scripts/fetch-circuits.mjs` and `scripts/fetch-shops.mjs` |
 | `src/data/trackInfo.ts` | Circuit layouts, lap records (with sources) and what runs at each track |
 | `src/app/` | Screens (Expo Router) |
 
@@ -378,6 +403,7 @@ note anything odd for the next pass. Each step says what you should see.
 |---|---|---|
 | Speed cameras and average-speed zones (`src/data/cameras.ts`) | OpenStreetMap `highway=speed_camera` nodes and `type=enforcement` relations, via the Overpass API | © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Kept as its own dataset, never merged with user reports. Credited on the map. |
 | Circuit outlines (`src/data/circuits.ts`), drive lines, car parks | OpenStreetMap (`highway=raceway`, motorsport `leisure=track`) | © OpenStreetMap contributors, ODbL 1.0. Credited on the track and drive maps. |
+| Shops (`src/data/shops.ts`) | OpenStreetMap car and bike businesses (`shop=car_repair`, `car_parts`, `car`, `motorcycle`, `tyres`, `amenity=car_wash`, `vehicle_inspection`, biker cafés…), read from the Geofabrik UK extract of 16 Nov 2026 | © OpenStreetMap contributors, ODbL 1.0. Kept as its own dataset; edits people suggest go to the feedback queue, never into it. Credited on the map and every shop screen. |
 | Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
 | Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
 
@@ -393,6 +419,7 @@ at a time, and backs off when Overpass is busy; `--cache DIR` keeps the answers)
 ```bash
 node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-cameras.mjs --cache /tmp/osm
 node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs --cache /tmp/osm
+node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-shops.mjs --cache /tmp/osm
 ```
 
 If Overpass is down, fill the same cache from a Geofabrik extract first (needs pyosmium;
@@ -402,4 +429,10 @@ see the top of each script), then run the two commands above (cameras with `--ca
 python scripts/cameras-from-pbf.py united-kingdom-latest.osm.pbf /tmp/osm
 node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs --list-venues > /tmp/osm/venues.json
 python scripts/circuits-from-pbf.py united-kingdom-latest.osm.pbf /tmp/osm/venues.json /tmp/osm
+python scripts/shops-from-pbf.py united-kingdom-latest.osm.pbf /tmp/osm   # then fetch-shops.mjs --cached-only
 ```
+
+Shops (17 Nov 2026, Overpass was at capacity so all from the Geofabrik extract): 21,662
+businesses in 847 KB: dealers 7,304, garages and MOT 11,455, tyres and wheels 2,213, parts
+1,807, detailing 208, tuning 167, coffee and meet spots 92, bike gear 43, dyno 3 (a business
+can be in more than one kind). 1,620 unnamed ones were left out.

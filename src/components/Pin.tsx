@@ -14,7 +14,19 @@ export type Glyph =
   | 'area'
   | 'locked'
   | 'camera'
-  | 'average';
+  | 'average'
+  // Shops layer: the layer itself, each category, and partners.
+  | 'shop'
+  | 'tuning'
+  | 'parts'
+  | 'gear'
+  | 'dealer'
+  | 'tyres'
+  | 'detailing'
+  | 'dyno'
+  | 'garage'
+  | 'coffee'
+  | 'partner';
 
 /** Game-style hexagon badge with a glyph, as on the concept board. */
 export function Pin({ glyph, colour, size = 36 }: { glyph: Glyph; colour: string; size?: number }) {
@@ -100,5 +112,85 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       );
     case 'area':
       return <Circle cx={20} cy={20} r={6} fill="none" stroke={c} strokeWidth={2.4} strokeDasharray="3 3" />;
+    case 'shop':
+      // A shopfront: awning, window and door.
+      return (
+        <>
+          <Path d="M11 17h18l-2.2-5H13.2z" fill={c} />
+          <Path d="M12.5 17v11h15V17" fill="none" stroke={c} strokeWidth={2.2} />
+          <Rect x={18} y={21} width={4.5} height={7} fill={c} />
+        </>
+      );
+    case 'tuning':
+      // Lightning bolt.
+      return <Path d="M22.5 9.5 13 22h6l-2 8.5L27 18h-6z" fill={c} />;
+    case 'parts':
+      // A cog.
+      return (
+        <>
+          <Circle cx={20} cy={20} r={7} fill="none" stroke={c} strokeWidth={3.6} strokeDasharray="3.1 2.4" />
+          <Circle cx={20} cy={20} r={5} fill="none" stroke={c} strokeWidth={2} />
+        </>
+      );
+    case 'gear':
+      // A helmet with its visor.
+      return (
+        <>
+          <Path d="M11 25c0-6.5 4-11 9.5-11 5.2 0 8.5 3.8 8.5 9v4H11z" fill={c} />
+          <Path d="M19 19.5h9" stroke="#0b0f17" strokeWidth={2.6} strokeLinecap="round" />
+        </>
+      );
+    case 'dealer':
+      // A price tag.
+      return (
+        <>
+          <Path d="M11.5 12.5h9l9 9-8 8-10-10z" fill="none" stroke={c} strokeWidth={2.4} strokeLinejoin="round" />
+          <Circle cx={16} cy={17} r={2} fill={c} />
+        </>
+      );
+    case 'tyres':
+      return (
+        <>
+          <Circle cx={20} cy={20} r={7.5} fill="none" stroke={c} strokeWidth={3.6} />
+          <Circle cx={20} cy={20} r={2.2} fill={c} />
+        </>
+      );
+    case 'detailing':
+      // A sparkle.
+      return (
+        <>
+          <Path d="M18.5 11l1.9 6.6 6.6 1.9-6.6 1.9-1.9 6.6-1.9-6.6L10 19.5l6.6-1.9z" fill={c} />
+          <Path d="M27 10.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill={c} />
+        </>
+      );
+    case 'dyno':
+      // A rev counter.
+      return (
+        <>
+          <Path d="M11.5 26a8.5 8.5 0 1 1 17 0" fill="none" stroke={c} strokeWidth={2.6} strokeLinecap="round" />
+          <Path d="M20 26l5-6.5" stroke={c} strokeWidth={2.6} strokeLinecap="round" />
+          <Circle cx={20} cy={26} r={1.8} fill={c} />
+        </>
+      );
+    case 'garage':
+      // A spanner.
+      return (
+        <>
+          <Path d="M21.5 18.5 12.5 27.5" stroke={c} strokeWidth={3.4} strokeLinecap="round" />
+          <Path d="M27.6 13.4a4.6 4.6 0 0 1-5.9 5.9 4.6 4.6 0 0 1 2-8.6l-2.3 2.6.6 2.3 2.3.6z" fill={c} />
+        </>
+      );
+    case 'coffee':
+      // A cup with steam.
+      return (
+        <>
+          <Path d="M11.5 18h13v5.5a5 5 0 0 1-5 5h-3a5 5 0 0 1-5-5z" fill={c} />
+          <Path d="M24.5 20h1.8a2.6 2.6 0 0 1 0 5.2h-2" fill="none" stroke={c} strokeWidth={2} />
+          <Path d="M15.5 15.5c-1-1.4 1-2.3 0-3.8M20 15.5c-1-1.4 1-2.3 0-3.8" fill="none" stroke={c} strokeWidth={1.6} strokeLinecap="round" />
+        </>
+      );
+    case 'partner':
+      // A star: partners are always marked as partners.
+      return <Path d="M20 10.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L20 25l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z" fill={c} />;
   }
 }

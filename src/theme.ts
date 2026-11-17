@@ -41,3 +41,7 @@ export const SPOT_COLOURS = {
   track: C.lime,
   venue: C.sodium,
 } as const;
+
+/** The Shops layer (OpenStreetMap listings) and partners (always labelled, see src/lib/partners.ts). */
+export const SHOP_COLOUR = '#b48cff';
+export const PARTNER_COLOUR = '#ffd23f';

@@ -76,10 +76,15 @@ export function mapHud(views: EventView[], now: Date): { live: EventView[]; next
  */
 type Layered = { glyph: string; live?: boolean };
 
+const SHOP_GLYPHS = new Set(['shop', 'tuning', 'parts', 'gear', 'dealer', 'tyres', 'detailing', 'dyno', 'garage', 'coffee']);
+
 export function pinLayer(p: Layered): number {
   if (p.live) return 4;
   // Speed cameras are background information: everything else sits on top.
   if (p.glyph === 'camera' || p.glyph === 'average') return 0;
+  // Shop listings are background too; a partner's pin sits with the places.
+  if (SHOP_GLYPHS.has(p.glyph)) return 0;
+  if (p.glyph === 'partner') return 1;
   if (p.glyph === 'locked') return 2;
   if (p.glyph === 'photo' || p.glyph === 'drive' || p.glyph === 'track' || p.glyph === 'venue') return 1;
   return 3;

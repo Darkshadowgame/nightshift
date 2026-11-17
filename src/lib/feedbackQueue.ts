@@ -1,10 +1,14 @@
 /**
- * Suggestions made in the pickers ("a car or mod is missing"), queued on the
- * phone until they're sent to the backend's feedback table
+ * Suggestions made in the pickers ("a car or mod is missing") and on shop
+ * screens ("this listing is wrong", "a shop is missing"), queued on the phone
+ * until they're sent to the backend's feedback table
  * (kind, message, screen, app_version, update_id, device).
  */
 
-export type FeedbackScreen = 'vehicle-picker' | 'mod-picker';
+export type FeedbackScreen = 'vehicle-picker' | 'mod-picker' | 'shop';
+
+const WHAT: Record<FeedbackScreen, string> = { 'vehicle-picker': 'Missing vehicle', 'mod-picker': 'Missing mod', shop: 'Shop edit or missing shop' };
+const CONTEXT: Record<FeedbackScreen, string> = { 'vehicle-picker': 'Picker', 'mod-picker': 'Picker', shop: 'Listing' };
 
 export interface PendingFeedback {
   id: string;
@@ -30,9 +34,8 @@ export function makeSuggestion(
 ): PendingFeedback {
   const problem = suggestionProblem(input.missing);
   if (problem) throw new Error(problem);
-  const what = input.screen === 'vehicle-picker' ? 'Missing vehicle' : 'Missing mod';
-  const lines = [`${what}: ${input.missing.trim()}`];
+  const lines = [`${WHAT[input.screen]}: ${input.missing.trim()}`];
   if (input.notes?.trim()) lines.push(`Notes: ${input.notes.trim()}`);
-  if (input.context?.trim()) lines.push(`Picker: ${input.context.trim()}`);
+  if (input.context?.trim()) lines.push(`${CONTEXT[input.screen]}: ${input.context.trim()}`);
   return { id, kind: 'idea', message: lines.join('\n').slice(0, FEEDBACK_MAX), screen: input.screen, at: now.toISOString() };
 }

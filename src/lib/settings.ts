@@ -1,3 +1,5 @@
+import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
+
 /** App settings, kept on the phone. */
 export interface Settings {
   /**
@@ -18,9 +20,18 @@ export interface Settings {
   cameras: boolean;
   /** Map: which tracks to show by what runs there (Tracks ▾ menu). Never empty. */
   trackVehicles: ('car' | 'bike' | 'kart')[];
+  /** Map: the Shops layer (OpenStreetMap listings and partners). Off by default. */
+  shops: boolean;
+  /** Map: which kinds of shop to show (Shops ▾ menu). Never empty. */
+  shopCategories: ShopCategory[];
+  /** Map: only partners on the Shops layer. */
+  shopPartnersOnly: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: true, trackVehicles: ['car', 'bike', 'kart'] };
+export const DEFAULT_SETTINGS: Settings = {
+  simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: true, trackVehicles: ['car', 'bike', 'kart'],
+  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false,
+};
 
 /**
  * Settings from a save. Saves from before real GPS was the default had

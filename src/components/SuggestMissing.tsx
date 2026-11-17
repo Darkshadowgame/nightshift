@@ -6,10 +6,22 @@ import { C } from '../theme';
 import { Button, Card, Row, Txt, s as ui } from './ui';
 
 /**
- * "Suggest a missing car/bike or mod": a link that opens a two-field form and
+ * "Suggest a missing car/bike or mod" (or a shop edit): a link that opens a two-field form and
  * queues the suggestion as feedback (kind idea) to be sent to the backend.
  */
-export function SuggestMissing({ screen, label, placeholder, context }: { screen: FeedbackScreen; label: string; placeholder: string; context?: string }) {
+export function SuggestMissing({
+  screen,
+  label,
+  placeholder,
+  context,
+  notesPlaceholder = 'Notes (optional): year, engine, where to find the specs',
+}: {
+  screen: FeedbackScreen;
+  label: string;
+  placeholder: string;
+  context?: string;
+  notesPlaceholder?: string;
+}) {
   const { queueFeedback } = useStore();
   const [open, setOpen] = useState(false);
   const [missing, setMissing] = useState('');
@@ -45,7 +57,7 @@ export function SuggestMissing({ screen, label, placeholder, context }: { screen
       <TextInput
         value={notes}
         onChangeText={setNotes}
-        placeholder="Notes (optional): year, engine, where to find the specs"
+        placeholder={notesPlaceholder}
         placeholderTextColor={C.fog}
         style={[ui.input, { minHeight: 64, textAlignVertical: 'top' }]}
         multiline

@@ -253,6 +253,50 @@ Code: `src/lib/cameras.ts`, `cameraCodec.ts`, `cameraZones.ts`, `commons.ts`, `o
 `tracks.ts`, `laptimes.ts`, with tests. Data scripts: `scripts/fetch-cameras.mjs`,
 `scripts/fetch-circuits.mjs`.
 
+## Shops layer and partners (built, Nov 2026)
+
+Owner's request, 17 Nov 2026: "Add another toggle on the map — Shops, which can be the
+sponsors — and filter the shops you want to see." Money model: no ads and no paywalls;
+local businesses can pay to be a **labelled partner**, never disguised as an ordinary listing.
+
+* **Shops pill** in the layer bar (same design as the others). A tap turns the layer on or
+  off (off by default; kept in settings). **▾** or a long-press opens a small floating menu
+  with nine kinds, any mix (never none): Tuning & modifications, Parts & accessories, Bike
+  gear (helmets, leathers), Dealers (car and bike), Tyres & wheels, Detailing, wraps & tints,
+  Dyno & rolling road, Garages & MOT, Coffee & meet spots; plus **Partners only**. The
+  choice is kept, and the pill's second line shows it when narrowed ("Tuning",
+  "4 kinds", "Partners").
+* **Listings** are real UK businesses from OpenStreetMap (ODbL, credited on the map and on
+  every shop screen, kept as their own dataset: nothing typed in the app is merged into it).
+  Only public business details: name, kinds, position, and opening hours, website, phone
+  and brand where they're tagged. Categories come from OSM tags (`shop=car_repair`,
+  `car_parts`, `car`, `motorcycle`, `motorcycle_repair`, `tyres`, `amenity=car_wash`,
+  `vehicle_inspection`, `craft=car_painter`/`vehicle_wrap`, `service:vehicle:*`,
+  `motorcycle:clothes`, `clothes=motorcycle`…) and from names and descriptions for the rare
+  ones (tuning, "dyno"/"rolling road", detailing). A business can be in more than one kind;
+  the main one picks its small pin glyph. Cafés count only when tagged or named for bikers or
+  drivers (biker, motorcycle, truck stop, Moto café, "Pit Stop Café"…; never pizza, sushi or
+  cycle cafés), and the bundled meet-friendly venues show as Coffee & meet spots too.
+  Plain hand car washes are left out.
+* Shops show once the map is zoomed in to about 20 miles top to bottom, at most 90 pins,
+  nearest the middle first, decoded one 1° tile at a time. Zoomed out, a note says to zoom in.
+* **Shop screen:** name, kinds, brand, "Open now · closes 17:30" or "Closed · opens Mon 08:00"
+  when the hours can be read (the week is listed, days with the same hours joined; bank
+  holidays are noted and never guessed; other formats are shown as tagged), website and call
+  buttons, directions in Apple Maps or Waze, a small map, and **Suggest an edit or a missing
+  shop** (queued on the phone as feedback, kind idea, screen `shop`).
+* **Partners:** a gold star pin, a "Partner" badge on the card and screen, the offer and their
+  link, and a line saying partners pay to be highlighted. A partner always matches the kinds
+  filter like any shop, comes first within the pin cap, and replaces its own OSM listing.
+  Production partners will come from the backend's `partner_venues` table (mapping in
+  docs/BACKEND.md); until then the list is empty and the demo shows two made-up "Sample
+  partner" businesses near your home area, labelled as made up.
+
+Code: `src/lib/shopCategories.ts` (kinds and OSM tag rules), `shopCodec.ts`, `shops.ts`,
+`shopData.ts`, `openingHours.ts`, `partners.ts`, with tests in `__tests__/shops.test.ts`,
+`openingHours.test.ts` and `shopData.test.ts`. Data: `scripts/fetch-shops.mjs`
+(`scripts/shops-from-pbf.py` when Overpass is down).
+
 ## Author rep for drives and photo spots
 
 Anyone can suggest a drive or a photo spot. Once it's approved, the author gets **+50 rep**.

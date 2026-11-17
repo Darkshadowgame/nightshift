@@ -51,6 +51,7 @@ function Gate() {
         <Stack.Screen name="profile" options={{ title: 'YOUR PROFILE', presentation: 'modal' }} />
         <Stack.Screen name="spot/[id]" options={{ title: '' }} />
         <Stack.Screen name="spot/new" options={{ title: 'SUGGEST A PLACE', presentation: 'modal' }} />
+        <Stack.Screen name="shop/[id]" options={{ title: '' }} />
         <Stack.Screen name="crews" options={{ title: 'CREWS' }} />
         <Stack.Screen name="crew/[id]" options={{ title: '' }} />
         <Stack.Screen name="crew/new" options={{ title: 'START A CREW', presentation: 'modal' }} />
