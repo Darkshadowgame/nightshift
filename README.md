@@ -34,6 +34,24 @@ navigation commit only reach installs built from it or later; an older install k
 the last update that fitted it and shows "needs the iPhone app" if it ever reaches
 the driving screen.
 
+### Updates: does this install get them?
+
+Every push to `main` publishes an over-the-air update, but an install only takes updates
+built for the same **runtime** (a fingerprint of the native side: native modules, config
+plugins, app config, icons). Me › App updates shows the install's runtime (first 8
+characters) and channel, e.g. `Runtime bceac1ba · production channel`. The OTA job prints
+the update's runtime in its summary, and the **Build iPhone app** job prints the IPA's.
+
+- Same runtime: the update downloads when the app opens and applies on the next start.
+- Different runtime (the OTA job warns "needs a new IPA"): that install will never get it.
+  Build and install a new IPA (steps above); updates after that reach it again.
+
+Changes that need a new IPA: adding or upgrading a package with native code (including
+Expo package patch upgrades), a local module under `modules/` (plate blurring,
+navigation), config plugins or `app.json` native settings (permissions, icon, splash,
+`plugins`), and `ios/` build settings. JavaScript, data files and assets
+(`assets/data/*.nsdata`, map data, copy, screens) go out over the air.
+
 ## Try this tomorrow
 
 A checklist for a first proper go on a real iPhone. Tick things off as you go and
@@ -87,6 +105,10 @@ note anything odd for the next pass. Each step says what you should see.
       and bhp, bhp per tonne and mods. Open it > **Edit**. Change it to your own car or bike.
 - [ ] Add mods with bhp gains. Save. If the class goes up (e.g. remove the dyno
       figure, then add a big remap), the badge flips to the new class with a buzz.
+- [ ] Bike > **Stage 2** > **Add typical parts**: only road-legal parts go on. The de-cat
+      link pipe and de-restricting show separately as optional, marked **Not road legal —
+      track/off-road only**; add one and it shows that tag in the list and on the build page.
+      Me: **Mods logged** counts each road-legal kind of mod once, at most 10 per build.
 - [ ] **+ Add a photo** with a car whose number plate is visible. The crop screen opens:
       drag the box or its corners (rule-of-thirds grid), try **Cover** (the garage card's
       shape), 1:1, 4:5, 4:3, 16:9, **Rotate 90°** and **Reset**, then **Use this crop**
@@ -117,8 +139,12 @@ note anything odd for the next pass. Each step says what you should see.
       Its name box fills in with the street and town. Edit it; moving it again won't
       overwrite your own name. The area name suggests the town. The line under the time chips says
       when it starts; a time that has passed tonight is refused, and "Tonight 06:00"
-      means the early hours. Try placing a stop inside a ban zone (Map > Ban zones
-      shows them): you get a warning. Save, open it and turn on **See as a guest**:
+      means the early hours. The stop map shows the car-meet order areas (ban zones: red
+      outlines for whole boroughs such as Birmingham or the Black Country, circles for
+      smaller ones); tap a zone's red pin, or the line under the crosshair when you're in
+      one, for its info card (what kind of order, what it bans, when, the source, and that
+      you're responsible as host). Place a stop inside one: a short warning line under the
+      stop opens the same card. Save, open it and turn on **See as a guest**:
       the map shows the locked pin and circle invited people see, a mile or two off
       your spot, never on it, and the stops show locked.
 - [ ] **Night cruise: …** (you host it, on the nearest real drive to you): **Requests (2)** from people who
@@ -189,11 +215,16 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 7. Drives, photo spots and suggestions
 
-- [ ] Map > **Show everything**: real circuits, hill climbs, drives and photo spots all over
-      the UK (Silverstone to Knockhill and Kirkistown, Snake Pass to Bealach na Bà), plus
-      researched drives, photo spots and **Venues** (cafés and museums that welcome meets)
-      in East Anglia, Kent and London. Map > Ban zones shows the sample zones; a place inside
-      one (e.g. Westminster Bridge) opens with the ban-zone warning. Each
+- [ ] Map: zoomed out, places of a kind group into one pin with a number (tap it to zoom in);
+      zoomed in, each place has its own pin, and drive lines appear. **Near me** fits the 60
+      nearest things to your home area. Real circuits, hill climbs, drives and photo spots all
+      over the UK (Silverstone to Knockhill and Kirkistown, Snake Pass to Bealach na Bà), plus
+      **Venues** (cafés and museums that welcome meets; mint building-and-flag pins, under the
+      layers button). The bar has Events, Photos, Drives and Tracks; the round layers button
+      under locate-me has Venues, Shops and Speed cameras, and **Map key ›** explains every
+      pin (events filled, places outlined). There are no ban zones on this map: a place inside
+      one (e.g. Westminster Bridge or Coventry Transport Museum) has one line, "Inside a
+      car-meet order area… See details ›", which opens the info card. Each
       drive's line should sit on the real road when you zoom in. Drives show **Before you
       go** warnings where they matter (single-track, snow gates, cameras), and "Added by
       Nightshift".
@@ -220,16 +251,12 @@ note anything odd for the next pass. Each step says what you should see.
       zones (their pin sits halfway along). Tap one: the card says the limit (e.g. **Speed
       camera · 30 mph · faces north-east**), that the data may be incomplete, and the
       OpenStreetMap credit. Nothing to open, and nothing about police anywhere.
-- [ ] Zoomed out further, the pins go and a small note says **Zoom in to see speed cameras**.
-      The **Cameras** chip turns the layer off and on; so does Me > Map > **Speed cameras**
-      (they're the same setting, on by default).
-- [ ] Tracks chip on: **Cars**, **Bikes** and **Karts** chips appear next to it (any mix).
-      Cars and Bikes off: only places that run karts stay (the kart circuits, plus circuits
-      with karting on site such as Teesside or Three Sisters); Goodwood and the hill climbs go.
-- [ ] Open a kart circuit (e.g. Whilton Mill or PF International): **Runs here: Karts**,
-      **Arrive and drive: yes, hire karts** (only where the venue says so; Llandow and
-      Shenington say no), its layouts, a **Venue details** link, and Track times grouped as
-      hire or own karts.
+- [ ] Cameras are off at first: turn them on from the layers button (or Me > Map > **Speed
+      cameras**, the same setting). Zoomed out further, the pins go and a small note says
+      **Zoom in to see cameras**. Cameras with no recorded limit are smaller and dimmer.
+- [ ] Tracks **▾**: **Cars** and **Bikes** (either or both), and **Racing to watch** (off at
+      first) for speedway, oval and closed-road race venues, which run no track days. Bikes
+      off: Goodwood and the hill climbs stay, bike-only venues go. There are no kart tracks.
 - [ ] Zoom right in on a circuit (Snetterton, Brands Hatch, Silverstone): its outline is
       drawn in green on the map.
 - [ ] Open a track (e.g. Snetterton): the little map shows the circuit outline, then **The
@@ -249,13 +276,14 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 7c. Shops and partners
 
-- [ ] Map: tap the **Shops** pill (it's off at first). Zoomed out there's a note **Zoom in to
-      see shops**; zoom in on a town (about 20 miles across) and small purple pins appear,
+- [ ] Map: layers button > **Shops** (it's off at first; the listings load the first time,
+      "Loading shops…"). Zoomed out there's a note **Zoom in to see shops**; zoom in on a town (about 20 miles across) and small purple pins appear,
       each with a glyph for its kind (spanner for garages, tag for dealers, tyre, bolt for
       tuning, cup for cafés…), with the OpenStreetMap credit under the bar.
-- [ ] Tap the **▾** on the pill (or long-press it): a small menu with the nine kinds and
-      **Partners only**. Untick some: the map updates and the pill's second line shows the
-      filter (e.g. **Tuning** or **2 kinds**). Close and reopen the app: the choice is kept.
+- [ ] Layers button > Shops **Kinds ›**: a small menu with the nine kinds and **Partners
+      only**. Untick some: the map updates and the Shops row shows the filter (e.g. **Tuning**
+      or **2 kinds**). Close and reopen the app: the choice is kept. Partner pins have a small
+      **P** badge.
 - [ ] Near home there are two gold star pins, **Sample Detailing Studio** and **Sample
       Rolling Road**, marked **Sample partner** (made-up businesses). **Partners only**
       shows just those.
@@ -371,9 +399,13 @@ while moving: the driving screen is built to be glanced at, not used.
   updated from an older version treats the events it already had as not new.
 - Find events searches what's on this phone. Distances are straight lines to the event's
   rough area, not driving distances.
-- Ban zones are rough circles round real orders (West Midlands, London, East Anglia and
-  Kent; see `src/data/banZones.ts`), each marked "Sample — check the current order". They
-  are not a live legal list. Places inside one still show, with the warning.
+- Ban zones (car-meet order areas) are drawn round real orders (`src/data/banZones.ts`):
+  borough- and city-wide orders as simplified council boundaries from OpenStreetMap
+  (Birmingham; Wolverhampton, Sandwell and Walsall; Dudley; Coventry; Broadland and South
+  Norfolk), smaller ones as circles. The West Midlands ones were checked against the Feb 2026
+  judgments on 17 Nov 2026 (Solihull has no current order). Each is marked "Sample — check
+  the current order": they are not a live legal list. They only draw where you host; places
+  inside one still show, with a line linking to the info card.
 - Place search and street names use the iPhone's own geocoder (Apple's). It needs a signal,
   Apple limits how often it can be asked, and it can't search in the web preview. Nothing is
   sent to any other web service.
@@ -389,14 +421,12 @@ while moving: the driving screen is built to be glanced at, not used.
   `src/data/cameras.ts`). Volunteers map them, so some are missing or out of date: the
   app says so and only ever shows them as speed-limit information. They are a separate
   dataset from anything people report (there's no way to report cameras or police).
-- Shops on the map come from OpenStreetMap (bundled, read on the date in `src/data/shops.ts`):
+- Shops on the map come from OpenStreetMap (an app asset, `assets/data/shops.nsdata`, read from the 16 Nov 2026 extract):
   21,662 UK businesses. Volunteers map them, so some are missing, closed or out of date, and only
   about one in seven has opening hours; the shop screen says so and has **Suggest an edit or a
-  missing shop**. Partners are an empty list until the backend is wired: the two "Sample
+  missing shop**. Each shop's id is its OpenStreetMap element, so it survives a refresh. Partners are an empty list until the backend is wired: the two "Sample
   partner" businesses near your home are made up for the demo.
-- Kart circuits are the outdoor ones whose own websites show them running in 2025/26
-  (`src/data/kartTracks.ts`). Arrive-and-drive, lengths and club lap records show only
-  where the venue publishes them.
+- Kart tracks were taken out (Nov 2026); saved kart times were dropped.
 - Circuit outlines come from OpenStreetMap and show the main layout as mapped. Lap records
   are copied from each circuit's Wikipedia page (read 17 Nov 2026) and left out where the
   page wasn't clear. Track times are kept on this phone and marked unverified: checking the
@@ -452,7 +482,11 @@ while moving: the driving screen is built to be glanced at, not used.
 | `src/lib/shopCategories.ts`, `shopCodec.ts`, `shops.ts`, `shopData.ts` | Shops layer: kinds and OSM tag rules, compact tile encoding, what to draw for the view and the filter, lazy loading |
 | `src/lib/openingHours.ts` | Reads common OSM `opening_hours` formats: the week, "open now", next opening |
 | `src/lib/partners.ts`, `src/data/partners.ts` | Partners (always labelled), the `partner_venues` row mapping, and the made-up demo samples |
-| `src/data/cameras.ts`, `circuits.ts`, `shops.ts` | Generated from OpenStreetMap by `scripts/fetch-cameras.mjs`, `scripts/fetch-circuits.mjs` and `scripts/fetch-shops.mjs` |
+| `src/data/cameras.ts`, `circuits.ts`, `assets/data/shops.nsdata` | Generated from OpenStreetMap by `scripts/fetch-cameras.mjs`, `scripts/fetch-circuits.mjs` and `scripts/fetch-shops.mjs` |
+| `src/data/zoneBoundaries.ts`, `src/lib/zones.ts`, `components/ZoneCard.tsx` | Council outlines for borough-wide orders; which zones a point is in; the zone info card |
+| `src/lib/mapPlaces.ts` | Which places the map draws for the view: culling, per-kind caps, count pins when zoomed out |
+| `src/lib/placeStore.ts`, `persist.ts`, `clock.tsx` | Bundled places read from the bundle (only progress saved); saving in slices, debounced; the 30 s clock context |
+| `src/lib/legality.ts` | Road-illegal mods (labelled, never auto-added, no rep) and which mods earn rep |
 | `src/data/trackInfo.ts` | Circuit layouts, lap records (with sources) and what runs at each track |
 | `src/app/` | Screens (Expo Router) |
 
@@ -462,7 +496,7 @@ while moving: the driving screen is built to be glanced at, not used.
 |---|---|---|
 | Speed cameras and average-speed zones (`src/data/cameras.ts`) | OpenStreetMap `highway=speed_camera` nodes and `type=enforcement` relations, via the Overpass API | © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Kept as its own dataset, never merged with user reports. Credited on the map. |
 | Circuit outlines (`src/data/circuits.ts`), drive lines, car parks | OpenStreetMap (`highway=raceway`, motorsport `leisure=track`) | © OpenStreetMap contributors, ODbL 1.0. Credited on the track and drive maps. |
-| Shops (`src/data/shops.ts`) | OpenStreetMap car and bike businesses (`shop=car_repair`, `car_parts`, `car`, `motorcycle`, `tyres`, `amenity=car_wash`, `vehicle_inspection`, biker cafés…), read from the Geofabrik UK extract of 16 Nov 2026 | © OpenStreetMap contributors, ODbL 1.0. Kept as its own dataset; edits people suggest go to the feedback queue, never into it. Credited on the map and every shop screen. |
+| Shops (`assets/data/shops.nsdata`) | OpenStreetMap car and bike businesses (`shop=car_repair`, `car_parts`, `car`, `motorcycle`, `tyres`, `amenity=car_wash`, `vehicle_inspection`, biker cafés…), read from the Geofabrik UK extract of 16 Nov 2026 | © OpenStreetMap contributors, ODbL 1.0. Kept as its own dataset; edits people suggest go to the feedback queue, never into it. Credited on the map and every shop screen. |
 | Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
 | Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
 

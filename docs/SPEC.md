@@ -57,7 +57,16 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
   dataset has one, else a cautious percentage by engine type (turbo petrol, diesel,
   non-turbo, supercharged; bikes separately). It's saved as a "Stage N tune" engine
   mod carrying the gain, so classes, older saves and the backend see it; the gain
-  is editable. "Add typical parts" adds the stage's parts with no gain of their own.
+  is editable. "Add typical parts" adds the stage's road-legal parts with no gain of their own.
+* **Road legality** (review 4): parts that are illegal on UK roads or fail the MOT
+  (decat / cat delete, straight-through with no cat, bike de-cat link pipe,
+  de-restricting, pops-and-bangs and anti-lag maps, and typed-in names that mean the
+  same) are tagged **Not road legal — track/off-road only** in the chips, the mod
+  list and on the build page. Logging them is allowed (people do own them), but "Add
+  typical parts" never adds them: parts often fitted at a stage that aren't road
+  legal are offered separately as optional, with the tag. Stage descriptions don't
+  suggest them ("downpipe with a sports cat", "full system, with its cat").
+  Code: `src/lib/legality.ts`.
 * **Mods:** quick-pick chips by group (engine, intake, exhaust, turbo, fuel, cooling,
   suspension, brakes, wheels, body, aero, interior, bike controls, lighting,
   audio), car or bike only where it matters. Groups map onto the saved categories
@@ -121,9 +130,16 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
   saying where. Stops the meet has left, or with people checked in, can't move.
 * **Editing:** hosts can edit an event until it starts, if nobody has checked in.
   **Share** sends the title, time, rough area and a `nightshift://event/<id>` link.
-* **Ban zones:** the app shows a warning (it doesn't block) when a stop of any
-  event type is inside a sample injunction or PSPO zone, explaining that
-  organisers have been taken to court.
+* **Ban zones (car-meet order areas):** shown only where you host: the event form's
+  map, the stop picker and Change the plan, as council outlines for borough-wide
+  orders and circles for smaller ones. A stop inside one gets a short warning line
+  (it doesn't block); tapping it, a zone's pin or the line under the crosshair opens
+  an info card: the zone's name and id, the kind of order (court injunction, PSPO,
+  police dispersal orders), what it bans in plain words, hours if known, the
+  source, "Sample — check the current order", and what it means for the host
+  (Nightshift only warns; hosts are responsible). They are not a layer on the
+  main map. Places inside one show a single line, "Inside a car-meet order area —
+  see details", opening the same card.
 * **Drives** (formerly "sprints"): rated roads, never timed or ranked.
 * **Check-in:** you must be within 0.5 mi of the current stop, from 30 minutes
   before the start until the end. Before then the event shows when check-in opens. Check-ins use a real GPS fix (never stored). For testing, Me > **Demo: skip the GPS
@@ -179,8 +195,9 @@ Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
   Pass every checkpoint in order to finish, using GPS (`watchPositionAsync`) or,
   with **Demo: skip the GPS check** on, a button that walks the checkpoints at a legal pace.
   A run that would average over 45 mph along the drawn route (or the stated road
-  length, if longer), or takes far longer than
-  the drive allows, doesn't count. **The app only ever says pass or fail**: no
+  length, if longer; or the road's own limit on national-limit A-roads, 60 mph), or takes far longer than
+  the drive allows, doesn't count, and says only "This run looks too quick to count" (never
+  that anyone broke a limit). **The app only ever says pass or fail**: no
   time or speed is shown or stored, and a completion keeps the day only.
 * **Photo spot visit:** check in within 0.2 mi by real GPS (or skip the check in the demo), then an optional
   photo that goes through the plate review and is saved pixelated with no metadata.
@@ -201,8 +218,8 @@ Owner's requests, 17 Nov 2026. Legal basis: `docs/research/legal.md` section 3 a
 App Store notes (camera *sites* from a database are legal in the UK; police positions are not
 shown; no timing on public roads).
 
-* **Cameras layer** (map chip **Cameras**, and Me > Map > **Speed cameras**; one setting, on by
-  default). Fixed speed cameras and average-speed zones for the whole UK from OpenStreetMap
+* **Cameras layer** (the map's layers button > **Speed cameras**, and Me > Map > **Speed cameras**;
+  one setting, off by default, turned off once for older installs). Fixed speed cameras and average-speed zones for the whole UK from OpenStreetMap
   (`highway=speed_camera`; `type=enforcement` relations with `device`/`from`/`to`), fetched at
   build time into `src/data/cameras.ts` and decoded a 1° tile at a time. They only show once
   the map is zoomed in to driving distance (about 35 miles top to bottom), at most 120 pins,
@@ -233,17 +250,19 @@ shown; no timing on public roads).
   length, current layouts, and the official lap records published on each circuit's Wikipedia
   page (outright and fastest bike class, holder, vehicle, year, source link). Records the page
   isn't clear about are left out.
-* **Cars / Bikes / Karts chips** (shown with the Tracks layer, any mix): filter the circuits on
-  the map by what runs there. Every track is tagged (cars, bikes, karts) from the circuit's own
-  site or Wikipedia; sprint courses and hill climbs are cars; spectator stadiums take no times.
-* **Kart circuits** (owner request, 17 Nov 2026): 14 more UK outdoor kart circuits checked on
-  their own sites (`src/data/kartTracks.ts`), plus Buckmore Park and Ellough Park. Each shows
-  arrive-and-drive yes or no only where the venue says, lengths and club lap records only where
-  published, and a link to the venue. Existing saves gain new bundled places on load.
-* **Track times:** entered by hand only at a bundled track (circuit, kart track, sprint course or
-  hill climb; never a drive, photo spot, venue or spectator stadium), with the layout, the
+* **Tracks ▾** (Cars / Bikes, either or both): filter the circuits on the map by what runs
+  there. Every track is tagged (cars, bikes) from the circuit's own site or Wikipedia; sprint
+  courses and hill climbs are cars. **Racing to watch** (off by default) adds the spectator
+  venues (speedway, oval stock cars, closed-road races), which run no track days.
+* **No kart tracks** (owner decision, 17 Nov 2026): the kart circuits were taken out, with
+  Karts in the Tracks filter and kart track times. Saved filters drop Karts and saved kart
+  times are dropped with their proof photos.
+* **Track times:** entered by hand only at a bundled track with known details (circuit, sprint
+  course or hill climb; never a drive, photo spot, venue, spectator or closed-public-road
+  venue). The rule fails closed: it reads the venue's own facts, and a track with no details
+  takes no times. With the layout, the
   date (in the last two years, not in the future), the vehicle type, the build (its class is
-  taken from it; karts are hire or own) and a proof photo of the timing sheet or timing app
+  taken from it) and a proof photo of the timing sheet or timing app
   that goes through the plate review. Times quicker than the published outright record are
   refused as typos. The leaderboard is per track, layout, vehicle type and class, best time per
   person. Kept on the phone and marked **unverified**; verification against the proof arrives
@@ -259,13 +278,15 @@ Owner's request, 17 Nov 2026: "Add another toggle on the map — Shops, which ca
 sponsors — and filter the shops you want to see." Money model: no ads and no paywalls;
 local businesses can pay to be a **labelled partner**, never disguised as an ordinary listing.
 
-* **Shops pill** in the layer bar (same design as the others). A tap turns the layer on or
-  off (off by default; kept in settings). **▾** or a long-press opens a small floating menu
+* **Shops** in the map's layers button (and Me › Map). A tap turns the layer on or
+  off (off by default; kept in settings). **Kinds ›** opens a small floating menu
   with nine kinds, any mix (never none): Tuning & modifications, Parts & accessories, Bike
   gear (helmets, leathers), Dealers (car and bike), Tyres & wheels, Detailing, wraps & tints,
   Dyno & rolling road, Garages & MOT, Coffee & meet spots; plus **Partners only**. The
-  choice is kept, and the pill's second line shows it when narrowed ("Tuning",
-  "4 kinds", "Partners").
+  choice is kept, and the Shops row shows it when narrowed ("Tuning",
+  "4 kinds", "Partners"). Each shop's id is its tile and OpenStreetMap element
+  (`52_-2:n12018556`), stable across refreshes. The data is an app asset
+  (`assets/data/shops.nsdata`) read the first time the layer is used.
 * **Listings** are real UK businesses from OpenStreetMap (ODbL, credited on the map and on
   every shop screen, kept as their own dataset: nothing typed in the app is merged into it).
   Only public business details: name, kinds, position, and opening hours, website, phone
@@ -383,7 +404,7 @@ Anti-gaming rules:
 | Each photo spot, first visit | 50 |
 | Places you suggested | author rep above |
 | Trophies | 500 / 300 / 200 / 150 (see below) |
-| Each logged mod | 20 |
+| Each logged mod: road-legal only, each kind once per build, at most 10 per build | 20 |
 
 Level n starts at 250 × (n − 1) × n ÷ 2 rep: level 2 at 250, 3 at 750, 4 at 1,500.
 Me shows the total, level, a progress bar and the breakdown; profiles show the level.
@@ -504,13 +525,19 @@ Owner's request: "Obviously you need to use real maps and location."
   sources and warnings. Medium-confidence entries say so; Rockingham (closed) and
   duplicates of the bundled circuits are left out; Surrey reference venues are
   marked as outside the area.
-* **Ban zones** (`src/data/banZones.ts`): rough circles round real orders only:
-  the West Midlands and Black Country injunctions, the Westminster and Kensington
+* **Ban zones** (`src/data/banZones.ts`), round real orders only. Borough- and
+  city-wide ones use simplified council boundaries from OpenStreetMap
+  (`src/data/zoneBoundaries.ts`): Birmingham (whole city, injunction to 27 Feb
+  2027), the Black Country injunction (Wolverhampton, Sandwell and Walsall, 3pm to
+  7am, to 1 Mar 2027), Dudley's borough-wide PSPO (it left the injunction in Feb
+  2026), Coventry's city-wide nuisance-vehicle PSPO, and Broadland and South
+  Norfolk. Solihull has no current order. The rest are circles: the Westminster and Kensington
   injunction (revving and dangerous driving 18:00–07:00), Enfield, Great Yarmouth,
   Felixstowe, Norwich, Broadland and South Norfolk, Cromer, Halstead and Polhill,
   and the Medway, Dartford and Sheerness dispersal hotspots. Each is marked
-  "Sample — check the current order" with its source. Bundled places inside one
-  still show, with the warning.
+  "Sample — check the current order" with its source, and a point in several shows
+  all of them, the smallest first. Whether a place is in one is worked out when the
+  app reads it, so a zone added in an update reaches every phone.
 
 ## Privacy and safety in Phase 1
 
@@ -526,9 +553,13 @@ Owner's request: "Obviously you need to use real maps and location."
 
 ## Screens
 
-1. **Map:** a dark map, game-style hexagon pins, filter chips (events, spots,
-   drives, tracks), a "Suggest a place" chip, and a peek card that opens the
-   event, drive, photo spot or track.
+1. **Map:** a dark map, game-style hexagon pins (events filled, places outlined; a
+   number on a pin is a group of places when zoomed out, tap to zoom in), a layer bar
+   with the core layers (Events, Photos, Drives, Tracks) and Find events, Near me and
+   Suggest a place, a round layers button under locate-me (Venues, Shops with its
+   kinds, Speed cameras, both off by default, and the map key), a slot bottom right for
+   a small widget, and a peek card that opens the event, drive, photo spot or track.
+   Only what's in view is drawn, at most 40 of a kind (`src/lib/mapPlaces.ts`).
 2. **Events:** Going, Invited, Hosting and Public lists, with a create button and **Find**.
 3. **Event detail:** hero, hosts, invite filter summary, the stops timeline
    (locked or revealed), RSVP, check-in, Move on (hosts), attendees and chat.

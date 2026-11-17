@@ -590,6 +590,17 @@ database (section 7a), which is the check that counts. The Edge Functions type-c
 
 ## 9. Limits and known gaps
 
+* **Don't carry sample-derived rep across.** The demo's rep includes sample data:
+  trophies from seeded votes, the sample Golf R's mods, sample events. When a
+  person's local data moves to the server, only their own builds, mods, places
+  and track times go; rep is recomputed on the server from real rows, never
+  copied from the phone's ledger. Mod rep follows the app's rule (road-legal mods
+  only, each kind once per build, at most 10 per build: `src/lib/legality.ts`).
+* **Local save shape.** The phone saves in slices (`nightshift.v2.*`, schema 3):
+  bundled places are never copied in, only progress per place id
+  (`placeProgress`), so the move only uploads what people did. Shop references
+  use stable ids (`<tile>:<osm type><osm id>`).
+
 * **GPS is client-reported.** Check-ins, photo spot visits and drive fixes
   are positions the phone sends, so a modified client could fake them. The
   server enforces the rules (distance, order, timing, who, when) but can't
