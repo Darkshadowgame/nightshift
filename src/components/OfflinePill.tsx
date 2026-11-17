@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../lib/store';
-import { C, F } from '../theme';
+import { C, F, STATE } from '../theme';
 import { Txt } from './ui';
 
 /**
@@ -20,8 +20,8 @@ export function OfflinePill() {
       accessibilityLiveRegion="polite"
       accessibilityLabel={`Offline. Showing saved data.${pendingWrites ? ` ${pendingWrites} changes waiting to send.` : ''}`}
     >
-      <View style={{ backgroundColor: C.kerb, borderColor: C.alert, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-        <Txt style={{ fontFamily: F.display, fontSize: 12, color: C.chalk }}>
+      <View style={{ backgroundColor: C.kerb, borderColor: STATE.warning, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
+        <Txt v="label" scale="chrome" style={{ fontFamily: F.display, color: C.chalk }}>
           OFFLINE{pendingWrites ? ` · ${pendingWrites} WAITING` : ''}
         </Txt>
       </View>

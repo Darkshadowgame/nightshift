@@ -2,8 +2,9 @@ import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { useState } from 'react';
 import { Platform } from 'react-native';
-import { C } from '../theme';
-import { Button, Card, Row, Txt } from './ui';
+import { VEHICLES_VERSION } from '../data/vehicles';
+import { STATE } from '../theme';
+import { Button, Card, InlineError, Row, Txt } from './ui';
 
 /**
  * Version line, e.g. "Nightshift v1.0.08". The number is set by the OTA workflow
@@ -58,12 +59,12 @@ export function AppUpdates() {
       <Txt>{versionLine()}</Txt>
       <Txt v="muted">{when ? `Running the update from ${when}` : 'Running the version built into this install'}</Txt>
       {enabled ? (
-        <Txt v="muted" style={{ fontSize: 11 }} selectable>
+        <Txt v="micro" selectable>
           {runtimeLine(Updates.runtimeVersion, Updates.channel)}
         </Txt>
       ) : null}
       {state === 'ready' ? (
-        <Button label="Restart to update" kind="neon" onPress={() => Updates.reloadAsync()} />
+        <Button label="Restart to update" onPress={() => Updates.reloadAsync()} />
       ) : (
         <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
           <Button
@@ -73,16 +74,18 @@ export function AppUpdates() {
             disabled={!enabled || state === 'checking'}
             style={{ flex: 1 }}
           />
-          {state === 'none' ? <Txt v="label" style={{ color: C.lime, marginLeft: 12 }}>Up to date</Txt> : null}
-          {state === 'error' ? <Txt v="label" style={{ color: C.alert, marginLeft: 12 }}>Couldn't check</Txt> : null}
+          {state === 'none' ? <Txt v="label" style={{ color: STATE.success, marginLeft: 12 }}>Up to date</Txt> : null}
+          {state === 'error' ? <Txt v="label" style={{ color: STATE.danger, marginLeft: 12 }}>Couldn't check</Txt> : null}
         </Row>
       )}
-      {error ? <Txt v="muted" style={{ fontSize: 12 }}>{error}</Txt> : null}
-      <Txt v="muted" style={{ fontSize: 12 }}>
+      <InlineError message={error} />
+      <Txt v="caption">
         {enabled
           ? 'New versions download by themselves when the app opens and apply the next time it starts. A free Apple ID install still needs signing again every 7 days.'
           : 'Updates work in the installed iPhone app, not in this preview.'}
       </Txt>
+      {/* The car and bike list's version (was under the vehicle picker: REVIEW-5 m15). */}
+      <Txt v="micro" selectable>Car and bike list {VEHICLES_VERSION}</Txt>
     </Card>
   );
 }

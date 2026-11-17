@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polygon, Polyline } from 'react-native-svg';
-import { C } from '../theme';
+import { BRAND, C, FONT_SCALE, RADIUS, SURFACE, TYPE } from '../theme';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import type { NightMapProps } from './mapTypes';
@@ -110,7 +110,7 @@ export function NightMap({
       })}
       {picked ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: x(picked.lng) - 20, top: y(picked.lat) - 20 }}>
-          <Pin glyph="you" colour={C.neon} size={40} />
+          <Pin glyph="you" colour={BRAND} size={40} />
         </View>
       ) : null}
       {/* The stand-in can't pinch: zoom buttons, so zoom-dependent layers (cameras, circuit outlines) can be checked. */}
@@ -124,15 +124,15 @@ export function NightMap({
             onPress={() => setMoved({ centre, span: Math.min(12, Math.max(0.005, span * z.factor)) })}
             accessibilityRole="button"
             accessibilityLabel={z.factor < 1 ? 'Zoom in' : 'Zoom out'}
-            style={{ width: 32, height: 32, borderRadius: 6, borderWidth: 1, borderColor: C.kerb, backgroundColor: 'rgba(11,15,23,0.9)', alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 44, height: 44, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb, backgroundColor: SURFACE.glass, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text style={{ color: C.chalk, fontSize: 18 }}>{z.label}</Text>
+            <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ color: C.chalk, fontSize: TYPE.title }}>{z.label}</Text>
           </Pressable>
         ))}
       </View>
       {credit ? (
-        <View pointerEvents="none" style={{ position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}>
-          <Text style={{ color: C.fog, fontSize: 9 }}>{credit}</Text>
+        <View pointerEvents="none" style={{ position: 'absolute', right: 4, bottom: 4, backgroundColor: SURFACE.glass, borderRadius: RADIUS.tag, paddingHorizontal: 4, paddingVertical: 1 }}>
+          <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ color: C.fog, fontSize: TYPE.micro }}>{credit}</Text>
         </View>
       ) : null}
     </View>

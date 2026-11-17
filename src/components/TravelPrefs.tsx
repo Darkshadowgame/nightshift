@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { ALERT_HINTS, ALERT_LABELS, parseMiles, TRAVEL_CHOICES, travelProblem, type AlertMode } from '../lib/discover';
 import { C } from '../theme';
-import { Chip, Row, Txt, s as ui } from './ui';
+import { Chip, InlineError, Row, Txt, s as ui } from './ui';
 
 const MODES: AlertMode[] = ['notify', 'search', 'off'];
 
@@ -36,7 +36,7 @@ export function TravelPrefs({
     <View style={{ gap: 14 }}>
       <View style={{ gap: 8 }}>
         <Txt>Willing to travel</Txt>
-        <Txt v="muted">How far you'd go for a meet. It sets which new events you hear about and where Find events starts. Only you can see it.</Txt>
+        <Txt v="caption">How far you'd go for an event. It sets which new events you hear about and where Find events starts. Only you see it.</Txt>
         <Row gap={6}>
           {TRAVEL_CHOICES.map((m) => (
             <Chip
@@ -65,7 +65,7 @@ export function TravelPrefs({
               style={ui.input}
               accessibilityLabel="Willing to travel, in miles"
             />
-            {problem ? <Txt v="muted" style={{ color: C.alert }}>{problem}</Txt> : null}
+            <InlineError message={problem} />
           </View>
         ) : null}
       </View>
@@ -77,10 +77,7 @@ export function TravelPrefs({
             <Chip key={m} label={ALERT_LABELS[m]} on={alerts === m} onPress={() => onChange({ alerts: m })} />
           ))}
         </Row>
-        <Txt v="muted">{ALERT_HINTS[alerts]}</Txt>
-        <Txt v="muted" style={{ fontSize: 12 }}>
-          Only events you can go to: your car or bike fits the invite, it's open to everyone, or it's a show or track day.
-        </Txt>
+        <Txt v="caption">{ALERT_HINTS[alerts]} Only events you can go to: your car or bike fits the invite, it's public, or it's a show or track day.</Txt>
       </View>
     </View>
   );

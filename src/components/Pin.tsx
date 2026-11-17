@@ -36,9 +36,15 @@ export type Glyph =
   | 'closure'
   | 'traffic'
   | 'mobile_camera'
-  | 'police';
+  | 'police'
+  // Tab bar only: never a map layer, so a tab never looks like a layer (REVIEW-5 M12).
+  | 'map'
+  | 'calendar'
+  | 'car'
+  | 'me';
 
 const INK = '#0b0f17';
+
 
 /** Events are drawn filled ("something happening"); places, shops and cameras outlined ("somewhere to go"). */
 export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rolling', 'cruise', 'show', 'trackday', 'locked']);
@@ -68,7 +74,7 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
           backgroundColor: colour, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <Text style={{ color: INK, fontSize: 11, lineHeight: 13, fontFamily: 'BarlowCondensed_700Bold' }}>{label}</Text>
+        <Text maxFontSizeMultiplier={1.3} style={{ color: INK, fontSize: 11, lineHeight: 13, fontFamily: 'BarlowCondensed_700Bold' }}>{label}</Text>
       </View>
     </View>
   );
@@ -180,6 +186,16 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
         </>
       );
     case 'drive':
+      // A winding road with a dashed centre line: public roads, never timed (REVIEW-5 M12).
+      return (
+        <>
+          <Path d="M15 31C15 24.5 25.5 25 25.5 19S16.5 14 18.5 9" fill="none" stroke={c} strokeWidth={6.4} strokeLinecap="round" />
+          <Path d="M15 31C15 24.5 25.5 25 25.5 19S16.5 14 18.5 9" fill="none" stroke={INK} strokeWidth={1.4} strokeDasharray="2.4 2.2" />
+        </>
+      );
+    case 'track':
+    case 'trackday':
+      // The chequered flag: circuits, where times count.
       return (
         <>
           <Path d="M13 28V11" stroke={c} strokeWidth={2.4} />
@@ -187,9 +203,40 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
           <Path d="M13 12h3.5v3h-3.5zM20 12h3.5v3H20zM16.5 15H20v3h-3.5zM23.5 15H27v3h-3.5zM13 18h3.5v3H13zM20 18h3.5v3H20z" fill={c} />
         </>
       );
-    case 'track':
-    case 'trackday':
-      return <Path d="M12 24c0-6 4-10 9-10 6 0 8 4 6 7s-6 1-7 4 4 3 6 3" fill="none" stroke={c} strokeWidth={2.6} strokeLinecap="round" />;
+    case 'map':
+      // A folded map (the Map tab).
+      return (
+        <>
+          <Path d="M10.5 13.5l6-2.5 7 2.5 6-2.5v15.5l-6 2.5-7-2.5-6 2.5z" fill="none" stroke={c} strokeWidth={2.2} strokeLinejoin="round" />
+          <Path d="M16.5 11v15.5M23.5 13.5V29" stroke={c} strokeWidth={1.8} />
+        </>
+      );
+    case 'calendar':
+      // A calendar page (the Events tab).
+      return (
+        <>
+          <Rect x={11} y={12.5} width={18} height={16} rx={2} fill="none" stroke={c} strokeWidth={2.2} />
+          <Path d="M11 17.5h18M15.5 10v4.5M24.5 10v4.5" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
+          <Rect x={15} y={21} width={4} height={4} fill={c} />
+        </>
+      );
+    case 'car':
+      // A car from the side (the Garage tab).
+      return (
+        <>
+          <Path d="M9.5 24.5v-4l3.5-1.2 3-4.3h8.5l4 4.3 2 .8v4.4z" fill="none" stroke={c} strokeWidth={2.1} strokeLinejoin="round" />
+          <Circle cx={14.5} cy={25} r={2.6} fill={c} />
+          <Circle cx={25.5} cy={25} r={2.6} fill={c} />
+        </>
+      );
+    case 'me':
+      // A person (the Me tab).
+      return (
+        <>
+          <Circle cx={20} cy={15.5} r={4.2} fill="none" stroke={c} strokeWidth={2.2} />
+          <Path d="M12.5 29c0-4.8 3.4-8 7.5-8s7.5 3.2 7.5 8" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
+        </>
+      );
     case 'you':
       return <Path d="M20 10 27 29 20 25 13 29Z" fill={c} />;
     case 'locked':

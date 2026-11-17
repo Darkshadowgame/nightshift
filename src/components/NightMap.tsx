@@ -1,7 +1,7 @@
 import { memo, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import MapView, { Circle, Marker, Polygon, Polyline } from 'react-native-maps';
 import { StyleSheet, Text, View } from 'react-native';
-import { C } from '../theme';
+import { BRAND, C, FONT_SCALE, RADIUS, SURFACE, TYPE } from '../theme';
 import { pinLayer } from '../lib/hud';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
@@ -155,13 +155,13 @@ export const NightMap = memo(function NightMap({
       ))}
       {picked ? (
         <Marker coordinate={{ latitude: picked.lat, longitude: picked.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <Pin glyph="you" colour={C.neon} size={40} />
+          <Pin glyph="you" colour={BRAND} size={40} />
         </Marker>
       ) : null}
     </MapView>
     {credit ? (
       <View pointerEvents="none" style={st.credit}>
-        <Text style={st.creditText}>{credit}</Text>
+        <Text style={st.creditText} maxFontSizeMultiplier={FONT_SCALE.chrome}>{credit}</Text>
       </View>
     ) : null}
     </View>
@@ -169,6 +169,6 @@ export const NightMap = memo(function NightMap({
 });
 
 const st = StyleSheet.create({
-  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
-  creditText: { color: C.fog, fontSize: 9 },
+  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: SURFACE.glass, borderRadius: RADIUS.tag, paddingHorizontal: 4, paddingVertical: 1 },
+  creditText: { color: C.fog, fontSize: TYPE.micro },
 });

@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { View } from 'react-native';
 import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
-import { C } from '../theme';
-import { Button, Card, Row, Section, Txt } from './ui';
+import { Button, Card, ConfirmBox, InlineError, Section, Txt } from './ui';
 
 /**
  * Me › Account. Signed in: who you are, sign out, and delete the account
@@ -22,11 +20,8 @@ export function AccountSection() {
       <Section title="Account">
         <Card>
           <Txt>You're trying the demo</Txt>
-          <Txt v="muted">
-            The other people here are samples and everything stays on this phone. Sign in with your email to meet real people: going, check-ins,
-            chat and votes are then shared. The demo stays on this phone for later.
-          </Txt>
-          <Button label="Sign in or create an account" kind="neon" onPress={() => auth.leaveDemo()} />
+          <Txt v="muted">Sign in with your email to meet real people: going, check-ins, chat and votes are then shared. The demo stays here for later.</Txt>
+          <Button label="Sign in or create an account" onPress={() => auth.leaveDemo()} />
         </Card>
       </Section>
     );
@@ -55,26 +50,21 @@ export function AccountSection() {
               : 'Your profile, garage, events and chat are on Nightshift’s server, so other people see them.'
             : `Offline: showing what this phone last saw.${store.pendingWrites > 0 ? ` ${store.pendingWrites} change${store.pendingWrites === 1 ? '' : 's'} will be sent when you're back online.` : ''}`}
         </Txt>
-        {error ? <Txt style={{ color: C.alert }} accessibilityLiveRegion="polite">{error}</Txt> : null}
-        <Button label="Sign out" kind="ghost" busy={busy === 'out'} onPress={() => run('out')} />
+        <Button label="Sign out" kind="secondary" busy={busy === 'out'} onPress={() => run('out')} />
+        {!confirmDelete ? <InlineError message={error} /> : null}
       </Card>
-      <Card accent={confirmDelete ? C.alert : undefined}>
-        {confirmDelete ? (
-          <View style={{ gap: 10 }}>
-            <Txt>Delete your account?</Txt>
-            <Txt v="muted">
-              This deletes your profile, home area, garage and photos, check-ins, chat, votes, notices and crew place, straight away. Events only you
-              host are cancelled; crews you own pass to a host. Places you suggested stay, without your name. It can't be undone.
-            </Txt>
-            <Row style={{ flexWrap: 'nowrap' }}>
-              <Button label="Delete everything" kind="danger" style={{ flex: 1 }} busy={busy === 'delete'} onPress={() => run('delete')} />
-              <Button label="Keep it" kind="ghost" onPress={() => setConfirmDelete(false)} />
-            </Row>
-          </View>
-        ) : (
-          <Button label="Delete my account" kind="danger" onPress={() => setConfirmDelete(true)} />
-        )}
-      </Card>
+      {confirmDelete ? (
+        <ConfirmBox
+          message="Delete your account? This deletes your profile, home area, garage and photos, check-ins, chat, votes, notices and crew place, straight away. Events only you host are cancelled; crews you own pass to a host. Places you suggested stay, without your name. It can't be undone."
+          verb="Delete"
+          busy={busy === 'delete'}
+          error={error}
+          onConfirm={() => run('delete')}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      ) : (
+        <Button label="Delete my account" kind="danger" onPress={() => setConfirmDelete(true)} />
+      )}
     </Section>
   );
 }

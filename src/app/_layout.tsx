@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { OfflinePill } from '../components/OfflinePill';
 import { AuthProvider, useAuth } from '../lib/auth';
+import { SCREEN_TITLES as T, title } from '../lib/glossary';
 import { onNotificationTap } from '../lib/notify';
 import { RoadsProvider } from '../lib/roadStore';
 import { StoreProvider, useStore } from '../lib/store';
@@ -44,7 +45,8 @@ function Gate() {
       screenOptions={{
         headerStyle: { backgroundColor: C.asphalt },
         headerTintColor: C.chalk,
-        // Titles are written in capitals, like the tab headers (native stack headers can't transform text).
+        // One size for tab and stack headers. Titles come from title() in glossary.ts, in capitals
+        // (native stack headers can't transform text). Detail screens are blank: their hero carries the title.
         headerTitleStyle: { fontFamily: F.display, fontSize: 17 },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: C.asphalt },
@@ -60,21 +62,24 @@ function Gate() {
       <Stack.Protected guard={onboarded}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="event/[id]" options={{ title: '' }} />
-        <Stack.Screen name="event/new" options={{ title: 'HOST AN EVENT', presentation: 'modal' }} />
-        <Stack.Screen name="event/edit" options={{ title: 'EDIT EVENT', presentation: 'modal' }} />
-        <Stack.Screen name="event/plan" options={{ title: 'CHANGE THE PLAN' }} />
+        <Stack.Screen name="event/new" options={{ title: title(T.hostEvent), presentation: 'modal' }} />
+        <Stack.Screen name="event/edit" options={{ title: title(T.editEvent), presentation: 'modal' }} />
+        <Stack.Screen name="event/plan" options={{ title: title(T.changePlan) }} />
         <Stack.Screen name="build/[id]" options={{ title: '' }} />
-        <Stack.Screen name="build/edit" options={{ title: 'BUILD', presentation: 'modal' }} />
+        {/* build/edit sets "Edit build" itself when it opens an existing build. */}
+        <Stack.Screen name="build/edit" options={{ title: title(T.addBuild), presentation: 'modal' }} />
         <Stack.Screen name="user/[id]" options={{ title: '' }} />
-        <Stack.Screen name="profile" options={{ title: 'YOUR PROFILE', presentation: 'modal' }} />
+        <Stack.Screen name="profile" options={{ title: title(T.profile), presentation: 'modal' }} />
         <Stack.Screen name="spot/[id]" options={{ title: '' }} />
-        <Stack.Screen name="spot/new" options={{ title: 'SUGGEST A PLACE', presentation: 'modal' }} />
+        <Stack.Screen name="spot/new" options={{ title: title(T.suggest), presentation: 'modal' }} />
         <Stack.Screen name="shop/[id]" options={{ title: '' }} />
-        <Stack.Screen name="crews" options={{ title: 'CREWS' }} />
+        <Stack.Screen name="zone/[id]" options={{ title: '' }} />
+        <Stack.Screen name="crews" options={{ title: title(T.crews) }} />
         <Stack.Screen name="crew/[id]" options={{ title: '' }} />
-        <Stack.Screen name="crew/new" options={{ title: 'START A CREW', presentation: 'modal' }} />
-        <Stack.Screen name="notifications" options={{ title: 'NOTIFICATIONS' }} />
-        <Stack.Screen name="find" options={{ title: 'FIND EVENTS' }} />
+        <Stack.Screen name="crew/new" options={{ title: title(T.newCrew), presentation: 'modal' }} />
+        <Stack.Screen name="notifications" options={{ title: title(T.notifications) }} />
+        <Stack.Screen name="find" options={{ title: title(T.find) }} />
+        <Stack.Screen name="settings" options={{ title: title(T.settings) }} />
         <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
       </Stack.Protected>
     </Stack>

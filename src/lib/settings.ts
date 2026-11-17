@@ -1,4 +1,5 @@
 import type { DirectionsApp } from './directions';
+import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
 
 /** App settings, kept on the phone. */
@@ -42,12 +43,19 @@ export interface Settings {
    * button). Off by default. Never shows police reports: those are only in the driving view.
    */
   roadReports?: boolean;
+  /**
+   * Map: the layer bar's layers (Events, Photos, Drives, Tracks) and Meet spots, saved like
+   * the others so they come back the same after a restart (mapLayers.ts). All on by default.
+   */
+  mapLayers: SavedLayers;
+  /** The one-time "how the map works" hint has been dismissed. */
+  mapHintSeen?: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: false, trackVehicles: ['car', 'bike'],
   shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true,
-  directionsApp: 'nightshift', navVoice: true, navCameraAlerts: true,
+  directionsApp: 'nightshift', navVoice: true, navCameraAlerts: true, mapLayers: { ...DEFAULT_LAYERS },
 };
 
 /**
@@ -62,5 +70,7 @@ export function upgradeSettings(saved: Partial<Settings> | undefined, upgraded: 
   next = { ...next, trackVehicles: kinds.length ? kinds : ['car', 'bike'] };
   // Shops and Speed cameras moved under "More" and start off: turned off once for older installs.
   if (!saved?.moreLayersOff) next = { ...next, cameras: false, shops: false, moreLayersOff: true };
+  // The core layers were only in screen state before Nov 2026: fill any that a save doesn't have.
+  next = { ...next, mapLayers: savedLayers(saved?.mapLayers) };
   return upgraded ? next : { ...next, simulateGps: false };
 }

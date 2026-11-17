@@ -16,7 +16,7 @@ import Animated, {
 import { CLASS_COLOURS } from '../lib/classes';
 import { feel } from '../lib/feel';
 import type { ClassLetter } from '../lib/types';
-import { C, F } from '../theme';
+import { BRAND, C, F, STATE, SURFACE, TYPE } from '../theme';
 import { Pin, type Glyph } from './Pin';
 import { ClassBadge } from './ui';
 
@@ -54,17 +54,19 @@ function Ring({ size, colour, delay, reduced }: { size: number; colour: string; 
 
 /**
  * Wraps a pin. With `live` it gets the pulse; `pad` grows the box so the rings
- * aren't clipped (map markers clip to their own bounds).
+ * aren't clipped (map markers clip to their own bounds). The pulse means "live
+ * now" and nothing else (REVIEW-5 m1): it's always the live colour, whatever the
+ * pin's colour. `colour` is kept for callers that pass one and is ignored.
  */
-export function PulseRing({ live, colour, size, pad, children }: { live: boolean; colour: string; size: number; pad?: boolean; children: ReactNode }) {
+export function PulseRing({ live, size, pad, children }: { live: boolean; colour?: string; size: number; pad?: boolean; children: ReactNode }) {
   const reduced = useReducedMotion();
   const box = pad ? size * 2.2 : size;
   return (
     <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
       {live ? (
         <>
-          <Ring size={size} colour={colour} delay={0} reduced={reduced} />
-          <Ring size={size} colour={colour} delay={600} reduced={reduced} />
+          <Ring size={size} colour={STATE.live} delay={0} reduced={reduced} />
+          <Ring size={size} colour={STATE.live} delay={600} reduced={reduced} />
         </>
       ) : null}
       {children}
@@ -119,7 +121,7 @@ function Sparks({ count, distance, colours, go }: { count: number; distance: num
 // Check-in confirmation: ring draws in, tick pops, sparks burst once.
 // ---------------------------------------------------------------------------
 
-export function CheckInMark({ play, colour = C.lime }: { play: boolean; colour?: string }) {
+export function CheckInMark({ play, colour = STATE.success }: { play: boolean; colour?: string }) {
   const reduced = useReducedMotion();
   const ring = useSharedValue(play ? 0 : 1);
   const tick = useSharedValue(play ? 0 : 1);
@@ -149,11 +151,11 @@ export function CheckInMark({ play, colour = C.lime }: { play: boolean; colour?:
       {!reduced ? (
         <>
           <Animated.View style={[st.circle, { borderColor: colour }, waveStyle]} />
-          <Sparks count={10} distance={34} colours={[colour, C.sodium, C.neon]} go={burst} />
+          <Sparks count={10} distance={34} colours={[colour, BRAND, STATE.live]} go={burst} />
         </>
       ) : null}
       <Animated.View style={[st.circle, { borderColor: colour, backgroundColor: `${colour}22` }, ringStyle]} />
-      <Animated.Text style={[{ fontFamily: F.display, color: colour, fontSize: 22 }, tickStyle]}>✓</Animated.Text>
+      <Animated.Text style={[{ fontFamily: F.display, color: colour, fontSize: TYPE.title + 2 }, tickStyle]}>✓</Animated.Text>
     </View>
   );
 }
@@ -191,7 +193,7 @@ export function RevealIn({ id, delay = 0, sparks, children, style }: { id: strin
   );
   return (
     <View style={[{ alignItems: 'center', justifyContent: 'center' }, style]}>
-      {sparks && !reduced && first ? <Sparks count={24} distance={150} colours={[C.sodium, C.neon, C.magenta, C.lime]} go={burst} /> : null}
+      {sparks && !reduced && first ? <Sparks count={24} distance={150} colours={[BRAND, STATE.live, STATE.success, STATE.warning]} go={burst} /> : null}
       <Animated.View style={style2}>{children}</Animated.View>
     </View>
   );
@@ -348,15 +350,15 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
 const st = StyleSheet.create({
   circle: { position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 2 },
   centre: { alignItems: 'center', justifyContent: 'center' },
-  scrim: { backgroundColor: 'rgba(5,8,14,0.92)', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
-  eyebrow: { fontFamily: F.labelBold, fontSize: 14, color: C.sodium, letterSpacing: 3, textTransform: 'uppercase' },
+  scrim: { backgroundColor: SURFACE.glassRaised, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
+  eyebrow: { fontFamily: F.labelBold, fontSize: TYPE.muted, color: BRAND, letterSpacing: 3, textTransform: 'uppercase' },
   big: { fontFamily: F.displayItalic, fontSize: 34 },
-  hint: { fontFamily: F.body, fontSize: 14, color: C.fog, textAlign: 'center' },
+  hint: { fontFamily: F.body, fontSize: TYPE.muted, color: C.fog, textAlign: 'center' },
   streak: { position: 'absolute', top: -20, bottom: -20, width: 14, backgroundColor: 'rgba(255,255,255,0.75)' },
   card: {
-    marginTop: 12, backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1, borderLeftWidth: 3, borderRadius: 8,
+    marginTop: 12, backgroundColor: SURFACE.glassRaised, borderColor: C.kerb, borderWidth: 1, borderLeftWidth: 3, borderRadius: 8,
     paddingHorizontal: 14, paddingVertical: 10, maxWidth: '86%', alignItems: 'center',
   },
-  cardEyebrow: { fontFamily: F.labelBold, fontSize: 12, textTransform: 'uppercase' },
-  cardTitle: { fontFamily: F.displayMed, fontSize: 16, color: C.chalk, textTransform: 'uppercase' },
+  cardEyebrow: { fontFamily: F.labelBold, fontSize: TYPE.label, textTransform: 'uppercase' },
+  cardTitle: { fontFamily: F.displayMed, fontSize: TYPE.heading, color: C.chalk, textTransform: 'uppercase' },
 });
