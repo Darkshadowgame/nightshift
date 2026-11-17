@@ -50,7 +50,7 @@ export default function EventsScreen() {
       </Row>
 
       {tab === 'mine' && live.length > 0 ? (
-        <Section title="Live now">
+        <Section title="Live now" colour={C.neon}>
           {live.map((v) => (
             <EventCard key={v.event.id} view={v} now={now} />
           ))}

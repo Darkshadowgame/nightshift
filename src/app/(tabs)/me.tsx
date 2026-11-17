@@ -7,6 +7,7 @@ import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { isHost, phaseOf } from '../../lib/events';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../../lib/notify';
+import { plural } from '../../lib/format';
 import { SPOT_LABELS } from '../../lib/spots';
 import { useStore, type Settings } from '../../lib/store';
 import { C, SPOT_COLOURS } from '../../theme';
@@ -39,9 +40,9 @@ export default function Me() {
         <Txt>{user?.name}</Txt>
         <Txt v="muted">{user?.region}{crew ? ` · Crew: ${crew.name}` : ''}</Txt>
         <Row gap={16}>
-          <Txt v="mono">{builds.filter((b) => b.ownerId === me).length} BUILDS</Txt>
+          <Txt v="mono">{plural(builds.filter((b) => b.ownerId === me).length, 'build').toUpperCase()}</Txt>
           <Txt v="mono">HOSTING {hosting}</Txt>
-          <Txt v="mono">{myAwards.length} TROPHIES</Txt>
+          <Txt v="mono">{plural(myAwards.length, 'trophy', 'trophies').toUpperCase()}</Txt>
         </Row>
         <Row style={{ flexWrap: 'nowrap' }}>
           <Button label="Edit profile" kind="ghost" style={{ flex: 1 }} onPress={() => router.push('/profile')} />
@@ -67,7 +68,7 @@ export default function Me() {
                 </Row>
                 <Txt v="label" style={{ color: C.sodium }}>Open ›</Txt>
               </Row>
-              <Txt v="muted">{crew.memberIds.length} members</Txt>
+              <Txt v="muted">{plural(crew.memberIds.length, 'member')}</Txt>
             </Card>
           </Pressable>
         ) : (

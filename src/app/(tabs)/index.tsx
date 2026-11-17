@@ -3,15 +3,18 @@ import { areaRadius } from '../../lib/area';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PulseRing } from '../../components/motion';
+import { Pin } from '../../components/Pin';
 import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
 import { Chip, Row, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
-import { viewEvents } from '../../lib/eventView';
+import { viewEvents, type EventView } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
-import { formatWhen } from '../../lib/format';
+import { plural } from '../../lib/format';
+import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
 import { fitRegion } from '../../lib/geo';
 import type { LatLng } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
@@ -72,7 +75,7 @@ export default function MapScreen() {
       if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour, dashed: s.status === 'pending' });
     }
     if (layers.bans) for (const z of BAN_ZONES) circles.push({ id: `bz:${z.id}`, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert });
-    return { pins, paths, circles };
+    return { pins: orderPins(pins), paths, circles };
   }, [views, layers, places]);
 
   const sel = selected ? describeSelection(selected) : null;
@@ -89,9 +92,10 @@ export default function MapScreen() {
           : v.role === 'requested'
             ? `${e.areaName} · location locked · you asked to go, waiting for a host`
             : `${e.areaName} · location locked`;
+      const clock = eventClock(v, now);
       return {
         title: e.title,
-        meta: `${EVENT_LABELS[e.type]} · ${v.phase === 'live' ? 'LIVE NOW' : formatWhen(e.startsAt, now)} · ${e.going.length} going`,
+        meta: `${EVENT_LABELS[e.type]} · ${clock.label} ${clock.value} · ${e.going.length} going`,
         body: `${place}\n${describeFilter(e.filter)}`,
         colour: EVENT_COLOURS[e.type],
         open: () => router.push({ pathname: '/event/[id]', params: { id: e.id } }),
@@ -113,7 +117,18 @@ export default function MapScreen() {
     };
   }
 
-  const liveCount = views.filter((v) => v.phase === 'live').length;
+  const hud = useMemo(() => mapHud(views, now), [views, now]);
+  const liveCount = hud.live.length;
+  /** Live pill: jump to the live event and open its card. */
+  function focusLive() {
+    const v = hud.live[0];
+    if (!v) return;
+    const at = v.shownStop >= 0 ? v.event.stops[v.shownStop].at : v.event.area;
+    if (at) setView((x) => ({ centre: at, span: 0.3, key: (x?.key ?? 0) + 1 }));
+    setSelected(`ev:${v.event.id}`);
+  }
+  const lead = hud.live[0] ?? hud.next;
+  const after = hud.live[0] ? hud.next : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.asphalt }}>
@@ -137,9 +152,16 @@ export default function MapScreen() {
           </View>
           <Row gap={8} style={{ flexWrap: 'nowrap' }}>
             {liveCount > 0 ? (
-              <View style={st.live} accessibilityLabel={`${liveCount} events live now`}>
+              <Pressable
+                onPress={focusLive}
+                style={({ pressed }) => [st.live, pressed && { opacity: 0.8 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`${plural(liveCount, 'event')} live now. Show on the map`}
+                hitSlop={6}
+              >
+                <View style={st.liveDot} />
                 <Txt v="label" style={{ color: '#00222c' }}>{liveCount} live now</Txt>
-              </View>
+              </Pressable>
             ) : null}
             <NoticeBell boxed />
           </Row>
@@ -176,8 +198,61 @@ export default function MapScreen() {
           </Row>
           <Txt v="mono" style={{ color: sel.colour }}>{sel.meta.toUpperCase()}</Txt>
           <Txt v="muted">{sel.body}</Txt>
-          <Txt v="label" style={{ color: sel.colour }}>{sel.cta}</Txt>
+          <View style={[st.cta, { borderColor: sel.colour }]}>
+            <Txt v="label" style={{ color: sel.colour }}>{sel.cta}</Txt>
+          </View>
         </Pressable>
+      ) : lead ? (
+        <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
+      ) : null}
+    </View>
+  );
+}
+
+/** The bottom HUD card: what's on now, or the next thing you're part of, with a countdown. */
+function NextUp({ lead, after, tonight, now }: { lead: EventView; after: EventView | null; tonight: number; now: Date }) {
+  const e = lead.event;
+  const colour = EVENT_COLOURS[e.type];
+  const clock = eventClock(lead, now);
+  const locked = unlocksIn(lead, now);
+  const role = lead.role === 'host' ? 'You host' : lead.role === 'going' ? "You're going" : lead.role === 'requested' ? 'Asked to go' : lead.role === 'invited' ? 'Invited' : 'Open to all';
+  const open = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
+  return (
+    <View style={[st.next, { borderLeftColor: clock.live ? C.neon : colour }]}>
+      <Pressable
+        onPress={() => open(e.id)}
+        accessibilityRole="button"
+        accessibilityLabel={`${clock.live ? 'Live now' : 'Next up'}: ${e.title}, ${clock.label} ${clock.value}. Open event`}
+        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12 }, pressed && { opacity: 0.8 }]}
+      >
+        <PulseRing live={clock.live} colour={colour} size={38}>
+          <Pin glyph={lead.shownStop >= 0 ? e.type : 'locked'} colour={colour} size={38} />
+        </PulseRing>
+        <View style={{ flex: 1, gap: 1 }}>
+          <Txt v="eyebrow" style={{ color: clock.live ? C.neon : colour, fontSize: 11 }}>
+            {clock.live ? 'Live now' : 'Next up'} · {EVENT_LABELS[e.type]}
+          </Txt>
+          <Txt v="h3" numberOfLines={1}>{e.title}</Txt>
+          <Txt v="mono" numberOfLines={1}>
+            {role.toUpperCase()} · {e.going.length} GOING{locked ? ` · UNLOCKS IN ${locked.toUpperCase()}` : ''}
+          </Txt>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Txt v="label" style={{ fontSize: 10 }}>{clock.live ? 'Ends in' : 'Starts in'}</Txt>
+          <Txt v="h2" style={{ color: clock.live ? C.neon : C.chalk, fontVariant: ['tabular-nums'], textTransform: 'none' }}>{clock.value}</Txt>
+        </View>
+      </Pressable>
+      {after || tonight > 1 ? (
+        <View style={st.nextFoot}>
+          {after ? (
+            <Pressable onPress={() => open(after.event.id)} accessibilityRole="button" hitSlop={6} style={{ flex: 1 }}>
+              <Txt v="mono" numberOfLines={1}>
+                THEN <Txt v="mono" style={{ color: C.chalk }}>{after.event.title.toUpperCase()}</Txt> · {eventClock(after, now).value.toUpperCase()}
+              </Txt>
+            </Pressable>
+          ) : <View style={{ flex: 1 }} />}
+          {tonight > 1 ? <Txt v="mono" style={{ color: C.sodium }}>{tonight} IN THE NEXT 12H</Txt> : null}
+        </View>
       ) : null}
     </View>
   );
@@ -186,7 +261,14 @@ export default function MapScreen() {
 const st = StyleSheet.create({
   hud: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 14 },
   brand: { backgroundColor: 'rgba(11,15,23,0.88)', borderColor: C.kerb, borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
-  live: { backgroundColor: C.neon, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 5 },
+  live: { backgroundColor: C.neon, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#00222c' },
+  cta: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 4, paddingHorizontal: 10, paddingVertical: 5, marginTop: 2 },
+  next: {
+    position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.96)', borderColor: C.kerb, borderWidth: 1,
+    borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, gap: 8,
+  },
+  nextFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: C.kerb, paddingTop: 7 },
   chipBg: { backgroundColor: 'rgba(11,15,23,0.88)', borderRadius: 4 },
   peek: {
     position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1,

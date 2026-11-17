@@ -2,13 +2,14 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { photoUri } from '../../lib/photos';
 import { useLayoutEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
-import { BuildArt } from '../../components/BuildArt';
+import { BuildHero } from '../../components/BuildHero';
+import { FadeUp } from '../../components/motion';
 import { Cover, Trophy } from '../../components/Cover';
 import { UserLink } from '../../components/UserLink';
 import { allAwards, categoryInfo } from '../../lib/awards';
-import { Card, ClassBadge, Row, Section, StatBar, Txt } from '../../components/ui';
+import { Card, Row, Section, Stat, StatBar, Txt } from '../../components/ui';
 import { MOD_CATEGORIES, modCategoryShort } from '../../data/catalog';
-import { classOf, effectivePower, isModified, performanceFigure, powerBar } from '../../lib/classes';
+import { bhpPerTonne, classOf, effectivePower, isModified, performanceFigure, powerBar } from '../../lib/classes';
 import { useStore } from '../../lib/store';
 import { C } from '../../theme';
 
@@ -45,10 +46,11 @@ export default function BuildScreen() {
   const letter = classOf(b);
   const count = (set: Set<string>) => b.mods.filter((m) => set.has(m.category)).length;
   const figure = performanceFigure(b);
+  const won = allAwards(votes, events, builds, now).filter((a) => a.buildId === b.id);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
-      {b.photos[0] ? <Image source={{ uri: photoUri(b.photos[0]) }} style={{ height: 220, borderRadius: 10 }} /> : <BuildArt kind={b.kind} colour={b.colour} height={180} />}
+      <BuildHero build={b} height={b.photos[0] ? 240 : 200} trophies={won.length} />
       {b.photos.length > 1 ? (
         <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
           {b.photos.slice(1).map((p) => (
@@ -58,12 +60,9 @@ export default function BuildScreen() {
       ) : null}
 
       <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={14}>
-        <ClassBadge letter={letter} size="lg" />
         <View style={{ flex: 1, gap: 2 }}>
           <Txt v="h1">{b.make} {b.model}</Txt>
-          <Txt v="label">
-            {b.year ? `${b.year} · ` : ''}{b.kind === 'bike' ? 'Bike' : 'Car'} · {owner?.region}
-          </Txt>
+          <Txt v="label">{owner?.region}</Txt>
           {owner ? (
             <UserLink id={owner.id} style={{ alignSelf: 'flex-start' }} label={`Open @${owner.handle}`}>
               <Txt v="label" style={{ color: C.neon, textTransform: owner.id === me ? 'uppercase' : 'none' }}>{owner.id === me ? 'Yours' : `@${owner.handle}`} ›</Txt>
@@ -76,7 +75,7 @@ export default function BuildScreen() {
       <Row gap={8} style={{ flexWrap: 'nowrap' }}>
         <Stat value={`${Math.round(effectivePower(b))}`} label={b.dynoBhp ? 'bhp · dyno' : 'bhp · est.'} />
         <Stat value={b.torqueLbFt ? `${b.torqueLbFt}` : '–'} label="lb-ft" />
-        <Stat value={`${Math.round(b.kind === 'bike' ? figure : (effectivePower(b) / b.weightKg) * 1000)}`} label="bhp / tonne" />
+        <Stat value={`${bhpPerTonne(b)}`} label="bhp / tonne" />
       </Row>
 
       <Card>
@@ -90,7 +89,6 @@ export default function BuildScreen() {
       </Card>
 
       {(() => {
-        const won = allAwards(votes, events, builds, now).filter((a) => a.buildId === b.id);
         if (won.length === 0) return null;
         const covers = won.filter((a) => categoryInfo(a.category).cover);
         return (
@@ -118,30 +116,25 @@ export default function BuildScreen() {
       <Section title={`Mods (${b.mods.length})${isModified(b) ? ' · modified' : ''}`}>
         <Card>
           {b.mods.length === 0 ? <Txt v="muted">Stock for now.</Txt> : null}
-          {MOD_CATEGORIES.flatMap((cat) =>
-            b.mods
-              .filter((m) => m.category === cat.key)
-              .map((m) => (
-                <Row key={m.id} style={{ justifyContent: 'space-between', flexWrap: 'nowrap', borderBottomWidth: 1, borderBottomColor: C.kerb, paddingBottom: 6 }}>
-                  <Txt style={{ flex: 1 }}>{m.name}</Txt>
-                  <Txt v="mono">{m.bhpGain ? `+${m.bhpGain} BHP · ` : ''}{modCategoryShort(m.category)}</Txt>
-                </Row>
-              )),
-          )}
+          {MOD_CATEGORIES.flatMap((cat) => b.mods.filter((m) => m.category === cat.key)).map((m, i, all) => (
+            <FadeUp key={m.id} index={i}>
+              <Row
+                style={[
+                  { justifyContent: 'space-between', flexWrap: 'nowrap', paddingBottom: 6 },
+                  i < all.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.kerb },
+                ]}
+              >
+                <Txt v="label" style={{ width: 62, color: C.fog, fontSize: 11 }}>{modCategoryShort(m.category)}</Txt>
+                <Txt style={{ flex: 1 }}>{m.name}</Txt>
+                {m.bhpGain ? <Txt v="mono" style={{ color: C.sodium }}>+{m.bhpGain} BHP</Txt> : null}
+              </Row>
+            </FadeUp>
+          ))}
         </Card>
       </Section>
       <Txt v="muted" style={{ fontSize: 12 }}>
         Stock {b.stockBhp} bhp · {b.weightKg} kg {b.kind === 'bike' ? 'wet' : 'kerb'}
       </Txt>
     </ScrollView>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={{ flex: 1, backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderRadius: 6, padding: 10 }}>
-      <Txt v="h2" style={{ fontVariant: ['tabular-nums'] }}>{value}</Txt>
-      <Txt v="label" style={{ fontSize: 10 }}>{label}</Txt>
-    </View>
   );
 }

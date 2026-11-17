@@ -9,11 +9,12 @@ import { NightMap } from '../../components/NightMap';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
 import { UserLink } from '../../components/UserLink';
-import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
+import { Button, Card, ClassBadge, Row, Section, Stat, Txt, s as ui } from '../../components/ui';
 import { areaRadius } from '../../lib/area';
 import { classOf } from '../../lib/classes';
 import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
-import { newlyUnlocked, roleOf } from '../../lib/eventView';
+import { newlyUnlocked, roleOf, viewEvent } from '../../lib/eventView';
+import { countdown, eventClock, unlocksIn } from '../../lib/hud';
 import { feel } from '../../lib/feel';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
 import { describeFilter } from '../../lib/invites';
@@ -141,6 +142,18 @@ export default function EventScreen() {
   const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
   const userLabel = (uid: string) => (uid === me ? 'You' : `@${users.find((u) => u.id === uid)?.handle ?? uid}`);
 
+  const view = viewEvent(ev, me, crews, users, builds, now);
+  const clock = eventClock(view, now);
+  const unlockIn = unlocksIn(view, now);
+  const checkedIn = Object.values(ev.checkIns).filter((x) => x.length > 0).length;
+  const roleTag =
+    role === 'host' ? { text: 'Hosting', colour: C.neon }
+      : role === 'going' ? { text: "You're going", colour: C.lime }
+        : role === 'requested' ? { text: 'Asked to go', colour: C.sodium }
+          : role === 'invited' ? { text: 'Invited', colour: C.chalk }
+            : null;
+  const awards = <AwardsSection event={ev} />;
+
   const mapCentre = anyVisible ? (mapPins.find((p) => p.id === ev.stops[current]?.id)?.at ?? mapPins[0]?.at ?? ev.area) : ev.area;
   const areaMiles = areaRadius(ev);
 
@@ -152,6 +165,11 @@ export default function EventScreen() {
             <Txt v="eyebrow" style={{ color: colour }}>{EVENT_LABELS[ev.type]}</Txt>
             {phase === 'live' ? <Txt v="eyebrow" style={{ color: C.neon }}>· Live now</Txt> : null}
             {phase === 'cancelled' ? <Txt v="eyebrow" style={{ color: C.alert }}>· Cancelled</Txt> : null}
+            {roleTag && !closed ? (
+              <View style={{ marginLeft: 'auto', borderWidth: 1, borderColor: roleTag.colour, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Txt v="label" style={{ color: roleTag.colour, fontSize: 11 }}>{roleTag.text}</Txt>
+              </View>
+            ) : null}
           </Row>
           <Txt v="h1">{ev.title}</Txt>
           <Txt v="mono" style={{ color: C.chalk }}>
@@ -161,6 +179,18 @@ export default function EventScreen() {
           </Txt>
           {ev.description ? <Txt v="muted">{ev.description}</Txt> : null}
         </View>
+
+        {!closed ? (
+          <Row gap={8} style={{ flexWrap: 'nowrap' }}>
+            <Stat label={clock.label} value={clock.value} colour={clock.live ? C.neon : C.chalk} />
+            {unlockIn ? (
+              <Stat label="Place unlocks in" value={unlockIn} colour={colour} />
+            ) : ev.type === 'rolling' && phase === 'live' ? (
+              <Stat label="Stop" value={`${ev.currentStop + 1} of ${ev.stops.length}`} colour={colour} />
+            ) : null}
+            <Stat label={phase === 'live' ? 'Checked in' : 'Going'} value={phase === 'live' ? `${checkedIn}/${ev.going.length}` : `${ev.going.length}`} />
+          </Row>
+        ) : null}
 
         <View style={{ height: 220, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
           <NightMap
@@ -173,6 +203,8 @@ export default function EventScreen() {
           />
           {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
         </View>
+
+        {closed ? awards : null}
 
         {canPreview ? (
           <View style={{ gap: 4 }}>
@@ -205,7 +237,7 @@ export default function EventScreen() {
           <View style={{ gap: 10 }}>
             {(going || host) && !checkInWindowOpen(ev, now) ? (
               <Card>
-                <Txt v="muted">Check-in opens {formatRelative(checkInOpensAt(ev).toISOString(), now)}, 30 minutes before the start.</Txt>
+                <Txt v="muted">Check-in opens in {countdown(checkInOpensAt(ev), now)}, 30 minutes before the start.</Txt>
               </Card>
             ) : null}
             {(going || host) && checkInWindowOpen(ev, now) && canSeeStop(ev, current, me, crews, now) ? (
@@ -223,14 +255,7 @@ export default function EventScreen() {
               )
             ) : null}
             {!host ? (
-              going ? (
-                <Button
-                  label="Going ✓  (tap to drop out)"
-                  kind="ghost"
-                  accessibilityHint="Drops you out and cancels your reminders"
-                  onPress={() => store.setGoing(ev.id, false)}
-                />
-              ) : role === 'invited' || role === 'public' ? (
+              going ? null : role === 'invited' || role === 'public' ? (
                 <Button
                   label="I'm going"
                   onPress={() => {
@@ -287,6 +312,15 @@ export default function EventScreen() {
               <Button label="Change the plan" kind="ghost" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} />
             ) : null}
             <Row style={{ flexWrap: 'nowrap' }}>
+              {going && !host ? (
+                <Button
+                  label="Drop out"
+                  kind="ghost"
+                  style={{ flex: 1 }}
+                  accessibilityHint="Drops you out and cancels your reminders"
+                  onPress={() => store.setGoing(ev.id, false)}
+                />
+              ) : null}
               {canEdit ? (
                 <Button label="Edit" kind="ghost" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} />
               ) : null}
@@ -418,7 +452,7 @@ export default function EventScreen() {
           </Card>
         </Section>
 
-        <AwardsSection event={ev} />
+        {!closed ? awards : null}
 
         {host && (ev.changes?.length ?? 0) > 0 ? (
           <Section title="Plan changes (hosts only)">

@@ -42,7 +42,7 @@ export default function SpotScreen() {
   const spot = spots.find((x) => x.id === id);
 
   useLayoutEffect(() => {
-    if (spot) nav.setOptions({ title: SPOT_LABELS[spot.kind] });
+    if (spot) nav.setOptions({ title: SPOT_LABELS[spot.kind].toUpperCase() });
   }, [nav, spot]);
 
   if (!spot) {

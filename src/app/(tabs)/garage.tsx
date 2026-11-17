@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
-import { Image, Pressable, ScrollView, View } from 'react-native';
-import { photoUri } from '../../lib/photos';
-import { BuildArt } from '../../components/BuildArt';
-import { Button, Card, ClassBadge, Row, Txt } from '../../components/ui';
-import { classOf, effectivePower, isModified } from '../../lib/classes';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
+import { BuildHero } from '../../components/BuildHero';
+import { FadeUp } from '../../components/motion';
+import { Button, Card, Row, Stat, Txt } from '../../components/ui';
+import { allAwards } from '../../lib/awards';
+import { bhpPerTonne, classOf, effectivePower, isModified } from '../../lib/classes';
 import { useStore } from '../../lib/store';
 import { C } from '../../theme';
 
@@ -11,48 +13,53 @@ import { C } from '../../theme';
 const SAMPLE_BUILD = 'b-me-0';
 
 export default function Garage() {
-  const { builds, me } = useStore();
+  const { builds, me, votes, events, now } = useStore();
   const mine = builds.filter((b) => b.ownerId === me);
+  const awards = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
+  const isSample = (id: string, nickname?: string) => id === SAMPLE_BUILD && !!nickname?.startsWith('Example');
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
       {mine.length === 0 ? (
         <Card>
           <Txt v="h3">Your garage is empty</Txt>
           <Txt v="muted">Add your car or bike. Invites to meets and cruises are matched against your builds.</Txt>
         </Card>
       ) : null}
-      {mine.some((b) => b.id === SAMPLE_BUILD && b.nickname?.startsWith('Example')) ? (
-        <Card accent={C.neon}>
-          <Txt v="muted">The Golf R is a sample build, with sample trophies from the demo meet. Edit it into your own car or bike, or add yours.</Txt>
-        </Card>
-      ) : null}
-      {mine.map((b) => (
-        <Pressable
-          key={b.id}
-          onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
-          accessibilityRole="button"
-          accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${b.mods.length} mods`}
-          style={({ pressed }) => [{ gap: 10 }, pressed && { opacity: 0.85 }]}
-        >
-          {b.photos[0] ? (
-            <Image source={{ uri: photoUri(b.photos[0]) }} style={{ height: 180, borderRadius: 10 }} />
-          ) : (
-            <BuildArt kind={b.kind} colour={b.colour} height={150} />
-          )}
-          <Row style={{ flexWrap: 'nowrap' }} gap={12}>
-            <ClassBadge letter={classOf(b)} size="lg" />
-            <View style={{ flex: 1 }}>
-              <Txt v="h2">{b.make} {b.model}</Txt>
-              <Txt v="mono">
-                {Math.round(effectivePower(b))} BHP{b.dynoBhp ? ' (DYNO)' : ''} · {b.mods.length} MODS{isModified(b) ? ' · MODIFIED' : ''}
-              </Txt>
-              {b.nickname ? <Txt v="muted">{b.nickname}</Txt> : null}
-            </View>
-          </Row>
-        </Pressable>
-      ))}
-      <Button label="+ Add a car or bike" onPress={() => router.push('/build/edit')} />
-      <Txt v="muted" style={{ textAlign: 'center', color: C.fog }}>
+      {mine.map((b, i) => {
+        const won = awards.filter((a) => a.buildId === b.id).length;
+        const sample = isSample(b.id, b.nickname);
+        return (
+          <FadeUp key={b.id} index={i}>
+            <Pressable
+              onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
+              accessibilityRole="button"
+              accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${b.mods.length} mods${won ? `, ${won} trophies` : ''}`}
+              style={({ pressed }) => [{ gap: 10 }, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
+            >
+              <BuildHero build={b} height={b.photos[0] ? 190 : 160} trophies={won} tag={sample ? 'Sample' : undefined} />
+              <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Txt v="h2" numberOfLines={2}>{b.make} {b.model}</Txt>
+                  {b.nickname ? <Txt v="muted" numberOfLines={1}>{b.nickname}</Txt> : null}
+                </View>
+                <Txt v="label" style={{ color: C.sodium }}>Open ›</Txt>
+              </Row>
+              <Row gap={8} style={{ flexWrap: 'nowrap' }}>
+                <Stat value={`${Math.round(effectivePower(b))}`} label={b.dynoBhp ? 'bhp · dyno' : 'bhp · est.'} />
+                <Stat value={`${bhpPerTonne(b)}`} label="bhp / tonne" />
+                <Stat value={`${b.mods.length}`} label={isModified(b) ? 'mods · modified' : 'mods'} colour={isModified(b) ? C.sodium : undefined} />
+              </Row>
+              {sample ? (
+                <Txt v="muted" style={{ fontSize: 13 }}>
+                  A sample build with sample trophies from the demo meet. Tap it, then Edit to make it yours.
+                </Txt>
+              ) : null}
+            </Pressable>
+          </FadeUp>
+        );
+      })}
+      <Button label="+ Add a car or bike" kind={mine.length === 0 ? 'primary' : 'ghost'} onPress={() => router.push('/build/edit')} />
+      <Txt v="muted" style={{ textAlign: 'center', fontSize: 13 }}>
         Class comes from power-to-weight. Cars and bikes use separate scales, so a litre superbike and an M4 are both S.
       </Txt>
     </ScrollView>

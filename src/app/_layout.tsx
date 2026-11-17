@@ -29,6 +29,7 @@ function Gate() {
       screenOptions={{
         headerStyle: { backgroundColor: C.asphalt },
         headerTintColor: C.chalk,
+        // Titles are written in capitals, like the tab headers (native stack headers can't transform text).
         headerTitleStyle: { fontFamily: F.display, fontSize: 17 },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: C.asphalt },
@@ -41,19 +42,19 @@ function Gate() {
       <Stack.Protected guard={onboarded}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="event/[id]" options={{ title: '' }} />
-        <Stack.Screen name="event/new" options={{ title: 'Host an event', presentation: 'modal' }} />
-        <Stack.Screen name="event/edit" options={{ title: 'Edit event', presentation: 'modal' }} />
-        <Stack.Screen name="event/plan" options={{ title: 'Change the plan' }} />
+        <Stack.Screen name="event/new" options={{ title: 'HOST AN EVENT', presentation: 'modal' }} />
+        <Stack.Screen name="event/edit" options={{ title: 'EDIT EVENT', presentation: 'modal' }} />
+        <Stack.Screen name="event/plan" options={{ title: 'CHANGE THE PLAN' }} />
         <Stack.Screen name="build/[id]" options={{ title: '' }} />
-        <Stack.Screen name="build/edit" options={{ title: 'Build', presentation: 'modal' }} />
+        <Stack.Screen name="build/edit" options={{ title: 'BUILD', presentation: 'modal' }} />
         <Stack.Screen name="user/[id]" options={{ title: '' }} />
-        <Stack.Screen name="profile" options={{ title: 'Your profile', presentation: 'modal' }} />
+        <Stack.Screen name="profile" options={{ title: 'YOUR PROFILE', presentation: 'modal' }} />
         <Stack.Screen name="spot/[id]" options={{ title: '' }} />
-        <Stack.Screen name="spot/new" options={{ title: 'Suggest a place', presentation: 'modal' }} />
-        <Stack.Screen name="crews" options={{ title: 'Crews' }} />
+        <Stack.Screen name="spot/new" options={{ title: 'SUGGEST A PLACE', presentation: 'modal' }} />
+        <Stack.Screen name="crews" options={{ title: 'CREWS' }} />
         <Stack.Screen name="crew/[id]" options={{ title: '' }} />
-        <Stack.Screen name="crew/new" options={{ title: 'Start a crew', presentation: 'modal' }} />
-        <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="crew/new" options={{ title: 'START A CREW', presentation: 'modal' }} />
+        <Stack.Screen name="notifications" options={{ title: 'NOTIFICATIONS' }} />
       </Stack.Protected>
     </Stack>
   );

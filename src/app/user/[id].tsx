@@ -7,6 +7,7 @@ import { LevelTag, useRep } from '../../components/Rep';
 import { Card, ClassBadge, Row, Section, Txt } from '../../components/ui';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf, effectivePower, isModified } from '../../lib/classes';
+import { plural } from '../../lib/format';
 import { publicProfile } from '../../lib/people';
 import { useStore } from '../../lib/store';
 import { C } from '../../theme';
@@ -44,10 +45,10 @@ export default function UserScreen() {
         <Txt>{p.name}{p.id === me ? ' (you)' : ''}</Txt>
         <Txt v="muted">{p.region}</Txt>
         <Row gap={16}>
-          <Txt v="mono">{p.builds.length} BUILDS</Txt>
-          <Txt v="mono">{p.meetsAttended} MEETS</Txt>
+          <Txt v="mono">{plural(p.builds.length, 'build').toUpperCase()}</Txt>
+          <Txt v="mono">{plural(p.meetsAttended, 'meet').toUpperCase()}</Txt>
           <Txt v="mono">{p.hosted} HOSTED</Txt>
-          <Txt v="mono">{p.trophies.length} TROPHIES</Txt>
+          <Txt v="mono">{plural(p.trophies.length, 'trophy', 'trophies').toUpperCase()}</Txt>
           <Txt v="mono" style={{ color: C.sodium }}>{rep.ledger.total.toLocaleString('en-GB')} REP</Txt>
         </Row>
       </Card>
@@ -68,7 +69,7 @@ export default function UserScreen() {
                 </Row>
                 <Txt v="label" style={{ color: C.sodium }}>Open ›</Txt>
               </Row>
-              <Txt v="muted">{p.crew.memberIds.length} members</Txt>
+              <Txt v="muted">{plural(p.crew.memberIds.length, 'member')}</Txt>
             </Card>
           </Pressable>
         ) : (
