@@ -133,8 +133,10 @@ Full reports are in `docs/research/`.
     formats, with heavy pixelation (light blur can be reversed). Every upload is
     re-saved with no metadata.
   * A review screen lets people add, move or remove boxes.
-  * Done so far: photos are already re-saved to strip GPS and EXIF data
-    (`src/lib/photos.ts`). The plate module is next.
+  * Built: `modules/plate-redactor` (Swift). Every photo goes through a review
+    screen with the detected boxes, then is saved pixelated with no metadata.
+    Web and Expo Go fall back to re-saving without metadata. Still untested on
+    a real iPhone, because the GitHub build is blocked by billing.
 * **Other apps, design and branding** (`competitors-design-branding.md`):
   * UK meet apps are calendars. None has classes, rep, voting or rolling meets.
   * Never time or rank public-road routes. No police spotting.
@@ -143,7 +145,12 @@ Full reports are in `docs/research/`.
     clashes with Apple's Night Shift feature and a 2026 UK trademark filing for
     vehicle lights, so it stays a working name only. Name shortlist: Sodium Nights,
     Slipstreet, Nitelane.
-* **UK law** (`legal.md`): pending.
+* **UK law** (`legal.md`): car-cruise injunctions cover organising and promoting
+  meets (Black Country, Birmingham, Enfield and others). Rolling meets with hidden
+  next stops look like evading police. Timed or "sprint" road routes clash with
+  App Store rule 1.4.4. The Online Safety Act applies from launch. Live location
+  needs a data protection impact assessment (DPIA). The design decisions these
+  raise are open with the owner.
 
 ## Privacy and safety in Phase 1
 

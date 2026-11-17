@@ -5,7 +5,8 @@ import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Button, Card, Chip, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BIKE_MAKES, CAR_MAKES, MOD_CATEGORIES } from '../../data/catalog';
 import { classOf, effectivePower } from '../../lib/classes';
-import { cleanPhoto } from '../../lib/photos';
+import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
+import { findPlates, finishPhoto, plateRedactorAvailable } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, Mod, ModCategory, VehicleKind } from '../../lib/types';
 import { C } from '../../theme';
@@ -39,6 +40,8 @@ export default function EditBuild() {
   const [modGain, setModGain] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pending, setPending] = useState<PendingPhoto | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const makes = kind === 'car' ? CAR_MAKES : BIKE_MAKES;
   const draft: Build = {
@@ -60,13 +63,37 @@ export default function EditBuild() {
   const ready = draft.make && draft.model && draft.stockBhp > 0;
 
   async function addPhoto() {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsMultipleSelection: true, exif: false });
+    setError(null);
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9, exif: false });
     if (res.canceled) return;
+    const a = res.assets[0];
+    setPhotoBusy(true);
     try {
-      const cleaned = await Promise.all(res.assets.map((a) => cleanPhoto(a.uri, a.width, a.height)));
-      setPhotos((p) => [...p, ...cleaned]);
+      if (plateRedactorAvailable) {
+        const found = await findPlates(a.uri);
+        setPending({ uri: a.uri, width: found?.width || a.width, height: found?.height || a.height, boxes: found?.boxes ?? [] });
+      } else {
+        const done = await finishPhoto(a.uri, [], a.width, a.height);
+        setPhotos((p) => [...p, done]);
+      }
     } catch {
       setError("Couldn't prepare that photo. Try another one.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function confirmPhoto(boxes: PendingPhoto['boxes']) {
+    if (!pending) return;
+    setPhotoBusy(true);
+    try {
+      const done = await finishPhoto(pending.uri, boxes, pending.width, pending.height);
+      setPhotos((p) => [...p, done]);
+      setPending(null);
+    } catch {
+      setError("Couldn't blur that photo. Try again.");
+    } finally {
+      setPhotoBusy(false);
     }
   }
 
@@ -159,8 +186,15 @@ export default function EditBuild() {
             </Pressable>
           ))}
         </ScrollView>
-        <Button label="+ Add photos" kind="ghost" onPress={addPhoto} />
-        <Txt v="muted" style={{ fontSize: 12 }}>Hide your number plate before uploading. Automatic blurring comes in Phase 2.</Txt>
+        {pending ? (
+          <PlateReview photo={pending} onDone={confirmPhoto} onCancel={() => setPending(null)} busy={photoBusy} />
+        ) : (
+          <Button label={photoBusy ? 'Checking for plates…' : '+ Add a photo'} kind="ghost" onPress={addPhoto} disabled={photoBusy} />
+        )}
+        <Txt v="muted" style={{ fontSize: 12 }}>
+          Number plates are blurred on your phone before a photo is saved, and location data is removed.
+          {plateRedactorAvailable ? '' : ' (Automatic plate detection only works in the iPhone app.)'}
+        </Txt>
       </Section>
 
       <Section title="Card colour">
