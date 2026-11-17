@@ -14,7 +14,10 @@
         "NSPhotoLibraryUsageDescription": "Nightshift uses your photos so you can add pictures of your build.",
         "NSCameraUsageDescription": "Nightshift uses the camera so you can photograph your build.",
         "ITSAppUsesNonExemptEncryption": false,
-        "LSApplicationQueriesSchemes": ["comgooglemaps", "waze"]
+        "LSApplicationQueriesSchemes": [
+          "comgooglemaps",
+          "waze"
+        ]
       },
       "icon": "./assets/icon.png"
     },
@@ -42,14 +45,19 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Nightshift uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open."
+          "locationWhenInUsePermission": "Nightshift uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false,
+          "locationFullAccuracyPermission": "Nightshift needs your precise location to check you in at a stop and guide you turn by turn."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Nightshift uses your photos so you can add pictures of your build.",
-          "cameraPermission": "Nightshift uses the camera so you can photograph your build."
+          "photosPermission": "Nightshift uses your photos so you can add pictures of your builds, posts, messages and the places you visit. Number plates are blurred on your phone before anything is uploaded.",
+          "cameraPermission": "Nightshift uses the camera so you can photograph your build, a photo spot or a meet. Number plates are blurred on your phone before anything is uploaded.",
+          "microphonePermission": false
         }
       ],
       [
