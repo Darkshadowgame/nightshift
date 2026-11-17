@@ -251,5 +251,15 @@ export const CIRCUIT_OUTLINES: Record<string, { p: string; closed: boolean; m: n
   "p": "emkwHrlWvCCZMNW?qAe@i@kEFQZC^F~@V\\b@B",
   "closed": true,
   "m": 367
+ },
+ "mw-t-leicester-speedway": {
+  "p": "o}m`InyaF|BqDJaAUs@WK[FcC~DEt@Lh@XT`@I",
+  "closed": true,
+  "m": 336
+ },
+ "sni-t-racewall": {
+  "p": "mwmuIt}lS]WOa@_@iGL_Ar@g@d@F\\h@b@`GEr@Ob@e@Z_@B",
+  "closed": true,
+  "m": 368
  }
 };

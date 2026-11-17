@@ -50,6 +50,8 @@ export interface TrackInfo {
   records: LapRecord[];
   /** Hill climbs and sprints are a single timed run, not a lap. */
   run?: boolean;
+  /** Never draw a course line: it's public roads closed for an event. */
+  noOutline?: boolean;
 }
 
 export const RECORDS_READ_ON = '17 Nov 2026';
@@ -375,4 +377,23 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
   'sws-t-standlake': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
   'sws-t-smallfield': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
   'sws-t-arlington': { vehicles: ['car', 'bike'], spectator: true, layouts: [], records: [] },
+  // Regional additions (Midlands and Wales; Scotland and Northern Ireland), from their descriptions and sources.
+  'tr-bedford': { vehicles: ['car', 'bike'], factSources: ['https://www.bedfordautodrome.co.uk/about'], layouts: [], records: [] },
+  'tr-blyton': {
+    vehicles: ['car', 'bike'], factSources: ['https://www.blytonpark.co.uk/get-on-track/track-days/', 'https://www.blytonpark.co.uk/get-on-track/bike-schools/'],
+    layouts: [], records: [],
+  },
+  'mw-t-darley-moor': { vehicles: ['bike'], layouts: [], records: [] },
+  'mw-t-aberdare-park': { vehicles: ['bike'], spectator: true, layouts: [], records: [] },
+  'mw-t-llys-y-fran': { vehicles: ['car'], layouts: [], records: [], run: true },
+  'mw-t-hednesford': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'mw-t-leicester-speedway': { vehicles: ['bike'], spectator: true, layouts: [], records: [] },
+  'sni-t-crail': { vehicles: ['car', 'bike'], layouts: [{ name: 'Quarter mile', km: 0.402 }], records: [], run: true },
+  'sni-t-doune': { vehicles: ['car'], layouts: [], records: [], run: true },
+  'sni-t-racewall': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sni-t-lochgelly': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sni-t-nutts-corner': { vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.nuttscornercircuit.com/'], layouts: [], records: [] },
+  'sni-t-aghadowey': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  // Public roads closed for the race: a spectator event. Never a place for times.
+  'sni-t-nw200': { vehicles: ['bike'], spectator: true, noOutline: true, layouts: [], records: [] },
 };

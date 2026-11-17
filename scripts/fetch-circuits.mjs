@@ -95,6 +95,10 @@ for (const t of tracks) {
   const info = TRACK_INFO[t.id];
   const main = info?.layouts[0];
   const karting = /kart/i.test(t.name) || !!info?.vehicles?.every((v) => v === 'kart');
+  if (info?.noOutline) {
+    report.push(`${t.id}: no outline (public roads)`);
+    continue;
+  }
   const outline = pickOutline(ways, t.at, { targetMetres: main ? main.km * 1000 : undefined, maxMetres: radius(t), karting });
   if (!outline) {
     report.push(`${t.id}: no outline`);
