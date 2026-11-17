@@ -7,9 +7,8 @@ import { photoUri } from '../../lib/photos';
 import { NightMap } from '../../components/NightMap';
 import type { MapPin } from '../../components/mapTypes';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
+import { ZoneNotice } from '../../components/ZoneCard';
 import { BAN_ZONES } from '../../data/seed';
-import { zoneShapes } from '../../lib/zones';
-import { banZoneWarning } from '../../lib/events';
 import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
 import { fitRegion } from '../../lib/geo';
 import { nameForPlace } from '../../lib/location';
@@ -18,8 +17,6 @@ import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, SPOT_COLOURS } from '../../theme';
 
-/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
 
 /** Suggest a drive (checkpoints along the road) or a photo spot (one point), chosen on the full-screen map picker. */
 export default function SuggestPlace() {
@@ -136,8 +133,6 @@ export default function SuggestPlace() {
                   ]
                 : []
             }
-            circles={BAN_SHAPES.circles}
-            polygons={BAN_SHAPES.polygons}
             centre={view.centre}
             span={view.span}
             follow
@@ -179,10 +174,10 @@ export default function SuggestPlace() {
       ) : null}
 
       {zone ? (
-        <Card accent={C.alert}>
-          <Txt>{banZoneWarning(name.trim() || 'This place', zone)}</Txt>
+        <View style={{ gap: 4 }}>
+          <ZoneNotice zone={zone} subject={name.trim() || 'This place'} />
           <Txt v="muted">You can still suggest it, but think twice about sending people here at night.</Txt>
-        </Card>
+        </View>
       ) : null}
 
       {kind === 'photo' ? (

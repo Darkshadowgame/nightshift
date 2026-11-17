@@ -8,8 +8,9 @@ import { nameForPlace } from '../../lib/location';
 import { shouldAutoName } from '../../lib/placeNames';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
-import { zoneShapes } from '../../lib/zones';
-import { banZoneAt, banZoneWarning, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
+import { zonePins, zoneShapes } from '../../lib/zones';
+import { ZoneNotice } from '../../components/ZoneCard';
+import { banZoneAt, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
 import { formatTime } from '../../lib/format';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
@@ -18,6 +19,7 @@ import { C } from '../../theme';
 
 /** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
+const BAN_PINS = zonePins(BAN_ZONES, C.alert);
 
 type Selected = number | 'new';
 
@@ -141,7 +143,7 @@ export default function ChangePlan() {
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <NightMap
             key={`${selected}`}
-            pins={pins}
+            pins={[...BAN_PINS, ...pins]}
             circles={BAN_SHAPES.circles}
             polygons={BAN_SHAPES.polygons}
             paths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
@@ -180,9 +182,7 @@ export default function ChangePlan() {
               pending ? (
                 <>
                   {pendingZone ? (
-                    <Card accent={C.alert} style={{ backgroundColor: C.asphalt }}>
-                      <Txt>{banZoneWarning('The new place', pendingZone)}</Txt>
-                    </Card>
+                    <ZoneNotice zone={pendingZone} subject="The new place" />
                   ) : (
                     <Txt v="muted">Not in a known ban zone.</Txt>
                   )}
@@ -221,9 +221,7 @@ export default function ChangePlan() {
             <TextInput value={name} onChangeText={setName} placeholder="Name this spot" placeholderTextColor={C.fog} style={ui.input} />
             {pending ? (
               pendingZone ? (
-                <Card accent={C.alert} style={{ backgroundColor: C.asphalt }}>
-                  <Txt>{banZoneWarning(name.trim() || 'The new stop', pendingZone)}</Txt>
-                </Card>
+                <ZoneNotice zone={pendingZone} subject={name.trim() || 'The new stop'} />
               ) : (
                 <Txt v="muted">Not in a known ban zone.</Txt>
               )
@@ -251,6 +249,7 @@ export default function ChangePlan() {
         initial={pending ? [pending] : stop?.at ? [stop.at] : []}
         showKinds={['venue', 'track', 'photo']}
         snap
+        zones
         extraPins={pins.filter((p) => p.id !== stop?.id)}
         extraPaths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
         onDone={([s]) => (s ? picked(s.at, s.name) : setPicking(false))}

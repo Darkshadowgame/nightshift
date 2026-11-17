@@ -62,3 +62,79 @@ export function zoneShapes(zones: readonly BanZone[], colour: string): {
   }
   return { circles, polygons };
 }
+
+// ---------------------------------------------------------------------------
+// What a zone is, in plain words (the info card hosts and place pages open)
+// ---------------------------------------------------------------------------
+
+export type ZoneKind = 'injunction' | 'pspo' | 'dispersal';
+
+export const ZONE_KIND_LABELS: Record<ZoneKind, string> = {
+  injunction: 'Court injunction',
+  pspo: 'Public spaces protection order (PSPO)',
+  dispersal: 'Police dispersal orders',
+};
+
+const DEFAULT_BANS: Record<ZoneKind, string> = {
+  injunction:
+    'Taking part in a car cruise, street racing or stunt driving (as a driver, rider, passenger or, often, a spectator), and organising or promoting one. Breaking it is contempt of court: prison, a fine or seizure of assets.',
+  pspo:
+    'Car meets and anti-social driving in the area: racing, stunts, revving, loud music and gathering to watch. Breaking it can mean a fixed penalty (often £100) or a fine.',
+  dispersal:
+    'Not a standing ban: police have used 48-hour dispersal orders here against planned meets, ordering people to leave and stay away.',
+};
+
+export const ZONE_SAMPLE_NOTE = 'Sample — check the current order.';
+
+/** What it means for someone hosting there. */
+export const ZONE_HOST_NOTE =
+  "Nightshift only warns: it never stops you placing a stop here. As the host you're responsible for checking the current order and for where you send people.";
+
+export function zoneKind(z: Pick<BanZone, 'kind' | 'note'>): ZoneKind {
+  if (z.kind) return z.kind;
+  if (/injunction/i.test(z.note)) return 'injunction';
+  if (/dispersal/i.test(z.note)) return 'dispersal';
+  return 'pspo';
+}
+
+/** "18:00–07:00" or "3pm to 7am" from the zone, or its note. */
+export function zoneHours(z: Pick<BanZone, 'hours' | 'note'>): string | undefined {
+  if (z.hours) return z.hours;
+  const m = z.note.match(/\b(\d{1,2}[:.]\d{2}\s*[–-]\s*\d{1,2}[:.]\d{2})\b/) ?? z.note.match(/\b(\d{1,2}\s?(?:am|pm)\s*(?:to|and|–|-)\s*\d{1,2}\s?(?:am|pm))\b/i);
+  return m?.[1];
+}
+
+export interface ZoneInfo {
+  id: string;
+  name: string;
+  kind: string;
+  bans: string;
+  hours?: string;
+  /** The zone's own note, without the sample line it starts with. */
+  details: string;
+  source?: string;
+  checked?: string;
+  sample: string;
+  forHosts: string;
+}
+
+export function zoneInfo(z: BanZone): ZoneInfo {
+  const kind = zoneKind(z);
+  return {
+    id: z.id,
+    name: z.name,
+    kind: ZONE_KIND_LABELS[kind],
+    bans: z.bans ?? DEFAULT_BANS[kind],
+    hours: zoneHours(z),
+    details: z.note.replace(ZONE_SAMPLE_NOTE, '').trim(),
+    source: z.source,
+    checked: z.checked,
+    sample: ZONE_SAMPLE_NOTE,
+    forHosts: ZONE_HOST_NOTE,
+  };
+}
+
+/** Small tappable pins at each zone's centre, for host maps (tap: the zone's info card). */
+export function zonePins(zones: readonly BanZone[], colour: string): { id: string; at: LatLng; glyph: 'area'; colour: string; title: string; size: number }[] {
+  return zones.map((z) => ({ id: `zone:${z.id}`, at: z.centre, glyph: 'area' as const, colour, title: `${z.name}: car-meet order area`, size: 24 }));
+}

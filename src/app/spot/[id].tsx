@@ -11,10 +11,10 @@ import { Stars } from '../../components/Stars';
 import { TrackPanel } from '../../components/TrackPanel';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
+import { ZoneNotice } from '../../components/ZoneCard';
 import { BAN_ZONES } from '../../data/seed';
 import { SYSTEM_AUTHOR } from '../../data/places';
 import { radiusFor } from '../../lib/commons';
-import { banZoneWarning } from '../../lib/events';
 import { trackOutline } from '../../lib/tracks';
 import { driveTier } from '../../lib/rep';
 import { feel } from '../../lib/feel';
@@ -169,10 +169,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
       </View>
 
       {zones.map((zone) => (
-        <Card key={zone.id} accent={C.alert}>
-          <Txt>{banZoneWarning(spot.name, zone)}</Txt>
-          {zone.checked ? <Txt v="muted" style={{ fontSize: 12 }}>Order last checked {zone.checked}.</Txt> : null}
-        </Card>
+        <ZoneNotice key={zone.id} zone={zone} />
       ))}
 
       {pending ? (

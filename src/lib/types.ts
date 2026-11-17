@@ -243,6 +243,12 @@ export interface BanZone {
   polygons?: LatLng[][];
   /** When the order was last checked against its source (YYYY-MM-DD). */
   checked?: string;
+  /** What kind of order it is. Worked out from the note when missing (zones.ts). */
+  kind?: 'injunction' | 'pspo' | 'dispersal';
+  /** What it bans, in plain words, when known. */
+  bans?: string;
+  /** When it applies, e.g. "3pm to 7am", when known. */
+  hours?: string;
   note: string;
   /** Where the order is published. */
   source?: string;

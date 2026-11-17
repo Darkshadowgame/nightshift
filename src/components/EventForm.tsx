@@ -5,9 +5,10 @@ import { NightMap } from './NightMap';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
 import { FILTER_BRANDS } from '../data/catalog';
 import { BAN_ZONES } from '../data/seed';
-import { zoneShapes } from '../lib/zones';
+import { zonePins, zoneShapes } from '../lib/zones';
+import { ZoneNotice } from './ZoneCard';
 import { visibleSpots } from '../lib/spots';
-import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
+import { banZoneAt, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen } from '../lib/format';
 import { fitRegion } from '../lib/geo';
 import { startFrom, type DayChoice } from '../lib/when';
@@ -25,6 +26,7 @@ import { C, F } from '../theme';
 
 /** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
+const BAN_PINS = zonePins(BAN_ZONES, C.alert);
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
 const DAY_CHOICES: DayChoice[] = [
@@ -293,7 +295,7 @@ export function EventForm({
         >
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
-              pins={stopPins(null)}
+              pins={[...BAN_PINS, ...stopPins(null)]}
               paths={routePaths}
               circles={BAN_SHAPES.circles}
               polygons={BAN_SHAPES.polygons}
@@ -374,12 +376,9 @@ export function EventForm({
             : `Before the reveal, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any stop.`}
         </Txt>
         {bans.map(({ st, zone }) => (
-          <Card key={st.key} accent={C.alert}>
-            <Txt>
-              {banZoneWarning(st.name || 'A stop', zone!)}
-            </Txt>
-          </Card>
+          <ZoneNotice key={st.key} zone={zone!} subject={st.name || 'A stop'} />
         ))}
+        {bans.length ? <Txt v="muted" style={{ fontSize: 12 }}>Nightshift only warns. As the host, you're responsible for checking the order.</Txt> : null}
       </Section>
 
       <Section title="Who's invited">
@@ -489,6 +488,7 @@ export function EventForm({
         initial={picking !== null && visibleStops[picking]?.at ? [visibleStops[picking].at!] : []}
         showKinds={['venue', 'track', 'photo']}
         snap
+        zones
         extraPins={stopPins(picking)}
         extraPaths={routePaths}
         onDone={([stop]) => {

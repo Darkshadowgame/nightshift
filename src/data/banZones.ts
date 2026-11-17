@@ -1,4 +1,5 @@
 import type { BanZone } from '../lib/types';
+import { BROADLAND, SANDWELL, SOUTH_NORFOLK, WALSALL, WOLVERHAMPTON } from './zoneBoundaries';
 import { banZones as NORTH_ENGLAND_BAN_ZONES } from './regions/northEngland';
 import { banZones as SOUTH_WEST_SOUTH_BAN_ZONES } from './regions/southWestSouth';
 import { banZones as MIDLANDS_WALES_BAN_ZONES } from './regions/midlandsWales';
@@ -7,8 +8,9 @@ import { banZones as SCOTLAND_NI_BAN_ZONES } from './regions/scotlandNI';
 /**
  * Sample ban zones: areas covered by real court injunctions, PSPOs (public
  * spaces protection orders) or repeated police dispersal orders against car
- * cruising and meets. Each is only a rough circle round the named area, and
- * orders change, so every note says to check the current order. The app warns
+ * cruising and meets. Borough- and city-wide orders use the council boundary
+ * (simplified, zoneBoundaries.ts); smaller ones a rough circle. Orders change,
+ * so every note says to check the current order. The app warns
  * when a stop or place is inside one; it never blocks.
  *
  * East Anglia, Kent and London zones come from docs/research/regional-places.md
@@ -18,12 +20,15 @@ const CHECK = 'Sample — check the current order.';
 
 const BASE_BAN_ZONES: BanZone[] = [
   {
-    id: 'bz-bham', name: 'Birmingham', centre: { lat: 52.48, lng: -1.89 }, radiusMiles: 4,
-    note: `${CHECK} Rough circle round Birmingham city centre, inside the West Midlands car cruising injunction.`,
-  },
-  {
-    id: 'bz-blackcountry', name: 'Black Country', centre: { lat: 52.55, lng: -2.06 }, radiusMiles: 6,
-    note: `${CHECK} Rough circle for the Black Country street-racing injunction (Wolverhampton, Sandwell and Walsall; Dudley left it in 2026), extended to at least 1 Mar 2027.`,
+    id: 'bz-blackcountry', name: 'Black Country (Wolverhampton, Sandwell, Walsall)', centre: { lat: 52.58, lng: -2.06 }, radiusMiles: 9,
+    polygons: [...WOLVERHAMPTON, ...SANDWELL, ...WALSALL],
+    kind: 'injunction',
+    hours: '3pm to 7am',
+    bans:
+      'Between 3pm and 7am: taking part (driving, riding or as a passenger) in a gathering of two or more where some race, do stunts (burnouts, donuts, drifting) or drive dangerously; organising, promoting or publicising one; and watching one. Breaking it is contempt of court.',
+    note: `${CHECK} High Court street-racing injunction for the whole of Wolverhampton, Sandwell and Walsall (Wolverhampton CC and others v Persons Unknown), reviewed Feb 2026 and in force to 23:59 on 1 Mar 2027. Dudley left it in Feb 2026 and has its own PSPO.`,
+    source: 'https://www.wolverhampton.gov.uk/parking-and-roads/car-cruising-injunction',
+    checked: '2026-11-17',
   },
   {
     id: 'bz-westminster', name: 'Westminster and Kensington', centre: { lat: 51.509, lng: -0.15 }, radiusMiles: 1.75,
@@ -51,7 +56,9 @@ const BASE_BAN_ZONES: BanZone[] = [
     source: 'https://www.norwich.gov.uk/your-council-explained/policies-plans-and-strategies/public-spaces-protection-orders-pspos/vehicle',
   },
   {
-    id: 'bz-broadland-south-norfolk', name: 'Broadland and South Norfolk', centre: { lat: 52.62, lng: 1.2 }, radiusMiles: 10,
+    id: 'bz-broadland-south-norfolk', name: 'Broadland and South Norfolk', centre: { lat: 52.6, lng: 1.32 }, radiusMiles: 16,
+    // The two districts round Norwich, not the city itself (it has its own order, bz-norwich).
+    polygons: [...BROADLAND, ...SOUTH_NORFOLK],
     note: `${CHECK} District-wide vehicle PSPOs round Norwich, including Longwater Retail Park. Norfolk Police run Operation Octane against car-meet anti-social behaviour.`,
     source: 'https://www.southnorfolkandbroadland.gov.uk/news/9-reduction-in-vehicle-related-anti-social-behaviour-1',
   },

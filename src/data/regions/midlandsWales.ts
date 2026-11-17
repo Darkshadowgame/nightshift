@@ -1,4 +1,5 @@
 import type { BanZone } from '../../lib/types';
+import { BIRMINGHAM, COVENTRY, DUDLEY } from '../zoneBoundaries';
 import type { PlaceSeed } from '../places';
 
 /**
@@ -402,11 +403,36 @@ export const places: PlaceSeed[] = [
   },
 ];
 
-/** Rough circles round areas with car-meet orders. Notes say to check the current order. */
+/** Car-meet order areas (council outlines for borough-wide orders). Notes say to check the current order. */
 export const banZones: BanZone[] = [
   {
-    id: 'bz-mw-birmingham', name: 'Birmingham (whole city)', centre: { lat: 52.48, lng: -1.89 }, radiusMiles: 6.5,
-    note: `${CHECK} High Court street-cruise injunction for the whole city (continued to 27 Feb 2027, power of arrest): bans taking part as driver, rider, passenger or spectator, and organising or promoting a cruise.`,
-    source: 'https://www.birmingham.gov.uk/news/article/1743/judge_confirms_tough_new_measures_as_birmingham_secures_ongoing_street_cruise_injunction',
+    id: 'bz-mw-birmingham', name: 'Birmingham (whole city)', centre: { lat: 52.495, lng: -1.881 }, radiusMiles: 9,
+    polygons: BIRMINGHAM,
+    kind: 'injunction',
+    bans:
+      'Taking part in a street cruise as a driver, rider, passenger or spectator, and organising, promoting or publicising one, anywhere in the city. Breaking it is contempt of court, with a power of arrest.',
+    note: `${CHECK} High Court street-cruise injunction for the whole city (Birmingham CC v Persons Unknown), reviewed Feb 2026 and in force to 23:59 on 27 Feb 2027.`,
+    source: 'https://caselaw.nationalarchives.gov.uk/ewhc/kb/2026/442',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-mw-dudley', name: 'Dudley (borough-wide)', centre: { lat: 52.492, lng: -2.102 }, radiusMiles: 6,
+    polygons: DUDLEY,
+    kind: 'pspo',
+    bans:
+      'Street racing, stunts, and dangerous or obstructive driving in the borough, and promoting or organising such events. A £100 fixed penalty, or a fine of up to £1,000.',
+    note: `${CHECK} Borough-wide vehicle PSPO from Feb 2026, after Dudley left the Black Country injunction.`,
+    source: 'https://www.dudley.gov.uk/pspo',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-mw-coventry', name: 'Coventry (city-wide)', centre: { lat: 52.414, lng: -1.519 }, radiusMiles: 5,
+    polygons: COVENTRY,
+    kind: 'pspo',
+    bans:
+      'Nuisance use of vehicles, mainly motorcycles: riding or driving in a way that causes nuisance or danger in public places. Not a car-cruising injunction: it is mainly aimed at nuisance motorbike riding.',
+    note: `${CHECK} City-wide PSPO, 2 Oct 2024 to 2 Oct 2027. Solihull's old injunction ended in 2022 and no current order was found there.`,
+    source: 'https://coventry.gov.uk/street-scene/public-space-protection-orders-pspo',
+    checked: '2026-11-17',
   },
 ];

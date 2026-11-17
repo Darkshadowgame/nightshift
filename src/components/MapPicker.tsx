@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../data/seed';
-import { zoneShapes } from '../lib/zones';
+import { zonePins, zoneShapes } from '../lib/zones';
+import { ZoneCard } from './ZoneCard';
 import { banZoneAt } from '../lib/events';
 import { currentPosition, geocoderAvailable, nameForPlace } from '../lib/location';
 import {
@@ -31,6 +32,7 @@ import { Button, Row, Txt } from './ui';
 
 /** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
+const BAN_PINS = zonePins(BAN_ZONES, C.alert);
 
 /** Wait this long after the map stops moving before naming the crosshair (the geocoder dislikes bursts). */
 const NAME_DELAY_MS = 500;
@@ -58,6 +60,8 @@ export interface MapPickerProps {
   /** Other things on the plan for context, e.g. the event's other stops and its route. */
   extraPins?: MapPin[];
   extraPaths?: MapPath[];
+  /** Hosting: draw the car-meet order areas (ban zones) and say when the crosshair is in one. */
+  zones?: boolean;
   /** Point mode: the place. Path mode: every checkpoint (no names). */
   onDone: (stops: PickedStop[]) => void;
   onCancel: () => void;
@@ -89,6 +93,7 @@ function PickerBody({
   snap = false,
   extraPins = [],
   extraPaths = [],
+  zones = false,
   onDone,
   onCancel,
 }: MapPickerProps) {
@@ -113,7 +118,10 @@ function PickerBody({
   const near = useMemo(() => nearbyPlaces(known, region.centre, region.span), [known, region]);
   const snapTo: PickPlace[] = useMemo(() => (snap ? near.filter((s) => s.kind !== 'drive') : []), [snap, near]);
   const onPlace = snapPlace(region.centre, snapTo, region.span);
-  const zone = banZoneAt(onPlace?.at ?? region.centre, BAN_ZONES);
+  const zone = zones ? banZoneAt(onPlace?.at ?? region.centre, BAN_ZONES) : undefined;
+  /** The zone whose info card is open (tap a zone pin or the line under the crosshair). */
+  const [zoneOpen, setZoneOpen] = useState<string | null>(null);
+  const openZone = zoneOpen ? BAN_ZONES.find((z) => z.id === zoneOpen) : undefined;
   const gap = mode === 'path' ? gapTo(points, region.centre) : null;
   const drawnGap = mode === 'path' ? longGap(points) : null;
 
@@ -200,15 +208,19 @@ function PickerBody({
     <View style={{ flex: 1, backgroundColor: C.asphalt }}>
       <NightMap
         ref={map}
-        pins={[...contextPins, ...extraPins, ...drawn]}
+        pins={[...(zones ? BAN_PINS : []), ...contextPins, ...extraPins, ...drawn]}
         paths={[...contextPaths, ...extraPaths, ...drawnPaths]}
-        circles={BAN_SHAPES.circles}
-        polygons={BAN_SHAPES.polygons}
+        circles={zones ? BAN_SHAPES.circles : undefined}
+        polygons={zones ? BAN_SHAPES.polygons : undefined}
         centre={opensAt}
         span={span}
         onRegion={setRegion}
         onPressMap={tapMap}
         onSelect={(id) => {
+          if (id.startsWith('zone:')) {
+            setZoneOpen(id.slice(5));
+            return;
+          }
           const k = near.find((s) => `k:${s.id}` === id);
           if (k) jump(k.at);
         }}
@@ -249,7 +261,9 @@ function PickerBody({
           <Txt v="label" style={{ color: onPlace ? C.lime : C.fog }}>{onPlace ? 'On a known place' : 'Under the crosshair'}</Txt>
           <Txt numberOfLines={1} accessibilityLiveRegion="polite">{label}</Txt>
           {zone ? (
-            <Txt v="mono" style={{ color: C.alert }} numberOfLines={2}>INSIDE THE {zone.name.toUpperCase()} BAN ZONE</Txt>
+            <Pressable onPress={() => setZoneOpen(zone.id)} accessibilityRole="button" hitSlop={6}>
+              <Txt v="mono" style={{ color: C.alert }} numberOfLines={2}>INSIDE A CAR-MEET ORDER AREA ({zone.name.toUpperCase()}) · DETAILS ›</Txt>
+            </Pressable>
           ) : null}
           {mode === 'path' ? (
             <>
@@ -296,6 +310,12 @@ function PickerBody({
           )}
         </View>
       </View>
+      {openZone ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(11,15,23,0.6)', justifyContent: 'center', padding: 16 }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setZoneOpen(null)} accessibilityLabel="Close" />
+          <ZoneCard zone={openZone} onClose={() => setZoneOpen(null)} />
+        </View>
+      ) : null}
     </View>
   );
 }
