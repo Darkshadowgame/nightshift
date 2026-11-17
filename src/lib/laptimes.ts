@@ -1,5 +1,5 @@
 import { classOf } from './classes';
-import type { TrackVehicle } from '../data/trackInfo';
+import { TRACK_INFO, type TrackVehicle } from '../data/trackInfo';
 import type { Build, ClassLetter, Spot } from './types';
 
 /**
@@ -17,10 +17,6 @@ import type { Build, ClassLetter, Spot } from './types';
 
 export type LapStatus = 'unverified' | 'verified' | 'rejected';
 
-/** Karts aren't in the garage: they're grouped as the venue's hire karts or your own. */
-export type KartClass = 'Hire' | 'Own';
-export const KART_CLASSES: KartClass[] = ['Hire', 'Own'];
-
 export type { TrackVehicle };
 
 export interface LapTime {
@@ -32,13 +28,13 @@ export interface LapTime {
   /** Lap or run time in milliseconds. */
   ms: number;
   userId: string;
-  /** Cars and bikes: the build that set it. Karts have none. */
+  /** The build that set it. */
   buildId?: string;
-  /** What it was set in, as it was then: "VW Golf R", "Hire kart". */
+  /** What it was set in, as it was then: "VW Golf R". */
   vehicle: string;
   kind: TrackVehicle;
-  /** Cars and bikes: the build's class (S–D) when the time was entered. Karts: Hire or Own. */
-  cls: ClassLetter | KartClass;
+  /** The build's class (S–D) when the time was entered. */
+  cls: ClassLetter;
   /** Stored photo name of the timing sheet or screenshot (plate-blurred, no metadata). */
   proof: string;
   status: LapStatus;
@@ -52,10 +48,7 @@ export interface LapDraft {
   /** As typed: "1:23.456" or "58.9". */
   time: string;
   kind: TrackVehicle;
-  /** Cars and bikes. */
   buildId?: string;
-  /** Karts. */
-  kartClass?: KartClass;
   proof?: string;
 }
 
@@ -97,18 +90,22 @@ export function recordMs(time: string): number | null {
 }
 
 /**
- * Only bundled tracks take times: never a drive, photo spot, venue or anything
- * someone suggested. Spectator stadiums (oval stock cars, speedway) don't run
- * track days, so they take none either.
+ * Only bundled tracks with known track details take times: never a drive,
+ * photo spot, venue or anything someone suggested. Spectator venues (oval
+ * stock cars, speedway, racing on closed public roads) don't run track days,
+ * so they take none either. Fails closed: the venue's own facts decide, not
+ * the caller, so the rule the backend copies can't be skipped by mistake.
  */
-export function canTimeAt(spot: Spot | undefined, spectatorOnly = false): { ok: true } | { ok: false; reason: string } {
+export function canTimeAt(spot: Spot | undefined): { ok: true } | { ok: false; reason: string } {
   if (!spot || spot.kind !== 'track' || spot.authorId)
-    return { ok: false, reason: 'Times only count at a real circuit, kart track, sprint course or hill climb. Drives and roads are never timed.' };
-  if (spectatorOnly) return { ok: false, reason: "This is a spectator venue with no track days, so there are no times to enter." };
+    return { ok: false, reason: 'Times only count at a real circuit, sprint course or hill climb. Drives and roads are never timed.' };
+  const info = TRACK_INFO[spot.id];
+  if (!info) return { ok: false, reason: "We don't have this track's details yet, so times can't be entered here." };
+  if (info.spectator) return { ok: false, reason: 'This is a spectator venue with no track days, so there are no times to enter.' };
   return { ok: true };
 }
 
-export const VEHICLE_LABELS: Record<TrackVehicle, string> = { car: 'Cars', bike: 'Bikes', kart: 'Karts' };
+export const VEHICLE_LABELS: Record<TrackVehicle, string> = { car: 'Cars', bike: 'Bikes' };
 
 export function buildLabel(b: Pick<Build, 'make' | 'model' | 'nickname'>): string {
   return `${b.make} ${b.model}`.trim() || b.nickname || 'Build';
@@ -128,14 +125,13 @@ export function lapProblem(
     layouts: string[];
     /** What runs at the track. */
     vehicles: TrackVehicle[];
-    spectatorOnly?: boolean;
     builds: Build[];
     me: string;
     now: Date;
     fastestMs?: number | null;
   },
 ): string | null {
-  const where = canTimeAt(ctx.track, ctx.spectatorOnly);
+  const where = canTimeAt(ctx.track);
   if (!where.ok) return where.reason;
   if (!ctx.vehicles.includes(d.kind)) return `${VEHICLE_LABELS[d.kind]} don't run here.`;
   const allowed = ctx.layouts.length ? ctx.layouts : [MAIN_LAYOUT];
@@ -150,13 +146,9 @@ export function lapProblem(
   if (ms === null) return 'Enter the time as minutes:seconds, e.g. 1:23.456.';
   if (ms < MIN_LAP_MS || ms > MAX_LAP_MS) return 'That time is outside what a lap or run here could be. Check it against the timing sheet.';
   if (ctx.fastestMs && ms < ctx.fastestMs) return "That's quicker than the outright record for this layout. Check it against the timing sheet.";
-  if (d.kind === 'kart') {
-    if (!d.kartClass || !KART_CLASSES.includes(d.kartClass)) return 'Say whether it was a hire kart or your own.';
-  } else {
-    const build = ctx.builds.find((b) => b.id === d.buildId);
-    if (!build || build.ownerId !== ctx.me) return `Pick the ${d.kind} from your garage that set the time.`;
-    if (build.kind !== d.kind) return `That build is a ${build.kind}, not a ${d.kind}.`;
-  }
+  const build = ctx.builds.find((b) => b.id === d.buildId);
+  if (!build || build.ownerId !== ctx.me) return `Pick the ${d.kind} from your garage that set the time.`;
+  if (build.kind !== d.kind) return `That build is a ${build.kind}, not a ${d.kind}.`;
   if (!d.proof) return 'Add a photo of the timing sheet or timing app screen as proof.';
   return null;
 }
@@ -166,12 +158,10 @@ export function makeLap(d: LapDraft, ctx: Parameters<typeof lapProblem>[1], id: 
   const problem = lapProblem(d, ctx);
   if (problem) throw new Error(problem);
   const base = { id, trackId: d.trackId, layout: d.layout, on: d.on, ms: parseLapTime(d.time)!, userId: ctx.me, proof: d.proof! };
-  const build = d.kind === 'kart' ? undefined : ctx.builds.find((b) => b.id === d.buildId)!;
+  const build = ctx.builds.find((b) => b.id === d.buildId)!;
   return {
     ...base,
-    ...(build
-      ? { buildId: build.id, vehicle: buildLabel(build), kind: build.kind, cls: classOf(build) }
-      : { vehicle: d.kartClass === 'Own' ? 'Own kart' : 'Hire kart', kind: 'kart' as const, cls: d.kartClass! }),
+    buildId: build.id, vehicle: buildLabel(build), kind: build.kind, cls: classOf(build),
     status: 'unverified',
     submittedAt: ctx.now.toISOString(),
   };
@@ -180,24 +170,23 @@ export function makeLap(d: LapDraft, ctx: Parameters<typeof lapProblem>[1], id: 
 export interface LeaderGroup {
   key: string;
   kind: TrackVehicle;
-  cls: ClassLetter | KartClass;
+  cls: ClassLetter;
   /** Best time per person, quickest first. */
   entries: LapTime[];
 }
 
-const ORDER: Record<TrackVehicle, (ClassLetter | KartClass)[]> = {
+const ORDER: Record<TrackVehicle, ClassLetter[]> = {
   car: ['S', 'A', 'B', 'C', 'D'],
   bike: ['S', 'A', 'B', 'C', 'D'],
-  kart: KART_CLASSES,
 };
 
 /**
  * The leaderboard for one track and layout: one group per vehicle type and
- * class (cars S to D, bikes S to D, then hire and own karts), limited to the
+ * class (cars S to D, then bikes S to D), limited to the
  * vehicle types asked for. Each person appears once per group, with their
  * best time. Rejected times never show.
  */
-export function leaderboard(laps: LapTime[], trackId: string, layout: string, kinds: TrackVehicle[] = ['car', 'bike', 'kart']): LeaderGroup[] {
+export function leaderboard(laps: LapTime[], trackId: string, layout: string, kinds: TrackVehicle[] = ['car', 'bike']): LeaderGroup[] {
   const groups = new Map<string, Map<string, LapTime>>();
   for (const l of laps) {
     if (l.trackId !== trackId || l.layout !== layout || l.status === 'rejected' || !kinds.includes(l.kind)) continue;
@@ -208,7 +197,7 @@ export function leaderboard(laps: LapTime[], trackId: string, layout: string, ki
     groups.set(key, best);
   }
   const out: LeaderGroup[] = [];
-  for (const kind of ['car', 'bike', 'kart'] as TrackVehicle[])
+  for (const kind of ['car', 'bike'] as TrackVehicle[])
     for (const cls of ORDER[kind]) {
       const g = groups.get(`${kind}-${cls}`);
       if (!g) continue;
@@ -223,4 +212,9 @@ export function layoutsWithTimes(laps: LapTime[], trackId: string, published: st
   const base = published.length ? published : [MAIN_LAYOUT];
   const extra = [...new Set(laps.filter((l) => l.trackId === trackId && !base.includes(l.layout)).map((l) => l.layout))];
   return [...base, ...extra];
+}
+
+/** Kart times were dropped with the kart circuits (Nov 2026): saved ones go, and anything else not a car or bike. */
+export function keepLap(l: { kind?: string }): boolean {
+  return l.kind === 'car' || l.kind === 'bike';
 }

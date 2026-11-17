@@ -69,16 +69,15 @@ export function outlinesInView(spots: Spot[], centre: LatLng, span: number): { i
   });
 }
 
-export const ALL_VEHICLES: TrackVehicle[] = ['car', 'bike', 'kart'];
+export const ALL_VEHICLES: TrackVehicle[] = ['car', 'bike'];
 
 /**
- * What runs at a track: from trackInfo.ts when known, otherwise karts at a
- * kart venue and cars only at sprint courses and hill climbs, else cars and bikes.
+ * What runs at a track: from trackInfo.ts when known, otherwise cars only at
+ * sprint courses and hill climbs, else cars and bikes.
  */
 export function trackVehicles(spot: Pick<Spot, 'id' | 'name'>): TrackVehicle[] {
   const known = TRACK_INFO[spot.id]?.vehicles;
   if (known?.length) return known;
-  if (/kart/i.test(spot.name)) return ['kart'];
   if (TRACK_INFO[spot.id]?.run) return ['car'];
   return ['car', 'bike'];
 }
@@ -88,7 +87,7 @@ export function isSpectatorVenue(id: string): boolean {
   return !!TRACK_INFO[id]?.spectator;
 }
 
-/** The map's Cars / Bikes / Karts chips: a track shows if anything it runs is picked. */
+/** The map's Cars / Bikes choice (Tracks ▾): a track shows if anything it runs is picked. */
 export function matchesVehicles(spot: Pick<Spot, 'id' | 'name'>, picked: TrackVehicle[]): boolean {
   return trackVehicles(spot).some((v) => picked.includes(v));
 }

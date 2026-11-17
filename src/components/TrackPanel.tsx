@@ -6,7 +6,6 @@ import { feel } from '../lib/feel';
 import { addLap, removeLap, useLaps } from '../lib/lapStore';
 import {
   formatLapTime,
-  KART_CLASSES,
   layoutsWithTimes,
   leaderboard,
   makeLap,
@@ -47,12 +46,6 @@ function TrackDetails({ spot, outline }: { spot: Spot; outline: TrackOutline | n
           <Txt v="label">{info?.spectator ? 'Racing here' : 'Runs here'}</Txt>
           <Txt v="mono" style={{ color: C.chalk }}>{vehicles.map((v) => VEHICLE_LABELS[v].toUpperCase()).join(' · ')}</Txt>
         </Row>
-        {info?.arriveAndDrive !== undefined ? (
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Txt v="label">Arrive and drive</Txt>
-            <Txt v="mono" style={{ color: info.arriveAndDrive ? C.lime : C.fog }}>{info.arriveAndDrive ? 'YES, HIRE KARTS' : 'NO, OWN KARTS ONLY'}</Txt>
-          </Row>
-        ) : null}
         {lengthKm ? (
           <Row style={{ justifyContent: 'space-between' }}>
             <Txt v="label">{info?.run ? 'Course length' : main ? `Length · ${main.name}` : 'Length (measured on the map)'}</Txt>
@@ -180,9 +173,9 @@ function TrackTimes({ spot }: { spot: Spot }) {
         groups.map((g) => (
           <Card key={g.key}>
             <Row>
-              {g.kind !== 'kart' && g.cls !== 'Hire' && g.cls !== 'Own' ? <ClassBadge letter={g.cls} size="sm" /> : null}
+              <ClassBadge letter={g.cls} size="sm" />
               <Txt v="label">
-                {VEHICLE_LABELS[g.kind]} · {g.kind === 'kart' ? `${g.cls === 'Hire' ? 'Hire' : 'Own'} karts` : `Class ${g.cls}`}
+                {VEHICLE_LABELS[g.kind]} · Class {g.cls}
               </Txt>
             </Row>
             {g.entries.map((l, i) => {
@@ -210,12 +203,12 @@ function TrackTimes({ spot }: { spot: Spot }) {
       )}
       <Txt v="muted" style={{ fontSize: 12 }}>
         {run ? 'Run' : 'Lap'} times from real track days and events only, typed in from the timing sheet with a photo as proof, and
-        grouped by vehicle type and the class of the build that set them (karts: hire or your own). They're kept on this phone and marked unverified for now: checking them
+        grouped by vehicle type and the class of the build that set them. They're kept on this phone and marked unverified for now: checking them
         against the proof arrives with the server. Drives and roads are never timed.
       </Txt>
       {adding ? (
         <AddTime spot={spot} vehicles={vehicles} layouts={published.length ? published : [MAIN_LAYOUT]} initialLayout={layout} onDone={() => setAdding(false)} />
-      ) : mineFits || vehicles.includes('kart') ? (
+      ) : mineFits ? (
         <Button label="+ Add a track time" kind="ghost" onPress={() => setAdding(true)} />
       ) : (
         <Txt v="muted" style={{ fontSize: 12 }}>
@@ -242,14 +235,14 @@ function AddTime({
   const store = useStore();
   const { me, builds } = store;
   const mineAll = builds.filter((b) => b.ownerId === me && vehicles.includes(b.kind));
-  const firstKind = (mineAll[0]?.kind ?? (vehicles.includes('kart') ? 'kart' : vehicles[0])) as TrackVehicle;
+  const firstKind = (mineAll[0]?.kind ?? vehicles[0]) as TrackVehicle;
   const [draft, setDraft] = useState<LapDraft>({
     trackId: spot.id,
     layout: layouts.includes(initialLayout) ? initialLayout : layouts[0],
     on: today(),
     time: '',
     kind: firstKind,
-    ...(firstKind === 'kart' ? { kartClass: 'Hire' as const } : { buildId: mineAll.find((b) => b.kind === firstKind)?.id }),
+    buildId: mineAll.find((b) => b.kind === firstKind)?.id,
   });
   const mine = mineAll.filter((b) => b.kind === draft.kind);
   const [error, setError] = useState<string | null>(null);
@@ -321,22 +314,14 @@ function AddTime({
                 label={VEHICLE_LABELS[v]}
                 on={draft.kind === v}
                 colour={C.lime}
-                onPress={() =>
-                  set(v === 'kart' ? { kind: v, kartClass: draft.kartClass ?? 'Hire', buildId: undefined } : { kind: v, buildId: mineAll.find((b) => b.kind === v)?.id })
-                }
+                onPress={() => set({ kind: v, buildId: mineAll.find((b) => b.kind === v)?.id })}
               />
             ))}
           </Row>
         </>
       ) : null}
       <Txt v="label">Set in</Txt>
-      {draft.kind === 'kart' ? (
-        <Row gap={6}>
-          {KART_CLASSES.map((k) => (
-            <Chip key={k} label={k === 'Hire' ? "The venue's hire kart" : 'My own kart'} on={draft.kartClass === k} colour={C.lime} onPress={() => set({ kartClass: k })} />
-          ))}
-        </Row>
-      ) : mine.length ? (
+      {mine.length ? (
         <Row gap={6}>
           {mine.map((b) => (
             <Chip key={b.id} label={`${b.make} ${b.model} · ${classOf(b)}`} on={draft.buildId === b.id} colour={C.lime} onPress={() => set({ buildId: b.id })} />

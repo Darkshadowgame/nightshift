@@ -1,5 +1,4 @@
 import type { LatLng, Spot, SpotKind } from '../lib/types';
-import { KART_PLACES } from './kartTracks';
 import { places as NORTH_ENGLAND } from './regions/northEngland';
 import { places as SOUTH_WEST_SOUTH } from './regions/southWestSouth';
 import { places as MIDLANDS_WALES } from './regions/midlandsWales';
@@ -32,7 +31,7 @@ import { places as SCOTLAND_NI } from './regions/scotlandNI';
 
 export const SYSTEM_AUTHOR = 'nightshift';
 
-export type TrackType = 'circuit' | 'sprint' | 'hillclimb' | 'kart';
+export type TrackType = 'circuit' | 'sprint' | 'hillclimb';
 
 export interface PlaceSeed {
   id: string;
@@ -472,13 +471,6 @@ const REGIONAL: PlaceSeed[] = [
     sources: ['https://www.forestryengland.uk/high-lodge'],
   },
   {
-    id: 'ea-t-ellough', kind: 'track', name: 'Ellough Park Raceway', region: 'East Anglia',
-    description: 'Outdoor kart circuit near Beccles. Closest circuit to Lowestoft.',
-    warnings: ['Booking required.'],
-    at: { lat: 52.4341, lng: 1.6006 },
-    sources: ['https://www.elloughparkraceway.co.uk/'],
-  },
-  {
     id: 'ea-t-adrian-flux', kind: 'track', name: "Adrian Flux Arena, King's Lynn", region: 'East Anglia',
     description: 'Speedway and oval stock-car stadium at Saddlebow. Regular spectator motorsport.',
     warnings: ['Spectator venue; check fixtures.'],
@@ -775,13 +767,6 @@ const REGIONAL: PlaceSeed[] = [
     sources: ['https://www.thedockyard.co.uk/'],
   },
   {
-    id: 'k-t-buckmore', kind: 'track', name: 'Buckmore Park Karting', region: 'Kent',
-    description: 'Well-known kart circuit near Chatham. Classic Kent karting venue.',
-    warnings: ['Booking required.'],
-    at: { lat: 51.343, lng: 0.5012 },
-    sources: ['https://www.buckmore.co.uk/'],
-  },
-  {
     id: 'k-v-oakdene', kind: 'venue', name: 'Oakdene Café, Wrotham', region: 'Kent',
     description: "Truckers' and bikers' café on the A20 near Brands Hatch. Large Wednesday evening bike nights (MCN \"Meet of the week\"); open to 10pm Weds.",
     warnings: ['A20 junction; busy Wednesday evenings.'],
@@ -1032,7 +1017,7 @@ const REGIONAL: PlaceSeed[] = [
 ];
 
 /** Venues that welcome meets: see REGIONAL for the researched ones. */
-export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES, ...SCOTLAND_NI];
+export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES, ...SCOTLAND_NI];
 
 /** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. Ban zones: see placeStore.ts. */
 export function placeSpots(createdAt: string): Spot[] {

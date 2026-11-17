@@ -14,23 +14,25 @@ export interface Settings {
   reminders: boolean;
   /**
    * Speed cameras on the map (fixed cameras and average-speed zones from
-   * OpenStreetMap). On by default; they only show once you zoom in to
+   * OpenStreetMap), under the map's "More" menu. Off by default; they only show once you zoom in to
    * driving distance (see CAMERA_MAX_SPAN in cameras.ts).
    */
   cameras: boolean;
   /** Map: which tracks to show by what runs there (Tracks ▾ menu). Never empty. */
-  trackVehicles: ('car' | 'bike' | 'kart')[];
+  trackVehicles: ('car' | 'bike')[];
   /** Map: the Shops layer (OpenStreetMap listings and partners). Off by default. */
   shops: boolean;
   /** Map: which kinds of shop to show (Shops ▾ menu). Never empty. */
   shopCategories: ShopCategory[];
   /** Map: only partners on the Shops layer. */
   shopPartnersOnly: boolean;
+  /** Set once Shops and Speed cameras moved under "More" and went off by default (Nov 2026). */
+  moreLayersOff?: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: true, trackVehicles: ['car', 'bike', 'kart'],
-  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false,
+  simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: false, trackVehicles: ['car', 'bike'],
+  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true,
 };
 
 /**
@@ -39,6 +41,11 @@ export const DEFAULT_SETTINGS: Settings = {
  * leave the person's own choice alone.
  */
 export function upgradeSettings(saved: Partial<Settings> | undefined, upgraded: boolean): Settings {
-  const next = { ...DEFAULT_SETTINGS, ...saved };
+  let next: Settings = { ...DEFAULT_SETTINGS, ...saved };
+  // Kart circuits were taken out: Karts goes from the Tracks choice (never left empty).
+  const kinds = (next.trackVehicles as string[]).filter((v): v is 'car' | 'bike' => v === 'car' || v === 'bike');
+  next = { ...next, trackVehicles: kinds.length ? kinds : ['car', 'bike'] };
+  // Shops and Speed cameras moved under "More" and start off: turned off once for older installs.
+  if (!saved?.moreLayersOff) next = { ...next, cameras: false, shops: false, moreLayersOff: true };
   return upgraded ? next : { ...next, simulateGps: false };
 }

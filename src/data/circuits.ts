@@ -137,11 +137,6 @@ export const CIRCUIT_OUTLINES: Record<string, { p: string; closed: boolean; m: n
   "closed": false,
   "m": 925
  },
- "ea-t-ellough": {
-  "p": "m~__IkrwHj@f@?\\sAEy@kAUGSx@JbA^JvCGVIHg@Ka@aDsDq@Dm@xAQBGS?cCKUM?M^?~FWPERFP^F|@YLsB^mARMRFvAdB",
-  "closed": true,
-  "m": 936
- },
  "ea-t-adrian-flux": {
   "p": "c|y`I{ckAV{@h@UTBb@h@LbAw@hHc@h@SDUCc@i@McAl@gG",
   "closed": true,
@@ -167,46 +162,6 @@ export const CIRCUIT_OUTLINES: Record<string, { p: string; closed: boolean; m: n
   "closed": false,
   "m": 1192
  },
- "kt-pf-international": {
-  "p": "uxubIri`CCpAKHSIsHiEM]FUNEvDzBROAWIOiEiCYLW~@U@kDuBGg@XeB^STVBXc@p@EXFL~@h@T@VUV}@JCbHfEP\\LrAN`@hAt@h@hATPVCJQ@eASy@aAk@UPG`@",
-  "closed": true,
-  "m": 1381
- },
- "kt-whilton-mill": {
-  "p": "qaa~HtssEsERQLe@nA_@?s@gAa@{AC}HRSt@t@z@g@`@GxAxDCXOByCqAM@K^?vCNl@RBh@{@~DWJQ?qALQ^NJRDrCM\\",
-  "closed": true,
-  "m": 1043
- },
- "kt-shenington": {
-  "p": "yd{|H`d_HWHo@q@_@AkEhBGd@RVpD{Al@G`@ZhAbC\\PRMFa@[qAE_AJq@R]jCqAr@?^NNXBn@JRTEB]Gm@Ui@yAaAgFtBO^EpA",
-  "closed": true,
-  "m": 1021
- },
- "kt-larkhall": {
-  "p": "o~gsInzgWHlCy@lBK@CS^mCYwFIS[AYHg@j@sAzBy@~CKrBRzANZN?Rm@CUa@e@`AyGdB{AVL\\fBIpAY|@WbDAXZf@tAmDr@e@H[S_EKgAIOSRFzA",
-  "closed": true,
-  "m": 1154
- },
- "kt-glan-y-gors": {
-  "p": "ijubIn~zTQp@YUUHiAaA~@aD`@k@L{@Gm@QGMPQjAo@vBSPYIyAmG@YX{@?UQSm@Ru@nDHp@vAjDp@bA~BrBrAFRc@r@}CGy@g@g@k@F|@bAi@`C",
-  "closed": true,
-  "m": 1096
- },
- "kt-llandow": {
-  "p": "eu|xHn{iTMbAy@zBOtBJt@pAzANCNq@E_@k@m@Ic@Fw@\\Fd@nALnAGjAQ|@_@Z}B{DEWDw@CSMGLg@A_Aj@o@Dm@]Fm@z@~DoHN?FRKf@w@fB",
-  "closed": true,
-  "m": 957
- },
- "kt-lydd": {
-  "p": "w~zuH{hpD_DHu@PEb@`@TH\\IUOCu@jAHqA]gAYDWrAa@Ve@SWeA_@E[Vm@zAmAjAKn@FTVLhAa@R_@NeATKLHLp@RJjDaAl@Cj@b@dDe@^WBSSYSkAQK",
-  "closed": true,
-  "m": 1046
- },
- "kt-bayford-meadows": {
-  "p": "ozkxH_spCxAzAPj@Af@}DnA[w@D]NCRb@PB`Bi@JQ?WSOo@d@m@DEQDUt@W@WkBqBWI]LITBXPPv@EHn@]r@a@H}@_DJWzAwAHFHt@tAvA",
-  "closed": true,
-  "m": 926
- },
  "ne-t-belle-vue": {
   "p": "mjheItqjL_@qC[oAg@a@Q@c@TQ\\Mx@DfAf@dD^v@PLb@@d@e@L_@@{A",
   "closed": true,
@@ -226,11 +181,6 @@ export const CIRCUIT_OUTLINES: Record<string, { p: string; closed: boolean; m: n
   "p": "ucquH`yiR]}FVy@^GXHNX\\|FE`@U^o@?Uc@",
   "closed": true,
   "m": 326
- },
- "sws-t-clay-pigeon": {
-  "p": "cveuHd}qN?c@H]h@M`AR~A~Ab@N|@AvA}AXNLz@Ih@o@r@MA[a@WBaEvEQW@m@vAu@ZYDc@Q_@]OcA~@g@DQSu@}B",
-  "closed": true,
-  "m": 809
  },
  "sws-t-poole-stadium": {
   "p": "ezqtHxfbKbCcBH}@Ou@o@WgC~AMl@Dv@T`@j@F",

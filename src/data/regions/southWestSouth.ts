@@ -356,13 +356,6 @@ export const places: PlaceSeed[] = [
     sources: [OSM],
   },
   {
-    id: 'sws-t-clay-pigeon', kind: 'track', name: 'Clay Pigeon Raceway', region: 'South West',
-    description: 'Outdoor kart circuit at Wardon Hill on the A37 north of Dorchester. Dorset\'s main kart track; club racing and arrive-and-drive.',
-    warnings: ['Booking required. Status not confirmed for 2026.', 'Medium confidence: current dates or status not confirmed for 2026. Check before you go.'],
-    at: p(50.8241, -2.5543),
-    sources: [OSM],
-  },
-  {
     id: 'sws-t-poole-stadium', kind: 'track', name: 'Poole Stadium (Poole Pirates)', region: 'South West',
     description: 'Speedway track at Poole Stadium, home of the Poole Pirates. Ten-time British speedway champions, racing in the SGB Championship.',
     warnings: ['Spectator venue; check fixtures.', 'Medium confidence: current dates or status not confirmed for 2026. Check before you go.'],

@@ -1,5 +1,6 @@
 import {
   canTimeAt,
+  keepLap,
   formatLapTime,
   lapProblem,
   layoutsWithTimes,
@@ -25,7 +26,7 @@ const theirs: Build = { ...golf, id: 'b3', ownerId: 'someone' };
 const ctx = {
   track: TRACK,
   layouts: ['Snetterton 300', 'Snetterton 200'],
-  vehicles: ['car', 'bike'] as ('car' | 'bike' | 'kart')[],
+  vehicles: ['car', 'bike'] as ('car' | 'bike')[],
   builds: [golf, r1, theirs],
   me: 'me',
   now: NOW,
@@ -61,8 +62,15 @@ describe('lap times', () => {
     }
     expect(canTimeAt(spot({ authorId: 'someone' })).ok).toBe(false);
     expect(canTimeAt(undefined).ok).toBe(false);
-    expect(lapProblem(draft(), { ...ctx, spectatorOnly: true })).toMatch(/spectator venue/);
     expect(canTimeAt(TRACK).ok).toBe(true);
+  });
+
+  test('fails closed: spectator and public-road venues, and tracks with no details, take no times', () => {
+    // North West 200: racing on closed public roads, spectators only.
+    expect(lapProblem(draft(), { ...ctx, track: spot({ id: 'sni-t-nw200' }) })).toMatch(/spectator venue/);
+    expect(canTimeAt(spot({ id: 'ne-t-olivers-mount' })).ok).toBe(false);
+    expect(canTimeAt(spot({ id: 'tr-no-such-track' })).ok).toBe(false);
+    expect(canTimeAt(spot({ id: 'tr-bishopscourt' })).ok).toBe(true);
   });
 
   test('checks layout, date, time, vehicle type, build and proof', () => {
@@ -78,19 +86,14 @@ describe('lap times', () => {
     expect(lapProblem(draft({ buildId: 'b3' }), ctx)).toMatch(/from your garage/);
     expect(lapProblem(draft({ buildId: 'b2' }), ctx)).toMatch(/is a bike, not a car/);
     expect(lapProblem(draft({ kind: 'bike', buildId: 'b2' }), ctx)).toBeNull();
-    expect(lapProblem(draft({ kind: 'kart', buildId: undefined, kartClass: 'Hire' }), ctx)).toMatch(/Karts don't run here/);
+    expect(lapProblem(draft({ kind: 'bike', buildId: 'b2' }), { ...ctx, vehicles: ['car'] })).toMatch(/Bikes don't run here/);
     expect(lapProblem(draft({ proof: undefined }), ctx)).toMatch(/proof/);
   });
 
-  test('karts: hire or own, no garage build needed', () => {
-    const kartCtx = { ...ctx, vehicles: ['kart'] as ('car' | 'bike' | 'kart')[], layouts: [], fastestMs: null };
-    const k = draft({ kind: 'kart', buildId: undefined, layout: MAIN_LAYOUT, time: '48.210' });
-    expect(lapProblem(k, kartCtx)).toMatch(/hire kart or your own/);
-    expect(lapProblem({ ...k, kartClass: 'Hire' }, kartCtx)).toBeNull();
-    const lap = makeLap({ ...k, kartClass: 'Own' }, kartCtx, 'k1');
-    expect(lap).toMatchObject({ kind: 'kart', cls: 'Own', vehicle: 'Own kart', ms: 48_210 });
-    expect(lap.buildId).toBeUndefined();
-    expect(lapProblem(draft(), kartCtx)).toMatch(/Cars don't run here/);
+  test('kart times were dropped with the kart circuits', () => {
+    expect(keepLap({ kind: 'car' })).toBe(true);
+    expect(keepLap({ kind: 'bike' })).toBe(true);
+    expect(keepLap({ kind: 'kart' })).toBe(false);
   });
 
   test('a saved time takes the build, its class and the day, and starts unverified', () => {
@@ -112,14 +115,13 @@ describe('leaderboard', () => {
     lap({ userId: 'c', ms: 130_000, status: 'rejected' }),
     lap({ userId: 'd', ms: 120_000, cls: 'S' }),
     lap({ userId: 'e', ms: 125_000, kind: 'bike', cls: 'S' }),
-    lap({ userId: 'f', ms: 150_000, kind: 'kart', cls: 'Hire' }),
     lap({ userId: 'g', ms: 110_000, layout: 'Snetterton 200' }),
     lap({ userId: 'h', ms: 100_000, trackId: 'tr-brands-hatch' }),
   ];
 
   test('per track, layout, vehicle type and class, best per person, quickest first', () => {
     const groups = leaderboard(laps, 'tr-snetterton', 'Snetterton 300');
-    expect(groups.map((g) => g.key)).toEqual(['car-S', 'car-A', 'bike-S', 'kart-Hire']);
+    expect(groups.map((g) => g.key)).toEqual(['car-S', 'car-A', 'bike-S']);
     const a = groups.find((g) => g.key === 'car-A')!;
     expect(a.entries.map((l) => [l.userId, l.ms])).toEqual([
       ['a', 139_500],
@@ -130,7 +132,7 @@ describe('leaderboard', () => {
 
   test('filtered by vehicle type', () => {
     expect(leaderboard(laps, 'tr-snetterton', 'Snetterton 300', ['bike']).map((g) => g.key)).toEqual(['bike-S']);
-    expect(leaderboard(laps, 'tr-snetterton', 'Snetterton 300', ['car', 'kart']).map((g) => g.key)).toEqual(['car-S', 'car-A', 'kart-Hire']);
+    expect(leaderboard(laps, 'tr-snetterton', 'Snetterton 300', ['car']).map((g) => g.key)).toEqual(['car-S', 'car-A']);
   });
 
   test('layouts to pick from: published ones, then any with times', () => {

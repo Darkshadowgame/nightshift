@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useSyncExternalStore } from 'react';
-import type { LapTime } from './laptimes';
+import { keepLap, type LapTime } from './laptimes';
+import { deletePhotos } from './photos';
 
 /**
  * Track times saved on the phone. Separate from the main store on purpose: on
@@ -28,7 +29,15 @@ function load(): Promise<void> {
   loading ??= AsyncStorage.getItem(KEY)
     .then((raw) => {
       const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      if (Array.isArray(parsed)) laps = parsed as LapTime[];
+      if (Array.isArray(parsed)) {
+        const all = parsed as LapTime[];
+        laps = all.filter(keepLap);
+        if (laps.length !== all.length) {
+          // Kart times went with the kart circuits: their proof photos go too.
+          deletePhotos(all.filter((l) => !keepLap(l)).map((l) => l.proof));
+          persist();
+        }
+      }
     })
     .catch(() => {})
     .finally(() => {
@@ -45,6 +54,8 @@ export function addLap(lap: LapTime) {
 }
 
 export function removeLap(id: string) {
+  // The proof photo was only ever this time's.
+  deletePhotos(laps.filter((l) => l.id === id).map((l) => l.proof));
   laps = laps.filter((l) => l.id !== id);
   persist();
   emit();
@@ -52,6 +63,7 @@ export function removeLap(id: string) {
 
 /** Reset demo data: forget every time on this phone. */
 export function clearLaps() {
+  deletePhotos(laps.map((l) => l.proof));
   laps = [];
   persist();
   emit();

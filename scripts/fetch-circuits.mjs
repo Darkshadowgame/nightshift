@@ -94,7 +94,7 @@ const stadium = (id) => TRACK_INFO[id]?.spectator;
 for (const t of tracks) {
   const info = TRACK_INFO[t.id];
   const main = info?.layouts[0];
-  const karting = /kart/i.test(t.name) || !!info?.vehicles?.every((v) => v === 'kart');
+  const karting = /kart/i.test(t.name);
   if (info?.noOutline) {
     report.push(`${t.id}: no outline (public roads)`);
     continue;

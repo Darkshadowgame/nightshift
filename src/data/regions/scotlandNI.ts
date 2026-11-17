@@ -11,7 +11,7 @@ import type { PlaceSeed } from '../places';
  * Positions and road lines are from OpenStreetMap (© OpenStreetMap
  * contributors, ODbL); drive lines were routed with OSRM and thinned to
  * points at most 1.5 mi apart. Medium-confidence entries carry a warning
- * saying so. Places already in places.ts or kartTracks.ts are not repeated.
+ * saying so. Places already in places.ts are not repeated.
  */
 
 const CHECK = 'Sample — check the current order.';
@@ -318,13 +318,6 @@ export const places: PlaceSeed[] = [
     warnings: ['Spectator venue; check fixtures and admission.'],
     at: { lat: 56.1272, lng: -3.2777 },
     sources: ['https://www.lochgellyraceway.co.uk/', 'OpenStreetMap (ODbL)'],
-  },
-  {
-    id: 'sni-t-nutts-corner', kind: 'track', trackType: 'kart', name: 'Nutts Corner Circuit', region: 'County Antrim',
-    description: 'Outdoor go-karting circuit on the old RAF Nutts Corner airfield near Crumlin, north-west of Belfast. Arrive-and-drive and group karting near Belfast.',
-    warnings: ['Booking required; check the site for sessions.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],
-    at: { lat: 54.6245, lng: -6.1453 },
-    sources: ['https://www.nuttscornercircuit.com/', 'https://en.wikipedia.org/wiki/RAF_Nutts_Corner', 'OpenStreetMap (ODbL)'],
   },
   {
     id: 'sni-t-aghadowey', kind: 'track', name: 'Aghadowey Oval', region: 'County Londonderry',

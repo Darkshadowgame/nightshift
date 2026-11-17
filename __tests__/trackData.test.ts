@@ -24,25 +24,22 @@ describe('bundled track details', () => {
     }
   });
 
-  test('what runs where', () => {
+  test('what runs where (cars and bikes; kart circuits were taken out)', () => {
     const byId = (id: string) => tracks.find((t) => t.id === id)!;
-    expect(trackVehicles(byId('tr-silverstone'))).toEqual(['car', 'bike', 'kart']);
+    expect(trackVehicles(byId('tr-silverstone'))).toEqual(['car', 'bike']);
     expect(trackVehicles(byId('tr-brands-hatch'))).toEqual(['car', 'bike']);
     expect(trackVehicles(byId('tr-shelsley'))).toEqual(['car']);
-    expect(trackVehicles(byId('k-t-buckmore'))).toEqual(['kart']);
-    expect(trackVehicles(byId('kt-whilton-mill'))).toEqual(['kart']);
-    expect(trackVehicles(byId('tr-teesside'))).toEqual(['car', 'bike', 'kart']);
-    expect(matchesVehicles(byId('k-t-buckmore'), ['car'])).toBe(false);
-    expect(matchesVehicles(byId('tr-silverstone'), ['bike', 'kart'])).toBe(true);
+    expect(trackVehicles(byId('tr-teesside'))).toEqual(['car', 'bike']);
+    expect(matchesVehicles(byId('tr-shelsley'), ['bike'])).toBe(false);
+    expect(matchesVehicles(byId('tr-silverstone'), ['bike'])).toBe(true);
   });
 
-  test('kart circuits: at least a dozen, each with a site to check and arrive-and-drive only where the venue says', () => {
-    const karts = tracks.filter((t) => trackVehicles(t).includes('kart') && !trackVehicles(t).includes('car'));
-    expect(karts.length).toBeGreaterThanOrEqual(15);
-    for (const k of karts) expect(TRACK_INFO[k.id]?.factSources?.length).toBeGreaterThan(0);
-    expect(TRACK_INFO['kt-llandow'].arriveAndDrive).toBe(false);
-    expect(TRACK_INFO['kt-pf-international'].arriveAndDrive).toBe(true);
-    expect(TRACK_INFO['kt-rissington'].arriveAndDrive).toBeUndefined();
+  test('no kart circuits on the map', () => {
+    for (const t of tracks) expect(trackVehicles(t).every((v) => v === 'car' || v === 'bike')).toBe(true);
+    for (const id of ['k-t-buckmore', 'kt-whilton-mill', 'ea-t-ellough', 'sws-t-clay-pigeon', 'sni-t-nutts-corner']) {
+      expect(tracks.some((t) => t.id === id)).toBe(false);
+      expect(TRACK_INFO[id]).toBeUndefined();
+    }
   });
 
   test('lengths read well', () => {

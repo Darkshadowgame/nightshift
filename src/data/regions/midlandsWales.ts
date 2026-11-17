@@ -9,7 +9,7 @@ import type { PlaceSeed } from '../places';
  * Positions and road lines are from OpenStreetMap (© OpenStreetMap
  * contributors, ODbL); drive lines were routed with OSRM and thinned to
  * points at most 1.5 mi apart. Medium-confidence entries carry a warning
- * saying so. Places already in places.ts or kartTracks.ts are not repeated.
+ * saying so. Places already in places.ts are not repeated.
  */
 
 const CHECK = 'Sample — check the current order.';
