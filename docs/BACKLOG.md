@@ -112,10 +112,10 @@ Work in this order. Each item ships over the air unless marked native.
    consistency, copy and flow once 1–3 have landed, then a fix pass.
 5. **Sat nav fixes (owner test of build #10)**: the driving map faces the right way
    (GPS course when moving, else compass, eased) and centres on you; **Find › Where to?**
-   for any address with recent places, Home and Work (over the air, v1.0.34). Native, on
-   branch `native-voice-search`, not merged (the owner stays on build #10 for now): pick a
-   better voice (Enhanced or Premium) in Settings, and shop and business search with
-   MapKit's autocomplete. Merging it changes the fingerprint and needs a new IPA.
+   for any address with recent places, Home and Work (over the air, v1.0.34). Native (this
+   branch, `native-voice-search`; merging it changes the fingerprint and needs a new IPA):
+   pick a better voice (Enhanced or Premium) in Settings, and shop and business search with
+   MapKit's autocomplete.
 6. **Driving view redesign (owner request, over the air)**: next turn and Then line on top;
    road name, speed, OSM speed-limit roundel, arrival, miles and time left and END at the
    bottom; heading-up or north-up; your own icon; recentre after a look round; fixes for

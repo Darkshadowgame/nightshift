@@ -107,6 +107,7 @@ import {
 import { useRoadReports, useRoads } from '../lib/roadStore';
 import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../lib/spots';
 import { useStore } from '../lib/store';
+import { speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
 import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, STATE, SURFACE, TYPE } from '../theme';
 
@@ -278,8 +279,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const promptRef = useRef<RoadReport | null>(null);
   const [alert, setAlert] = useState<string | null>(null);
 
+  // The voice and speed picked in Settings (read when speaking, so a change applies straight away).
+  const voiceRef = useRef({ voice: settings.navVoiceId ?? null, rate: speechRate(settings.navVoiceRate) });
+  voiceRef.current = { voice: settings.navVoiceId ?? null, rate: speechRate(settings.navVoiceRate) };
   const say = useCallback((text: string) => {
-    if (!mutedRef.current) speak(text).catch(() => undefined);
+    if (!mutedRef.current) speak(text, voiceRef.current).catch(() => undefined);
   }, []);
 
   const doRoute = useCallback(
