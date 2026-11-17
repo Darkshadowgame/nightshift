@@ -2,12 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { BAN_ZONES, DEMO_HOME, ME, sampleHomes, seed, seededStops, SEED_EVENT_IDS, type SeedState } from '../data/seed';
+import { placeSpots } from '../data/places';
 import { geocoderAvailable, nameForPlace, townForPlace } from './location';
 import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { castVote as applyVote, type AwardCategory } from './awards';
 import { areaGivesAway, eventArea } from './area';
 import { inferAnchor, isSeedEvent, needsRefresh, refreshDemo, restartDemo } from './demoTime';
-import { canJoinDirectly, roleOf } from './eventView';
+import { canGoWith, chosenBuild, ownBuilds } from './bringing';
 import { deletePhotos, migratePhotoRef } from './photos';
 import { droppedPhotos } from './photoRefs';
 import {
@@ -110,11 +111,16 @@ interface Store extends Persisted {
   changePlan: (eventId: string, change: PlanChange) => { warning?: string };
   /** Save the person's own profile. Throws with a readable reason if something is missing. */
   saveProfile: (draft: ProfileDraft) => void;
-  /** Going, or for people the invite doesn't cover, a request a host must approve. False drops out or withdraws. */
-  setGoing: (eventId: string, going: boolean) => void;
+  /**
+   * Going, or for people the invite doesn't cover (with that build), a request a host must approve.
+   * `buildId`: the car or bike you're bringing; another one later is a vehicle change. False drops out or withdraws.
+   * Returns where you ended up. Throws with a readable reason.
+   */
+  setGoing: (eventId: string, going: boolean, buildId?: string) => 'going' | 'requested' | 'none';
   /** Host approves or declines a request to go. */
   answerRequest: (eventId: string, userId: string, approve: boolean) => void;
-  checkIn: (eventId: string, stopIndex: number) => void;
+  /** `buildId`: the build you actually turned up in, if it isn't the one you said. Throws with a readable reason. */
+  checkIn: (eventId: string, stopIndex: number, buildId?: string) => void;
   moveOn: (eventId: string) => void;
   cancelEvent: (eventId: string) => void;
   sendChat: (eventId: string, text: string) => void;
@@ -269,6 +275,10 @@ function migrate(parsed: Persisted): Persisted {
     const home = next.users.find((u) => u.id === ME)?.home ?? DEMO_HOME;
     next = redrawScene({ ...next, spots: mine }, home, new Date());
   }
+  // Bundled places added since this save was made (e.g. the kart circuits): add them, untouched.
+  const knownSpots = new Set(next.spots.map((x) => x.id));
+  const newPlaces = placeSpots(new Date().toISOString()).filter((x) => !knownSpots.has(x.id));
+  if (newPlaces.length) next = { ...next, spots: [...next.spots, ...newPlaces] };
   // Saved before "new events near you": what's already there isn't new.
   if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };
   return next;
@@ -497,14 +507,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return sameHome(s.scene?.home, home) ? next : redrawScene(next, home, new Date());
         });
       },
-      setGoing: (eventId, going) => {
+      setGoing: (eventId, going, buildId) => {
         const event = state.events.find((e) => e.id === eventId);
         if (!event) throw new Error('Event not found.');
-        if (!going) return updateEvent(eventId, (e) => dropOut(e, ME));
-        const role = roleOf(event, ME, state.crews, state.users, state.builds);
-        const eligible = canJoinDirectly(role);
-        rsvp(event, ME, eligible); // throws with the reason if a host already said no
-        updateEvent(eventId, (e) => rsvp(e, ME, eligible));
+        if (!going) {
+          updateEvent(eventId, (e) => dropOut(e, ME));
+          return 'none';
+        }
+        const own = ownBuilds(ME, state.builds);
+        if (buildId && !own.some((b) => b.id === buildId)) throw new Error("That isn't one of your builds.");
+        const already = event.going.includes(ME) || !!event.requests?.includes(ME);
+        // One build: that's the one (the picker only shows for two or more).
+        const pick = buildId ?? (!already && own.length === 1 ? own[0].id : undefined);
+        const build = pick ? own.find((b) => b.id === pick) : chosenBuild(event, ME, state.builds);
+        const eligible = canGoWith(event, ME, state.crews, state.users, state.builds, build);
+        const nowDate = new Date();
+        const next = rsvp(event, ME, eligible, pick, nowDate); // throws with the reason (a host said no, checked in...)
+        updateEvent(eventId, (e) => rsvp(e, ME, eligible, pick, nowDate));
+        return next.going.includes(ME) ? 'going' : next.requests?.includes(ME) ? 'requested' : 'none';
       },
       answerRequest: (eventId, userId, approve) => {
         const event = state.events.find((e) => e.id === eventId);
@@ -512,7 +532,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const next = applyAnswer(event, ME, state.crews, userId, approve);
         updateEvent(eventId, () => next);
       },
-      checkIn: (eventId, stopIndex) => updateEvent(eventId, (e) => applyCheckIn(e, stopIndex, ME)),
+      checkIn: (eventId, stopIndex, buildId) => {
+        const event = state.events.find((e) => e.id === eventId);
+        if (!event) throw new Error('Event not found.');
+        let vehicle: { buildId: string; fits: boolean } | undefined;
+        if (buildId) {
+          const build = ownBuilds(ME, state.builds).find((b) => b.id === buildId);
+          if (!build) throw new Error("That isn't one of your builds.");
+          vehicle = { buildId, fits: canGoWith(event, ME, state.crews, state.users, state.builds, build) };
+        }
+        applyCheckIn(event, stopIndex, ME, vehicle); // throws with the reason
+        updateEvent(eventId, (e) => applyCheckIn(e, stopIndex, ME, vehicle));
+      },
       moveOn: (eventId) => {
         const event = state.events.find((e) => e.id === eventId);
         if (!event) throw new Error('Event not found.');

@@ -1,3 +1,4 @@
+import { awardBuilds } from './bringing';
 import { classOf } from './classes';
 import { endTime } from './events';
 import type { Build, ClassLetter, NightEvent } from './types';
@@ -74,10 +75,12 @@ export function attendeeIds(event: NightEvent): string[] {
     .map(([u]) => u);
 }
 
-/** Builds eligible for awards: every build owned by someone who checked in. */
+/**
+ * Builds eligible for awards: the build each person who checked in brought.
+ * Old data with no pick on record falls back to all of that person's builds.
+ */
 export function candidates(event: NightEvent, builds: Build[]): Build[] {
-  const people = new Set(attendeeIds(event));
-  return builds.filter((b) => people.has(b.ownerId));
+  return awardBuilds(event, builds);
 }
 
 /** Which categories this event has, given who turned up. */
@@ -159,8 +162,11 @@ export function winner(votes: Vote[], event: NightEvent, category: AwardCategory
 export function results(votes: Vote[], event: NightEvent, builds: Build[], now: Date): Award[] {
   if (now < votingCloses(event) || event.cancelled) return [];
   const at = votingCloses(event).toISOString();
+  // Only votes for builds that are still candidates count (same as event_awards() on the server).
+  const ids = new Set(candidates(event, builds).map((b) => b.id));
+  const counted = votes.filter((v) => ids.has(v.buildId));
   return categoriesFor(event, builds).flatMap((category) => {
-    const w = winner(votes, event, category);
+    const w = winner(counted, event, category);
     const build = w && builds.find((b) => b.id === w.buildId);
     return build ? [{ eventId: event.id, category, buildId: build.id, ownerId: build.ownerId, votes: w.votes, at }] : [];
   });

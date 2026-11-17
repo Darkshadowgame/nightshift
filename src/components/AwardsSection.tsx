@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import { buildTag } from '../lib/bringing';
 import { canVote, categoriesFor, categoryInfo, eligibleFor, results, votingCloses } from '../lib/awards';
 import { classOf } from '../lib/classes';
 import { endTime } from '../lib/events';
@@ -144,6 +145,7 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                           </UserLink>
                         </Row>
                         <Txt numberOfLines={2}>{b.make} {b.model}</Txt>
+                        {buildTag(b) ? <Txt v="label" numberOfLines={1} style={{ color: C.magenta, fontSize: 11 }}>{buildTag(b)}</Txt> : null}
                       </Pressable>
                     );
                   })}

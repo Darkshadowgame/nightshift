@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
+import { classMixText } from '../lib/bringing';
 import { endTime, EVENT_LABELS } from '../lib/events';
 import { countdown } from '../lib/hud';
 import type { EventView } from '../lib/eventView';
 import { formatWhen } from '../lib/format';
 import { describeFilter } from '../lib/invites';
 import { isSeedEvent } from '../lib/demoTime';
+import { useStore } from '../lib/store';
 import { C, EVENT_COLOURS } from '../theme';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
@@ -16,6 +18,9 @@ const ROLE_TEXT = { host: 'Hosting', going: 'Going', invited: 'Invited', public:
 /** `note`: an extra line, e.g. the distance in Find events. `tag`: a short highlight such as NEW. */
 export function EventCard({ view, now, note, tag }: { view: EventView; now: Date; note?: string; tag?: string }) {
   const { event: e, role, phase, shownStop } = view;
+  const { builds } = useStore();
+  // What people going are bringing, by class (their picked build, see bringing.ts).
+  const mix = classMixText(e, builds);
   const colour = EVENT_COLOURS[e.type];
   const place =
     shownStop >= 0
@@ -34,7 +39,7 @@ export function EventCard({ view, now, note, tag }: { view: EventView; now: Date
     <Pressable
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
       accessibilityRole="button"
-      accessibilityLabel={`${tag ? `${tag}. ` : ''}${e.title}, ${EVENT_LABELS[e.type]}, ${when}, ${e.going.length} going${ROLE_TEXT[role] ? `, ${ROLE_TEXT[role]}` : ''}${note ? `, ${note}` : ''}`}
+      accessibilityLabel={`${tag ? `${tag}. ` : ''}${e.title}, ${EVENT_LABELS[e.type]}, ${when}, ${e.going.length} going${mix ? ` (${mix})` : ''}${ROLE_TEXT[role] ? `, ${ROLE_TEXT[role]}` : ''}${note ? `, ${note}` : ''}`}
       style={({ pressed }) => [
         { backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderLeftWidth: 3, borderLeftColor: colour, borderRadius: 8, padding: 14, gap: 6 },
         pressed && { opacity: 0.8 },
@@ -56,7 +61,7 @@ export function EventCard({ view, now, note, tag }: { view: EventView; now: Date
           </Row>
           <Txt v="h3">{e.title}</Txt>
           <Txt v="mono" style={{ color: phase === 'live' ? C.neon : C.chalk }}>
-            {when.toUpperCase()} · {e.going.length} GOING{e.routeMiles ? ` · ${e.routeMiles} MI` : ''}
+            {when.toUpperCase()} · {e.going.length} GOING{mix ? ` · ${mix}` : ''}{e.routeMiles ? ` · ${e.routeMiles} MI` : ''}
           </Txt>
           <Txt v="muted" numberOfLines={1}>{place}</Txt>
           <Txt v="muted" numberOfLines={1} style={{ fontSize: 13 }}>{describeFilter(e.filter)}</Txt>

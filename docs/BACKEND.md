@@ -2,7 +2,7 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 9 migrations and the seed are applied and the 218 pgTAP checks pass
+All 10 migrations and the seed are applied and the 260 pgTAP checks pass
 against the hosted database. The app still runs on the local store until it is
 wired to Supabase. Sign-in emails need custom SMTP before testers can get a
 code: see section 7a, "Still to do".
@@ -21,11 +21,13 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120600_notice_kind_nearby.sql` | The `nearby` notice kind (on its own: a new enum value can't be used in the transaction that adds it) |
 | `supabase/migrations/20261117120700_discovery.sql` | Staff read access, travel settings, new-event notices, `search_events()` |
 | `supabase/migrations/20261117120800_feedback.sql` | In-app feedback (insert-only) and the private `feedback` screenshot bucket |
+| `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
 | `supabase/tests/rpc_test.sql` | pgTAP: every RPC end to end, storage, reminders (63 checks) |
 | `supabase/tests/discovery_test.sql` | pgTAP: travel settings, new-event notices, `search_events()`, discovery and staff (75 checks) |
 | `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, staff-only reading, the screenshot bucket, the flood guard (33 checks) |
+| `supabase/tests/vehicles_test.sql` | pgTAP: what you're bringing: own builds only, going vs asking per build, changing it, check-in, awards from brought builds, the garage columns (42 checks) |
 | `supabase/functions/push-notices/` | Phase 2 sketch: reminders and "moved on" pushes via Expo |
 | `supabase/functions/import-closures/` | Phase 2 sketch: UK open-data road closures |
 | `supabase/templates/otp.html` | Sign-in email that shows the 6-digit code |
@@ -74,7 +76,7 @@ Rules of thumb:
 | `profile_settings` | willing to travel (`travel_miles`, 1–300) and `new_event_alerts` (`notify` / `search` / `off`); no row means 25 and `notify` | **only the owner** | `save_travel_prefs()` only |
 | `staff` | who is an admin (moderation read access) | yourself; staff see the list | service role only |
 | `push_tokens` | Expo push tokens (Phase 2) | owner | owner |
-| `builds`, `build_mods` | garage | signed-in users | owner |
+| `builds`, `build_mods` | garage; `vehicle_id` (the picker's dataset id), `tune_stage`, `engine_swap` (jsonb: donor, bhp, …) | signed-in users | owner |
 | `build_photos` | Storage path per photo, `{owner}/...` enforced | signed-in users | owner |
 | `crews` | name, tag, `official_club`, `club_links`, `club_verified_at` | signed-in users | crew RPCs; club fields staff only |
 | `crew_members` | role owner/host/member; one crew per person; one owner per crew | signed-in users | crew RPCs |
@@ -83,8 +85,8 @@ Rules of thumb:
 | `events` | type, title, times, reveal minutes, **rough area** + radius, invite filter columns, `current_stop`, `crew_id`, `cancelled_at` | signed-in users | `save_event()`, `cancel_event()`, `move_on()`, `change_plan()` |
 | `event_stops` | ordered stops with exact `location`, `revealed_at` | **hosts only** (everyone else: `get_event_stops()`) | event RPCs |
 | `event_hosts` | named co-hosts | signed-in users | `save_event()` |
-| `event_going` | who's going | self, hosts, people going | `set_going()`, `answer_request()` |
-| `event_requests` | pending / approved / declined | self, hosts | `set_going()`, `answer_request()` |
+| `event_going` | who's going, and `build_id`: the build they're bringing (null for old rows and passengers) | self, hosts, people going | `set_going()`, `answer_request()`, `check_in()` |
+| `event_requests` | pending / approved / declined, and the `build_id` they asked with | self, hosts | `set_going()`, `answer_request()` |
 | `check_ins` | stop id + time. **No position is ever stored** | self, hosts, people going | `check_in()` |
 | `plan_changes` | audit log of every stop placed, edited, moved, removed, moved on to (with a copy of the location) | **hosts only** | event RPCs |
 | `chat_messages` | event chat, `system` flag | hosts and people going | hosts and people going (never `system`) |
@@ -144,18 +146,40 @@ under 10 mi, so narrow filters can't be used to locate one person's home.
 * the event isn't cancelled;
 * voting is open, from the start until 24 h after the end;
 * you **checked in** at the event;
-* the build belongs to someone who checked in, and is the right kind or class for the category;
+* the build is one a person who checked in **brought** (`private.award_candidates()`; someone with no pick on record, e.g. a host who never tapped Going, counts with all their builds), and is the right kind or class for the category;
 * it isn't **your own build**.
 
 A new vote in the same category replaces the old one. Votes are secret (you
 read only your own). `event_awards(event_id)` and the `awards` view give the
 results once voting closes. `categoriesFor()` decides which awards the event
-has, a category needs 3 or more votes, and a tie goes to the build that
+has (from the brought builds), a category needs 3 or more votes, only votes for
+builds that are still candidates count, and a tie goes to the build that
 reached the top count first.
+
+### What you're bringing (mirrors `src/lib/bringing.ts`)
+
+`event_going.build_id` and `event_requests.build_id` hold the build each person
+is bringing. A composite foreign key `(build_id, user_id) → builds (id, owner_id)`
+means it can only ever be **your own** build; deleting the build clears the pick
+(`on delete set null (build_id)`) and keeps the place. Neither table can be
+written directly; only the RPCs below change them.
+
+* `set_going(event, true, build)`: going straight in needs `private.can_go_with()`
+  (host; public event; or home inside the radius and "everyone welcome" or the
+  build fits the filter). Otherwise it's a request carrying that build. No build
+  keeps your earlier pick; the first time, a person with exactly one build gets it.
+* Changing to a build the invite doesn't cover while going puts you **back to
+  asking** a host; changing a request to a build that fits goes straight in.
+* Changes are allowed until the start. After that only at check-in
+  (`check_in(..., p_build_id)`, to a build the invite covers), and never once
+  you've checked in ("You've checked in, so your vehicle is set for this one.").
+* `answer_request()` approves with the build the request carried.
+* Invites, `search_events()`, `events_for_me()` and new-event notices still use
+  `private.is_invited()`, which counts **any** of your builds.
 
 ### Check-ins
 
-`check_in(event, position, lat, lng)` repeats `canCheckIn()`:
+`check_in(event, position, lat, lng, build)` repeats `canCheckIn()`:
 
 * the event isn't cancelled or over;
 * check-in opens 30 minutes before the start;
@@ -165,7 +189,9 @@ reached the top count first.
 * PostGIS `ST_DWithin` puts you within **0.5 mi** of the stop.
 
 The position is compared and thrown away. There is no "skip the GPS check" on
-the server: the demo switch only exists in local mode.
+the server: the demo switch only exists in local mode. The optional build says
+you turned up in something else (see "What you're bringing"); a host checking
+in with a build is added to `event_going` with it.
 
 ### Everything else
 
@@ -251,17 +277,17 @@ All are `supabase.rpc(name, { p_…: … })`, signed in only.
 | `save_profile(p_handle, p_name, p_region, p_home_lat, p_home_lng)` | `saveProfile` | Same checks as `profileProblem()`; UK only; home fuzzed |
 | `save_event(p_event jsonb, p_stops jsonb, p_cohost_ids uuid[])` | `saveEvent`, `editEvent` | Create when `p_event.id` is null, else edit (`canEditEvent()` rules). Returns `{ id, warnings[] }` (ban zones warn, don't block). Checks the rough area holds every stop and sits ≥ 0.75 mi from each (private types). Logs every stop to `plan_changes` |
 | `cancel_event(p_event_id)` | `cancelEvent` | Hosts; system chat line |
-| `set_going(p_event_id, p_going)` | `setGoing` | Returns `'going'`, `'requested'` or `'none'` |
+| `set_going(p_event_id, p_going, p_build_id = null)` | `setGoing` | Returns `'going'`, `'requested'` or `'none'`. `p_build_id`: the build you're bringing (must be yours); see "What you're bringing" |
 | `answer_request(p_event_id, p_user_id, p_approve)` | `answerRequest` | Hosts |
 | `get_event_stops(p_event_ids uuid[])` | reading `event.stops` | See section 3 |
 | `events_for_me(p_past_days = 7)` | `viewEvents()` | `event_id, role, phase, shown_stop` for every event you have a role in |
 | `event_role(p_event_id)` | `roleOf()` | For an event opened from a shared link |
 | `invite_count(p_filter jsonb, p_area_lat, p_area_lng)` | live count in the form | `{ people, builds }`, small counts null |
-| `check_in(p_event_id, p_position, p_lat, p_lng)` | `checkIn` | 0.5 mi via PostGIS |
+| `check_in(p_event_id, p_position, p_lat, p_lng, p_build_id = null)` | `checkIn` | 0.5 mi via PostGIS. `p_build_id`: what you actually turned up in, before your first check-in |
 | `move_on(p_event_id)` | `moveOn` | Hosts, live rolling meets. Reveals the next stop, logs it, queues a "moved on" notice for the people checked in at the stop being left, and **returns their user ids** (the audience) |
 | `change_plan(p_event_id, p_kind, p_stop_id, p_name, p_lat, p_lng, p_area_lat, p_area_lng, p_area_radius_miles)` | `changePlan` | `rename` / `move` / `remove` / `add`, with `applyPlanChange()`'s rules. For add/move the phone sends the new rough area from `area.ts`; the server checks it. Returns `{ warning }`; posts "Hosts changed the plan" |
-| `cast_vote(p_event_id, p_category, p_build_id)` | `vote` | |
-| `event_awards(p_event_id)` / view `awards` | `results()` / `allAwards()` | |
+| `cast_vote(p_event_id, p_category, p_build_id)` | `vote` | Only builds people brought |
+| `event_awards(p_event_id)` / view `awards` | `results()` / `allAwards()` | Candidates: `private.award_candidates()` |
 | `suggest_spot(p_kind, p_name, p_description, p_points jsonb)` | `suggestSpot` | `draftProblem()` rules (1.5 mi gaps, 1–80 mi). Starts pending. Returns `{ id, warning }` |
 | `complete_drive(p_spot_id, p_fixes jsonb)` | `finishDrive` | `p_fixes` = one `{lat, lng, t}` per checkpoint (t in ms). Checks order, 0.2 mi per checkpoint, the time window and the 45 mph average, plus "finished within the last hour". Returns `{ ok }` or `{ ok: false, reason }`. Stores the **day only**, once a day; fixes and times are never stored or echoed |
 | `visit_spot(p_spot_id, p_lat, p_lng, p_photo_path)` | `visitSpot` | 0.2 mi; photo must be in your own folder |
@@ -303,13 +329,13 @@ interface Repository {
 | `setTravelPrefs` | `rpc('save_travel_prefs')` (read back from `profile_settings`) |
 | Find events (`searchEvents()`) | `rpc('search_events')` with the screen's filters ("Any distance" sends 600; "Where I am" sends the GPS fix, which the server snaps to ~1 km) |
 | New events near you | none on the phone: the trigger writes `nearby` notices, read with the rest of `notices`. "I'll search" NEW tags: events in `search_events()` created since the last visit (keep the time on the phone) |
-| `saveBuild` / `deleteBuild` | `builds` upsert/delete, `build_mods` replace, photos: upload to `photos/{uid}/builds/{buildId}/{uuid}.jpg` then `build_photos` insert; delete dropped files with `storage.remove` |
+| `saveBuild` / `deleteBuild` | `builds` upsert/delete (`vehicleId`, `tuneStage`, `engineSwap` → `vehicle_id`, `tune_stage`, `engine_swap`), `build_mods` replace, photos: upload to `photos/{uid}/builds/{buildId}/{uuid}.jpg` then `build_photos` insert; delete dropped files with `storage.remove` |
 | `saveEvent` / `editEvent` | `rpc('save_event')` (stops + co-hosts in one call) |
 | `changePlan` | `rpc('change_plan')` |
 | `cancelEvent` | `rpc('cancel_event')` |
-| `setGoing` | `rpc('set_going')` |
+| `setGoing` | `rpc('set_going', { p_event_id, p_going, p_build_id })` |
 | `answerRequest` | `rpc('answer_request')` |
-| `checkIn` | `rpc('check_in')` with the current GPS fix |
+| `checkIn` | `rpc('check_in')` with the current GPS fix (and `p_build_id` if they turned up in something else) |
 | `moveOn` | `rpc('move_on')` (the returned audience drives the host's "everyone has been told" notice) |
 | `sendChat` | `chat_messages` insert `{ event_id, body }` |
 | `vote` | `rpc('cast_vote')` |
@@ -429,11 +455,12 @@ push every other difference in `config.toml` (MFA, storage, API settings).
 
 ### 7a. What's live (17 Nov 2026)
 
-* **Database:** all 9 migrations (`20261117120000` … `20261117120800`) and
+* **Database:** all 10 migrations (`20261117120000` … `20261117130000`) and
   `seed.sql` (2 ban zones, 8 circuits). PostGIS 3.3.7 in `extensions`.
 * **Storage:** private `photos` (10 MB) and `feedback` (5 MB) buckets with their policies.
-* **Tests on the hosted database:** 218 of 218 pgTAP checks pass
-  (rls 47, rpc 63, discovery 75, feedback 33). Afterwards no test rows, no
+* **Tests on the hosted database:** 260 of 260 pgTAP checks pass
+  (rls 47, rpc 63, discovery 75, feedback 33, vehicles 42; last run 17 Nov 2026
+  after `20261117130000_event_vehicles.sql` was pushed). Afterwards no test rows, no
   test users and no `pgtap` extension were left behind.
 * **API checks with the publishable key (signed out):** reading `events`,
   `profiles`, `profile_homes`, `event_stops`, `spots` or `feedback` is refused
@@ -512,10 +539,10 @@ $$);
 **Local test harness used while writing this.** The SQL was checked in a
 throwaway `postgis/postgis:17-3.5` Podman container. A small stub stood in for
 Supabase's `auth` and `storage` schemas and its roles, and pgTAP 1.3.3 was
-loaded as plain SQL. All 9 migrations and the seed applied cleanly, and the 218
-pgTAP checks passed (47 + 63 + 75 + 33). The new-event trigger is deferred, and the
+loaded as plain SQL. All 10 migrations and the seed applied cleanly, and the 260
+pgTAP checks passed (47 + 63 + 75 + 33 + 42). The new-event trigger is deferred, and the
 tests never commit, so `discovery_test.sql` uses `set constraints
-public.events_queue_nearby immediate` to stand in for the commit. The same 218 checks also pass on the hosted
+public.events_queue_nearby immediate` to stand in for the commit. The same 260 checks also pass on the hosted
 database (section 7a), which is the check that counts. The Edge Functions type-check with Deno 2.9.
 
 ## 8. Owner decisions (17 Nov 2026)

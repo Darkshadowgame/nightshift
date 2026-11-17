@@ -98,6 +98,18 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
   shared link) can ask. It's a pending request, never "going", until a host
   approves it on the event. Declined people can't ask again. Requests are never
   approved automatically.
+* **What you're bringing:** with two or more builds, **I'm going** (or **Request to
+  go**) asks which one: class badge, make and model, swap and tune stage. It starts
+  on the last one you brought if the invite covers it, else the first it covers.
+  Builds the invite doesn't cover are shown, marked "doesn't match the invite", and
+  picking one makes it a request. One build is used without asking. With none
+  you're asked to add one, or go as a passenger (no vehicle). You can change it
+  until the start, and at check-in if you turned up in something else (a build the
+  invite covers), never after checking in. Changing to a build the invite doesn't
+  cover puts you back to asking a host. The Going list, requests, class counts on
+  event cards, votes and trophies use the build each person brought (all their
+  builds only for old data with no pick). Invites, alerts and Find events still
+  count any of your builds.
 * **Chat** is for hosts and people going (it can carry "far end of the car park").
 * **Rolling meets:** every stop is placed when the event is created, and nothing is
   picked on the night (owner's decision after the legal research, 17 Nov 2026).

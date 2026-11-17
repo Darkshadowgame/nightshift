@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Switch, TextInput, View } from 'react-native';
 import { AwardsSection } from '../../components/AwardsSection';
+import { BringPicker } from '../../components/BringPicker';
 import { CheckInMark, UnlockReveal } from '../../components/motion';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { NightMap } from '../../components/NightMap';
@@ -10,8 +11,9 @@ import { Pin } from '../../components/Pin';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Stat, Txt, s as ui } from '../../components/ui';
 import { areaRadius } from '../../lib/area';
+import { broughtBuild, buildLine, canGoWith, chosenBuild, classMixText, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
-import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
+import { canChangePlan, canChangeVehicle, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf, viewEvent } from '../../lib/eventView';
 import { isSeedEvent } from '../../lib/demoTime';
 import { countdown, eventClock, unlocksIn } from '../../lib/hud';
@@ -21,7 +23,7 @@ import { describeFilter } from '../../lib/invites';
 import { askPermission } from '../../lib/notify';
 import { preciseFix } from '../../lib/location';
 import { useStore } from '../../lib/store';
-import type { LatLng } from '../../lib/types';
+import type { Build, LatLng } from '../../lib/types';
 import { C, EVENT_COLOURS } from '../../theme';
 
 export default function EventScreen() {
@@ -38,6 +40,11 @@ export default function EventScreen() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   /** Hosts: show the map as invited people see it before the reveal. */
   const [asGuest, setAsGuest] = useState(false);
+  /** Which vehicle picker is open: going (or asking), changing it, or at check-in. */
+  const [picking, setPicking] = useState<null | 'go' | 'change' | 'checkin'>(null);
+  const [picked, setPicked] = useState<string | undefined>();
+  /** At check-in: the build they turned up in, if it isn't the one they said. */
+  const [checkInPick, setCheckInPick] = useState<string | undefined>();
 
   // "Event unlocked": the first time this person can see a stop, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -78,6 +85,18 @@ export default function EventScreen() {
   const nextStop = ev.stops[ev.currentStop + 1];
   const audience = moveOnAudience(ev, ev.currentStop).length;
 
+  // The vehicle you're bringing (see bringing.ts).
+  const mine = ownBuilds(me, builds);
+  const chosen = chosenBuild(ev, me, builds);
+  const bringing = broughtBuild(ev, me, builds);
+  const goesWith = (b?: Build) => canGoWith(ev, me, crews, users, builds, b);
+  const pickedBuild = mine.find((b) => b.id === picked);
+  const canChange = (going || requested) && mine.length > 0 && (mine.length > 1 || !chosen) && canChangeVehicle(ev, me, now).ok;
+  // At check-in: what you said, or what you've just picked; for no pick on record, the default if the invite covers it.
+  const fallbackAtCheckIn = defaultBuild(ev, me, builds, events);
+  const atCheckIn =
+    mine.find((b) => b.id === checkInPick) ?? chosen ?? (fallbackAtCheckIn && goesWith(fallbackAtCheckIn) ? fallbackAtCheckIn : undefined);
+
   const canPreview = host && !isPublicType(ev.type) && phase !== 'over' && phase !== 'cancelled';
   const guestView = canPreview && asGuest;
   // Seeing as a guest: every stop shows locked, as for invited people before the reveal.
@@ -114,7 +133,14 @@ export default function EventScreen() {
       const result = canCheckIn(ev, current, me, crews, new Date(), pos, settings.simulateGps);
       if (!result.ok) setError(result.reason);
       else {
-        store.checkIn(ev.id, current);
+        try {
+          // Only send a build when it's news: a different one, or the first pick on record.
+          store.checkIn(ev.id, current, atCheckIn && atCheckIn.id !== chosen?.id ? atCheckIn.id : undefined);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Could not check in.');
+          return;
+        }
+        setCheckInPick(undefined);
         setJustCheckedIn(true);
         feel.success();
       }
@@ -122,6 +148,29 @@ export default function EventScreen() {
       setError('Could not read your location. Try again outside.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** I'm going / Request to go: two or more builds open the picker, one is used as it is, none asks first. */
+  function startGoing() {
+    setError(null);
+    if (mine.length === 1) return commitGoing(mine[0].id);
+    setPicked(defaultBuild(ev, me, builds, events)?.id);
+    setPicking('go');
+  }
+
+  function commitGoing(buildId?: string) {
+    setError(null);
+    const wasGoing = going;
+    try {
+      const result = store.setGoing(ev.id, true, buildId);
+      setPicking(null);
+      feel.tap();
+      // First Going is the moment reminders make sense, so ask then (iOS only asks once).
+      // Once they answer, schedule again: the first sync ran while the prompt was still up.
+      if (result === 'going' && !wasGoing && settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change that.');
     }
   }
 
@@ -258,45 +307,126 @@ export default function EventScreen() {
                   </Row>
                 </Card>
               ) : (
-                <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} busy={busy} />
+                <View style={{ gap: 6 }}>
+                  {picking === 'checkin' ? (
+                    <BringPicker
+                      title="What did you turn up in?"
+                      builds={mine}
+                      picked={picked}
+                      fits={goesWith}
+                      lockUnfit
+                      onPick={setPicked}
+                      confirmLabel="Check in with this one"
+                      onConfirm={() => {
+                        setCheckInPick(picked);
+                        setPicking(null);
+                      }}
+                      onCancel={() => setPicking(null)}
+                    />
+                  ) : null}
+                  <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} busy={busy} />
+                  {atCheckIn && picking !== 'checkin' ? (
+                    <Row style={{ flexWrap: 'nowrap' }} gap={8}>
+                      <ClassBadge letter={classOf(atCheckIn)} size="sm" />
+                      <Txt v="muted" style={{ flex: 1 }} numberOfLines={2}>In the {buildLine(atCheckIn)}</Txt>
+                      {mine.length > 1 ? (
+                        <Pressable
+                          onPress={() => {
+                            setError(null);
+                            setPicked(atCheckIn.id);
+                            setPicking('checkin');
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Turned up in something else? Change the vehicle"
+                          hitSlop={8}
+                        >
+                          <Txt v="label" style={{ color: C.neon }}>Something else?</Txt>
+                        </Pressable>
+                      ) : null}
+                    </Row>
+                  ) : null}
+                </View>
               )
             ) : null}
-            {!host ? (
-              going ? null : role === 'invited' || role === 'public' ? (
-                <Button
-                  label="I'm going"
-                  onPress={() => {
-                    store.setGoing(ev.id, true);
-                    feel.tap();
-                    // First Going is the moment reminders make sense, so ask then (iOS only asks once).
-                    // Once they answer, schedule again: the first sync ran while the prompt was still up.
-                    if (settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
-                  }}
-                />
+            {(going || requested) && (bringing || mine.length === 0) && picking !== 'change' ? (
+              <Card>
+                <Row style={{ flexWrap: 'nowrap' }} gap={10}>
+                  {bringing ? <ClassBadge letter={classOf(bringing)} size="sm" /> : <View style={{ width: 22 }} />}
+                  <View style={{ flex: 1 }}>
+                    <Txt v="label">{going ? "You're bringing" : "You asked to bring"}</Txt>
+                    <Txt numberOfLines={2}>{bringing ? buildLine(bringing) : 'No vehicle (passenger)'}</Txt>
+                  </View>
+                  {canChange ? (
+                    <Button
+                      label="Change"
+                      kind="ghost"
+                      accessibilityLabel="Change vehicle"
+                      onPress={() => {
+                        setError(null);
+                        setPicked(bringing?.id ?? defaultBuild(ev, me, builds, events)?.id);
+                        setPicking('change');
+                      }}
+                    />
+                  ) : null}
+                </Row>
+                {mine.length === 0 && going ? (
+                  <Button label="+ Add a car or bike" kind="ghost" onPress={() => router.push('/build/edit')} />
+                ) : null}
+              </Card>
+            ) : null}
+            {(picking === 'go' || picking === 'change') && mine.length > 0 ? (
+              <BringPicker
+                title={picking === 'change' ? 'Change vehicle' : 'What are you bringing?'}
+                builds={mine}
+                picked={picked}
+                fits={(b) => fitsInvite(ev, b)}
+                onPick={setPicked}
+                confirmLabel={
+                  goesWith(pickedBuild) ? (picking === 'change' ? 'Bring this one' : "I'm going") : going ? 'Change and ask a host' : 'Request to go'
+                }
+                note={
+                  !pickedBuild || goesWith(pickedBuild)
+                    ? null
+                    : going
+                      ? `The ${pickedBuild.make} ${pickedBuild.model} doesn't match the invite, so you'd go back to asking a host.`
+                      : fitsInvite(ev, pickedBuild)
+                        ? `Your home area is outside this invite (${ev.filter.radiusMiles} mi), so a host has to say yes.`
+                        : `The ${pickedBuild.make} ${pickedBuild.model} doesn't match the invite, so a host has to say yes.`
+                }
+                onConfirm={() => commitGoing(picked)}
+                onCancel={() => setPicking(null)}
+              />
+            ) : null}
+            {picking === 'go' && mine.length === 0 ? (
+              <Card accent={C.sodium}>
+                <Txt v="eyebrow">What are you bringing?</Txt>
+                <Txt v="muted">Your garage is empty. Add your car or bike so the hosts know what's coming, or go along as a passenger.</Txt>
+                <Button label="+ Add a car or bike" onPress={() => router.push('/build/edit')} />
+                <Row style={{ flexWrap: 'nowrap' }}>
+                  <Button label={role === 'invited' || role === 'public' ? 'Go without one' : 'Ask without one'} kind="ghost" style={{ flex: 1 }} onPress={() => commitGoing()} />
+                  <Button label="Cancel" kind="ghost" onPress={() => setPicking(null)} />
+                </Row>
+              </Card>
+            ) : null}
+            {!host && picking !== 'go' ? (
+              going ? null : requested ? (
+                <Card accent={C.neon}>
+                  <Txt>Request sent. A host will say yes or no.</Txt>
+                  <Txt v="muted">
+                    You'll see the place at the reveal time if they say yes.
+                    {role === 'invited' && mine.length > 1 ? ' Bring a build the invite covers and you can go straight in.' : ''}
+                  </Txt>
+                  <Button label="Withdraw request" kind="ghost" onPress={() => store.setGoing(ev.id, false)} />
+                </Card>
+              ) : role === 'invited' || role === 'public' ? (
+                <Button label="I'm going" onPress={startGoing} />
               ) : declined ? (
                 <Card>
                   <Txt v="muted">A host said no to this one. Keep an eye out for the next.</Txt>
                 </Card>
-              ) : requested ? (
-                <Card accent={C.neon}>
-                  <Txt>Request sent. A host will say yes or no.</Txt>
-                  <Txt v="muted">You'll see the place at the reveal time if they say yes.</Txt>
-                  <Button label="Withdraw request" kind="ghost" onPress={() => store.setGoing(ev.id, false)} />
-                </Card>
               ) : (
                 <View style={{ gap: 6 }}>
-                  <Button
-                    label="Request to go"
-                    onPress={() => {
-                      setError(null);
-                      try {
-                        store.setGoing(ev.id, true);
-                        feel.tap();
-                      } catch (err) {
-                        setError(err instanceof Error ? err.message : 'Could not send the request.');
-                      }
-                    }}
-                  />
+                  <Button label="Request to go" onPress={startGoing} />
                   <Txt v="muted" style={{ fontSize: 12 }}>
                     Your builds or home area don't match this invite ({describeFilter(ev.filter)}). A host can still say yes.
                   </Txt>
@@ -395,7 +525,7 @@ export default function EventScreen() {
             <Card accent={C.neon}>
               <Txt v="muted">They don't match the invite. Say yes and they see the place at the reveal time, like everyone going.</Txt>
               {requests.map((uid) => {
-                const b = builds.find((x) => x.ownerId === uid);
+                const b = broughtBuild(ev, uid, builds);
                 return (
                   <View key={uid} style={{ gap: 6 }}>
                     <UserLink id={uid} label={`Open ${userLabel(uid)}`}>
@@ -403,7 +533,9 @@ export default function EventScreen() {
                         {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
                         <View style={{ flex: 1 }}>
                           <Txt numberOfLines={1}>{userLabel(uid)}</Txt>
-                          <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model} · ${b.mods.length} mods` : 'No build yet'}</Txt>
+                          <Txt v="muted" numberOfLines={2}>
+                            {b ? `${buildLine(b)} · ${b.mods.length} mods${fitsInvite(ev, b) ? '' : " · doesn't match"}` : 'No vehicle'}
+                          </Txt>
                         </View>
                       </Row>
                     </UserLink>
@@ -433,12 +565,12 @@ export default function EventScreen() {
           </Section>
         ) : null}
 
-        <Section title={`Going (${ev.going.length})`}>
+        <Section title={`Going (${ev.going.length})`} right={classMixText(ev, builds) ? <Txt v="mono">{classMixText(ev, builds)}</Txt> : undefined}>
           <Card>
             {ev.going.length === 0 ? <Txt v="muted">Nobody yet. Share it to get people along.</Txt> : null}
             {ev.going.map((uid) => {
               const u = users.find((x) => x.id === uid);
-              const b = builds.find((x) => x.ownerId === uid);
+              const b = broughtBuild(ev, uid, builds);
               const checked = (ev.checkIns[uid] ?? []).length;
               return (
                 <UserLink key={uid} id={uid} label={`Open ${userLabel(uid)}`}>
@@ -449,7 +581,7 @@ export default function EventScreen() {
                       {uid === me ? 'You' : `@${u?.handle ?? uid}`}
                       {hasLegend(awardsSoFar, uid, now) ? <Txt v="label" style={{ color: C.lime }}>  ★ LEGEND</Txt> : null}
                     </Txt>
-                    <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model}` : 'No build yet'}</Txt>
+                    <Txt v="muted" numberOfLines={1}>{b ? buildLine(b) : 'No vehicle'}</Txt>
                   </View>
                   {checked > 0 ? <Txt v="mono" style={{ color: C.lime }}>{checked} ✓</Txt> : null}
                 </Row>

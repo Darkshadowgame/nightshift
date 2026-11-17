@@ -111,6 +111,13 @@ note anything odd for the next pass. Each step says what you should see.
       you get **Request to go** with the reason, not "going". Chat stays closed until
       you're in. Request it: Events > Mine now lists it as **Requested**, and the map
       shows it locked ("you asked to go"). Open it to **Withdraw request**.
+- [ ] **What you're bringing:** Garage > **+ Add a car or bike** so you have two (say a
+      bike). Open an invite: **I'm going** / **Request to go** now asks which one, each
+      with its class, make and model and any swap or stage. A build the invite doesn't
+      cover says **Doesn't match the invite**, and picking it turns the button into
+      **Request to go**. Once going, **You're bringing … Change** swaps it until the
+      start; at check-in **Something else?** says what you turned up in. The Going list
+      and the event cards' class counts (e.g. `2A 1S`) follow the pick.
 - [ ] Open your event > **Edit**, change the time, save. **Share** opens the share
       sheet with a `nightshift://event/...` link. **Cancel event** asks first.
 

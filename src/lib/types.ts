@@ -150,6 +150,12 @@ export interface NightEvent {
   requests?: string[];
   /** Requests a host declined. */
   declined?: string[];
+  /**
+   * userId -> id of the build they're bringing, for people going and people
+   * asking to go. Missing for old data and people going without a vehicle
+   * (see bringing.ts for the fallbacks).
+   */
+  vehicles?: Record<string, string>;
   /** Length of a cruise route, for display. */
   routeMiles?: number;
   /** Changes hosts made to the plan (rolling meets on the night, and edits). Only hosts see this. */

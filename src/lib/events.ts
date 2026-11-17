@@ -31,20 +31,56 @@ export function isHost(event: NightEvent, userId: string, crews: Crew[]): boolea
 // ---------------------------------------------------------------------------
 
 /**
- * Tap "I'm going" / "Request to go". People the invite covers (or anyone, for
- * public events) go straight in. Anyone else only adds a request, which a host
+ * Tap "I'm going" / "Request to go", optionally saying which build you're
+ * bringing. `eligible`: would this person go straight in with that build (see
+ * canGoWith() in bringing.ts)? People the invite covers (or anyone, for public
+ * events) go straight in. Anyone else only adds a request, which a host
  * approves or declines. Requests are never approved automatically.
+ *
+ * Picking another build while going or asking is a vehicle change: allowed
+ * until the start (canChangeVehicle()). Changing to a build the invite doesn't
+ * cover puts a going person back to asking a host.
  */
-export function rsvp(event: NightEvent, userId: string, eligible: boolean): NightEvent {
-  if (event.going.includes(userId)) return event;
-  if (eligible) return { ...event, going: [...event.going, userId], requests: (event.requests ?? []).filter((r) => r !== userId) };
+export function rsvp(event: NightEvent, userId: string, eligible: boolean, buildId?: string, now: Date = new Date()): NightEvent {
+  const going = event.going.includes(userId);
+  const asked = !!event.requests?.includes(userId);
+  const current = event.vehicles?.[userId];
+  const changed = !!buildId && buildId !== current;
+  if (going && !changed) return event;
+  if (changed && (event.checkIns[userId] ?? []).length > 0) throw new Error(VEHICLE_SET_REASON);
+  if (changed && (going || asked) && current) {
+    const ok = canChangeVehicle(event, userId, now);
+    if (!ok.ok) throw new Error(ok.reason);
+  }
+  const vehicles = changed ? { ...event.vehicles, [userId]: buildId } : event.vehicles;
+  const requests = (event.requests ?? []).filter((r) => r !== userId);
+  if (eligible) return { ...event, going: going ? event.going : [...event.going, userId], requests, vehicles };
   if (event.declined?.includes(userId)) throw new Error('A host has already said no to this one.');
-  if (event.requests?.includes(userId)) return event;
-  return { ...event, requests: [...(event.requests ?? []), userId] };
+  if (asked && !changed) return event;
+  return { ...event, going: event.going.filter((u) => u !== userId), requests: [...requests, userId], vehicles };
 }
 
 export function dropOut(event: NightEvent, userId: string): NightEvent {
-  return { ...event, going: event.going.filter((u) => u !== userId), requests: (event.requests ?? []).filter((r) => r !== userId) };
+  const vehicles = event.vehicles && userId in event.vehicles ? Object.fromEntries(Object.entries(event.vehicles).filter(([u]) => u !== userId)) : event.vehicles;
+  return { ...event, going: event.going.filter((u) => u !== userId), requests: (event.requests ?? []).filter((r) => r !== userId), vehicles };
+}
+
+export const VEHICLE_SET_REASON = "You've checked in, so your vehicle is set for this one.";
+export const VEHICLE_AT_CHECK_IN_REASON = 'It has started. Change your vehicle when you check in.';
+export const VEHICLE_NOT_INVITED_REASON = "That build doesn't match the invite. Check in with one that does, or ask a host.";
+
+/**
+ * Can this person change the vehicle they're bringing? Until the start from
+ * the event screen; after that only at check-in (`atCheckIn`), and never once
+ * they've checked in.
+ */
+export function canChangeVehicle(event: NightEvent, userId: string, now: Date, atCheckIn = false): Permission {
+  const phase = phaseOf(event, now);
+  if (phase === 'cancelled') return { ok: false, reason: 'This event was cancelled.' };
+  if (phase === 'over') return { ok: false, reason: 'This event has finished.' };
+  if ((event.checkIns[userId] ?? []).length > 0) return { ok: false, reason: VEHICLE_SET_REASON };
+  if (!atCheckIn && now.getTime() >= new Date(event.startsAt).getTime()) return { ok: false, reason: VEHICLE_AT_CHECK_IN_REASON };
+  return { ok: true };
 }
 
 export function hasRequested(event: NightEvent, userId: string): boolean {
@@ -150,11 +186,27 @@ export function canCheckIn(
   return { ok: true };
 }
 
-export function checkIn(event: NightEvent, stopIndex: number, userId: string): NightEvent {
+/**
+ * Check in. `vehicle`: the build they actually turned up in, when it isn't the
+ * one they said (first check-in only). `fits`: whether the invite covers it
+ * (canGoWith() in bringing.ts); a build it doesn't cover is refused rather than
+ * skipping the host. A host checking in with a build counts as going.
+ */
+export function checkIn(event: NightEvent, stopIndex: number, userId: string, vehicle?: { buildId: string; fits: boolean }): NightEvent {
   const stop = event.stops[stopIndex];
   const done = event.checkIns[userId] ?? [];
-  if (done.includes(stop.id)) return event;
-  return { ...event, checkIns: { ...event.checkIns, [userId]: [...done, stop.id] } };
+  let next = event;
+  if (vehicle && vehicle.buildId !== event.vehicles?.[userId]) {
+    if (done.length > 0) throw new Error(VEHICLE_SET_REASON);
+    if (!vehicle.fits) throw new Error(VEHICLE_NOT_INVITED_REASON);
+    next = {
+      ...next,
+      going: next.going.includes(userId) ? next.going : [...next.going, userId],
+      vehicles: { ...next.vehicles, [userId]: vehicle.buildId },
+    };
+  }
+  if (done.includes(stop.id)) return next;
+  return { ...next, checkIns: { ...next.checkIns, [userId]: [...done, stop.id] } };
 }
 
 /**
@@ -369,6 +421,7 @@ export function applyEventEdit(event: NightEvent, edited: NightEvent, by: string
     ...edited,
     id: event.id,
     going: event.going,
+    vehicles: event.vehicles,
     checkIns: event.checkIns,
     currentStop: Math.min(event.currentStop, Math.max(0, edited.stops.length - 1)),
     cancelled: event.cancelled,
