@@ -2,7 +2,9 @@
 // Build-time fetch of circuit outlines from OpenStreetMap (Overpass API) into
 // the bundled src/data/circuits.ts.
 //
-//   node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs [--cache DIR]
+//   node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs [--cache DIR] [--list-venues]
+//
+// When Overpass is down, scripts/circuits-from-pbf.py fills the cache from a Geofabrik extract.
 //
 // One batched query for every bundled track (highway=raceway ways, and
 // leisure=track ways for motorsport), then src/lib/outline.ts picks each
@@ -26,6 +28,12 @@ const cacheArg = process.argv.indexOf('--cache');
 const cacheDir = cacheArg > 0 ? process.argv[cacheArg + 1] : null;
 
 const tracks = PLACES.filter((p) => p.kind === 'track');
+// For scripts/circuits-from-pbf.py: which venues to mark as covered.
+if (process.argv.includes('--list-venues')) {
+  console.log(JSON.stringify(tracks.map((t) => t.id)));
+  process.exit(0);
+}
+
 /** Big circuits spread further from their pin than a kart track or a stadium oval. */
 const radius = (t) => (t.id.startsWith('tr-') ? 2500 : 1200);
 

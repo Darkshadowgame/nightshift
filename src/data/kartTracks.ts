@@ -7,7 +7,7 @@ import type { PlaceSeed } from './places';
  * Lengths, arrive-and-drive and lap records are in trackInfo.ts, only where the
  * venue publishes them.
  *
- * Buckmore Park, Ellough Park and Three Sisters were already bundled (places.ts).
+ * Buckmore Park, Ellough Park, Three Sisters and Clay Pigeon are bundled in places.ts.
  * Left out: Warden Law and Hooton Park (no sign of 2025/26 activity on an
  * official site), Wombwell (unverified). Trent Valley Kart Club races at PF
  * International.
@@ -50,13 +50,6 @@ export const KART_PLACES: PlaceSeed[] = [
     description: 'Club kart circuit on the runways of the former RAF Fulbeck, running club championship and sprint series rounds, with open test days.',
     at: { lat: 53.0451, lng: -0.6568 },
     sources: ['https://www.fulbeckkartclub.co.uk/', 'OpenStreetMap (ODbL)'],
-  },
-  {
-    id: 'kt-clay-pigeon', kind: 'track', trackType: 'kart', name: 'Clay Pigeon Raceway', region: 'Dorset',
-    description: 'Kart circuit on the A37 between Dorchester and Yeovil with weekday hire karts, owner practice and club race meetings.',
-    warnings: ['Hire karts Monday to Thursday, booked ahead, 14+.'],
-    at: { lat: 50.824, lng: -2.5545 },
-    sources: ['https://www.claypigeonraceway.com/', 'OpenStreetMap (ODbL)'],
   },
   {
     id: 'kt-glan-y-gors', kind: 'track', trackType: 'kart', name: 'Glan y Gors Kart Circuit', region: 'Conwy',
@@ -104,3 +97,6 @@ export const KART_PLACES: PlaceSeed[] = [
     sources: ['https://bayfordmeadows.co.uk/', 'OpenStreetMap (ODbL)'],
   },
 ];
+
+/** Bundled places taken out again (e.g. a duplicate of a regional entry). Saves drop them on load. */
+export const RETIRED_PLACE_IDS = ['kt-clay-pigeon'];

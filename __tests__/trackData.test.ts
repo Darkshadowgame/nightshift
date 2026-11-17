@@ -38,7 +38,7 @@ describe('bundled track details', () => {
 
   test('kart circuits: at least a dozen, each with a site to check and arrive-and-drive only where the venue says', () => {
     const karts = tracks.filter((t) => trackVehicles(t).includes('kart') && !trackVehicles(t).includes('car'));
-    expect(karts.length).toBeGreaterThanOrEqual(12);
+    expect(karts.length).toBeGreaterThanOrEqual(15);
     for (const k of karts) expect(TRACK_INFO[k.id]?.factSources?.length).toBeGreaterThan(0);
     expect(TRACK_INFO['kt-llandow'].arriveAndDrive).toBe(false);
     expect(TRACK_INFO['kt-pf-international'].arriveAndDrive).toBe(true);

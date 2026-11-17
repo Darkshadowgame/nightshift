@@ -328,7 +328,7 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     layouts: [{ name: 'Circuit', km: 1.14 }], records: [],
   },
   'kt-fulbeck': { vehicles: ['kart'], factSources: ['https://www.fulbeckkartclub.co.uk/'], layouts: [], records: [] },
-  'kt-clay-pigeon': {
+  'sws-t-clay-pigeon': {
     vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://www.claypigeonraceway.com/hire-karts'],
     layouts: [{ name: 'Circuit', km: 0.815 }], records: [],
   },
@@ -357,4 +357,22 @@ export const TRACK_INFO: Record<string, TrackInfo> = {
     vehicles: ['kart'], arriveAndDrive: true, factSources: ['https://bayfordmeadows.co.uk/adult-karting/adult-karting-options', 'https://bayfordmeadows.co.uk/owner-drivers/circuit-rules'],
     layouts: [{ name: 'Circuit', km: 1.1 }], records: [],
   },
+  // Venues added in the regional lists (North, South West and South): what runs there, from their descriptions.
+  'ne-t-olivers-mount': { vehicles: ['bike'], spectator: true, layouts: [], records: [] },
+  'ne-t-barbon': { vehicles: ['car'], layouts: [], records: [], run: true },
+  'ne-t-buxton-raceway': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'ne-t-belle-vue': { vehicles: ['bike'], spectator: true, layouts: [], records: [] },
+  'ne-t-owlerton': { vehicles: ['bike'], spectator: true, layouts: [], records: [] },
+  'ne-t-skegness': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sws-t-wiscombe': { vehicles: ['car', 'bike'], layouts: [], records: [], run: true },
+  'sws-t-goodwood-hill': { vehicles: ['car', 'bike'], spectator: true, layouts: [], records: [], run: true },
+  'sws-t-dunsfold': { vehicles: ['car'], layouts: [], records: [] },
+  'sws-t-united-downs': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sws-t-smeatharpe': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sws-t-poole-stadium': { vehicles: ['bike'], spectator: true, layouts: [], records: [] },
+  'sws-t-matterley': { vehicles: ['bike'], layouts: [], records: [] },
+  'sws-t-aldershot': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sws-t-standlake': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sws-t-smallfield': { vehicles: ['car'], spectator: true, layouts: [], records: [] },
+  'sws-t-arlington': { vehicles: ['car', 'bike'], spectator: true, layouts: [], records: [] },
 };

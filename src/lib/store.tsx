@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 import { BAN_ZONES, DEMO_HOME, ME, sampleHomes, seed, seededStops, SEED_EVENT_IDS, type SeedState } from '../data/seed';
 import { placeSpots } from '../data/places';
+import { RETIRED_PLACE_IDS } from '../data/kartTracks';
 import { geocoderAvailable, nameForPlace, townForPlace } from './location';
 import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { castVote as applyVote, type AwardCategory } from './awards';
@@ -276,6 +277,8 @@ function migrate(parsed: Persisted): Persisted {
     next = redrawScene({ ...next, spots: mine }, home, new Date());
   }
   // Bundled places added since this save was made (e.g. the kart circuits): add them, untouched.
+  // Bundled places taken out again (a duplicate) go, unless someone has visited them.
+  next = { ...next, spots: next.spots.filter((x) => !RETIRED_PLACE_IDS.includes(x.id) || x.completions.length > 0) };
   const knownSpots = new Set(next.spots.map((x) => x.id));
   const newPlaces = placeSpots(new Date().toISOString()).filter((x) => !knownSpots.has(x.id));
   if (newPlaces.length) next = { ...next, spots: [...next.spots, ...newPlaces] };

@@ -146,6 +146,14 @@ export function camerasForView(
   return { cameras, zones: index.zonesIn(b), tooWide: false };
 }
 
+/**
+ * Camera pins stay small so they don't crowd the map: a compact badge at
+ * driving zoom, a little bigger only when zoomed right in to street level.
+ */
+export function cameraPinSize(span: number): number {
+  return span <= 0.04 ? 20 : 15;
+}
+
 /** "Speed camera · 30 mph · faces north-east". */
 export function describeCamera(c: Camera): string {
   return ['Speed camera', c.mph ? `${c.mph} mph` : 'limit not recorded', c.facing !== undefined ? `faces ${compassName(c.facing)}` : null]

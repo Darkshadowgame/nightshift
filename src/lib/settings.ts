@@ -16,9 +16,11 @@ export interface Settings {
    * driving distance (see CAMERA_MAX_SPAN in cameras.ts).
    */
   cameras: boolean;
+  /** Map: which tracks to show by what runs there (Tracks ▾ menu). Never empty. */
+  trackVehicles: ('car' | 'bike' | 'kart')[];
 }
 
-export const DEFAULT_SETTINGS: Settings = { simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: true };
+export const DEFAULT_SETTINGS: Settings = { simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: true, trackVehicles: ['car', 'bike', 'kart'] };
 
 /**
  * Settings from a save. Saves from before real GPS was the default had
