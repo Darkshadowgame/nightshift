@@ -32,7 +32,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
         </View>
         <Text style={[st.headline, { fontSize: width * 0.1 }]} numberOfLines={2}>{build.make} {build.model}</Text>
         <Text style={st.lines}>
-          @{owner?.handle ?? 'unknown'} · {Math.round(effectivePower(build))} BHP · CLASS {classOf(build)} · {build.mods.length} MODS
+          <Text style={{ textTransform: 'none' }}>@{owner?.handle ?? 'unknown'}</Text> · {Math.round(effectivePower(build))} BHP · CLASS {classOf(build)} · {build.mods.length} MODS
         </Text>
         <Text style={st.lines}>{event?.title ?? ''}</Text>
       </View>

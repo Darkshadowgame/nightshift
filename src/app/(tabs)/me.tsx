@@ -12,11 +12,12 @@ import { useStore, type Settings } from '../../lib/store';
 import { C, SPOT_COLOURS } from '../../theme';
 
 export default function Me() {
-  const { users, me, crews, settings, setSettings, resetDemo, builds, events, votes, now, spots } = useStore();
+  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, now, spots } = useStore();
   const rep = useRep(me);
   const awards = allAwards(votes, events, builds, now);
   const myAwards = awards.filter((a) => a.ownerId === me);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [restarted, setRestarted] = useState(false);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [testNote, setTestNote] = useState<string | null>(null);
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function Me() {
     <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
       <Card>
         <Row>
-          <Txt v="h2">@{user?.handle}</Txt>
+          <Txt v="h2" style={{ textTransform: 'none' }}>@{user?.handle}</Txt>
           <LevelTag level={rep.level.level} />
           {hasLegend(awards, me, now) ? <Txt v="eyebrow" style={{ color: C.lime }}>Legend this week</Txt> : null}
         </Row>
@@ -116,7 +117,11 @@ export default function Me() {
           value={settings.reminders}
           onChange={(v) => {
             setSettings({ reminders: v });
-            if (v) askPermission().then(setAllowed);
+            if (v)
+              askPermission().then((ok) => {
+                setAllowed(ok);
+                if (ok) refreshReminders();
+              });
           }}
         />
         {!notificationsSupported ? (
@@ -124,7 +129,16 @@ export default function Me() {
         ) : allowed === false && settings.reminders ? (
           <Card accent={C.alert}>
             <Txt v="muted">Notifications are off for Nightshift. Allow them in the iPhone Settings app › Nightshift › Notifications, or tap below.</Txt>
-            <Button label="Allow notifications" kind="ghost" onPress={() => askPermission().then(setAllowed)} />
+            <Button
+              label="Allow notifications"
+              kind="ghost"
+              onPress={() =>
+                askPermission().then((ok) => {
+                  setAllowed(ok);
+                  if (ok) refreshReminders();
+                })
+              }
+            />
           </Card>
         ) : null}
         {notificationsSupported ? (
@@ -134,6 +148,7 @@ export default function Me() {
             onPress={async () => {
               const ok = await testReminder(5);
               setAllowed(ok);
+              if (ok) refreshReminders();
               setTestNote(ok ? 'Coming in 5 seconds. Lock the phone to see it on the lock screen.' : 'Notifications are not allowed yet.');
             }}
           />
@@ -172,6 +187,22 @@ export default function Me() {
           value={settings.simulateGps}
           onChange={(v) => setSettings({ simulateGps: v })}
         />
+        <Card>
+          <Txt>Restart the demo events</Txt>
+          <Txt v="muted">
+            Puts the sample events back as if you'd just installed: Lichfield live, the crew meet in about 30 min, the invite a
+            few hours away, requests to answer, and the sample chat and votes. Drives and photo spots go back to not done.
+            Your profile, builds, photos, crew and anything you made stay.
+          </Txt>
+          <Button
+            label={restarted ? 'Restarted ✓' : 'Restart the demo events'}
+            kind="ghost"
+            onPress={() => {
+              restartDemoEvents();
+              setRestarted(true);
+            }}
+          />
+        </Card>
         <Card>
           <Txt v="muted">
             Everything is stored on this phone for now and the other people are sample data. Sharing between phones arrives when the app gets its backend. Resetting also clears your profile.

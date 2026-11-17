@@ -69,7 +69,7 @@ export default function SuggestPlace() {
 
       <Txt v="muted">
         {kind === 'drive'
-          ? 'A great road to drive at the speed limit. Drives are never timed or ranked. Long-press the map along the road, start to finish: each point becomes a checkpoint.'
+          ? 'A great road to drive within the speed limits. Drives are never timed or ranked. Long-press the map along the road, start to finish: each point becomes a checkpoint.'
           : 'Somewhere that looks good in photos, with space to pull fully off the road. Long-press the map to place it.'}
       </Txt>
 

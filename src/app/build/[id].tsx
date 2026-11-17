@@ -66,7 +66,7 @@ export default function BuildScreen() {
           </Txt>
           {owner ? (
             <UserLink id={owner.id} style={{ alignSelf: 'flex-start' }} label={`Open @${owner.handle}`}>
-              <Txt v="label" style={{ color: C.neon }}>{owner.id === me ? 'Yours' : `@${owner.handle}`} ›</Txt>
+              <Txt v="label" style={{ color: C.neon, textTransform: owner.id === me ? 'uppercase' : 'none' }}>{owner.id === me ? 'Yours' : `@${owner.handle}`} ›</Txt>
             </UserLink>
           ) : null}
           {b.nickname ? <Txt v="muted">{b.nickname}</Txt> : null}

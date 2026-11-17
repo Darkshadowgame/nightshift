@@ -301,7 +301,8 @@ function events(now: Date): NightEvent[] {
       area: { lat: 52.63, lng: -1.69 }, areaName: 'Tamworth',
       stops: [{ id: 'ms-1', name: 'Tamworth Castle Grounds car park', at: { lat: 52.6333, lng: -1.6951 } }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
-      filter: { ...DEFAULT_FILTER, radiusMiles: 30 },
+      // No mod minimum, so it still matches after you change the example build to your own.
+      filter: { ...DEFAULT_FILTER, minMods: 0, radiusMiles: 30 },
       going: ['tom', 'em', 'jord', 'bex'], checkIns: {},
     },
     {

@@ -10,7 +10,7 @@ import type { NightMapProps } from './mapTypes';
  * Web preview stand-in for the map (react-native-maps has no web version).
  * A flat projection on a dark grid: good enough to check layouts in a browser.
  */
-export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, picked }: NightMapProps) {
+export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, picked, onPressMap }: NightMapProps) {
   const [size, setSize] = useState({ w: 400, h: 700 });
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -26,6 +26,7 @@ export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, o
     <View style={[StyleSheet.absoluteFill, { backgroundColor: '#080c13' }]} onLayout={onLayout}>
       <Pressable
         style={StyleSheet.absoluteFill}
+        onPress={onPressMap}
         onLongPress={(e) => {
           if (!onLongPress) return;
           const { locationX, locationY } = e.nativeEvent;

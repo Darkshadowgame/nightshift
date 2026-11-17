@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 import { StyleSheet } from 'react-native';
 import { C } from '../theme';
@@ -8,10 +9,29 @@ import type { NightMapProps } from './mapTypes';
 const MILE_M = 1609.34;
 
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
-export function NightMap({ pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked }: NightMapProps) {
+export function NightMap({
+  pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap,
+}: NightMapProps) {
+  const map = useRef<MapView>(null);
+  const first = useRef(true);
+  // initialRegion only applies when the map mounts: move it when the place shown changes.
+  const followKey = follow ? `${centre.lat},${centre.lng},${span}` : '';
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    map.current?.animateToRegion({ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }, 450);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followKey, recentreKey]);
   return (
     <MapView
+      ref={map}
       style={StyleSheet.absoluteFill}
+      onPress={onPressMap ? (e) => {
+        // iOS also reports taps on markers here; only a tap on the map itself counts.
+        if (e.nativeEvent.action !== 'marker-press') onPressMap();
+      } : undefined}
       userInterfaceStyle="dark"
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
       showsUserLocation={showsUser}

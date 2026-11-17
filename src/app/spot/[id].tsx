@@ -125,7 +125,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
         <Txt v="muted">{spot.description}</Txt>
         {author ? (
           <UserLink id={author.id} style={{ alignSelf: 'flex-start' }} label={`Open @${author.handle}`}>
-            <Txt v="label" style={{ color: C.sodium }}>Suggested by {mine ? 'you' : `@${author.handle}`} ›</Txt>
+            <Txt v="label" style={{ color: C.sodium }}>Suggested by <Txt v="label" style={{ color: C.sodium, textTransform: 'none' }}>{mine ? 'you' : `@${author.handle}`}</Txt> ›</Txt>
           </UserLink>
         ) : null}
       </View>
@@ -255,6 +255,15 @@ function DrivePanel({
   const runRef = useRef(run);
   runRef.current = run;
 
+  /** Set once the screen has closed, so a watch that starts late is removed at once. */
+  const closed = useRef(false);
+  useEffect(() => {
+    closed.current = false;
+    return () => {
+      closed.current = true;
+    };
+  }, []);
+
   const stop = useCallback(() => {
     watch.current?.remove();
     watch.current = null;
@@ -279,6 +288,9 @@ function DrivePanel({
   }, [run, checkpoints.length, spot.id, store, stop, setRun, setError, onFinished]);
 
   async function start() {
+    // Tapping Start twice must not leave an old GPS watch running.
+    watch.current?.remove();
+    watch.current = null;
     setError(null);
     setPassed(false);
     setRun(NEW_RUN);
@@ -290,7 +302,7 @@ function DrivePanel({
         setError('Turn on location for Nightshift to track the checkpoints.');
         return;
       }
-      watch.current = await Location.watchPositionAsync(
+      const sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, distanceInterval: 25 },
         (loc) => {
           const r = runRef.current;
@@ -309,6 +321,13 @@ function DrivePanel({
           }
         },
       );
+      // The screen closed (or the run was cancelled) while the watch was starting: turn GPS off again.
+      if (closed.current || !runRef.current) {
+        sub.remove();
+        return;
+      }
+      (watch.current as Location.LocationSubscription | null)?.remove();
+      watch.current = sub;
     } catch {
       setRun(null);
       setError('Could not read your location. Try again with a clear view of the sky.');

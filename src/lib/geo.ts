@@ -21,3 +21,16 @@ export function fuzz(p: LatLng): LatLng {
   const step = 0.01;
   return { lat: Math.round(p.lat / step) * step, lng: Math.round(p.lng / step) * step };
 }
+
+/** A map centre and span (degrees of latitude) that shows every point, with a margin. */
+export function fitRegion(points: LatLng[], minSpan = 0.3): { centre: LatLng; span: number } | null {
+  if (points.length === 0) return null;
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const [south, north] = [Math.min(...lats), Math.max(...lats)];
+  const [west, east] = [Math.min(...lngs), Math.max(...lngs)];
+  const centre = { lat: (south + north) / 2, lng: (west + east) / 2 };
+  // The maps show 1.2× the span across, so a wide spread needs a little less height.
+  const span = Math.max(minSpan, (north - south) * 1.5, ((east - west) * 1.5) / 1.2);
+  return { centre, span };
+}

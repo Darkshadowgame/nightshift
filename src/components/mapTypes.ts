@@ -38,4 +38,10 @@ export interface NightMapProps {
   showsUser?: boolean;
   /** Draggable "picker" pin used when choosing a place for a stop. */
   picked?: LatLng | null;
+  /** Move the map when `centre` or `span` change (otherwise they only set where it opens). */
+  follow?: boolean;
+  /** Change this number to move the map back to `centre` and `span` (e.g. a "fit everything" button). */
+  recentreKey?: number;
+  /** A tap on the map itself, not on a pin. */
+  onPressMap?: () => void;
 }

@@ -12,6 +12,8 @@ import { EVENT_LABELS } from '../../lib/events';
 import { viewEvents } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
 import { formatWhen } from '../../lib/format';
+import { fitRegion } from '../../lib/geo';
+import type { LatLng } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import { C, EVENT_COLOURS, F, SPOT_COLOURS } from '../../theme';
@@ -31,11 +33,13 @@ export default function MapScreen() {
   const { events, me, crews, users, builds, now, spots } = store;
   const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, bans: false });
   const [selected, setSelected] = useState<string | null>(null);
+  /** "Show everything": where to move the map, and a counter so the same button works twice. */
+  const [view, setView] = useState<{ centre: LatLng; span: number; key: number } | null>(null);
   const meUser = users.find((u) => u.id === me);
   const places = useMemo(() => visibleSpots(spots, me), [spots, me]);
 
   const views = useMemo(
-    () => viewEvents(events, me, crews, users, builds, now).filter((v) => v.phase !== 'over' && v.phase !== 'cancelled'),
+    () => viewEvents(events, me, crews, users, builds, now).filter((v) => v.phase !== 'over' && v.phase !== 'cancelled' && v.role !== 'declined'),
     [events, me, crews, users, builds, now],
   );
 
@@ -56,7 +60,8 @@ export default function MapScreen() {
           }
         } else {
           circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour });
-          pins.push({ id: `ev:${e.id}`, at: e.area, glyph: 'locked', colour, title: `${e.title} (location locked)`, size: 34 });
+          const what = v.role === 'requested' ? 'requested, location locked' : 'location locked';
+          pins.push({ id: `ev:${e.id}`, at: e.area, glyph: 'locked', colour, title: `${e.title} (${what})`, size: 34 });
         }
       }
     }
@@ -78,7 +83,12 @@ export default function MapScreen() {
       const v = views.find((x) => x.event.id === key);
       if (!v) return null;
       const e = v.event;
-      const place = v.shownStop >= 0 ? e.stops[v.shownStop].name : `${e.areaName} · location locked`;
+      const place =
+        v.shownStop >= 0
+          ? e.stops[v.shownStop].name
+          : v.role === 'requested'
+            ? `${e.areaName} · location locked · you asked to go, waiting for a host`
+            : `${e.areaName} · location locked`;
       return {
         title: e.title,
         meta: `${EVENT_LABELS[e.type]} · ${v.phase === 'live' ? 'LIVE NOW' : formatWhen(e.startsAt, now)} · ${e.going.length} going`,
@@ -111,9 +121,11 @@ export default function MapScreen() {
         pins={pins}
         paths={paths}
         circles={circles}
-        centre={meUser?.home ?? { lat: 52.7, lng: -1.7 }}
-        span={1.4}
+        centre={view?.centre ?? meUser?.home ?? { lat: 52.7, lng: -1.7 }}
+        span={view?.span ?? 1.4}
+        recentreKey={view?.key ?? 0}
         onSelect={setSelected}
+        onPressMap={() => setSelected(null)}
         showsUser
       />
       <View style={[st.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
@@ -138,6 +150,17 @@ export default function MapScreen() {
               <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => setLayers((x) => ({ ...x, [l.key]: !x[l.key] }))} />
             </View>
           ))}
+          <View style={st.chipBg}>
+            <Chip
+              label="Show everything"
+              on
+              colour={C.chalk}
+              onPress={() => {
+                const r = fitRegion(pins.map((p) => p.at));
+                if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
+              }}
+            />
+          </View>
           <View style={st.chipBg}>
             <Chip label="+ Suggest a place" on colour={C.chalk} onPress={() => router.push('/spot/new')} />
           </View>

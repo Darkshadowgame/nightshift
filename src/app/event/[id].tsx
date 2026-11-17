@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, Switch, TextInput, View } from 'react-native';
 import { AwardsSection } from '../../components/AwardsSection';
 import { CheckInMark, UnlockReveal } from '../../components/motion';
 import { allAwards, hasLegend } from '../../lib/awards';
@@ -12,7 +12,7 @@ import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Txt, s as ui } from '../../components/ui';
 import { areaRadius } from '../../lib/area';
 import { classOf } from '../../lib/classes';
-import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
+import { canChangePlan, canCheckIn, canEditEvent, checkInOpensAt, checkInWindowOpen, canSeeStop, EVENT_LABELS, hasRequested, isHost, isPublicType, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf } from '../../lib/eventView';
 import { feel } from '../../lib/feel';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
@@ -24,7 +24,6 @@ import { C, EVENT_COLOURS } from '../../theme';
 
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const nav = useNavigation();
   const store = useStore();
   const { events, me, crews, users, builds, now, chat, settings, votes } = store;
   const awardsSoFar = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
@@ -35,6 +34,8 @@ export default function EventScreen() {
   const [justCheckedIn, setJustCheckedIn] = useState(false);
   const [unlock, setUnlock] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  /** Hosts: show the map as invited people see it before the reveal. */
+  const [asGuest, setAsGuest] = useState(false);
 
   // "Event unlocked": the first time this person can see a stop, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -47,10 +48,6 @@ export default function EventScreen() {
     markUnlockSeen(e.id, fresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshKey, e?.id]);
-
-  useLayoutEffect(() => {
-    if (e) nav.setOptions({ title: EVENT_LABELS[e.type] });
-  }, [nav, e]);
 
   const messages = useMemo(() => chat.filter((m) => m.eventId === id), [chat, id]);
 
@@ -79,7 +76,10 @@ export default function EventScreen() {
   const nextStop = ev.stops[ev.currentStop + 1];
   const audience = moveOnAudience(ev, ev.currentStop).length;
 
-  const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: canSeeStop(ev, i, me, crews, now) }));
+  const canPreview = host && !isPublicType(ev.type) && phase !== 'over' && phase !== 'cancelled';
+  const guestView = canPreview && asGuest;
+  // Seeing as a guest: every stop shows locked, as for invited people before the reveal.
+  const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: !guestView && canSeeStop(ev, i, me, crews, now) }));
   const mapPins: MapPin[] = visibleStops
     .filter((x) => x.visible && x.st.at)
     .map((x) => ({
@@ -89,6 +89,7 @@ export default function EventScreen() {
   const mapPaths: MapPath[] =
     ev.type === 'cruise' && mapPins.length > 1 ? [{ id: 'route', coords: mapPins.map((p) => p.at), colour, dashed: true }] : [];
   const anyVisible = mapPins.length > 0;
+  const closed = phase === 'over' || phase === 'cancelled';
 
   async function position(): Promise<LatLng | null> {
     if (settings.simulateGps) return null;
@@ -140,7 +141,8 @@ export default function EventScreen() {
   const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
   const userLabel = (uid: string) => (uid === me ? 'You' : `@${users.find((u) => u.id === uid)?.handle ?? uid}`);
 
-  const mapCentre = mapPins.find((p) => p.id === ev.stops[current]?.id)?.at ?? mapPins[0]?.at ?? ev.area;
+  const mapCentre = anyVisible ? (mapPins.find((p) => p.id === ev.stops[current]?.id)?.at ?? mapPins[0]?.at ?? ev.area) : ev.area;
+  const areaMiles = areaRadius(ev);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
@@ -166,10 +168,32 @@ export default function EventScreen() {
             paths={mapPaths}
             circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaRadius(ev), colour }]}
             centre={mapCentre}
-            span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.12) : Math.max(0.12, (areaRadius(ev) * 2.6) / 69)}
+            span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.12) : Math.max(0.12, (areaMiles * 2.6) / 69)}
+            follow
           />
           {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
         </View>
+
+        {canPreview ? (
+          <View style={{ gap: 4 }}>
+            <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }} gap={12}>
+              <Txt style={{ flex: 1 }}>See as a guest</Txt>
+              <Switch
+                value={asGuest}
+                onValueChange={setAsGuest}
+                accessibilityLabel="See the map as a guest"
+                trackColor={{ true: C.sodium, false: C.kerb }}
+              />
+            </Row>
+            {guestView ? (
+              <Txt v="muted" style={{ fontSize: 12 }} accessibilityLiveRegion="polite">
+                Invited people see this locked circle, about {Math.round(areaMiles * 2)} mi across and never centred on your spot.
+                People going see the place {ev.revealMinutesBefore > 0 ? `${ev.revealMinutesBefore} min before the start` : 'at the start'}
+                {ev.type === 'rolling' ? ', and later stops only when you move on' : ''}.
+              </Txt>
+            ) : null}
+          </View>
+        ) : null}
 
         {error ? (
           <Card accent={C.alert}>
@@ -177,8 +201,27 @@ export default function EventScreen() {
           </Card>
         ) : null}
 
-        {phase !== 'over' && phase !== 'cancelled' ? (
+        {!closed ? (
           <View style={{ gap: 10 }}>
+            {(going || host) && !checkInWindowOpen(ev, now) ? (
+              <Card>
+                <Txt v="muted">Check-in opens {formatRelative(checkInOpensAt(ev).toISOString(), now)}, 30 minutes before the start.</Txt>
+              </Card>
+            ) : null}
+            {(going || host) && checkInWindowOpen(ev, now) && canSeeStop(ev, current, me, crews, now) ? (
+              myCheckIns.includes(ev.stops[current]?.id) ? (
+                <Card accent={C.lime}>
+                  <Row style={{ flexWrap: 'nowrap' }} gap={12}>
+                    <CheckInMark play={justCheckedIn} />
+                    <Txt style={{ flex: 1 }} accessibilityLiveRegion="polite">
+                      Checked in at {ev.stops[current].name}.{ev.type === 'rolling' ? " You'll get the next spot when the hosts move on." : ''}
+                    </Txt>
+                  </Row>
+                </Card>
+              ) : (
+                <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} busy={busy} />
+              )
+            ) : null}
             {!host ? (
               going ? (
                 <Button
@@ -194,7 +237,8 @@ export default function EventScreen() {
                     store.setGoing(ev.id, true);
                     feel.tap();
                     // First Going is the moment reminders make sense, so ask then (iOS only asks once).
-                    if (settings.reminders) askPermission().catch(() => {});
+                    // Once they answer, schedule again: the first sync ran while the prompt was still up.
+                    if (settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
                   }}
                 />
               ) : declined ? (
@@ -225,25 +269,6 @@ export default function EventScreen() {
                     Your builds or home area don't match this invite ({describeFilter(ev.filter)}). A host can still say yes.
                   </Txt>
                 </View>
-              )
-            ) : null}
-            {(going || host) && !checkInWindowOpen(ev, now) ? (
-              <Card>
-                <Txt v="muted">Check-in opens {formatRelative(checkInOpensAt(ev).toISOString(), now)}, 30 minutes before the start.</Txt>
-              </Card>
-            ) : null}
-            {(going || host) && checkInWindowOpen(ev, now) && canSeeStop(ev, current, me, crews, now) ? (
-              myCheckIns.includes(ev.stops[current]?.id) ? (
-                <Card accent={C.lime}>
-                  <Row style={{ flexWrap: 'nowrap' }} gap={12}>
-                    <CheckInMark play={justCheckedIn} />
-                    <Txt style={{ flex: 1 }} accessibilityLiveRegion="polite">
-                      Checked in at {ev.stops[current].name}.{ev.type === 'rolling' ? " You'll get the next spot when the hosts move on." : ''}
-                    </Txt>
-                  </Row>
-                </Card>
-              ) : (
-                <Button label={busy ? 'Checking…' : `Check in at ${ev.stops[current]?.name ?? 'the stop'}`} kind="neon" onPress={doCheckIn} busy={busy} />
               )
             ) : null}
             {host && ev.type === 'rolling' && phase === 'live' ? (
@@ -324,7 +349,7 @@ export default function EventScreen() {
           </Card>
         </Section>
 
-        {host && requests.length > 0 && phase !== 'over' && phase !== 'cancelled' ? (
+        {host && requests.length > 0 && !closed ? (
           <Section title={`Requests (${requests.length})`}>
             <Card accent={C.neon}>
               <Txt v="muted">They don't match the invite. Say yes and they see the place at the reveal time, like everyone going.</Txt>
@@ -401,7 +426,7 @@ export default function EventScreen() {
               {[...(ev.changes ?? [])].reverse().map((c) => (
                 <View key={c.id} style={{ gap: 2 }}>
                   <Txt v="label">
-                    {userLabel(c.by)} · {formatTime(c.at)}
+                    <Txt v="label" style={{ textTransform: 'none' }}>{userLabel(c.by)}</Txt> · {formatTime(c.at)}
                   </Txt>
                   <Txt>{c.text}</Txt>
                   {c.banZone ? <Txt v="mono" style={{ color: C.alert }}>IN THE {c.banZone.toUpperCase()} BAN ZONE</Txt> : null}
@@ -412,7 +437,22 @@ export default function EventScreen() {
         ) : null}
 
         <Section title="Chat">
-          {!host && !going ? (
+          {closed && (host || going) ? (
+            <Card>
+              {messages.length === 0 ? <Txt v="muted">No messages.</Txt> : null}
+              {messages.map((m) => (
+                <View key={m.id} style={{ gap: 2 }}>
+                  <Txt v="label" style={{ color: m.system ? C.neon : C.fog }}>
+                    {m.system ? m.text : <Txt v="label" style={{ textTransform: 'none', color: C.fog }}>{userLabel(m.userId)}</Txt>} · {formatTime(m.at)}
+                  </Txt>
+                  {m.system ? null : <Txt>{m.text}</Txt>}
+                </View>
+              ))}
+              <Txt v="muted" style={{ fontSize: 12 }}>
+                {phase === 'cancelled' ? 'Chat closed when the event was cancelled.' : 'Chat closed when the event finished.'}
+              </Txt>
+            </Card>
+          ) : !host && !going ? (
             <Card>
               <Txt v="muted">Chat is for the hosts and people going. It can carry details of where to park, so it opens once you're in.</Txt>
             </Card>
@@ -430,7 +470,8 @@ export default function EventScreen() {
                 <View key={m.id} style={{ gap: 2 }}>
                   <UserLink id={m.userId} style={{ alignSelf: 'flex-start' }}>
                     <Txt v="label" style={{ color: m.userId === me ? C.neon : C.sodium }}>
-                      {userLabel(m.userId)} · {formatTime(m.at)}
+                      <Txt v="label" style={{ color: m.userId === me ? C.neon : C.sodium, textTransform: 'none' }}>{userLabel(m.userId)}</Txt>
+                      {' · '}{formatTime(m.at)}
                     </Txt>
                   </UserLink>
                   <Txt>{m.text}</Txt>
@@ -464,7 +505,7 @@ export default function EventScreen() {
           )}
         </Section>
 
-        {host && phase !== 'over' && phase !== 'cancelled' ? (
+        {host && !closed ? (
           confirmCancel ? (
             <Card accent={C.alert}>
               <Txt>Cancel {ev.title}? Everyone going will see it as cancelled and their reminders stop.</Txt>

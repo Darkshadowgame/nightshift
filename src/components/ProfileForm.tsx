@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
+import { DEMO_HOME, DEMO_REGION } from '../data/seed';
 import { fuzz } from '../lib/geo';
 import { REGIONS, regionCentre, type ProfileDraft } from '../lib/profile';
 import type { LatLng } from '../lib/types';
@@ -25,9 +26,20 @@ export function ProfileForm({
   const [centre, setCentre] = useState<LatLng>(initial.home ?? regionCentre(initial.region));
   const [error, setError] = useState<string | null>(null);
 
+  const isDemoHome = !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
+
   function pickRegion(r: string) {
+    if (r === region) return;
     setRegion(r);
     setCentre(regionCentre(r));
+    // A home from another region would sit off the map: set it again here.
+    setHome(null);
+  }
+
+  function pickDemoArea() {
+    setRegion(DEMO_REGION);
+    setHome(DEMO_HOME);
+    setCentre(DEMO_HOME);
   }
 
   function submit() {
@@ -79,7 +91,16 @@ export function ProfileForm({
         <View style={{ height: 240, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: home ? C.neon : C.kerb }}>
           <NightMap key={`${centre.lat},${centre.lng}`} pins={[]} centre={centre} span={0.8} picked={home} onLongPress={(at) => setHome(fuzz(at))} />
         </View>
-        <Txt v="mono" style={{ color: home ? C.lime : C.fog }}>{home ? 'HOME AREA SET' : 'NOT SET YET'}</Txt>
+        <Txt v="mono" style={{ color: home ? C.lime : C.fog }}>
+          {isDemoHome ? 'HOME AREA SET: THE DEMO AREA (TAMWORTH)' : home ? 'HOME AREA SET' : 'NOT SET YET'}
+        </Txt>
+        <Card accent={C.neon}>
+          <Txt v="muted">
+            The sample scene (people, meets and invites) is around Tamworth in the Midlands. Keep your home area there to see
+            it on the map and get its invites. Elsewhere, the map and the Invited list start empty.
+          </Txt>
+          {!isDemoHome ? <Button label="Use the demo area" kind="ghost" onPress={pickDemoArea} /> : null}
+        </Card>
       </Section>
 
       {error ? (

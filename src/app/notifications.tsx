@@ -32,7 +32,7 @@ export default function NotificationsScreen() {
       ListHeaderComponent={
         !settings.reminders ? (
           <Card accent={C.alert} style={{ marginBottom: 6 }}>
-            <Txt v="muted">Reminders are off. Turn them back on in Me › Settings.</Txt>
+            <Txt v="muted">Reminders are off. Turn them back on in Me › Reminders.</Txt>
           </Card>
         ) : undefined
       }

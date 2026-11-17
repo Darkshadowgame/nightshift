@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pin } from '../components/Pin';
 import { ProfileForm } from '../components/ProfileForm';
 import { Row, Txt } from '../components/ui';
+import { DEMO_HOME, DEMO_REGION } from '../data/seed';
 import { useStore } from '../lib/store';
 import { C } from '../theme';
 
@@ -24,7 +25,7 @@ export default function Welcome() {
         </Row>
         <Txt v="muted">The UK car and bike scene on one map. Set up your profile to get invites to meets and cruises near you. You must be 18 or over.</Txt>
       </View>
-      <ProfileForm initial={{ handle: '', name: '', region: 'Midlands', home: null }} submitLabel="Let's go" onSubmit={saveProfile} />
+      <ProfileForm initial={{ handle: '', name: '', region: DEMO_REGION, home: DEMO_HOME }} submitLabel="Let's go" onSubmit={saveProfile} />
     </ScrollView>
   );
 }

@@ -37,7 +37,7 @@ export default function UserScreen() {
     <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
       <Card>
         <Row>
-          <Txt v="h1">@{p.handle}</Txt>
+          <Txt v="h1" style={{ textTransform: 'none' }}>@{p.handle}</Txt>
           <LevelTag level={rep.level.level} size="lg" />
           {p.legend ? <Txt v="eyebrow" style={{ color: C.lime }}>★ Legend this week</Txt> : null}
         </Row>

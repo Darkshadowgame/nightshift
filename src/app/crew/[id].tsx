@@ -6,7 +6,7 @@ import { LevelTag, useRepFor } from '../../components/Rep';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, ClassBadge, Row, Section, Txt } from '../../components/ui';
 import { classOf } from '../../lib/classes';
-import { crewEvents, crewRole, isCrewHost } from '../../lib/crews';
+import { crewEvents, crewHostLoss, crewless, crewRole, isCrewHost } from '../../lib/crews';
 import { viewEvent } from '../../lib/eventView';
 import { levelFor } from '../../lib/rep';
 import { useStore } from '../../lib/store';
@@ -21,6 +21,8 @@ export default function CrewScreen() {
   const crew = crews.find((c) => c.id === id);
   const repFor = useRepFor();
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmJoin, setConfirmJoin] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useLayoutEffect(() => {
@@ -53,12 +55,20 @@ export default function CrewScreen() {
   const evs = crewEvents(crew, events).map((e) => viewEvent(e, me, crews, users, builds, now));
   const upcoming = evs.filter((v) => v.phase !== 'over');
   const past = evs.filter((v) => v.phase === 'over');
+  // Crew events you host only through your crew role: leaving (or joining another crew) ends that.
+  const losing = crewHostLoss(me, { crews, users }, events, now);
+  const losingText = losing.length
+    ? `You'll stop hosting ${losing.map((e) => e.title).join(', ')}: you host ${losing.length === 1 ? 'it' : 'them'} as a crew host, not a named host.`
+    : null;
+  const canAdd = member && canHost;
+  const free = canAdd ? crewless({ crews, users }, [me]) : [];
 
   function act(fn: () => void) {
     setError(null);
     try {
       fn();
       setConfirmLeave(false);
+      setConfirmJoin(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That did not work.');
     }
@@ -87,19 +97,36 @@ export default function CrewScreen() {
         ) : null}
         {member ? (
           confirmLeave ? (
-            <Row style={{ flexWrap: 'nowrap' }}>
+            <View style={{ gap: 8 }}>
               {owner && crew.memberIds.length > 1 ? (
-                <Txt v="muted" style={{ flex: 1, fontSize: 12 }}>A host (or the longest-standing member) takes over as owner.</Txt>
+                <Txt v="muted" style={{ fontSize: 12 }}>A host (or the longest-standing member) takes over as owner.</Txt>
               ) : null}
-              <Button label="Leave crew" kind="danger" style={{ flex: 1 }} onPress={() => act(store.leaveCrew)} />
-              <Button label="Stay" kind="ghost" onPress={() => setConfirmLeave(false)} />
-            </Row>
+              {losingText ? <Txt style={{ color: C.alert }}>{losingText}</Txt> : null}
+              <Row style={{ flexWrap: 'nowrap' }}>
+                <Button label="Leave crew" kind="danger" style={{ flex: 1 }} onPress={() => act(store.leaveCrew)} />
+                <Button label="Stay" kind="ghost" onPress={() => setConfirmLeave(false)} />
+              </Row>
+            </View>
           ) : (
             <Button label="Member ✓  (tap to leave)" kind="ghost" onPress={() => setConfirmLeave(true)} />
           )
         ) : (
           <>
-            <Button label={`Join ${crew.name}`} kind="neon" onPress={() => act(() => store.joinCrew(crew.id))} />
+            {confirmJoin && losingText ? (
+              <View style={{ gap: 8 }}>
+                <Txt style={{ color: C.alert }}>{losingText}</Txt>
+                <Row style={{ flexWrap: 'nowrap' }}>
+                  <Button label={`Join ${crew.name}`} kind="danger" style={{ flex: 1 }} onPress={() => act(() => store.joinCrew(crew.id))} />
+                  <Button label="Stay put" kind="ghost" onPress={() => setConfirmJoin(false)} />
+                </Row>
+              </View>
+            ) : (
+              <Button
+                label={`Join ${crew.name}`}
+                kind="neon"
+                onPress={() => (losingText ? setConfirmJoin(true) : act(() => store.joinCrew(crew.id)))}
+              />
+            )}
             <Txt v="muted" style={{ fontSize: 12 }}>You join as a member. The owner can make you a host later.</Txt>
             {otherCrew ? <Txt v="muted" style={{ fontSize: 12 }}>You'll leave {otherCrew.name}. You can be in one crew at a time.</Txt> : null}
           </>
@@ -141,6 +168,41 @@ export default function CrewScreen() {
           })}
         </Card>
       </Section>
+
+      {canAdd ? (
+        <Section title="Bring people in">
+          <Card>
+            <Txt v="muted">
+              Demo: sample people who aren't in a crew join straight away. With the backend this becomes an invite they accept.
+            </Txt>
+            {picking ? (
+              free.length === 0 ? (
+                <Txt v="muted">Everyone in the demo is in a crew already.</Txt>
+              ) : (
+                free.map((u) => {
+                  const b = builds.find((x) => x.ownerId === u.id);
+                  return (
+                    <Row key={u.id} style={{ flexWrap: 'nowrap' }} gap={10}>
+                      {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
+                      <View style={{ flex: 1 }}>
+                        <Txt numberOfLines={1}>@{u.handle}</Txt>
+                        <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model}` : 'No build yet'} · {u.region}</Txt>
+                      </View>
+                      <Button
+                        label="Add"
+                        kind="ghost"
+                        accessibilityLabel={`Add @${u.handle} to ${crew.name}`}
+                        onPress={() => act(() => store.addToCrew(crew.id, u.id))}
+                      />
+                    </Row>
+                  );
+                })
+              )
+            ) : null}
+            <Button label={picking ? 'Done' : 'Invite members'} kind={picking ? 'ghost' : 'neon'} onPress={() => setPicking((x) => !x)} />
+          </Card>
+        </Section>
+      ) : null}
 
       <Section title={`Crew events (${upcoming.length})`}>
         {upcoming.length === 0 ? (
