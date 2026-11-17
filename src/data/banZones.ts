@@ -1,4 +1,5 @@
 import type { BanZone } from '../lib/types';
+import { banZones as NORTH_ENGLAND_BAN_ZONES } from './regions/northEngland';
 
 /**
  * Sample ban zones: areas covered by real court injunctions, PSPOs (public
@@ -12,7 +13,7 @@ import type { BanZone } from '../lib/types';
  */
 const CHECK = 'Sample — check the current order.';
 
-export const BAN_ZONES: BanZone[] = [
+const BASE_BAN_ZONES: BanZone[] = [
   {
     id: 'bz-bham', name: 'Birmingham', centre: { lat: 52.48, lng: -1.89 }, radiusMiles: 4,
     note: `${CHECK} Rough circle round Birmingham city centre, inside the West Midlands car cruising injunction.`,
@@ -77,3 +78,5 @@ export const BAN_ZONES: BanZone[] = [
     source: 'https://www.kentonline.co.uk/sheerness/news/dispersal-order-to-stop-planned-race-meet-300812/',
   },
 ];
+
+export const BAN_ZONES: BanZone[] = [...BASE_BAN_ZONES, ...NORTH_ENGLAND_BAN_ZONES];

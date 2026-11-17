@@ -2,6 +2,7 @@ import { draftBanZone } from '../lib/spots';
 import type { LatLng, Spot, SpotKind } from '../lib/types';
 import { BAN_ZONES } from './banZones';
 import { KART_PLACES } from './kartTracks';
+import { places as NORTH_ENGLAND } from './regions/northEngland';
 
 /**
  * Real UK places, bundled with the app (no network needed):
@@ -1030,7 +1031,7 @@ const REGIONAL: PlaceSeed[] = [
 ];
 
 /** Venues that welcome meets: see REGIONAL for the researched ones. */
-export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES];
+export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND];
 
 /** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. */
 export function placeSpots(createdAt: string): Spot[] {
