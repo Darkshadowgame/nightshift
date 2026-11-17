@@ -1,6 +1,7 @@
 import type { DirectionsApp } from './directions';
 import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
+import type { SpeechRate } from './voices';
 import type { SavedPlaces } from './whereTo';
 
 /** App settings, kept on the phone. */
@@ -37,6 +38,10 @@ export interface Settings {
   directionsApp: DirectionsApp;
   /** Driving view: spoken instructions. */
   navVoice: boolean;
+  /** Driving view: the installed voice picked in Settings (build 11 on). Unset: the best installed British voice. */
+  navVoiceId?: string | null;
+  /** Driving view: how fast the voice talks. Normal by default. */
+  navVoiceRate?: SpeechRate;
   /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
   navCameraAlerts: boolean;
   /**

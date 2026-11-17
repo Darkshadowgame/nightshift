@@ -57,6 +57,45 @@ export interface SpeakOptions {
   rate?: number;
   /** True: stay quiet with the ring/silent switch on silent. False (default): speak anyway, ducking music. */
   respectSilentSwitch?: boolean;
+  /** An installed voice's identifier (from voices()). Unset or gone: the best installed en-GB voice. Ignored by older builds. */
+  voice?: string | null;
+}
+
+export type VoiceQuality = 'default' | 'enhanced' | 'premium';
+
+/** An installed English voice. */
+export interface Voice {
+  identifier: string;
+  /** e.g. "Daniel". */
+  name: string;
+  /** BCP 47, e.g. "en-GB". */
+  language: string;
+  quality: VoiceQuality;
+}
+
+/** A "Where to?" suggestion from Apple's autocomplete. Resolve it to get its position. */
+export interface PlaceSuggestion {
+  id: string;
+  /** e.g. "Tesco Extra" or "12 High Street". */
+  title: string;
+  /** e.g. "Ventura Park Road, Tamworth, England". */
+  subtitle: string;
+}
+
+/** A resolved suggestion: its position and address parts (any may be empty). */
+export interface ResolvedPlace {
+  lat: number;
+  lng: number;
+  name: string;
+  street: string;
+  streetNumber: string;
+  district: string;
+  city: string;
+  subregion: string;
+  region: string;
+  postalCode: string;
+  isoCountryCode: string;
+  country: string;
 }
 
 interface Subscription {
@@ -65,7 +104,12 @@ interface Subscription {
 
 interface Native {
   route(points: RoutePoint[], concurrency: number, maxAttempts: number): Promise<RawRoute>;
-  speak(text: string, language: string, rate: number, respectSilentSwitch: boolean): Promise<boolean>;
+  /** Builds before 11 take four arguments: no voice. */
+  speak(text: string, language: string, rate: number, respectSilentSwitch: boolean, voice?: string | null): Promise<boolean>;
+  /** Build 11 on. */
+  voices?(): Promise<Voice[]>;
+  searchPlaces?(query: string, near: RoutePoint | null): Promise<PlaceSuggestion[]>;
+  resolvePlace?(id: string): Promise<ResolvedPlace>;
   stopSpeaking(): Promise<boolean>;
   chime(): boolean;
   addListener?(event: 'onRouteProgress', fn: (e: { done: number; total: number }) => void): Subscription;
@@ -75,6 +119,12 @@ interface Native {
 const native = requireOptionalNativeModule<Native>('NavDirections');
 
 export const navDirectionsAvailable = native != null;
+
+/** The voice picker needs build 11 or later (older builds have no voices()). */
+export const voicePickerAvailable = typeof native?.voices === 'function';
+
+/** Apple's place autocomplete needs build 11 or later; before that "Where to?" uses the geocoder. */
+export const placeSearchAvailable = typeof native?.searchPlaces === 'function' && typeof native?.resolvePlace === 'function';
 
 /** Driving directions through the points in order. Null when the module isn't in this build. */
 export async function route(points: RoutePoint[], options: RouteOptions = {}): Promise<RawRoute | null> {
@@ -100,7 +150,13 @@ export async function route(points: RoutePoint[], options: RouteOptions = {}): P
 export async function speak(text: string, options: SpeakOptions = {}): Promise<boolean> {
   if (!native) return false;
   try {
-    return await native.speak(text, options.language ?? 'en-GB', options.rate ?? 0.5, options.respectSilentSwitch ?? false);
+    const language = options.language ?? 'en-GB';
+    const rate = options.rate ?? 0.5;
+    const quiet = options.respectSilentSwitch ?? false;
+    // Older builds' speak() takes exactly four arguments: a fifth would be refused.
+    return voicePickerAvailable
+      ? await native.speak(text, language, rate, quiet, options.voice || null)
+      : await native.speak(text, language, rate, quiet);
   } catch {
     return false;
   }
@@ -118,4 +174,31 @@ export function chime(): void {
   } catch {
     // A missing sound should never break the driving view.
   }
+}
+
+/** Installed English voices. Empty on older builds, the web, or if the list can't be read. */
+export async function voices(): Promise<Voice[]> {
+  if (!native?.voices) return [];
+  try {
+    const list = await native.voices();
+    return Array.isArray(list) ? list.filter((v) => v && typeof v.identifier === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Apple's live suggestions for what's typed (addresses, shops, businesses), biased to
+ * `near` (else the UK). Null when this build doesn't have it (use the geocoder instead).
+ * A newer search answers an older one with an empty list. Throws when the lookup failed.
+ */
+export async function searchPlaces(query: string, near?: RoutePoint | null): Promise<PlaceSuggestion[] | null> {
+  if (!native?.searchPlaces || !placeSearchAvailable) return null;
+  return native.searchPlaces(query, near ? { lat: near.lat, lng: near.lng } : null);
+}
+
+/** A suggestion's position and address. Null on builds without it. Throws if it can't be found. */
+export async function resolvePlace(id: string): Promise<ResolvedPlace | null> {
+  if (!native?.resolvePlace) return null;
+  return native.resolvePlace(id);
 }
