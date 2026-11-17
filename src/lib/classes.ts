@@ -74,3 +74,9 @@ export function classUp(before: ClassLetter | null, after: ClassLetter): { from:
   if (!before || classRank(after) <= classRank(before)) return null;
   return { from: before, to: after };
 }
+
+/** Plain bhp per tonne (effective bhp over the stated weight), for the build readouts. */
+export function bhpPerTonne(build: Pick<Build, 'stockBhp' | 'dynoBhp' | 'mods' | 'weightKg'>): number {
+  if (!build.weightKg || build.weightKg <= 0) return 0;
+  return Math.round((effectivePower(build) / build.weightKg) * 1000);
+}

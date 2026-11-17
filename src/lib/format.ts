@@ -32,3 +32,8 @@ export function formatRelative(iso: string, now: Date): string {
 export function formatTime(iso: string): string {
   return hhmm(new Date(iso));
 }
+
+/** "1 build", "2 builds", "0 trophies" (pass the plural when it isn't just +s). */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+}

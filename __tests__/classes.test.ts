@@ -66,3 +66,12 @@ describe('classes', () => {
     expect(isModified({ mods: m(3) })).toBe(true);
   });
 });
+
+describe('bhp per tonne', () => {
+  const { bhpPerTonne } = require('../src/lib/classes') as typeof import('../src/lib/classes');
+  test('effective bhp over weight, and 0 with no weight', () => {
+    expect(bhpPerTonne({ stockBhp: 300, mods: [], weightKg: 1500 })).toBe(200);
+    expect(bhpPerTonne({ stockBhp: 300, dynoBhp: 450, mods: [], weightKg: 1500 })).toBe(300);
+    expect(bhpPerTonne({ stockBhp: 300, mods: [], weightKg: 0 })).toBe(0);
+  });
+});
