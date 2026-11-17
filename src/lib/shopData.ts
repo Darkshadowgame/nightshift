@@ -17,10 +17,21 @@ let loading: Promise<ShopIndex> | null = null;
 
 async function readAsset(): Promise<ShopDataset> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const uri = Image.resolveAssetSource(require('../../assets/data/shops.nsdata'))?.uri;
+  const mod: unknown = require('../../assets/data/shops.nsdata');
+  // On the phone the asset is a registered number; on the web it's already its URL.
+  const uri = typeof mod === 'string' ? mod : Image.resolveAssetSource(mod as number)?.uri;
   if (!uri) throw new Error('Shop data asset not found');
   // Installed or updated app: a file on the phone. Web and development: served over http.
-  const text = uri.startsWith('file:') && Platform.OS !== 'web' ? await new File(uri).text() : await (await fetch(uri)).text();
+  let text: string;
+  if (uri.startsWith('file:') && Platform.OS !== 'web') {
+    try {
+      text = await new File(uri).text();
+    } catch {
+      text = await (await fetch(uri)).text(); // iOS fetch reads file:// URLs too
+    }
+  } else {
+    text = await (await fetch(uri)).text();
+  }
   return JSON.parse(text) as ShopDataset;
 }
 
