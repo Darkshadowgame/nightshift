@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * UK everyday cars (the common, non-performance versions people start modding): stock specs for the vehicle picker.
- * Dataset 2026-11-17.3 (batch 3). Kept apart from vehicles.cars.ts (hot hatches, JDM, classics, vans, EVs) so each
+ * Dataset 2026-11-17.4 (batch 4: no changes here; batch 3). Kept apart from vehicles.cars.ts (hot hatches, JDM, classics, vans, EVs) so each
  * source file stays small; a model can appear in both files (e.g. Fiesta here, Fiesta ST and some Fiesta lines there).
  *
  * Format (parsed by src/lib/vehicles.ts): "@Make", "=Model", then

@@ -1,6 +1,6 @@
 /* eslint-disable */
 /**
- * UK cars and vans: stock specs for the vehicle picker. Dataset 2026-11-17.3 (batch 3: EV type, JDM kg·m torque, gaps, EVs; everyday cars are in vehicles.everyday.ts; earlier: batch 2: JDM, modern classics, vans, EVs, more bikes, donors, tuner stages).
+ * UK cars and vans: stock specs for the vehicle picker. Dataset 2026-11-17.4 (batch 4; batch 3: EV type, JDM kg·m torque, gaps, EVs; everyday cars are in vehicles.everyday.ts; earlier: batch 2: JDM, modern classics, vans, EVs, more bikes, donors, tuner stages).
  *
  * Format (parsed by src/lib/vehicles.ts): "@Make", "=Model", then
  * "gen|engine|years|power|weight|torque|asp[|stages]". Power is as the maker quotes it:
@@ -10,6 +10,13 @@
  * a tuner's stage for that exact variant. "@@ENGINES": make|code|label|power|torque|asp swap donors.
  *
  * Notes:
+ *  - Batch 4 (2026-11-17.4): JDM/kei imports (S660, Cappuccino, AZ-1, Evo I/II), NSX, Swift Sport, Jimny, BMW 130i/135i/Z3 M/Z4 M40i/i8/E30 M3 Sport Evo,
+ *    Audi RS2/R8, Polo R WRC, 911 964/993/992 Turbo S, AMG GT S, VX220, Twingo RS, Sport Spider, Fiat Coupe, track/kit cars (Ariel Atom 4/Nomad,
+ *    Caterham R500, Morgan Plus Four/Six, Lotus Emira/Exige S1) and EVs (Leaf, Kona Electric, Honda e, A290, Abarth 500e, Cyberster). Figures are the
+ *    makers' widely published claims; variants whose kerb weight or power could not be pinned down were left out (e.g. Tesla, whose power is not
+ *    officially quoted; Westfield; VXR8; Mondeo ST). New donor engines: more K-series, 1JZ/2JZ/UZ/2GR, RB, LS/LT truck and supercharged V8s, Coyote
+ *    generations and Ford's 5.2/7.3, EA888 Gen1/3/4, Audi 5-cyl 3B/ABY/ADU, BMW S14/S54 CSL/S55/S62/S85/N20/N52/M54, Evo III/V 4G63, EJ257 US.
+ *    Bike engines already show in car swap searches (bike-engined cars), so they are not repeated as car engines.
  *  - Batch 3: fully electric lines use asp e (was h); h is kept for full, mild and plug-in hybrids. EV tune "stages" in the app are the maker's
  *    own paid power unlock (stage 1, only where a maker figure is published) and then chassis work, with no assumed power gain.
  *  - Batch 3: JDM catalogue torque in kg·m is written with the k suffix (e.g. 37k) and converted x7.233 to lb-ft by the parser.
@@ -2509,6 +2516,123 @@ MY24 Standard range Single motor|Single-motor electric 70 kWh|2023-|272p|1949|49
 MY24 Long range Single motor|Single-motor electric 82 kWh|2023-|299p|2009|490n|e
 MY24 Long range Dual motor|Dual-motor electric 82 kWh|2023-|421p|2108|740n|e|1:350k
 MY24 Long range Dual motor Performance pack|Dual-motor electric 82 kWh|2023-|476p|2105|740n|e
+# Batch 4 (2026-11-17.4)
+@Honda
+=NSX
+NA1 UK|3.0 V6 VTEC C30A|1990-1997|274b|1365|284n|n
+NC1|3.5 V6 twin-turbo hybrid|2016-2022|581p|1776|646n|h
+=S660
+JW5 JDM|0.66 turbo S07A|2015-2022|64p|830|104n|t
+=e
+|Single-motor electric 35.5 kWh|2020-2024|136p|1514|315n|e
+Advance|Single-motor electric 35.5 kWh|2020-2024|154p|1543|315n|e
+@Toyota
+=Yaris GRMN
+XP130|1.8 supercharged 2ZR-FE|2018|212p|1135|250n|s
+@Suzuki
+=Swift Sport
+ZC32S|1.6 M16A|2012-2017|136p|1045|160n|n
+ZC33S|1.4 Boosterjet turbo|2018-2020|140p|975|230n|t
+ZC33S Hybrid|1.4 Boosterjet turbo mild hybrid|2020-2024|129p|1020|235n|h
+=Cappuccino
+EA11R JDM|0.66 turbo F6A|1991-1995|64p|700|85n|t
+=Jimny
+JB74|1.5 K15B|2018-|102p|1090|130n|n
+@Mazda
+=Autozam AZ-1
+PG6SA JDM|0.66 turbo F6A|1992-1995|64p|720|85n|t
+@Mitsubishi
+=Lancer Evolution
+Evo I JDM|2.0 turbo 4G63|1992-1993|250p|1240|309n|t
+Evo II JDM|2.0 turbo 4G63|1994-1995|260p|1250|309n|t
+@Nissan
+=Leaf
+ZE1|Single-motor electric 40 kWh|2018-2024|150p|1580|320n|e
+ZE1 e+|Single-motor electric 62 kWh|2019-2024|217p|1731|340n|e
+@Hyundai
+=Kona Electric
+Mk1|Single-motor electric 39.2 kWh|2018-2023|136p|1535|395n|e
+Mk1|Single-motor electric 64 kWh|2018-2023|204p|1685|395n|e
+@BMW
+=130i
+E87|3.0 N52|2005-2011|265p|1450|315n|n
+=135i
+E82 Coupe|3.0 twin-turbo N54|2007-2010|306p|1560|400n|t
+E82 Coupe LCI|3.0 turbo N55|2010-2013|306p|1560|400n|t
+=M3
+E30 Sport Evolution|2.5 S14B25|1990|238p|1200|240n|n
+=Z3 M
+E36/7 Roadster|3.2 S50B32|1997-2000|321p|1350|350n|n
+=Z4
+G29 M40i|3.0 turbo B58|2019-|340p|1535|500n|t
+=i8
+I12|1.5 turbo three-cyl plug-in hybrid|2014-2017|362p|1485|570n|h
+@Audi
+=RS2
+P1 Avant|2.2 5-cyl turbo ADU|1994-1995|315p|1595|410n|t
+=R8
+Mk1 V8|4.2 FSI V8|2007-2015|420p|1560|430n|n
+Mk1 V10|5.2 FSI V10|2009-2015|525p|1620|530n|n
+@Volkswagen
+=Polo R WRC
+6R|2.0 TSI|2013-2014|220p|1234|350n|t
+@Porsche
+=911
+964 Carrera 2|3.6 flat-six|1989-1993|250p|1350|310n|n
+993 Carrera|3.6 flat-six|1994-1995|272p|1370|330n|n
+993 Carrera Varioram|3.6 flat-six|1996-1998|285p|1370|340n|n
+993 Turbo|3.6 flat-six twin-turbo|1995-1998|408p|1500|540n|t
+992.1 Turbo S|3.7 flat-six twin-turbo|2020-2024|650p|1640|800n|t
+@Mercedes
+=AMG GT
+C190 GT S|4.0 V8 biturbo M178|2015-2017|510p|1570|650n|t
+@Vauxhall
+=VX220
+|2.2 16v Z22SE|2000-2005|147p|875|203n|n
+Turbo|2.0 16v turbo Z20LET|2003-2005|200p|930|250n|t
+@Renault
+=Twingo RS
+Mk2|1.6 16v K4M|2008-2013|133p|1050|160n|n
+=Sport Spider
+|2.0 16v F7R|1996-1999|150p|930|185n|n
+@Alpine
+=A290
+GTS|Single-motor electric 52 kWh|2024-|220p|1479|300n|e
+GT|Single-motor electric 52 kWh|2024-|180p|1479|285n|e
+@Abarth
+=500e
+|Single-motor electric 42 kWh|2023-|155p|1410|235n|e
+=124 Spider
+|1.4 MultiAir turbo|2016-2019|170p|1060|250n|t
+@Peugeot
+=205 Rallye
+|1.3 8v|1988-1992|103p|794||n
+@Fiat
+=Coupe
+20v Turbo|2.0 20v 5-cyl turbo|1996-2000|220p|1320|310n|t
+@Lotus
+=Emira
+V6|3.5 V6 supercharged|2022-|405p|1405|420n|s
+i4|2.0 turbo AMG M139|2023-|365p|1446|430n|t
+=Exige
+S1|1.8 Rover K-series VHPD|2000-2001|177b|780|172n|n
+@Ariel
+=Atom
+4|2.0 VTEC Turbo K20C1|2018-|320b|595|420n|t
+=Nomad
+|2.4 i-VTEC K24|2016-2023|235b|670|300n|n
+@Morgan
+=Plus Four
+CX|2.0 turbo B48|2020-|258p|1013d|350n|t
+=Plus Six
+CX|3.0 turbo B58|2019-|340p|1075d|500n|t
+@Caterham
+=Seven
+R500|2.0 Ford Duratec|2008-2014|263b|506d|177l|n
+@MG
+=Cyberster
+GT|Dual-motor electric 77 kWh|2024-|510p|1985|725n|e
+Trophy|Single-motor electric 77 kWh|2024-|340p|1885|475n|e
 @@ENGINES
 Volkswagen|AGU|1.8T 20v (Golf GTI Mk4)|150p|210n|t
 Volkswagen|AUQ|1.8T 20v (Golf GTI Mk4 25th Anniversary)|180p|235n|t
@@ -2668,4 +2792,58 @@ Mitsubishi|4G63T Evo VII|2.0 turbo (Lancer Evo VII JDM)|280p|383n|t
 Mitsubishi|4G63T Evo VIII MR|2.0 turbo MIVEC (Lancer Evo VIII MR GSR JDM)|280p|400n|t
 Mitsubishi|4G63T FQ-400|2.0 turbo (Lancer Evo VIII FQ-400 UK)|411p|481n|t
 Mitsubishi|4G63T FQ-360|2.0 turbo MIVEC (Lancer Evo IX FQ-360 UK)|371p|492n|t
+Honda|K20A FD2|2.0 i-VTEC (Civic Type R FD2 JDM)|225p|215n|n
+Honda|K20A3|2.0 i-VTEC (Acura RSX base US 2002-04)|160b|141l|n
+Honda|K20C1 FL5|2.0 VTEC Turbo (Civic Type R FL5)|329p|420n|t
+Honda|K24A1|2.4 i-VTEC (CR-V US 2002-06)|160b|162l|n
+Honda|K24Z3|2.4 i-VTEC (Accord EX US 2008-12)|190b|162l|n
+Honda|K24W1|2.4 i-VTEC direct injection (Accord Sport US 2013-17)|189b|182l|n
+Toyota|2JZ-GTE US|3.0 twin-turbo (Supra Mk4 US 1993-98)|320b|315l|t
+Toyota|2JZ-GE VVT-i|3.0 VVT-i (Lexus IS300 US 2001-05)|215b|218l|n
+Toyota|1JZ-GE VVT-i|2.5 straight-six VVT-i (Mark II / Chaser JDM 1996+)|200p|255n|n
+Toyota|1UZ-FE|4.0 V8 (Lexus LS400 US 1990-94)|250b|260l|n
+Toyota|3UZ-FE|4.3 V8 VVT-i (Lexus LS430 US 2001-06)|290b|320l|n
+Toyota|2GR-FE|3.5 V6 (Camry XV40 US 2007)|268b|248l|n
+Nissan|RB26DETT R32|2.6 twin-turbo straight-six (Skyline R32 GT-R JDM)|280p|353n|t
+Nissan|RB25DE|2.5 straight-six (Skyline R32 GTS25 JDM)|180p|23k|n
+Nissan|RB20DE|2.0 straight-six (Skyline R32 GTS JDM)|155p|18.8k|n
+Nissan|KA24DE|2.4 16v (240SX S14 US 1995-98)|155b|160l|n
+GM|LS6|5.7 V8 (Chevrolet Corvette C5 Z06 2002-04, US rating)|405b|400l|n
+GM|LM7|5.3 V8 truck (Chevrolet Silverado 2002, US rating)|285b|325l|n
+GM|LQ4|6.0 V8 truck (Chevrolet Silverado HD 2001, US rating)|300b|360l|n
+GM|LQ9|6.0 V8 truck (Cadillac Escalade 2002, US rating)|345b|380l|n
+GM|L83|5.3 V8 truck (Chevrolet Silverado 2014, US rating)|355b|383l|n
+GM|LSA|6.2 V8 supercharged (Cadillac CTS-V 2009-15, US rating)|556b|551l|s
+GM|LS9|6.2 V8 supercharged (Chevrolet Corvette C6 ZR1, US rating)|638b|604l|s
+GM|LT2|6.2 V8 (Chevrolet Corvette C8 Z51, US rating)|495b|470l|n
+Ford|Coyote Gen1|5.0 V8 Ti-VCT (Mustang GT US 2011-12)|412b|390l|n
+Ford|Coyote Gen2|5.0 V8 Ti-VCT (Mustang GT US 2015-17)|435b|400l|n
+Ford|Coyote Gen3|5.0 V8 Ti-VCT (Mustang GT US 2018-20)|460b|420l|n
+Ford|Voodoo 5.2|5.2 V8 flat-plane (Shelby GT350 US)|526b|429l|n
+Ford|Predator 5.2|5.2 V8 supercharged (Shelby GT500 US 2020)|760b|625l|s
+Ford|Godzilla 7.3|7.3 V8 pushrod (Super Duty US 2020)|430b|475l|n
+Ford|Duratec V6 2.5 ST200|2.5 V6 24v (Mondeo ST200)|205p|235n|n
+Ford|Duratec V6 3.0 ST220|3.0 V6 24v (Mondeo ST220)|226p|280n|n
+Volkswagen|CAWB|2.0 TFSI EA888 Gen1 (Audi A3 8P / A4 B8 2.0 TFSI 200)|200p|280n|t
+Volkswagen|CHHB|2.0 TSI EA888 Gen3 (Golf GTI Performance Mk7)|230p|350n|t
+Volkswagen|EA888 Gen4 GTI|2.0 TSI EA888 Gen4 (Golf GTI Mk8)|245p|370n|t
+Volkswagen|EA888 Gen4 333|2.0 TSI EA888 Gen4 (Golf R Mk8.5)|333p|420n|t
+Audi|DNWA|2.5 TFSI 5-cyl (RS3 8Y)|400p|500n|t
+Audi|3B|2.2 20v 5-cyl turbo (S2 coupe 1991-92)|220p|309n|t
+Audi|ABY|2.2 20v 5-cyl turbo (S2 1993-95)|230p|350n|t
+Audi|ADU|2.2 20v 5-cyl turbo (RS2 Avant)|315p|410n|t
+BMW|B58 Supra|3.0 turbo straight-six (GR Supra A90 2020+)|340p|500n|t
+BMW|S58 M2|3.0 twin-turbo straight-six (M2 G87 2023)|460p|550n|t
+BMW|S55|3.0 twin-turbo straight-six (M3 F80 / M4 F82)|431p|550n|t
+BMW|S54 CSL|3.2 straight-six (M3 E46 CSL)|360p|370n|n
+BMW|S14|2.3 16v four (M3 E30, cat)|195p|230n|n
+BMW|S62|5.0 V8 (M5 E39)|400p|500n|n
+BMW|S85|5.0 V10 (M5 E60)|507p|520n|n
+BMW|N52B30|3.0 straight-six (130i E87)|265p|315n|n
+BMW|M54B30|3.0 straight-six (330i E46)|231p|300n|n
+BMW|N20|2.0 turbo four (328i F30)|245p|350n|t
+Mitsubishi|4G63T Evo III|2.0 turbo (Lancer Evo III JDM)|270p|309n|t
+Mitsubishi|4G63T Evo V|2.0 turbo (Lancer Evo V JDM)|280p|373n|t
+Subaru|EJ257 US|2.5 turbo (Impreza WRX STI US 2004)|300b|300l|t
+Suzuki|K15B|1.5 16v (Jimny JB74)|102p|130n|n
 `;

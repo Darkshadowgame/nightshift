@@ -4,7 +4,7 @@ import { CAR_DATA } from './vehicles.cars';
 import { CAR_EVERYDAY_DATA } from './vehicles.everyday';
 
 /** Bump when the data changes. Shown in the picker footer. */
-export const VEHICLES_VERSION = '2026-11-17.3';
+export const VEHICLES_VERSION = '2026-11-17.4';
 
 let variants: Variant[] | null = null;
 let engines: DonorEngine[] | null = null;

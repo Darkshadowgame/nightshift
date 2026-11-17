@@ -81,6 +81,38 @@ describe('vehicle dataset', () => {
     const polestar = cars.find((v) => v.make === 'Polestar' && /Long Range Dual Motor/.test(v.gen))!;
     expect(polestar).toMatchObject({ asp: 'e', stages: { stage1: 469 } });
   });
+  test('batch 4 coverage: UK scene bikes, JDM/track/EV cars, swap engine families', () => {
+    for (const q of ['gsx-r1100', 'b-king', 'gsx-s950', 'gsx-8r', 'katana 2019', 'gpz900r', 'zx-7r', 'z1000sx', 'z h2', 'cbr400rr nc29',
+      'vfr400r', 'fzr1000', 'thunderace', 'yzf-r9', 'monkey 125', 'speed 400', 'rocket 3', 'supersport 950', 'rc8 r', 'm1000r', 'r1200gs lc', 'g310r']) {
+      expect([q, searchVariants(variants, 'bike', q).length > 0]).toEqual([q, true]);
+    }
+    for (const q of ['nsx nc1', 's660', 'swift sport zc33s', 'cappuccino', 'az-1', 'evo i jdm', 'leaf e+', 'kona electric', '130i', '135i e82',
+      'm3 sport evolution', 'z3 m', 'i8', 'rs2', 'r8 v10', 'polo r wrc', '911 993 turbo', 'amg gt s', 'vx220 turbo', 'twingo rs', 'a290',
+      'abarth 500e', '124 spider', 'emira', 'atom 4', 'nomad', 'plus six', 'seven r500', 'cyberster']) {
+      expect([q, searchVariants(variants, 'car', q).length > 0]).toEqual([q, true]);
+    }
+    for (const q of ['k20c1 fl5', 'k24a1', '1jz-ge', '1uz', 'rb26dett r32', 'ls6', 'lsa', 'l83', 'coyote gen3', 'godzilla', 'ea888 gen4 gti',
+      'ea888 gen1', 'b58 supra', 's55', 's54 csl', 's85', '4g63t evo iii', 'ej257 us', 'duratec v6 3.0', 'adu']) {
+      expect([q, searchDonors(engines, variants, 'car', q).some((d) => d.id.startsWith('engine:'))]).toEqual([q, true]);
+    }
+  });
+  test('search edge cases from batch 4', () => {
+    // A one-letter model ("Honda e") is still found, and both trims come back.
+    expect(searchVariants(variants, 'car', 'honda e').filter((v) => v.make === 'Honda' && v.model === 'e')).toHaveLength(2);
+    // "Z H2" (the supercharged naked) and "H2" are separate models; "z h2" ranks the naked first.
+    expect(searchVariants(variants, 'bike', 'z h2')[0]).toMatchObject({ model: 'Z H2', asp: 's' });
+    // Bike engines are offered for bike-engined cars (a car chassis), after the car engines.
+    const busa = searchDonors(engines, variants, 'car', 'hayabusa');
+    expect(busa.some((d) => d.kind === 'bike' && d.id.startsWith('engine:'))).toBe(true);
+    // A model split across two make blocks (Lancer Evolution, Seven, M3) keeps one family in the picker.
+    for (const [make, model] of [['Mitsubishi', 'Lancer Evolution'], ['Caterham', 'Seven'], ['BMW', 'M3']]) {
+      const fams = [...new Set(cars.filter((v) => v.make === make).map((v) => v.model))];
+      expect(fams.filter((f) => f === model)).toHaveLength(1);
+      expect(cars.filter((v) => v.make === make && v.model === model).length).toBeGreaterThan(1);
+    }
+    // Same chassis, two batteries: distinct ids, both listed.
+    expect(cars.filter((v) => v.make === 'Hyundai' && v.model === 'Kona Electric').map((v) => v.bhp).sort()).toEqual([134, 201]);
+  });
   test('EVs are marked e and hybrids h, never as a combustion engine', () => {
     for (const v of variants.filter((x) => /electric|kwh/i.test(x.engine) && !/hybrid|phev/i.test(x.engine))) {
       expect([v.id, v.asp]).toEqual([v.id, 'e']);

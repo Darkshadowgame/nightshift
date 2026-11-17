@@ -1,6 +1,6 @@
 /* eslint-disable */
 /**
- * UK motorbikes: stock specs for the vehicle picker. Dataset 2026-11-17.3 (batch 3: bike tuner stages, gaps, learner/A2 bikes, scooters, supermotos and adventure bikes; earlier: batch 2: 125/A2 bikes, more nakeds, sports and tourers, bike donor engines).
+ * UK motorbikes: stock specs for the vehicle picker. Dataset 2026-11-17.4 (batch 4; batch 3: bike tuner stages, gaps, learner/A2 bikes, scooters, supermotos and adventure bikes; earlier: batch 2: 125/A2 bikes, more nakeds, sports and tourers, bike donor engines).
  *
  * Format (parsed by src/lib/vehicles.ts): "@Make", "=Model", then
  * "gen|engine|years|power|weight|torque|asp[|stages]". Power is as the maker quotes it:
@@ -10,6 +10,12 @@
  * a tuner's stage for that exact variant. "@@ENGINES": make|code|label|power|torque|asp swap donors.
  *
  * Notes:
+ *  - Batch 4 (2026-11-17.4): GSX-R1100 (all three), B-King, GSX-S1000F/GT/GX, GSX-S950, GSX-8R, GSR600/750, GSX1250FA, 2019 Katana; FZR600/1000,
+ *    Thunderace, FZ8, MT-01, R9, XSR900 GP, Tracer 7; CBR600F2, CB650F, grey-import 400s (CBR400RR NC29, VFR400R NC30, RVF400 NC35), Monkey/Dax 125;
+ *    Z1, GPZ900R, ZX-7R, ZZR600/1100, Z1000SX/Ninja 1000SX, Z800, Z650RS, Z H2; Speed Triple 1200 RR, Speed 400, Scrambler 400 X, Rocket 3 R;
+ *    SuperSport 939/950; 890 Duke, RC8 R; M1000R, HP4, R1200GS (three gens), K1600GT, G310R/GS, F800R; Royal Enfield Classic 350, Guerrilla 450.
+ *    Makers' claimed figures. No tuner figures were added for these: their stages use the app's typical bike gains (can, full system, map, big bore,
+ *    forced induction; 'bike-s' table for the supercharged Z H2). Variants with unclear figures (ZX-6R 636 B, Bandit 1250S, old Katanas) were left out.
  *  - Power as quoted by maker/UK press (p=PS, b=bhp, k=kW). Weight = wet/kerb unless "d" (dry only).
  *  - Kawasaki power figures are without ram air. KTM "d" weights are KTM's "without fuel" figures.
  *  - Units and figures are claimed crank figures, not dyno.
@@ -1736,6 +1742,129 @@ hpe 2019-2022|278cc single|2019-2022|17.5k|148d|26n|n
 |125cc single|2023-|7.3k|137|8.6n|n
 =ZSB 125
 Euro 5+|125cc single|2024-|8.6k|125|9.6n|n
+# Batch 4 (2026-11-17.4)
+@Yamaha
+=FZR1000
+EXUP|1002cc inline-4 EXUP|1989-1995|145p|209d|108n|n
+=FZR600
+|599cc inline-4|1989-1993|91p|179d||n
+=YZF1000R Thunderace
+|1002cc inline-4|1996-2003|145p|198d|108n|n
+=FZ8
+N|779cc inline-4|2010-2016|106p|211|82n|n
+=MT-01
+|1670cc V-twin|2005-2011|90p|240d|150n|n
+=YZF-R9
+|890cc CP3|2025-|117p|195|93n|n
+=XSR900 GP
+|890cc CP3|2024-|87.5k|200|93n|n
+=Tracer 7
+|689cc CP2|2020-|54k|196|67n|n
+@Honda
+=CBR600F
+F2|599cc inline-4|1991-1994|100p|185d||n
+=CBR400RR
+NC29 (grey import)|399cc inline-4|1990-1999|59p|162d|39n|n
+=VFR400R
+NC30 (grey import)|399cc V4|1989-1992|59p|164d||n
+=RVF400
+NC35|399cc V4|1994-1996|59p|165d||n
+=CB650F
+|649cc inline-4|2014-2016|87p|208|63n|n
+|649cc inline-4|2017-2018|91p|206|64n|n
+=Monkey 125
+2018-2021|125cc single|2018-2021|6.9k|107|11n|n
+2022-|125cc single 5-speed|2022-|6.9k|104|11.2n|n
+=Dax 125
+|125cc single|2022-|6.9k|107|11n|n
+@Kawasaki
+=Z1
+|903cc air-cooled inline-4|1972-1975|82p|230d|73.5n|n
+=GPZ900R
+|908cc inline-4|1984-2003|115p|228d|85n|n
+=ZX-7R
+|748cc inline-4|1996-2003|122p|203d||n
+=ZZR600
+|599cc inline-4|1990-2006|100p|195d||n
+=ZZR1100
+D|1052cc inline-4|1993-2001|147p|233d|110n|n
+=Z1000SX
+|1043cc inline-4|2011-2013|138p|228|110n|n
+|1043cc inline-4|2014-2019|142p|231|111n|n
+=Ninja 1000SX
+|1043cc inline-4|2020-|142p|235|111n|n
+=Z800
+|806cc inline-4|2013-2016|113p|229|83n|n
+=Z650RS
+|649cc parallel twin|2022-|68p|187|64n|n
+=Z H2
+|998cc supercharged inline-4|2020-|200p|239|137n|s
+@Suzuki
+=GSX-R1100
+Slabside|1052cc oil-cooled inline-4|1986-1988|130p|197d|101n|n
+Oil-cooled 1127|1127cc oil-cooled inline-4|1989-1992|138p|210d|112n|n
+Water-cooled W|1074cc liquid-cooled inline-4|1993-1998|155p|231d|115n|n
+=GSX1300BK B-King
+|1340cc inline-4|2008-2012|184p|235d|146n|n
+=GSX-S1000F
+|999cc inline-4|2015-2020|107k|214|106n|n
+=GSX-S1000GT
+|999cc inline-4|2022-|112k|226|106n|n
+=GSX-S1000GX
+|999cc inline-4|2024-|112k|232|106n|n
+=GSX-S950
+|999cc inline-4 (A2-ready)|2021-|70k|214|92n|n
+=GSX-8R
+|776cc parallel twin|2024-|83p|205|78n|n
+=GSR750
+|749cc inline-4|2011-2016|106p|210|80n|n
+=GSR600
+|599cc inline-4|2006-2011|98p|183d|65n|n
+=GSX1250FA
+|1255cc inline-4|2010-2016|98p|257|108n|n
+=Katana
+2019-|999cc inline-4|2019-|110k|215|108n|n
+@Triumph
+=Speed Triple
+1200 RR|1160cc triple|2022-|180p|199|125n|n
+=Speed 400
+|398cc single|2024-|40p|170|37.5n|n
+=Scrambler 400 X
+|398cc single|2024-|40p|179|37.5n|n
+=Rocket 3
+R|2458cc triple|2020-|167p|291d|221n|n
+@Ducati
+=SuperSport 939
+|937cc Testastretta V-twin|2017-2020|113p|210|96.7n|n
+=SuperSport 950
+|937cc Testastretta V-twin|2021-|110p|210|93n|n
+@KTM
+=890 Duke
+|889cc LC8c parallel twin|2021-|115p|169d|92n|n
+=RC8
+R|1195cc V-twin|2011-2015|175p|184d|127n|n
+@BMW
+=M1000R
+|999cc inline-4|2023-|210p|199|113n|n
+=HP4
+|999cc inline-4|2012-2014|193p|199|112n|n
+=R1200GS
+Air/oil-cooled|1170cc boxer twin|2004-2009|100p|225|115n|n
+DOHC|1170cc boxer twin|2010-2012|110p|229|120n|n
+LC|1170cc water-cooled boxer twin|2013-2018|125p|238|125n|n
+=K1600GT
+|1649cc inline-6|2011-2016|160p|319|175n|n
+=G310R
+|313cc single|2017-|34p|158.5|28n|n
+=G310GS
+|313cc single|2017-|34p|169.5|28n|n
+=F800R
+|798cc parallel twin|2009-2014|87p|199|86n|n
+@Royal Enfield
+=Classic 350
+|349cc single|2021-|20.2b|195|27n|n
+=Guerrilla 450
+|452cc single|2024-|40p|185|40n|n
 @@ENGINES
 Suzuki|GSX-R1000 K5|999cc inline-4 (GSX-R1000 K5/K6)|178p|118n|n
 Suzuki|GSX-R1100 oil-cooled|1052cc oil-cooled inline-4 (GSX-R1100 1986-88)|130p|101n|n
