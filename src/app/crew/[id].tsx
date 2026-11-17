@@ -10,6 +10,7 @@ import { crewEvents, crewHostLoss, crewless, crewRole, isCrewHost } from '../../
 import { viewEvent } from '../../lib/eventView';
 import { levelFor } from '../../lib/rep';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { C } from '../../theme';
 
 /** A crew: members, the events it hosts, combined rep, join or leave. */
@@ -17,7 +18,8 @@ export default function CrewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
   const store = useStore();
-  const { crews, users, builds, events, me, now } = store;
+  const { crews, users, builds, events, me } = store;
+  const now = useNow();
   const crew = crews.find((c) => c.id === id);
   const repFor = useRepFor();
   const [confirmLeave, setConfirmLeave] = useState(false);

@@ -4,11 +4,13 @@ import { EventForm } from '../../components/EventForm';
 import { Card, Txt } from '../../components/ui';
 import { canEditEvent, isHost } from '../../lib/events';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { C } from '../../theme';
 
 export default function EditEvent() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { events, editEvent, me, crews, now } = useStore();
+  const { events, editEvent, me, crews } = useStore();
+  const now = useNow();
   const event = events.find((e) => e.id === id);
   const allowed = !event
     ? { ok: false as const, reason: 'This event no longer exists.' }

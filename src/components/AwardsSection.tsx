@@ -7,6 +7,7 @@ import { endTime } from '../lib/events';
 import { feel } from '../lib/feel';
 import { formatRelative } from '../lib/format';
 import { useStore } from '../lib/store';
+import { useNow } from '../lib/clock';
 import type { NightEvent } from '../lib/types';
 import { C } from '../theme';
 import { Cover, Trophy } from './Cover';
@@ -16,7 +17,8 @@ import { UserLink } from './UserLink';
 
 /** Voting while it's open, then the trophies. */
 export function AwardsSection({ event }: { event: NightEvent }) {
-  const { builds, users, votes, me, now, vote } = useStore();
+  const { builds, users, votes, me, vote } = useStore();
+  const now = useNow();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   if (event.cancelled || now < new Date(event.startsAt)) return null;

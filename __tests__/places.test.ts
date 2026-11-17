@@ -1,3 +1,5 @@
+import { bundledSpots } from '../src/lib/placeStore';
+import { inZone } from '../src/lib/zones';
 import { PLACES, placeSpots, SYSTEM_AUTHOR } from '../src/data/places';
 import { BAN_ZONES } from '../src/data/seed';
 import { milesBetween } from '../src/lib/geo';
@@ -50,11 +52,13 @@ describe('bundled UK places', () => {
     }
   });
 
-  test('places inside a sample ban zone carry the warning', () => {
-    const spots = placeSpots('2026-01-01T00:00:00.000Z');
+  test('places inside a ban zone carry the warning, worked out from the current zones', () => {
+    const spots = bundledSpots();
     for (const s of spots) {
-      const inside = BAN_ZONES.find((z) => [s.at, ...(s.path ?? [])].some((p) => milesBetween(p, z.centre) <= z.radiusMiles));
-      expect(s.banZone).toBe(inside?.name);
+      const inside = BAN_ZONES.filter((z) => [s.at, ...(s.path ?? [])].some((p) => inZone(p, z)));
+      expect(new Set(s.banZoneIds ?? [])).toEqual(new Set(inside.map((z) => z.id)));
+      if (inside.length) expect(inside.map((z) => z.name)).toContain(s.banZone);
+      else expect(s.banZone).toBeUndefined();
     }
     expect(spots.some((s) => s.banZone === 'Westminster and Kensington')).toBe(true);
   });

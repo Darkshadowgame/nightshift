@@ -12,6 +12,7 @@ import { Card, Row, Section, Stat, StatBar, Txt } from '../../components/ui';
 import { MOD_CATEGORIES, modCategoryShort } from '../../data/catalog';
 import { bhpPerTonne, classOf, effectivePower, isModified, performanceFigure, powerBar } from '../../lib/classes';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { swapTag } from '../../lib/swap';
 import { stageFromMods, stageLabel } from '../../lib/tune';
 import { C } from '../../theme';
@@ -23,7 +24,8 @@ const SOUND = new Set(['exhaust', 'intake', 'turbo']);
 export default function BuildScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { builds, users, me, votes, events, now, saveBuild } = useStore();
+  const { builds, users, me, votes, events, saveBuild } = useStore();
+  const now = useNow();
   const b = builds.find((x) => x.id === id);
   const [photoError, setPhotoError] = useState<string | null>(null);
 

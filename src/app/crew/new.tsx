@@ -4,10 +4,12 @@ import { ScrollView, TextInput } from 'react-native';
 import { Button, Card, Section, Txt, s as ui } from '../../components/ui';
 import { crewHostLoss, crewProblem, normaliseTag } from '../../lib/crews';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { C } from '../../theme';
 
 export default function NewCrew() {
-  const { crews, users, me, createCrew, events, now } = useStore();
+  const { crews, users, me, createCrew, events } = useStore();
+  const now = useNow();
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [error, setError] = useState<string | null>(null);

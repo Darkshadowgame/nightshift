@@ -28,6 +28,7 @@ import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCa
 import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks';
 import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { shopIndex } from '../../lib/shopData';
 import { describeCategories, SHOP_CREDIT, shopPinSize, shopsForView, toggleCategory, type ShopFilter } from '../../lib/shops';
 import { ALL_CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, MENU_ORDER, shopFilterNote, type ShopCategory } from '../../lib/shopCategories';
@@ -68,7 +69,8 @@ const START_SPAN = 1.4;
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
-  const { events, me, crews, users, builds, now, spots, nearby, settings, setSettings } = store;
+  const { events, me, crews, users, builds, spots, nearby, settings, setSettings } = store;
+  const now = useNow();
   const newNear = nearby?.unseen.length ?? 0;
   const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
   const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras, shops: !!settings.shops };

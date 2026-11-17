@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { BAN_ZONES, DEMO_HOME, ME, sampleHomes, seed, seededStops, SEED_EVENT_IDS, type SeedState } from '../data/seed';
-import { placeSpots } from '../data/places';
-import { RETIRED_PLACE_IDS } from '../data/kartTracks';
+import { bundledSpots, isBundled, joinSpots, setProgress, splitSavedSpots, type ProgressMap } from './placeStore';
+import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SCHEMA_VERSION, SLICE_KEYS, sliceKey, splitState } from './persist';
+import { ClockProvider } from './clock';
 import { geocoderAvailable, nameForPlace, townForPlace } from './location';
 import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { castVote as applyVote, type AwardCategory } from './awards';
@@ -58,9 +59,14 @@ import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
  * store, so moving to Supabase later only replaces this file.
  */
 
-const KEY = 'nightshift.v1';
+/** How long to wait after a change before saving (the latest state wins; flushed when the app goes to the background). */
+const SAVE_DELAY_MS = 500;
 
 interface Persisted extends SeedState {
+  /** Saved shape (persist.ts). Missing on saves from before slices. */
+  schemaVersion?: number;
+  /** Bundled places: what people did there, by place id. `spots` only holds places people suggested. */
+  placeProgress: ProgressMap;
   settings: Settings;
   /** Notices for the current user, e.g. "the meet moved on". */
   notices: Notice[];
@@ -102,7 +108,6 @@ export interface Notice {
 interface Store extends Persisted {
   ready: boolean;
   me: string;
-  now: Date;
   saveBuild: (b: Build) => void;
   deleteBuild: (id: string) => void;
   saveEvent: (e: NightEvent) => void;
@@ -166,12 +171,18 @@ const Ctx = createContext<Store | null>(null);
 function fresh(): Persisted {
   const now = new Date();
   return {
-    ...seed(now), settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString(),
+    ...seed(now), schemaVersion: SCHEMA_VERSION, placeProgress: {}, settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString(),
     scene: { home: DEMO_HOME, names: {} }, realGpsDefault: true,
     // Nothing is known yet, so the sample events count as new near you once you've set up.
     nearby: { known: [], unseen: [] },
   };
 }
+
+/** Before the save has been read: nothing yet (screens wait for `ready`). Cheap, unlike fresh(). */
+const EMPTY: Persisted = {
+  users: [], builds: [], crews: [], events: [], chat: [], votes: [], spots: [], placeProgress: {},
+  settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, schemaVersion: SCHEMA_VERSION,
+};
 
 /** Keep the demo scene's times current (see demoTime.ts). Events made on the phone are left alone. */
 function freshen(state: Persisted, now: Date): Persisted {
@@ -216,6 +227,12 @@ function migrate(parsed: Persisted): Persisted {
   const base = fresh();
   // Real GPS is now the default: the old "simulate GPS" default goes off, once.
   let next: Persisted = { ...base, ...parsed, settings: upgradeSettings(parsed.settings, !!parsed.realGpsDefault), realGpsDefault: true };
+  // Saved before bundled places were read from the bundle: the save held a copy of every one.
+  // Keep only what people did there, and the places people suggested.
+  if (!parsed.placeProgress) {
+    const { own, progress } = splitSavedSpots(next.spots ?? [], ME);
+    next = { ...next, spots: own, placeProgress: progress };
+  }
   if (!parsed.spots) {
     // Saved before drives, photo spots and more crews arrived: add the new sample crews.
     const known = new Set(next.crews.map((c) => c.id));
@@ -261,6 +278,12 @@ function migrate(parsed: Persisted): Persisted {
       ...x,
       completions: x.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)),
     })),
+    placeProgress: Object.fromEntries(
+      Object.entries(next.placeProgress).map(([id, p]) => [
+        id,
+        { ...p, completions: p.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)) },
+      ]),
+    ),
   };
   // Sample events added since this save was made (e.g. the invite a few hours away).
   const have = new Set(next.events.map((e) => e.id));
@@ -276,15 +299,24 @@ function migrate(parsed: Persisted): Persisted {
     const home = next.users.find((u) => u.id === ME)?.home ?? DEMO_HOME;
     next = redrawScene({ ...next, spots: mine }, home, new Date());
   }
-  // Bundled places added since this save was made (e.g. the kart circuits): add them, untouched.
-  // Bundled places taken out again (a duplicate) go, unless someone has visited them.
-  next = { ...next, spots: next.spots.filter((x) => !RETIRED_PLACE_IDS.includes(x.id) || x.completions.length > 0) };
-  const knownSpots = new Set(next.spots.map((x) => x.id));
-  const newPlaces = placeSpots(new Date().toISOString()).filter((x) => !knownSpots.has(x.id));
-  if (newPlaces.length) next = { ...next, spots: [...next.spots, ...newPlaces] };
   // Saved before "new events near you": what's already there isn't new.
   if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };
-  return next;
+  return { ...next, schemaVersion: SCHEMA_VERSION };
+}
+
+/** On every load, however new the save: settings added since get their defaults. */
+function everyLoad(saved: Persisted): Persisted {
+  return { ...saved, settings: upgradeSettings(saved.settings, true) };
+}
+
+/** Every photo file the state refers to (builds, visits, suggested places), for Reset everything. */
+function allPhotos(s: Persisted): string[] {
+  const visits = (cs: { photo?: string }[]) => cs.flatMap((c) => (c.photo ? [c.photo] : []));
+  return [
+    ...s.builds.flatMap((b) => b.photos),
+    ...s.spots.flatMap((x) => [...(x.photo ? [x.photo] : []), ...visits(x.completions)]),
+    ...Object.values(s.placeProgress ?? {}).flatMap((p) => visits(p.completions)),
+  ];
 }
 
 export function newId(prefix: string): string {
@@ -292,49 +324,99 @@ export function newId(prefix: string): string {
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Persisted>(fresh);
+  // A cheap placeholder until the save is read: the demo scene is only built when there's no save.
+  const [state, setState] = useState<Persisted>(EMPTY);
   const [ready, setReady] = useState(false);
-  const [now, setNow] = useState(() => new Date());
+  /** Ticks every 30 s inside the store only (due reminders). Screens get the time from useNow(), not from here. */
+  const [tick, setTick] = useState(0);
   /** Bumped when notifications are allowed or the app comes back to the front, to sync reminders again. */
   const [reminderTick, setReminderTick] = useState(0);
   const loaded = useRef(false);
+  /** What's on the phone now (for writing only the slices that changed), the latest state waiting to be saved, and its timer. */
+  const savedState = useRef<Persisted | null>(null);
+  const pendingSave = useRef<Persisted | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const legacySave = useRef(false);
 
   useEffect(() => {
     (async () => {
+      let next: Persisted | null = null;
       try {
-        const raw = await AsyncStorage.getItem(KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as Persisted;
+        let saved = joinSlices(await AsyncStorage.multiGet(SLICE_KEYS)) as Persisted | null;
+        if (saved) savedState.current = saved;
+        else {
+          const raw = await AsyncStorage.getItem(LEGACY_KEY);
+          if (raw) {
+            saved = JSON.parse(raw) as Persisted;
+            legacySave.current = true;
+          }
+        }
+        if (saved) {
           // Freshen before migrating, so "is this still the untouched demo?" compares like with like.
-          setState(migrate(freshen(parsed, new Date())));
+          const freshened = freshen(saved, new Date());
+          next = everyLoad(needsMigration(saved) ? migrate(freshened) : freshened);
         }
       } catch {
         // Unreadable storage: start from the demo scene.
+        savedState.current = null;
       }
+      setState(next ?? fresh());
       loaded.current = true;
       setReady(true);
     })();
   }, []);
 
-  useEffect(() => {
-    if (!loaded.current) return;
-    AsyncStorage.setItem(KEY, JSON.stringify(state)).catch(() => {});
-  }, [state]);
+  /** Write the latest state: only the slices that changed since the last write. */
+  const flush = useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    const next = pendingSave.current;
+    if (!next) return;
+    pendingSave.current = null;
+    const changed = changedSlices(savedState.current, next);
+    if (changed.length === 0) return;
+    const parts = splitState(next);
+    try {
+      await AsyncStorage.multiSet(changed.map((n) => [sliceKey(n), JSON.stringify(parts[n])] as [string, string]));
+      savedState.current = next;
+      if (legacySave.current) {
+        legacySave.current = false;
+        await AsyncStorage.removeItem(LEGACY_KEY);
+      }
+    } catch {
+      // Try again with the next change.
+    }
+  }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
+    if (!loaded.current) return;
+    pendingSave.current = state;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      flush();
+    }, SAVE_DELAY_MS);
+  }, [state, flush]);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  // Back from the background (or from the Settings app): catch up on the time and the reminders.
+  // Going to the background: save now. Back to the front (or from the Settings app): catch up on the reminders.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
-      if (st !== 'active') return;
-      setNow(new Date());
+      if (st !== 'active') {
+        flush();
+        return;
+      }
+      setTick((n) => n + 1);
       setReminderTick((n) => n + 1);
     });
     return () => sub.remove();
-  }, []);
+  }, [flush]);
+
+  /** Bundled places joined with what people did there, then the places people suggested. */
+  const spots = useMemo(() => joinSpots(bundledSpots(), state.placeProgress, state.spots), [state.placeProgress, state.spots]);
 
   // Demo: suggestions are approved a few seconds after they're made.
   useEffect(() => {
@@ -363,14 +445,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!ready || !onboarded) return;
     setState((s) => {
       const seen = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
-      const due = dueReminders(s.events, ME, s.crews, now, seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
+      const due = dueReminders(s.events, ME, s.crews, new Date(), seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
       if (due.length === 0) return s;
       const added: Notice[] = due.map((r) => ({
         id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: r.kind, key: r.key, text: `${r.title}. ${r.body}`,
       }));
       return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100) };
     });
-  }, [ready, onboarded, now, allEvents]);
+  }, [ready, onboarded, tick, allEvents]);
 
   // New events near you: an in-app notice (and a phone notification) for "Notify me",
   // a NEW tag in Find events for "I'll search", nothing for "Off". Each event only once.
@@ -444,7 +526,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [ready, onboarded, scene, allEvents]);
 
   const updateSpot = useCallback((id: string, fn: (x: Spot) => Spot) => {
-    setState((s) => ({ ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) }));
+    setState((s) => {
+      if (!isBundled(id)) return { ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) };
+      // A bundled place: only what people did there is saved.
+      const base = bundledSpots().find((x) => x.id === id);
+      if (!base) return s;
+      const p = s.placeProgress[id];
+      return { ...s, placeProgress: setProgress(s.placeProgress, fn(p ? { ...base, ...p } : base)) };
+    });
   }, []);
 
   const updateEvent = useCallback((id: string, fn: (e: NightEvent) => NightEvent) => {
@@ -454,9 +543,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const store = useMemo<Store>(
     () => ({
       ...state,
+      spots,
       ready,
       me: ME,
-      now,
       saveBuild: (b) => {
         // Photos taken off the build: delete their files (they were only ever this build's).
         const before = state.builds.find((x) => x.id === b.id)?.photos ?? [];
@@ -588,15 +677,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
       markLocationNoticeSeen: () => setState((s) => ({ ...s, locationNoticeSeen: true })),
       queueFeedback: (item) => setState((s) => ({ ...s, pendingFeedback: [...(s.pendingFeedback ?? []), item].slice(-50) })),
-      resetDemo: () => setState(fresh()),
+      resetDemo: () => {
+        // Photo files go too: nothing would point at them any more.
+        deletePhotos(allPhotos(state));
+        setState(fresh());
+      },
       restartDemoEvents: () => {
         const nowDate = new Date();
         setState((s) => {
           const restarted = restartDemo(s, nowDate, s.scene);
           const unlockSeen = Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id)));
+          // Drives and visits on the real places start again too (their photo files with them).
+          deletePhotos(Object.values(s.placeProgress).flatMap((p) => p.completions.flatMap((c) => (c.photo ? [c.photo] : []))));
           return {
             ...s,
             ...restarted,
+            placeProgress: {},
             unlockSeen,
             notices: s.notices.filter((n) => !isSeedEvent(n.eventId)),
             nearby: forgetSeedEvents(s.nearby),
@@ -622,7 +718,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markNearbySeen: () =>
         setState((s) => (s.nearby && s.nearby.unseen.length > 0 ? { ...s, nearby: { ...s.nearby, unseen: [] } } : s)),
       finishDrive: (spotId, run) => {
-        const spot = state.spots.find((x) => x.id === spotId);
+        const spot = spots.find((x) => x.id === spotId);
         if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
         const verdict = judgeRun(run, spot.path, driveMiles(spot));
         if (!verdict.ok) return verdict;
@@ -635,19 +731,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       },
       visitSpot: (spotId, photo) => {
-        const spot = state.spots.find((x) => x.id === spotId);
+        const spot = spots.find((x) => x.id === spotId);
         if (!spot) throw new Error('Spot not found.');
         recordCompletion(spot, ME, new Date(), photo);
         updateSpot(spotId, (x) => recordCompletion(x, ME, new Date(), photo));
       },
       rateSpot: (spotId, stars) => {
-        const spot = state.spots.find((x) => x.id === spotId);
+        const spot = spots.find((x) => x.id === spotId);
         if (!spot) throw new Error('Place not found.');
         const rated = applyRating(spot, ME, stars);
         updateSpot(spotId, () => rated);
       },
       suggestSpot: (draft) => {
-        const { spot, warning } = makeSpot(draft, ME, new Date(), newId('sp'), state.spots, BAN_ZONES);
+        const { spot, warning } = makeSpot(draft, ME, new Date(), newId('sp'), spots, BAN_ZONES);
         setState((s) => ({ ...s, spots: [...s.spots, spot] }));
         return { id: spot.id, warning };
       },
@@ -668,10 +764,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, crews: next.crews, users: next.users }));
       },
     }),
-    [state, ready, now, updateEvent, updateSpot],
+    [state, spots, ready, updateEvent, updateSpot],
   );
 
-  return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={store}>
+      <ClockProvider>{children}</ClockProvider>
+    </Ctx.Provider>
+  );
 }
 
 export function useStore(): Store {

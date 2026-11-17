@@ -1,3 +1,4 @@
+import { bundledSpots } from '../src/lib/placeStore';
 import { DEMO_HOME, seed } from '../src/data/seed';
 import { roleOf } from '../src/lib/eventView';
 import { inferAnchor, isUntouchedDemo, needsRefresh, refreshDemo, restartDemo, REFRESH_AFTER_MS } from '../src/lib/demoTime';
@@ -81,10 +82,7 @@ describe('restarting the demo events', () => {
       events: [mine, ...s.events.map((e) => (e.id === 'ev-rolling-host' ? { ...e, currentStop: 1, checkIns: { me: ['rh-1'] } } : e))],
       chat: [...s.chat, { id: 'x1', eventId: 'ev-mine', userId: 'me', text: 'mine', at: ANCHOR.toISOString() }, { id: 'x2', eventId: 'ev-rolling-live', userId: 'me', text: 'old', at: ANCHOR.toISOString() }],
       votes: s.votes,
-      spots: [
-        ...s.spots.map((x) => (x.id === 'dr-snake-pass' ? { ...x, completions: [...x.completions, { userId: 'me', on: '2026-11-17' }] } : x)),
-        { ...s.spots[0], id: 'sp-mine', authorId: 'me', name: 'Mine' },
-      ],
+      spots: [{ ...bundledSpots()[0], id: 'sp-mine', authorId: 'me', name: 'Mine' }],
     };
     const out = restartDemo(used, LATER);
     const again = seed(LATER);
@@ -93,7 +91,8 @@ describe('restarting the demo events', () => {
     expect(byId(out.events, 'ev-mine')).toBe(mine);
     expect(out.chat.map((m) => m.id)).toContain('x1');
     expect(out.chat.map((m) => m.id)).not.toContain('x2');
-    expect(out.spots.find((x) => x.id === 'dr-snake-pass')!.completions.some((c) => c.userId === 'me')).toBe(false);
+    // Bundled places aren't in the slice at all (the store clears their progress itself).
+    expect(out.spots.every((x) => x.authorId === 'me')).toBe(true);
     expect(out.spots.some((x) => x.id === 'sp-mine')).toBe(true);
     expect(phaseOf(byId(out.events, 'ev-rolling-live'), LATER)).toBe('live');
   });

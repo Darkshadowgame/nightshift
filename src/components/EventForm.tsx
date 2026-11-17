@@ -18,6 +18,7 @@ import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
 import type { LatLng } from '../lib/types';
 import { newId, useStore } from '../lib/store';
+import { useNow } from '../lib/clock';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { C, F } from '../theme';
 
@@ -52,7 +53,8 @@ export function EventForm({
 }) {
   const store = useStore();
   const SPOTS = visibleSpots(store.spots, store.me);
-  const { users, builds, me, crews, now } = store;
+  const { users, builds, me, crews } = store;
+  const now = useNow();
   const meUser = users.find((u) => u.id === me)!;
   const myCrew = crews.find((c) => c.id === meUser.crewId);
   /** Only crew owners and hosts can put an event under the crew. */

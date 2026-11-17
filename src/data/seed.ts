@@ -5,12 +5,12 @@ import { eventArea } from '../lib/area';
 import { isPublicType } from '../lib/events';
 import { nearestRegion } from '../lib/profile';
 import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
-import { PLACES, placeSpots, type PlaceSeed } from './places';
+import { PLACES, type PlaceSeed } from './places';
 
 /**
  * Demo scene for Phase 1: made-up sample people and events, drawn round the
- * person's own (fuzzed) home area, plus real UK circuits, roads and photo
- * spots from places.ts. Times are relative to `now` so the demo always has
+ * person's own (fuzzed) home area, with the real UK circuits, roads and photo
+ * spots in places.ts nearby (read from the bundle, not seeded). Times are relative to `now` so the demo always has
  * something on tonight. The people and events are sample data, not real.
  */
 
@@ -406,6 +406,7 @@ export function seed(now: Date = new Date(), scene: SceneOptions = {}): SeedStat
   );
   const evs = events(now, home);
   const named = scene.names && Object.keys(scene.names).length ? applySceneNames(evs, scene.names, seededStops(home)) : evs;
-  const spots: Spot[] = placeSpots(at(now, -60, 12));
+  // Bundled places aren't part of the save: the store reads them from the bundle (placeStore.ts).
+  const spots: Spot[] = [];
   return { users, builds, crews: CREWS, events: named, chat: chat(now), votes: votes(now), spots };
 }

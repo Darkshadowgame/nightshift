@@ -1,3 +1,4 @@
+import { bundledSpots } from '../src/lib/placeStore';
 import { DEMO_HOME, NEAR_YOU, sampleHomes, seed, seededStops } from '../src/data/seed';
 import { areaGivesAway } from '../src/lib/area';
 import { isPublicType } from '../src/lib/events';
@@ -46,11 +47,11 @@ describe('moving the sample scene', () => {
     const ride = s.events.find((e) => e.id === 'ev-bike-cat')!;
     expect(cruise.title).toMatch(/^Night cruise: /);
     expect(ride.title).not.toBe(cruise.title.replace('Night cruise', 'Sunrise ride'));
-    const drive = s.spots.find((x) => cruise.title.endsWith(x.name))!;
+    const drive = bundledSpots().find((x) => cruise.title.endsWith(x.name))!;
     expect(drive.kind).toBe('drive');
     expect(cruise.stops[0].at).toEqual(drive.path![0]);
     const show = s.events.find((e) => e.id === 'ev-show-don')!;
-    expect(s.spots.some((x) => x.kind === 'track' && x.name === show.stops[0].name)).toBe(true);
+    expect(bundledSpots().some((x) => x.kind === 'track' && x.name === show.stops[0].name)).toBe(true);
   });
 
   test('sample stops get neutral names; the geocoder names them without touching host edits', () => {

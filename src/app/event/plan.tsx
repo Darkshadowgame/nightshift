@@ -11,6 +11,7 @@ import { BAN_ZONES } from '../../data/seed';
 import { banZoneAt, banZoneWarning, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
 import { formatTime } from '../../lib/format';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
 import { C } from '../../theme';
 
@@ -19,7 +20,8 @@ type Selected = number | 'new';
 /** Rolling meets: hosts rename, move, remove or add stops on the night. */
 export default function ChangePlan() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { events, me, crews, users, now, changePlan } = useStore();
+  const { events, me, crews, users, changePlan } = useStore();
+  const now = useNow();
   const ev = events.find((e) => e.id === id);
   const [selected, setSelected] = useState<Selected>(() => (ev ? Math.min(ev.currentStop + 1, ev.stops.length - 1) : 0));
   const [name, setName] = useState('');

@@ -3,12 +3,14 @@ import { Text, View } from 'react-native';
 import { allAwards } from '../lib/awards';
 import { levelFor, repLedger, type LevelInfo, type RepLedger } from '../lib/rep';
 import { useStore } from '../lib/store';
+import { useNow } from '../lib/clock';
 import { C, F } from '../theme';
 import { Card, Row, Txt } from './ui';
 
 /** Everyone's rep, worked out from the store. */
 export function useRepFor(): (userId: string) => { ledger: RepLedger; level: LevelInfo } {
-  const { events, spots, builds, votes, now, crews } = useStore();
+  const { events, spots, builds, votes, crews } = useStore();
+  const now = useNow();
   return useMemo(() => {
     const awards = allAwards(votes, events, builds, now);
     const cache = new Map<string, { ledger: RepLedger; level: LevelInfo }>();

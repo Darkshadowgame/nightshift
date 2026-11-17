@@ -1,6 +1,4 @@
-import { draftBanZone } from '../lib/spots';
 import type { LatLng, Spot, SpotKind } from '../lib/types';
-import { BAN_ZONES } from './banZones';
 import { KART_PLACES } from './kartTracks';
 import { places as NORTH_ENGLAND } from './regions/northEngland';
 import { places as SOUTH_WEST_SOUTH } from './regions/southWestSouth';
@@ -1036,7 +1034,7 @@ const REGIONAL: PlaceSeed[] = [
 /** Venues that welcome meets: see REGIONAL for the researched ones. */
 export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES, ...SCOTLAND_NI];
 
-/** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. */
+/** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. Ban zones: see placeStore.ts. */
 export function placeSpots(createdAt: string): Spot[] {
   return PLACES.map((p) => ({
     id: p.id,
@@ -1048,11 +1046,7 @@ export function placeSpots(createdAt: string): Spot[] {
     ...(p.miles ? { miles: p.miles } : {}),
     ...(p.warnings?.length ? { warnings: p.warnings } : {}),
     region: p.region,
-    // Inside a sample ban zone: the place page shows the warning (it isn't hidden).
-    ...(() => {
-      const zone = draftBanZone(p.path ?? [p.at], BAN_ZONES);
-      return zone ? { banZone: zone.name } : {};
-    })(),
+    // Ban zones are worked out when the app reads the places (src/lib/placeStore.ts), from the current zones.
     ...(p.kind === 'track' || p.kind === 'venue' ? {} : { authorId: SYSTEM_AUTHOR }),
     status: 'approved' as const,
     createdAt,

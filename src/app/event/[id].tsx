@@ -23,13 +23,15 @@ import { describeFilter } from '../../lib/invites';
 import { askPermission } from '../../lib/notify';
 import { preciseFix } from '../../lib/location';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import type { Build, LatLng } from '../../lib/types';
 import { C, EVENT_COLOURS } from '../../theme';
 
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const store = useStore();
-  const { events, me, crews, users, builds, now, chat, settings, votes } = store;
+  const { events, me, crews, users, builds, chat, settings, votes } = store;
+  const now = useNow();
   const awardsSoFar = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
   const e = events.find((x) => x.id === id);
   const [message, setMessage] = useState('');

@@ -12,6 +12,7 @@ import { CATEGORY_LABELS, type ShopCategory } from '../../lib/shopCategories';
 import { shopIndex } from '../../lib/shopData';
 import { directionsLinks, formatPhone, phoneLink, safeWebLink, SHOP_CAVEAT, websiteLabel } from '../../lib/shops';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
 import { C, PARTNER_COLOUR, SHOP_COLOUR } from '../../theme';
 
@@ -36,7 +37,8 @@ function open(url: string) {
 export default function ShopScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { users, me, now } = useStore();
+  const { users, me } = useStore();
+  const now = useNow();
   const home = users.find((u) => u.id === me)?.home;
 
   const listing = useMemo<Listing | null>(() => {

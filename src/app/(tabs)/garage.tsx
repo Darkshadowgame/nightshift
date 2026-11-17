@@ -8,6 +8,7 @@ import { allAwards } from '../../lib/awards';
 import { COVER_ASPECT } from '../../lib/crop';
 import { bhpPerTonne, classOf, effectivePower, isModified } from '../../lib/classes';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { swapTag } from '../../lib/swap';
 import { C } from '../../theme';
 
@@ -15,7 +16,8 @@ import { C } from '../../theme';
 const SAMPLE_BUILD = 'b-me-0';
 
 export default function Garage() {
-  const { builds, me, votes, events, now } = useStore();
+  const { builds, me, votes, events } = useStore();
+  const now = useNow();
   const mine = builds.filter((b) => b.ownerId === me);
   const awards = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
   const isSample = (id: string, nickname?: string) => id === SAMPLE_BUILD && !!nickname?.startsWith('Example');

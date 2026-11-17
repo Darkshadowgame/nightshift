@@ -6,13 +6,15 @@ import { NoticeBell } from '../../components/NoticeBell';
 import { Card, Chip, Row, Section, Txt } from '../../components/ui';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { C } from '../../theme';
 
 type Tab = 'mine' | 'invited' | 'public' | 'past';
 
 export default function EventsScreen() {
   const nav = useNavigation();
-  const { events, me, crews, users, builds, now, nearby } = useStore();
+  const { events, me, crews, users, builds, nearby } = useStore();
+  const now = useNow();
   const newNear = nearby?.unseen.length ?? 0;
   const [tab, setTab] = useState<Tab>('mine');
 

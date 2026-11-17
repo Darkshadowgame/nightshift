@@ -20,6 +20,7 @@ import { plural } from '../lib/format';
 import { fuzz } from '../lib/geo';
 import { currentPosition } from '../lib/location';
 import { useStore } from '../lib/store';
+import { useNow } from '../lib/clock';
 import type { LatLng } from '../lib/types';
 import { C, EVENT_COLOURS } from '../theme';
 
@@ -35,7 +36,8 @@ const VEHICLES: { key: Vehicles; label: string }[] = [
  * only ever show their rough area; the distance is to that area, never a stop.
  */
 export default function FindEvents() {
-  const { events, me, crews, users, builds, now, nearby, markNearbySeen } = useStore();
+  const { events, me, crews, users, builds, nearby, markNearbySeen } = useStore();
+  const now = useNow();
   const meUser = users.find((u) => u.id === me)!;
   const travel = travelOf(meUser);
   const [filters, setFilters] = useState<SearchFilters>(() => defaultFilters(travel.miles));

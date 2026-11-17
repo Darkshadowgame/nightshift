@@ -15,11 +15,13 @@ import { clearLaps } from '../../lib/lapStore';
 import { plural } from '../../lib/format';
 import { SPOT_LABELS } from '../../lib/spots';
 import { useStore, type Settings } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { C, SPOT_COLOURS } from '../../theme';
 
 export default function Me() {
-  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, now, spots, setTravelPrefs } =
+  const { users, me, crews, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, builds, events, votes, spots, setTravelPrefs } =
     useStore();
+  const now = useNow();
   const rep = useRep(me);
   const awards = allAwards(votes, events, builds, now);
   const myAwards = awards.filter((a) => a.ownerId === me);

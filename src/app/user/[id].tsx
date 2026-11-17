@@ -10,6 +10,7 @@ import { classOf, effectivePower, isModified } from '../../lib/classes';
 import { plural } from '../../lib/format';
 import { publicProfile } from '../../lib/people';
 import { useStore } from '../../lib/store';
+import { useNow } from '../../lib/clock';
 import { SAMPLE_PEOPLE } from '../../data/seed';
 import { C } from '../../theme';
 
@@ -17,7 +18,8 @@ import { C } from '../../theme';
 export default function UserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { users, builds, crews, events, votes, me, now } = useStore();
+  const { users, builds, crews, events, votes, me } = useStore();
+  const now = useNow();
   const awards = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
   const p = publicProfile(id, users, builds, crews, events, awards, now);
   const handle = p?.handle;

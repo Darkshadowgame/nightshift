@@ -5,6 +5,7 @@ import { BellIcon } from '../components/NoticeBell';
 import { Card, Txt } from '../components/ui';
 import { formatRelative } from '../lib/format';
 import { useStore, type Notice } from '../lib/store';
+import { useNow } from '../lib/clock';
 import { C } from '../theme';
 
 const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
@@ -16,7 +17,8 @@ const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
 };
 
 export default function NotificationsScreen() {
-  const { notices, events, now, markNoticesRead, settings } = useStore();
+  const { notices, events, markNoticesRead, settings } = useStore();
+  const now = useNow();
   // Keep "new" highlighted while the list is open; mark it all read on the way out.
   const [unreadIds] = useState(() => new Set(notices.filter((n) => !n.read).map((n) => n.id)));
   useFocusEffect(
