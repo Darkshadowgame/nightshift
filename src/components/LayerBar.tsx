@@ -34,7 +34,7 @@ export interface ActionPill {
   onPress: () => void;
 }
 
-export const PILL_WIDTH = 86;
+export const PILL_WIDTH = 98;
 const PILL_HEIGHT = 38;
 
 export function LayerBar({ layers, actions, onToggle }: { layers: LayerPill[]; actions: ActionPill[]; onToggle: (key: string) => void }) {
@@ -140,7 +140,7 @@ const st = StyleSheet.create({
   },
   main: { flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8, paddingRight: 4 },
   caret: { height: '100%', justifyContent: 'center', paddingRight: 9, paddingLeft: 2 },
-  label: { fontFamily: F.label, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase' },
+  label: { fontFamily: F.label, fontSize: 12, letterSpacing: 0.5, textTransform: 'uppercase' },
   note: { fontFamily: F.label, fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: -1 },
   divider: { width: 1, height: 22, backgroundColor: C.kerbHi, marginHorizontal: 2 },
   action: {
