@@ -47,13 +47,27 @@ note anything odd for the next pass. Each step says what you should see.
 ### 2. First run
 
 - [ ] The app opens on the welcome screen, not the map.
-- [ ] Pick a handle and display name. Leave the region on **Midlands** and the home area
-      on the demo area (Tamworth): the sample scene is there, so the map and invites
-      have something in them. If you pick another region the home area clears; **Use the
-      demo area** puts it back. Try a handle that's taken (e.g. `dan_r`): you get a clear
-      message.
+- [ ] Pick a handle and display name. Try a handle that's taken (e.g. `dan_r`): you get a
+      clear message.
+- [ ] Rough home area: tap **Use my current location**. iOS asks for location ("While
+      using the app"): allow it. The map jumps near you and says **HOME AREA SET, TO ABOUT
+      1 KM**: the saved point is snapped to a ~1 km grid, never your address. The region
+      chip picks itself (change it if it's wrong).
+- [ ] Also try the search box: type a postcode (e.g. `SW1A 1AA`) or a town (e.g. `Leeds`),
+      wait a moment, tap a result: the map and home area move there. Nonsense text says
+      no places were found; with flight mode on it says it couldn't search.
+- [ ] **Testing: use the demo area (Tamworth)** is still there if you want the old setup.
 - [ ] Tap **Let's go**: you land on the map, with no old notifications waiting. Me
       shows your new handle in your own case.
+- [ ] The map centres on you with the blue dot. The round **you** button (top right,
+      under the chips) brings it back after you pan away.
+- [ ] The sample people and events (marked **Sample**) are around your own area now, not
+      the Midlands. Within a few seconds the sample stops get real street names near you
+      (e.g. "Ventura Park Rd, Tamworth" style); with no signal they keep neutral names
+      like "Retail park car park".
+- [ ] Location denied instead? Delete and reinstall, or turn it off in Settings >
+      Nightshift > Location: the map shows your home area and says so once, with an
+      **Open Settings** link. Tapping the **you** button says it again.
 
 ### 3. Garage and photos (plate blur)
 
@@ -68,7 +82,7 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 4. Events
 
-- [ ] Map: the **Lichfield rolling meet** pin pulses (it's live) and sits on top of
+- [ ] Map: the **Late rolling meet** pin pulses (it's live) and sits on top of
       the locked pins near it. The card at the bottom says what's live and what's next,
       with a countdown; tap it to open the event. **1 live now** (top right) jumps the
       map to the live meet. Tap a pin, then **Open event**.
@@ -77,15 +91,18 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Invited tab > **Coffee and cars, late edition** (about 3 hours away) > **I'm
       going**. The first time, iOS asks to allow notifications: allow it. Its reminders
       are scheduled straight away (step 9). Stay going for step 9.
-- [ ] **+ Host**: make a meet for later tonight. The line under the time chips says
+- [ ] **+ Host**: make a meet for later tonight. Search a town or postcode above the map:
+      the map jumps there. Long-press to drop the meet spot: its name box fills in with the
+      street and town a moment later. Edit it; dropping it again won't overwrite your own
+      name. The area name suggests the town. The line under the time chips says
       when it starts; a time that has passed tonight is refused, and "Tonight 06:00"
       means the early hours. Try placing a stop inside a ban zone (Map > Ban zones
       shows them): you get a warning. Save, open it and turn on **See as a guest**:
       the map shows the locked pin and circle invited people see, a mile or two off
       your spot, never on it, and the stops show locked.
-- [ ] **Peak District night cruise** (you host it): **Requests (2)** from people who
+- [ ] **Night cruise: …** (you host it, on the nearest real drive to you): **Requests (2)** from people who
       don't match the invite. Approve one (they move to Going), decline the other.
-- [ ] Open **Cat and Fiddle sunrise ride** (bikes only; Me > All crews > Peak Chasers):
+- [ ] Open **Sunrise ride: …** (bikes only, on the second-nearest drive; Me > All crews > Peak Chasers):
       you get **Request to go** with the reason, not "going". Chat stays closed until
       you're in. Request it: Events > Mine now lists it as **Requested**, and the map
       shows it locked ("you asked to go"). Open it to **Withdraw request**.
@@ -94,10 +111,12 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 5. Rolling meet: check in, move on, change the plan
 
-- [ ] Lichfield rolling meet: the map dims and the stop **unlocks** (once per stop).
+- [ ] Late rolling meet: the map dims and the stop **unlocks** (once per stop).
       The strip under the title shows the time left, the stop number and how many have
-      checked in. **Check in** (above **Drop out** and **Share**): a tick bursts and the
-      phone buzzes.
+      checked in. **Check in** uses your real location now: unless you're at the stop it
+      says how close you need to be. To try the rest from the sofa, turn on Me > **Demo:
+      skip the GPS check** first, then tap **Check in** (above **Drop out** and **Share**): a
+      tick bursts and the phone buzzes.
 - [ ] **NightRunners late one** is your crew's meet and you're a NightRunners host,
       so you host it. Check in
       at the first stop now (check-in opens 30 min before the start).
@@ -109,22 +128,30 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 6. Voting and trophies
 
-- [ ] On the Lichfield meet after checking in, **Vote** shows award categories.
+- [ ] On the Late rolling meet after checking in, **Vote** shows award categories.
       Vote, change your vote; you can't vote for yourself.
-- [ ] Events > Past > **Snowdome Sunday meet** (last Sunday): trophies straight under the map, with the cover
+- [ ] Events > Past > **Sunday night meet** (last Sunday): trophies straight under the map, with the cover
       rising in with sparks the first time, and no "Unlocked" moment. Chat is read-only.
       Tap a winner to open their profile.
 
 ### 7. Drives, photo spots and suggestions
 
-- [ ] Map > **Show everything** (the Peak District is off-screen at first) > tap the
-      **Snake Pass** drive > **Simulate the drive**. It finishes
-      with a pass, never a time. Rate it 1–5 stars.
-- [ ] Open the **Ladybower viaduct** photo spot > **Check in here** > add a photo
-      (plates blurred) or skip it.
-- [ ] Map > **+ Suggest a place**: drop points for a drive or one point for a photo
+- [ ] Map > **Show everything**: real circuits, hill climbs, drives and photo spots all over
+      the UK (Silverstone to Knockhill and Kirkistown, Snake Pass to Bealach na Bà), plus
+      researched drives, photo spots and **Venues** (cafés and museums that welcome meets)
+      in East Anglia, Kent and London. Map > Ban zones shows the sample zones; a place inside
+      one (e.g. Westminster Bridge) opens with the ban-zone warning. Each
+      drive's line should sit on the real road when you zoom in. Drives show **Before you
+      go** warnings where they matter (single-track, snow gates, cameras), and "Added by
+      Nightshift".
+- [ ] With **Demo: skip the GPS check** on, tap a drive > **Start drive** > **Simulate the
+      drive**. It finishes with a pass, never a time. Rate it 1–5 stars. With it off, Start
+      drive only counts checkpoints you really pass.
+- [ ] Open a photo spot > **Check in here**: with the GPS check on it says how close you
+      need to be; with it skipped you can add a photo (plates blurred) or skip it.
+- [ ] Map > **+ Suggest a place**: search to jump the map, then drop points for a drive or one point for a photo
       spot. Drive points must be at most 1.5 mi apart: a longer gap shows red with
-      the reason. It shows as pending (grey) and is approved a few seconds later.
+      the reason. The name fills in from the first point (edit it). It shows as pending (grey) and is approved a few seconds later.
 - [ ] Me: rep breakdown and level go up after drives and spots. Check-ins and hosting
       count once the event has finished, the same numbers as on your Public view.
 
@@ -134,7 +161,7 @@ note anything odd for the next pass. Each step says what you should see.
       crew and level. Never a location.
 - [ ] Me > **All crews**: open one, leave yours, join another, start a new crew.
       Leaving NightRunners (or joining or starting another crew) first warns that you'll
-      stop hosting **NightRunners late one**; the Peak District cruise, which names you
+      stop hosting **NightRunners late one**; the night cruise, which names you
       as a host, stays yours. Joining makes you a plain member.
 - [ ] In a crew you started you're the owner: **Invite members** > **Add** a couple of
       sample people (they join straight away in the demo), then **Make host** on one.
@@ -156,15 +183,17 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 10. Settings
 
-- [ ] **Simulate GPS** (on by default) skips the "are you there?" distance check.
-      Turn it off and check in somewhere you're not: it says how close you need to be.
+- [ ] **Demo: skip the GPS check** is off by default (and was turned off once on an old
+      install). Off: check-ins, drives and photo spots need you to be there. On: the
+      distance check is skipped and drives can be simulated.
+- [ ] Me > **Edit profile** > set a different home area: the sample scene moves there.
 - [ ] Turn on iOS Reduce Motion (Settings > Accessibility > Motion): pulses go
       static and reveals become quick fades. Haptics still work.
 - [ ] **Reset demo data** (asks first) takes you back to the welcome screen.
 
 - [ ] Leave the app for a day and open it again: the demo times move back into
       place. Each event keeps what you did to it, so to run steps 4–9 again tap Me >
-      **Restart the demo events**: Lichfield live, the crew meet in about 30 min, the
+      **Restart the demo events**: the rolling meet live, the crew meet in about 30 min, the
       invite a few hours away and the requests come back, and your profile, builds,
       photos, crew and your own events stay.
 - [ ] The home-screen icon is the orange hexagon with a moon over a road; the
@@ -182,7 +211,20 @@ note anything odd for the next pass. Each step says what you should see.
   a backend and a paid Apple developer account.
 - Reminders are local notifications scheduled on this phone. iOS keeps up to 64, so
   the app schedules at most 48, soonest first.
-- Ban zones are samples based on real orders, not a live legal list.
+- Ban zones are rough circles round real orders (West Midlands, London, East Anglia and
+  Kent; see `src/data/banZones.ts`), each marked "Sample — check the current order". They
+  are not a live legal list. Places inside one still show, with the warning.
+- Place search and street names use the iPhone's own geocoder (Apple's). It needs a signal,
+  Apple limits how often it can be asked, and it can't search in the web preview. Nothing is
+  sent to any other web service.
+- The sample scene is moved onto your area by keeping each sample spot's distance and
+  direction from home, so near a coast a sample stop can land in the sea or somewhere odd.
+  Real events need the backend.
+- The bundled circuits, drives and photo spots are a fixed list (`src/data/places.ts`).
+  Road lines and car park positions come from OpenStreetMap (© OpenStreetMap contributors,
+  ODbL); roads close and change, so check before you go. East Anglia, Kent and London also
+  have researched drives, photo spots and meet-friendly venues (`docs/research/regional-places.md`);
+  medium-confidence ones say so in their warnings. Elsewhere there are no venues yet.
 - Plate blurring needs the iPhone app; the web preview can't detect plates.
 - The web preview uses a flat stand-in map and has no notifications or haptics.
 
@@ -207,5 +249,11 @@ note anything odd for the next pass. Each step says what you should see.
 | `src/lib/feel.ts` | Haptics for the key moments |
 | `src/components/motion.tsx` | Reanimated motion (live pulse, check-in, reveals, class-up, unlocked), all with reduced-motion versions |
 | `src/lib/store.tsx` | All state, saved on the phone. The one layer to swap for Supabase |
-| `src/data/seed.ts` | Demo scene: sample people, real roads, venues and sample ban zones |
+| `src/data/seed.ts` | Demo scene: sample people and events drawn round your home area, and sample ban zones |
+| `src/data/places.ts` | Real UK circuits, sprint and hill-climb venues, drives, photo spots and meet-friendly venues (bundled) |
+| `src/data/banZones.ts` | Sample ban zones round real injunctions, PSPOs and dispersal hotspots |
+| `src/lib/location.ts` | Thin layer over `expo-location`: your position, place search and street names from the phone's geocoder |
+| `src/lib/placeNames.ts` | Search queries, postcodes and short place names (pure) |
+| `src/lib/scene.ts` | Moves the sample scene onto your home area; geocoded names for sample stops |
+| `src/lib/settings.ts` | Settings, defaults (real GPS) and the one-off upgrade for old saves |
 | `src/app/` | Screens (Expo Router) |

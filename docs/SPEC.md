@@ -20,8 +20,10 @@ with the focus on modified builds.
 | RSVP, check-in, timed reveal, rolling "Move on" | Backend sync between phones (Supabase, next step) |
 | Event chat (local only for now) | Sign in with Apple |
 
-Phase 1 runs on **local demo data** stored on the phone (AsyncStorage) with a
-seeded Midlands scene. All app logic goes through `src/lib/store.tsx`, so swapping
+Phase 1 runs on **local demo data** stored on the phone (AsyncStorage). The map,
+your position and place names are real; the other people and their events are a
+clearly labelled sample scene drawn round your own home area (see "Real places and
+location" below). All app logic goes through `src/lib/store.tsx`, so swapping
 in Supabase later changes one layer only.
 
 ## Classes
@@ -81,7 +83,8 @@ Code: `src/lib/classes.ts`, tests in `__tests__/classes.test.ts`.
   organisers have been taken to court.
 * **Drives** (formerly "sprints"): rated roads, never timed or ranked.
 * **Check-in:** you must be within 0.5 mi of the current stop, from 30 minutes
-  before the start until the end. Before then the event shows when check-in opens. On the demo build a "simulate" switch in Settings skips the GPS check.
+  before the start until the end. Before then the event shows when check-in opens. Check-ins use a real GPS fix (never stored). For testing, Me > **Demo: skip the GPS
+  check** skips the distance check; it is off by default.
 * **Invites:** someone is invited when any of their builds matches the filter and
   they live within the radius of the area. "Everyone welcome" skips the build
   filter but keeps the radius.
@@ -94,12 +97,12 @@ Code: `src/lib/events.ts` and `src/lib/invites.ts`, with tests.
   approved), completions and 1–5 star ratings. Tap a pin on the map to open one.
 * **Start drive:** each point of the drive's line is a checkpoint (within 0.2 mi).
   Pass every checkpoint in order to finish, using GPS (`watchPositionAsync`) or,
-  with **Simulate GPS** on, a button that walks the checkpoints at a legal pace.
+  with **Demo: skip the GPS check** on, a button that walks the checkpoints at a legal pace.
   A run that would average over 45 mph along the drawn route (or the stated road
   length, if longer), or takes far longer than
   the drive allows, doesn't count. **The app only ever says pass or fail**: no
   time or speed is shown or stored, and a completion keeps the day only.
-* **Photo spot visit:** check in within 0.2 mi (or simulate), then an optional
+* **Photo spot visit:** check in within 0.2 mi by real GPS (or skip the check in the demo), then an optional
   photo that goes through the plate review and is saved pixelated with no metadata.
 * After a drive or visit, a 1–5 star prompt. One rating each, the latest counts.
 * **Suggest a place:** long-press the map to draw a drive (start to finish) or
@@ -226,9 +229,58 @@ Full reports are in `docs/research/`.
   Before a public launch: proper age checks, a DPIA, the ICO fee, Online Safety
   Act paperwork, a trademark search and a solicitor's review.
 
+## Real places and location (built, Nov 2026)
+
+Owner's request: "Obviously you need to use real maps and location."
+
+* **Map:** Apple Maps (react-native-maps) on iPhone. The Map tab asks for
+  when-in-use location the first time, centres on you with the blue dot and has a
+  locate-me button. If location is denied it shows your home area and says so once.
+* **Real GPS by default:** check-ins, drives and photo spot visits use the phone's
+  position. "Demo: skip the GPS check" (Me) is for testing only and is off by
+  default; old saves were switched off once.
+* **Home area:** first run offers "Use my current location" and a postcode or town
+  search. Either way the point is snapped to a ~1 km grid (`fuzz`) before it is
+  saved, so the exact place is never stored. "Use the demo area" stays as a testing
+  option.
+* **Place search and names:** the host form, Suggest a place and Change the plan
+  have a search box (postcode, town or place, UK only, debounced) that jumps the
+  map. Dropped stops and spots are named from the phone's reverse geocoder (e.g.
+  "Ventura Park Rd, Tamworth", never a house number) and the host can edit the
+  name; a typed name is never overwritten. Geocoding is expo-location only (Apple's
+  geocoder on iOS): nothing goes to any other web service.
+* **Bundled UK places** (`src/data/places.ts`): every major circuit and the main
+  sprint and hill-climb venues; well-known driving and riding roads as untimed
+  Drives whose lines follow the real road with points at most 1.5 mi apart
+  (OpenStreetMap, ODbL), with warnings for single-track, steep or snow-gated roads;
+  photo spots only at public car parks and viewpoints. They are "Added by
+  Nightshift", so nobody earns author rep for them. A `venue` kind exists for
+  meet-friendly venues (information only, like tracks).
+* **Sample scene near you:** the sample people and events (labelled Sample) are
+  moved onto your home area keeping each point's distance and direction; cruises
+  run on the nearest real drives and the show and track day are at the nearest
+  real venues. Sample stops start with neutral names ("Retail park car park") and
+  are renamed from the geocoder. Rough areas still follow `area.ts` (never on a
+  stop) and demo times still shift. The scene is redrawn when your home area
+  changes and on "Restart the demo events".
+* **Regional research:** East Anglia, Kent and London drives, photo spots, tracks
+  and meet-friendly venues from `docs/research/regional-places.md`, with their
+  sources and warnings. Medium-confidence entries say so; Rockingham (closed) and
+  duplicates of the bundled circuits are left out; Surrey reference venues are
+  marked as outside the area.
+* **Ban zones** (`src/data/banZones.ts`): rough circles round real orders only:
+  the West Midlands and Black Country injunctions, the Westminster and Kensington
+  injunction (revving and dangerous driving 18:00–07:00), Enfield, Great Yarmouth,
+  Felixstowe, Norwich, Broadland and South Norfolk, Cromer, Halstead and Polhill,
+  and the Medway, Dartford and Sheerness dispersal hotspots. Each is marked
+  "Sample — check the current order" with its source. Bundled places inside one
+  still show, with the warning.
+
 ## Privacy and safety in Phase 1
 
-* Other people's home locations are never shown, only the event area.
+* Other people's home locations are never shown, only the event area. Your own
+  home is always saved fuzzed to ~1 km; your live position is used for the map's
+  blue dot and distance checks and is never stored.
 * Plates: no plate field at all. Photos are the owner's responsibility until
   automatic blurring arrives (Phase 2).
 * Meet-ban zones (PSPOs): a small sample is included. Pinning a meet or rolling
@@ -250,7 +302,7 @@ Full reports are in `docs/research/`.
 7. **Edit build:** car or bike, make, model, year, nickname, stock bhp, weight,
    dyno figure, and the mods list with bhp gains.
 8. **Me:** profile, rep and level with a breakdown, crew, your suggested places, privacy toggles for later phases, demo controls
-   (simulate GPS, reset data).
+   (Demo: skip the GPS check, restart the demo events, reset data).
 
 9. **Drive / photo spot:** details, map, Start drive or Check in, rating, photos.
 10. **Suggest a place:** draw a drive or drop a photo spot on the map.
