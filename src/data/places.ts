@@ -5,6 +5,7 @@ import { KART_PLACES } from './kartTracks';
 import { places as NORTH_ENGLAND } from './regions/northEngland';
 import { places as SOUTH_WEST_SOUTH } from './regions/southWestSouth';
 import { places as MIDLANDS_WALES } from './regions/midlandsWales';
+import { places as SCOTLAND_NI } from './regions/scotlandNI';
 
 /**
  * Real UK places, bundled with the app (no network needed):
@@ -1033,7 +1034,7 @@ const REGIONAL: PlaceSeed[] = [
 ];
 
 /** Venues that welcome meets: see REGIONAL for the researched ones. */
-export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES];
+export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...KART_PLACES, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES, ...SCOTLAND_NI];
 
 /** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. */
 export function placeSpots(createdAt: string): Spot[] {

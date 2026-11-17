@@ -2,6 +2,7 @@ import type { BanZone } from '../lib/types';
 import { banZones as NORTH_ENGLAND_BAN_ZONES } from './regions/northEngland';
 import { banZones as SOUTH_WEST_SOUTH_BAN_ZONES } from './regions/southWestSouth';
 import { banZones as MIDLANDS_WALES_BAN_ZONES } from './regions/midlandsWales';
+import { banZones as SCOTLAND_NI_BAN_ZONES } from './regions/scotlandNI';
 
 /**
  * Sample ban zones: areas covered by real court injunctions, PSPOs (public
@@ -81,4 +82,4 @@ const BASE_BAN_ZONES: BanZone[] = [
   },
 ];
 
-export const BAN_ZONES: BanZone[] = [...BASE_BAN_ZONES, ...NORTH_ENGLAND_BAN_ZONES, ...SOUTH_WEST_SOUTH_BAN_ZONES, ...MIDLANDS_WALES_BAN_ZONES];
+export const BAN_ZONES: BanZone[] = [...BASE_BAN_ZONES, ...NORTH_ENGLAND_BAN_ZONES, ...SOUTH_WEST_SOUTH_BAN_ZONES, ...MIDLANDS_WALES_BAN_ZONES, ...SCOTLAND_NI_BAN_ZONES];
