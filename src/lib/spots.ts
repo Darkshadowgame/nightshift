@@ -18,11 +18,14 @@ export const CHECKPOINT_RADIUS_MILES = 0.2;
 /** How close you must be to a photo spot to check in. */
 export const PHOTO_SPOT_RADIUS_MILES = 0.2;
 /**
- * Above this average along the route the run doesn't count. Conservative on
- * purpose: country roads with bends, villages and junctions rarely allow more
- * at the speed limits.
+ * Above this average along the route the run doesn't count, unless the drive
+ * knows its road's limit (Spot.limitMph). Conservative on purpose: country
+ * roads with bends, villages and junctions rarely allow more at the limits.
  */
 export const MAX_AVERAGE_MPH = 45;
+
+/** Never says or implies the person broke a limit: the run just doesn't count. */
+export const TOO_QUICK = "This run looks too quick to count. Drives are never about speed: take it at an easy pace and try again another time.";
 /** Suggested drives need a point at least this often, so the line follows the road. */
 export const MAX_POINT_GAP_MILES = 1.5;
 /** Pending suggestions are approved after this long in the demo. */
@@ -90,8 +93,8 @@ export function runExpired(run: DriveRun, miles: number, nowMs: number): boolean
 
 export type Verdict = { ok: true } | { ok: false; reason: string };
 
-/** Pass or fail. The reason never includes a time or a speed. */
-export function judgeRun(run: DriveRun, checkpoints: LatLng[], miles: number): Verdict {
+/** Pass or fail. The reason never includes a time or a speed. `limitMph`: the road's limit where known. */
+export function judgeRun(run: DriveRun, checkpoints: LatLng[], miles: number, limitMph?: number): Verdict {
   if (checkpoints.length < 2) return { ok: false, reason: 'This drive has no checkpoints.' };
   if (run.passed < checkpoints.length || run.startedAt === undefined || run.lastAt === undefined)
     return { ok: false, reason: 'Pass every checkpoint in order to finish.' };
@@ -99,8 +102,7 @@ export function judgeRun(run: DriveRun, checkpoints: LatLng[], miles: number): V
   if (elapsed > driveWindowMs(miles))
     return { ok: false, reason: "That took longer than a drive allows, so it doesn't count. Start again when you're ready." };
   const hours = elapsed / 3_600_000;
-  if (hours <= 0 || miles / hours > MAX_AVERAGE_MPH)
-    return { ok: false, reason: "That was quicker than these roads allow at the speed limits, so it doesn't count. Drives are never about speed." };
+  if (hours <= 0 || miles / hours > (limitMph ?? MAX_AVERAGE_MPH)) return { ok: false, reason: TOO_QUICK };
   return { ok: true };
 }
 

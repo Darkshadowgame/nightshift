@@ -5,6 +5,7 @@ import { BAN_ZONES, DEMO_HOME, ME, sampleHomes, seed, seededStops, SEED_EVENT_ID
 import { bundledSpots, isBundled, joinSpots, setProgress, splitSavedSpots, type ProgressMap } from './placeStore';
 import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SCHEMA_VERSION, SLICE_KEYS, sliceKey, splitState } from './persist';
 import { ClockProvider } from './clock';
+import { tidyModel } from './vehicles';
 import { geocoderAvailable, nameForPlace, townForPlace } from './location';
 import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { castVote as applyVote, type AwardCategory } from './awards';
@@ -301,6 +302,8 @@ function migrate(parsed: Persisted): Persisted {
   }
   // Saved before "new events near you": what's already there isn't new.
   if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };
+  // Bike builds titled with their years twice ("Yamaha YZF-R6 2017-2020", schema 3): the model alone.
+  if ((parsed.schemaVersion ?? 1) < 3) next = { ...next, builds: next.builds.map((b) => (b.vehicleId ? { ...b, model: tidyModel(b.model) } : b)) };
   // Shop suggestions queued before shop ids were stable (schema 3): mark the old listing numbers.
   if ((parsed.schemaVersion ?? 1) < 3 && next.pendingFeedback) next = { ...next, pendingFeedback: markLegacyShopRefs(next.pendingFeedback) };
   return { ...next, schemaVersion: SCHEMA_VERSION };
@@ -722,7 +725,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       finishDrive: (spotId, run) => {
         const spot = spots.find((x) => x.id === spotId);
         if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
-        const verdict = judgeRun(run, spot.path, driveMiles(spot));
+        const verdict = judgeRun(run, spot.path, driveMiles(spot), spot.limitMph);
         if (!verdict.ok) return verdict;
         try {
           recordCompletion(spot, ME, new Date());

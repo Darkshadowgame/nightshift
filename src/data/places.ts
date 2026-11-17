@@ -1019,6 +1019,21 @@ const REGIONAL: PlaceSeed[] = [
 /** Venues that welcome meets: see REGIONAL for the researched ones. */
 export const PLACES: PlaceSeed[] = [...TRACKS, ...DRIVES, ...PHOTO_SPOTS, ...REGIONAL, ...NORTH_ENGLAND, ...SOUTH_WEST_SOUTH, ...MIDLANDS_WALES, ...SCOTLAND_NI];
 
+/**
+ * Drives on national-speed-limit A-roads (60 mph almost all the way): the pace
+ * check uses the limit instead of the cautious default, so a legal run on an
+ * open road isn't refused (spots.ts, judgeRun).
+ */
+export const ROAD_LIMIT_MPH: Record<string, number> = {
+  'dr-glen-shiel': 60,
+  'dr-glencoe': 60,
+  'dr-cairnwell': 60,
+  'dr-the-lecht': 60,
+  'dr-rest-and-be-thankful': 60,
+  'sni-a9-berriedale': 60,
+  'sni-a87-glengarry': 60,
+};
+
 /** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. Ban zones: see placeStore.ts. */
 export function placeSpots(createdAt: string): Spot[] {
   return PLACES.map((p) => ({
@@ -1029,6 +1044,7 @@ export function placeSpots(createdAt: string): Spot[] {
     description: p.description,
     ...(p.path ? { path: p.path } : {}),
     ...(p.miles ? { miles: p.miles } : {}),
+    ...(ROAD_LIMIT_MPH[p.id] ? { limitMph: ROAD_LIMIT_MPH[p.id] } : {}),
     ...(p.warnings?.length ? { warnings: p.warnings } : {}),
     region: p.region,
     // Ban zones are worked out when the app reads the places (src/lib/placeStore.ts), from the current zones.

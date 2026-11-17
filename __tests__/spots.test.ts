@@ -95,6 +95,18 @@ describe('drives', () => {
     expect(judgeRun(runAt(at(40)), PATH, miles).ok).toBe(true);
   });
 
+  test("on a national-limit road the road's limit is the cap, and the wording never says anyone sped", () => {
+    const miles = pathMiles(PATH);
+    const at = (mph: number) => PATH.map((_, i) => t0 + (i * (miles / mph) * HOUR) / (PATH.length - 1));
+    expect(judgeRun(runAt(at(52)), PATH, miles, 60).ok).toBe(true);
+    const v = judgeRun(runAt(at(65)), PATH, miles, 60);
+    expect(v.ok).toBe(false);
+    if (!v.ok) {
+      expect(v.reason).toMatch(/looks too quick to count/);
+      expect(v.reason).not.toMatch(/limit|speeding|broke/i);
+    }
+  });
+
   test('the distance for the check is along the route, and a longer stated length only makes it stricter', () => {
     expect(driveMiles(drive({ miles: undefined }))).toBeCloseTo(pathMiles(PATH), 5);
     expect(driveMiles(drive({ miles: 1 }))).toBeCloseTo(pathMiles(PATH), 5);

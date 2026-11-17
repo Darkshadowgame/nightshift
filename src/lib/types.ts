@@ -224,6 +224,8 @@ export interface Spot {
   banZone?: string;
   /** Every ban zone it's in (ids), worked out from the current zones when the app reads it. */
   banZoneIds?: string[];
+  /** Drives: the road's speed limit where it's the same all the way (national limit A-roads), for the pace check. */
+  limitMph?: number;
   /** Things to know before you go (single-track, snow gates, cameras). */
   warnings?: string[];
   /** Rough region, e.g. "Peak District". */
