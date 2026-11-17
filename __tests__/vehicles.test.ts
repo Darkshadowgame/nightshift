@@ -183,7 +183,7 @@ describe('donors', () => {
     expect(searchDonors(engines, all, 'bike', 'bandit 1200').map((d) => d.kind)).toEqual(['bike', 'bike']);
     expect(searchDonors(engines, all, 'car', 'k20')[0].name).toBe('K20A');
     const r1 = searchDonors(engines, all, 'car', 'r1 crossplane')[0];
-    expect(r1).toMatchObject({ kind: 'bike', name: 'YZF-R1 2015-2019', bhp: 197 });
+    expect(r1).toMatchObject({ kind: 'bike', name: 'YZF-R1', bhp: 197 });
   });
   test('find a donor by id', () => {
     expect(findDonor(engines, all, engines[1].id)?.name).toBe('2JZ-GTE');

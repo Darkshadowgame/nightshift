@@ -267,13 +267,29 @@ export function yearsLabel(v: Pick<Variant, 'from' | 'to'>): string {
 }
 
 /** The model as saved on a build: "Golf R Mk7.5". */
-export function modelLabel(v: Pick<Variant, 'model' | 'gen'>): string {
-  return `${v.model} ${v.gen}`.trim();
+/** A generation that's only years ("2017-2020", "2021-on"): the years already say it, so labels leave it out. */
+export function isYearsGen(gen: string | undefined): boolean {
+  return !!gen && /^(19|20)\d{2}(\s*[-–]\s*((19|20)\d{2}|on|now|present)?)?$/i.test(gen.trim());
 }
 
-/** One line for pickers: "Mk7.5 · 2.0 TSI · 2017–2020 · 306 bhp". */
+/** The generation for labels: without years, which the years label already shows ("CBR900RR 1998-1999" -> "CBR900RR"). */
+export function genLabel(gen: string | undefined): string {
+  if (!gen || isYearsGen(gen)) return '';
+  return gen.replace(/\s+(19|20)\d{2}(\s*[-–]\s*((19|20)\d{2}|on|now|present)?)?$/i, '').trim() || gen;
+}
+
+export function modelLabel(v: Pick<Variant, 'model' | 'gen'>): string {
+  return `${v.model} ${genLabel(v.gen)}`.trim();
+}
+
+/** One line for pickers: "Mk7.5 · 2.0 TSI · 2017–2020 · 306 bhp" (no generation when it's only the years). */
 export function variantLine(v: Variant): string {
-  return [v.gen, v.engine, yearsLabel(v), `${v.bhp} bhp`].filter(Boolean).join(' · ');
+  return [genLabel(v.gen), v.engine, yearsLabel(v), `${v.bhp} bhp`].filter(Boolean).join(' · ');
+}
+
+/** Builds saved with the years in the model name ("YZF-R6 2017-2020"): the model alone. */
+export function tidyModel(model: string): string {
+  return model.replace(/\s+(19|20)\d{2}\s*[-–]\s*((19|20)\d{2}|on|now|present)?$/i, '').trim() || model;
 }
 
 export interface SpecFill {
@@ -301,7 +317,8 @@ export function specFill(v: Variant, currentYear?: number): SpecFill {
 export function guessVariant(list: Variant[], kind: VehicleKind, make: string, model: string, stockBhp?: number): Variant | undefined {
   const mk = fold(make.trim());
   const md = fold(model.trim());
-  const hits = list.filter((v) => v.kind === kind && fold(v.make) === mk && fold(modelLabel(v)) === md);
+  // Saves from before year-only generations were left out of the label still say "Model 2017-2020".
+  const hits = list.filter((v) => v.kind === kind && fold(v.make) === mk && (fold(modelLabel(v)) === md || fold(`${v.model} ${v.gen}`.trim()) === md));
   if (stockBhp) {
     const exact = hits.filter((v) => v.bhp === stockBhp);
     if (exact.length) return exact[0];
