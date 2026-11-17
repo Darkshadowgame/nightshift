@@ -5,7 +5,7 @@ import type { VehicleKind } from './types';
  * compact text (one variant per line); this file parses and searches it.
  */
 
-/** t turbo petrol, d turbo diesel, n naturally aspirated, s supercharged, h hybrid. */
+/** t turbo petrol, d turbo diesel, n naturally aspirated, s supercharged, h hybrid or fully electric. */
 export type Aspiration = 't' | 'd' | 'n' | 's' | 'h';
 
 /** Tuner figures for one variant: total bhp after each stage. */

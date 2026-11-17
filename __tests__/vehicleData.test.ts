@@ -52,4 +52,24 @@ describe('vehicle dataset', () => {
     expect(searchVariants(variants, 'car', 'golf r').length).toBeGreaterThan(0);
     expect(searchDonors(engines, variants, 'bike', 'bandit 1200').length).toBeGreaterThan(0);
   });
+  test('batch 2 coverage: JDM, classics, vans, EVs, learner and big bikes, donors', () => {
+    for (const q of ['silvia s14', 'stagea', 'aristo', 'integra dc2', 'accord euro r', 'corrado vr6', 'clio williams', 'mg zr 160', '190e 2.5-16',
+      'transporter t4', 'vito w447', 'trafic', 'ioniq 5 n', 'formentor vz5', 'alpine a110']) {
+      expect([q, searchVariants(variants, 'car', q).length > 0]).toEqual([q, true]);
+    }
+    for (const q of ['yzf-r125 2008', 'cbr125r', 'interceptor 650', 'zx-6r 2009', 'hornet 600', 'ducati 916', 'daytona 955i', 'k1300s']) {
+      expect([q, searchVariants(variants, 'bike', q).length > 0]).toEqual([q, true]);
+    }
+    for (const q of ['c20xe', 'sr20ve', 'k24', 'ej255', 'm52b28']) {
+      expect([q, searchDonors(engines, variants, 'car', q).some((d) => d.id.startsWith('engine:'))]).toEqual([q, true]);
+    }
+  });
+  test('EVs and hybrids are marked h, never as a combustion engine', () => {
+    for (const v of variants.filter((x) => /electric|hybrid|phev/i.test(x.engine))) {
+      expect([v.id, v.asp === 'h' || /mild hybrid/i.test(v.engine)]).toEqual([v.id, true]);
+    }
+  });
+  test('bundled vehicle source stays small (lazy-parsed text, under ~250 KB)', () => {
+    expect(CAR_DATA.length + BIKE_DATA.length).toBeLessThan(250_000);
+  });
 });

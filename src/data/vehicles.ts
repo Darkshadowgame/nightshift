@@ -3,7 +3,7 @@ import { BIKE_DATA } from './vehicles.bikes';
 import { CAR_DATA } from './vehicles.cars';
 
 /** Bump when the data changes. Shown in the picker footer. */
-export const VEHICLES_VERSION = '2026-11-17';
+export const VEHICLES_VERSION = '2026-11-17.2';
 
 let variants: Variant[] | null = null;
 let engines: DonorEngine[] | null = null;
