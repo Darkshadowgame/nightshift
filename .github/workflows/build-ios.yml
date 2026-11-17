@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+# Shown in Me › App updates when the app runs the version built into the install.
+env:
+  EXPO_PUBLIC_BUILD_NUMBER: ${{ github.run_number }}
+
 defaults:
   run:
     shell: bash

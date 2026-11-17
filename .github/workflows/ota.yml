@@ -48,6 +48,10 @@ jobs:
       - name: Test
         run: npm test -- --ci
 
+      # Version shown in Me › App updates, e.g. v1.0.08 (one number per published update).
+      - name: Set version
+        run: echo "EXPO_PUBLIC_APP_VERSION=v1.0.$(printf '%02d' ${{ github.run_number }})" >> "$GITHUB_ENV"
+
       - name: Publish update to the production channel
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -59,5 +63,5 @@ jobs:
           # The app asks the "production" channel for updates. Make the channel
           # once and point it at the production branch, then publish.
           npx --yes eas-cli@latest channel:create production --non-interactive || true
-          npx --yes eas-cli@latest update --branch production --platform ios --message "$(git log -1 --pretty=%s | cut -c1-90)" --non-interactive
+          npx --yes eas-cli@latest update --branch production --platform ios --message "$EXPO_PUBLIC_APP_VERSION: $(git log -1 --pretty=%s | cut -c1-80)" --non-interactive
           npx --yes eas-cli@latest channel:edit production --branch production --non-interactive

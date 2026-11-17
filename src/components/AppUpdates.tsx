@@ -5,11 +5,16 @@ import { Platform } from 'react-native';
 import { C } from '../theme';
 import { Button, Card, Row, Txt } from './ui';
 
-/** Short, readable version line: app version · update id · when it was published. */
+/**
+ * Version line, e.g. "Nightshift v1.0.08". The number is set by the OTA workflow
+ * (one per published update); the version built into an install shows its build number.
+ */
 export function versionLine(): string {
-  const version = Constants.expoConfig?.version ?? '1.0.0';
-  const id = Updates.updateId ? Updates.updateId.slice(0, 8) : null;
-  return id ? `Nightshift ${version} · update ${id}` : `Nightshift ${version} · built-in`;
+  const update = process.env.EXPO_PUBLIC_APP_VERSION;
+  const build = process.env.EXPO_PUBLIC_BUILD_NUMBER;
+  if (Updates.updateId && update) return `Nightshift ${update}`;
+  if (build) return `Nightshift build ${build} (built-in)`;
+  return `Nightshift ${Constants.expoConfig?.version ?? '1.0.0'} (preview)`;
 }
 
 /**
