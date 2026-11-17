@@ -1,6 +1,6 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type Glyph = 'meet' | 'rolling' | 'cruise' | 'show' | 'trackday' | 'photo' | 'drive' | 'track' | 'you' | 'area' | 'locked';
+export type Glyph = 'meet' | 'rolling' | 'cruise' | 'show' | 'trackday' | 'photo' | 'drive' | 'track' | 'venue' | 'you' | 'area' | 'locked';
 
 /** Game-style hexagon badge with a glyph, as on the concept board. */
 export function Pin({ glyph, colour, size = 36 }: { glyph: Glyph; colour: string; size?: number }) {
@@ -16,6 +16,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
   switch (glyph) {
     case 'meet':
     case 'show':
+    case 'venue':
       return (
         <>
           <Circle cx={14} cy={20} r={3.4} fill={c} />

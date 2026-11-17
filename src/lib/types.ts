@@ -150,7 +150,8 @@ export interface ChatMessage {
   system?: boolean;
 }
 
-export type SpotKind = 'photo' | 'drive' | 'track';
+/** Venues are meet-friendly places (cafés, venues that welcome meets): info only, like tracks. */
+export type SpotKind = 'photo' | 'drive' | 'track' | 'venue';
 
 export type SpotStatus = 'pending' | 'approved';
 
@@ -188,6 +189,10 @@ export interface Spot {
   ratings: SpotRating[];
   /** Set when any point is inside a ban zone (a warning, not a block). */
   banZone?: string;
+  /** Things to know before you go (single-track, snow gates, cameras). */
+  warnings?: string[];
+  /** Rough region, e.g. "Peak District". */
+  region?: string;
 }
 
 export interface BanZone {
@@ -196,4 +201,6 @@ export interface BanZone {
   centre: LatLng;
   radiusMiles: number;
   note: string;
+  /** Where the order is published. */
+  source?: string;
 }

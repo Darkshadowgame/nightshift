@@ -79,7 +79,7 @@ type Layered = { glyph: string; live?: boolean };
 export function pinLayer(p: Layered): number {
   if (p.live) return 3;
   if (p.glyph === 'locked') return 1;
-  if (p.glyph === 'photo' || p.glyph === 'drive' || p.glyph === 'track') return 0;
+  if (p.glyph === 'photo' || p.glyph === 'drive' || p.glyph === 'track' || p.glyph === 'venue') return 0;
   return 2;
 }
 

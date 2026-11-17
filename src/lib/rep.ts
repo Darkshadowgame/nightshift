@@ -142,7 +142,7 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
   const drives = others.filter((s) => s.kind === 'drive' && hasCompleted(s, userId)).length;
   const spots = others.filter((s) => s.kind === 'photo' && hasCompleted(s, userId)).length;
 
-  const authored = input.spots.filter((s) => s.authorId === userId && s.status === 'approved' && s.kind !== 'track');
+  const authored = input.spots.filter((s) => s.authorId === userId && s.status === 'approved' && s.kind !== 'track' && s.kind !== 'venue');
   const authoredRep = authored.reduce((sum, s) => sum + authorRep(statsOf(s)), 0);
 
   const mine = input.awards.filter((a) => a.ownerId === userId);

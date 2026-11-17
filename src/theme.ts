@@ -39,4 +39,5 @@ export const SPOT_COLOURS = {
   photo: C.magenta,
   drive: C.neon,
   track: C.lime,
+  venue: C.sodium,
 } as const;

@@ -196,7 +196,7 @@ export function banZoneAt(at: LatLng, zones: BanZone[]): BanZone | undefined {
 }
 
 export function banZoneWarning(placeName: string, zone: BanZone): string {
-  return `${placeName} is inside the ${zone.name} ban zone. Court orders here can ban organising or promoting late-night meets and cruises (often 3pm to 7am), and hosts have been taken to court. ${zone.note}`;
+  return `${placeName} is inside the ${zone.name} ban zone. Orders here (court injunctions, PSPOs or police dispersal orders) can ban organising, promoting or joining meets and cruises, and organisers have been taken to court. ${zone.note}`;
 }
 
 // ---------------------------------------------------------------------------

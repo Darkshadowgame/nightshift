@@ -1,7 +1,7 @@
 import { banZoneAt, banZoneWarning } from './events';
 import { milesBetween } from './geo';
 import type { RouteStats } from './rep';
-import type { BanZone, LatLng, Spot, SpotCompletion } from './types';
+import type { BanZone, LatLng, Spot, SpotCompletion, SpotKind } from './types';
 
 /**
  * Drives and photo spots.
@@ -27,7 +27,12 @@ export const MAX_POINT_GAP_MILES = 1.5;
 /** Pending suggestions are approved after this long in the demo. */
 export const DEMO_APPROVAL_MS = 10_000;
 
-export const SPOT_LABELS = { drive: 'Drive', photo: 'Photo spot', track: 'Track' } as const;
+export const SPOT_LABELS = { drive: 'Drive', photo: 'Photo spot', track: 'Track', venue: 'Venue' } as const;
+
+/** Tracks and venues are information only: no check-in, rating or author rep. */
+export function isInfoOnly(kind: SpotKind): boolean {
+  return kind === 'track' || kind === 'venue';
+}
 
 /** Length of a line through the points, in miles. */
 export function pathMiles(path: LatLng[]): number {
@@ -124,6 +129,7 @@ export function hasCompleted(spot: Spot, userId: string): boolean {
 export function recordCompletion(spot: Spot, userId: string, now: Date, photo?: string): Spot {
   if (spot.status !== 'approved') throw new Error('This place is waiting for approval.');
   if (spot.kind === 'track') throw new Error('Tracks are driven at track days.');
+  if (spot.kind === 'venue') throw new Error('Venues are for meets: check in at the event.');
   const c: SpotCompletion = { userId, on: dayOf(now), ...(photo ? { photo } : {}) };
   return { ...spot, completions: [...spot.completions, c] };
 }
