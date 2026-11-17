@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { C } from '../theme';
 import { PulseRing } from './motion';
@@ -10,7 +10,9 @@ import type { NightMapProps } from './mapTypes';
  * Web preview stand-in for the map (react-native-maps has no web version).
  * A flat projection on a dark grid: good enough to check layouts in a browser.
  */
-export function NightMap({ ref, pins, paths = [], circles = [], centre: centreProp, span: spanProp = 0.6, onSelect, onLongPress, picked, onPressMap, recentreKey }: NightMapProps) {
+export function NightMap({
+  ref, pins, paths = [], circles = [], centre: centreProp, span: spanProp = 0.6, onSelect, onLongPress, picked, onPressMap, recentreKey, onRegion, credit,
+}: NightMapProps) {
   const [size, setSize] = useState({ w: 400, h: 700 });
   /** Set by the handle (e.g. locate me, search); cleared when the props move the map. */
   const [moved, setMoved] = useState<{ centre: NightMapProps['centre']; span: number } | null>(null);
@@ -18,6 +20,11 @@ export function NightMap({ ref, pins, paths = [], circles = [], centre: centrePr
   useImperativeHandle(ref, () => ({ animateTo: (c, sp = spanProp) => setMoved({ centre: c, span: sp }) }), [spanProp]);
   const centre = moved?.centre ?? centreProp;
   const span = moved?.span ?? spanProp;
+  // The stand-in map doesn't pan: it reports a new region whenever it's moved.
+  useEffect(() => {
+    onRegion?.({ centre, span });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centre.lat, centre.lng, span]);
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width > 0 && height > 0) setSize({ w: width, h: height });
@@ -54,7 +61,7 @@ export function NightMap({ ref, pins, paths = [], circles = [], centre: centrePr
               key={p.id}
               points={p.coords.map((q) => `${x(q.lng)},${y(q.lat)}`).join(' ')}
               stroke={p.colour}
-              strokeWidth={4}
+              strokeWidth={p.width ?? 4}
               fill="none"
               strokeDasharray={p.dashed ? '8 6' : undefined}
             />
@@ -85,6 +92,11 @@ export function NightMap({ ref, pins, paths = [], circles = [], centre: centrePr
       {picked ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: x(picked.lng) - 20, top: y(picked.lat) - 20 }}>
           <Pin glyph="you" colour={C.neon} size={40} />
+        </View>
+      ) : null}
+      {credit ? (
+        <View pointerEvents="none" style={{ position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}>
+          <Text style={{ color: C.fog, fontSize: 9 }}>{credit}</Text>
         </View>
       ) : null}
     </View>

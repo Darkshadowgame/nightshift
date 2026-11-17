@@ -9,6 +9,8 @@ import { allAwards, hasLegend } from '../../lib/awards';
 import { travelOf } from '../../lib/discover';
 import { isHost, phaseOf } from '../../lib/events';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../../lib/notify';
+import { CAMERA_CAVEAT } from '../../lib/cameras';
+import { clearLaps } from '../../lib/lapStore';
 import { plural } from '../../lib/format';
 import { SPOT_LABELS } from '../../lib/spots';
 import { useStore, type Settings } from '../../lib/store';
@@ -179,6 +181,15 @@ export default function Me() {
         {testNote ? <Txt v="muted" style={{ fontSize: 12 }}>{testNote}</Txt> : null}
       </Section>
 
+      <Section title="Map">
+        <Toggle
+          label="Speed cameras"
+          hint={`Fixed speed cameras and average-speed zones from OpenStreetMap (© OpenStreetMap contributors, ODbL), shown once you zoom in to driving distance. Speed limits, never police positions. ${CAMERA_CAVEAT}`}
+          value={settings.cameras}
+          onChange={(v) => setSettings({ cameras: v })}
+        />
+      </Section>
+
       <Section title="Privacy">
         <Toggle
           label="Cruise mode"
@@ -232,7 +243,7 @@ export default function Me() {
           </Txt>
           {confirmReset ? (
             <Row style={{ flexWrap: 'nowrap' }}>
-              <Button label="Reset everything" kind="danger" style={{ flex: 1 }} onPress={() => { resetDemo(); setConfirmReset(false); }} />
+              <Button label="Reset everything" kind="danger" style={{ flex: 1 }} onPress={() => { resetDemo(); clearLaps(); setConfirmReset(false); }} />
               <Button label="Keep" kind="ghost" onPress={() => setConfirmReset(false)} />
             </Row>
           ) : (

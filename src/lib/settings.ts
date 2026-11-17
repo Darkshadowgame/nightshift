@@ -10,9 +10,15 @@ export interface Settings {
   pttStrangers: boolean;
   /** Local reminders at the reveal and 30 min before the start. */
   reminders: boolean;
+  /**
+   * Speed cameras on the map (fixed cameras and average-speed zones from
+   * OpenStreetMap). On by default; they only show once you zoom in to
+   * driving distance (see CAMERA_MAX_SPAN in cameras.ts).
+   */
+  cameras: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true };
+export const DEFAULT_SETTINGS: Settings = { simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: true };
 
 /**
  * Settings from a save. Saves from before real GPS was the default had

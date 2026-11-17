@@ -1,6 +1,20 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type Glyph = 'meet' | 'rolling' | 'cruise' | 'show' | 'trackday' | 'photo' | 'drive' | 'track' | 'venue' | 'you' | 'area' | 'locked';
+export type Glyph =
+  | 'meet'
+  | 'rolling'
+  | 'cruise'
+  | 'show'
+  | 'trackday'
+  | 'photo'
+  | 'drive'
+  | 'track'
+  | 'venue'
+  | 'you'
+  | 'area'
+  | 'locked'
+  | 'camera'
+  | 'average';
 
 /** Game-style hexagon badge with a glyph, as on the concept board. */
 export function Pin({ glyph, colour, size = 36 }: { glyph: Glyph; colour: string; size?: number }) {
@@ -61,6 +75,27 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
         <>
           <Rect x={13} y={19} width={14} height={10} rx={1.5} fill={c} />
           <Path d="M16 19v-3a4 4 0 0 1 8 0v3" fill="none" stroke={c} strokeWidth={2.4} />
+        </>
+      );
+    case 'camera':
+      // A roadside speed camera: housing, lens and post.
+      return (
+        <>
+          <Rect x={10} y={13} width={15} height={10} rx={1.5} fill={c} />
+          <Path d="M25 15.5h3.5v5H25" fill="none" stroke={c} strokeWidth={2} />
+          <Circle cx={15} cy={18} r={2.6} fill="#0b0f17" />
+          <Path d="M17.5 23v7" stroke={c} strokeWidth={2.6} strokeLinecap="round" />
+        </>
+      );
+    case 'average':
+      // Average speed: a small camera over a dashed stretch of road.
+      return (
+        <>
+          <Rect x={13} y={11} width={12} height={8} rx={1.2} fill={c} />
+          <Circle cx={17} cy={15} r={2} fill="#0b0f17" />
+          <Path d="M25 13h3v4h-3" fill="none" stroke={c} strokeWidth={1.8} />
+          <Path d="M9 27h22" stroke={c} strokeWidth={2.6} strokeLinecap="round" strokeDasharray="4 3" />
+          <Path d="M9 23v8M31 23v8" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
         </>
       );
     case 'area':

@@ -3,16 +3,20 @@ import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
+import { CommonsStrip } from '../../components/CommonsStrip';
 import { NightMap } from '../../components/NightMap';
-import type { MapPin } from '../../components/mapTypes';
+import type { MapPath, MapPin } from '../../components/mapTypes';
 import { Pin } from '../../components/Pin';
 import { PlateReview, type PendingPhoto } from '../../components/PlateReview';
 import { Stars } from '../../components/Stars';
+import { TrackPanel } from '../../components/TrackPanel';
 import { UserLink } from '../../components/UserLink';
 import { Button, Card, Row, Section, Txt } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
 import { SYSTEM_AUTHOR } from '../../data/places';
+import { radiusFor } from '../../lib/commons';
 import { banZoneWarning } from '../../lib/events';
+import { trackOutline } from '../../lib/tracks';
 import { feel } from '../../lib/feel';
 import { findPlates, finishPhoto, plateRedactorAvailable, photoUri } from '../../lib/photos';
 import {
@@ -75,6 +79,12 @@ function SpotDetail({ spot }: { spot: Spot }) {
   const { average, count } = averageStars(spot);
   const zone = spot.banZone ? BAN_ZONES.find((z) => z.name === spot.banZone) : undefined;
   const checkpoints = spot.path ?? [];
+  const outline = spot.kind === 'track' ? trackOutline(spot.id) : null;
+  const paths: MapPath[] = [
+    ...(checkpoints.length > 1 ? [{ id: 'path', coords: checkpoints, colour, dashed: pending }] : []),
+    ...(outline ? [{ id: 'outline', coords: outline.path, colour, width: 3 }] : []),
+  ];
+  const framed = spot.kind === 'drive' && checkpoints.length ? checkpoints : outline ? outline.path : [];
 
   const pins: MapPin[] =
     spot.kind === 'drive'
@@ -148,10 +158,11 @@ function SpotDetail({ spot }: { spot: Spot }) {
       <View style={{ height: 240, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
         <NightMap
           pins={pins}
-          paths={checkpoints.length > 1 ? [{ id: 'path', coords: checkpoints, colour, dashed: pending }] : []}
-          centre={spot.kind === 'drive' && checkpoints.length ? midpoint(checkpoints) : spot.at}
-          span={spot.kind === 'drive' ? Math.max(0.08, spanOf(checkpoints) * 1.6) : 0.05}
+          paths={paths}
+          centre={framed.length ? midpoint(framed) : spot.at}
+          span={framed.length ? Math.max(spot.kind === 'drive' ? 0.08 : 0.012, spanOf(framed) * 1.6) : 0.05}
           showsUser={!!run}
+          credit={spot.kind === 'drive' || outline ? '© OpenStreetMap contributors' : undefined}
         />
       </View>
 
@@ -199,10 +210,13 @@ function SpotDetail({ spot }: { spot: Spot }) {
       ) : null}
 
       {spot.kind === 'track' ? (
-        <Card>
-          <Txt>Tracks are the only place lap times count. Look for track days on the Events tab.</Txt>
-          <Button label="See events" kind="ghost" onPress={() => router.push('/events')} />
-        </Card>
+        <>
+          <TrackPanel spot={spot} outline={outline} />
+          <Card>
+            <Txt>Tracks are the only place times count. Look for track days on the Events tab.</Txt>
+            <Button label="See events" kind="ghost" onPress={() => router.push('/events')} />
+          </Card>
+        </>
       ) : null}
 
       {spot.kind === 'venue' ? (
@@ -237,7 +251,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
         </Section>
       ) : null}
 
-      {spot.kind === 'photo' ? <Photos spot={spot} /> : null}
+      <Photos spot={spot} />
 
       {done && !justDone && !isInfoOnly(spot.kind) ? (
         <Txt v="muted" style={{ textAlign: 'center', fontSize: 12 }}>
@@ -537,16 +551,27 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
   );
 }
 
+/** People's own photos from visits first (plate-blurred), then public photos taken nearby. */
 function Photos({ spot }: { spot: Spot }) {
   const photos = spot.completions.filter((c) => c.photo);
-  if (photos.length === 0) return null;
+  const pending = spot.status === 'pending';
+  // A drive: look round the middle of the road, wide enough to catch some of it.
+  const path = spot.path ?? [];
+  const at = spot.kind === 'drive' && path.length ? midpoint(path) : spot.at;
+  const radius = radiusFor(spot.kind, spot.kind === 'drive' ? spanOf(path) * 69 : 0);
   return (
-    <Section title={`Photos (${photos.length})`}>
-      <Row gap={8}>
-        {photos.map((c, i) => (
-          <Image key={`${c.userId}-${i}`} source={{ uri: photoUri(c.photo!) }} style={{ width: 104, height: 104, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
-        ))}
-      </Row>
+    <Section title={photos.length ? `Photos (${photos.length})` : 'Photos'}>
+      {photos.length ? (
+        <Row gap={8}>
+          {photos.map((c, i) => (
+            <Image key={`${c.userId}-${i}`} source={{ uri: photoUri(c.photo!) }} style={{ width: 104, height: 104, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
+          ))}
+        </Row>
+      ) : spot.kind === 'photo' ? (
+        <Txt v="muted" style={{ fontSize: 13 }}>No photos from visits yet. Check in here to add the first.</Txt>
+      ) : null}
+      {/* Suggestions waiting for approval don't ask Commons yet. */}
+      {!pending ? <CommonsStrip at={at} radiusM={radius} placeName={spot.name} /> : null}
     </Section>
   );
 }

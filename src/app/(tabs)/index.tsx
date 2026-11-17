@@ -7,7 +7,7 @@ import { PulseRing } from '../../components/motion';
 import { Pin } from '../../components/Pin';
 import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
-import type { MapCircle, MapPath, MapPin, NightMapHandle } from '../../components/mapTypes';
+import type { MapCircle, MapPath, MapPin, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
 import { Chip, Row, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
@@ -19,10 +19,14 @@ import { fitRegion } from '../../lib/geo';
 import { currentPosition } from '../../lib/location';
 import type { LatLng } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
+import { cameraIndex } from '../../lib/cameraData';
+import { CAMERA_CAVEAT, CAMERA_CREDIT, camerasForView, describeCamera, describeZone, zoneMidpoint } from '../../lib/cameras';
+import { ALL_VEHICLES, matchesVehicles, outlinesInView } from '../../lib/tracks';
+import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
 import { C, EVENT_COLOURS, F, SPOT_COLOURS } from '../../theme';
 
-type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'bans';
+type Layer = 'events' | 'photo' | 'drive' | 'track' | 'venue' | 'bans' | 'cameras';
 const LAYERS: { key: Layer; label: string; colour: string }[] = [
   { key: 'events', label: 'Events', colour: C.sodium },
   { key: 'photo', label: 'Photo spots', colour: C.magenta },
@@ -30,19 +34,46 @@ const LAYERS: { key: Layer; label: string; colour: string }[] = [
   { key: 'track', label: 'Tracks', colour: C.lime },
   { key: 'venue', label: 'Venues', colour: C.sodium },
   { key: 'bans', label: 'Ban zones', colour: C.alert },
+  // Kept in settings (Me > Map), so it stays as you left it.
+  { key: 'cameras', label: 'Cameras', colour: C.alert },
 ];
+
+/** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
+interface Selection {
+  title: string;
+  meta: string;
+  body: string;
+  colour: string;
+  open?: () => void;
+  cta?: string;
+}
+
+const START = { lat: 52.7, lng: -1.7 };
+const START_SPAN = 1.4;
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
-  const { events, me, crews, users, builds, now, spots, nearby } = store;
+  const { events, me, crews, users, builds, now, spots, nearby, settings, setSettings } = store;
   const newNear = nearby?.unseen.length ?? 0;
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
+  const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
+  const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras };
+  function toggleLayer(key: Layer) {
+    if (key === 'cameras') setSettings({ cameras: !settings.cameras });
+    else setLayers((x) => ({ ...x, [key]: !x[key] }));
+  }
   const [selected, setSelected] = useState<string | null>(null);
   /** "Show everything": where to move the map, and a counter so the same button works twice. */
   const [view, setView] = useState<{ centre: LatLng; span: number; key: number } | null>(null);
   const meUser = users.find((u) => u.id === me);
-  const places = useMemo(() => visibleSpots(spots, me), [spots, me]);
+  /** Where the map is looking, for the layers that only show when zoomed in (cameras, circuit outlines). */
+  const [region, setRegion] = useState<MapRegion>({ centre: meUser?.home ?? START, span: START_SPAN });
+  /** Tracks: which vehicles to show circuits for (Cars, Bikes, Karts; any mix). */
+  const [trackKinds, setTrackKinds] = useState<TrackVehicle[]>(ALL_VEHICLES);
+  const places = useMemo(
+    () => visibleSpots(spots, me).filter((s) => s.kind !== 'track' || matchesVehicles(s, trackKinds)),
+    [spots, me, trackKinds],
+  );
   const hasVenues = places.some((x) => x.kind === 'venue');
 
   // Follow the person: ask for when-in-use location the first time, then centre on them.
@@ -80,10 +111,27 @@ export default function MapScreen() {
     [events, me, crews, users, builds, now],
   );
 
+  const cams = useMemo(
+    () => (layers.cameras ? camerasForView(cameraIndex(), region.centre, region.span) : null),
+    [layers.cameras, region],
+  );
+
   const { pins, paths, circles } = useMemo(() => {
     const pins: MapPin[] = [];
     const paths: MapPath[] = [];
     const circles: MapCircle[] = [];
+    // Speed cameras first: they draw under everything else.
+    if (cams) {
+      for (const z of cams.zones) {
+        paths.push({ id: `az:${z.id}`, coords: z.path, colour: C.alert, dashed: true, width: 3 });
+        pins.push({ id: `avg:${z.id}`, at: zoneMidpoint(z), glyph: 'average', colour: C.alert, title: describeZone(z), size: 26 });
+      }
+      for (const c of cams.cameras) pins.push({ id: `cam:${c.id}`, at: c.at, glyph: 'camera', colour: C.alert, title: describeCamera(c), size: 24 });
+    }
+    if (layers.track) {
+      for (const { id, outline } of outlinesInView(places, region.centre, region.span))
+        paths.push({ id: `ol:${id}`, coords: outline.path, colour: SPOT_COLOURS.track, width: 3 });
+    }
     if (layers.events) {
       for (const v of views) {
         const e = v.event;
@@ -110,12 +158,20 @@ export default function MapScreen() {
     }
     if (layers.bans) for (const z of BAN_ZONES) circles.push({ id: `bz:${z.id}`, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert });
     return { pins: orderPins(pins), paths, circles };
-  }, [views, layers, places]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [views, shown, places, cams, region]);
 
   const sel = selected ? describeSelection(selected) : null;
 
-  function describeSelection(id: string) {
-    const [kind, key] = id.split(':');
+  function describeSelection(id: string): Selection | null {
+    const kind = id.slice(0, id.indexOf(':'));
+    const key = id.slice(id.indexOf(':') + 1);
+    if (kind === 'cam' || kind === 'avg') {
+      const pin = pins.find((p) => p.id === id);
+      if (!pin) return null;
+      const [what, ...rest] = pin.title.split(' · ');
+      return { title: what, meta: rest.join(' · '), body: `${CAMERA_CAVEAT}\n${CAMERA_CREDIT}.`, colour: C.alert };
+    }
     if (kind === 'ev') {
       const v = views.find((x) => x.event.id === key);
       if (!v) return null;
@@ -173,8 +229,9 @@ export default function MapScreen() {
         pins={pins}
         paths={paths}
         circles={circles}
-        centre={view?.centre ?? meUser?.home ?? { lat: 52.7, lng: -1.7 }}
-        span={view?.span ?? 1.4}
+        centre={view?.centre ?? meUser?.home ?? START}
+        span={view?.span ?? START_SPAN}
+        onRegion={setRegion}
         recentreKey={view?.key ?? 0}
         onSelect={setSelected}
         onPressMap={() => setSelected(null)}
@@ -205,8 +262,24 @@ export default function MapScreen() {
         </Row>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 8 }}>
           {LAYERS.filter((l) => l.key !== 'venue' || hasVenues).map((l) => (
-            <View key={l.key} style={st.chipBg}>
-              <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => setLayers((x) => ({ ...x, [l.key]: !x[l.key] }))} />
+            <View key={l.key} style={{ flexDirection: 'row', gap: 6 }}>
+              <View style={st.chipBg}>
+                <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => toggleLayer(l.key)} />
+              </View>
+              {l.key === 'track' && layers.track
+                ? ALL_VEHICLES.map((v) => (
+                    <View key={v} style={st.chipBg}>
+                      <Chip
+                        label={VEHICLE_LABELS[v]}
+                        on={trackKinds.includes(v)}
+                        colour={C.lime}
+                        onPress={() =>
+                          setTrackKinds((k) => (k.includes(v) ? (k.length > 1 ? k.filter((x) => x !== v) : k) : [...k, v]))
+                        }
+                      />
+                    </View>
+                  ))
+                : null}
             </View>
           ))}
           <View style={st.chipBg}>
@@ -218,7 +291,8 @@ export default function MapScreen() {
               on
               colour={C.chalk}
               onPress={() => {
-                const r = fitRegion(pins.map((p) => p.at));
+                // Everything you can open: cameras are background, so they don't count.
+                const r = fitRegion(pins.filter((p) => p.glyph !== 'camera' && p.glyph !== 'average').map((p) => p.at));
                 if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
               }}
             />
@@ -227,7 +301,14 @@ export default function MapScreen() {
             <Chip label="+ Suggest a place" on colour={C.chalk} onPress={() => router.push('/spot/new')} />
           </View>
         </ScrollView>
-        <Row style={{ justifyContent: 'flex-end' }}>
+        <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+          {cams ? (
+            <View style={st.credit} pointerEvents="none">
+              <Txt v="mono" style={{ fontSize: 10, color: cams.tooWide ? C.chalk : C.fog }}>
+                {cams.tooWide ? 'ZOOM IN TO SEE SPEED CAMERAS' : `${CAMERA_CREDIT} · may be incomplete`}
+              </Txt>
+            </View>
+          ) : <View />}
           <Pressable
             onPress={() => locate(true, true)}
             style={({ pressed }) => [st.locate, pressed && { opacity: 0.8 }]}
@@ -255,7 +336,7 @@ export default function MapScreen() {
         ) : null}
       </View>
       {sel ? (
-        <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} accessibilityRole="button">
+        <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} disabled={!sel.open} accessibilityRole={sel.open ? 'button' : 'summary'}>
           <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
             <Txt v="h3" style={{ flex: 1 }} numberOfLines={1}>{sel.title}</Txt>
             <Pressable onPress={() => setSelected(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
@@ -264,9 +345,11 @@ export default function MapScreen() {
           </Row>
           <Txt v="mono" style={{ color: sel.colour }}>{sel.meta.toUpperCase()}</Txt>
           <Txt v="muted">{sel.body}</Txt>
-          <View style={[st.cta, { borderColor: sel.colour }]}>
-            <Txt v="label" style={{ color: sel.colour }}>{sel.cta}</Txt>
-          </View>
+          {sel.cta ? (
+            <View style={[st.cta, { borderColor: sel.colour }]}>
+              <Txt v="label" style={{ color: sel.colour }}>{sel.cta}</Txt>
+            </View>
+          ) : null}
         </Pressable>
       ) : lead ? (
         <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
@@ -341,6 +424,10 @@ const st = StyleSheet.create({
   },
   note: { backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1, borderRadius: 8, padding: 12, gap: 8, marginTop: 8 },
   chipBg: { backgroundColor: 'rgba(11,15,23,0.88)', borderRadius: 4 },
+  credit: {
+    backgroundColor: 'rgba(11,15,23,0.85)', borderColor: C.kerb, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3,
+    flexShrink: 1, marginRight: 8, marginTop: 2,
+  },
   peek: {
     position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(19,26,38,0.97)', borderColor: C.kerb, borderWidth: 1,
     borderLeftWidth: 3, borderRadius: 8, padding: 14, gap: 6,

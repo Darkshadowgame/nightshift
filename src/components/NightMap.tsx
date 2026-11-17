@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef } from 'react';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { C } from '../theme';
 import { pinLayer } from '../lib/hud';
 import { PulseRing } from './motion';
@@ -12,6 +12,7 @@ const MILE_M = 1609.34;
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export function NightMap({
   ref, pins, paths = [], circles = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
+  onRegion, credit,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
   useImperativeHandle(ref, () => ({
@@ -29,7 +30,13 @@ export function NightMap({
     map.current?.animateToRegion({ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }, 450);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followKey, recentreKey]);
+  // Tell the screen where the map starts, before the first pan or zoom.
+  useEffect(() => {
+    onRegion?.({ centre, span });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
+    <View style={StyleSheet.absoluteFill}>
     <MapView
       ref={map}
       style={StyleSheet.absoluteFill}
@@ -41,7 +48,14 @@ export function NightMap({
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
       showsUserLocation={showsUser}
       showsMyLocationButton={false}
-      onRegionChangeComplete={onMoved ? (r) => onMoved({ lat: r.latitude, lng: r.longitude }) : undefined}
+      onRegionChangeComplete={
+        onMoved || onRegion
+          ? (r) => {
+              onMoved?.({ lat: r.latitude, lng: r.longitude });
+              onRegion?.({ centre: { lat: r.latitude, lng: r.longitude }, span: r.latitudeDelta });
+            }
+          : undefined
+      }
       showsTraffic
       showsPointsOfInterests={false}
       showsCompass={false}
@@ -63,7 +77,7 @@ export function NightMap({
           key={p.id}
           coordinates={p.coords.map((x) => ({ latitude: x.lat, longitude: x.lng }))}
           strokeColor={p.colour}
-          strokeWidth={4}
+          strokeWidth={p.width ?? 4}
           lineDashPattern={p.dashed ? [8, 6] : undefined}
         />
       ))}
@@ -92,5 +106,16 @@ export function NightMap({
         </Marker>
       ) : null}
     </MapView>
+    {credit ? (
+      <View pointerEvents="none" style={st.credit}>
+        <Text style={st.creditText}>{credit}</Text>
+      </View>
+    ) : null}
+    </View>
   );
 }
+
+const st = StyleSheet.create({
+  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(11,15,23,0.75)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
+  creditText: { color: C.fog, fontSize: 9 },
+});

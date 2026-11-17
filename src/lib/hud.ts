@@ -77,10 +77,12 @@ export function mapHud(views: EventView[], now: Date): { live: EventView[]; next
 type Layered = { glyph: string; live?: boolean };
 
 export function pinLayer(p: Layered): number {
-  if (p.live) return 3;
-  if (p.glyph === 'locked') return 1;
-  if (p.glyph === 'photo' || p.glyph === 'drive' || p.glyph === 'track' || p.glyph === 'venue') return 0;
-  return 2;
+  if (p.live) return 4;
+  // Speed cameras are background information: everything else sits on top.
+  if (p.glyph === 'camera' || p.glyph === 'average') return 0;
+  if (p.glyph === 'locked') return 2;
+  if (p.glyph === 'photo' || p.glyph === 'drive' || p.glyph === 'track' || p.glyph === 'venue') return 1;
+  return 3;
 }
 
 export function orderPins<T extends Layered>(pins: T[]): T[] {

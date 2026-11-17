@@ -14,8 +14,8 @@ with the focus on modified builds.
 | Garage: car and bike builds, mods, specs, photos | Live "cruise mode" presence of other users |
 | Class letter (S/A/B/C/D) per build | Swipe-to-match, follows, DMs |
 | Map with game-style pins: events, photo spots, drives, tracks | Crew chat |
-| Events: cruise, rolling meet, meet, show, track day | Badges, leaderboards (never for public roads) |
-| Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Drive mode, cameras and hazards, push-to-talk |
+| Events: cruise, rolling meet, meet, show, track day | Badges; leaderboards beyond track times (never for public roads) |
+| Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Drive mode, camera alerts while driving and hazards, push-to-talk |
 | Co-hosts and crew-owned events | Real push notifications (need a paid Apple developer account) |
 | RSVP, check-in, timed reveal, rolling "Move on" | Backend sync between phones (Supabase, next step) |
 | Event chat (local only for now) | Sign in with Apple |
@@ -179,6 +179,49 @@ Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
   about 10 seconds. A point inside a ban zone shows a warning, not a block.
 
 Code: `src/lib/spots.ts`, tests in `__tests__/spots.test.ts`.
+
+## Speed cameras, nearby photos, circuits and track times (built, Nov 2026)
+
+Owner's requests, 17 Nov 2026. Legal basis: `docs/research/legal.md` section 3 and the
+App Store notes (camera *sites* from a database are legal in the UK; police positions are not
+shown; no timing on public roads).
+
+* **Cameras layer** (map chip **Cameras**, and Me > Map > **Speed cameras**; one setting, on by
+  default). Fixed speed cameras and average-speed zones for the whole UK from OpenStreetMap
+  (`highway=speed_camera`; `type=enforcement` relations with `device`/`from`/`to`), fetched at
+  build time into `src/data/cameras.ts` and decoded a 1° tile at a time. They only show once
+  the map is zoomed in to driving distance (about 35 miles top to bottom), at most 120 pins,
+  nearest the middle first; zoomed out, a note says to zoom in. Pins are a camera in alert
+  red; zones are a red dashed line from start to end through their cameras. Tapping says the
+  limit and the direction where OSM has them, that the data may be incomplete, and the credit.
+  Wording is speed-limit information only. There is no way to report cameras or police, and
+  the OSM data stays a separate dataset (ODbL). Credit on the map and in the README.
+* **Nearby photos** on photo spot, drive and track screens: your own (plate-blurred) visit
+  photos first, then public photos from Wikimedia Commons' geosearch near the place (800 m
+  for spots, 1.5 km for tracks, round the middle of a drive), each with its author and licence
+  and opening its Commons page. Maps, logos, diagrams, SVGs and tiny files are dropped; photos
+  whose title names the place come first. Only the place's coordinates are sent, to
+  commons.wikimedia.org only. Answers are cached for a week; offline or empty is said plainly.
+* **Circuits:** the main layout's outline from OpenStreetMap raceway ways (the loop closest to
+  the published main-layout length; the longest line for hill climbs), on the track screen and
+  on the main map when zoomed right in. Track details: what runs there (cars, bikes, karts),
+  length, current layouts, and the official lap records published on each circuit's Wikipedia
+  page (outright and fastest bike class, holder, vehicle, year, source link). Records the page
+  isn't clear about are left out.
+* **Cars / Bikes / Karts chips** (shown with the Tracks layer): filter the circuits on the map
+  by what runs there.
+* **Track times:** entered by hand only at a bundled track (circuit, kart track, sprint course or
+  hill climb; never a drive, photo spot, venue or spectator stadium), with the layout, the
+  date (in the last two years, not in the future), the vehicle type, the build (its class is
+  taken from it; karts are hire or own) and a proof photo of the timing sheet or timing app
+  that goes through the plate review. Times quicker than the published outright record are
+  refused as typos. The leaderboard is per track, layout, vehicle type and class, best time per
+  person. Kept on the phone and marked **unverified**; verification against the proof arrives
+  with the server. Times are never worked out from GPS, and drives stay untimed.
+
+Code: `src/lib/cameras.ts`, `cameraCodec.ts`, `cameraZones.ts`, `commons.ts`, `outline.ts`,
+`tracks.ts`, `laptimes.ts`, with tests. Data scripts: `scripts/fetch-cameras.mjs`,
+`scripts/fetch-circuits.mjs`.
 
 ## Author rep for drives and photo spots
 

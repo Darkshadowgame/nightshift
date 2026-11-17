@@ -1,0 +1,125 @@
+{
+  "batchcomplete": true,
+  "continue": { "ggsoffset": 6, "continue": "ggsoffset||" },
+  "query": {
+    "pages": [
+      {
+        "pageid": 1001,
+        "ns": 6,
+        "title": "File:Lay-by on the moor road - example 1.jpg",
+        "index": -1,
+        "coordinates": [{ "lat": 53.4010, "lon": -1.7700, "primary": true, "globe": "earth" }],
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Example1.jpg/500px-Example1.jpg",
+            "thumbwidth": 360,
+            "thumbheight": 270,
+            "url": "https://upload.wikimedia.org/wikipedia/commons/a/aa/Example1.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Lay-by_on_the_moor_road_-_example_1.jpg",
+            "mime": "image/jpeg",
+            "width": 2048,
+            "height": 1536,
+            "extmetadata": {
+              "Artist": { "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://example.org/profile/1\">A. Photographer</a>&nbsp;<span class=\"noprint\"><a href=\"//commons.wikimedia.org/wiki/File:x#P170\" title=\"Edit\"><img alt=\"Edit\" src=\"https://example.org/icon.png\" width=\"10\" height=\"10\"></a></span>", "source": "commons-desc-page" },
+              "LicenseShortName": { "value": "CC BY-SA 2.0", "source": "commons-desc-page", "hidden": "" },
+              "LicenseUrl": { "value": "https://creativecommons.org/licenses/by-sa/2.0", "source": "commons-desc-page" },
+              "ObjectName": { "value": "Lay-by on the moor road - example 1", "source": "mediawiki-metadata" }
+            }
+          }
+        ]
+      },
+      {
+        "pageid": 1002,
+        "ns": 6,
+        "title": "File:Snake Pass summit in snow.jpg",
+        "index": 0,
+        "coordinates": [{ "lat": 53.4300, "lon": -1.8700, "primary": true, "globe": "earth" }],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Example2.jpg/500px-Example2.jpg",
+            "thumbwidth": 360,
+            "thumbheight": 240,
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Snake_Pass_summit_in_snow.jpg",
+            "mime": "image/jpeg",
+            "width": 3000,
+            "height": 2000,
+            "extmetadata": {
+              "Artist": { "value": "B. Snapper &amp; friends" },
+              "LicenseShortName": { "value": "CC BY 4.0" }
+            }
+          }
+        ]
+      },
+      {
+        "pageid": 1003,
+        "ns": 6,
+        "title": "File:Peak District locator map.svg",
+        "index": 1,
+        "coordinates": [{ "lat": 53.3980, "lon": -1.7650, "primary": true, "globe": "earth" }],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Map.svg/500px-Map.svg.png",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Peak_District_locator_map.svg",
+            "mime": "image/svg+xml",
+            "width": 1200,
+            "extmetadata": { "LicenseShortName": { "value": "CC0" } }
+          }
+        ]
+      },
+      {
+        "pageid": 1004,
+        "ns": 6,
+        "title": "File:Route map of the A57.png",
+        "index": 2,
+        "coordinates": [{ "lat": 53.3975, "lon": -1.7648, "primary": true, "globe": "earth" }],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Route.png/500px-Route.png",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Route_map_of_the_A57.png",
+            "mime": "image/png",
+            "width": 1600,
+            "extmetadata": {}
+          }
+        ]
+      },
+      {
+        "pageid": 1005,
+        "ns": 6,
+        "title": "File:Tiny thumbnail.jpg",
+        "index": 3,
+        "coordinates": [{ "lat": 53.3976, "lon": -1.7647, "primary": true, "globe": "earth" }],
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/e/ee/Tiny.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Tiny_thumbnail.jpg",
+            "mime": "image/jpeg",
+            "width": 240,
+            "extmetadata": {}
+          }
+        ]
+      },
+      {
+        "pageid": 1006,
+        "ns": 6,
+        "title": "File:Woodland near the road.jpg",
+        "index": 4,
+        "imageinfo": [
+          {
+            "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Wood.jpg/500px-Wood.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Woodland_near_the_road.jpg",
+            "mime": "image/jpeg",
+            "width": 1024,
+            "extmetadata": { "Artist": { "value": "" } }
+          }
+        ]
+      },
+      {
+        "pageid": 1007,
+        "ns": 6,
+        "title": "File:Broken entry.jpg",
+        "index": 5
+      }
+    ]
+  }
+}

@@ -185,6 +185,35 @@ note anything odd for the next pass. Each step says what you should see.
 - [ ] Me: rep breakdown and level go up after drives and spots. Check-ins and hosting
       count once the event has finished, the same numbers as on your Public view.
 
+### 7b. Speed cameras, photos from Commons, circuits and track times
+
+- [ ] Map: zoom in to about 30 miles across (e.g. round Norwich, central London, the Medway
+      towns or Tamworth). Red camera pins appear, with red dashed lines for average-speed
+      zones (their pin sits halfway along). Tap one: the card says the limit (e.g. **Speed
+      camera · 30 mph · faces north-east**), that the data may be incomplete, and the
+      OpenStreetMap credit. Nothing to open, and nothing about police anywhere.
+- [ ] Zoomed out further, the pins go and a small note says **Zoom in to see speed cameras**.
+      The **Cameras** chip turns the layer off and on; so does Me > Map > **Speed cameras**
+      (they're the same setting, on by default).
+- [ ] Tracks chip on: **Cars**, **Bikes** and **Karts** chips appear next to it. Turn Cars
+      off: hill climbs and car-only circuits (e.g. Goodwood) go; Buckmore Park stays only
+      with Karts on.
+- [ ] Zoom right in on a circuit (Snetterton, Brands Hatch, Silverstone): its outline is
+      drawn in green on the map.
+- [ ] Open a track (e.g. Snetterton): the little map shows the circuit outline, then **The
+      track**: what runs there, the length, the layouts and the lap records (outright and
+      bikes) with holder and year, and a **Source: Wikipedia** link.
+- [ ] **Track times**: **+ Add a track time**: pick the layout, the date, type the time
+      (e.g. 2:18.402), pick your build (its class is filled in), add a photo of the timing
+      sheet (plates blurred), **Save time**. It shows under Cars · Class A, marked
+      **Unverified**. A time quicker than the lap record, a future date or no photo is
+      refused with the reason. **Remove** takes yours off. Drives and photo spots have no
+      way to enter a time.
+- [ ] A photo spot, drive or track: under **Photos**, your own visit photos first, then
+      **Nearby on Wikimedia Commons**: public photos with the author and licence under each.
+      Tap one: its Commons page opens in Safari. In flight mode on a place you haven't
+      opened before it says it couldn't load them; one you've opened shows them again.
+
 ### 8. People and crews
 
 - [ ] Tap anyone in a Going list, a vote card or chat: their builds, trophies,
@@ -263,6 +292,16 @@ note anything odd for the next pass. Each step says what you should see.
   ODbL); roads close and change, so check before you go. East Anglia, Kent and London also
   have researched drives, photo spots and meet-friendly venues (`docs/research/regional-places.md`);
   medium-confidence ones say so in their warnings. Elsewhere there are no venues yet.
+- Speed cameras come from OpenStreetMap (bundled, fetched on the date in
+  `src/data/cameras.ts`). Volunteers map them, so some are missing or out of date: the
+  app says so and only ever shows them as speed-limit information. They are a separate
+  dataset from anything people report (there's no way to report cameras or police).
+- Circuit outlines come from OpenStreetMap and show the main layout as mapped. Lap records
+  are copied from each circuit's Wikipedia page (read 17 Nov 2026) and left out where the
+  page wasn't clear. Track times are kept on this phone and marked unverified: checking the
+  proof photo arrives with the server.
+- Nearby photos come from Wikimedia Commons when you open a place (only the place's
+  coordinates are sent) and are kept for a week. Commons' own geotags decide what shows.
 - Plate blurring needs the iPhone app; the web preview can't detect plates.
 - The web preview uses a flat stand-in map and has no notifications or haptics.
 
@@ -295,4 +334,27 @@ note anything odd for the next pass. Each step says what you should see.
 | `src/lib/placeNames.ts` | Search queries, postcodes and short place names (pure) |
 | `src/lib/scene.ts` | Moves the sample scene onto your home area; geocoded names for sample stops |
 | `src/lib/settings.ts` | Settings, defaults (real GPS) and the one-off upgrade for old saves |
+| `src/lib/cameraCodec.ts`, `cameraZones.ts`, `cameras.ts`, `cameraData.ts` | Speed-camera data: compact tile encoding, average-speed zone lines, what to draw for the view, lazy loading |
+| `src/lib/polyline.ts`, `outline.ts`, `tracks.ts` | Encoded lines, picking a circuit's main layout from OSM ways, circuit details and what runs where |
+| `src/lib/laptimes.ts`, `lapStore.ts` | Track times: checks (real tracks only, proof, layout, vehicle type), per-class leaderboards, kept on the phone |
+| `src/lib/commons.ts`, `commonsClient.ts` | Nearby Wikimedia Commons photos: request, parsing and filtering, a week's cache |
+| `src/data/cameras.ts`, `circuits.ts` | Generated from OpenStreetMap by `scripts/fetch-cameras.mjs` and `scripts/fetch-circuits.mjs` |
+| `src/data/trackInfo.ts` | Circuit layouts, lap records (with sources) and what runs at each track |
 | `src/app/` | Screens (Expo Router) |
+
+## Data and credits
+
+| Data | Where from | Licence |
+|---|---|---|
+| Speed cameras and average-speed zones (`src/data/cameras.ts`) | OpenStreetMap `highway=speed_camera` nodes and `type=enforcement` relations, via the Overpass API | © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Kept as its own dataset, never merged with user reports. Credited on the map. |
+| Circuit outlines (`src/data/circuits.ts`), drive lines, car parks | OpenStreetMap (`highway=raceway`, motorsport `leisure=track`) | © OpenStreetMap contributors, ODbL 1.0. Credited on the track and drive maps. |
+| Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
+| Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
+
+To refresh the bundled OpenStreetMap data (be polite: it runs one query per region, one
+at a time, and backs off when Overpass is busy; `--cache DIR` keeps the answers):
+
+```bash
+node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-cameras.mjs --cache /tmp/osm
+node --import ./scripts/lib/resolve-ts.mjs scripts/fetch-circuits.mjs --cache /tmp/osm
+```

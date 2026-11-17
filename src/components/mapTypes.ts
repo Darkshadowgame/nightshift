@@ -18,6 +18,14 @@ export interface MapPath {
   coords: LatLng[];
   colour: string;
   dashed?: boolean;
+  /** Line width in points (default 4). */
+  width?: number;
+}
+
+/** Where the map is looking: its centre and span (degrees of latitude shown). */
+export interface MapRegion {
+  centre: LatLng;
+  span: number;
 }
 
 export interface MapCircle {
@@ -53,4 +61,8 @@ export interface NightMapProps {
   onPressMap?: () => void;
   /** Called when the person pans or zooms, with the new centre. */
   onMoved?: (centre: LatLng) => void;
+  /** Called when the person pans or zooms (and once at the start), with the centre and span. */
+  onRegion?: (region: MapRegion) => void;
+  /** Small credit line in the map's bottom corner, e.g. for OpenStreetMap data drawn on it. */
+  credit?: string;
 }
