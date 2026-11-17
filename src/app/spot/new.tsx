@@ -8,6 +8,7 @@ import { NightMap } from '../../components/NightMap';
 import type { MapPin } from '../../components/mapTypes';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
+import { zoneShapes } from '../../lib/zones';
 import { banZoneWarning } from '../../lib/events';
 import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
 import { fitRegion } from '../../lib/geo';
@@ -16,6 +17,9 @@ import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { C, SPOT_COLOURS } from '../../theme';
+
+/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
+const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
 
 /** Suggest a drive (checkpoints along the road) or a photo spot (one point), chosen on the full-screen map picker. */
 export default function SuggestPlace() {
@@ -132,7 +136,8 @@ export default function SuggestPlace() {
                   ]
                 : []
             }
-            circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+            circles={BAN_SHAPES.circles}
+            polygons={BAN_SHAPES.polygons}
             centre={view.centre}
             span={view.span}
             follow

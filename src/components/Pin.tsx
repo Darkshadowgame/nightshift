@@ -1,3 +1,5 @@
+import { memo } from 'react';
+import { Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 export type Glyph =
@@ -28,21 +30,65 @@ export type Glyph =
   | 'coffee'
   | 'partner';
 
-/** Game-style hexagon badge with a glyph, as on the concept board. */
-export function Pin({ glyph, colour, size = 36 }: { glyph: Glyph; colour: string; size?: number }) {
-  return (
+const INK = '#0b0f17';
+
+/** Events are drawn filled ("something happening"); places, shops and cameras outlined ("somewhere to go"). */
+export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rolling', 'cruise', 'show', 'trackday', 'locked']);
+
+/**
+ * Game-style hexagon badge with a glyph, as on the concept board. `count`
+ * adds a small number badge (a group of places when zoomed out).
+ * Memoised: map markers re-render only when what they draw changes.
+ */
+export const Pin = memo(function Pin({ glyph, colour, size = 36, count }: { glyph: Glyph; colour: string; size?: number; count?: number }) {
+  const filled = FILLED_GLYPHS.has(glyph);
+  const svg = (
     <Svg width={size} height={size} viewBox="0 0 40 40">
-      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill="#0b0f17" stroke={colour} strokeWidth={2.5} />
-      <GlyphShape glyph={glyph} c={colour} />
+      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={filled ? colour : INK} stroke={colour} strokeWidth={2.5} />
+      <GlyphShape glyph={glyph} c={filled ? INK : colour} />
     </Svg>
   );
-}
+  if (!count) return svg;
+  const label = count > 99 ? '99+' : String(count);
+  return (
+    <View style={{ width: size + 8, height: size + 4, paddingTop: 4 }}>
+      {svg}
+      <View
+        style={{
+          position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
+          backgroundColor: colour, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Text style={{ color: INK, fontSize: 11, lineHeight: 13, fontFamily: 'BarlowCondensed_700Bold' }}>{label}</Text>
+      </View>
+    </View>
+  );
+});
 
 function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
   switch (glyph) {
-    case 'meet':
     case 'show':
+      // A trophy: shows are judged.
+      return (
+        <>
+          <Path d="M14 11h12v5a6 6 0 0 1-12 0z" fill={c} />
+          <Path d="M14 13h-3v1.5a3.5 3.5 0 0 0 3.5 3.5M26 13h3v1.5a3.5 3.5 0 0 1-3.5 3.5" fill="none" stroke={c} strokeWidth={1.8} />
+          <Path d="M20 22v4" stroke={c} strokeWidth={2.6} />
+          <Rect x={15} y={26} width={10} height={3} rx={1} fill={c} />
+        </>
+      );
     case 'venue':
+      // A building with a flag: somewhere that welcomes meets (cafés, museums).
+      return (
+        <>
+          <Path d="M11 20 20 13.5 29 20" fill="none" stroke={c} strokeWidth={2.4} strokeLinejoin="round" />
+          <Path d="M13.5 19v10h13V19" fill="none" stroke={c} strokeWidth={2.2} />
+          <Rect x={18} y={23} width={4} height={6} fill={c} />
+          <Path d="M20 13.5V8.5" stroke={c} strokeWidth={1.6} />
+          <Path d="M20 8.5h5l-1.2 1.6L25 11.7h-5z" fill={c} />
+        </>
+      );
+    case 'meet':
       return (
         <>
           <Circle cx={14} cy={20} r={3.4} fill={c} />

@@ -8,12 +8,16 @@ import { nameForPlace } from '../../lib/location';
 import { shouldAutoName } from '../../lib/placeNames';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
 import { BAN_ZONES } from '../../data/seed';
+import { zoneShapes } from '../../lib/zones';
 import { banZoneAt, banZoneWarning, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
 import { formatTime } from '../../lib/format';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
 import { C } from '../../theme';
+
+/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
+const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
 
 type Selected = number | 'new';
 
@@ -138,7 +142,8 @@ export default function ChangePlan() {
           <NightMap
             key={`${selected}`}
             pins={pins}
-            circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+            circles={BAN_SHAPES.circles}
+            polygons={BAN_SHAPES.polygons}
             paths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
             centre={pending ?? centre}
             span={0.3}

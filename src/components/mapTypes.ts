@@ -11,6 +11,15 @@ export interface MapPin {
   size?: number;
   /** Pulses: the event is on now. */
   live?: boolean;
+  /** A group of places (zoomed out): drawn with a count badge. */
+  count?: number;
+}
+
+/** A filled outline, e.g. a borough-wide ban zone. */
+export interface MapPolygon {
+  id: string;
+  coords: LatLng[];
+  colour: string;
 }
 
 export interface MapPath {
@@ -47,6 +56,7 @@ export interface NightMapProps {
   pins: MapPin[];
   paths?: MapPath[];
   circles?: MapCircle[];
+  polygons?: MapPolygon[];
   centre: LatLng;
   /** Rough span shown, in degrees of latitude. */
   span?: number;

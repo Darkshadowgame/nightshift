@@ -5,6 +5,7 @@ import { NightMap } from './NightMap';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
 import { FILTER_BRANDS } from '../data/catalog';
 import { BAN_ZONES } from '../data/seed';
+import { zoneShapes } from '../lib/zones';
 import { visibleSpots } from '../lib/spots';
 import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen } from '../lib/format';
@@ -21,6 +22,9 @@ import { newId, useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { C, F } from '../theme';
+
+/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
+const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
 const DAY_CHOICES: DayChoice[] = [
@@ -291,7 +295,8 @@ export function EventForm({
             <NightMap
               pins={stopPins(null)}
               paths={routePaths}
-              circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+              circles={BAN_SHAPES.circles}
+              polygons={BAN_SHAPES.polygons}
               centre={preview.centre}
               span={preview.span}
               follow

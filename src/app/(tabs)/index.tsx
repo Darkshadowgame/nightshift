@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { areaRadius } from '../../lib/area';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
@@ -9,8 +9,10 @@ import { LayerBar } from '../../components/LayerBar';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { feel } from '../../lib/feel';
 import { BAN_ZONES } from '../../data/seed';
+import { zoneShapes } from '../../lib/zones';
+import { nearestPoints, placesForView, regionKey } from '../../lib/mapPlaces';
 import { NightMap } from '../../components/NightMap';
-import type { MapCircle, MapPath, MapPin, MapRegion, NightMapHandle } from '../../components/mapTypes';
+import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
 import { Row, Txt } from '../../components/ui';
 import { EVENT_LABELS } from '../../lib/events';
@@ -20,7 +22,7 @@ import { plural } from '../../lib/format';
 import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
 import { fitRegion } from '../../lib/geo';
 import { currentPosition } from '../../lib/location';
-import type { LatLng } from '../../lib/types';
+import type { LatLng, SpotKind } from '../../lib/types';
 import { averageStars, visibleSpots } from '../../lib/spots';
 import { driveTier } from '../../lib/rep';
 import { cameraIndex } from '../../lib/cameraData';
@@ -45,7 +47,7 @@ const LAYERS: { key: Layer; label: string; glyph: Glyph; colour: string }[] = [
   { key: 'photo', label: 'Photos', glyph: 'photo', colour: C.magenta },
   { key: 'drive', label: 'Drives', glyph: 'drive', colour: C.neon },
   { key: 'track', label: 'Tracks', glyph: 'track', colour: C.lime },
-  { key: 'venue', label: 'Venues', glyph: 'venue', colour: C.sodium },
+  { key: 'venue', label: 'Venues', glyph: 'venue', colour: SPOT_COLOURS.venue },
   // Kept in settings, with its filter (Shops ▾).
   { key: 'shops', label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR },
   { key: 'bans', label: 'Bans', glyph: 'area', colour: C.alert },
@@ -63,6 +65,27 @@ interface Selection {
   cta?: string;
 }
 
+/** Count pins (places grouped when zoomed out): what each one is. */
+const CLUSTER_NAMES: Record<SpotKind, string> = { drive: 'drives', photo: 'photo spots', track: 'tracks', venue: 'venues' };
+/** Cameras with no recorded limit: dimmer than the rest. */
+const CAMERA_DIM = '#a34848';
+
+/** The map key ("Key" button): what each pin means. Events are filled, places outlined. */
+const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
+  { glyph: 'meet', colour: EVENT_COLOURS.meet, label: 'Meet, cruise or rolling meet' },
+  { glyph: 'show', colour: EVENT_COLOURS.show, label: 'Show' },
+  { glyph: 'trackday', colour: EVENT_COLOURS.trackday, label: 'Track day' },
+  { glyph: 'locked', colour: EVENT_COLOURS.meet, label: 'Event, location locked' },
+  { glyph: 'drive', colour: SPOT_COLOURS.drive, label: 'Drive' },
+  { glyph: 'photo', colour: SPOT_COLOURS.photo, label: 'Photo spot' },
+  { glyph: 'track', colour: SPOT_COLOURS.track, label: 'Track' },
+  { glyph: 'venue', colour: SPOT_COLOURS.venue, label: 'Venue (café, museum)' },
+  { glyph: 'garage', colour: SHOP_COLOUR, label: 'Shop (OpenStreetMap)' },
+  { glyph: 'partner', colour: PARTNER_COLOUR, label: 'Partner (paid, always marked)' },
+  { glyph: 'camera', colour: C.alert, label: 'Speed camera' },
+  { glyph: 'area', colour: C.alert, label: 'Ban zone' },
+];
+
 const START = { lat: 52.7, lng: -1.7 };
 const START_SPAN = 1.4;
 
@@ -74,8 +97,13 @@ export default function MapScreen() {
   const newNear = nearby?.unseen.length ?? 0;
   const [shown, setLayers] = useState<Record<Exclude<Layer, 'cameras' | 'shops'>, boolean>>({ events: true, photo: true, drive: true, track: true, venue: true, bans: false });
   const layers: Record<Layer, boolean> = { ...shown, cameras: settings.cameras, shops: !!settings.shops };
+  /** The camera layer's "zoom in" note only shows once the person has turned the layer on themselves. */
+  const [camerasAsked, setCamerasAsked] = useState(false);
   function toggleLayer(key: Layer) {
-    if (key === 'cameras') setSettings({ cameras: !settings.cameras });
+    if (key === 'cameras') {
+      setCamerasAsked(!settings.cameras);
+      setSettings({ cameras: !settings.cameras });
+    }
     else if (key === 'shops') setSettings({ shops: !settings.shops });
     else setLayers((x) => ({ ...x, [key]: !x[key] }));
   }
@@ -95,7 +123,18 @@ export default function MapScreen() {
   const [view, setView] = useState<{ centre: LatLng; span: number; key: number } | null>(null);
   const meUser = users.find((u) => u.id === me);
   /** Where the map is looking, for the layers that only show when zoomed in (cameras, circuit outlines). */
-  const [region, setRegion] = useState<MapRegion>({ centre: meUser?.home ?? START, span: START_SPAN });
+  const [region, setRegionNow] = useState<MapRegion>({ centre: meUser?.home ?? START, span: START_SPAN });
+  // Pans and zooms settle a moment before the pins are worked out again, so a burst of region updates costs one pass.
+  const regionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setRegion = useCallback((r: MapRegion) => {
+    if (regionTimer.current) clearTimeout(regionTimer.current);
+    regionTimer.current = setTimeout(() => setRegionNow(r), 120);
+  }, []);
+  useEffect(() => () => {
+    if (regionTimer.current) clearTimeout(regionTimer.current);
+  }, []);
+  /** The region snapped to a coarse grid: small pans don't redraw the place pins. */
+  const snapped = useMemo(() => regionKey(region.centre, region.span), [region]);
   /** Tracks: which vehicles to show circuits for (Cars, Bikes, Karts; any mix), kept in settings. */
   const trackKinds: TrackVehicle[] = settings.trackVehicles?.length ? settings.trackVehicles : ALL_VEHICLES;
   function toggleKind(v: TrackVehicle) {
@@ -149,10 +188,17 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  const views = useMemo(
+  const allViews = useMemo(
     () => viewEvents(events, me, crews, users, builds, now).filter((v) => v.phase !== 'over' && v.phase !== 'cancelled' && v.role !== 'declined'),
     [events, me, crews, users, builds, now],
   );
+  // The 30 s clock only matters to the pins when a phase, role or shown stop changes: keep the same views otherwise.
+  const viewsSig = allViews.map((v) => `${v.event.id}:${v.phase}:${v.role}:${v.shownStop}`).join('|');
+  const stableViews = useRef<{ sig: string; events: typeof events; views: EventView[] } | null>(null);
+  if (!stableViews.current || stableViews.current.sig !== viewsSig || stableViews.current.events !== events) {
+    stableViews.current = { sig: viewsSig, events, views: allViews };
+  }
+  const views = stableViews.current.views;
 
   const cams = useMemo(
     () => (layers.cameras ? camerasForView(cameraIndex(), region.centre, region.span) : null),
@@ -169,10 +215,19 @@ export default function MapScreen() {
     return { ...v, shops: v.shops.filter((s) => !(s.categories[0] === 'coffee' && venues.some((p) => milesBetween(p.at, s.at) < 0.12))) };
   }, [layers.shops, layers.venue, region, shopFilter, partners, venuesViaShops, places]);
 
-  const { pins, paths, circles } = useMemo(() => {
+  /** Places for the view: culled to the view, capped per kind, grouped into count pins when zoomed out (mapPlaces.ts). */
+  const placeView = useMemo(() => {
+    const shownPlaces = places.filter((s) => layers[s.kind] || (s.kind === 'venue' && venuesViaShops));
+    const sel = selected?.startsWith('sp:') ? selected.slice(3) : null;
+    return placesForView(shownPlaces, snapped.centre, snapped.span, sel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [places, shown, venuesViaShops, snapped.key, selected]);
+
+  const { pins, paths, circles, polygons } = useMemo(() => {
     const pins: MapPin[] = [];
     const paths: MapPath[] = [];
     const circles: MapCircle[] = [];
+    let polygons: MapPolygon[] = [];
     // Speed cameras first: they draw under everything else.
     if (cams) {
       for (const z of cams.zones) {
@@ -183,8 +238,12 @@ export default function MapScreen() {
           pins.push({ id: `avg:${z.id}:${i}`, at, glyph: 'average', colour: C.alert, title: describeZone(z), size: cameraPinSize(region.span) + 3 }),
         );
       }
+      // Cameras with no recorded limit say little: smaller and dimmer.
       for (const c of cams.cameras)
-        pins.push({ id: `cam:${c.id}`, at: c.at, glyph: 'camera', colour: C.alert, title: describeCamera(c), size: cameraPinSize(region.span) });
+        pins.push({
+          id: `cam:${c.id}`, at: c.at, glyph: 'camera', colour: c.mph ? C.alert : CAMERA_DIM, title: describeCamera(c),
+          size: cameraPinSize(region.span) - (c.mph ? 0 : 2),
+        });
     }
     if (shopView) {
       for (const s of shopView.shops) pins.push({ id: `shop:${s.id}`, at: s.at, glyph: s.categories[0] ?? 'shop', colour: SHOP_COLOUR, title: s.name, size: shopPinSize(region.span) });
@@ -212,16 +271,39 @@ export default function MapScreen() {
         }
       }
     }
-    for (const s of places) {
-      if (!layers[s.kind] && !(s.kind === 'venue' && venuesViaShops)) continue;
+    for (const s of placeView.places) {
       const colour = s.status === 'pending' ? C.fog : SPOT_COLOURS[s.kind];
       pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour, title: s.name, size: 32 });
-      if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour, dashed: s.status === 'pending' });
     }
-    if (layers.bans) for (const z of BAN_ZONES) circles.push({ id: `bz:${z.id}`, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert });
-    return { pins: orderPins(pins), paths, circles };
+    for (const c of placeView.clusters)
+      pins.push({ id: c.id, at: c.at, glyph: c.kind, colour: SPOT_COLOURS[c.kind], title: CLUSTER_NAMES[c.kind], size: 32, count: c.count });
+    for (const s of placeView.lines) {
+      const colour = s.status === 'pending' ? C.fog : SPOT_COLOURS[s.kind];
+      paths.push({ id: `pa:${s.id}`, coords: s.path!, colour, dashed: s.status === 'pending' });
+    }
+    if (layers.bans) {
+      const shapes = zoneShapes(BAN_ZONES, C.alert);
+      circles.push(...shapes.circles);
+      polygons = shapes.polygons;
+    }
+    return { pins: orderPins(pins), paths, circles, polygons };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [views, shown, places, cams, region, shopView, venuesViaShops]);
+  }, [views, shown, placeView, cams, region.span, shopView]);
+
+  /** A count pin: zoom in on it. */
+  function zoomCluster(id: string) {
+    const c = placeView.clusters.find((x) => x.id === id);
+    if (!c) return;
+    feel.select();
+    setView((x) => ({ centre: c.at, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
+  }
+  const onSelectPin = useCallback((id: string) => {
+    if (id.startsWith('cl:')) zoomClusterRef.current(id);
+    else setSelected(id);
+  }, []);
+  const zoomClusterRef = useRef(zoomCluster);
+  zoomClusterRef.current = zoomCluster;
+  const clearSelection = useCallback(() => setSelected(null), []);
 
   const sel = selected ? describeSelection(selected) : null;
 
@@ -297,6 +379,16 @@ export default function MapScreen() {
     };
   }
 
+  /** One short line under the bar: what to zoom in for, or the OpenStreetMap credit. */
+  const mapNote = (() => {
+    const zoom = [cams?.tooWide && camerasAsked ? 'CAMERAS' : null, shopView?.tooWide ? 'SHOPS' : null].filter(Boolean);
+    if (zoom.length) return { zoom: true, text: `ZOOM IN TO SEE ${zoom.join(' AND ')}` };
+    if (shopView && shopFilter.partnersOnly) return { zoom: false, text: `PARTNERS ONLY · ${shopView.partners.length} HERE` };
+    const more = shopView?.more ? ' · nearest shops shown' : '';
+    return { zoom: false, text: `© OpenStreetMap${cams && !cams.tooWide ? ' · cameras may be incomplete' : ''}${more}` };
+  })();
+  const [showKey, setShowKey] = useState(false);
+
   const hud = useMemo(() => mapHud(views, now), [views, now]);
   const liveCount = hud.live.length;
   /** Live pill: jump to the live event and open its card. */
@@ -317,12 +409,13 @@ export default function MapScreen() {
         pins={pins}
         paths={paths}
         circles={circles}
+        polygons={polygons}
         centre={view?.centre ?? meUser?.home ?? START}
         span={view?.span ?? START_SPAN}
         onRegion={setRegion}
         recentreKey={view?.key ?? 0}
-        onSelect={setSelected}
-        onPressMap={() => setSelected(null)}
+        onSelect={onSelectPin}
+        onPressMap={clearSelection}
         showsUser={located}
       />
       <View style={[st.hud, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
@@ -375,34 +468,26 @@ export default function MapScreen() {
             { key: 'find', label: newNear > 0 ? `Find events · ${newNear} new` : 'Find events', colour: C.lime, onPress: () => router.push('/find') },
             {
               key: 'fit',
-              label: 'Show everything',
+              label: 'Near me',
               colour: C.chalk,
               onPress: () => {
-                // Everything you can open: cameras and shop listings are background, so they don't count.
-                const r = fitRegion(pins.filter((p) => p.glyph !== 'camera' && p.glyph !== 'average' && !p.id.startsWith('shop:') && !p.id.startsWith('ptn:')).map((p) => p.at));
+                // What's near you that you can open (events and places on the shown layers, not cameras or shop
+                // listings): the nearest 60 to your home area, not the whole UK.
+                const from = meUser?.home ?? region.centre;
+                const shownPlaces = places.filter((s) => layers[s.kind] || (s.kind === 'venue' && venuesViaShops)).map((s) => s.at);
+                const evs = layers.events ? views.map((v) => (v.shownStop >= 0 ? v.event.stops[v.shownStop].at : v.event.area)).filter((p): p is LatLng => !!p) : [];
+                const r = fitRegion(nearestPoints([...evs, ...shownPlaces], from, 60));
                 if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
               },
             },
             { key: 'suggest', label: '+ Suggest a place', colour: C.chalk, onPress: () => router.push('/spot/new') },
+            { key: 'key', label: 'Map key', colour: C.chalk, onPress: () => setShowKey((k) => !k) },
           ]}
         />
         <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-          {cams || shopView ? (
+          {(cams && (!cams.tooWide || camerasAsked)) || shopView ? (
             <View style={st.credit} pointerEvents="none">
-              {cams ? (
-                <Txt v="mono" style={{ fontSize: 10, color: cams.tooWide ? C.chalk : C.fog }}>
-                  {cams.tooWide ? 'ZOOM IN TO SEE SPEED CAMERAS' : `${CAMERA_CREDIT} · may be incomplete`}
-                </Txt>
-              ) : null}
-              {shopView ? (
-                <Txt v="mono" style={{ fontSize: 10, color: shopView.tooWide ? C.chalk : C.fog }}>
-                  {shopView.tooWide
-                    ? 'ZOOM IN TO SEE SHOPS'
-                    : shopFilter.partnersOnly
-                      ? `PARTNERS ONLY · ${shopView.partners.length} HERE`
-                      : `${SHOP_CREDIT}${shopView.more ? ' · nearest shown, zoom in for more' : ''}`}
-                </Txt>
-              ) : null}
+              <Txt v="mono" style={{ fontSize: 10, color: mapNote.zoom ? C.chalk : C.fog }} numberOfLines={2}>{mapNote.text}</Txt>
             </View>
           ) : <View />}
           <Pressable
@@ -449,6 +534,26 @@ export default function MapScreen() {
         </Pressable>
       ) : lead ? (
         <NextUp lead={lead} after={after} tonight={hud.tonight} now={now} />
+      ) : null}
+      {showKey ? (
+        <>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowKey(false)} accessibilityLabel="Close the map key" />
+          <View style={[st.menu, st.key, { top: insets.top + 104 }]} accessibilityRole="summary">
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Txt v="label" style={{ fontSize: 10 }}>Map key</Txt>
+              <Pressable onPress={() => setShowKey(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+                <Txt v="label" style={{ fontSize: 10 }}>Close</Txt>
+              </Pressable>
+            </Row>
+            <Txt v="muted" style={{ fontSize: 11, lineHeight: 14 }}>Filled pins are events. Outlined pins are places. A number on a pin is a group: tap to zoom in.</Txt>
+            {KEY_ROWS.map((r) => (
+              <View key={r.label} style={[st.menuRow, { paddingVertical: 3 }]}>
+                <Pin glyph={r.glyph} colour={r.colour} size={22} />
+                <Txt style={{ color: C.chalk, fontSize: 13, flexShrink: 1 }} numberOfLines={1}>{r.label}</Txt>
+              </View>
+            ))}
+          </View>
+        </>
       ) : null}
       {kindMenu?.which === 'shops' ? (
         <>
@@ -603,6 +708,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 8, gap: 2, minWidth: 140,
   },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
+  key: { right: 14, width: 250 },
   box: { width: 18, height: 18, borderRadius: 3, borderWidth: 1.5, borderColor: C.fog, alignItems: 'center', justifyContent: 'center' },
   credit: {
     backgroundColor: 'rgba(11,15,23,0.85)', borderColor: C.kerb, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3,

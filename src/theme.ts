@@ -27,19 +27,26 @@ export const F = {
   labelBold: 'BarlowCondensed_700Bold',
 };
 
+/**
+ * Map colours: one per layer, and events never share one with a kind of place.
+ * Events are drawn filled (Pin.tsx), places outlined.
+ */
 export const EVENT_COLOURS = {
   cruise: C.sodium,
   rolling: C.sodium,
   meet: C.sodium,
-  show: C.magenta,
-  trackday: C.lime,
+  /** Shows: blue, not the photo spots' magenta. */
+  show: '#5c9dff',
+  /** Track days: chequered-flag white, not the tracks' lime. */
+  trackday: C.chalk,
 } as const;
 
 export const SPOT_COLOURS = {
   photo: C.magenta,
   drive: C.neon,
   track: C.lime,
-  venue: C.sodium,
+  /** Venues (cafés and museums that welcome meets): mint, not the meets' orange. */
+  venue: '#2fe0b0',
 } as const;
 
 /** The Shops layer (OpenStreetMap listings) and partners (always labelled, see src/lib/partners.ts). */

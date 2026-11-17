@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../data/seed';
+import { zoneShapes } from '../lib/zones';
 import { banZoneAt } from '../lib/events';
 import { currentPosition, geocoderAvailable, nameForPlace } from '../lib/location';
 import {
@@ -27,6 +28,9 @@ import { NightMap } from './NightMap';
 import { Pin, type Glyph } from './Pin';
 import { PlaceSearch } from './PlaceSearch';
 import { Button, Row, Txt } from './ui';
+
+/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
+const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
 
 /** Wait this long after the map stops moving before naming the crosshair (the geocoder dislikes bursts). */
 const NAME_DELAY_MS = 500;
@@ -198,7 +202,8 @@ function PickerBody({
         ref={map}
         pins={[...contextPins, ...extraPins, ...drawn]}
         paths={[...contextPaths, ...extraPaths, ...drawnPaths]}
-        circles={BAN_ZONES.map((z) => ({ id: z.id, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert }))}
+        circles={BAN_SHAPES.circles}
+        polygons={BAN_SHAPES.polygons}
         centre={opensAt}
         span={span}
         onRegion={setRegion}
