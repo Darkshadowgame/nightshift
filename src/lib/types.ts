@@ -140,15 +140,42 @@ export interface ChatMessage {
 
 export type SpotKind = 'photo' | 'drive' | 'track';
 
+export type SpotStatus = 'pending' | 'approved';
+
+/**
+ * A finished drive or a photo spot visit. Only the day is kept: never a time
+ * of day, a duration or a speed.
+ */
+export interface SpotCompletion {
+  userId: string;
+  /** Day only, YYYY-MM-DD. */
+  on: string;
+  /** Photo spots: a plate-blurred photo taken on the visit. */
+  photo?: string;
+}
+
+export interface SpotRating {
+  userId: string;
+  stars: number;
+}
+
 export interface Spot {
   id: string;
   kind: SpotKind;
   name: string;
   at: LatLng;
   description: string;
-  /** Drives: the line of the road. */
+  /** Drives: the line of the road. Each point is a checkpoint. */
   path?: LatLng[];
   miles?: number;
+  /** Who suggested it. Tracks have no author. */
+  authorId?: string;
+  status: SpotStatus;
+  createdAt: string;
+  completions: SpotCompletion[];
+  ratings: SpotRating[];
+  /** Set when any point is inside a ban zone (a warning, not a block). */
+  banZone?: string;
 }
 
 export interface BanZone {

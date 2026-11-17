@@ -11,8 +11,21 @@ import {
   planChangedMessage,
   type PlanChange,
 } from './events';
+import { createCrew as applyCreateCrew, joinCrew as applyJoinCrew, leaveCrew as applyLeaveCrew } from './crews';
 import { applyProfile, profileProblem, type ProfileDraft } from './profile';
-import type { Build, ChatMessage, LatLng, NightEvent } from './types';
+import {
+  approveDue,
+  DEMO_APPROVAL_MS,
+  driveMiles,
+  judgeRun,
+  makeSpot,
+  rateSpot as applyRating,
+  recordCompletion,
+  type DriveRun,
+  type SpotDraft,
+  type Verdict,
+} from './spots';
+import type { Build, ChatMessage, LatLng, NightEvent, Spot } from './types';
 
 /**
  * Phase 1 keeps everything on the phone. Every read and write goes through this
@@ -70,12 +83,45 @@ interface Store extends Persisted {
   setSettings: (patch: Partial<Settings>) => void;
   markNoticesRead: () => void;
   resetDemo: () => void;
+  /** Finish a drive. Checks the run (every checkpoint, in order, at a believable pace); records only pass or fail. */
+  finishDrive: (spotId: string, run: DriveRun) => Verdict;
+  /** Record a photo spot visit, with an optional plate-blurred photo. The distance check happens before this. */
+  visitSpot: (spotId: string, photo?: string) => void;
+  /** 1–5 stars. Throws if you haven't finished it or you suggested it. */
+  rateSpot: (spotId: string, stars: number) => void;
+  /** Suggest a drive or photo spot. It starts pending. Throws if the draft isn't ready. */
+  suggestSpot: (draft: SpotDraft) => { id: string; warning?: string };
+  joinCrew: (crewId: string) => void;
+  leaveCrew: () => void;
+  /** Start a crew and join it. Throws with a readable reason. Returns the new crew's id. */
+  createCrew: (name: string, tag: string) => string;
 }
 
 const Ctx = createContext<Store | null>(null);
 
 function fresh(): Persisted {
   return { ...seed(new Date()), settings: DEFAULT_SETTINGS, notices: [], onboarded: false };
+}
+
+/** Data saved by an older version of the app: fill in anything that's new since. */
+function migrate(parsed: Persisted): Persisted {
+  const base = fresh();
+  let next: Persisted = { ...base, ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } };
+  if (!parsed.spots) {
+    // Saved before drives, photo spots and more crews arrived: add the new sample crews.
+    const known = new Set(next.crews.map((c) => c.id));
+    const added = base.crews.filter((c) => !known.has(c.id));
+    const sampleCrew = new Map(base.users.map((u) => [u.id, u.crewId]));
+    next = {
+      ...next,
+      crews: [...next.crews, ...added],
+      users: next.users.map((u) => {
+        const c = sampleCrew.get(u.id);
+        return u.id !== ME && c && added.some((a) => a.id === c) ? { ...u, crewId: c } : u;
+      }),
+    };
+  }
+  return next;
 }
 
 export function newId(prefix: string): string {
@@ -92,10 +138,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as Persisted;
-          setState({ ...fresh(), ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } });
-        }
+        if (raw) setState(migrate(JSON.parse(raw) as Persisted));
       } catch {
         // Unreadable storage: start from the demo scene.
       }
@@ -112,6 +155,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
+  }, []);
+
+  // Demo: suggestions are approved a few seconds after they're made.
+  useEffect(() => {
+    const pending = state.spots.filter((x) => x.status === 'pending');
+    if (pending.length === 0) return;
+    const due = Math.min(...pending.map((x) => new Date(x.createdAt).getTime() + DEMO_APPROVAL_MS));
+    const t = setTimeout(() => setState((s) => ({ ...s, spots: approveDue(s.spots, new Date()) })), Math.max(0, due - Date.now()) + 50);
+    return () => clearTimeout(t);
+  }, [state.spots]);
+
+  const updateSpot = useCallback((id: string, fn: (x: Spot) => Spot) => {
+    setState((s) => ({ ...s, spots: s.spots.map((x) => (x.id === id ? fn(x) : x)) }));
   }, []);
 
   const updateEvent = useCallback((id: string, fn: (e: NightEvent) => NightEvent) => {
@@ -197,8 +253,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
       markNoticesRead: () => setState((s) => ({ ...s, notices: s.notices.map((n) => ({ ...n, read: true })) })),
       resetDemo: () => setState(fresh()),
+      finishDrive: (spotId, run) => {
+        const spot = state.spots.find((x) => x.id === spotId);
+        if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
+        const verdict = judgeRun(run, spot.path, driveMiles(spot));
+        if (!verdict.ok) return verdict;
+        try {
+          recordCompletion(spot, ME, new Date());
+        } catch (e) {
+          return { ok: false, reason: e instanceof Error ? e.message : 'Could not record the drive.' };
+        }
+        updateSpot(spotId, (x) => recordCompletion(x, ME, new Date()));
+        return { ok: true };
+      },
+      visitSpot: (spotId, photo) => {
+        const spot = state.spots.find((x) => x.id === spotId);
+        if (!spot) throw new Error('Spot not found.');
+        recordCompletion(spot, ME, new Date(), photo);
+        updateSpot(spotId, (x) => recordCompletion(x, ME, new Date(), photo));
+      },
+      rateSpot: (spotId, stars) => {
+        const spot = state.spots.find((x) => x.id === spotId);
+        if (!spot) throw new Error('Place not found.');
+        const rated = applyRating(spot, ME, stars);
+        updateSpot(spotId, () => rated);
+      },
+      suggestSpot: (draft) => {
+        const { spot, warning } = makeSpot(draft, ME, new Date(), newId('sp'), state.spots, BAN_ZONES);
+        setState((s) => ({ ...s, spots: [...s.spots, spot] }));
+        return { id: spot.id, warning };
+      },
+      joinCrew: (crewId) => setState((s) => ({ ...s, ...applyJoinCrew({ crews: s.crews, users: s.users }, ME, crewId) })),
+      leaveCrew: () => setState((s) => ({ ...s, ...applyLeaveCrew({ crews: s.crews, users: s.users }, ME) })),
+      createCrew: (name, tag) => {
+        const id = newId('crew');
+        const next = applyCreateCrew({ crews: state.crews, users: state.users }, ME, name, tag, id);
+        setState((s) => ({ ...s, crews: next.crews, users: next.users }));
+        return id;
+      },
     }),
-    [state, ready, now, updateEvent],
+    [state, ready, now, updateEvent, updateSpot],
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

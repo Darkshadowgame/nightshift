@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BAN_ZONES, SPOTS } from '../../data/seed';
+import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin } from '../../components/mapTypes';
 import { Chip, Row, Txt } from '../../components/ui';
@@ -10,6 +10,7 @@ import { EVENT_LABELS } from '../../lib/events';
 import { viewEvents } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
 import { formatWhen } from '../../lib/format';
+import { averageStars, visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import { C, EVENT_COLOURS, SPOT_COLOURS } from '../../theme';
 
@@ -25,10 +26,11 @@ const LAYERS: { key: Layer; label: string; colour: string }[] = [
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
-  const { events, me, crews, users, builds, now } = store;
+  const { events, me, crews, users, builds, now, spots } = store;
   const [layers, setLayers] = useState<Record<Layer, boolean>>({ events: true, photo: true, drive: true, track: true, bans: false });
   const [selected, setSelected] = useState<string | null>(null);
   const meUser = users.find((u) => u.id === me);
+  const places = useMemo(() => visibleSpots(spots, me), [spots, me]);
 
   const views = useMemo(
     () => viewEvents(events, me, crews, users, builds, now).filter((v) => v.phase !== 'over' && v.phase !== 'cancelled'),
@@ -56,14 +58,15 @@ export default function MapScreen() {
         }
       }
     }
-    for (const s of SPOTS) {
+    for (const s of places) {
       if (!layers[s.kind]) continue;
-      pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: SPOT_COLOURS[s.kind], title: s.name, size: 32 });
-      if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour: SPOT_COLOURS.drive });
+      const colour = s.status === 'pending' ? C.fog : SPOT_COLOURS[s.kind];
+      pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour, title: s.name, size: 32 });
+      if (s.path) paths.push({ id: `pa:${s.id}`, coords: s.path, colour, dashed: s.status === 'pending' });
     }
     if (layers.bans) for (const z of BAN_ZONES) circles.push({ id: `bz:${z.id}`, centre: z.centre, radiusMiles: z.radiusMiles, colour: C.alert });
     return { pins, paths, circles };
-  }, [views, layers]);
+  }, [views, layers, places]);
 
   const sel = selected ? describeSelection(selected) : null;
 
@@ -80,16 +83,21 @@ export default function MapScreen() {
         body: `${place}\n${describeFilter(e.filter)}`,
         colour: EVENT_COLOURS[e.type],
         open: () => router.push({ pathname: '/event/[id]', params: { id: e.id } }),
+        cta: 'Open event ›',
       };
     }
-    const s = SPOTS.find((x) => x.id === key);
+    const s = places.find((x) => x.id === key);
     if (!s) return null;
+    const { average, count } = averageStars(s);
+    const stars = count > 0 ? ` · ★ ${average.toFixed(1)}` : '';
+    const status = s.status === 'pending' ? ' · waiting for approval' : '';
     return {
       title: s.name,
-      meta: s.kind === 'drive' ? `Drive · ${s.miles} mi · untimed` : s.kind === 'track' ? 'Track' : 'Photo spot',
+      meta: (s.kind === 'drive' ? `Drive · ${s.miles} mi · untimed` : s.kind === 'track' ? 'Track' : 'Photo spot') + stars + status,
       body: s.description,
       colour: SPOT_COLOURS[s.kind],
-      open: undefined,
+      open: () => router.push({ pathname: '/spot/[id]', params: { id: s.id } }),
+      cta: s.kind === 'drive' ? 'Open drive ›' : s.kind === 'photo' ? 'Open photo spot ›' : 'Open track ›',
     };
   }
 
@@ -125,10 +133,13 @@ export default function MapScreen() {
               <Chip label={l.label} on={layers[l.key]} colour={l.colour} onPress={() => setLayers((x) => ({ ...x, [l.key]: !x[l.key] }))} />
             </View>
           ))}
+          <View style={st.chipBg}>
+            <Chip label="+ Suggest a place" on colour={C.chalk} onPress={() => router.push('/spot/new')} />
+          </View>
         </ScrollView>
       </View>
       {sel ? (
-        <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} accessibilityRole={sel.open ? 'button' : undefined}>
+        <Pressable style={[st.peek, { borderLeftColor: sel.colour }]} onPress={sel.open} accessibilityRole="button">
           <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
             <Txt v="h3" style={{ flex: 1 }} numberOfLines={1}>{sel.title}</Txt>
             <Pressable onPress={() => setSelected(null)} hitSlop={12} accessibilityLabel="Close">
@@ -137,7 +148,7 @@ export default function MapScreen() {
           </Row>
           <Txt v="mono" style={{ color: sel.colour }}>{sel.meta.toUpperCase()}</Txt>
           <Txt v="muted">{sel.body}</Txt>
-          {sel.open ? <Txt v="label" style={{ color: sel.colour }}>Open event ›</Txt> : null}
+          <Txt v="label" style={{ color: sel.colour }}>{sel.cta}</Txt>
         </Pressable>
       ) : null}
     </View>

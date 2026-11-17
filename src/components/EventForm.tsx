@@ -3,7 +3,8 @@ import { ScrollView, Switch, TextInput, View } from 'react-native';
 import { NightMap } from './NightMap';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
 import { FILTER_BRANDS } from '../data/catalog';
-import { BAN_ZONES, SPOTS } from '../data/seed';
+import { BAN_ZONES } from '../data/seed';
+import { visibleSpots } from '../lib/spots';
 import { banZoneAt, banZoneWarning, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen } from '../lib/format';
 import { DEFAULT_FILTER, invitees } from '../lib/invites';
@@ -65,6 +66,7 @@ export function EventForm({
   onSubmit: (event: NightEvent) => void;
 }) {
   const store = useStore();
+  const SPOTS = visibleSpots(store.spots, store.me);
   const { users, builds, me, crews, now } = store;
   const meUser = users.find((u) => u.id === me)!;
   const myCrew = crews.find((c) => c.id === meUser.crewId);

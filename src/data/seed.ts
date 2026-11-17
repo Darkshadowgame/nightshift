@@ -57,7 +57,7 @@ const PEOPLE: Person[] = [
       mods: [['exhaust', 'Full titanium system', 8], ['engine', 'ECU flash', 5], ['other', 'Quickshifter'], ['body', 'Tail tidy']] }],
   },
   {
-    id: 'kez', handle: 'kez_typer', name: 'Kez', region: 'Nuneaton', home: [52.52, -1.47],
+    id: 'kez', handle: 'kez_typer', name: 'Kez', region: 'Nuneaton', home: [52.52, -1.47], crew: 'ts',
     builds: [{ kind: 'car', make: 'Honda', model: 'Civic Type R FK8', year: 2018, stockBhp: 316, weightKg: 1380, colour: '#ff4d4d',
       mods: [['intake', 'Carbon intake', 5], ['exhaust', 'Cat-back'], ['wheels', '19" flow-formed'], ['suspension', 'Lowering springs'], ['engine', 'Stage 1 map', 30]] }],
   },
@@ -72,17 +72,17 @@ const PEOPLE: Person[] = [
       mods: [['engine', 'Stage 2+ remap'], ['turbo', 'Hybrid turbo'], ['intake', 'Turbo inlet'], ['exhaust', 'Decat downpipe'], ['wheels', '19" forged']] }],
   },
   {
-    id: 'liv', handle: 'liv_on_two', name: 'Liv', region: 'Derby', home: [52.92, -1.48],
+    id: 'liv', handle: 'liv_on_two', name: 'Liv', region: 'Derby', home: [52.92, -1.48], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Triumph', model: 'Street Triple RS', year: 2022, stockBhp: 128, weightKg: 188, colour: '#ff4fa3',
       mods: [['exhaust', 'Arrow end can', 3], ['other', 'Bar-end mirrors'], ['body', 'Fly screen']] }],
   },
   {
-    id: 'sully', handle: 'sully_zx', name: 'Sully', region: 'Leicester', home: [52.64, -1.13],
+    id: 'sully', handle: 'sully_zx', name: 'Sully', region: 'Leicester', home: [52.64, -1.13], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Kawasaki', model: 'ZX-10R', year: 2021, stockBhp: 200, weightKg: 207, colour: '#9dfa5a',
       mods: [['exhaust', 'Akrapovič slip-on', 4], ['engine', 'ECU flash', 6], ['suspension', 'Öhlins shock'], ['other', 'Steering damper']] }],
   },
   {
-    id: 'bex', handle: 'bex_gti', name: 'Bex', region: 'Coventry', home: [52.41, -1.51],
+    id: 'bex', handle: 'bex_gti', name: 'Bex', region: 'Coventry', home: [52.41, -1.51], crew: 'ts',
     builds: [{ kind: 'car', make: 'Volkswagen', model: 'Golf GTI Mk7', year: 2017, stockBhp: 227, weightKg: 1375, colour: '#e9edf4',
       mods: [['engine', 'Stage 1 remap', 50], ['wheels', '18" Pretorias'], ['suspension', 'Air ride']] }],
   },
@@ -102,7 +102,7 @@ const PEOPLE: Person[] = [
       mods: [['suspension', 'Coilovers'], ['wheels', '15" Enkei'], ['interior', 'Bucket seats'], ['body', 'Hardtop']] }],
   },
   {
-    id: 'cal', handle: 'cal_focusrs', name: 'Cal', region: 'Hinckley', home: [52.54, -1.37],
+    id: 'cal', handle: 'cal_focusrs', name: 'Cal', region: 'Hinckley', home: [52.54, -1.37], crew: 'ts',
     builds: [{ kind: 'car', make: 'Ford', model: 'Focus RS Mk3', year: 2017, stockBhp: 345, weightKg: 1599, colour: '#3f6fff',
       mods: [['engine', 'Stage 2 remap', 55], ['intake', 'Turbo inlet'], ['exhaust', 'Cat-back'], ['wheels', '19" forged']] }],
   },
@@ -112,17 +112,17 @@ const PEOPLE: Person[] = [
       mods: [['engine', 'Throttle bodies', 25], ['exhaust', '4-2-1 manifold'], ['suspension', 'Coilovers'], ['interior', 'Half cage']] }],
   },
   {
-    id: 'deano', handle: 'deano_mt09', name: 'Dean', region: 'Ashby', home: [52.75, -1.47],
+    id: 'deano', handle: 'deano_mt09', name: 'Dean', region: 'Ashby', home: [52.75, -1.47], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Yamaha', model: 'MT-09', year: 2021, stockBhp: 117, weightKg: 189, colour: '#7a7f8c',
       mods: [['exhaust', 'Full system', 6], ['engine', 'ECU flash', 4], ['other', 'Tail tidy']] }],
   },
   {
-    id: 'priya', handle: 'priya.m140', name: 'Priya', region: 'Solihull', home: [52.41, -1.78],
+    id: 'priya', handle: 'priya.m140', name: 'Priya', region: 'Solihull', home: [52.41, -1.78], crew: 'ts',
     builds: [{ kind: 'car', make: 'BMW', model: 'M140i', year: 2018, stockBhp: 335, weightKg: 1475, colour: '#e9edf4',
       mods: [['engine', 'Stage 2 remap', 65], ['intake', 'Charge pipe'], ['exhaust', 'Decat downpipe'], ['suspension', 'Coilovers']] }],
   },
   {
-    id: 'gaz', handle: 'gaz_gsxr', name: 'Gaz', region: 'Nuneaton', home: [52.53, -1.46],
+    id: 'gaz', handle: 'gaz_gsxr', name: 'Gaz', region: 'Nuneaton', home: [52.53, -1.46], crew: 'pk',
     builds: [{ kind: 'bike', make: 'Suzuki', model: 'GSX-R750', year: 2016, stockBhp: 148, weightKg: 190, colour: '#3f6fff',
       mods: [['exhaust', 'Yoshimura can', 4], ['brakes', 'Braided lines'], ['other', 'Steering damper']] }],
   },
@@ -148,34 +148,73 @@ const PEOPLE: Person[] = [
   },
 ];
 
+const crewOf = (id: string) => PEOPLE.filter((p) => p.crew === id).map((p) => p.id);
 const CREWS: Crew[] = [
-  { id: 'nr', name: 'NightRunners', tag: 'NR', memberIds: PEOPLE.filter((p) => p.crew === 'nr').map((p) => p.id) },
+  { id: 'nr', name: 'NightRunners', tag: 'NR', memberIds: crewOf('nr') },
+  { id: 'pk', name: 'Peak Chasers', tag: 'PKC', memberIds: crewOf('pk') },
+  { id: 'ts', name: 'Torque Street', tag: 'TQS', memberIds: crewOf('ts') },
 ];
 
 function makeMods(buildId: string, specs: ModSpec[]): Mod[] {
   return specs.map(([category, name, bhpGain], i) => ({ id: `${buildId}-m${i}`, category, name, bhpGain }));
 }
 
-export const SPOTS: Spot[] = [
-  { id: 'sp-ladybower', kind: 'photo', name: 'Ladybower viaduct', at: { lat: 53.387, lng: -1.724 }, description: 'Reservoir and stone viaduct. Best at blue hour.' },
-  { id: 'sp-winnats', kind: 'photo', name: 'Winnats Pass', at: { lat: 53.341, lng: -1.818 }, description: 'Limestone gorge road. Pull fully off the road for photos.' },
-  { id: 'sp-digbeth', kind: 'photo', name: 'Digbeth street art', at: { lat: 52.4757, lng: -1.8838 }, description: 'Murals and arches. Quiet late on a Sunday.' },
-  { id: 'sp-curborough-ph', kind: 'photo', name: 'Cannock Chase forest roads', at: { lat: 52.745, lng: -1.990 }, description: 'Pines and long straights for rolling shots.' },
+type SpotSeed = Omit<Spot, 'status' | 'createdAt' | 'completions' | 'ratings'> & {
+  /** Sample people who finished or visited it, with the stars they gave (if any). */
+  done?: [string, number?][];
+};
+
+/** Real roads and places. Authors and ratings are sample data. */
+const SPOT_SEEDS: SpotSeed[] = [
   {
-    id: 'sr-snake', kind: 'drive', name: 'Snake Pass (A57)', miles: 12.4, at: { lat: 53.4325, lng: -1.8689 },
-    description: 'Glossop to Ladybower over the moors. Rep for completing it at the speed limit. Never timed.',
-    path: [{ lat: 53.444, lng: -1.929 }, { lat: 53.4325, lng: -1.8689 }, { lat: 53.413, lng: -1.813 }, { lat: 53.395, lng: -1.765 }, { lat: 53.379, lng: -1.727 }],
+    id: 'sp-ladybower', kind: 'photo', name: 'Ladybower viaduct', at: { lat: 53.387, lng: -1.724 }, authorId: 'liv',
+    description: 'Reservoir and stone viaduct. Best at blue hour.',
+    done: [['dan', 5], ['aimee', 5], ['sully', 4], ['gaz', 5], ['deano', 4], ['tom']],
   },
   {
-    id: 'sr-catfiddle', kind: 'drive', name: 'Cat and Fiddle (A537)', miles: 7.8, at: { lat: 53.2393, lng: -2.0114 },
+    id: 'sp-winnats', kind: 'photo', name: 'Winnats Pass', at: { lat: 53.341, lng: -1.818 }, authorId: 'sully',
+    description: 'Limestone gorge road. Pull fully off the road for photos.',
+    done: [['liv', 4], ['gaz', 3], ['aimee', 4]],
+  },
+  {
+    id: 'sp-digbeth', kind: 'photo', name: 'Digbeth street art', at: { lat: 52.4757, lng: -1.8838 }, authorId: 'mo',
+    description: 'Murals and arches. Quiet late on a Sunday.',
+    done: [['priya', 4], ['sam', 3], ['kez', 2]],
+  },
+  {
+    id: 'sp-curborough-ph', kind: 'photo', name: 'Cannock Chase forest roads', at: { lat: 52.745, lng: -1.990 }, authorId: 'tay',
+    description: 'Pines and long straights for rolling shots.',
+    done: [['ash', 4], ['raf', 5]],
+  },
+  {
+    id: 'sr-snake', kind: 'drive', name: 'Snake Pass (A57)', miles: 12.4, at: { lat: 53.4325, lng: -1.8689 }, authorId: 'dan',
+    description: 'Glossop to Ladybower over the moors. Rep for finishing it at the speed limit. Never timed.',
+    path: [{ lat: 53.444, lng: -1.929 }, { lat: 53.4325, lng: -1.8689 }, { lat: 53.413, lng: -1.813 }, { lat: 53.395, lng: -1.765 }, { lat: 53.379, lng: -1.727 }],
+    done: [['aimee', 5], ['mo', 5], ['sully', 4], ['cal', 5], ['tom', 4], ['kez', 5], ['em', 4], ['liv', 5], ['gaz'], ['dan', 5]],
+  },
+  {
+    id: 'sr-catfiddle', kind: 'drive', name: 'Cat and Fiddle (A537)', miles: 7.8, at: { lat: 53.2393, lng: -2.0114 }, authorId: 'aimee',
     description: 'Macclesfield to Buxton. Average-speed cameras the whole way.',
     path: [{ lat: 53.258, lng: -2.08 }, { lat: 53.247, lng: -2.045 }, { lat: 53.2393, lng: -2.0114 }, { lat: 53.247, lng: -1.965 }, { lat: 53.255, lng: -1.93 }],
+    done: [['sully', 4], ['liv', 3], ['deano', 4], ['gaz', 3]],
   },
   { id: 'tr-donington', kind: 'track', name: 'Donington Park', at: { lat: 52.8306, lng: -1.3797 }, description: 'Track days most weeks. Lap times count here.' },
   { id: 'tr-curborough', kind: 'track', name: 'Curborough Sprint Course', at: { lat: 52.7097, lng: -1.8053 }, description: 'Short sprint course near Lichfield.' },
   { id: 'tr-mallory', kind: 'track', name: 'Mallory Park', at: { lat: 52.5986, lng: -1.3378 }, description: 'Club circuit, popular with bikes.' },
   { id: 'tr-silverstone', kind: 'track', name: 'Silverstone', at: { lat: 52.0786, lng: -1.0169 }, description: 'National and GP circuits.' },
 ];
+
+function spots(now: Date): Spot[] {
+  const created = at(now, -60, 12);
+  const day = at(now, -7, 12).slice(0, 10);
+  return SPOT_SEEDS.map(({ done = [], ...s }) => ({
+    ...s,
+    status: 'approved' as const,
+    createdAt: created,
+    completions: done.map(([userId]) => ({ userId, on: day })),
+    ratings: done.flatMap(([userId, stars]) => (stars ? [{ userId, stars }] : [])),
+  }));
+}
 
 /** Sample zones only. Councils change these; check the current order before relying on it. */
 export const BAN_ZONES: BanZone[] = [
@@ -241,7 +280,7 @@ function events(now: Date): NightEvent[] {
       description: 'S and A class only. Park up, no revving, leave clean.',
       startsAt: at(now, 5, 23, 0), area: { lat: 52.62, lng: -1.72 }, areaName: 'Tamworth',
       stops: [{ id: 'mt-1', name: 'Ventura Park, Tamworth', at: { lat: 52.6205, lng: -1.7265 } }],
-      currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'],
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'], crewId: 'ts',
       filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 25 },
       going: ['kez', 'cal', 'priya'], checkIns: {},
     },
@@ -254,7 +293,7 @@ function events(now: Date): NightEvent[] {
         { id: 'bc-2', name: 'Regroup: Cat and Fiddle summit', at: { lat: 53.2393, lng: -2.0114 } },
         { id: 'bc-3', name: 'Finish: Buxton café', at: { lat: 53.2587, lng: -1.9112 } },
       ],
-      currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'],
+      currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'], crewId: 'pk',
       filter: { ...DEFAULT_FILTER, cars: false, bikes: true, classes: ['S', 'A', 'B'], minMods: 0, radiusMiles: 70 },
       going: ['aimee', 'sully', 'liv', 'gaz'], checkIns: {},
     },
@@ -321,6 +360,7 @@ export interface SeedState {
   crews: Crew[];
   events: NightEvent[];
   chat: ChatMessage[];
+  spots: Spot[];
 }
 
 export function seed(now: Date = new Date()): SeedState {
@@ -338,5 +378,5 @@ export function seed(now: Date = new Date()): SeedState {
       };
     }),
   );
-  return { users, builds, crews: CREWS, events: events(now), chat: chat(now), votes: votes(now) };
+  return { users, builds, crews: CREWS, events: events(now), chat: chat(now), votes: votes(now), spots: spots(now) };
 }
