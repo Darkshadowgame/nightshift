@@ -1,13 +1,13 @@
 import { router, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
 import { NoticeBell } from '../../components/NoticeBell';
-import { Card, Chip, Row, Section, Txt } from '../../components/ui';
+import { EmptyState, HeaderAction, Row, Section, Segmented } from '../../components/ui';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
-import { C } from '../../theme';
+import { STATE } from '../../theme';
 
 type Tab = 'mine' | 'invited' | 'public' | 'past';
 
@@ -21,19 +21,14 @@ export default function EventsScreen() {
   useLayoutEffect(() => {
     nav.setOptions({
       headerRight: () => (
-        <Row gap={14} style={{ marginRight: 16, flexWrap: 'nowrap' }}>
+        <Row gap={8} style={{ marginRight: 10, flexWrap: 'nowrap' }}>
           <NoticeBell />
-          <Pressable
-            onPress={() => router.push('/find')}
-            hitSlop={10}
-            accessibilityRole="button"
+          <HeaderAction
+            label={newNear > 0 ? `Find · ${newNear} new` : 'Find'}
             accessibilityLabel={newNear > 0 ? `Find events, ${newNear} new near you` : 'Find events'}
-          >
-            <Txt v="label" style={{ color: C.chalk, fontSize: 14 }}>Find{newNear > 0 ? <Txt v="label" style={{ color: C.lime, fontSize: 14 }}> · {newNear} new</Txt> : null}</Txt>
-          </Pressable>
-          <Pressable onPress={() => router.push('/event/new')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Host an event">
-            <Txt v="label" style={{ color: C.sodium, fontSize: 14 }}>+ Host</Txt>
-          </Pressable>
+            onPress={() => router.push('/find')}
+          />
+          <HeaderAction label="+ Host" accessibilityLabel="Host an event" onPress={() => router.push('/event/new')} />
         </Row>
       ),
     });
@@ -53,15 +48,19 @@ export default function EventsScreen() {
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
-      <Row gap={6}>
-        <Chip label={`Mine (${lists.mine.length})`} on={tab === 'mine'} onPress={() => setTab('mine')} />
-        <Chip label={`Invited (${lists.invited.length})`} on={tab === 'invited'} onPress={() => setTab('invited')} />
-        <Chip label={`Public (${lists.public.length})`} on={tab === 'public'} onPress={() => setTab('public')} />
-        <Chip label="Past" on={tab === 'past'} onPress={() => setTab('past')} />
-      </Row>
+      <Segmented<Tab>
+        value={tab}
+        onChange={setTab}
+        options={[
+          { key: 'mine', label: `Mine ${lists.mine.length}` },
+          { key: 'invited', label: `Invited ${lists.invited.length}` },
+          { key: 'public', label: `Public ${lists.public.length}` },
+          { key: 'past', label: 'Past' },
+        ]}
+      />
 
       {tab === 'mine' && live.length > 0 ? (
-        <Section title="Live now" colour={C.neon}>
+        <Section title="Live now" colour={STATE.live}>
           {live.map((v) => (
             <EventCard key={v.event.id} view={v} now={now} />
           ))}
@@ -70,15 +69,25 @@ export default function EventsScreen() {
 
       <Section title={tab === 'mine' ? 'Coming up' : tab === 'invited' ? 'You match the invite' : tab === 'public' ? 'Shows and track days' : 'Finished, cancelled and declined'}>
         {rest.length === 0 ? (
-          <Card>
-            <Txt v="muted">
-              {tab === 'mine'
-                ? 'Nothing planned. Tap Going on an invite, or host your own with + Host. Events you ask to go to show here too.'
-                : tab === 'invited'
-                  ? 'No invites right now. Invites depend on your builds, so add your car or bike in the Garage. Find (top right) lists every event near you.'
-                  : 'Nothing here yet.'}
-            </Txt>
-          </Card>
+          tab === 'mine' ? (
+            <EmptyState
+              glyph="meet"
+              title="Nothing planned"
+              body="Events you're hosting, going to or have requested show here."
+              action={{ label: 'Find events', onPress: () => router.push('/find') }}
+              secondary={{ label: 'Host one', onPress: () => router.push('/event/new') }}
+            />
+          ) : tab === 'invited' ? (
+            <EmptyState
+              glyph="meet"
+              title="No invites right now"
+              body="Invites are matched to your builds. Add your car or bike in the Garage, or find every event near you."
+              action={{ label: 'Find events', onPress: () => router.push('/find') }}
+              secondary={{ label: 'Open garage', onPress: () => router.push('/garage') }}
+            />
+          ) : (
+            <EmptyState title="Nothing here yet" body={tab === 'public' ? 'Shows and track days near you show here.' : 'Finished, cancelled and declined events show here.'} />
+          )
         ) : (
           rest.map((v) => <EventCard key={v.event.id} view={v} now={now} />)
         )}

@@ -213,8 +213,8 @@ function withAreas(list: NightEvent[]): NightEvent[] {
   });
 }
 
-/** Neutral area name until the geocoder names the town. */
-export const NEAR_YOU = 'Near you';
+/** Neutral area name until the geocoder names the town (not "Near you": it reads as a place in notices). */
+export const NEAR_YOU = 'Sample area';
 
 /** Start, halfway and finish of a real drive, for the sample cruises. */
 function driveStops(prefix: string, d: PlaceSeed) {
@@ -239,7 +239,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
   return withAreas([
     {
       id: 'ev-rolling-live', type: 'rolling', title: 'Late rolling meet',
-      description: 'Three spots, all planned in advance. Check in at each spot to get the next one.',
+      description: 'Three stops, all planned in advance. Check in at each stop to unlock the next one.',
       startsAt: minutesFrom(now, -45), endsAt: minutesFrom(now, 180),
       area: home, areaName: NEAR_YOU,
       stops: [

@@ -1,17 +1,10 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FadeUp, PulseRing } from '../components/motion';
-import { Pin, type Glyph } from '../components/Pin';
-import { Button, Card, Row, Section, Txt, s as ui } from '../components/ui';
+import { Button, Card, InlineError, LinkText, Row, Section, Txt, s as ui } from '../components/ui';
+import { Wordmark } from '../components/Wordmark';
 import { useAuth } from '../lib/auth';
 import { C } from '../theme';
-
-const PITCH: { glyph: Glyph; colour: string; text: string }[] = [
-  { glyph: 'locked', colour: C.sodium, text: 'Meets and cruises that unlock for the people going, on the night.' },
-  { glyph: 'track', colour: C.lime, text: 'Your garage, classed S to D on power-to-weight. Win covers and trophies.' },
-  { glyph: 'drive', colour: C.neon, text: 'Great roads to drive and photo spots, rated by the scene. Never timed.' },
-];
 
 /**
  * First run: sign in with an email code, or try the demo without an account.
@@ -29,7 +22,10 @@ export default function SignIn() {
   const [link, setLink] = useState('');
   const [showLink, setShowLink] = useState(false);
   const [busy, setBusy] = useState<null | 'send' | 'verify' | 'link' | 'demo'>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** The last error and which action it came from, shown under that action. */
+  const [error, setErrorState] = useState<{ at: NonNullable<typeof busy>; text: string } | null>(null);
+  const setError = (x: null) => setErrorState(x);
+  const errorAt = (at: NonNullable<typeof busy> | 'code') => (error && (error.at === at || (at === 'code' && (error.at === 'verify' || (error.at === 'send' && !!sentTo)))) ? error.text : null);
   const [note, setNote] = useState<string | null>(null);
 
   async function run(kind: NonNullable<typeof busy>, fn: () => Promise<void>) {
@@ -39,7 +35,7 @@ export default function SignIn() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      setErrorState({ at: kind, text: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
     } finally {
       setBusy(null);
     }
@@ -66,25 +62,7 @@ export default function SignIn() {
       keyboardDismissMode="interactive"
     >
       <View style={{ gap: 14 }}>
-        <Row gap={12} style={{ flexWrap: 'nowrap' }}>
-          <PulseRing live colour={C.sodium} size={44}>
-            <Pin glyph="rolling" colour={C.sodium} size={44} />
-          </PulseRing>
-          <Txt v="h1" style={{ fontSize: 34, lineHeight: 38 }}>
-            Night<Txt v="h1" style={{ fontSize: 34, lineHeight: 38, color: C.sodium }}>shift</Txt>
-          </Txt>
-        </Row>
-        <Txt style={{ fontSize: 17, lineHeight: 23 }}>The UK car and bike scene on one map, after dark.</Txt>
-        <View style={{ gap: 10 }}>
-          {PITCH.map((p, i) => (
-            <FadeUp key={p.text} index={i} stagger={90}>
-              <Row gap={10} style={{ flexWrap: 'nowrap' }}>
-                <Pin glyph={p.glyph} colour={p.colour} size={26} />
-                <Txt v="muted" style={{ flex: 1 }}>{p.text}</Txt>
-              </Row>
-            </FadeUp>
-          ))}
-        </View>
+        <Wordmark />
         <Txt v="label">18+ only</Txt>
       </View>
 
@@ -106,7 +84,8 @@ export default function SignIn() {
             accessibilityLabel="Email address"
           />
           <Button label="Email me a code" onPress={send} busy={busy === 'send'} />
-          <Txt v="muted" style={{ fontSize: 12 }}>No password. We email you a 6-digit code each time you sign in. New here? The same code makes your account.</Txt>
+          <InlineError message={errorAt('send')} />
+          <Txt v="caption">No password. We email you a 6-digit code each time you sign in. New here? The same code makes your account.</Txt>
         </Section>
       ) : (
         <Section title="Check your email">
@@ -128,9 +107,10 @@ export default function SignIn() {
             accessibilityLabel="6-digit code"
           />
           <Button label="Sign in" onPress={verify} busy={busy === 'verify'} disabled={code.length !== 6} />
+          <InlineError message={errorAt('code')} />
           {showLink ? (
             <View style={{ gap: 8 }}>
-              <Txt v="muted" style={{ fontSize: 12 }}>Opened the email somewhere else? Copy the sign-in link from it and paste it here.</Txt>
+              <Txt v="caption">Opened the email somewhere else? Copy the sign-in link from it and paste it here.</Txt>
               <TextInput
                 value={link}
                 onChangeText={setLink}
@@ -141,35 +121,26 @@ export default function SignIn() {
                 autoCorrect={false}
                 accessibilityLabel="Sign-in link"
               />
-              <Button label="Use this link" kind="ghost" onPress={useLink} busy={busy === 'link'} disabled={!link.trim()} />
+              <Button label="Use this link" kind="secondary" onPress={useLink} busy={busy === 'link'} disabled={!link.trim()} />
+              <InlineError message={errorAt('link')} />
             </View>
           ) : (
-            <Pressable onPress={() => setShowLink(true)} accessibilityRole="button" hitSlop={8}>
-              <Txt v="label" style={{ color: C.sodium }}>The email has a link, not a code</Txt>
-            </Pressable>
+            <LinkText label="The email has a link, not a code ›" onPress={() => setShowLink(true)} />
           )}
-          <Row gap={16}>
-            <Pressable onPress={() => run('send', async () => { await auth.sendCode(sentTo); setNote('Sent again. Codes last 10 minutes; you can ask once a minute.'); })} accessibilityRole="button" hitSlop={8}>
-              <Txt v="label" style={{ color: C.sodium }}>Send it again</Txt>
-            </Pressable>
-            <Pressable onPress={() => { setSentTo(null); setError(null); setNote(null); }} accessibilityRole="button" hitSlop={8}>
-              <Txt v="label" style={{ color: C.sodium }}>Use another email</Txt>
-            </Pressable>
+          <Row gap={20}>
+            <LinkText label="Send it again ›" onPress={() => run('send', async () => { await auth.sendCode(sentTo); setNote('Sent again. Codes last 10 minutes; you can ask once a minute.'); })} />
+            <LinkText label="Use another email ›" onPress={() => { setSentTo(null); setError(null); setNote(null); }} />
           </Row>
         </Section>
       )}
 
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt accessibilityLiveRegion="polite">{error}</Txt>
-        </Card>
-      ) : null}
       {note ? <Txt v="muted" accessibilityLiveRegion="polite">{note}</Txt> : null}
 
       <Card>
         <Txt>Just looking?</Txt>
         <Txt v="muted">Try Nightshift with sample people and events round your area. Nothing leaves your phone, and you can sign in later.</Txt>
-        <Button label="Try the demo without an account" kind="ghost" busy={busy === 'demo'} onPress={() => run('demo', () => auth.startDemo())} />
+        <Button label="Try the demo without an account" kind="secondary" busy={busy === 'demo'} onPress={() => run('demo', () => auth.startDemo())} />
+        <InlineError message={errorAt('demo')} />
       </Card>
     </ScrollView>
   );

@@ -1,19 +1,11 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FadeUp, PulseRing } from '../components/motion';
-import { Pin, type Glyph } from '../components/Pin';
 import { ProfileForm } from '../components/ProfileForm';
-import { Row, Txt } from '../components/ui';
+import { LinkText, Row, Txt } from '../components/ui';
+import { Wordmark } from '../components/Wordmark';
 import { DEMO_REGION } from '../data/seed';
 import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
-import { C } from '../theme';
-
-const PITCH: { glyph: Glyph; colour: string; text: string }[] = [
-  { glyph: 'locked', colour: C.sodium, text: 'Meets and cruises that unlock for the people going, on the night.' },
-  { glyph: 'track', colour: C.lime, text: 'Your garage, classed S to D on power-to-weight. Win covers and trophies.' },
-  { glyph: 'drive', colour: C.neon, text: 'Great roads to drive and photo spots, rated by the scene. Never timed.' },
-];
 
 /** First run: the person sets up their own profile. The guard in _layout moves on once it's saved. */
 export default function Welcome() {
@@ -28,39 +20,17 @@ export default function Welcome() {
       keyboardDismissMode="interactive"
     >
       <View style={{ gap: 14 }}>
-        <Row gap={12} style={{ flexWrap: 'nowrap' }}>
-          <PulseRing live colour={C.sodium} size={44}>
-            <Pin glyph="rolling" colour={C.sodium} size={44} />
-          </PulseRing>
-          <Txt v="h1" style={{ fontSize: 34, lineHeight: 38 }}>
-            Night<Txt v="h1" style={{ fontSize: 34, lineHeight: 38, color: C.sodium }}>shift</Txt>
-          </Txt>
-        </Row>
-        <Txt style={{ fontSize: 17, lineHeight: 23 }}>The UK car and bike scene on one map, after dark.</Txt>
-        <View style={{ gap: 10 }}>
-          {PITCH.map((p, i) => (
-            <FadeUp key={p.text} index={i} stagger={90}>
-              <Row gap={10} style={{ flexWrap: 'nowrap' }}>
-                <Pin glyph={p.glyph} colour={p.colour} size={26} />
-                <Txt v="muted" style={{ flex: 1 }}>{p.text}</Txt>
-              </Row>
-            </FadeUp>
-          ))}
-        </View>
-        <Txt v="label">18+ only · Set up your profile to get invites near you</Txt>
+        <Wordmark />
+        <Txt v="label">18+ only · Set up your profile to hear about events near you</Txt>
         {backend === 'supabase' ? (
           <Row gap={12}>
             <Txt v="muted" style={{ flexShrink: 1 }}>Signed in{auth.email ? ` as ${auth.email}` : ''}.</Txt>
-            <Pressable onPress={() => auth.signOut()} accessibilityRole="button" hitSlop={8}>
-              <Txt v="label" style={{ color: C.sodium }}>Not you?</Txt>
-            </Pressable>
+            <LinkText label="Not you? Sign out ›" onPress={() => auth.signOut()} />
           </Row>
         ) : (
           <Row gap={12}>
             <Txt v="muted" style={{ flexShrink: 1 }}>Demo: sample people, nothing leaves this phone.</Txt>
-            <Pressable onPress={() => auth.leaveDemo()} accessibilityRole="button" hitSlop={8}>
-              <Txt v="label" style={{ color: C.sodium }}>Sign in instead</Txt>
-            </Pressable>
+            <LinkText label="Sign in instead ›" onPress={() => auth.leaveDemo()} />
           </Row>
         )}
       </View>

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
-import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
+import { Button, Card, Chip, InlineError, Row, Section, ToggleRow, Txt, s as ui } from './ui';
 import { FILTER_BRANDS } from '../data/catalog';
 import { BAN_ZONES } from '../data/seed';
 import { zonePins, zoneShapes } from '../lib/zones';
@@ -22,11 +22,12 @@ import type { LatLng } from '../lib/types';
 import { newId, useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
-import { C, F } from '../theme';
+import { GOING, UNLOCK } from '../lib/glossary';
+import { BRAND, C, F, RADIUS, STATE, SURFACE } from '../theme';
 
 /** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, C.alert);
-const BAN_PINS = zonePins(BAN_ZONES, C.alert);
+const BAN_SHAPES = zoneShapes(BAN_ZONES, STATE.warning);
+const BAN_PINS = zonePins(BAN_ZONES, STATE.warning);
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
 const DAY_CHOICES: DayChoice[] = [
@@ -255,10 +256,10 @@ export function EventForm({
   const stopPins = (active: number | null) =>
     visibleStops.flatMap((st, i) =>
       st.at && i !== (active === null ? -1 : active)
-        ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? C.sodium : C.chalk, title: st.name || stopLabel(i, visibleStops.length), size: active === null ? 36 : 28 }]
+        ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? BRAND : C.chalk, title: st.name || stopLabel(i, visibleStops.length), size: active === null ? 36 : 28 }]
         : [],
     );
-  const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: C.sodium, dashed: true }] : [];
+  const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: BRAND, dashed: true }] : [];
   // The preview frames the stops placed so far, or opens on home.
   const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.9 };
   function openPicker(i: number) {
@@ -275,10 +276,10 @@ export function EventForm({
           ))}
         </Row>
         <Txt v="muted">
-          {type === 'cruise' && 'A planned route with regroup stops. Everyone going sees the whole route at the reveal time.'}
-          {type === 'rolling' && 'A meet in several parts. Place every stop now; each is checked against ban zones. People only see the next stop once they have checked in at the current one and a host moves on.'}
-          {type === 'meet' && 'One spot. Pick somewhere with permission or a venue that welcomes meets.'}
-          {type === 'show' && 'A public show. The place is visible to everyone.'}
+          {type === 'cruise' && 'A planned route with regroup stops. The whole route unlocks for everyone going at the time you pick.'}
+          {type === 'rolling' && 'A meet in several parts. Place every stop now; each is checked against ban zones. The next stop unlocks only for people checked in at the current one, when a host moves on.'}
+          {type === 'meet' && 'One stop. Pick somewhere with permission, or a meet spot that welcomes meets.'}
+          {type === 'show' && 'A public show. The stop is visible to everyone.'}
           {type === 'trackday' && 'A circuit or sprint venue. Public, and the only place lap times count.'}
         </Txt>
       </Section>
@@ -303,26 +304,26 @@ export function EventForm({
         </Row>
         <Row gap={6}>
           {timeChoices.map((t) => (
-            <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} colour={C.neon} />
+            <Chip key={t} label={t} on={time === t} onPress={() => setTime(t)} />
           ))}
         </Row>
         {chosen.ok ? (
-          <Txt v="mono" style={{ color: C.lime }}>STARTS {formatWhen(chosen.start.toISOString(), now).toUpperCase()}</Txt>
+          <Txt v="mono" scale="chrome" style={{ color: STATE.success }}>Starts {formatWhen(chosen.start.toISOString(), now)}</Txt>
         ) : (
-          <Txt v="mono" style={{ color: C.alert }}>{chosen.reason.toUpperCase()}</Txt>
+          <InlineError message={chosen.reason} />
         )}
       </Section>
 
-      <Section title={type === 'cruise' ? 'Route' : type === 'rolling' ? 'Stops' : 'Place'}>
+      <Section title={type === 'cruise' ? 'Route' : type === 'rolling' ? 'Stops' : 'Stop'}>
         <Txt v="muted">
-          Choose each {singlePlace ? 'place' : 'stop'} on the map: move it until the crosshair is on the spot. It's named after the street (or the known
-          spot it's on); edit the name if you like.
+          Choose {singlePlace ? 'the stop' : 'each stop'} on the map: move it until the crosshair is on it. It's named after the street (or the known
+          place it's on); edit the name if you like.
         </Txt>
         <Pressable
           onPress={() => openPicker(activeStop)}
           accessibilityRole="button"
           accessibilityLabel={`Open the map to place the ${stopLabel(activeStop, visibleStops.length).toLowerCase()}`}
-          style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}
+          style={{ height: 200, borderRadius: RADIUS.sheet, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}
         >
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
@@ -336,22 +337,22 @@ export function EventForm({
             />
           </View>
           {placed.length === 0 ? (
-            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,15,23,0.55)' }]}>
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: SURFACE.scrim }]}>
               <Txt v="label" style={{ color: C.chalk }}>Tap to open the map</Txt>
             </View>
           ) : null}
         </Pressable>
         {visibleStops.map((st, i) => (
-          <Card key={st.key} accent={i === activeStop ? C.sodium : undefined}>
+          <Card key={st.key} accent={i === activeStop ? BRAND : undefined}>
             <Row style={{ justifyContent: 'space-between' }}>
               <Chip label={stopLabel(i, visibleStops.length)} on={i === activeStop} onPress={() => setActiveStop(i)} />
-              <Txt v="mono" style={{ color: st.at ? C.lime : C.fog }}>
-                {st.at ? 'PLACED' : 'NOT PLACED'}
+              <Txt v="mono" scale="chrome" style={{ color: st.at ? STATE.success : C.fog }}>
+                {st.at ? 'Placed' : 'Not placed'}
               </Txt>
             </Row>
             <Button
               label={st.at ? 'Move on the map' : 'Choose on the map'}
-              kind={st.at ? 'ghost' : 'primary'}
+              kind="secondary"
               onPress={() => openPicker(i)}
               accessibilityLabel={`${st.at ? 'Move' : 'Choose'} the ${stopLabel(i, visibleStops.length).toLowerCase()} on the map`}
             />
@@ -359,17 +360,18 @@ export function EventForm({
               value={st.name}
               onChangeText={(name) => setStop(i, { name })}
               onFocus={() => setActiveStop(i)}
-              placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : 'Name this spot'}
+              placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : 'Name this stop'}
               placeholderTextColor={C.fog}
               style={ui.input}
             />
             {st.at && autoNames.current[st.key] && st.name === autoNames.current[st.key] ? (
-              <Txt v="muted" style={{ fontSize: 12 }}>Named from the map. Edit it if people know it by another name.</Txt>
+              <Txt v="caption">Named from the map. Edit it if people know it by another name.</Txt>
             ) : null}
             {!singlePlace && visibleStops.length > 2 ? (
               <Button
-                label="Remove"
-                kind="ghost"
+                label="Remove this stop"
+                kind="danger"
+                size="sm"
                 onPress={() => {
                   setStops((xs) => xs.filter((_, j) => j !== i));
                   setActiveStop(0);
@@ -381,7 +383,7 @@ export function EventForm({
         {!singlePlace ? (
           <Button
             label={type === 'cruise' ? '+ Add regroup stop' : '+ Add stop'}
-            kind="ghost"
+            kind="secondary"
             onPress={() => {
               const insertAt = type === 'cruise' ? stops.length - 1 : stops.length;
               const next = [...stops];
@@ -404,22 +406,21 @@ export function EventForm({
         <Txt v="muted">
           {isPublicType(type)
             ? 'Shown with the event.'
-            : `Before the reveal, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any stop.`}
+            : `Until the stop unlocks, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any stop.`}
         </Txt>
         {bans.map(({ st, zone }) => (
           <ZoneNotice key={st.key} zone={zone!} subject={st.name || 'A stop'} />
         ))}
-        {bans.length ? <Txt v="muted" style={{ fontSize: 12 }}>Nightshift only warns. As the host, you're responsible for checking the order.</Txt> : null}
+        {bans.length ? <Txt v="caption">Nightshift only warns. As the host, you're responsible for checking the order.</Txt> : null}
       </Section>
 
       <Section title="Who's invited">
-        <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-          <View style={{ flex: 1 }}>
-            <Txt>Everyone welcome</Txt>
-            <Txt v="muted">Skip the build filters. The radius still applies.</Txt>
-          </View>
-          <Switch accessibilityLabel="Everyone welcome" value={filter.everyone} onValueChange={(everyone) => setFilter((f) => ({ ...f, everyone }))} trackColor={{ true: C.sodium, false: C.kerb }} />
-        </Row>
+        <ToggleRow
+          label={`${GOING.public}: any car or bike`}
+          hint="Skip the build filters. The radius still applies."
+          value={filter.everyone}
+          onValueChange={(everyone) => setFilter((f) => ({ ...f, everyone }))}
+        />
         {!filter.everyone ? (
           <>
             <Txt v="label">Vehicles</Txt>
@@ -450,40 +451,34 @@ export function EventForm({
         <Txt v="label">Radius</Txt>
         <Row gap={6}>
           {[10, 25, 50, 100].map((r) => (
-            <Chip key={r} label={`${r} mi`} on={filter.radiusMiles === r} onPress={() => setFilter((f) => ({ ...f, radiusMiles: r }))} colour={C.neon} />
+            <Chip key={r} label={`${r} mi`} on={filter.radiusMiles === r} onPress={() => setFilter((f) => ({ ...f, radiusMiles: r }))} />
           ))}
         </Row>
-        <Card accent={C.sodium}>
+        <Card accent={BRAND}>
           <Row style={{ alignItems: 'baseline' }}>
-            <Txt v="h1" style={{ color: C.sodium, fontFamily: F.display }}>{matchHeadline}</Txt>
+            <Txt v="h1" style={{ color: BRAND, fontFamily: F.display }}>{matchHeadline}</Txt>
             <Txt v="muted">{matchLine}</Txt>
           </Row>
         </Card>
       </Section>
 
       {!isPublicType(type) ? (
-        <Section title="Reveal the place">
+        <Section title={UNLOCK.setting}>
           <Row gap={6}>
             {REVEAL_CHOICES.map((m) => (
-              <Chip key={m} label={m === 0 ? 'Straight away' : `${m} min before`} on={reveal === m} onPress={() => setReveal(m)} colour={C.neon} />
+              <Chip key={m} label={m === 0 ? 'Straight away' : `${m} min before`} on={reveal === m} onPress={() => setReveal(m)} />
             ))}
           </Row>
-          <Txt v="muted">Until then, people going only see the rough area.</Txt>
+          <Txt v="muted">Until it unlocks, people going only see the rough area.</Txt>
         </Section>
       ) : null}
 
       <Section title="Hosts">
         {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
-          <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-            <View style={{ flex: 1 }}>
-              <Txt>Crew event: {myCrew.name}</Txt>
-              <Txt v="muted">The crew owner and hosts can host, move on and edit.</Txt>
-            </View>
-            <Switch accessibilityLabel="Crew event" value={crewOwned} onValueChange={setCrewOwned} trackColor={{ true: C.sodium, false: C.kerb }} />
-          </Row>
+          <ToggleRow label={`Crew event: ${myCrew.name}`} hint="The crew owner and hosts can host, move on and edit." value={crewOwned} onValueChange={setCrewOwned} />
         ) : null}
         <Txt v="label">Co-hosts</Txt>
-        {friends.length === 0 ? <Txt v="muted">Co-hosts come from your crew. Join or start one on the Me tab.</Txt> : null}
+        {friends.length === 0 ? <Txt v="muted">Co-hosts come from your crew. Join or start one from Me.</Txt> : null}
         <Row gap={6}>
           {friends.map((u) => (
             <Chip
@@ -491,25 +486,21 @@ export function EventForm({
               label={`@${u.handle}`}
               on={coHosts.includes(u.id)}
               onPress={() => setCoHosts((xs) => (xs.includes(u.id) ? xs.filter((x) => x !== u.id) : [...xs, u.id]))}
-              colour={C.neon}
+              raw
             />
           ))}
         </Row>
       </Section>
 
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt>{error}</Txt>
-        </Card>
-      ) : null}
       <Button label={submitLabel} onPress={save} busy={saving} />
+      <InlineError message={error} />
 
       <MapPicker
         visible={picking !== null}
         mode="point"
         title={picking !== null ? `PLACE THE ${stopLabel(picking, visibleStops.length).toUpperCase()}` : ''}
-        hint="Move the map so the crosshair is on the spot, or tap a grey pin to use a known place."
-        confirmLabel={picking !== null && visibleStops[picking]?.at ? 'Move it here' : 'Set spot here'}
+        hint="Move the map so the crosshair is on the stop, or tap a grey pin to use a known place."
+        confirmLabel={picking !== null && visibleStops[picking]?.at ? 'Move it here' : 'Set stop here'}
         start={
           (picking !== null && (visibleStops[picking]?.at ?? [...visibleStops.slice(0, picking)].reverse().find((x) => x.at)?.at)) ||
           placed[0]?.at ||

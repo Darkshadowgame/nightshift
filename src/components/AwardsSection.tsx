@@ -9,17 +9,18 @@ import { formatRelative } from '../lib/format';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import type { NightEvent } from '../lib/types';
-import { C } from '../theme';
+import { BRAND, C, RADIUS } from '../theme';
 import { Cover, Trophy } from './Cover';
 import { RevealIn } from './motion';
-import { Card, ClassBadge, Row, Section, Txt } from './ui';
+import { Card, ClassBadge, InlineError, LinkText, Row, Section, Txt } from './ui';
 import { UserLink } from './UserLink';
 
 /** Voting while it's open, then the trophies. */
 export function AwardsSection({ event }: { event: NightEvent }) {
   const { builds, users, votes, me, vote } = useStore();
   const now = useNow();
-  const [error, setError] = useState<string | null>(null);
+  /** A refused vote, shown under its award. */
+  const [error, setError] = useState<{ cat: string; text: string } | null>(null);
   const [open, setOpen] = useState(false);
   if (event.cancelled || now < new Date(event.startsAt)) return null;
 
@@ -50,14 +51,14 @@ export function AwardsSection({ event }: { event: NightEvent }) {
             return (
               <UserLink key={a.category} id={a.ownerId} label={`${categoryInfo(a.category).label}: open ${owner?.handle ?? 'profile'}`}>
               <Row style={{ flexWrap: 'nowrap' }} gap={10}>
-                <Trophy colour={categoryInfo(a.category).cover ? C.sodium : C.fog} size={28} />
+                <Trophy colour={categoryInfo(a.category).cover ? BRAND : C.fog} size={28} />
                 <View style={{ flex: 1 }}>
                   <Txt>{categoryInfo(a.category).label}</Txt>
                   <Txt v="muted" numberOfLines={1}>
                     {a.ownerId === me ? 'You' : `@${owner?.handle}`} · {b?.make} {b?.model} · {a.votes} votes
                   </Txt>
                 </View>
-                <Txt v="mono" style={{ color: C.sodium }}>+{categoryInfo(a.category).rep}</Txt>
+                <Txt v="mono" scale="chrome" style={{ color: BRAND }}>+{categoryInfo(a.category).rep} rep</Txt>
               </Row>
               </UserLink>
             );
@@ -75,24 +76,17 @@ export function AwardsSection({ event }: { event: NightEvent }) {
   if (now < endTime(event) && !open) {
     const done = cats.filter((c) => myVote(c)).length;
     return (
-      <Pressable
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`Vote, ${cats.length} awards`}
-        style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+      <Section
+        title={`Vote (${cats.length} award${cats.length === 1 ? '' : 's'})`}
+        right={<LinkText label={check.ok ? (done ? `${done} done ›` : 'Open ›') : 'See ›'} accessibilityLabel={`Vote, ${cats.length} awards`} onPress={() => setOpen(true)} />}
       >
-        <Card accent={C.sodium}>
-          <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-            <Txt v="eyebrow">Vote ({cats.length} award{cats.length === 1 ? '' : 's'})</Txt>
-            <Txt v="label" style={{ color: C.sodium }}>{check.ok ? (done ? `${done} done ›` : 'Open ›') : 'See ›'}</Txt>
-          </Row>
-        </Card>
-      </Pressable>
+        {null}
+      </Section>
     );
   }
 
   return (
-    <Section title="Vote" right={<Txt v="mono">CLOSES {formatRelative(votingCloses(event).toISOString(), now).toUpperCase()}</Txt>}>
+    <Section title="Vote" right={<Txt v="mono" scale="chrome">Closes {formatRelative(votingCloses(event).toISOString(), now)}</Txt>}>
       {!check.ok ? (
         <Card>
           <Txt v="muted">{check.reason} Only people who turned up can vote.</Txt>
@@ -100,11 +94,6 @@ export function AwardsSection({ event }: { event: NightEvent }) {
       ) : (
         <Txt v="muted">One vote per award. You can change it until voting closes. You can't vote for yourself.</Txt>
       )}
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt>{error}</Txt>
-        </Card>
-      ) : null}
       {check.ok
         ? cats.map((cat) => {
             const options = eligibleFor(cat, event, builds).filter((b) => b.ownerId !== me);
@@ -112,7 +101,7 @@ export function AwardsSection({ event }: { event: NightEvent }) {
             const chosen = myVote(cat);
             return (
               <View key={cat} style={{ gap: 6 }}>
-                <Txt v="label" style={{ color: chosen ? C.sodium : C.fog }}>
+                <Txt v="label" style={{ color: chosen ? BRAND : C.fog }}>
                   {categoryInfo(cat).label}
                   {chosen ? ' ✓' : ''}
                 </Txt>
@@ -130,25 +119,26 @@ export function AwardsSection({ event }: { event: NightEvent }) {
                           setError(null);
                           vote(event.id, cat, b.id)
                             .then(() => feel.select())
-                            .catch((e) => setError(e instanceof Error ? e.message : 'That vote did not count.'));
+                            .catch((e) => setError({ cat, text: e instanceof Error ? e.message : 'That vote did not count.' }));
                         }}
                         style={{
-                          width: 150, padding: 10, gap: 6, borderRadius: 8, borderWidth: 1,
-                          borderColor: on ? C.sodium : C.kerb, backgroundColor: on ? `${C.sodium}1f` : C.tarmac,
+                          width: 150, padding: 10, gap: 6, borderRadius: RADIUS.card, borderWidth: 1,
+                          borderColor: on ? BRAND : C.kerbHi, backgroundColor: on ? `${BRAND}1f` : C.tarmac,
                         }}
                       >
                         <Row style={{ flexWrap: 'nowrap' }} gap={6}>
                           <ClassBadge letter={classOf(b)} size="sm" />
                           <UserLink id={b.ownerId} style={{ flex: 1 }} label={`Open @${owner?.handle}`}>
-                            <Txt v="mono" numberOfLines={1} style={{ color: C.neon, textTransform: 'none' }}>@{owner?.handle}</Txt>
+                            <Txt v="mono" numberOfLines={1} style={{ color: C.chalk, textTransform: 'none' }}>@{owner?.handle}</Txt>
                           </UserLink>
                         </Row>
                         <Txt numberOfLines={2}>{b.make} {b.model}</Txt>
-                        {buildTag(b) ? <Txt v="label" numberOfLines={1} style={{ color: C.magenta, fontSize: 11 }}>{buildTag(b)}</Txt> : null}
+                        {buildTag(b) ? <Txt v="micro" numberOfLines={1} style={{ color: C.chalk }}>{buildTag(b)}</Txt> : null}
                       </Pressable>
                     );
                   })}
                 </ScrollView>
+                <InlineError message={error?.cat === cat ? error.text : null} />
               </View>
             );
           })

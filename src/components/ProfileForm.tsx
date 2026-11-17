@@ -6,12 +6,13 @@ import { fuzz } from '../lib/geo';
 import { currentPosition } from '../lib/location';
 import { nearestRegion, REGIONS, regionCentre, type ProfileDraft } from '../lib/profile';
 import type { LatLng } from '../lib/types';
-import { C } from '../theme';
+import { useStore } from '../lib/store';
+import { C, LAYER, STATE } from '../theme';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { PlaceSearch } from './PlaceSearch';
 import { TravelPrefs } from './TravelPrefs';
-import { Button, Card, Chip, Row, Section, Txt, s as ui } from './ui';
+import { Button, Chip, InlineError, Row, Section, Txt, s as ui } from './ui';
 
 /** Handle, name, region, rough home area and how far you'd travel. Used on first run and on Me. */
 export function ProfileForm({
@@ -37,6 +38,8 @@ export function ProfileForm({
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  /** The demo draws sample people round your home; signed in there are none, and the demo area isn't offered. */
+  const demo = useStore().backend === 'local';
 
   const isDemoHome = !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
 
@@ -102,7 +105,7 @@ export function ProfileForm({
           style={ui.input}
           accessibilityLabel="Handle"
         />
-        <Txt v="muted">What people see on the map, in chat and on trophies. Letters, numbers, dots and underscores.</Txt>
+        <Txt v="muted">Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.</Txt>
       </Section>
 
       <Section title="Display name">
@@ -118,33 +121,34 @@ export function ProfileForm({
 
       <Section title="Rough home area">
         <Txt v="muted">
-          Used to find meets and invites near you. It's saved to about 1 km, never your exact address, and never shown to anyone.
+          Only used to find events near you. It's saved to about 1 km, never your exact address, and nobody sees it.
         </Txt>
-        <Button label={locating ? 'Finding you…' : 'Use my current location'} kind="neon" onPress={useMyLocation} busy={locating} />
-        {locError ? <Txt v="muted" style={{ color: C.alert }}>{locError}</Txt> : null}
+        <Button label={locating ? 'Finding you…' : 'Use my current location'} kind="secondary" onPress={useMyLocation} busy={locating} />
+        <InlineError message={locError} />
         <PlaceSearch placeholder="Or search your town or postcode" onPick={(h) => setHomeNear(h.at)} />
-        <Button label={home ? 'Move it on the map' : 'Choose on the map'} kind="ghost" onPress={() => setPicking(true)} />
+        <Button label={home ? 'Move it on the map' : 'Choose on the map'} kind="secondary" onPress={() => setPicking(true)} />
         <Pressable
           onPress={() => setPicking(true)}
           accessibilityRole="button"
           accessibilityLabel="Open the map to set your home area"
-          style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: home ? C.neon : C.kerb }}
+          style={{ height: 200, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: home ? STATE.success : C.kerbHi }}
         >
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap key={`${centre.lat},${centre.lng}`} pins={[]} centre={centre} span={home ? 0.3 : 0.8} picked={home} />
           </View>
         </Pressable>
-        <Txt v="mono" style={{ color: home ? C.lime : C.fog }}>
+        <Txt v="mono" style={{ color: home ? STATE.success : C.fog }}>
           {isDemoHome ? 'HOME AREA SET: THE DEMO AREA (TAMWORTH)' : home ? 'HOME AREA SET, TO ABOUT 1 KM' : 'NOT SET YET'}
         </Txt>
-        <Txt v="muted" style={{ fontSize: 12 }}>
-          Tap the map to fine-tune it. Until the app has a backend, sample people and events (marked Sample) are drawn round your
-          home area so there's something to try.
+        <Txt v="caption">
+          {demo
+            ? "Tap the map to fine-tune it. In the demo, sample people and events (marked Sample) are drawn round your home area so there's something to try."
+            : 'Tap the map to fine-tune it.'}
         </Txt>
       </Section>
 
       <Section title="Region">
-        <Txt v="muted" style={{ fontSize: 12 }}>Set from your home area. Change it if it's wrong.</Txt>
+        <Txt v="caption">Set from your home area. Change it if it's wrong.</Txt>
         <Row gap={6}>
           {REGIONS.map((r) => (
             <Chip key={r.name} label={r.name} on={region === r.name} onPress={() => pickRegion(r.name)} />
@@ -163,16 +167,12 @@ export function ProfileForm({
         />
       </Section>
 
-      {!isDemoHome ? (
-        <Button label="Testing: use the demo area (Tamworth)" kind="ghost" onPress={pickDemoArea} />
+      {demo && !isDemoHome ? (
+        <Button label="Testing: use the demo area (Tamworth)" kind="secondary" onPress={pickDemoArea} />
       ) : null}
 
-      {error ? (
-        <Card accent={C.alert}>
-          <Txt>{error}</Txt>
-        </Card>
-      ) : null}
       <Button label={submitLabel} onPress={submit} busy={saving} />
+      <InlineError message={error} />
 
       <MapPicker
         visible={picking}
@@ -180,7 +180,7 @@ export function ProfileForm({
         title="YOUR ROUGH HOME AREA"
         hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your exact address."
         confirmLabel="Set home area here"
-        colour={C.neon}
+        colour={LAYER.event}
         start={centre}
         span={home ? 0.1 : 0.8}
         initial={home ? [home] : []}

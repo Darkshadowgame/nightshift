@@ -2,14 +2,15 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { BellIcon } from '../components/NoticeBell';
-import { Card, Txt } from '../components/ui';
+import { Card, Notice as NoticeCard, Txt } from '../components/ui';
 import { formatRelative } from '../lib/format';
 import { useStore, type Notice } from '../lib/store';
 import { useNow } from '../lib/clock';
-import { C } from '../theme';
+import { WHERE } from '../lib/glossary';
+import { BRAND, C } from '../theme';
 
 const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
-  reveal: 'Location unlocked',
+  reveal: 'Stop unlocked',
   soon: 'Starting soon',
   moved: 'Moved on',
   host: 'You moved the meet on',
@@ -34,9 +35,11 @@ export default function NotificationsScreen() {
       contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40, flexGrow: 1 }}
       ListHeaderComponent={
         !settings.reminders ? (
-          <Card accent={C.alert} style={{ marginBottom: 6 }}>
-            <Txt v="muted">Reminders are off. Turn them back on in Me › Reminders.</Txt>
-          </Card>
+          <View style={{ marginBottom: 6 }}>
+            <NoticeCard action={{ label: 'Open settings ›', onPress: () => router.push('/settings') }}>
+              Reminders are off. Turn them back on in {WHERE.reminders}.
+            </NoticeCard>
+          </View>
         ) : undefined
       }
       ListEmptyComponent={
@@ -44,7 +47,7 @@ export default function NotificationsScreen() {
           <BellIcon colour={C.fog} size={40} />
           <Txt v="h3">Nothing yet</Txt>
           <Txt v="muted" style={{ textAlign: 'center' }}>
-            Tap Going on an event and you'll get a reminder when the location unlocks and 30 minutes before the start.
+            Say you're going to an event and you'll get a reminder when its stop unlocks and 30 minutes before the start.
           </Txt>
         </View>
       }
@@ -60,12 +63,12 @@ export default function NotificationsScreen() {
             accessibilityHint={event ? 'Opens the event' : undefined}
             style={({ pressed }) => [pressed && { opacity: 0.8 }]}
           >
-            <Card accent={fresh ? C.sodium : C.kerbHi}>
-              <Txt v="label" style={{ color: fresh ? C.sodium : C.fog }}>
+            <Card accent={fresh ? BRAND : C.kerbHi}>
+              <Txt v="label" style={{ color: fresh ? BRAND : C.fog }}>
                 {n.kind ? KIND_LABEL[n.kind] : 'Update'} · {formatRelative(n.at, now)}
               </Txt>
               <Txt>{n.text}</Txt>
-              {event ? <Txt v="label" style={{ color: C.neon }}>Open event ›</Txt> : <Txt v="muted">This event has gone.</Txt>}
+              {event ? <Txt v="label" style={{ color: BRAND }}>Open event ›</Txt> : <Txt v="muted">This event has gone.</Txt>}
             </Card>
           </Pressable>
         );

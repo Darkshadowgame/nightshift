@@ -1,15 +1,17 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { EventCard } from '../components/EventCard';
-import { Card, Chip, Row, Section, Txt } from '../components/ui';
+import { Card, Chip, EmptyState, LinkText, Notice, Row, Section, Txt } from '../components/ui';
 import {
   ALL_TYPES,
   defaultFilters,
-  describeDistance,
+  describeFilters,
+  hitNote,
   searchEvents,
   travelOf,
   TRAVEL_CHOICES,
+  VEHICLE_LABELS,
   WHEN_LABELS,
   type SearchFilters,
   type Vehicles,
@@ -23,14 +25,9 @@ import { currentPosition } from '../lib/location';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import type { LatLng } from '../lib/types';
-import { C, EVENT_COLOURS } from '../theme';
 
 const WHENS: When[] = ['any', 'tonight', 'week', 'weekend'];
-const VEHICLES: { key: Vehicles; label: string }[] = [
-  { key: 'any', label: 'Cars + bikes' },
-  { key: 'cars', label: 'Cars' },
-  { key: 'bikes', label: 'Bikes' },
-];
+const VEHICLES: Vehicles[] = ['any', 'cars', 'bikes'];
 
 /**
  * Find events: every upcoming event you can see, nearest first. Locked events
@@ -46,6 +43,8 @@ export default function FindEvents() {
   const [useHere, setUseHere] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locNote, setLocNote] = useState<string | null>(null);
+  /** The filters fold into one summary line so the results are on the first screen (REVIEW-5 m16). */
+  const [editing, setEditing] = useState(false);
   // NEW tags stay for this visit; leaving the screen marks them seen.
   const [fresh] = useState(() => new Set(nearby?.unseen ?? []));
   useFocusEffect(useCallback(() => () => markNearbySeen(), [markNearbySeen]));
@@ -109,68 +108,79 @@ export default function FindEvents() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
-      <Card>
-        <FilterRow label="From">
-          <Chip label="Home area" on={!useHere} onPress={() => setUseHere(false)} />
-          <Chip label={locating ? 'Finding you…' : 'Where I am'} on={useHere} onPress={fromHere} />
-        </FilterRow>
-        {locNote ? <Txt v="muted" style={{ color: C.alert }}>{locNote}</Txt> : null}
-        <FilterRow label="Within">
-          {distances.map((m) => (
-            <Chip key={m} label={`${m} mi`} on={filters.maxMiles === m} onPress={() => set({ maxMiles: m })} />
-          ))}
-          <Chip label="Any distance" on={filters.maxMiles === null} onPress={() => set({ maxMiles: null })} />
-        </FilterRow>
-        <FilterRow label="What">
-          {ALL_TYPES.map((t) => (
-            <Chip
-              key={t}
-              label={EVENT_LABELS[t]}
-              colour={EVENT_COLOURS[t]}
-              on={filters.types.includes(t)}
-              onPress={() => set({ types: filters.types.includes(t) ? filters.types.filter((x) => x !== t) : [...filters.types, t] })}
+      {editing ? (
+        <Card>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Txt v="label">Search</Txt>
+            <LinkText label="Done" onPress={() => setEditing(false)} />
+          </Row>
+          <FilterRow label="From">
+            <Chip label="Home area" on={!useHere} onPress={() => setUseHere(false)} />
+            <Chip label={locating ? 'Finding you…' : 'Where I am'} on={useHere} onPress={fromHere} />
+          </FilterRow>
+          <FilterRow label="Within">
+            {distances.map((m) => (
+              <Chip key={m} label={`${m} mi`} on={filters.maxMiles === m} onPress={() => set({ maxMiles: m })} />
+            ))}
+            <Chip label="Any distance" on={filters.maxMiles === null} onPress={() => set({ maxMiles: null })} />
+          </FilterRow>
+          <FilterRow label="What">
+            {ALL_TYPES.map((t) => (
+              <Chip
+                key={t}
+                label={EVENT_LABELS[t]}
+                on={filters.types.includes(t)}
+                onPress={() => set({ types: filters.types.includes(t) ? filters.types.filter((x) => x !== t) : [...filters.types, t] })}
+              />
+            ))}
+          </FilterRow>
+          <FilterRow label="When">
+            {WHENS.map((w) => (
+              <Chip key={w} label={WHEN_LABELS[w]} on={filters.when === w} onPress={() => set({ when: w })} />
+            ))}
+          </FilterRow>
+          <FilterRow label="Show">
+            <Chip label="I can go" on={filters.canGoOnly} onPress={() => set({ canGoOnly: true })} />
+            <Chip label="Everything" on={!filters.canGoOnly} onPress={() => set({ canGoOnly: false })} />
+          </FilterRow>
+          <FilterRow label="For">
+            {VEHICLES.map((v) => (
+              <Chip key={v} label={VEHICLE_LABELS[v]} on={filters.vehicles === v} onPress={() => set({ vehicles: v })} />
+            ))}
+          </FilterRow>
+          {changed ? (
+            <LinkText
+              label="Back to my usual search ›"
+              onPress={() => {
+                setFilters(defaultFilters(travel.miles));
+                setUseHere(false);
+              }}
             />
-          ))}
-        </FilterRow>
-        <FilterRow label="When">
-          {WHENS.map((w) => (
-            <Chip key={w} label={WHEN_LABELS[w]} on={filters.when === w} onPress={() => set({ when: w })} />
-          ))}
-        </FilterRow>
-        <FilterRow label="Show">
-          <Chip label="I can go" on={filters.canGoOnly} onPress={() => set({ canGoOnly: true })} />
-          <Chip label="Everything" on={!filters.canGoOnly} onPress={() => set({ canGoOnly: false })} />
-        </FilterRow>
-        <FilterRow label="For">
-          {VEHICLES.map((v) => (
-            <Chip key={v.key} label={v.label} on={filters.vehicles === v.key} onPress={() => set({ vehicles: v.key })} />
-          ))}
-        </FilterRow>
-        {changed ? (
-          <Pressable
-            onPress={() => {
-              setFilters(defaultFilters(travel.miles));
-              setUseHere(false);
-            }}
-            accessibilityRole="button"
-            hitSlop={8}
-          >
-            <Txt v="label" style={{ color: C.sodium }}>Back to my usual search</Txt>
-          </Pressable>
-        ) : null}
-      </Card>
+          ) : null}
+        </Card>
+      ) : (
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Txt v="muted" style={{ flex: 1 }} accessibilityLabel={`Searching ${describeFilters(filters, useHere)}`}>
+            {describeFilters(filters, useHere)}
+          </Txt>
+          <LinkText label="Change ›" accessibilityLabel="Change the search" onPress={() => setEditing(true)} />
+        </Card>
+      )}
+      {locNote ? <Notice onDismiss={() => setLocNote(null)}>{locNote}</Notice> : null}
 
       <Section title={plural(hits.length, 'event')}>
-        <Txt v="muted" style={{ fontSize: 12 }}>
-          Nearest first, from {useHere ? 'where you are (to about 1 km)' : 'your home area'}. Locked events show their rough area
-          until the reveal; distances are to that area.
+        <Txt v="caption">
+          Nearest first, from {useHere ? 'where you are (to about 1 km)' : 'your home area'}. Until a stop unlocks, an event
+          shows its rough area, and the distance is to that area.
         </Txt>
         {hits.length === 0 ? (
-          <Card>
-            <Txt v="muted">
-              Nothing matches. Try a wider distance, any time, or Everything. To host your own, tap + Host on the Events tab.
-            </Txt>
-          </Card>
+          <EmptyState
+            glyph="meet"
+            title="Nothing matches"
+            body="Try a wider distance, any time, or Everything. Or host your own."
+            action={{ label: 'Change the search', onPress: () => setEditing(true) }}
+            secondary={{ label: 'Host one', onPress: () => router.push('/event/new') }}
+          />
         ) : (
           hits.map((h) => (
             <EventCard
@@ -178,9 +188,7 @@ export default function FindEvents() {
               view={h.view}
               now={now}
               tag={fresh.has(h.view.event.id) ? 'New' : undefined}
-              note={`${describeDistance(h.miles)}${useHere ? ' away' : ' from home'} · ${
-                h.canGo ? 'you can go' : h.view.role === 'requested' ? 'you asked to go' : h.view.role === 'declined' ? 'a host said no' : 'ask to go'
-              }`}
+              note={hitNote(h, useHere)}
             />
           ))
         )}

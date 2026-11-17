@@ -46,16 +46,20 @@ export function invitees(users: User[], builds: Build[], filter: InviteFilter, a
   return { userIds, buildIds };
 }
 
+/**
+ * The invite in one line. An invite open to everyone still has a radius, so it
+ * says so ("Public · anyone within 100 mi") rather than "everyone welcome".
+ */
 export function describeFilter(filter: InviteFilter): string {
-  if (filter.everyone) return `Everyone welcome · ${filter.radiusMiles} mi`;
+  if (filter.everyone) return `Public · anyone within ${filter.radiusMiles} mi`;
   const parts: string[] = [];
   if (filter.cars && !filter.bikes) parts.push('Cars');
   else if (filter.bikes && !filter.cars) parts.push('Bikes');
-  else parts.push('Cars + bikes');
+  else parts.push('Cars and bikes');
   if (filter.classes.length > 0) parts.push(`Class ${[...filter.classes].sort(classSort).join('/')}`);
   if (filter.minMods > 0) parts.push(`${filter.minMods}+ mods`);
   if (filter.brands.length > 0) parts.push(filter.brands.join(', '));
-  parts.push(`${filter.radiusMiles} mi`);
+  parts.push(`within ${filter.radiusMiles} mi`);
   return parts.join(' · ');
 }
 

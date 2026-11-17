@@ -283,3 +283,19 @@ describe('the demo scene', () => {
     expect(all.length).toBeGreaterThanOrEqual(7);
   });
 });
+
+describe('find summary', () => {
+  const { defaultFilters, describeFilters, hitNote } = jest.requireActual('../src/lib/discover') as typeof import('../src/lib/discover');
+  it('sums up the usual search in one line', () => {
+    expect(describeFilters(defaultFilters(25), false)).toBe('25 mi from home · any time · cars and bikes');
+  });
+  it('adds what else is set', () => {
+    const f = { ...defaultFilters(25), maxMiles: null, when: 'tonight' as const, vehicles: 'bikes' as const, types: ['show' as const, 'meet' as const], canGoOnly: true };
+    expect(describeFilters(f, true)).toBe('any distance from where you are · tonight · bikes · meet, show · only ones I can go to');
+  });
+  it('words each result with the glossary', () => {
+    expect(hitNote({ miles: 12.4, canGo: true, view: { role: 'invited' } }, false)).toBe('about 12 mi from home · you can go');
+    expect(hitNote({ miles: 0.5, canGo: false, view: { role: 'requested' } }, true)).toBe('under 1 mi away · requested');
+    expect(hitNote({ miles: 30, canGo: false, view: { role: 'none' } }, false)).toBe('about 30 mi from home · request to go');
+  });
+});

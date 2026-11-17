@@ -162,6 +162,37 @@ export function defaultFilters(travelMiles: number): SearchFilters {
   return { maxMiles: travelMiles, types: [], when: 'any', canGoOnly: false, vehicles: 'any' };
 }
 
+export const VEHICLE_LABELS: Record<Vehicles, string> = { any: 'Cars and bikes', cars: 'Cars', bikes: 'Bikes' };
+
+/**
+ * One line for Find's collapsed filters: "25 mi from home · any time · cars and
+ * bikes", plus anything else that's set ("meets, shows", "only ones I can go to").
+ */
+export function describeFilters(filters: SearchFilters, fromHere: boolean): string {
+  const from = fromHere ? 'from where you are' : 'from home';
+  const parts = [
+    filters.maxMiles === null ? `any distance ${from}` : `${filters.maxMiles} mi ${from}`,
+    WHEN_LABELS[filters.when].toLowerCase(),
+    VEHICLE_LABELS[filters.vehicles].toLowerCase(),
+  ];
+  if (filters.types.length) parts.push(ALL_TYPES.filter((t) => filters.types.includes(t)).map((t) => EVENT_LABELS[t].toLowerCase()).join(', '));
+  if (filters.canGoOnly) parts.push('only ones I can go to');
+  return parts.join(' · ');
+}
+
+/** The note under a Find result: the distance, then whether you can go (glossary: Request to go, Requested). */
+export function hitNote(hit: Pick<SearchHit, 'miles' | 'canGo'> & { view: Pick<EventView, 'role'> }, fromHere: boolean): string {
+  const where = `${describeDistance(hit.miles)}${fromHere ? ' away' : ' from home'}`;
+  const status = hit.canGo
+    ? 'you can go'
+    : hit.view.role === 'requested'
+      ? 'requested'
+      : hit.view.role === 'declined'
+        ? 'a host said no'
+        : 'request to go';
+  return `${where} · ${status}`;
+}
+
 export interface SearchHit {
   view: EventView;
   miles: number;
