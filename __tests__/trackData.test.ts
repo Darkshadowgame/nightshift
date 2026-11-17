@@ -76,3 +76,22 @@ describe('circuit outlines from OpenStreetMap', () => {
     for (const id of ['tr-silverstone', 'tr-brands-hatch', 'tr-snetterton']) expect(trackOutline(id)?.closed).toBe(true);
   });
 });
+
+describe('photo spots are car and bike photo locations', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { photoEvidence, UNVETTED_PHOTO_SPOTS } = require('../src/data/photoVetting') as typeof import('../src/data/photoVetting');
+  test('evidence from a car or bike source, the description, or the known list; car parks alone are not evidence', () => {
+    const base = { id: 'x', warnings: [] as string[], sources: ['OpenStreetMap (ODbL)'] };
+    expect(photoEvidence({ ...base, description: 'National Trust car park with a view.' })).toBeNull();
+    expect(photoEvidence({ ...base, description: 'Cable car and dockside views.' })).toBeNull();
+    expect(photoEvidence({ ...base, description: 'Rolling shots of cars with Big Ben behind.' })?.kind).toBe('description');
+    expect(photoEvidence({ ...base, description: 'A view.', sources: ['https://www.bestbikingroads.com/x'] })?.kind).toBe('source');
+    expect(photoEvidence({ ...base, id: 'ph-hartside', description: 'Viewpoint and café.' })?.kind).toBe('known');
+  });
+  test('scenic-only bundled spots are hidden, vetted ones stay', () => {
+    expect(UNVETTED_PHOTO_SPOTS.has('ph-hartside')).toBe(false);
+    expect(UNVETTED_PHOTO_SPOTS.has('l-p-westminster-bridge')).toBe(false);
+    expect(UNVETTED_PHOTO_SPOTS.has('ea-p-saxtead')).toBe(false);
+    expect(UNVETTED_PHOTO_SPOTS.size).toBeGreaterThan(0);
+  });
+});

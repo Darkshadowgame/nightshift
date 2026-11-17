@@ -198,6 +198,8 @@ export interface SpotDraft {
   description: string;
   /** Drives: the route, in order. Photo spots: one point. */
   points: LatLng[];
+  /** Photo spots: a photo of the place with a car or bike in it (stored name, after crop and plate review). Required. */
+  photo?: string;
 }
 
 export const MIN_DRIVE_MILES = 1;
@@ -210,6 +212,7 @@ export function draftProblem(d: SpotDraft, spots: Spot[]): string | null {
   if (spots.some((s) => s.name.toLowerCase() === name.toLowerCase())) return 'There is already a place with that name.';
   if (d.kind === 'photo') {
     if (d.points.length !== 1) return 'Choose the spot on the map.';
+    if (!d.photo) return 'Add a photo of the spot with a car or bike in it. Photo spots are for car and bike photos.';
     return null;
   }
   if (d.points.length < 2) return 'Draw the drive on the map: at least a start and a finish.';
@@ -256,6 +259,7 @@ export function makeSpot(
     completions: [],
     ratings: [],
     ...(zone ? { banZone: zone.name } : {}),
+    ...(d.kind === 'photo' && d.photo ? { photo: d.photo } : {}),
   };
   const spot: Spot =
     d.kind === 'drive'

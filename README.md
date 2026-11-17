@@ -205,6 +205,9 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 7b. Speed cameras, photos from Commons, circuits and track times
 
+- [ ] Map > **Photos**: only spots known for car and bike photos show (scenic-only ones are
+      hidden). **+ Suggest a place** > Photo spot asks for a photo taken there with a car or bike
+      in it before it can be suggested.
 - [ ] Map: zoom in to about 30 miles across (e.g. round Norwich, central London, the Medway
       towns or Tamworth). Red camera pins appear, with red dashed lines for average-speed
       zones (their pin sits halfway along). Tap one: the card says the limit (e.g. **Speed
@@ -231,8 +234,9 @@ note anything odd for the next pass. Each step says what you should see.
       **Unverified**. A time quicker than the lap record, a future date or no photo is
       refused with the reason. **Remove** takes yours off. Drives and photo spots have no
       way to enter a time.
-- [ ] A photo spot, drive or track: under **Photos**, your own visit photos first, then
-      **Nearby on Wikimedia Commons**: public photos with the author and licence under each.
+- [ ] A photo spot, drive or track: **Members' photos** (yours and other visits), then **Online
+      photos** from Wikimedia Commons of cars, bikes or racing only, with the author and licence
+      under each (the section hides when there are none).
       Tap one: its Commons page opens in Safari. In flight mode on a place you haven't
       opened before it says it couldn't load them; one you've opened shows them again.
 

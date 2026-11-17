@@ -226,6 +226,8 @@ export interface Spot {
   warnings?: string[];
   /** Rough region, e.g. "Peak District". */
   region?: string;
+  /** Suggested photo spots: the suggester's photo of the place with a car or bike in it (stored name, plate-blurred). */
+  photo?: string;
 }
 
 export interface BanZone {

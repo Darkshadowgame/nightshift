@@ -38,7 +38,7 @@ export const THUMB_WIDTH = 360;
 export const MAX_RADIUS_M = 10_000;
 
 /** One request: geosearch for files near the point, with thumbnail, author and licence. */
-export function commonsUrl(at: LatLng, radiusM: number, limit = 24): string {
+export function commonsUrl(at: LatLng, radiusM: number, limit = 50): string {
   const params: [string, string][] = [
     ['action', 'query'],
     ['format', 'json'],
@@ -52,7 +52,7 @@ export function commonsUrl(at: LatLng, radiusM: number, limit = 24): string {
     ['prop', 'imageinfo|coordinates'],
     ['iiprop', 'url|extmetadata|mime|size'],
     ['iiurlwidth', String(THUMB_WIDTH)],
-    ['iiextmetadatafilter', 'Artist|LicenseShortName|LicenseUrl|ObjectName'],
+    ['iiextmetadatafilter', 'Artist|LicenseShortName|LicenseUrl|ObjectName|ImageDescription|Categories'],
   ];
   return `${COMMONS_API}?${params.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
 }
@@ -87,6 +87,20 @@ export function isIrrelevant(title: string, mime: string | undefined, width: num
   return /\b(map|maps|plan|diagram|logo|coat of arms|flag|locator|location|chart|graph|scan|page \d|document|blank|icon|svg|route ?map|layout|timetable|leaflet|poster)\b/.test(t);
 }
 
+/**
+ * Words that say a photo shows a car, a bike or motorsport, in its title,
+ * description or Commons categories. Brands and series names catch most
+ * car-spotting and race photos. Bicycles don't count.
+ */
+const VEHICLE =
+  /\b(cars?|automobiles?|vehicles?|motorcycl\w*|motorbikes?|motor ?sport|racing|race car|rally\w*|superbikes?|supercars?|sports cars?|classic cars?|hot hatch|track ?day|drift\w*|btcc|bsb|gt3|gt4|formula (one|1|ford|3|4)|f1|karts?|karting|hill ?climb|sprint|car show|motor show|car meet|porsche|ferrari|lamborghini|mclaren|aston martin|jaguar|lotus|bmw|audi|mercedes|volkswagen|vw|golf gti|ford (escort|sierra|focus|fiesta|mustang|capri|gt)|vauxhall|nissan|toyota|subaru|mitsubishi|honda|mazda|land rover|range rover|mini cooper|morgan|caterham|triumph|ducati|yamaha|kawasaki|suzuki|harley|norton|bsa|royal enfield|lambretta|vespa)\b/i;
+const NOT_VEHICLE = /\b(bicycles?|cycling|cyclists?|tour de france|railway|locomotives?|trains?|steam engines?|buses|bus|tram|aircraft|aeroplanes?|ships?|boats?)\b/i;
+
+/** The photo shows a car, a bike or motorsport, by its title, description and categories. */
+export function isVehiclePhoto(text: string): boolean {
+  return VEHICLE.test(text) && !(NOT_VEHICLE.test(text) && !/\b(cars?|motorcycl\w*|motorbikes?)\b/i.test(text));
+}
+
 interface RawPage {
   title?: string;
   coordinates?: { lat: number; lon: number }[];
@@ -102,8 +116,8 @@ interface RawPage {
 }
 
 /**
- * The photos in a Commons answer, nearest first, with irrelevant ones left
- * out. Photos whose title names the place (e.g. "Snetterton") come first.
+ * The photos of cars and bikes in a Commons answer, nearest first, with
+ * everything else left out. Photos whose title names the place (e.g. "Snetterton") come first.
  * Never throws: a broken answer gives an empty list.
  */
 export function parseCommons(json: unknown, at: LatLng, placeName = ''): CommonsPhoto[] {
@@ -123,6 +137,9 @@ export function parseCommons(json: unknown, at: LatLng, placeName = ''): Commons
     const c = p.coordinates?.[0];
     const where = c ? { lat: c.lat, lng: c.lon } : undefined;
     const title = plainText(meta.ObjectName?.value) || p.title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
+    // Cars and bikes only: a photo spot's strip is for vehicles, not scenery.
+    const about = [p.title, title, plainText(meta.ImageDescription?.value), plainText(meta.Categories?.value).replace(/\|/g, ' ')].join(' ');
+    if (!isVehiclePhoto(about)) continue;
     out.push({
       title,
       thumb: info.thumburl,
@@ -150,11 +167,13 @@ export function radiusFor(kind: 'photo' | 'drive' | 'track' | 'venue', spanMiles
 
 /** Cache key: the point to ~100 m and the radius, so the same place reuses its answer. */
 export function cacheKey(at: LatLng, radiusM: number): string {
-  return `${at.lat.toFixed(3)},${at.lng.toFixed(3)},${Math.round(radiusM)}`;
+  return `v${CACHE_VERSION}:${at.lat.toFixed(3)},${at.lng.toFixed(3)},${Math.round(radiusM)}`;
 }
 
 /** Answers are kept for a week, so the screen works offline and Commons isn't asked again and again. */
 export const CACHE_TTL_MS = 7 * 24 * 3600_000;
+/** Bump when what's kept changes, so old cached answers aren't shown. */
+export const CACHE_VERSION = 2;
 
 export function isFresh(savedAt: number, now: number): boolean {
   return now - savedAt >= 0 && now - savedAt < CACHE_TTL_MS;

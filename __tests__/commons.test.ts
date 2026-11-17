@@ -1,5 +1,5 @@
 import fixture from './fixtures/commons-geosearch.json';
-import { cacheKey, CACHE_TTL_MS, commonsUrl, isFresh, isIrrelevant, MAX_RADIUS_M, parseCommons, plainText, radiusFor } from '../src/lib/commons';
+import { cacheKey, CACHE_TTL_MS, commonsUrl, isFresh, isIrrelevant, isVehiclePhoto, MAX_RADIUS_M, parseCommons, plainText, radiusFor } from '../src/lib/commons';
 
 const SNAKE = { lat: 53.3974, lng: -1.7646 };
 
@@ -15,6 +15,7 @@ describe('Wikimedia Commons nearby photos', () => {
     expect(q.get('prop')).toBe('imageinfo|coordinates');
     expect(q.get('iiextmetadatafilter')).toContain('Artist');
     expect(q.get('iiextmetadatafilter')).toContain('LicenseShortName');
+    expect(q.get('iiextmetadatafilter')).toContain('Categories');
     expect(q.get('origin')).toBe('*');
     // Commons caps the radius at 10 km.
     expect(new URL(commonsUrl(SNAKE, 50_000)).searchParams.get('ggsradius')).toBe(String(MAX_RADIUS_M));
@@ -26,10 +27,9 @@ describe('Wikimedia Commons nearby photos', () => {
       // Names the place, so it comes first even though it's further away.
       'https://commons.wikimedia.org/wiki/File:Snake_Pass_summit_in_snow.jpg',
       'https://commons.wikimedia.org/wiki/File:Lay-by_on_the_moor_road_-_example_1.jpg',
-      // No coordinates: last.
-      'https://commons.wikimedia.org/wiki/File:Woodland_near_the_road.jpg',
+      // The woodland and the cyclists aren't cars or bikes: left out.
     ]);
-    const [snow, layby, wood] = photos;
+    const [snow, layby] = photos;
     expect(snow.author).toBe('B. Snapper & friends');
     expect(snow.licence).toBe('CC BY 4.0');
     expect(layby.author).toBe('A. Photographer');
@@ -40,9 +40,6 @@ describe('Wikimedia Commons nearby photos', () => {
     expect(layby.width).toBe(360);
     expect(layby.miles).toBeGreaterThan(0);
     expect(layby.miles).toBeLessThan(1);
-    expect(wood.author).toBe('Unknown author');
-    expect(wood.licence).toBe('See the file page');
-    expect(wood.title).toBe('Woodland near the road');
   });
 
   test('a broken or empty answer gives no photos instead of throwing', () => {
@@ -51,6 +48,16 @@ describe('Wikimedia Commons nearby photos', () => {
     expect(parseCommons({ query: {} }, SNAKE)).toEqual([]);
     expect(parseCommons({ query: { pages: { '1': { title: 'File:x.jpg' } } } }, SNAKE)).toEqual([]);
     expect(parseCommons('<html>', SNAKE)).toEqual([]);
+  });
+
+  test('only photos of cars, bikes and motorsport', () => {
+    expect(isVehiclePhoto('Ford Escort RS Cosworth at a car meet')).toBe(true);
+    expect(isVehiclePhoto('Superbike race, Cadwell Park')).toBe(true);
+    expect(isVehiclePhoto('Kawasaki ZX-10R on the A686')).toBe(true);
+    expect(isVehiclePhoto('Ladybower Reservoir at dusk')).toBe(false);
+    expect(isVehiclePhoto('Cyclists climbing the pass, Tour de France 2014')).toBe(false);
+    expect(isVehiclePhoto('Steam locomotive crossing the viaduct')).toBe(false);
+    expect(isVehiclePhoto('Classic cars and a steam train at the station')).toBe(true);
   });
 
   test('plain text from Commons HTML', () => {
@@ -77,6 +84,7 @@ describe('Wikimedia Commons nearby photos', () => {
 
   test('cache: same place within ~100 m reuses the answer for a week', () => {
     expect(cacheKey(SNAKE, 800)).toBe(cacheKey({ lat: 53.39741, lng: -1.76462 }, 800));
+    expect(cacheKey(SNAKE, 800)).toMatch(/^v2:/);
     expect(cacheKey(SNAKE, 800)).not.toBe(cacheKey(SNAKE, 1500));
     const now = 1_800_000_000_000;
     expect(isFresh(now - 1000, now)).toBe(true);

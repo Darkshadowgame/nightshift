@@ -206,11 +206,21 @@ shown; no timing on public roads).
   (`highway=speed_camera`; `type=enforcement` relations with `device`/`from`/`to`), fetched at
   build time into `src/data/cameras.ts` and decoded a 1° tile at a time. They only show once
   the map is zoomed in to driving distance (about 35 miles top to bottom), at most 120 pins,
-  nearest the middle first; zoomed out, a note says to zoom in. Pins are a camera in alert
-  red; zones are a red dashed line from start to end through their cameras. Tapping says the
+  nearest the middle first; zoomed out, a note says to zoom in. Pins are small red cameras;
+  average-speed zones are a thin red dashed line that follows the road between the zone's start
+  and end (routed over OpenStreetMap roads at build time), with an average-speed camera at each end. Tapping says the
   limit and the direction where OSM has them, that the data may be incomplete, and the credit.
   Wording is speed-limit information only. There is no way to report cameras or police, and
   the OSM data stays a separate dataset (ODbL). Credit on the map and in the README.
+* **Photo spots are for car and bike photos** (owner, 17 Nov 2026). Bundled photo spots show
+  on the map only with evidence that cars or bikes are photographed or meet there: a car or bike
+  source (PistonHeads, Porsche Roads, BestBikingRoads, The Biker Guide…), a description that
+  says so, or a short list of well-known locations with the reason (`src/data/photoVetting.ts`).
+  Scenic-only spots stay in the data but off the map. Suggesting a photo spot needs a photo taken
+  there with a car or bike in it (cropped, plates reviewed), shown on the pending spot.
+* **Photos on a place** come in two sections: **Members' photos** (the suggester's and visit
+  photos, plate-blurred) and **Online photos** from Wikimedia Commons, only those whose title,
+  description or categories show cars, bikes or motorsport; the section hides when none qualify.
 * **Nearby photos** on photo spot, drive and track screens: your own (plate-blurred) visit
   photos first, then public photos from Wikimedia Commons' geosearch near the place (800 m
   for spots, 1.5 km for tracks, round the middle of a drive), each with its author and licence

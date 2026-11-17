@@ -519,26 +519,31 @@ function VisitPanel({ spot, setError, onVisited }: { spot: Spot; setError: (e: s
 
 /** People's own photos from visits first (plate-blurred), then public photos taken nearby. */
 function Photos({ spot }: { spot: Spot }) {
-  const photos = spot.completions.filter((c) => c.photo);
+  // The suggester's photo (photo spots), then visit photos: all plate-blurred.
+  const members = [...(spot.photo ? [{ key: 'suggested', ref: spot.photo }] : []), ...spot.completions.flatMap((c, i) => (c.photo ? [{ key: `${c.userId}-${i}`, ref: c.photo }] : []))];
   const pending = spot.status === 'pending';
   // A drive: look round the middle of the road, wide enough to catch some of it.
   const path = spot.path ?? [];
   const at = spot.kind === 'drive' && path.length ? midpoint(path) : spot.at;
   const radius = radiusFor(spot.kind, spot.kind === 'drive' ? spanOf(path) * 69 : 0);
   return (
-    <Section title={photos.length ? `Photos (${photos.length})` : 'Photos'}>
-      {photos.length ? (
-        <Row gap={8}>
-          {photos.map((c, i) => (
-            <Image key={`${c.userId}-${i}`} source={{ uri: photoUri(c.photo!) }} style={{ width: 104, height: 104, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
-          ))}
-        </Row>
-      ) : spot.kind === 'photo' ? (
-        <Txt v="muted" style={{ fontSize: 13 }}>No photos from visits yet. Check in here to add the first.</Txt>
+    <>
+      {members.length || spot.kind === 'photo' ? (
+        <Section title={members.length ? `Members' photos (${members.length})` : "Members' photos"}>
+          {members.length ? (
+            <Row gap={8}>
+              {members.map((m) => (
+                <Image key={m.key} source={{ uri: photoUri(m.ref) }} style={{ width: 104, height: 104, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
+              ))}
+            </Row>
+          ) : (
+            <Txt v="muted" style={{ fontSize: 13 }}>No photos from members yet. Check in here with your car or bike to add the first.</Txt>
+          )}
+        </Section>
       ) : null}
       {/* Suggestions waiting for approval don't ask Commons yet. */}
       {!pending ? <CommonsStrip at={at} radiusM={radius} placeName={spot.name} /> : null}
-    </Section>
+    </>
   );
 }
 

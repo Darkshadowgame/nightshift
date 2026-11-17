@@ -1,7 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MapPicker } from '../../components/MapPicker';
+import { usePhotoFlow } from '../../components/PhotoFlow';
+import { photoUri } from '../../lib/photos';
 import { NightMap } from '../../components/NightMap';
 import type { MapPin } from '../../components/mapTypes';
 import { Button, Card, Chip, Row, Section, Txt, s as ui } from '../../components/ui';
@@ -25,8 +27,11 @@ export default function SuggestPlace() {
   const [description, setDescription] = useState('');
   const [points, setPoints] = useState<LatLng[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /** Photo spots: a photo of the place with a car or bike in it (cropped, plates checked). */
+  const [photo, setPhoto] = useState<string | undefined>(undefined);
+  const flow = usePhotoFlow({ onPhoto: (ref) => setPhoto(ref), onError: setError, cameraDenied: 'Allow camera access to photograph the spot.' });
 
-  const draft: SpotDraft = { kind, name, description, points };
+  const draft: SpotDraft = { kind, name, description, points, ...(kind === 'photo' && photo ? { photo } : {}) };
   const zone = draftBanZone(points, BAN_ZONES);
   const colour = SPOT_COLOURS[kind];
   const miles = pathMiles(points);
@@ -173,6 +178,26 @@ export default function SuggestPlace() {
           <Txt>{banZoneWarning(name.trim() || 'This place', zone)}</Txt>
           <Txt v="muted">You can still suggest it, but think twice about sending people here at night.</Txt>
         </Card>
+      ) : null}
+
+      {kind === 'photo' ? (
+        <Section title="Photo with a car or bike">
+          {flow.view ?? (
+            <Card>
+              <Txt v="muted">
+                Photo spots are for car and bike photos, so add one taken here with a car or bike in it. You can crop it, and number
+                plates are blurred before it's saved. It shows on the spot while it waits for approval.
+              </Txt>
+              {photo ? (
+                <Image source={{ uri: photoUri(photo) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: 6, borderWidth: 1, borderColor: C.kerb }} />
+              ) : null}
+              <Row style={{ flexWrap: 'nowrap' }}>
+                <Button label={photo ? 'Retake' : 'Camera'} kind="ghost" style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
+                <Button label="Library" kind="ghost" style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
+              </Row>
+            </Card>
+          )}
+        </Section>
       ) : null}
 
       <Section title="Details">

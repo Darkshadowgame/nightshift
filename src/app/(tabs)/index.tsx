@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PulseRing } from '../../components/motion';
 import { Pin, type Glyph } from '../../components/Pin';
 import { LayerBar } from '../../components/LayerBar';
+import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { feel } from '../../lib/feel';
 import { BAN_ZONES } from '../../data/seed';
 import { NightMap } from '../../components/NightMap';
@@ -84,7 +85,11 @@ export default function MapScreen() {
   const [kindMenu, setKindMenu] = useState<{ x: number; y: number } | null>(null);
   const screen = useWindowDimensions();
   const places = useMemo(
-    () => visibleSpots(spots, me).filter((s) => s.kind !== 'track' || matchesVehicles(s, trackKinds)),
+    () =>
+      visibleSpots(spots, me).filter(
+        // Photo spots are for car and bike photos: bundled ones without evidence stay off the map (photoVetting.ts).
+        (s) => (s.kind !== 'track' || matchesVehicles(s, trackKinds)) && !(s.kind === 'photo' && UNVETTED_PHOTO_SPOTS.has(s.id)),
+      ),
     [spots, me, trackKinds],
   );
   const hasVenues = places.some((x) => x.kind === 'venue');

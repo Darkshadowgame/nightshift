@@ -181,6 +181,9 @@ describe('suggestions', () => {
     expect(draftProblem({ kind: 'drive', name: 'Test drive', description: '', points: PATH }, [drive()])).toMatch(/already/);
     expect(draftProblem({ kind: 'drive', name: 'New road', description: '', points: DENSE }, [])).toBeNull();
     expect(draftProblem({ kind: 'photo', name: 'New spot', description: '', points: [] }, [])).toMatch(/on the map/);
+    // A photo spot needs a photo of the place with a car or bike in it.
+    expect(draftProblem({ kind: 'photo', name: 'New spot', description: '', points: [{ lat: 52.4, lng: -1.8 }] }, [])).toMatch(/car or bike/);
+    expect(draftProblem({ kind: 'photo', name: 'New spot', description: '', points: [{ lat: 52.4, lng: -1.8 }], photo: 'ph-x.jpg' }, [])).toBeNull();
   });
 
   test('drive points more than 1.5 mi apart are rejected with the reason', () => {
@@ -201,7 +204,11 @@ describe('suggestions', () => {
   });
 
   test('a place inside a ban zone gets a warning, not a block', () => {
-    const { spot, warning } = makeSpot({ kind: 'photo', name: 'City arches', description: '', points: [{ lat: 52.476, lng: -1.884 }] }, 'me', NOW, 'n2', [], zones);
+    const { spot, warning } = makeSpot(
+      { kind: 'photo', name: 'City arches', description: '', points: [{ lat: 52.476, lng: -1.884 }], photo: 'ph-car.jpg' },
+      'me', NOW, 'n2', [], zones,
+    );
+    expect(spot.photo).toBe('ph-car.jpg');
     expect(spot.banZone).toBe('Test zone');
     expect(warning).toMatch(/Test zone/);
   });
