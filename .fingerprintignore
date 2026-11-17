@@ -1,0 +1,3 @@
+# Files that do not change the native app, so they must not change the
+# runtime fingerprint (copied from Caristini).
+.gitignore
