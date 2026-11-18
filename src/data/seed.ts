@@ -250,6 +250,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
       currentStop: 1, revealMinutesBefore: 60, hostIds: ['dan'], filter: { ...DEFAULT_FILTER, minMods: 3, radiusMiles: 30 },
       going: [ME, 'dan', 'kez', 'tom', 'em', 'aimee', 'jord'],
       checkIns: { [ME]: ['rl-1'], dan: ['rl-1', 'rl-2'], tom: ['rl-1', 'rl-2'], em: ['rl-1'], aimee: ['rl-1'] },
+      // What you brought, on record: you've checked in, so it's set (a check-in with none on record used to fail).
+      vehicles: { [ME]: 'b-me-0' },
     },
     {
       id: 'ev-rolling-host', type: 'rolling', title: 'NightRunners late one',
@@ -314,6 +316,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       filter: { ...DEFAULT_FILTER, minMods: 2, radiusMiles: 30 },
       going: [ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'],
       checkIns: Object.fromEntries([ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'].map((u) => [u, ['ps-1']])),
+      vehicles: { [ME]: 'b-me-0' },
     },
     {
       id: 'ev-show-don', type: 'show', title: 'Modified show day',

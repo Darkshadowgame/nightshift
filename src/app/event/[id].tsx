@@ -173,8 +173,10 @@ export default function EventScreen() {
       if (!result.ok) setError('checkin', result.reason);
       else {
         try {
-          // Only send a build when it's news: a different one, or the first pick on record.
-          await store.checkIn(ev.id, current, atCheckIn && atCheckIn.id !== chosen?.id ? atCheckIn.id : undefined, pos);
+          // Only send a build when it's news: a different one, or the first pick on record before the first check-in.
+          // Already checked in with none on record: send nothing (the server would refuse it as a change).
+          const news = !!atCheckIn && (chosen ? atCheckIn.id !== chosen.id : (ev.checkIns[me] ?? []).length === 0);
+          await store.checkIn(ev.id, current, news ? atCheckIn!.id : undefined, pos);
         } catch (err) {
           setError('checkin', err instanceof Error ? err.message : 'Could not check in.');
           return;

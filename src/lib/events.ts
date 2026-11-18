@@ -197,7 +197,12 @@ export function checkIn(event: NightEvent, stopIndex: number, userId: string, ve
   const stop = event.stops[stopIndex];
   const done = event.checkIns[userId] ?? [];
   let next = event;
-  if (vehicle && vehicle.buildId !== event.vehicles?.[userId]) {
+  const current = event.vehicles?.[userId];
+  if (vehicle && vehicle.buildId !== current && done.length > 0 && !current) {
+    // Checked in before with no vehicle on record (older saves, the old demo): record this one if it fits,
+    // and never let the missing record block checking in at the next stop.
+    if (vehicle.fits) next = { ...next, vehicles: { ...next.vehicles, [userId]: vehicle.buildId } };
+  } else if (vehicle && vehicle.buildId !== current) {
     if (done.length > 0) throw new Error(VEHICLE_SET_REASON);
     if (!vehicle.fits) throw new Error(VEHICLE_NOT_INVITED_REASON);
     next = {

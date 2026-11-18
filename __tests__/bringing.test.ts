@@ -200,6 +200,18 @@ describe('changing the vehicle', () => {
     expect(() => rsvp(inside, 'me', true, 'daily', at(0.5))).toThrow(/vehicle is set/);
   });
 
+  test('checked in with no vehicle on record: the next stop still checks in (B2)', () => {
+    const twoStops = { ...going, stops: [...going.stops, { ...going.stops[0], id: 's2' }], vehicles: {} };
+    const first = checkIn(twoStops, 0, 'me');
+    const second = checkIn(first, 1, 'me', { buildId: 'car', fits: true });
+    expect(second.checkIns.me).toEqual(['s', 's2']);
+    expect(second.vehicles?.me).toBe('car');
+    // One that doesn't fit isn't recorded, and still doesn't block the check-in.
+    const third = checkIn(first, 1, 'me', { buildId: 'car', fits: false });
+    expect(third.checkIns.me).toEqual(['s', 's2']);
+    expect(third.vehicles?.me).toBeUndefined();
+  });
+
   test('a host checking in with a build counts as going', () => {
     const e = checkIn({ ...everyone, going: [] }, 0, 'host', { buildId: 'o1', fits: true });
     expect(e.going).toEqual(['host']);
