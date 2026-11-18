@@ -46,14 +46,14 @@ export default function Garage() {
 
   if (!main) {
     return (
-      <ScrollView contentContainerStyle={{ padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1, justifyContent: 'center' }}>
+      <ScrollView contentContainerStyle={{ padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1, justifyContent: 'center' }} showsVerticalScrollIndicator={false}>
         <EmptyState glyph="car" title="Add your car or bike" body="It's how you say what you're bringing to a meet." action={{ label: 'Add your car or bike', onPress: addBuild }} />
       </ScrollView>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}>
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} showsVerticalScrollIndicator={false}>
       {flow.view}
       <View style={{ gap: SPACING.sm }}>
         <BuildCard build={main} now={now} onPress={() => openBuild(main.id)} action={{ label: 'Add a mod', onPress: () => setAddMod(true) }} />

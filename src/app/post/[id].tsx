@@ -1,12 +1,11 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { at, moderateOptions, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
+import { at, postedLabel, moderateOptions, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
 import { CommentBar } from '../../components/ComposerParts';
 import { Avatar, DsText, EmptyState, ErrorState, HeaderActions, IconButton, LoadingState, PAGE_WITH_BAR, Press, RowDivider, Section } from '../../components/ds';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
-import { shortAgo } from '../../lib/format';
 import { commentProblem, POST_LIMITS, withLike, type PostComment } from '../../lib/posts';
 import { useStore } from '../../lib/store';
 import { COLOR, SPACING } from '../../theme';
@@ -87,7 +86,7 @@ export default function PostScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
       <PostCard
         post={post}
         author={author}
@@ -123,7 +122,7 @@ export default function PostScreen() {
                       <DsText v="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
                         @{handleOf(c.authorId)}
                       </DsText>
-                      <DsText v="meta">{shortAgo(c.createdAt, now)}</DsText>
+                      <DsText v="meta">{postedLabel(c.createdAt, now)}</DsText>
                     </View>
                     {c.hidden ? (
                       <DsText v="caption" tone="warning">

@@ -22,7 +22,7 @@ export function TravelPrefs({
     <View style={{ gap: SPACING.md }}>
       <SwitchRow
         label={`New meets within ${miles} mi`}
-        hint="A notification when someone posts a meet your car can join."
+        hint="When someone posts a meet your car can join."
         value={alerts === 'notify'}
         onValueChange={(on) => onChange({ alerts: on ? 'notify' : 'search' })}
       />

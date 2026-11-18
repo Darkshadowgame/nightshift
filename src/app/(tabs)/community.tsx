@@ -52,7 +52,7 @@ export default function CommunityScreen() {
           ]}
         />
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: SPACING.screen, paddingTop: SPACING.sm, gap: SPACING.lg, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: SPACING.screen, paddingTop: SPACING.sm, gap: SPACING.lg, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <BanBanner status={ban.data} />
         {tab === 'feed' ? <CommunityFeed /> : tab === 'people' ? <CommunityPeople /> : <CommunityMessages />}
       </ScrollView>

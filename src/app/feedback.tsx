@@ -92,7 +92,7 @@ export default function FeedbackScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       {flow.view}
       {sent ? (
         <View style={st.done} accessibilityLiveRegion="polite">

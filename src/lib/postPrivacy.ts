@@ -6,8 +6,8 @@ import type { Crew, LatLng, NightEvent } from './types';
 /**
  * A post must never give away a meet point before it shows (Redesign 2, 4.11; REVIEW-11 #16).
  * A post made at a meet point (a photo from the event page) is tied to that meet: it keeps the
- * meet's id and drops the typed place name. Its place line says the meet point only to people who
- * can see it, and "Around {Area}" to everyone else; the map's Posts layer leaves it out for them.
+ * meet's id and drops the typed place name. Its card says "At {event name}" (a link to the event),
+ * never the place, to anyone; the map's Posts layer leaves it out for people who can't see the meet point.
  * (Its pin stays on the post, so the event page still finds the photos taken there.)
  */
 
@@ -38,22 +38,24 @@ export function placeVisible(at: LatLng | null | undefined, viewer: { me: string
   return !hit || canSeeStop(hit.event, hit.stopIndex, viewer.me, viewer.crews, viewer.now);
 }
 
-/** The place line under a post for this viewer: the meet point only if they can see it. */
+/** What a post card says about where it was taken. */
+export type PostPlace = { kind: 'event'; eventId: string; text: string } | { kind: 'place'; text: string };
+
+/**
+ * Where a post was taken, for its card (REVIEW-12 #1). A post made at a meet (tied to it, or sitting
+ * on one of its meet points) never names the place, to anyone, the author included: it says
+ * "At {event name}" and links to the event, and the event page decides what to show about where it
+ * is. A meet the viewer can't see at all (not in their list) gives no line. Any other post keeps its
+ * own place name, or "On the map".
+ */
 export function postPlace(
   post: Pick<Post, 'at' | 'placeName' | 'eventId'>,
-  viewer: { me: string; events: readonly NightEvent[]; crews: Crew[]; now: Date },
-): string | null {
+  viewer: { events: readonly NightEvent[] },
+): PostPlace | null {
   const tied = post.eventId ? viewer.events.find((e) => e.id === post.eventId) : undefined;
-  const near = meetAt(post.at, viewer.events);
-  const hit = near ?? (tied ? { event: tied, stopIndex: 0 } : null);
-  if (hit) {
-    const { event, stopIndex } = hit;
-    if (canSeeStop(event, stopIndex, viewer.me, viewer.crews, viewer.now)) {
-      // A rolling meet moves on: a tied post can't say which meet point, so it says none.
-      return post.placeName ?? (!near && event.type === 'rolling' ? null : (event.stops[stopIndex]?.name ?? null));
-    }
-    return `Around ${event.areaName}`;
-  }
+  const event = tied ?? (post.eventId ? undefined : meetAt(post.at, viewer.events)?.event);
+  if (event) return { kind: 'event', eventId: event.id, text: `At ${event.title}` };
   if (post.eventId) return null;
-  return post.placeName ? post.placeName : post.at ? 'On the map' : null;
+  if (post.placeName) return { kind: 'place', text: post.placeName };
+  return post.at ? { kind: 'place', text: 'On the map' } : null;
 }

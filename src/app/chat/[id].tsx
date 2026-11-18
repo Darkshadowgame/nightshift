@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { at, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { INPUT } from '../../components/ComposerParts';
-import { Avatar, Button, DsText, ErrorState, HeaderActions, IconButton, LoadingState, Press, screenHeader } from '../../components/ds';
+import { ActionBar, Avatar, Button, DsText, ErrorState, HeaderActions, IconButton, LoadingState, Press, screenHeader, useToast } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { ShareCardView, SharePicker } from '../../components/SharePicker';
 import { useNow } from '../../lib/clock';
@@ -21,6 +21,7 @@ export default function ChatScreen() {
   const nav = useNavigation();
   const { users } = useStore();
   const community = useCommunity();
+  const toast = useToast();
   const now = useNow();
   const q = useCommunityQuery((s) => s.messages(id), [id]);
   const conv = community.conversations.find((c) => c.id === id);
@@ -41,6 +42,8 @@ export default function ChatScreen() {
     try {
       await community.run((s) => s.send(id, m));
       if (!m.photo && !m.share) setText('');
+      // Every done action gets a toast (4.7): "sent" is on the list.
+      toast({ message: m.photo ? 'Photo sent' : m.share ? 'Shared' : 'Sent' });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send that.");
     } finally {
@@ -198,7 +201,8 @@ export default function ChatScreen() {
         }
         keyboardShouldPersistTaps="handled"
       />
-      <View style={{ paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.xl, gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border, backgroundColor: COLOR.surface.bg }}>
+      {/* The composer is the ActionBar (as on post and thread pages), so the "Sent" toast sits above it, never over Send. */}
+      <ActionBar>
         {error ? <ErrorState title={error} /> : null}
         {conv.canSend ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm }}>
@@ -233,7 +237,7 @@ export default function ChatScreen() {
               : "You're not in this group any more."}
           </DsText>
         )}
-      </View>
+      </ActionBar>
       <SharePicker visible={sharing} onPick={(c) => void send({ body: '', share: c })} onClose={() => setSharing(false)} />
       <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
     </KeyboardAvoidingView>

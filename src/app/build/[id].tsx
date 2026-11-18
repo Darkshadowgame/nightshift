@@ -68,7 +68,7 @@ export default function BuildScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
+      <ScrollView contentContainerStyle={PAGE_WITH_BAR} showsVerticalScrollIndicator={false}>
         <Hero
           bleed
           aspect={ASPECT.build}

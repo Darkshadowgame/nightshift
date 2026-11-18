@@ -7,17 +7,18 @@ import type { BoardKey } from '../lib/forum';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
 import { ThreadCard } from './Community';
-import { ChoiceGroup, DsText, EmptyState, ErrorState, LoadingState, RowDivider, SearchField } from './ds';
+import { ChipGroup, DsText, EmptyState, ErrorState, LoadingState, RowDivider, SearchField } from './ds';
 
-/** The boards a first-time user picks from. The rest (Cars, Bikes, Detailing, Meets) show under All. */
-export type ForumFilter = 'all' | Extract<BoardKey, 'advice' | 'builds' | 'for_sale' | 'local'>;
-export const FORUM_FILTERS: { key: ForumFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
+/** The boards a first-time user picks from. With none picked ('all'), every board shows, the rest (Cars, Bikes, Detailing, Meets) too. */
+type BoardFilter = Extract<BoardKey, 'advice' | 'builds' | 'for_sale' | 'local'>;
+export type ForumFilter = 'all' | BoardFilter;
+const BOARD_FILTERS: { key: BoardFilter; label: string }[] = [
   { key: 'advice', label: 'Advice' },
   { key: 'builds', label: 'Builds' },
   { key: 'for_sale', label: 'For sale' },
   { key: 'local', label: 'Local' },
 ];
+export const FORUM_FILTERS: { key: ForumFilter; label: string }[] = [{ key: 'all', label: 'All' }, ...BOARD_FILTERS];
 
 /**
  * Forum and for sale (Redesign 2, 3.7), pushed from the Feed's first row: board pills, one search
@@ -66,7 +67,13 @@ export function CommunityForum({ board, onBoard }: { board: ForumFilter; onBoard
 
   return (
     <View style={{ gap: SPACING.lg }}>
-      <ChoiceGroup<ForumFilter> label="" value={board} onChange={onBoard} options={FORUM_FILTERS} />
+      {/* A filter: nothing picked means every board, so there's no "All" chip (4.4). One board at a time: picking another swaps. */}
+      <ChipGroup<BoardFilter>
+        label="Boards"
+        options={BOARD_FILTERS}
+        selected={board === 'all' ? [] : [board]}
+        onChange={(next) => onBoard(next.find((k) => k !== board) ?? 'all')}
+      />
       <SearchField value={typed} onChangeText={setTyped} placeholder="Search thread titles" loading={typed.trim() !== query && typed.trim() !== ''} />
       {threads.error ? <ErrorState title={`Couldn't load threads. ${threads.error}`} /> : null}
       {list}

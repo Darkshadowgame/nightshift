@@ -7,7 +7,8 @@ import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
 import { classOf } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
-import { plural, shortAgo } from '../lib/format';
+import { plural } from '../lib/format';
+import { clock, dayDiff } from '../lib/when';
 import { conversationTitle, previewLine, type Conversation } from '../lib/messages';
 import { VISIBILITY, type Post } from '../lib/posts';
 import { postPlace } from '../lib/postPrivacy';
@@ -42,6 +43,27 @@ export const MEET_ACTION = { label: 'Connect with people at a meet', onPress: ()
 /** Open someone's profile. */
 export function openProfile(id: string) {
   router.push({ pathname: '/user/[id]', params: { id } });
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * When something was posted or sent, in the app's one time wording (4.10): a clock time, never
+ * "4m" or "1d". Today: "Today 14:00", from 17:00 "Tonight 21:09"; this week: "Thu 22:10"; older:
+ * "Thu 12 Nov".
+ */
+export function postedLabel(iso: string, now: Date): string {
+  const d = new Date(iso);
+  const days = -dayDiff(d, now);
+  if (days <= 0) return `${d.getHours() >= 17 ? 'Tonight' : 'Today'} ${clock(d)}`;
+  if (days <= 6) return `${WEEKDAYS[d.getDay()]} ${clock(d)}`;
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** Open a meet's page. */
+export function openEvent(id: string) {
+  router.push({ pathname: '/event/[id]', params: { id } });
 }
 
 /** Open a build. */
@@ -211,8 +233,10 @@ export function PostCard({
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
   const photos = post.photos.filter((p) => !broken.has(p));
   const shown = full ? photos : photos.slice(0, 1);
-  const { me, events, crews } = useStore();
-  const place = postPlace(post, { me, events, crews, now });
+  const { events } = useStore();
+  const place = postPlace(post, { events });
+  // "At {event}" is the place line; a caption that only says the same is not said twice (C5).
+  const body = place?.kind === 'event' && post.body.trim() === place.text ? '' : post.body;
 
   const pictures = shown.map((p, i) => (
     <View key={p} style={{ aspectRatio: ASPECT.post, backgroundColor: COLOR.surface.media }}>
@@ -241,9 +265,9 @@ export function PostCard({
           Hidden while it's checked after reports. Only you can see it.
         </DsText>
       ) : null}
-      {post.body ? (
+      {body ? (
         <DsText v="body" numberOfLines={full ? undefined : 3} selectable={full}>
-          {post.body}
+          {body}
         </DsText>
       ) : null}
     </View>
@@ -276,7 +300,7 @@ export function PostCard({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
                 {build ? <ClassBadge letter={classOf(build)} size="sm" decorative /> : null}
                 <DsText v="meta" numberOfLines={1} style={{ flexShrink: 1 }}>
-                  {metaLine([build ? buildLine(build) : null, place])}
+                  {metaLine([build ? buildLine(build) : null, place?.kind === 'place' ? place.text : null])}
                 </DsText>
               </View>
             </View>
@@ -284,6 +308,15 @@ export function PostCard({
           {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}
           {onMore ? <IconButton icon="more" label="More options for this post" onPress={onMore} colour={COLOR.text.secondary} /> : null}
         </View>
+        {place?.kind === 'event' ? (
+          // A post made at a meet links to the meet, never names the place (REVIEW-12 #1).
+          <Press onPress={() => openEvent(place.eventId)} role="link" label={`${place.text}. Opens the meet`} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, minHeight: 32, alignSelf: 'flex-start' }}>
+            <DsText v="meta" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {place.text}
+            </DsText>
+            <Icon name="chevron" size={14} colour={COLOR.text.secondary} />
+          </Press>
+        ) : null}
         {open ? (
           <Press onPress={open} label="Open the post">
             {words}
@@ -311,7 +344,7 @@ export function PostCard({
             </Press>
           ) : null}
           <View style={{ flex: 1 }} />
-          <DsText v="meta">{shortAgo(post.createdAt, now)}</DsText>
+          <DsText v="meta">{postedLabel(post.createdAt, now)}</DsText>
         </View>
       </View>
     </View>
@@ -336,7 +369,7 @@ export function ThreadCard({ thread, author, now, showBoard }: { thread: ForumTh
   const state = threadState(thread);
   const kind = l ? (l.kind === 'wanted' ? 'Wanted' : 'For sale') : showBoard ? boardLabel(thread.board) : null;
   const subtitle = l ? metaLine([kind, priceLabel(l), ...listingFacts(l).slice(0, 1)]) : metaLine([kind, thread.region]);
-  const meta = metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now)]);
+  const meta = metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), postedLabel(thread.lastActivityAt, now)]);
   return (
     <ListRow
       leading={{ avatar: personMark(author) }}
@@ -366,12 +399,12 @@ export function ConversationRow({ c, me, users, now }: { c: Conversation; me: st
       chevron={false}
       trailing={
         <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
-          <DsText v="meta">{shortAgo(c.lastMessageAt, now)}</DsText>
+          <DsText v="meta">{postedLabel(c.lastMessageAt, now)}</DsText>
           {!c.canSend ? <Tag label="Read only" /> : null}
         </View>
       }
       onPress={() => router.push({ pathname: '/chat/[id]', params: { id: c.id } })}
-      accessibilityLabel={metaLine([title, unread ? `${c.unread} unread` : null, previewLine(c, me, handleOf), shortAgo(c.lastMessageAt, now)])}
+      accessibilityLabel={metaLine([title, unread ? `${c.unread} unread` : null, previewLine(c, me, handleOf), postedLabel(c.lastMessageAt, now)])}
     />
   );
 }

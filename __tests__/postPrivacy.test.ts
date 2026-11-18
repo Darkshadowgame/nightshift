@@ -1,7 +1,7 @@
 import { communitySample } from '../src/data/communitySeed';
 import { DEMO_HOME, ME, seed } from '../src/data/seed';
 import { guardMeetPoint, meetAt, placeVisible, postPlace } from '../src/lib/postPrivacy';
-import { buildPicture, similarSampleKey } from '../src/lib/similarPhoto';
+import { buildPicture, similarSampleKey, STAND_INS } from '../src/lib/similarPhoto';
 
 const NOW = new Date('2026-11-20T21:10:00');
 
@@ -17,20 +17,25 @@ describe('posts never give away a meet point (REVIEW-11 #16)', () => {
     expect(d.at).toEqual(point);
   });
 
-  it('says the meet point only to people who can see it, "Around {Area}" to everyone else', () => {
-    const post = { at: point, eventId: live.id };
+  it('a post at a meet says "At {event}" to everyone, the author and people going included, never the place', () => {
+    const tied = { at: point, eventId: live.id };
+    const legacy = { at: point, placeName: live.stops[0].name }; // made before guardMeetPoint: sits on the meet point
+    for (const post of [tied, legacy, { ...tied, placeName: live.stops[0].name }]) {
+      expect(postPlace(post, { events: s.events })).toEqual({ kind: 'event', eventId: live.id, text: `At ${live.title}` });
+    }
     const stranger = { me: 'nobody', events: s.events, crews: s.crews, now: NOW };
-    expect(postPlace(post, stranger)).toBe(`Around ${live.areaName}`);
     expect(placeVisible(point, stranger)).toBe(false);
-    const goer = { ...stranger, me: live.going[0] };
-    expect(postPlace(post, goer)).toBe(live.stops[0].name);
-    expect(placeVisible(point, goer)).toBe(true);
+    expect(placeVisible(point, { ...stranger, me: live.going[0] })).toBe(true);
+  });
+
+  it('a post tied to a meet the viewer has no sight of says nothing about where', () => {
+    expect(postPlace({ at: point, eventId: 'ev-gone', placeName: 'Secret car park' }, { events: s.events })).toBeNull();
   });
 
   it('a post away from any meet keeps its own place', () => {
     const far = { lat: 53.5, lng: -2.2 };
     expect(meetAt(far, s.events)).toBeNull();
-    expect(postPlace({ at: far, placeName: 'Reservoir viewpoint' }, { me: ME, events: s.events, crews: s.crews, now: NOW })).toBe('Reservoir viewpoint');
+    expect(postPlace({ at: far, placeName: 'Reservoir viewpoint' }, { events: s.events })).toEqual({ kind: 'place', text: 'Reservoir viewpoint' });
   });
 
   it('no seeded post sits on a meet point', () => {
@@ -39,19 +44,25 @@ describe('posts never give away a meet point (REVIEW-11 #16)', () => {
   });
 });
 
-describe('a demo build with no photo shows a similar licensed photo (L1)', () => {
-  it('matches the model, else the same make, else nothing', () => {
-    expect(similarSampleKey('Ford', 'Fiesta ST Mk8 facelift', 'car')).toBe('b-jord-0');
-    expect(similarSampleKey('Ford', 'Puma ST', 'car')).toBe('b-jord-0');
-    expect(similarSampleKey('VW', 'Golf R', 'car')).toBe('b-bex-0');
-    expect(similarSampleKey('Yamaha', 'MT-07', 'bike')).toBe('b-deano-0');
-    expect(similarSampleKey('Yamaha', 'MT-07', 'car')).toBeNull();
-    expect(similarSampleKey('Lada', 'Riva', 'car')).toBeNull();
+describe("a demo build with no photo never borrows another sample person's photo (REVIEW-12 #7)", () => {
+  const s = seed(NOW);
+  const owned = new Set([
+    ...s.builds.flatMap((b) => b.photos),
+    ...communitySample(NOW, DEMO_HOME, 'Midlands').posts.flatMap((p) => p.photos),
+  ]);
+
+  it('no stand-in photo is one a sample build or post uses', () => {
+    for (const m of STAND_INS) expect(owned.has(`sample:${m.key}`)).toBe(false);
   });
-  it('is only a stand-in: your own photo wins, and outside the demo nothing is borrowed', () => {
-    const b = { photos: [] as string[], make: 'Ford', model: 'Fiesta ST', kind: 'car' as const };
-    expect(buildPicture(b, true)).toEqual({ ref: 'sample:b-jord-0', similar: true });
-    expect(buildPicture(b, false)).toBeNull();
-    expect(buildPicture({ ...b, photos: ['mine.jpg'] }, true)).toEqual({ ref: 'mine.jpg', similar: false });
+
+  it("the demo's Fiesta ST Mk8 (and anything else without a photo) is drawn in its paint", () => {
+    for (const [make, model, kind] of [['Ford', 'Fiesta ST Mk8', 'car'], ['VW', 'Golf R', 'car'], ['Yamaha', 'MT-07', 'bike']] as const) {
+      expect(similarSampleKey(make, model, kind)).toBeNull();
+      expect(buildPicture({ photos: [], make, model, kind }, true)).toBeNull();
+    }
+  });
+
+  it('your own photo always wins', () => {
+    expect(buildPicture({ photos: ['mine.jpg'], make: 'Ford', model: 'Fiesta ST', kind: 'car' }, true)).toEqual({ ref: 'mine.jpg', similar: false });
   });
 });

@@ -14,7 +14,7 @@ export default function Crews() {
   const list = sortCrews(crews);
 
   return (
-    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE} showsVerticalScrollIndicator={false}>
       <DsText v="secondary">Crews host events together: the owner and the hosts they pick run them. You can be in one crew at a time.</DsText>
       {list.length === 0 ? <EmptyState glyph="chat" title="No crews yet" body="Start one and host events together." /> : null}
       <View>

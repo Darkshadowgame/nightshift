@@ -1,13 +1,13 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { at, BuildRow, openBuild, moderateOptions, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { at, postedLabel, BuildRow, openBuild, moderateOptions, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { BuildChooser, CommentBar, ComposerPhotos } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, ErrorState, HeaderActions, Hero, Icon, IconButton, ListRow, LoadingState, PAGE_WITH_BAR, Press, Section, Tag, metaLine } from '../../components/ds';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { boardLabel, LIMITS, replyProblem, type ForumReply } from '../../lib/forum';
-import { plural, shortAgo } from '../../lib/format';
+import { plural } from '../../lib/format';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
@@ -115,7 +115,7 @@ export default function ThreadScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
       <View style={{ gap: SPACING.md }}>
         <Hero
           bleed
@@ -142,7 +142,7 @@ export default function ThreadScreen() {
         <ListRow
           leading={{ avatar: personMark(author) }}
           title={at(author)}
-          meta={shortAgo(thread.createdAt, now)}
+          meta={postedLabel(thread.createdAt, now)}
           onPress={() => openProfile(thread.authorId)}
           chevron={false}
         />
@@ -189,7 +189,7 @@ export default function ThreadScreen() {
                   <DsText v="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
                     {at(ra)}
                   </DsText>
-                  <DsText v="meta">{shortAgo(r.createdAt, now)}</DsText>
+                  <DsText v="meta">{postedLabel(r.createdAt, now)}</DsText>
                 </Press>
                 {isSolved ? <Tag label="Solved" tone="success" /> : null}
                 <IconButton icon="more" label="More options for this reply" colour={COLOR.text.secondary} onPress={() => setMenu(replyMenu(r))} />

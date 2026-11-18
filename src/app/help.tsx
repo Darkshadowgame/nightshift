@@ -48,7 +48,7 @@ const TOPICS: { title: string; lines: string[] }[] = [
 /** "How Nightshift works" (T5): the in-app help, from Me and Settings › About. Short and in the app, for when you're stuck at a meet. */
 export default function Help() {
   return (
-    <ScrollView contentContainerStyle={st.page}>
+    <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
       {TOPICS.map((t) => (
         <Section key={t.title} title={t.title} gap="sm">
           {t.lines.map((l) => (

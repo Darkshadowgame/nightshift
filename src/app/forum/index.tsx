@@ -30,7 +30,7 @@ export default function ForumScreen() {
   }, [nav, board]);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.lg, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.lg, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <CommunityForum board={board} onBoard={(b) => router.setParams({ board: b })} />
     </ScrollView>
   );

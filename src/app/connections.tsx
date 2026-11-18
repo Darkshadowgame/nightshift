@@ -53,7 +53,7 @@ export default function ConnectionsScreen() {
   const block = (id: string): SheetOption => ({ label: CONNECT.block, danger: true, onPress: () => openReport('block', id, id) });
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}>
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} showsVerticalScrollIndicator={false}>
       {error ? <ErrorState title={error} /> : null}
       {incoming.length ? (
       <Section title={`Requests (${incoming.length})`}>

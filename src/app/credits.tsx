@@ -6,7 +6,7 @@ import { SPACING } from '../theme';
 /** Open data and credits (T5), from Settings › About. A row with a source opens it in Safari. */
 export default function Credits() {
   return (
-    <ScrollView contentContainerStyle={st.page}>
+    <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
       <Section title="Open data and credits" gap="sm">
         <View>
           {CREDITS.map((c, i) => (

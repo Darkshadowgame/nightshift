@@ -154,4 +154,5 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
 }
 
 /** What a sample person says back in the demo (labelled Sample). */
-export const SAMPLE_REPLIES = ['Sounds good.', 'Nice one.', 'I’ll be there.', 'Send a photo.', 'Ha, fair.', 'Cheers.'];
+/** The demo's auto-replies: each one follows any opener (a hello, a compliment, a question about a meet). */
+export const SAMPLE_REPLIES = ['Cheers!', 'Thanks, appreciate it.', 'Cheers, see you at the next one.', 'Nice one, thanks.'];

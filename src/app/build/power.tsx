@@ -27,7 +27,7 @@ export default function PowerAndDyno() {
     : `${power.bhp} bhp claimed: the ${b.engineSwap ? 'donor engine' : 'standard'} ${b.engineSwap?.bhp ?? b.stockBhp} bhp plus the mods. Add a run with its sheet photo to get ✓ Dyno.`;
 
   return (
-    <ScrollView contentContainerStyle={PAGE}>
+    <ScrollView contentContainerStyle={PAGE} showsVerticalScrollIndicator={false}>
       <Section title="Power">
         <DsText v="title">{`${b.make} ${b.model}`}</DsText>
         <DsText v="body">{how}</DsText>

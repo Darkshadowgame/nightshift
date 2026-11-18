@@ -224,6 +224,7 @@ export default function EditBuild() {
         ref={scrollRef as never}
         contentContainerStyle={PAGE_WITH_BAR}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
       >

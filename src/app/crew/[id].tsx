@@ -90,7 +90,7 @@ export default function CrewScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
-    <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} showsVerticalScrollIndicator={false}>
       <Stack.Screen options={screenHeader({ onMenu: () => setMenu(true) })} />
       <Hero
         eyebrow={`Crew · ${crew.tag}`}

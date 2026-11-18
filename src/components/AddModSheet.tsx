@@ -84,7 +84,7 @@ export function AddModSheet({ visible, build, onClose }: { visible: boolean; bui
   }
 
   return (
-    <Sheet visible={visible} title="Add a mod" onClose={close} doneLabel="Cancel">
+    <Sheet visible={visible} title="Add a mod" onClose={close}>
       <SegmentedControl<ModSection>
         accessibilityLabel="Kind of part"
         value={section}

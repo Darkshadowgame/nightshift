@@ -373,8 +373,8 @@ Sheet with **Add your car** (primary) and **Go as a passenger** (secondary).
   `ListRow`s: avatar, @handle, build line with `ClassBadge`, distance. Filters (Cars/Bikes, Class,
   Make) in a Sheet behind "Filter".
 * **Chats:** `ListRow` per chat, unread dot, "New message" in the header "+" sheet.
-* **Forum and for sale** (pushed, T1 shape): board `ChoiceGroup pills` (All, Advice, Builds, For
-  sale, Local) → thread rows. "+" opens New thread; "Sell a part" opens the listing form with the
+* **Forum and for sale** (pushed, T1 shape): board `ChipGroup` (Advice, Builds, For sale, Local;
+  none picked means every board, per 4.4) → thread rows. "+" opens New thread; "Sell a part" opens the listing form with the
   board fixed to For sale.
 * **Post page / thread page:** T3 (back, `···`), content, comments, comment field in the ActionBar.
 * **Profile (`user/[id]`):** T3: `Hero` with their best build photo, avatar, @handle, build line →
@@ -428,7 +428,7 @@ Sheet with **Add your car** (primary) and **Go as a passenger** (secondary).
 ### 3.10 Me (T1)
 
 * **Purpose:** you, your meets and your trophies.
-* **Order:** header "ME", bell → avatar (lg), @handle, main build line → `StatBlock`: **Meets** (checked
+* **Order:** header "ME", Settings gear, bell → avatar (lg), @handle, main build line → `StatBlock`: **Meets** (checked
   in), **Hosted**, **Trophies** → Your meets: Next (Going / Hosting / Checked in tags) then Past (Went
   / Hosted) → Trophies (cover thumbnails) → `ListRow`s: Edit profile, Settings, How Nightshift works,
   Send feedback.
@@ -458,9 +458,10 @@ Sheet with **Add your car** (primary) and **Go as a passenger** (secondary).
 
 ### 3.11 Settings (T5)
 
-* **Groups, in order:** Account (sign in / out, delete) → Profile (handle, name, home area) →
-  Notifications (event reminders; new meets near me + radius) → Privacy (show me in People near you,
-  default off; connections and blocked people) → Directions ("Directions open in": Nightshift, Apple
+* **Groups, in order:** Account (sign in / out, delete) → Privacy (show me in People near you,
+  default off; connections and blocked people; second so it's on the first screen, Review 12) →
+  Profile (handle, name, home area) → Notifications (event reminders; new meets near me + radius) →
+  Directions ("Directions open in": Nightshift, Apple
   Maps, Google Maps, Waze) → About (How Nightshift works, Send feedback, Terms, Privacy, Community
   rules, Open data and credits, version) → Demo (demo only: Restart the demo night) → Staff (staff
   only).
@@ -504,6 +505,7 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 ### 4.1 Headers *(replaces rules 15, 21, 28)*
 * Every tab header: caps title on the left; on the right, "+" (only on Tonight, Community and
   Garage) then the bell. Always this order. Never a text action ("+ New", "+ Host") in a tab header.
+  Me has no "+": its Settings gear sits in that place, before the bell (owner decision, Review 12).
 * Every pushed screen: back on the left; on the right at most one text action (Share) and `···`.
 * Detail screens have no header title. Forms and settings have a caps title.
 

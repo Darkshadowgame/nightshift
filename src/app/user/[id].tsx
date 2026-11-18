@@ -95,7 +95,8 @@ export default function UserScreen() {
   else if (blocked) secondary = { label: CONNECT.unblock, busy, onPress: () => void act(() => community.run((s) => s.unblock(id)), 'Unblocked') };
   else if (state === 'connected') primary = { label: CONNECT.message, busy, onPress: () => void message() };
   else if (state === 'incoming') primary = { label: CONNECT.accept, busy, haptic: 'success', onPress: () => void act(() => community.run((s) => s.answerConnection(id, true)), `Connected with ${handle}`) };
-  else if (state === 'outgoing') status = `Request sent. Waiting for ${handle}.`;
+  // The toast said "Request sent"; the bar only says what's left (C5).
+  else if (state === 'outgoing') status = `Waiting for ${handle}`;
   else primary = { label: CONNECT.connect, busy, haptic: 'success', accessibilityHint: `Once ${handle} accepts, you can message each other`, onPress: () => void connect() };
 
   // The cover build is under the Hero; the garage shows the rest.
@@ -103,7 +104,7 @@ export default function UserScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
+      <ScrollView contentContainerStyle={PAGE_WITH_BAR} showsVerticalScrollIndicator={false}>
         <Hero
           bleed
           photo={coverPhoto ? photoSource(coverPhoto) : null}

@@ -26,8 +26,10 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
- * Settings (Redesign 2, 3.11; T5): Account → Profile → Notifications → Privacy → Directions →
- * About → Demo (demo only) → Staff (staff only). The driving view's own settings (map heading,
+ * Settings (Redesign 2, 3.11; T5): Account → Privacy → Profile → Notifications → Directions →
+ * About → Demo (demo only) → Staff (staff only). Privacy sits second so "Show me in People near
+ * you" is on the first screen (REVIEW-12 #6). "Directions open in" is a setting, so it's a
+ * ChoiceGroup of pills, never a SegmentedControl (4.4). The driving view's own settings (map heading,
  * icon, voice, cameras) live in its ··· menu; map layers live in the map's Layers sheet. The
  * developer group shows in development builds, or after a long press on the version line.
  */
@@ -71,7 +73,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={st.page}>
+    <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
       <Group title="Account">
         {demo ? (
           <ListRow title="Sign in or create an account" subtitle="You're trying the demo. It stays here for later." onPress={() => auth.leaveDemo()} />
@@ -87,6 +89,28 @@ export default function SettingsScreen() {
         {error?.at === 'account' ? <ErrorState title={error.text} /> : null}
       </Group>
 
+      <Group title="Privacy">
+        <SwitchRow
+          label="Show me in People near you"
+          hint="Off by default. Others see a rough distance."
+          value={community.showInNearby}
+          onValueChange={(v) => {
+            setError(null);
+            community
+              .run((s) => s.setShowInNearby(v))
+              .then(() => toast({ message: v ? "You're shown in People near you" : "You're hidden from People near you" }))
+              .catch(failed('community'));
+          }}
+        />
+        {error?.at === 'community' ? <ErrorState title={error.text} /> : null}
+        <ListRow title="Connections and blocked people" onPress={() => router.push('/connections')} />
+        {status.data?.suspended ? (
+          <DsText v="caption" tone="warning">
+            {status.data.message ?? 'Your account is suspended: you can read and report, not post or message.'}
+          </DsText>
+        ) : null}
+      </Group>
+
       <Group title="Profile">
         <ListRow title="Handle, name and home area" subtitle={user ? `@${user.handle}` : undefined} onPress={() => router.push('/profile')} />
       </Group>
@@ -94,7 +118,7 @@ export default function SettingsScreen() {
       <Group title="Notifications">
         <SwitchRow
           label="Event reminders"
-          hint="When the location shows, and 30 minutes before the start."
+          hint="When the location shows, and before the start."
           value={settings.reminders}
           onValueChange={(v) => {
             setSettings({ reminders: v });
@@ -121,34 +145,13 @@ export default function SettingsScreen() {
         ) : null}
       </Group>
 
-      <Group title="Privacy">
-        <SwitchRow
-          label="Show me in People near you"
-          hint="Off unless you turn it on. Others see a rough distance, never where you are."
-          value={community.showInNearby}
-          onValueChange={(v) => {
-            setError(null);
-            community
-              .run((s) => s.setShowInNearby(v))
-              .then(() => toast({ message: v ? "You're shown in People near you" : "You're hidden from People near you" }))
-              .catch(failed('community'));
-          }}
-        />
-        {error?.at === 'community' ? <ErrorState title={error.text} /> : null}
-        <ListRow title="Connections and blocked people" onPress={() => router.push('/connections')} />
-        {status.data?.suspended ? (
-          <DsText v="caption" tone="warning">
-            {status.data.message ?? 'Your account is suspended: you can read and report, not post or message.'}
-          </DsText>
-        ) : null}
-      </Group>
-
       <Group title="Directions">
         <ChoiceGroup
           label="Open in"
           value={settings.directionsApp ?? 'nightshift'}
           onChange={(id) => setSettings({ directionsApp: id })}
           options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
+          chips
         />
       </Group>
 
