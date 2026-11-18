@@ -3,15 +3,15 @@ import { View } from 'react-native';
 import { useNow } from '../lib/clock';
 import { useCommunity } from '../lib/communityStore';
 import { idsIn } from '../lib/connections';
-import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
-import { BRAND } from '../theme';
-import { ConversationRow } from './Community';
-import { Card, EmptyState, LinkText, Row, Section, Txt } from './ui';
+import { SPACING } from '../theme';
+import { ConversationRow, MEET_ACTION } from './Community';
+import { DsText, EmptyState, RowDivider } from './ds';
 
 /**
- * Community › Messages: your 1-to-1 and group chats, newest first, with unread
- * counts. Only connected people can message each other; "New" is in the header.
+ * Community › Messages: your 1-to-1 and group chats, newest first, with unread counts. Only
+ * connected people can message each other, so with no connections the one action is to meet people.
+ * Requests live in People, not here.
  */
 export function CommunityMessages() {
   const { users } = useStore();
@@ -20,39 +20,27 @@ export function CommunityMessages() {
   const connected = idsIn(community.connections, 'connected');
   const list = community.conversations;
 
+  if (list.length === 0) {
+    return connected.length === 0 ? (
+      <EmptyState glyph="chat" title="No chats yet" body="You can message people once you're connected. Meet them at an event, then connect from their profile." action={MEET_ACTION} />
+    ) : (
+      <EmptyState glyph="chat" title="No chats yet" body="Start a chat with one of your connections, or a group of them." action={{ label: 'New chat', onPress: () => router.push('/chat/new') }} />
+    );
+  }
+
   return (
-    <View style={{ gap: 18 }}>
-      {community.incoming.length > 0 ? (
-        <Card accent={BRAND}>
-          <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-            <Txt style={{ flex: 1 }}>{plural(community.incoming.length, 'connection request')} waiting.</Txt>
-            <LinkText label="See requests ›" onPress={() => router.push('/connections')} />
-          </Row>
-        </Card>
-      ) : null}
-      <Section title="Chats" right={<LinkText label={`Connections ${connected.length} ›`} onPress={() => router.push('/connections')} />}>
-        {list.length === 0 ? (
-          connected.length === 0 ? (
-            <EmptyState
-              glyph="chat"
-              title="No connections yet"
-              body="Messages are only between connected people. Find someone near you and tap Connect; until then, talk on the forum."
-              action={{ label: 'Find people', onPress: () => router.setParams({ tab: 'people' }) }}
-            />
-          ) : (
-            <EmptyState glyph="chat" title="No chats yet" body="Start a chat with one of your connections, or a group of them." action={{ label: 'New chat', onPress: () => router.push('/chat/new') }} />
-          )
-        ) : (
-          <View>
-            {list.map((c) => (
-              <ConversationRow key={c.id} c={c} me={community.me} users={users} now={now} />
-            ))}
+    <View style={{ gap: SPACING.lg }}>
+      <View>
+        {list.map((c, i) => (
+          <View key={c.id}>
+            {i ? <RowDivider inset /> : null}
+            <ConversationRow c={c} me={community.me} users={users} now={now} />
           </View>
-        )}
-      </Section>
-      <Txt v="caption" style={{ textAlign: 'center' }}>
-        Hold off on sharing your address or anyone else's. Report anything that isn't right from the chat's menu.
-      </Txt>
+        ))}
+      </View>
+      <DsText v="caption" style={{ textAlign: 'center' }}>
+        Don't share your address or anyone else's. Report anything that isn't right from the chat's menu.
+      </DsText>
     </View>
   );
 }

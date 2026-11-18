@@ -1,13 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { Avatar, OptionsSheet, openReport, type SheetOption } from '../../components/Community';
-import { Button, Card, Chip, ConfirmBox, InlineError, ListRow, NotFound, Row, Section, Tag, Txt, s as ui } from '../../components/ui';
+import { at, OptionsSheet, openProfile, openReport, personMark, type SheetOption } from '../../components/Community';
+import { Field, INPUT } from '../../components/ComposerParts';
+import { Button, ChipGroup, ConfirmSheet, DsText, ErrorState, ListRow, RowDivider, Section, Tag } from '../../components/ds';
+import { NotFound } from '../../components/ui';
 import { useCommunity } from '../../lib/communityStore';
 import { idsIn } from '../../lib/connections';
 import { GROUP_NAME_MAX, MAX_GROUP } from '../../lib/messages';
 import { useStore } from '../../lib/store';
-import { C } from '../../theme';
+import { COLOR, SPACING } from '../../theme';
 
 /** A group's info: name, members, admins, add and remove people, leave. */
 export default function GroupInfo() {
@@ -28,11 +30,11 @@ export default function GroupInfo() {
   const addable = idsIn(community.connections, 'connected').filter((u) => !conv.memberIds.includes(u) && !community.blocked.has(u));
   const act = (fn: () => Promise<unknown>) => {
     setError(null);
-    return fn().catch((e) => setError(e instanceof Error ? e.message : 'Could not do that.'));
+    return fn().catch((e) => setError(e instanceof Error ? e.message : "Couldn't do that."));
   };
 
   const memberMenu = (uid: string): SheetOption[] => {
-    const out: SheetOption[] = [{ label: `View @${handleOf(uid)}`, onPress: () => router.push({ pathname: '/user/[id]', params: { id: uid } }) }];
+    const out: SheetOption[] = [{ label: `View @${handleOf(uid)}`, onPress: () => openProfile(uid) }];
     if (admin && uid !== me) {
       out.push(
         conv.adminIds.includes(uid)
@@ -46,68 +48,68 @@ export default function GroupInfo() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-      <Section title="Name">
-        {admin ? (
-          <Row style={{ flexWrap: 'nowrap' }}>
-            <TextInput value={name} onChangeText={setName} maxLength={GROUP_NAME_MAX} accessibilityLabel="Group name" style={[ui.input, { flex: 1 }]} placeholderTextColor={C.fog} />
-            <Button label="Save" size="sm" kind="secondary" disabled={!name.trim() || name.trim() === conv.name} onPress={() => act(() => community.run((s) => s.renameGroup(conv.id, name)))} />
-          </Row>
-        ) : (
-          <Txt v="h2" style={{ textTransform: 'none' }}>{conv.name}</Txt>
-        )}
-      </Section>
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      {admin ? (
+        <Field label="Group name">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+            <TextInput value={name} onChangeText={setName} maxLength={GROUP_NAME_MAX} accessibilityLabel="Group name" style={[INPUT, { flex: 1 }]} placeholderTextColor={COLOR.text.secondary} />
+            <Button label="Save" size="sm" tier="secondary" haptic="success" disabled={!name.trim() || name.trim() === conv.name} onPress={() => act(() => community.run((s) => s.renameGroup(conv.id, name)))} />
+          </View>
+        </Field>
+      ) : (
+        <DsText v="titleLg" accessibilityRole="header">
+          {conv.name}
+        </DsText>
+      )}
 
       <Section title={`Members (${conv.memberIds.length} of ${MAX_GROUP})`}>
-        {conv.memberIds.map((uid) => (
-          <ListRow
-            key={uid}
-            title={`@${handleOf(uid)}${uid === me ? ' (you)' : ''}`}
-            onPress={() => setMenu(memberMenu(uid))}
-            right={
-              <Row gap={6}>
-                {conv.adminIds.includes(uid) ? <Tag label="Admin" tone="brand" /> : null}
-                <Avatar user={users.find((u) => u.id === uid)} size={28} />
-              </Row>
-            }
-          />
-        ))}
+        <View>
+          {conv.memberIds.map((uid, i) => {
+            const u = users.find((x) => x.id === uid);
+            return (
+              <View key={uid}>
+                {i ? <RowDivider inset /> : null}
+                <ListRow
+                  leading={{ avatar: personMark(u) }}
+                  title={uid === me ? 'You' : at(u)}
+                  subtitle={u?.name}
+                  trailing={conv.adminIds.includes(uid) ? <Tag label="Admin" /> : undefined}
+                  onPress={() => setMenu(memberMenu(uid))}
+                />
+              </View>
+            );
+          })}
+        </View>
       </Section>
 
       {admin ? (
         <Section title="Add people">
           {addable.length === 0 ? (
-            <Txt v="muted">Everyone you're connected with is already here. Only your connections can be added.</Txt>
+            <DsText v="secondary">Everyone you're connected with is already here. Only your connections can be added.</DsText>
           ) : (
             <>
-              <Row>
-                {addable.map((uid) => (
-                  <Chip key={uid} raw label={`@${handleOf(uid)}`} on={adding.includes(uid)} onPress={() => setAdding((a) => (a.includes(uid) ? a.filter((x) => x !== uid) : [...a, uid]))} />
-                ))}
-              </Row>
-              <Button label={adding.length ? `Add ${adding.length}` : 'Pick people to add'} kind="secondary" disabled={!adding.length} onPress={() => act(() => community.run((s) => s.addMembers(conv.id, adding)).then(() => setAdding([])))} />
+              <ChipGroup<string> label="Your connections" allLabel="Nobody yet" raw options={addable.map((uid) => ({ key: uid, label: `@${handleOf(uid)}` }))} selected={adding} onChange={setAdding} />
+              <Button label={adding.length ? `Add ${adding.length}` : 'Add'} tier="secondary" block disabled={!adding.length} hint="Pick people to add first" onPress={() => act(() => community.run((s) => s.addMembers(conv.id, adding)).then(() => setAdding([])))} />
             </>
           )}
         </Section>
       ) : null}
 
-      <InlineError message={error} />
-      <View>
-        {leaving ? (
-          <ConfirmBox
-            message={admin && conv.adminIds.length === 1 && conv.memberIds.length > 1 ? 'Leave the group? The longest-standing member becomes admin.' : 'Leave the group? You can only come back if an admin adds you.'}
-            verb="Leave"
-            onConfirm={() => act(() => community.run((s) => s.leave(conv.id)).then(() => router.replace({ pathname: '/community', params: { tab: 'messages' } })))}
-            onCancel={() => setLeaving(false)}
-          />
-        ) : (
-          <Button label="Leave the group" kind="danger" onPress={() => setLeaving(true)} />
-        )}
-      </View>
-      <Card>
-        <Txt v="caption">Anyone in the group can report a message: long press it.</Txt>
-      </Card>
-      <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
+      {error ? <ErrorState title={error} /> : null}
+      <Button label="Leave the group" tier="destructive" block onPress={() => setLeaving(true)} />
+      <DsText v="caption">Anyone in the group can report a message: long press it.</DsText>
+      <ConfirmSheet
+        visible={leaving}
+        title="Leave the group?"
+        message={admin && conv.adminIds.length === 1 && conv.memberIds.length > 1 ? 'The longest-standing member becomes admin.' : 'You can only come back if an admin adds you.'}
+        verb="Leave"
+        onConfirm={() => {
+          setLeaving(false);
+          void act(() => community.run((s) => s.leave(conv.id)).then(() => router.replace({ pathname: '/community', params: { tab: 'messages' } })));
+        }}
+        onCancel={() => setLeaving(false)}
+      />
+      <OptionsSheet visible={!!menu} title="Member" options={menu ?? []} onClose={() => setMenu(null)} />
     </ScrollView>
   );
 }

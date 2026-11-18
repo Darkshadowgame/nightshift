@@ -68,6 +68,8 @@ export interface NearFilter {
   classes: ClassLetter[];
   /** Empty means every make. */
   make: string;
+  /** Several makes (People's filter sheet). Empty or missing means every make. */
+  makes?: string[];
 }
 
 export const ANY_NEAR: NearFilter = { kind: 'all', classes: [], make: '' };
@@ -85,11 +87,12 @@ function buildMatches(b: Build, f: NearFilter): boolean {
   if (f.kind !== 'all' && b.kind !== f.kind) return false;
   if (f.classes.length && !f.classes.includes(classOf(b))) return false;
   if (f.make.trim() && b.make.toLowerCase() !== f.make.trim().toLowerCase()) return false;
+  if (f.makes?.length && !f.makes.some((m) => m.toLowerCase() === b.make.toLowerCase())) return false;
   return true;
 }
 
 export function isFiltered(f: NearFilter): boolean {
-  return f.kind !== 'all' || f.classes.length > 0 || f.make.trim() !== '';
+  return f.kind !== 'all' || f.classes.length > 0 || f.make.trim() !== '' || (f.makes?.length ?? 0) > 0;
 }
 
 /** Cards for the People list. With a filter on, people with no matching build drop out. */

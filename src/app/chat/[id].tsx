@@ -1,17 +1,19 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
-import { openReport, OptionsSheet, type SheetOption } from '../../components/Community';
+import { FlatList, Image, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { at, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { INPUT } from '../../components/ComposerParts';
+import { Avatar, Button, DsText, ErrorState, HeaderActions, IconButton, LoadingState, Press, screenHeader } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { ShareCardView, SharePicker } from '../../components/SharePicker';
-import { Button, HeaderAction, InlineError, NotFound, Notice, Row, SampleTag, Txt, s as ui } from '../../components/ui';
+import { NotFound } from '../../components/ui';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { formatTime } from '../../lib/format';
 import { conversationTitle, dayLabel, MESSAGE_MAX, messageProblem, otherMember, seenLabel, shareHref, type Message, type ShareCard } from '../../lib/messages';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
-import { BRAND, C, F, RADIUS, TYPE } from '../../theme';
+import { COLOR, RADII, SPACING } from '../../theme';
 
 /** One chat: messages, photos (plate-blurred), shared cards, "Seen". Only between connected people. */
 export default function ChatScreen() {
@@ -40,7 +42,7 @@ export default function ChatScreen() {
       await community.run((s) => s.send(id, m));
       if (!m.photo && !m.share) setText('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send that.');
+      setError(e instanceof Error ? e.message : "Couldn't send that.");
     } finally {
       setBusy(false);
     }
@@ -63,34 +65,28 @@ export default function ChatScreen() {
   useLayoutEffect(() => {
     if (!conv) return;
     const title = conversationTitle(conv, community.me, handleOf);
-    nav.setOptions({
-      title,
-      // Handles are never upper-cased.
-      headerTitleStyle: { fontFamily: F.display, fontSize: 17, textTransform: 'none' },
-      headerRight: () =>
-        conv.kind === 'group' ? (
-          <HeaderAction label="Info" accessibilityLabel="Group info" onPress={() => router.push({ pathname: '/chat/info', params: { id } })} />
-        ) : (
-          <HeaderAction
-            label="···"
-            accessibilityLabel="Chat options"
-            onPress={() =>
-              setMenu([
-                ...(other ? [{ label: `View @${handleOf(other) ?? 'profile'}`, onPress: () => router.push({ pathname: '/user/[id]', params: { id: other } }) }] : []),
-                ...(other ? [{ label: 'Report this person', onPress: () => openReport('profile', other, other, 'profile') }] : []),
-                ...(other ? [{ label: 'Block', danger: true, onPress: () => openReport('block', other, other) }] : []),
-                { label: 'Delete chat', danger: true, onPress: () => community.run((s) => s.leave(id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : 'Could not delete it.')) },
-              ])
-            }
-          />
-        ),
-    });
+    const options: SheetOption[] =
+      conv.kind === 'group'
+        ? [{ label: 'Group info', detail: 'Members, name, leave', onPress: () => router.push({ pathname: '/chat/info', params: { id } }) }]
+        : [
+            ...(other ? [{ label: `View @${handleOf(other) ?? 'profile'}`, onPress: () => openProfile(other) }] : []),
+            ...(other ? [{ label: 'Report this person', onPress: () => openReport('profile', other, other, 'profile') }] : []),
+            ...(other ? [{ label: 'Block', danger: true, onPress: () => openReport('block', other, other) }] : []),
+            { label: 'Delete chat', danger: true, onPress: () => community.run((s) => s.leave(id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) },
+          ];
+    // A chat's title is content (a handle or a group name): sentence case, never shouted.
+    nav.setOptions({ ...screenHeader({ title, content: true }), headerRight: () => <HeaderActions onMenu={() => setMenu(options)} /> });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav, conv?.id, conv?.name, conv?.memberIds.length, other, users.length]);
 
-  if (flow.view) return <View style={{ flex: 1, backgroundColor: C.asphalt, padding: 16 }}>{flow.view}</View>;
+  if (flow.view) return <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen }}>{flow.view}</View>;
   if (!conv) {
-    if (!q.data || q.loading) return <View style={{ flex: 1, backgroundColor: C.asphalt }} />;
+    if (!q.data || q.loading)
+      return (
+        <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen }}>
+          <LoadingState label="Loading the chat" />
+        </View>
+      );
     return <NotFound what="Chat" message="You're not in this chat any more." />;
   }
   const messages = (q.data?.messages ?? []).filter((m) => !(m.senderId && community.blocked.has(m.senderId)));
@@ -105,72 +101,108 @@ export default function ChatScreen() {
           { label: `Block @${handleOf(m.senderId) ?? 'them'}`, danger: true, onPress: () => openReport('block', m.senderId!, m.senderId!) },
         ];
 
+  /** Messages from one person within 10 minutes run together: one name, one time under the last. */
+  const sameRun = (a?: Message, b?: Message) =>
+    !!a && !!b && !a.system && !b.system && a.senderId === b.senderId && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < 10 * 60_000 && dayLabel(a.createdAt, now) === dayLabel(b.createdAt, now);
+
   const renderItem = ({ item: m, index }: { item: Message; index: number }) => {
     const older = rows[index + 1];
+    const newer = rows[index - 1];
     const newDay = !older || dayLabel(older.createdAt, now) !== dayLabel(m.createdAt, now);
     const mine = m.senderId === community.me;
-    const showName = conv.kind === 'group' && !mine && m.senderId && (!older || older.senderId !== m.senderId || newDay);
+    const firstOfRun = !sameRun(older, m);
+    const lastOfRun = !sameRun(m, newer);
+    const sender = m.senderId ? users.find((u) => u.id === m.senderId) : undefined;
+    const showName = conv.kind === 'group' && !mine && !!m.senderId && firstOfRun;
+    const side = mine ? 'flex-end' : 'flex-start';
     return (
-      <View style={{ gap: 6 }}>
-        {newDay ? <Txt v="micro" style={{ textAlign: 'center', marginTop: 8 }}>{dayLabel(m.createdAt, now)}</Txt> : null}
+      <View style={{ gap: SPACING.xs, marginTop: firstOfRun ? SPACING.sm : 0 }}>
+        {newDay ? (
+          <DsText v="label" style={{ textAlign: 'center', marginVertical: SPACING.sm }}>
+            {dayLabel(m.createdAt, now)}
+          </DsText>
+        ) : null}
         {m.system ? (
-          <Txt v="caption" style={{ textAlign: 'center' }}>{m.body}</Txt>
+          <DsText v="caption" style={{ textAlign: 'center' }}>
+            {m.body}
+          </DsText>
         ) : (
-          <Pressable
+          <Press
             onLongPress={() => {
               const opts = messageMenu(m);
               if (opts.length) setMenu(opts);
             }}
-            accessibilityHint={mine ? undefined : 'Long press to report or block'}
-            style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '82%', gap: 3 }}
+            feedback="none"
+            role="text"
+            label={`${mine ? 'You' : at(sender)}, ${formatTime(m.createdAt)}: ${m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
+            hint={mine ? undefined : 'Long press to report or block'}
+            style={{ alignSelf: side, maxWidth: '82%', gap: SPACING.xs, alignItems: side }}
           >
             {showName ? (
-              <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: m.senderId! } })} accessibilityRole="link">
-                <Txt v="caption" style={{ color: BRAND }}>@{handleOf(m.senderId!) ?? 'someone'}</Txt>
-              </Pressable>
+              <Press onPress={() => openProfile(m.senderId!)} role="link" label={`${at(sender)}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+                <Avatar {...personMark(sender)} size="sm" />
+                <DsText v="secondary">{at(sender)}</DsText>
+              </Press>
             ) : null}
-            <View
-              style={{ backgroundColor: mine ? BRAND : C.kerb, borderRadius: RADIUS.sheet, borderBottomRightRadius: mine ? 4 : RADIUS.sheet, borderBottomLeftRadius: mine ? RADIUS.sheet : 4, padding: m.photo ? 4 : 10, gap: 6 }}
-              accessibilityLabel={`${mine ? 'You' : `@${handleOf(m.senderId ?? '') ?? 'someone'}`}: ${m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
-            >
-              {m.photo ? (
-                <Image source={{ uri: photoUri(m.photo) }} style={{ width: 220, height: 220, borderRadius: RADIUS.card, backgroundColor: C.tarmac }} accessibilityIgnoresInvertColors />
-              ) : null}
-              {m.share ? <ShareCardView card={m.share} mine={mine} onPress={() => router.push(shareHref(m.share!) as never)} /> : null}
-              {m.body ? <Txt selectable style={{ color: mine ? C.ink : C.chalk }}>{m.body}</Txt> : null}
-            </View>
-            <Row gap={6} style={{ alignSelf: mine ? 'flex-end' : 'flex-start' }}>
-              <Txt v="micro">{formatTime(m.createdAt)}</Txt>
-              {m.sample ? <SampleTag /> : null}
-            </Row>
-          </Pressable>
+            {m.photo ? <Image source={{ uri: photoUri(m.photo) }} style={{ width: 220, height: 220, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }} accessibilityIgnoresInvertColors /> : null}
+            {m.share ? <ShareCardView card={m.share} onPress={() => router.push(shareHref(m.share!) as never)} /> : null}
+            {m.body ? (
+              <View
+                style={{
+                  backgroundColor: mine ? COLOR.surface.raisedHi : COLOR.surface.card,
+                  borderWidth: 1,
+                  borderColor: mine ? COLOR.surface.raisedHi : COLOR.surface.border,
+                  borderRadius: RADII.sheet,
+                  borderBottomRightRadius: mine && lastOfRun ? RADII.tag : RADII.sheet,
+                  borderBottomLeftRadius: !mine && lastOfRun ? RADII.tag : RADII.sheet,
+                  paddingHorizontal: SPACING.md,
+                  paddingVertical: SPACING.sm,
+                }}
+              >
+                <DsText v="body" selectable>
+                  {m.body}
+                </DsText>
+              </View>
+            ) : null}
+            {lastOfRun ? <DsText v="meta">{formatTime(m.createdAt)}</DsText> : null}
+          </Press>
         )}
       </View>
     );
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.asphalt }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <FlatList
         ref={list}
         data={rows}
         inverted
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 16, gap: 10 }}
-        ListHeaderComponent={seen ? <Txt v="caption" style={{ textAlign: 'right' }} accessibilityLiveRegion="polite">{seen}</Txt> : undefined}
+        contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.xs }}
+        ListHeaderComponent={
+          seen ? (
+            <DsText v="meta" style={{ textAlign: 'right' }} accessibilityLiveRegion="polite">
+              {seen}
+            </DsText>
+          ) : undefined
+        }
         ListEmptyComponent={
-          <Txt v="muted" style={{ textAlign: 'center', transform: [{ scaleY: -1 }] }}>
-            {conv.kind === 'group' ? 'Say hello to the group.' : 'Say hello.'}
-          </Txt>
+          <View style={{ transform: [{ scaleY: -1 }] }}>
+            <DsText v="secondary" style={{ textAlign: 'center' }}>
+              {conv.kind === 'group' ? 'Say hello to the group.' : 'Say hello.'}
+            </DsText>
+          </View>
         }
         keyboardShouldPersistTaps="handled"
       />
-      <View style={{ padding: 12, paddingBottom: 28, gap: 8, borderTopWidth: 1, borderTopColor: C.kerb, backgroundColor: C.asphalt }}>
-        <InlineError message={error} />
+      <View style={{ paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.xl, gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border, backgroundColor: COLOR.surface.bg }}>
+        {error ? <ErrorState title={error} /> : null}
         {conv.canSend ? (
-          <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-end' }}>
-            <Pressable
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm }}>
+            <IconButton
+              icon="camera"
+              label="Add a photo or share something"
               onPress={() =>
                 setMenu([
                   { label: 'Take a photo', onPress: () => void flow.pick(true) },
@@ -178,30 +210,26 @@ export default function ChatScreen() {
                   { label: 'Share a build, event or place', onPress: () => setSharing(true) },
                 ])
               }
-              accessibilityRole="button"
-              accessibilityLabel="Add a photo or share something"
-              style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.kerbHi, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.8 }]}
-            >
-              <Txt style={{ color: BRAND, fontFamily: F.display, fontSize: TYPE.title }}>+</Txt>
-            </Pressable>
+            />
             <TextInput
               value={text}
               onChangeText={setText}
               placeholder="Message"
-              placeholderTextColor={C.fog}
+              placeholderTextColor={COLOR.text.secondary}
               multiline
+              numberOfLines={1}
               maxLength={MESSAGE_MAX}
               accessibilityLabel="Message"
-              style={[ui.input, { flex: 1, maxHeight: 120, paddingVertical: 10 }]}
+              style={[INPUT, { flex: 1, maxHeight: 120 }]}
             />
-            <Button label="Send" size="sm" onPress={() => void send({ body: text })} busy={busy} disabled={!text.trim()} />
-          </Row>
+            <Button label="Send" size="sm" haptic="success" onPress={() => void send({ body: text })} busy={busy} disabled={!text.trim()} />
+          </View>
         ) : (
-          <Notice>
+          <DsText v="secondary" style={{ textAlign: 'center' }}>
             {conv.kind === 'direct'
               ? "You're no longer connected, so you can't send messages here. Connect again to carry on."
               : "You're not in this group any more."}
-          </Notice>
+          </DsText>
         )}
       </View>
       <SharePicker visible={sharing} onPick={(c) => void send({ body: '', share: c })} onClose={() => setSharing(false)} />

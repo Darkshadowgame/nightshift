@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, View } from 'react-native';
-import { BuildThumb } from '../components/Community';
-import { LevelTag, useRepFor } from '../components/Rep';
-import { Button, ClassBadge, EmptyState, InlineError, Row, SampleTag, Txt } from '../components/ui';
+import { BuildHero } from '../components/BuildHero';
+import { at, buildMeta, personMark } from '../components/Community';
+import { Avatar, Button, DsText, EmptyState, ErrorState, LoadingState, Tag, metaLine } from '../components/ds';
+import { useRepFor } from '../components/Rep';
 import { SAMPLE_PEOPLE } from '../data/seed';
 import { buildsToRate } from '../lib/carsNear';
-import { classOf, effectivePower } from '../lib/classes';
+import { classOf } from '../lib/classes';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
-import { C, RADIUS } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
 
 const SWIPE = 110;
 
@@ -41,7 +42,7 @@ export default function RateBuilds() {
     setError(null);
     setDone((d) => [...d, b.id]);
     pan.setValue({ x: 0, y: 0 });
-    community.service?.rateBuild(b.id, like).catch((e) => setError(e instanceof Error ? e.message : 'Could not save that.'));
+    community.service?.rateBuild(b.id, like).catch((e) => setError(e instanceof Error ? e.message : "Couldn't save that."));
   };
   const rateRef = useRef(rate);
   rateRef.current = rate;
@@ -62,10 +63,16 @@ export default function RateBuilds() {
     [pan],
   );
 
-  if (!near.data || !rated.data) return <View style={{ flex: 1, backgroundColor: C.asphalt }} />;
+  if (!near.data || !rated.data) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen }}>
+        <LoadingState variant="inline" label="Finding builds near you" />
+      </View>
+    );
+  }
   if (!b) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.asphalt, padding: 16 }}>
+      <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen }}>
         <EmptyState
           glyph="car"
           title="You've seen them all"
@@ -78,41 +85,44 @@ export default function RateBuilds() {
   const rotate = pan.x.interpolate({ inputRange: [-300, 0, 300], outputRange: ['-8deg', '0deg', '8deg'] });
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.asphalt, padding: 16, gap: 16 }}>
-      <Txt v="caption">Swipe right to like, left to pass. Likes show on the build. {plural(queue.length, 'build')} to go.</Txt>
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen, gap: SPACING.lg }}>
+      <DsText v="secondary">Swipe right to like, left to pass. {plural(queue.length, 'build')} to go.</DsText>
       <Animated.View
         {...responder.panHandlers}
         accessible
-        accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${Math.round(effectivePower(b))} bhp, by @${owner?.handle ?? 'someone'}`}
+        accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${buildMeta(b)}, by ${at(owner)}`}
         accessibilityActions={[{ name: 'like', label: 'Like' }, { name: 'pass', label: 'Pass' }]}
         onAccessibilityAction={(e) => rate(e.nativeEvent.actionName === 'like')}
-        style={{ transform: [{ translateX: pan.x }, { rotate }], backgroundColor: C.tarmac, borderRadius: RADIUS.sheet, borderWidth: 1, borderColor: C.kerb, overflow: 'hidden' }}
+        style={{ transform: [{ translateX: pan.x }, { rotate }], backgroundColor: COLOR.surface.card, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, overflow: 'hidden' }}
       >
-        <BuildThumb build={b} height={300} />
-        <View style={{ padding: 14, gap: 6 }}>
-          <Row gap={10} style={{ flexWrap: 'nowrap' }}>
-            <ClassBadge letter={classOf(b)} size="md" />
-            <View style={{ flex: 1 }}>
-              <Txt v="h2" style={{ textTransform: 'none' }} numberOfLines={1}>{b.make} {b.model}</Txt>
-              <Txt v="mono">{Math.round(effectivePower(b))} BHP · {plural(b.mods.length, 'MOD', 'MODS')}</Txt>
+        <BuildHero build={b} {...(b.photos[0] ? { aspect: 4 / 3 } : { height: 200 })} />
+        <View style={{ padding: SPACING.md, gap: SPACING.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+            <View style={{ flex: 1, gap: SPACING.xxs }}>
+              <DsText v="title" numberOfLines={1}>
+                {b.make} {b.model}
+              </DsText>
+              <DsText v="meta">{buildMeta(b)}</DsText>
             </View>
-          </Row>
-          <Row gap={6}>
-            <Txt v="muted">@{owner?.handle ?? 'someone'}</Txt>
-            <LevelTag level={repFor(b.ownerId).level.level} />
-            {SAMPLE_PEOPLE.includes(b.ownerId) ? <SampleTag /> : null}
-          </Row>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+            <Avatar {...personMark(owner)} size="sm" />
+            <DsText v="secondary" style={{ flex: 1 }} numberOfLines={1}>
+              {metaLine([at(owner), `Level ${repFor(b.ownerId).level.level}`])}
+            </DsText>
+            {SAMPLE_PEOPLE.includes(b.ownerId) ? <Tag label="Sample" /> : null}
+          </View>
         </View>
       </Animated.View>
-      <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label="Pass" kind="secondary" onPress={() => rate(false)} style={{ flex: 1 }} />
-        <Button label="Like" onPress={() => rate(true)} style={{ flex: 1 }} />
-      </Row>
-      <Button label="Open build" kind="secondary" size="sm" onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })} />
-      <InlineError message={error} />
-      <Txt v="caption" style={{ textAlign: 'center', color: C.fog }}>
+      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+        <Button label="Pass" tier="secondary" block onPress={() => rate(false)} style={{ flex: 1 }} />
+        <Button label="Like" block haptic="select" onPress={() => rate(true)} style={{ flex: 1 }} />
+      </View>
+      <Button label="Open build" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })} />
+      {error ? <ErrorState title={error} /> : null}
+      <DsText v="caption" style={{ textAlign: 'center' }}>
         Only likes are counted on the build. Nobody sees who passed.
-      </Txt>
+      </DsText>
     </View>
   );
 }

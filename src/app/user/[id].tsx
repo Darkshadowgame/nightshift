@@ -1,35 +1,36 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { BuildArt } from '../../components/BuildArt';
-import { Avatar, openReport, OptionsSheet, type SheetOption } from '../../components/Community';
+import { BuildGrid, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { PostList } from '../../components/CommunityFeed';
-import { Trophy } from '../../components/Cover';
-import { CrewCard } from '../../components/CrewCard';
-import { LevelTag, useRep } from '../../components/Rep';
-import { Button, Card, ClassBadge, EmptyState, HeaderAction, InlineError, LegendTag, NotFound, Row, SampleTag, Section, Stat, Txt } from '../../components/ui';
+import { Avatar, Button, DsText, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
+import { useRep } from '../../components/Rep';
+import { NotFound } from '../../components/ui';
 import { SAMPLE_PEOPLE } from '../../data/seed';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf, effectivePower } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
-import { CONNECT, connectHint, connectLabel } from '../../lib/connections';
+import { CONNECT, connectHint } from '../../lib/connections';
 import { plural } from '../../lib/format';
 import { publicProfile } from '../../lib/people';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import type { Build } from '../../lib/types';
-import { BRAND, C, F, RADIUS, SURFACE, TYPE } from '../../theme';
+import { COLOR, RADII, SPACING } from '../../theme';
 
 /** The build with the most to look at: a photo first, then the most power. */
 function coverBuild(builds: Build[]): Build | undefined {
   return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]) || effectivePower(b) - effectivePower(a))[0];
 }
 
+const COVER_HEIGHT = 180;
+
 /**
- * Someone's profile, like a social profile: cover from their best build, the
- * garage, posts, rep, crew and trophies, with Connect and Message. Never any
- * location: no home, no distance, no upcoming events.
+ * Someone's profile (or yours): a cover from their best build, then avatar, handle, level and crew,
+ * the one action that fits (Connect, Requested, Accept or Message; Edit profile for you), and the
+ * Garage, Posts and Trophies. Report, block and the rest are in the ··· menu. Never any location.
  */
 export default function UserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -43,36 +44,10 @@ export default function UserScreen() {
   const posts = useCommunityQuery((s) => s.feed('author', { author: id }), [id]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [menu, setMenu] = useState<SheetOption[] | null>(null);
+  const [menu, setMenu] = useState(false);
   const isMe = id === me;
   const state = community.stateOf(id);
   const blocked = community.blocked.has(id);
-
-  useLayoutEffect(() => {
-    if (!p || isMe) return;
-    nav.setOptions({
-      headerRight: () => (
-        <HeaderAction
-          label="···"
-          accessibilityLabel="Profile options"
-          onPress={() =>
-            setMenu([
-              ...(state === 'connected' ? [{ label: CONNECT.remove, danger: true, onPress: () => void act(() => community.run((s) => s.removeConnection(id))) }] : []),
-              { label: 'Report profile', onPress: () => openReport('profile', id, id, 'profile') },
-              blocked
-                ? { label: CONNECT.unblock, onPress: () => void act(() => community.run((s) => s.unblock(id))) }
-                : { label: `Block @${p.handle}`, danger: true, onPress: () => openReport('block', id, id) },
-            ])
-          }
-        />
-      ),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav, p?.handle, isMe, state, blocked]);
-
-  // The header stays blank, like every detail screen: the cover carries the handle.
-  if (!p) return <NotFound what="Profile" message="This person isn't on Nightshift any more." />;
-  const cover = coverBuild(p.builds);
 
   async function act(fn: () => Promise<unknown>) {
     setError(null);
@@ -80,109 +55,107 @@ export default function UserScreen() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not do that.');
+      setError(e instanceof Error ? e.message : "Couldn't do that.");
     } finally {
       setBusy(false);
     }
   }
 
-  const primary = () => {
-    if (state === 'connected') return act(async () => router.push({ pathname: '/chat/[id]', params: { id: await community.run((s) => s.startDirect(id)) } }));
-    if (state === 'incoming') return act(() => community.run((s) => s.answerConnection(id, true)));
-    if (state === 'outgoing') return act(() => community.run((s) => s.removeConnection(id)));
-    return act(() => community.run((s) => s.requestConnection(id)));
-  };
+  useLayoutEffect(() => {
+    // Detail screens keep a blank title: the cover carries the handle. Yours has no menu.
+    nav.setOptions({ headerRight: p && !isMe ? () => <HeaderActions onMenu={() => setMenu(true)} /> : undefined });
+  }, [nav, p?.id, isMe]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!p) return <NotFound what="Profile" message="This person isn't on Nightshift any more." />;
+  const cover = coverBuild(p.builds);
+  const handle = `@${p.handle}`;
+
+  const options: SheetOption[] = [
+    ...(state === 'incoming' ? [{ label: CONNECT.decline, onPress: () => void act(() => community.run((s) => s.answerConnection(id, false))) }] : []),
+    ...(state === 'outgoing' ? [{ label: CONNECT.cancel, onPress: () => void act(() => community.run((s) => s.removeConnection(id))) }] : []),
+    ...(state === 'connected' ? [{ label: CONNECT.remove, danger: true, onPress: () => void act(() => community.run((s) => s.removeConnection(id))) }] : []),
+    { label: 'Report profile', onPress: () => openReport('profile', id, id, 'profile') },
+    blocked
+      ? { label: CONNECT.unblock, onPress: () => void act(() => community.run((s) => s.unblock(id))) }
+      : { label: `Block ${handle}`, danger: true, onPress: () => openReport('block', id, id) },
+  ];
+
+  const primary =
+    state === 'connected'
+      ? { label: CONNECT.message, go: () => act(async () => router.push({ pathname: '/chat/[id]', params: { id: await community.run((s) => s.startDirect(id)) } })) }
+      : state === 'incoming'
+        ? { label: CONNECT.accept, go: () => act(() => community.run((s) => s.answerConnection(id, true))) }
+        : { label: CONNECT.connect, go: () => act(() => community.run((s) => s.requestConnection(id))) };
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={st.cover}>
+    <ScrollView contentContainerStyle={{ paddingBottom: SPACING.xxxl }}>
+      <View style={{ height: COVER_HEIGHT, backgroundColor: COLOR.surface.media, overflow: 'hidden' }} aria-hidden>
         {cover?.photos[0] ? (
           <Image source={{ uri: photoUri(cover.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
         ) : cover ? (
-          <BuildArt kind={cover.kind} colour={cover.colour} height={200} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: C.tarmac }]} />
-        )}
-        <View style={st.coverShade} />
+          <BuildArt kind={cover.kind} colour={cover.colour} height={COVER_HEIGHT} />
+        ) : null}
+        {cover?.photos[0] ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: COVER_HEIGHT / 2, backgroundColor: COLOR.surface.scrim }} /> : null}
       </View>
 
-      <View style={{ paddingHorizontal: 16, marginTop: -44, gap: 20 }}>
-        <View style={{ gap: 10 }}>
-          <Row gap={12} style={{ alignItems: 'flex-end', flexWrap: 'nowrap' }}>
-            <Avatar user={p} size={76} />
-            <View style={{ flex: 1, gap: 4, paddingBottom: 4 }}>
-              <Row gap={6}>
-                <LevelTag level={rep.level.level} size="lg" />
-                {p.legend ? <LegendTag /> : null}
-                {SAMPLE_PEOPLE.includes(p.id) ? <SampleTag /> : null}
-              </Row>
-            </View>
-          </Row>
-          <View>
-            <Txt v="h1" style={{ textTransform: 'none' }} accessibilityRole="header">@{p.handle}</Txt>
-            <Txt>{p.name}{isMe ? ' (you)' : ''} <Txt v="muted">· {p.region}</Txt></Txt>
+      <View style={{ paddingHorizontal: SPACING.screen, marginTop: -SPACING.xxxl, gap: SPACING.section }}>
+        <View style={{ gap: SPACING.md }}>
+          <View style={{ alignSelf: 'flex-start', borderRadius: RADII.pill, borderWidth: 3, borderColor: COLOR.surface.bg }}>
+            <Avatar {...personMark(p)} size="lg" label={`${handle}'s picture`} />
           </View>
-          <Row style={{ flexWrap: 'nowrap' }}>
-            <Stat value={String(p.builds.length)} label={p.builds.length === 1 ? 'Build' : 'Builds'} />
-            <Stat value={String(p.meetsAttended)} label="Attended" />
-            <Stat value={String(p.hosted)} label="Hosted" />
-            <Stat value={rep.ledger.total.toLocaleString('en-GB')} label="Rep" colour={BRAND} />
-          </Row>
+          <View style={{ gap: SPACING.xxs }}>
+            <DsText v="titleLg" accessibilityRole="header" numberOfLines={2}>
+              {handle}
+            </DsText>
+            <DsText v="secondary">{metaLine([isMe ? `${p.name} (you)` : p.name, p.region])}</DsText>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
+            <Tag label={`Level ${rep.level.level}`} />
+            {p.legend ? <Tag label="Legend" tone="info" /> : null}
+            {SAMPLE_PEOPLE.includes(p.id) ? <Tag label="Sample" /> : null}
+            {!isMe && state === 'connected' ? <Tag label={CONNECT.connected} tone="success" /> : null}
+          </View>
+          {p.crew ? (
+            <View>
+              <RowDivider />
+              <ListRow
+                title={p.crew.name}
+                subtitle={metaLine(['Crew', p.crew.tag, plural(p.crew.memberIds.length, 'member')])}
+                onPress={() => router.push({ pathname: '/crew/[id]', params: { id: p.crew!.id } })}
+              />
+              <RowDivider />
+            </View>
+          ) : null}
+          <StatBlock
+            stats={[
+              { value: String(p.builds.length), label: p.builds.length === 1 ? 'Build' : 'Builds' },
+              { value: String(p.meetsAttended), label: p.meetsAttended === 1 ? 'Event' : 'Events' },
+              { value: rep.ledger.total.toLocaleString('en-GB'), label: 'Rep' },
+            ]}
+          />
 
           {isMe ? (
-            <Button label="Edit profile" kind="secondary" onPress={() => router.push('/profile')} />
+            <Button label="Edit profile" tier="secondary" block onPress={() => router.push('/profile')} />
           ) : blocked ? (
-            <Card>
-              <Txt v="muted">You blocked @{p.handle}. Their posts and messages are hidden from you.</Txt>
-              <Button label={CONNECT.unblock} kind="secondary" size="sm" busy={busy} onPress={() => act(() => community.run((s) => s.unblock(id)))} />
-            </Card>
+            <View style={{ gap: SPACING.sm }}>
+              <DsText v="secondary">You blocked {handle}. Their posts and messages are hidden from you.</DsText>
+              <Button label={CONNECT.unblock} tier="secondary" block busy={busy} onPress={() => act(() => community.run((s) => s.unblock(id)))} />
+            </View>
           ) : (
-            <View style={{ gap: 6 }}>
-              <Row style={{ flexWrap: 'nowrap' }}>
-                <Button
-                  label={state === 'connected' ? CONNECT.message : state === 'outgoing' ? CONNECT.requested : connectLabel(state)}
-                  kind={state === 'outgoing' ? 'secondary' : 'primary'}
-                  onPress={primary}
-                  busy={busy}
-                  style={{ flex: 1 }}
-                  accessibilityHint={state === 'outgoing' ? 'Tap to cancel the request' : undefined}
-                />
-                {state === 'incoming' ? (
-                  <Button label={CONNECT.decline} kind="secondary" onPress={() => act(() => community.run((s) => s.answerConnection(id, false)))} style={{ flex: 1 }} />
-                ) : null}
-              </Row>
-              <Txt v="caption">{connectHint(state, p.handle)}{state === 'outgoing' ? ' Tap Requested to cancel.' : ''}</Txt>
+            <View style={{ gap: SPACING.xs }}>
+              {state === 'outgoing' ? (
+                <Button label={CONNECT.requested} tier="secondary" block disabled hint={`Waiting for ${handle} to accept. Cancel it from the ··· menu.`} onPress={() => {}} />
+              ) : (
+                <Button label={primary.label} block busy={busy} haptic={state === 'connected' ? 'none' : 'success'} onPress={() => void primary.go()} />
+              )}
+              {state !== 'outgoing' ? <DsText v="caption">{connectHint(state, p.handle)}</DsText> : null}
             </View>
           )}
-          <InlineError message={error} />
+          {error ? <ErrorState title={error} /> : null}
         </View>
 
         <Section title={`Garage (${p.builds.length})`}>
-          {p.builds.length === 0 ? <Txt v="muted">No builds yet.</Txt> : null}
-          <View style={st.grid}>
-            {p.builds.map((b) => (
-              <Pressable
-                key={b.id}
-                onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
-                accessibilityRole="button"
-                accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}, ${Math.round(effectivePower(b))} bhp`}
-                style={({ pressed }) => [st.tile, pressed && { opacity: 0.85 }]}
-              >
-                {b.photos[0] ? (
-                  <Image source={{ uri: photoUri(b.photos[0]) }} style={{ height: 110, backgroundColor: C.kerb }} resizeMode="cover" accessibilityIgnoresInvertColors />
-                ) : (
-                  <BuildArt kind={b.kind} colour={b.colour} height={110} />
-                )}
-                <View style={{ position: 'absolute', left: 6, top: 6 }}>
-                  <ClassBadge letter={classOf(b)} size="sm" />
-                </View>
-                <View style={{ padding: 8, gap: 2 }}>
-                  <Txt numberOfLines={1} style={{ fontFamily: F.bodyBold, fontSize: TYPE.muted }}>{b.make} {b.model}</Txt>
-                  <Txt v="mono" numberOfLines={1}>{Math.round(effectivePower(b))} BHP · {b.mods.length} MODS</Txt>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+          {p.builds.length ? <BuildGrid builds={p.builds} trophiesOf={(bid) => p.trophies.filter((a) => a.buildId === bid).length} /> : <EmptyState variant="inline" title="No car or bike yet." />}
         </Section>
 
         <Section title="Posts">
@@ -192,51 +165,46 @@ export default function UserScreen() {
             error={posts.error}
             empty={
               isMe ? (
-                <EmptyState glyph="post" title="No posts yet" body="Share your build, a drive or a good spot." action={{ label: 'New post', onPress: () => router.push('/post/new') }} />
+                <EmptyState variant="inline" title="No posts yet." action={{ label: 'New post', onPress: () => router.push('/post/new') }} />
               ) : (
-                <Txt v="muted">{state === 'connected' ? 'No posts yet.' : 'No public posts yet. Connect to see posts for connections.'}</Txt>
+                <EmptyState variant="inline" title={state === 'connected' ? 'No posts yet.' : 'No public posts yet. Connect to see posts for connections.'} />
               )
             }
           />
         </Section>
 
-        <Section title="Crew">
-          {p.crew ? <CrewCard crew={p.crew} /> : <Txt v="muted">Not in a crew.</Txt>}
-        </Section>
-
-        {p.trophies.length ? (
-          <Section title={`Trophies (${p.trophies.length})`}>
-            <Card>
-              {p.trophies.map((a) => {
+        <Section title={`Trophies (${p.trophies.length})`}>
+          {p.trophies.length === 0 ? (
+            <EmptyState variant="inline" title="No trophies yet. They're voted at events." />
+          ) : (
+            <View>
+              {p.trophies.map((a, i) => {
                 const b = builds.find((x) => x.id === a.buildId);
                 const ev = events.find((e) => e.id === a.eventId);
+                const info = categoryInfo(a.category);
                 return (
-                  <Row key={a.eventId + a.category} style={{ flexWrap: 'nowrap' }} gap={10}>
-                    <Trophy colour={categoryInfo(a.category).cover ? BRAND : C.fog} size={28} />
-                    <View style={{ flex: 1 }}>
-                      <Txt>{categoryInfo(a.category).label}</Txt>
-                      <Txt v="muted" numberOfLines={1}>{b?.make} {b?.model} · {ev?.title}</Txt>
-                    </View>
-                    <Txt v="mono" style={{ color: BRAND }}>+{categoryInfo(a.category).rep}</Txt>
-                  </Row>
+                  <View key={a.eventId + a.category}>
+                    {i ? <RowDivider inset /> : null}
+                    <ListRow
+                      leading={b ? { classBadge: classOf(b) } : undefined}
+                      title={info.label}
+                      subtitle={metaLine([b ? `${b.make} ${b.model}` : null, ev?.title])}
+                      trailing={<DsText v="meta">+{info.rep} rep</DsText>}
+                      onPress={ev ? () => router.push({ pathname: '/event/[id]', params: { id: ev.id } }) : undefined}
+                      chevron={false}
+                    />
+                  </View>
                 );
               })}
-            </Card>
-          </Section>
-        ) : null}
+            </View>
+          )}
+        </Section>
 
-        <Txt v="caption" style={{ textAlign: 'center' }}>
-          {plural(rep.ledger.total, 'rep point')}. Nightshift never shows where anyone lives or where they are.
-        </Txt>
+        <DsText v="caption" style={{ textAlign: 'center' }}>
+          Nightshift never shows where anyone lives or where they are.
+        </DsText>
       </View>
-      <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
+      <OptionsSheet visible={menu} title="Profile options" options={options} onClose={() => setMenu(false)} />
     </ScrollView>
   );
 }
-
-const st = StyleSheet.create({
-  cover: { height: 200, backgroundColor: C.tarmac, overflow: 'hidden' },
-  coverShade: { ...StyleSheet.absoluteFill as object, backgroundColor: SURFACE.scrim, top: 120 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  tile: { width: '48%', flexGrow: 1, maxWidth: '49%', backgroundColor: C.tarmac, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb, overflow: 'hidden' },
-});

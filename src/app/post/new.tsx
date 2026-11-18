@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { BuildChooser, ComposerPhotos } from '../../components/ComposerParts';
+import { BuildChooser, ComposerPhotos, Field, INPUT } from '../../components/ComposerParts';
+import { Button, DsText, ErrorState, SegmentedControl } from '../../components/ds';
 import { MapPicker } from '../../components/MapPicker';
-import { Button, Card, InlineError, LinkText, Notice, Row, Section, Segmented, Txt, s as ui } from '../../components/ui';
 import { useCommunity } from '../../lib/communityStore';
 import { locationProblem, POST_LIMITS, postProblem, VISIBILITY, type PostVisibility } from '../../lib/posts';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
-import { C, POST_COLOUR } from '../../theme';
+import { COLOR, POST_COLOUR, RADII, SPACING } from '../../theme';
 
 /** New post: words, photos (plate-blurred), an optional place on the map, who sees it, and a linked build. */
 export default function NewPost() {
@@ -37,82 +37,78 @@ export default function NewPost() {
       const id = await community.run((s) => s.createPost(draft));
       router.replace({ pathname: '/post/[id]', params: { id } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not post that.');
+      setError(e instanceof Error ? e.message : "Couldn't post that.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
-      <TextInput
-        value={body}
-        onChangeText={setBody}
-        placeholder="What's happening with the build?"
-        placeholderTextColor={C.fog}
-        multiline
-        maxLength={POST_LIMITS.body}
-        accessibilityLabel="Post text"
-        style={[ui.input, { minHeight: 120, textAlignVertical: 'top' }]}
-      />
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+      <Field label="Post">
+        <TextInput
+          value={body}
+          onChangeText={setBody}
+          placeholder="What's happening with the build?"
+          placeholderTextColor={COLOR.text.secondary}
+          multiline
+          maxLength={POST_LIMITS.body}
+          accessibilityLabel="Post text"
+          style={[INPUT, { minHeight: 120, textAlignVertical: 'top' }]}
+        />
+      </Field>
 
-      <Section title="Photos">
+      <Field label="Photos">
         <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
-      </Section>
+      </Field>
 
-      <Section title="Place (optional)">
+      <Field label="Place (optional)" hint={at ? 'It shows on the map\'s Posts layer for 30 days.' : 'Posts with a place show on the map. Never your home: places within about 1 km of your home area can\'t be shared.'}>
         {at ? (
-          <Card>
+          <View style={{ gap: SPACING.sm, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card }}>
             <TextInput
               value={placeName}
               onChangeText={setPlaceName}
               placeholder="Name it, e.g. Old airfield car park"
-              placeholderTextColor={C.fog}
+              placeholderTextColor={COLOR.text.secondary}
               maxLength={POST_LIMITS.placeName}
               accessibilityLabel="Name of the place"
-              style={ui.input}
+              style={INPUT}
             />
-            <Row gap={18}>
-              <LinkText label="Move it ›" onPress={() => setPicking(true)} />
-              <LinkText label="Remove the place" colour={C.fog} onPress={() => setAt(null)} />
-            </Row>
-            <Txt v="caption">It shows on the map's Posts layer for 30 days.</Txt>
-          </Card>
+            <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+              <Button label="Move it" tier="tertiary" size="sm" onPress={() => setPicking(true)} />
+              <Button label="Remove the place" tier="tertiary" size="sm" onPress={() => setAt(null)} />
+            </View>
+          </View>
         ) : (
-          <>
-            <Button label="Add a place" kind="secondary" onPress={() => setPicking(true)} />
-            <Txt v="caption">Posts with a place show on the map. Never your home: places within about 1 km of your home area can't be shared.</Txt>
-          </>
+          <Button label="Add a place" tier="secondary" block onPress={() => setPicking(true)} />
         )}
-        {placeError ? <Notice onDismiss={() => setPlaceError(null)}>{placeError}</Notice> : null}
-      </Section>
+        {placeError ? <ErrorState title={placeError} /> : null}
+      </Field>
 
-      <Section title="Who sees it">
-        <Segmented<PostVisibility>
+      <Field label="Who sees it" hint={`${VISIBILITY[visibility].hint}.`}>
+        <SegmentedControl<PostVisibility>
           value={visibility}
           onChange={setVisibility}
+          accessibilityLabel="Who sees it"
           options={[
             { key: 'public', label: VISIBILITY.public.label },
             { key: 'connections', label: VISIBILITY.connections.label },
           ]}
         />
-        <Txt v="caption">{VISIBILITY[visibility].hint}.</Txt>
-      </Section>
+      </Field>
 
-      <Section title="Link a build">
-        <BuildChooser builds={mine} value={buildId} onChange={setBuildId} />
-      </Section>
+      <BuildChooser builds={mine} value={buildId} onChange={setBuildId} />
 
-      <View style={{ gap: 8 }}>
-        <Button label="Post" onPress={submit} busy={busy} />
-        <InlineError message={error} />
-        <Txt v="caption">No street racing, no timing on public roads and nothing about where police are. Posts can be reported.</Txt>
+      <View style={{ gap: SPACING.sm }}>
+        <Button label="Post" size="lg" block haptic="success" onPress={submit} busy={busy} disabled={!body.trim() && !photos.length} hint="Write something or add a photo first" />
+        {error ? <ErrorState title={error} /> : null}
+        <DsText v="caption">No street racing, no timing on public roads and nothing about where police are. Posts can be reported.</DsText>
       </View>
 
       <MapPicker
         visible={picking}
         mode="point"
-        title="PLACE THE POST"
+        title="Place the post"
         hint={placeError ?? 'Move the map so the crosshair is on the spot. Not near your home.'}
         confirmLabel="Use this place"
         colour={POST_COLOUR}

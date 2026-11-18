@@ -1,9 +1,33 @@
-import { Image, Pressable, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Image, View, type TextStyle } from 'react-native';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
 import type { Build } from '../lib/types';
-import { C, RADIUS, STATE } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
+import { Button, ChoiceGroup, DsText, Icon, Press, typeStyle } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
-import { Button, Chip, Row, Txt } from './ui';
+
+/** The text box style for composers (posts, threads, replies, chats): input type, strong border, control radius. */
+export const INPUT: TextStyle = {
+  ...typeStyle('input'),
+  minHeight: 48,
+  borderWidth: 1,
+  borderColor: COLOR.surface.borderStrong,
+  borderRadius: RADII.control,
+  backgroundColor: COLOR.surface.card,
+  paddingHorizontal: SPACING.md,
+  paddingVertical: SPACING.sm,
+};
+
+/** A form field: caps label above, the control, an optional hint below. */
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <View style={{ gap: SPACING.xs }}>
+      <DsText v="label">{label}</DsText>
+      {children}
+      {hint ? <DsText v="caption">{hint}</DsText> : null}
+    </View>
+  );
+}
 
 /**
  * Photos for a post, thread, reply or message: every one goes through the same
@@ -13,47 +37,47 @@ export function ComposerPhotos({ photos, onChange, onError, max = 4 }: { photos:
   const flow = usePhotoFlow({ onError, onPhoto: (ref, replaces) => onChange(replaces ? photos.map((p) => (p === replaces ? ref : p)) : [...photos, ref].slice(0, max)) });
   if (flow.view) return <>{flow.view}</>;
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: SPACING.sm }}>
       {photos.length ? (
-        <Row gap={8}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
           {photos.map((p) => (
             <View key={p}>
-              <Image source={{ uri: photoUri(p) }} style={{ width: 84, height: 84, borderRadius: RADIUS.card, backgroundColor: C.kerb }} accessibilityLabel="Photo to post" accessibilityIgnoresInvertColors />
-              <Pressable
+              <Image source={{ uri: photoUri(p) }} style={{ width: 84, height: 84, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo to post" accessibilityIgnoresInvertColors />
+              <Press
                 onPress={() => onChange(photos.filter((x) => x !== p))}
-                accessibilityRole="button"
-                accessibilityLabel="Remove this photo"
+                label="Remove this photo"
                 hitSlop={8}
-                style={{ position: 'absolute', right: -6, top: -6, width: 26, height: 26, borderRadius: 13, backgroundColor: C.asphalt, borderWidth: 1, borderColor: STATE.danger, alignItems: 'center', justifyContent: 'center' }}
+                style={{ position: 'absolute', right: -SPACING.sm, top: -SPACING.sm, width: 28, height: 28, borderRadius: RADII.pill, backgroundColor: COLOR.surface.bg, borderWidth: 1, borderColor: COLOR.surface.borderStrong, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Txt v="label" style={{ color: STATE.danger }}>×</Txt>
-              </Pressable>
+                <Icon name="close" size={14} colour={COLOR.text.primary} />
+              </Press>
             </View>
           ))}
-        </Row>
+        </View>
       ) : null}
       {photos.length < max ? (
-        <Row style={{ flexWrap: 'nowrap' }}>
-          <Button label="Camera" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
-          <Button label="Library" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
-        </Row>
+        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+          <Button label="Camera" icon="camera" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
+          <Button label="Library" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
+        </View>
       ) : null}
-      <Txt v="caption">
+      <DsText v="caption">
         {plateRedactorAvailable ? 'Number plates are found and blurred before anything is shared; check the boxes when asked.' : 'Photos are saved without location data.'} Up to {max}.
-      </Txt>
+      </DsText>
     </View>
   );
 }
 
-/** Link one of your builds (or none). */
-export function BuildChooser({ builds, value, onChange }: { builds: Build[]; value?: string; onChange: (id: string | undefined) => void }) {
-  if (!builds.length) return <Txt v="caption">Add a car or bike in your garage to link it.</Txt>;
+/** Link one of your builds (or none): one of many, so a radio list. */
+export function BuildChooser({ builds, value, onChange, label = 'Link a build' }: { builds: Build[]; value?: string; onChange: (id: string | undefined) => void; label?: string }) {
+  if (!builds.length) return <DsText v="caption">Add a car or bike in your garage to link it.</DsText>;
   return (
-    <Row>
-      <Chip label="None" on={!value} onPress={() => onChange(undefined)} />
-      {builds.map((b) => (
-        <Chip key={b.id} raw label={`${b.make} ${b.model}`} on={value === b.id} onPress={() => onChange(value === b.id ? undefined : b.id)} />
-      ))}
-    </Row>
+    <ChoiceGroup<string>
+      label={label}
+      layout="pills"
+      value={value ?? 'none'}
+      onChange={(k) => onChange(k === 'none' ? undefined : k)}
+      options={[{ key: 'none', label: 'None' }, ...builds.map((b) => ({ key: b.id, label: `${b.make} ${b.model}` }))]}
+    />
   );
 }

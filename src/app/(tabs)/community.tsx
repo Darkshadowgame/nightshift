@@ -1,59 +1,65 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useLayoutEffect } from 'react';
-import { ScrollView } from 'react-native';
+import { useLayoutEffect, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { CommunityFeed } from '../../components/CommunityFeed';
 import { CommunityForum } from '../../components/CommunityForum';
 import { CommunityMessages } from '../../components/CommunityMessages';
 import { CommunityPeople } from '../../components/CommunityPeople';
-import { HeaderAction, Row, Segmented } from '../../components/ui';
+import { HeaderActions, SegmentedControl, Sheet, SheetOption } from '../../components/ds';
 import { useCommunity } from '../../lib/communityStore';
+import { SPACING } from '../../theme';
 
 type Tab = 'feed' | 'people' | 'forum' | 'messages';
 const TABS: Tab[] = ['feed', 'people', 'forum', 'messages'];
 
 /**
- * The Community tab: Feed (posts near you or from connections), People (Cars
- * near you), Forum (boards) and Messages (connections only). One primary
- * action per section, in the header.
+ * The Community tab: the meet loop after the meet. Feed (posts near you or from connections),
+ * People (near you, your connections, requests), Forum (ask advice) and Messages (connections only).
+ * The header's one action is always "+ New": a sheet with a post, a thread or a chat.
+ * Requests are counted once, on the People segment, and listed once, in People.
  */
 export default function CommunityScreen() {
   const nav = useNavigation();
   const params = useLocalSearchParams<{ tab?: string }>();
   const tab: Tab = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : 'feed';
   const { unread, incoming } = useCommunity();
+  const [creating, setCreating] = useState(false);
   const setTab = (t: Tab) => router.setParams({ tab: t });
 
   useLayoutEffect(() => {
-    const action =
-      tab === 'feed'
-        ? { label: '+ Post', a11y: 'New post', go: () => router.push('/post/new') }
-        : tab === 'forum'
-          ? { label: '+ Thread', a11y: 'New thread', go: () => router.push('/forum/new') }
-          : tab === 'messages'
-            ? { label: '+ Chat', a11y: 'New chat', go: () => router.push('/chat/new') }
-            : { label: incoming.length ? `Requests ${incoming.length}` : 'Connections', a11y: incoming.length ? `${incoming.length} connection requests` : 'Your connections', go: () => router.push('/connections') };
     nav.setOptions({
-      headerRight: () => (
-        <Row gap={8} style={{ marginRight: 10, flexWrap: 'nowrap' }}>
-          <HeaderAction label={action.label} accessibilityLabel={action.a11y} onPress={action.go} />
-        </Row>
-      ),
+      headerRight: () => <HeaderActions action={{ label: '+ New', accessibilityLabel: 'New post, thread or chat', onPress: () => setCreating(true) }} bell />,
     });
-  }, [nav, tab, incoming.length]);
+  }, [nav]);
+
+  const go = (path: '/post/new' | '/forum/new' | '/chat/new') => {
+    setCreating(false);
+    router.push(path);
+  };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-      <Segmented<Tab>
-        value={tab}
-        onChange={setTab}
-        options={[
-          { key: 'feed', label: 'Feed' },
-          { key: 'people', label: incoming.length ? `People ${incoming.length}` : 'People' },
-          { key: 'forum', label: 'Forum' },
-          { key: 'messages', label: unread ? `Messages ${unread}` : 'Messages' },
-        ]}
-      />
-      {tab === 'feed' ? <CommunityFeed /> : tab === 'people' ? <CommunityPeople /> : tab === 'forum' ? <CommunityForum /> : <CommunityMessages />}
-    </ScrollView>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled">
+        <SegmentedControl<Tab>
+          value={tab}
+          onChange={setTab}
+          accessibilityLabel="Community sections"
+          options={[
+            { key: 'feed', label: 'Feed' },
+            { key: 'people', label: 'People', count: incoming.length || undefined },
+            { key: 'forum', label: 'Forum' },
+            { key: 'messages', label: 'Messages', count: unread || undefined },
+          ]}
+        />
+        {tab === 'feed' ? <CommunityFeed /> : tab === 'people' ? <CommunityPeople /> : tab === 'forum' ? <CommunityForum /> : <CommunityMessages />}
+      </ScrollView>
+      <Sheet visible={creating} title="New" onClose={() => setCreating(false)}>
+        <View>
+          <SheetOption label="New post" detail="A photo or an update on your build, for the feed" onPress={() => go('/post/new')} />
+          <SheetOption label="New thread" detail="Ask for advice or start a discussion on the forum" onPress={() => go('/forum/new')} />
+          <SheetOption label="New chat" detail="Message one of your connections, or a group" onPress={() => go('/chat/new')} />
+        </View>
+      </Sheet>
+    </View>
   );
 }

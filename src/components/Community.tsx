@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
 import { classOf, effectivePower } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
@@ -10,115 +10,161 @@ import { conversationTitle, previewLine, type Conversation } from '../lib/messag
 import { photoUri } from '../lib/photos';
 import { VISIBILITY, type Post } from '../lib/posts';
 import type { Build, User } from '../lib/types';
-import { BRAND, C, F, FONT_SCALE, RADIUS, STATE, SURFACE, TYPE } from '../theme';
-import { BuildArt } from './BuildArt';
-import { Pin } from './Pin';
-import { LevelTag } from './Rep';
-import { ClassBadge, Row, SampleTag, Tag, Txt } from './ui';
+import { COLOR, RADII, SPACING } from '../theme';
+import { Avatar, BuildThumb, Button, ClassBadge, DsText, EntityCard, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
 
-/** A person's mark: their initial in a hexagon-cut tile (no faces, no photos of people). */
-export function Avatar({ user, size = 40 }: { user?: Pick<User, 'handle'> | null; size?: number }) {
-  const letter = (user?.handle ?? '?').replace(/^@/, '').charAt(0).toUpperCase() || '?';
+/** A person's mark data for the DS Avatar: initials from their name, else their handle. */
+export function personMark(u?: Pick<User, 'name' | 'handle'> | null): { name?: string | null; handle?: string | null } {
+  return { name: u?.name, handle: u?.handle ?? '?' };
+}
+
+/** "@sam_p", or "@someone" for a person we can't see any more. */
+export function at(u?: Pick<User, 'handle'> | null): string {
+  return `@${u?.handle ?? 'someone'}`;
+}
+
+/** A build's facts, the same everywhere: "583 bhp · 4 mods". */
+export function buildMeta(b: Build): string {
+  return metaLine([`${Math.round(effectivePower(b))} bhp`, plural(b.mods.length, 'mod')]);
+}
+
+/** "Connect with people at a meet": the one way into connections, from every empty list of people or chats. */
+export const MEET_ACTION = { label: 'Connect with people at a meet', onPress: () => router.navigate('/events') };
+
+/** Open someone's profile. */
+export function openProfile(id: string) {
+  router.push({ pathname: '/user/[id]', params: { id } });
+}
+
+/** Open a build. */
+export function openBuild(id: string) {
+  router.push({ pathname: '/build/[id]', params: { id } });
+}
+
+/**
+ * A build in a post, reply or list: thumbnail and class badge, "Make Model" as typed, and
+ * "bhp · mods". Framed so it reads as something you can open.
+ */
+export function BuildRow({ build, onPress }: { build: Build; onPress?: () => void }) {
+  const body = (
+    <>
+      <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} size={36} />
+      <ClassBadge letter={classOf(build)} size="sm" decorative />
+      <View style={{ flex: 1, gap: SPACING.xxs }}>
+        <DsText v="body" numberOfLines={1}>
+          {build.make} {build.model}
+        </DsText>
+        <DsText v="meta" numberOfLines={1}>
+          {buildMeta(build)}
+        </DsText>
+      </View>
+      {onPress ? <Icon name="chevron" size={18} colour={COLOR.text.secondary} /> : null}
+    </>
+  );
+  const frame = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: SPACING.sm,
+    padding: SPACING.sm,
+    borderRadius: RADII.control,
+    borderWidth: 1,
+    borderColor: COLOR.surface.border,
+    backgroundColor: COLOR.surface.bg,
+  };
+  if (!onPress) return <View style={frame}>{body}</View>;
   return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={{ width: size, height: size, borderRadius: size / 4, borderWidth: 1.5, borderColor: BRAND, backgroundColor: C.kerb, alignItems: 'center', justifyContent: 'center', transform: [{ skewX: '-6deg' }] }}
+    <Press onPress={onPress} label={`${build.make} ${build.model}, class ${classOf(build)}, ${buildMeta(build)}`} hint="Opens the build" style={frame}>
+      {body}
+    </Press>
+  );
+}
+
+/** Width of one tile in a two-column grid on a screen-wide page. */
+export function useTileWidth(): number {
+  const { width } = useWindowDimensions();
+  return Math.floor((Math.min(width, 600) - SPACING.screen * 2 - SPACING.md) / 2);
+}
+
+/**
+ * A build in a garage grid: thumbnail with its class badge on the corner, then "Make Model"
+ * and "bhp · mods". Used by your garage and by profiles.
+ */
+export function BuildTile({ build, width, trophies = 0, sample }: { build: Build; width: number; trophies?: number; sample?: boolean }) {
+  const thumbHeight = Math.round((width * 3) / 4);
+  return (
+    <Press
+      onPress={() => openBuild(build.id)}
+      feedback="card"
+      label={metaLine([`${build.make} ${build.model}`, `class ${classOf(build)}`, buildMeta(build), trophies ? plural(trophies, 'trophy', 'trophies') : null, sample ? 'Sample' : null])}
+      style={{ width, gap: SPACING.xs }}
     >
-      <Text allowFontScaling={false} style={{ fontFamily: F.display, color: BRAND, fontSize: size * 0.45 }}>{letter}</Text>
+      <View>
+        <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} size={thumbHeight} />
+        <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm }}>
+          <ClassBadge letter={classOf(build)} size="sm" decorative />
+        </View>
+        {sample ? (
+          <View style={{ position: 'absolute', right: SPACING.sm, top: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
+            <Tag label="Sample" />
+          </View>
+        ) : null}
+      </View>
+      <DsText v="bodyStrong" numberOfLines={1}>
+        {build.make} {build.model}
+      </DsText>
+      <DsText v="meta" numberOfLines={1}>
+        {metaLine([buildMeta(build), trophies ? plural(trophies, 'trophy', 'trophies') : null])}
+      </DsText>
+    </Press>
+  );
+}
+
+/** A two-column grid of build tiles. */
+export function BuildGrid({ builds, trophiesOf, sampleId }: { builds: Build[]; trophiesOf?: (id: string) => number; sampleId?: (b: Build) => boolean }) {
+  const w = useTileWidth();
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }}>
+      {builds.map((b) => (
+        <BuildTile key={b.id} build={b} width={w} trophies={trophiesOf?.(b.id) ?? 0} sample={sampleId?.(b)} />
+      ))}
     </View>
   );
 }
 
-/** A build's cover photo, or its silhouette. */
-export function BuildThumb({ build, height }: { build: Build; height: number }) {
-  if (build.photos[0]) {
-    return (
-      <Image
-        source={{ uri: photoUri(build.photos[0]) }}
-        style={{ height, borderRadius: RADIUS.card, backgroundColor: C.kerb }}
-        resizeMode="cover"
-        accessibilityIgnoresInvertColors
-        accessibilityLabel={`${build.make} ${build.model}`}
-      />
-    );
-  }
-  return <BuildArt kind={build.kind} colour={build.colour} height={height} />;
+/** How a connection state reads next to a person. */
+export function connectWord(state: ConnectionState): string | null {
+  return state === 'none' ? null : state === 'incoming' ? 'Wants to connect' : connectLabel(state);
 }
 
-/** Make, model, class, bhp and mods in one line. */
-export function BuildLine({ build, onPress }: { build: Build; onPress?: () => void }) {
-  const body = (
-    <Row gap={10} style={{ flexWrap: 'nowrap' }}>
-      <ClassBadge letter={classOf(build)} size="sm" />
-      <View style={{ flex: 1 }}>
-        <Txt numberOfLines={1}>{build.make} {build.model}</Txt>
-        <Txt v="mono" numberOfLines={1}>{Math.round(effectivePower(build))} BHP · {plural(build.mods.length, 'MOD', 'MODS')}</Txt>
-      </View>
-      {onPress ? <Txt v="label" style={{ color: BRAND }}>›</Txt> : null}
-    </Row>
-  );
-  if (!onPress) return <View style={st.buildLine}>{body}</View>;
-  return (
-    <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={`Open ${build.make} ${build.model}`} style={({ pressed }) => [st.buildLine, pressed && { opacity: 0.8 }]}>
-      {body}
-    </Pressable>
-  );
-}
-
-export function connectTone(state: ConnectionState): 'success' | 'warning' | 'info' | 'muted' {
-  return state === 'connected' ? 'success' : state === 'outgoing' ? 'warning' : state === 'incoming' ? 'info' : 'muted';
-}
-
-/** People › Cars near you: the build up top, then the person. Tapping opens their profile. */
-export function PersonCard({ card, level, state, sample }: { card: Card_; level: number; state: ConnectionState; sample?: boolean }) {
+/**
+ * People › near you: one compact row per person. Avatar and handle lead; their best build
+ * (thumbnail and class) sits on the right. Tapping opens their profile.
+ */
+export function PersonNearRow({ card, level, state, sample }: { card: Card_; level: number; state: ConnectionState; sample?: boolean }) {
   const b = card.lead;
   const more = card.builds.length - 1;
   return (
-    <Pressable
-      onPress={() => router.push({ pathname: '/user/[id]', params: { id: card.user.id } })}
-      accessibilityRole="button"
-      accessibilityLabel={`@${card.user.handle}${b ? `, ${b.make} ${b.model}, class ${classOf(b)}` : ''}, ${distanceLabel(card.miles)}`}
-      style={({ pressed }) => [st.card, pressed && { opacity: 0.85 }]}
-    >
-      {b ? (
-        <View>
-          <BuildThumb build={b} height={150} />
-          <View style={st.stamp}>
-            <ClassBadge letter={classOf(b)} size="md" />
+    <ListRow
+      leading={{ avatar: personMark(card.user) }}
+      title={at(card.user)}
+      subtitle={b ? `${b.make} ${b.model}${more > 0 ? ` +${more} more` : ''}` : 'No car or bike yet'}
+      meta={metaLine([`Level ${level}`, distanceLabel(card.miles), connectWord(state)])}
+      trailing={
+        b ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+            <ClassBadge letter={classOf(b)} size="sm" decorative />
+            <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} size={36} />
           </View>
-          <View style={st.distance}>
-            <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={st.distanceText}>{distanceLabel(card.miles)}</Text>
-          </View>
-        </View>
-      ) : null}
-      <View style={{ padding: 12, gap: 6 }}>
-        <Row style={{ flexWrap: 'nowrap' }} gap={10}>
-          <Avatar user={card.user} size={34} />
-          <View style={{ flex: 1 }}>
-            <Row gap={6}>
-              <Txt v="h3" style={{ textTransform: 'none' }} numberOfLines={1}>@{card.user.handle}</Txt>
-              <LevelTag level={level} />
-              {sample ? <SampleTag /> : null}
-            </Row>
-            {!b ? <Txt v="caption">{distanceLabel(card.miles)} · no builds yet</Txt> : null}
-          </View>
-          {state !== 'none' ? <Tag label={state === 'incoming' ? 'Wants to connect' : connectLabel(state)} tone={connectTone(state)} /> : null}
-        </Row>
-        {b ? (
-          <>
-            <Txt numberOfLines={1}>{b.make} {b.model}{b.nickname ? ` "${b.nickname}"` : ''}</Txt>
-            <Txt v="mono">
-              {Math.round(effectivePower(b))} BHP · {plural(b.mods.length, 'MOD', 'MODS')}{more > 0 ? ` · +${more} MORE` : ''}
-            </Txt>
-          </>
-        ) : null}
-      </View>
-    </Pressable>
+        ) : undefined
+      }
+      chevron={false}
+      onPress={() => openProfile(card.user.id)}
+      accessibilityLabel={metaLine([at(card.user), b ? `${b.make} ${b.model}, class ${classOf(b)}` : 'no car or bike yet', `level ${level}`, distanceLabel(card.miles), connectWord(state), sample ? 'Sample' : null])}
+    />
   );
 }
 
-/** A feed post: who, when, words, photos, place, linked build, and Like / Comment. */
+/** A feed post: who and when, the words, photos, place, linked build, then Like and Comments. */
 export function PostCard({
   post,
   author,
@@ -136,170 +182,158 @@ export function PostCard({
   onLike: () => void;
   onOpen?: () => void;
   onMore?: () => void;
-  /** On the post's own page: no tap-through. */
+  /** On the post's own page: no tap-through, every photo. */
   full?: boolean;
 }) {
-  const head = (
-    <Row style={{ flexWrap: 'nowrap' }} gap={10}>
-      <Pressable onPress={() => author && router.push({ pathname: '/user/[id]', params: { id: author.id } })} accessibilityRole="link" accessibilityLabel={`@${author?.handle ?? 'someone'}'s profile`} hitSlop={4}>
-        <Avatar user={author} size={36} />
-      </Pressable>
-      <View style={{ flex: 1 }}>
-        <Row gap={6}>
-          <Txt style={{ fontFamily: F.bodyBold }} numberOfLines={1}>@{author?.handle ?? 'someone'}</Txt>
-          {post.sample ? <SampleTag /> : null}
-          {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}
-        </Row>
-        <Txt v="caption">{shortAgo(post.createdAt, now)}{post.placeName ? ` · ${post.placeName}` : post.at ? ' · on the map' : ''}</Txt>
-      </View>
-      {onMore ? (
-        <Pressable onPress={onMore} accessibilityRole="button" accessibilityLabel="More options for this post" hitSlop={12} style={st.more}>
-          <Txt v="h3" style={{ color: C.fog }}>···</Txt>
-        </Pressable>
-      ) : null}
-    </Row>
-  );
+  const open = onOpen && !full ? onOpen : undefined;
+  const photos = full ? post.photos : post.photos.slice(0, 1);
   const content = (
-    <>
-      {post.hidden ? <Txt v="caption" style={{ color: STATE.warning }}>Hidden while it's checked after reports. Only you can see it.</Txt> : null}
-      {post.body ? <Txt numberOfLines={full ? undefined : 8}>{post.body}</Txt> : null}
-      {post.photos.length ? (
-        <View>
-          <Image source={{ uri: photoUri(post.photos[0]) }} style={st.photo} resizeMode="cover" accessibilityLabel="Photo in the post" accessibilityIgnoresInvertColors />
-          {post.photos.length > 1 && !full ? <Tag label={`+${post.photos.length - 1} photos`} tone="muted" solid /> : null}
-          {full
-            ? post.photos.slice(1).map((p) => <Image key={p} source={{ uri: photoUri(p) }} style={[st.photo, { marginTop: 8 }]} resizeMode="cover" accessibilityLabel="Photo in the post" accessibilityIgnoresInvertColors />)
-            : null}
-        </View>
+    <View style={{ gap: SPACING.sm }}>
+      {post.hidden ? (
+        <DsText v="caption" tone="warning">
+          Hidden while it's checked after reports. Only you can see it.
+        </DsText>
       ) : null}
-      {build ? <BuildLine build={build} onPress={() => router.push({ pathname: '/build/[id]', params: { id: build.id } })} /> : null}
-    </>
+      {post.body ? (
+        <DsText v="body" numberOfLines={full ? undefined : 8} selectable={full}>
+          {post.body}
+        </DsText>
+      ) : null}
+      {photos.map((p, i) => (
+        <View key={p}>
+          <Image source={{ uri: photoUri(p) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} resizeMode="cover" accessibilityLabel="Photo in the post" accessibilityIgnoresInvertColors />
+          {i === 0 && !full && post.photos.length > 1 ? (
+            <View style={{ position: 'absolute', right: SPACING.sm, bottom: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
+              <Tag label={`+${post.photos.length - 1} photos`} />
+            </View>
+          ) : null}
+        </View>
+      ))}
+    </View>
   );
   return (
-    <View style={st.card}>
-      <View style={{ padding: 12, gap: 10 }}>
-        {head}
-        {onOpen && !full ? (
-          <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel="Open the post" style={({ pressed }) => [{ gap: 10 }, pressed && { opacity: 0.85 }]}>
-            {content}
-          </Pressable>
-        ) : (
-          content
-        )}
-        <Row gap={18}>
-          <Pressable onPress={onLike} accessibilityRole="button" accessibilityState={{ selected: post.likedByMe }} accessibilityLabel={`${post.likedByMe ? 'Unlike' : 'Like'}, ${plural(post.likeCount, 'like')}`} hitSlop={10} style={st.action}>
-            <Txt v="label" scale="chrome" style={{ color: post.likedByMe ? BRAND : C.fog, fontSize: TYPE.caption }}>{post.likedByMe ? '♥' : '♡'} {post.likeCount}</Txt>
-          </Pressable>
-          {onOpen && !full ? (
-            <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Comments, ${post.commentCount}`} hitSlop={10} style={st.action}>
-              <Txt v="label" scale="chrome" style={{ color: C.fog, fontSize: TYPE.caption }}>Comments {post.commentCount}</Txt>
-            </Pressable>
-          ) : null}
-        </Row>
+    <View style={{ backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, padding: SPACING.md, gap: SPACING.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+        <Press onPress={() => author && openProfile(author.id)} role="link" label={`${at(author)}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>
+          <Avatar {...personMark(author)} size="md" />
+          <View style={{ flex: 1, gap: SPACING.xxs }}>
+            <DsText v="bodyStrong" numberOfLines={1}>
+              {at(author)}
+            </DsText>
+            <DsText v="meta" numberOfLines={1}>
+              {metaLine([shortAgo(post.createdAt, now), post.placeName ? post.placeName : post.at ? 'On the map' : null])}
+            </DsText>
+          </View>
+        </Press>
+        {post.sample || post.visibility === 'connections' ? (
+          <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
+            {post.sample ? <Tag label="Sample" /> : null}
+            {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}
+          </View>
+        ) : null}
+        {onMore ? <IconButton icon="more" label="More options for this post" onPress={onMore} colour={COLOR.text.secondary} /> : null}
+      </View>
+      {open ? (
+        <Press onPress={open} label="Open the post" style={{ gap: SPACING.sm }}>
+          {content}
+        </Press>
+      ) : (
+        content
+      )}
+      {build ? <BuildRow build={build} onPress={() => openBuild(build.id)} /> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.lg }}>
+        <Press
+          onPress={onLike}
+          haptic="select"
+          state={{ selected: post.likedByMe }}
+          label={`${post.likedByMe ? 'Unlike' : 'Like'}, ${plural(post.likeCount, 'like')}`}
+          hitSlop={8}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36 }}
+        >
+          <Icon name={post.likedByMe ? 'heartOn' : 'heart'} size={20} colour={post.likedByMe ? COLOR.action.selected : COLOR.text.secondary} />
+          <DsText v="meta">{post.likeCount}</DsText>
+        </Press>
+        {open ? (
+          <Press onPress={open} label={`Comments, ${post.commentCount}`} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36 }}>
+            <Icon name="comment" size={20} colour={COLOR.text.secondary} />
+            <DsText v="meta">{post.commentCount}</DsText>
+          </Press>
+        ) : null}
       </View>
     </View>
   );
 }
 
-/** A thread in the forum list. */
-export function ThreadRow({ thread, author, now, showBoard }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean }) {
+/** A thread on the forum, as a card: board, author, title, replies and Solved. */
+export function ThreadCard({ thread, author, now, showBoard }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean }) {
   return (
-    <Pressable
+    <EntityCard
+      kind="person"
+      eyebrow={showBoard ? boardLabel(thread.board) : thread.region ?? 'Thread'}
+      mark={{ avatar: personMark(author) }}
+      status={thread.hidden ? { label: 'Hidden', tone: 'warning' } : thread.solvedReplyId ? { label: 'Solved', tone: 'success' } : undefined}
+      sample={thread.sample}
+      title={thread.title}
+      meta={metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now), thread.photos.length ? 'Photos' : null])}
       onPress={() => router.push({ pathname: '/forum/[id]', params: { id: thread.id } })}
-      accessibilityRole="button"
-      accessibilityLabel={`${thread.title}, ${plural(thread.replyCount, 'reply', 'replies')}${thread.solvedReplyId ? ', solved' : ''}`}
-      style={({ pressed }) => [st.thread, pressed && { opacity: 0.85 }]}
-    >
-      <Row gap={6}>
-        {thread.solvedReplyId ? <Tag label="Solved" tone="success" /> : null}
-        {showBoard ? <Tag label={boardLabel(thread.board)} tone="muted" /> : null}
-        {thread.region ? <Tag label={thread.region} tone="muted" /> : null}
-        {thread.sample ? <SampleTag /> : null}
-        {thread.hidden ? <Tag label="Hidden" tone="warning" /> : null}
-      </Row>
-      <Txt v="h3" style={{ textTransform: 'none', fontFamily: F.bodyBold, fontSize: TYPE.body }} numberOfLines={2}>{thread.title}</Txt>
-      <Txt v="caption" numberOfLines={1}>
-        @{author?.handle ?? 'someone'} · {plural(thread.replyCount, 'reply', 'replies')} · {shortAgo(thread.lastActivityAt, now)}
-        {thread.photos.length ? ' · photos' : ''}
-      </Txt>
-    </Pressable>
+    />
   );
 }
 
-/** A conversation in Messages. */
+/** A conversation in Messages: avatar, name, last line, time, unread. */
 export function ConversationRow({ c, me, users, now }: { c: Conversation; me: string; users: User[]; now: Date }) {
   const handleOf = (id: string) => users.find((u) => u.id === id)?.handle;
   const title = conversationTitle(c, me, handleOf);
   const other = c.kind === 'direct' ? users.find((u) => c.memberIds.includes(u.id) && u.id !== me) : undefined;
   const unread = c.unread > 0;
   return (
-    <Pressable
-      onPress={() => router.push({ pathname: '/chat/[id]', params: { id: c.id } })}
-      accessibilityRole="button"
-      accessibilityLabel={`${title}${unread ? `, ${c.unread} unread` : ''}`}
-      style={({ pressed }) => [st.conv, pressed && { opacity: 0.85 }]}
-    >
-      {c.kind === 'group' ? (
-        <View style={st.groupMark}>
-          <Pin glyph="community" colour={BRAND} size={30} />
+    <ListRow
+      leading={{ avatar: c.kind === 'group' ? { name: c.name ?? title } : personMark(other) }}
+      title={title}
+      subtitle={previewLine(c, me, handleOf)}
+      meta={c.kind === 'group' ? metaLine(['Group', plural(c.memberIds.length, 'person', 'people')]) : undefined}
+      unread={unread}
+      chevron={false}
+      trailing={
+        <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
+          <DsText v="meta">{shortAgo(c.lastMessageAt, now)}</DsText>
+          {unread ? <Tag label={c.unread > 99 ? '99+' : String(c.unread)} tone="selected" /> : !c.canSend ? <Tag label="Read only" /> : c.sample ? <Tag label="Sample" /> : null}
         </View>
-      ) : (
-        <Avatar user={other} size={42} />
-      )}
-      <View style={{ flex: 1, gap: 2 }}>
-        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
-          <Txt style={{ fontFamily: unread ? F.bodyBold : F.bodyMed, flexShrink: 1 }} numberOfLines={1}>{title}</Txt>
-          {c.kind === 'group' ? <Txt v="caption">{c.memberIds.length}</Txt> : null}
-          {c.sample ? <SampleTag /> : null}
-        </Row>
-        <Txt v="muted" numberOfLines={1} style={unread ? { color: C.chalk } : undefined}>{previewLine(c, me, handleOf)}</Txt>
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-        <Txt v="caption">{shortAgo(c.lastMessageAt, now)}</Txt>
-        {unread ? (
-          <View style={st.unread} accessibilityLabel={`${c.unread} unread`}>
-            <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={st.unreadText}>{c.unread > 99 ? '99+' : c.unread}</Text>
-          </View>
-        ) : !c.canSend ? (
-          <Tag label="Read only" tone="muted" />
-        ) : null}
-      </View>
-    </Pressable>
+      }
+      onPress={() => router.push({ pathname: '/chat/[id]', params: { id: c.id } })}
+      accessibilityLabel={metaLine([title, unread ? `${c.unread} unread` : null, previewLine(c, me, handleOf), shortAgo(c.lastMessageAt, now)])}
+    />
   );
 }
 
-export interface SheetOption {
+export interface SheetOptionSpec {
   label: string;
+  detail?: string;
   onPress: () => void;
   danger?: boolean;
 }
+/** Kept for screens that build a menu: the options of an OptionsSheet. */
+export type { SheetOptionSpec as SheetOption };
 
-/** A small menu from the bottom: Report, Block, Delete and so on. */
-export function OptionsSheet({ visible, title, options, onClose }: { visible: boolean; title?: string; options: SheetOption[]; onClose: () => void }) {
+/** The ··· menu: a DS Sheet of options (Report, Block, Delete…). Each option closes the sheet first. */
+export function OptionsSheet({ visible, title = 'Options', options, onClose }: { visible: boolean; title?: string; options: SheetOptionSpec[]; onClose: () => void }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={st.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close the menu">
-        <Pressable style={st.sheet} onPress={() => {}} accessibilityViewIsModal>
-          {title ? <Txt v="label" style={{ paddingHorizontal: 4, paddingBottom: 4 }}>{title}</Txt> : null}
-          {options.map((o) => (
-            <Pressable
-              key={o.label}
-              onPress={() => {
-                onClose();
-                o.onPress();
-              }}
-              accessibilityRole="button"
-              style={({ pressed }) => [st.option, pressed && { backgroundColor: C.kerb }]}
-            >
-              <Txt style={{ color: o.danger ? STATE.danger : C.chalk, fontFamily: F.bodyMed }}>{o.label}</Txt>
-            </Pressable>
-          ))}
-          <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => [st.option, { borderBottomWidth: 0 }, pressed && { backgroundColor: C.kerb }]}>
-            <Txt style={{ color: C.fog }}>Close</Txt>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <Sheet visible={visible} title={title} onClose={onClose}>
+      <View>
+        {options.map((o) => (
+          <SheetOption
+            key={o.label}
+            label={o.label}
+            detail={o.detail}
+            destructive={o.danger}
+            onPress={() => {
+              onClose();
+              o.onPress();
+            }}
+          />
+        ))}
+      </View>
+    </Sheet>
   );
 }
 
@@ -314,42 +348,11 @@ export function openReport(target: string, id: string, userId?: string, what?: s
   router.push({ pathname: '/report', params: { target, id, ...(userId ? { user: userId } : {}), ...(what ? { what } : {}) } });
 }
 
-/** A small count bubble for a header or row. */
-export function CountBubble({ n, children }: { n: number; children?: ReactNode }) {
-  if (n <= 0) return <>{children}</>;
-  return (
-    <View style={st.unread} accessibilityLabel={`${n} waiting`}>
-      <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={st.unreadText}>{n > 99 ? '99+' : n}</Text>
-    </View>
-  );
-}
-
-const st = StyleSheet.create({
-  card: { backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.card, overflow: 'hidden' },
-  stamp: { position: 'absolute', left: 10, top: 10 },
-  distance: { position: 'absolute', right: 10, bottom: 10, backgroundColor: SURFACE.glass, borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  distanceText: { fontFamily: F.labelBold, fontSize: TYPE.label, letterSpacing: 1, color: C.chalk, textTransform: 'uppercase' },
-  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, backgroundColor: C.kerb },
-  buildLine: { backgroundColor: C.asphalt, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb, padding: 10 },
-  action: { minHeight: 32, justifyContent: 'center' },
-  more: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  thread: { backgroundColor: C.tarmac, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.card, padding: 12, gap: 6 },
-  conv: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 8 },
-  groupMark: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
-  unread: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center' },
-  unreadText: { color: C.ink, fontFamily: F.labelBold, fontSize: TYPE.label },
-  scrim: { flex: 1, backgroundColor: SURFACE.scrim, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: SURFACE.glassRaised, borderTopLeftRadius: RADIUS.sheet, borderTopRightRadius: RADIUS.sheet, borderColor: C.kerbHi, borderWidth: 1, padding: 12, paddingBottom: 34, gap: 2 },
-  option: { minHeight: 50, justifyContent: 'center', paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: C.kerb },
-});
-
 /** "Report this event" at the foot of a page (App Store 1.2: every kind of user content can be reported). */
 export function ReportLink({ target, id, userId, what }: { target: string; id: string; userId?: string; what: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Pressable onPress={() => openReport(target, id, userId, what)} accessibilityRole="link" hitSlop={12} style={({ pressed }) => [{ minHeight: 44, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
-        <Txt v="label" style={{ color: C.fog, fontSize: TYPE.caption }}>Report this {what}</Txt>
-      </Pressable>
+      <Button label={`Report this ${what}`} tier="tertiary" size="sm" onPress={() => openReport(target, id, userId, what)} />
     </View>
   );
 }

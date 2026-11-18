@@ -6,7 +6,7 @@ import { COLOR } from '../../theme';
  * Unicode stand-ins (›, ✕, ✓, ···, ⚠) in components. Decorative: the control
  * that holds an icon carries the accessibility label.
  */
-export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back';
+export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment';
 
 export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: IconName; size?: number; colour?: string }) {
   const p = { stroke: colour, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -54,6 +54,16 @@ export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: I
           <Path d="M10 21h4" {...p} />
         </>
       ) : null}
+      {name === 'heart' || name === 'heartOn' ? (
+        <Path d="M12 20s-7.5-4.6-7.5-10.1A4.4 4.4 0 0 1 12 7.3a4.4 4.4 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" {...p} fill={name === 'heartOn' ? colour : 'none'} />
+      ) : null}
+      {name === 'camera' ? (
+        <>
+          <Path d="M3.5 8.5h3.8l1.7-2.5h6l1.7 2.5h3.8V19h-17z" {...p} />
+          <Circle cx={12} cy={13.3} r={3.4} {...p} />
+        </>
+      ) : null}
+      {name === 'comment' ? <Path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z" {...p} /> : null}
     </Svg>
   );
 }
