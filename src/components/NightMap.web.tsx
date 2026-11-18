@@ -5,7 +5,7 @@ import { pinLayer } from '../lib/hud';
 import type { LatLng } from '../lib/types';
 import { ART, BRAND } from '../theme';
 import { Pin } from './Pin';
-import type { MapCircle, MapPath, MapPolygon, MapRegion, NightMapProps } from './mapTypes';
+import { type MapCircle, type MapPath, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
 import { Credit } from './webmap/Credit.web';
 import { GridMap } from './webmap/GridMap.web';
 import { loadLeaflet, longPress, makeMap, type L } from './webmap/leaflet.web';
@@ -44,9 +44,21 @@ export function NightMap(props: NightMapProps) {
 
   const goTo = (map: Leaflet.Map, c: LatLng, sp: number, animate: boolean) => {
     const s = map.getSize();
-    const z = fitZoom({ centre: c, span: sp }, { w: s.x, h: s.y }, { min: map.getMinZoom(), max: map.getMaxZoom() });
-    if (animate) map.flyTo(ll(c), z, { duration: 0.45 });
-    else map.setView(ll(c), z, { animate: false });
+    // Fit the region into the part of the map nothing covers (Tonight's sheet over its bottom).
+    const top = latest.current.padding?.top ?? 0;
+    const bottom = latest.current.padding?.bottom ?? 0;
+    const open = s.y - top - bottom;
+    const fitted = open >= 40 ? { w: s.x, h: open } : { w: s.x, h: s.y };
+    const z = fitZoom({ centre: c, span: sp }, fitted, { min: map.getMinZoom(), max: map.getMaxZoom() });
+    // Then shift the view so the region's centre sits in the middle of that part.
+    let target = ll(c);
+    if (open >= 40 && (top || bottom)) {
+      const p = map.project(target, z).add([0, (bottom - top) / 2]);
+      const u = map.unproject(p, z);
+      target = [u.lat, u.lng];
+    }
+    if (animate) map.flyTo(target, z, { duration: 0.45 });
+    else map.setView(target, z, { animate: false });
   };
 
   // Make the map once.

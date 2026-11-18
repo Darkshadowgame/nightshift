@@ -84,4 +84,30 @@ export interface NightMapProps {
   compass?: { x: number; y: number };
   /** Small credit line in the map's bottom corner, e.g. for OpenStreetMap data drawn on it. */
   credit?: string;
+  /**
+   * What covers the map's edges, in points (Tonight's sheet over its bottom). Every region the map
+   * is asked to show (`centre` and `span`, `animateTo`) is fitted into the part left uncovered, so
+   * pins are never framed under the sheet.
+   */
+  padding?: MapPadding;
+}
+
+export interface MapPadding {
+  top?: number;
+  bottom?: number;
+}
+
+/**
+ * The whole-map region that puts `region` in the middle of the uncovered part of a map `height`
+ * tall, with `region.span` filling that part's height. Pure: both maps use it.
+ */
+export function paddedRegion(region: MapRegion, height: number, padding?: MapPadding): MapRegion {
+  const top = padding?.top ?? 0;
+  const bottom = padding?.bottom ?? 0;
+  const open = height - top - bottom;
+  if (!(height > 0) || (!top && !bottom) || open < 40) return region;
+  const span = (region.span * height) / open;
+  // The uncovered part's middle is (top - bottom) / 2 below the map's middle: north is up.
+  const lat = region.centre.lat + (((top - bottom) / 2) * span) / height;
+  return { centre: { lat, lng: region.centre.lng }, span };
 }

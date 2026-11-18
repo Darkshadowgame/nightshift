@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { RADII, SPACING, SURFACE } from '../../theme';
+import { RADII, SPACING, SURFACE, TYPE } from '../../theme';
 import { DsText } from '../ds/Text';
 import { creditLine, TILE_CREDIT } from './tiles.web';
 
@@ -25,7 +25,8 @@ export function Credit({ credit, tiles = TILE_CREDIT, top }: { credit?: string; 
         zIndex: 1000,
       }}
     >
-      <DsText v="caption" tone="secondary" numberOfLines={2}>
+      {/* Small, so it stays one line across the full-width map at larger text (Review 13); never cut short. */}
+      <DsText v="caption" tone="secondary" style={{ fontSize: TYPE.micro, lineHeight: TYPE.micro + 3 }}>
         {line}
       </DsText>
     </View>

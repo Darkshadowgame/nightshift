@@ -25,7 +25,7 @@ import {
 import { LayersPanel } from '../../components/LayersPanel';
 import { detentTops, MapSheet, type Detent } from '../../components/MapSheet';
 import { MapWidgetSlot } from '../../components/MapWidgetSlot';
-import type { MapCircle, MapPath, MapPin, MapRegion, NightMapHandle } from '../../components/mapTypes';
+import type { MapCircle, MapPadding, MapPath, MapPin, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { FadeUp } from '../../components/motion';
 import { NightMap } from '../../components/NightMap';
 import { Pin } from '../../components/Pin';
@@ -41,6 +41,7 @@ import { EVENT_LABELS } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
 import { distanceOrigin } from '../../lib/format';
+import { milesBetween } from '../../lib/geo';
 import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
@@ -59,6 +60,21 @@ import { COLOR, ELEVATION, EVENT_COLOURS, POST_COLOUR, RADII, SPACING, SPOT_COLO
 const MAP_LAYERS: Layer[] = ['drive', 'photo', 'track', 'posts'];
 const START = { lat: 52.7, lng: -1.7 };
 const START_SPAN = 0.5;
+/** The first view takes in tonight's meets this close to home (Review 13: framed above the sheet). */
+const FIT_MILES = 25;
+/** Room above the fitted meets for the map credit. */
+const FIT_TOP = 28;
+
+/** The region that shows every point with room round the pins: centre and span (degrees of latitude). */
+function fitRegion(points: readonly LatLng[], fallback: LatLng): { centre: LatLng; span: number } {
+  if (points.length === 0) return { centre: fallback, span: START_SPAN };
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const [s, n, w, e] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
+  // The map shows 1.2x the span across (as both maps fit it); pins need about a fifth more each way.
+  const span = Math.max(0.06, (n - s) * 1.5 + 0.02, ((e - w) * 1.3) / 1.2 + 0.02);
+  return { centre: { lat: (s + n) / 2, lng: (w + e) / 2 }, span };
+}
 /** Count pins (places grouped when zoomed out): what each one is. */
 const CLUSTER_NAMES: Record<SpotKind, string> = { drive: 'drives', photo: 'photo spots', track: 'tracks', venue: 'meet spots' };
 /** Map buttons: big enough for a thumb (48 pt). */
@@ -120,7 +136,7 @@ export default function TonightScreen() {
   // Where the map is looking.
   // ---------------------------------------------------------------------------
   const map = useRef<NightMapHandle>(null);
-  const [view, setView] = useState<{ centre: LatLng; span: number; key: number } | null>(null);
+  const [view, setView] = useState<{ centre: LatLng; span: number; key: number; fit?: boolean } | null>(null);
   const [region, setRegionNow] = useState<MapRegion>({ centre: meUser?.home ?? START, span: START_SPAN });
   const regionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setRegion = useCallback((r: MapRegion) => {
@@ -242,7 +258,8 @@ export default function TonightScreen() {
         if (stop.at) eventPins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live' });
         if (e.type === 'cruise') paths.push({ id: `rt:${e.id}`, coords: e.stops.flatMap((s) => (s.at ? [s.at] : [])), colour, dashed: true });
       } else {
-        circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour });
+        // The area circle only for the meet you tapped, and quiet: the pins carry the colour (Review 13).
+        if (e.id === selEvent) circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour: COLOR.text.secondary });
         eventPins.push({ id: `ev:${e.id}`, at: e.area, glyph: e.type, colour, title: `${e.title}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live' });
       }
     }
@@ -305,12 +322,34 @@ export default function TonightScreen() {
     setDetent('peek');
     const at = where(id);
     if (!at) return;
-    const fromTop = (region.centre.lat + region.span / 2 - at.lat) / region.span;
-    if (onlyIfHidden && fromTop > 0.12 && fromTop < 0.45) return;
-    const span = zoom ? Math.min(region.span, 0.35) : region.span;
-    setView((x) => ({ centre: { lat: at.lat - span * 0.2, lng: at.lng }, span, key: (x?.key ?? 0) + 1 }));
+    const fromTop = ((region.centre.lat + region.span / 2 - at.lat) / region.span) * box.h;
+    if (onlyIfHidden && fromTop > FIT_TOP && fromTop < box.h - peek - sheetTop - SPACING.xl) return;
+    // The map's padding keeps the point in the part above the sheet.
+    const span = zoom ? Math.min(region.span * (box.h ? (box.h - peek) / box.h : 1), 0.35) : region.span * (box.h ? (box.h - peek) / box.h : 1);
+    setView((x) => ({ centre: at, span, key: (x?.key ?? 0) + 1 }));
   }
   const showRef = useRef(show);
+
+  // The first view (Review 13): tonight's meets near home, fitted into the map above the sheet. It
+  // fits again if the sheet's peek changes (larger text) until you pick something on the map.
+  const fitPoints = useMemo(() => {
+    const home = meUser?.home;
+    const pts = [...lists.live, ...lists.tonight].map(pointOf).filter((p) => !home || milesBetween(home, p) <= FIT_MILES);
+    if (pts.length === 0 && pick) pts.push(pointOf(pick));
+    return pts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lists, pick, meUser?.home]);
+  const fitSig = fitPoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|');
+  const mapPadding = useMemo<MapPadding>(() => ({ top: FIT_TOP, bottom: peek + sheetTop }), [peek, sheetTop]);
+  useEffect(() => {
+    if (!ready || !box.h || params.focus || (view && !view.fit)) return;
+    const t = setTimeout(() => {
+      const r = fitRegion(fitPoints, meUser?.home ?? START);
+      setView((x) => (x && !x.fit ? x : { ...r, fit: true, key: (x?.key ?? 0) + 1 }));
+    }, 150);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, box.h, peek, fitSig, params.focus]);
   showRef.current = show;
   useEffect(() => {
     if (params.focus && ready) showRef.current(params.focus);
@@ -588,6 +627,7 @@ export default function TonightScreen() {
             span={view?.span ?? START_SPAN}
             onRegion={setRegion}
             recentreKey={view?.key ?? 0}
+            padding={mapPadding}
             onSelect={onSelectPin}
             onPressMap={onMapPress}
             showsUser={located}

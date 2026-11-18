@@ -102,7 +102,7 @@ function Posted({ event }: { event: NightEvent }) {
           media={
             <MediaFrame height={190}>
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <NightMap pins={[]} circles={[{ id: 'area', centre: event.area, radiusMiles: radius, colour }]} centre={event.area} span={Math.max(0.08, radius / 15)} />
+                <NightMap pins={[]} circles={[{ id: 'area', centre: event.area, radiusMiles: radius, colour: COLOR.text.secondary }]} centre={event.area} span={Math.max(0.08, radius / 15)} />
               </View>
             </MediaFrame>
           }

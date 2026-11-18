@@ -6,7 +6,7 @@ import { DsText } from './ds/Text';
 import { pinLayer } from '../lib/hud';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
-import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapProps } from './mapTypes';
+import { paddedRegion, type MapCircle, type MapPath, type MapPin, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
 import type { LatLng } from '../lib/types';
 
 const MILE_M = 1609.34;
@@ -87,14 +87,21 @@ const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export const NightMap = memo(function NightMap({
   ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
-  onRegion, credit, compass,
+  onRegion, credit, compass, padding,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
+  /** The map's height, for fitting regions above whatever covers its bottom (`padding`). */
+  const height = useRef(0);
+  const pad = useRef(padding);
+  pad.current = padding;
+  const toRegion = (c: { lat: number; lng: number }, sp: number) => {
+    const r = paddedRegion({ centre: c, span: sp }, height.current, pad.current);
+    return { latitude: r.centre.lat, longitude: r.centre.lng, latitudeDelta: r.span, longitudeDelta: r.span * 1.2 };
+  };
   /** The last region the map settled on, for the handle's region(). */
   const shown = useRef<MapRegion>({ centre, span });
   useImperativeHandle(ref, () => ({
-    animateTo: (c, sp = span) =>
-      map.current?.animateToRegion({ latitude: c.lat, longitude: c.lng, latitudeDelta: sp, longitudeDelta: sp * 1.2 }, 450),
+    animateTo: (c, sp = span) => map.current?.animateToRegion(toRegion(c, sp), 450),
     region: () => shown.current,
   }), [span]);
   // Markers get one stable press handler, so a new onSelect from the screen doesn't re-render them all.
@@ -109,7 +116,7 @@ export const NightMap = memo(function NightMap({
       first.current = false;
       return;
     }
-    map.current?.animateToRegion({ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }, 450);
+    map.current?.animateToRegion(toRegion(centre, span), 450);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followKey, recentreKey]);
   // Tell the screen where the map starts, before the first pan or zoom.
@@ -118,7 +125,7 @@ export const NightMap = memo(function NightMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={StyleSheet.absoluteFill} onLayout={(e) => (height.current = e.nativeEvent.layout.height)}>
     <MapView
       ref={map}
       style={StyleSheet.absoluteFill}
@@ -127,6 +134,8 @@ export const NightMap = memo(function NightMap({
         if (e.nativeEvent.action !== 'marker-press') onPressMap({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude });
       } : undefined}
       userInterfaceStyle="dark"
+      // Apple's legal label and compass stay in the uncovered part too.
+      mapPadding={padding ? { top: padding.top ?? 0, bottom: padding.bottom ?? 0, left: 0, right: 0 } : undefined}
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
       showsUserLocation={showsUser}
       showsMyLocationButton={false}
@@ -162,7 +171,7 @@ export const NightMap = memo(function NightMap({
       ) : null}
     </MapView>
     {credit ? (
-      <View pointerEvents="none" style={st.credit}>
+      <View pointerEvents="none" style={[st.credit, padding?.bottom ? { bottom: padding.bottom + SPACING.xs } : null]}>
         <DsText v="meta" tone="secondary">
           {credit}
         </DsText>
