@@ -84,6 +84,10 @@ The next pass fixes them.
 
 ## Queue (owner requests, 17 Nov 2026, after the overnight build)
 
+**Owner decision (18 Nov 2026): no paid services yet.** The paid Apple Developer account (real push
+notifications) and paid email sending (Brevo, for sign-in codes and feedback emails) wait until the app
+is good enough to show sponsors. Build around them: no feature should depend on push or email to work.
+
 Work in this order. Each item ships over the air unless marked native.
 
 1. **Review round 4 fix pass** (in progress): map performance, places read from
