@@ -1,29 +1,29 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { ReportLink } from '../../components/Community';
-import { useCommunityQuery } from '../../lib/communityStore';
-import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
-import { photoUri } from '../../lib/photos';
 import { useLayoutEffect, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { BuildHero } from '../../components/BuildHero';
-import { FadeUp } from '../../components/motion';
-import { PhotoManager } from '../../components/PhotoManager';
+import { at, openProfile, openReport, OptionsSheet, personMark } from '../../components/Community';
 import { Cover, Trophy } from '../../components/Cover';
-import { UserLink } from '../../components/UserLink';
+import { DsText, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
+import { PhotoManager } from '../../components/PhotoManager';
+import { NotFound } from '../../components/ui';
+import { MOD_CATEGORIES } from '../../data/catalog';
 import { allAwards, categoryInfo } from '../../lib/awards';
-import { Card, HeaderAction, InlineError, NotFound, Row, Section, Stat, StatBar, Tag, Txt } from '../../components/ui';
-import { MOD_CATEGORIES, modCategoryShort } from '../../data/catalog';
-import { bhpPerTonne, classOf, effectivePower, isModified, performanceFigure, powerBar } from '../../lib/classes';
-import { useStore } from '../../lib/store';
+import { classOf, effectivePower, performanceFigure } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
+import { useCommunityQuery } from '../../lib/communityStore';
+import { plural } from '../../lib/format';
+import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
+import { photoUri } from '../../lib/photos';
+import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
 import { stageFromMods, stageLabel } from '../../lib/tune';
-import { BRAND, C, RADIUS } from '../../theme';
+import { COLOR, RADII, SPACING } from '../../theme';
 
-const LOOKS = new Set(['wheels', 'body', 'lighting', 'interior']);
-const HANDLING = new Set(['suspension', 'brakes', 'wheels']);
-const SOUND = new Set(['exhaust', 'intake', 'turbo']);
-
+/**
+ * A build: kind, name, owner, tags, the photo, then a stat block (power, weight, class, tune),
+ * trophies, and the mods grouped by category with road-illegal ones labelled.
+ */
 export default function BuildScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
@@ -31,129 +31,171 @@ export default function BuildScreen() {
   const now = useNow();
   const b = builds.find((x) => x.id === id);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [menu, setMenu] = useState(false);
   const likes = useCommunityQuery((c) => c.buildLikes([id]), [id]);
+  const mine = b?.ownerId === me;
 
   useLayoutEffect(() => {
-    if (!b || b.ownerId !== me) return;
+    if (!b) return;
     nav.setOptions({
-      headerRight: () => (
-        <HeaderAction label="Edit" accessibilityLabel="Edit build" onPress={() => router.push({ pathname: '/build/edit', params: { id: b.id } })} />
-      ),
+      headerRight: () =>
+        mine ? (
+          <HeaderActions action={{ label: 'Edit', accessibilityLabel: 'Edit build', onPress: () => router.push({ pathname: '/build/edit', params: { id: b.id } }) }} />
+        ) : (
+          <HeaderActions onMenu={() => setMenu(true)} />
+        ),
     });
-  }, [nav, b, me]);
+  }, [nav, b, mine]);
 
   if (!b) return <NotFound what="Build" message="This build no longer exists." />;
 
   const owner = users.find((u) => u.id === b.ownerId);
   const letter = classOf(b);
-  const count = (set: Set<string>) => b.mods.filter((m) => set.has(m.category)).length;
   const figure = performanceFigure(b);
   const won = allAwards(votes, events, builds, now).filter((a) => a.buildId === b.id);
   const swap = swapTag(b);
   const stage = b.tuneStage ?? stageFromMods(b.mods);
+  const likeCount = likes.data?.[b.id] ?? 0;
+  const groups = MOD_CATEGORIES.map((cat) => ({ cat, mods: b.mods.filter((m) => m.category === cat.key) })).filter((g) => g.mods.length);
+  const covers = won.filter((a) => categoryInfo(a.category).cover);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}>
+      <View style={{ gap: SPACING.sm }}>
+        <DsText v="eyebrow" tone="secondary">
+          {b.kind === 'bike' ? 'Bike' : 'Car'}
+          {b.year ? ` · ${b.year}` : ''}
+        </DsText>
+        <DsText v="titleLg" accessibilityRole="header">
+          {b.make} {b.model}
+        </DsText>
+        {b.nickname ? <DsText v="secondary">{b.nickname}</DsText> : null}
+        {owner ? (
+          <ListRow
+            leading={{ avatar: personMark(owner) }}
+            title={owner.id === me ? 'You' : at(owner)}
+            subtitle={owner.region}
+            onPress={() => openProfile(owner.id)}
+            accessibilityLabel={owner.id === me ? 'Your profile' : `${at(owner)}'s profile`}
+          />
+        ) : null}
+        {stage !== 'stock' || swap || likeCount > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.sm }}>
+            {stage !== 'stock' ? <Tag label={stageLabel(stage)} tone="info" /> : null}
+            {swap ? <Tag label={swap} raw /> : null}
+            {likeCount > 0 ? (
+              <DsText v="meta" accessibilityLabel={`${plural(likeCount, 'like')} from Rate builds`}>
+                {plural(likeCount, 'like')}
+              </DsText>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+
       <BuildHero build={b} height={b.photos[0] ? 240 : 200} trophies={won.length} />
-      {likes.data && (likes.data[b.id] ?? 0) > 0 ? (
-        <Txt v="mono" accessibilityLabel={`${likes.data[b.id]} likes from Rate builds`}>♥ {likes.data[b.id]} {likes.data[b.id] === 1 ? 'LIKE' : 'LIKES'}</Txt>
-      ) : null}
-      {b.ownerId === me ? (
+
+      <View style={{ gap: SPACING.sm }}>
+        {/* Two rows of two, so "Stage 2+" and a four-figure weight never clip on a small phone. */}
+        <StatBlock
+          stats={[
+            { value: `${Math.round(effectivePower(b))}`, unit: 'bhp', label: b.dynoBhp ? 'Power · dyno' : 'Power · est.' },
+            { value: `${b.weightKg}`, unit: 'kg', label: b.kind === 'bike' ? 'Weight · wet' : 'Weight · kerb' },
+          ]}
+        />
+        <StatBlock
+          stats={[
+            { value: letter, label: 'Class' },
+            { value: stageLabel(stage), label: 'Tune' },
+          ]}
+        />
+        <DsText v="caption">
+          {metaLine([
+            `Class ${letter} from ${Math.round(figure)} ${b.kind === 'bike' ? 'bhp per tonne' : 'weight-adjusted bhp'}`,
+            `${b.engineSwap ? 'donor engine' : 'stock'} ${b.stockBhp} bhp`,
+            `${b.weightKg} kg ${b.kind === 'bike' ? 'wet' : 'kerb'}${b.engineSwap?.weightDeltaKg ? ` (incl. ${b.engineSwap.weightDeltaKg > 0 ? '+' : ''}${b.engineSwap.weightDeltaKg} kg from the swap)` : ''}`,
+          ])}
+          . {b.dynoBhp ? 'Dyno verified.' : mine ? 'Upload a dyno sheet to verify.' : 'Not dyno verified.'}
+        </DsText>
+      </View>
+
+      {mine ? (
         <Section title={`Photos (${b.photos.length})`}>
-          <PhotoManager photos={b.photos} onChange={(photos) => saveBuild({ ...b, photos }).catch((e) => setPhotoError(e instanceof Error ? e.message : 'Could not save the photos.'))} onError={setPhotoError} />
-          <InlineError message={photoError} />
+          <PhotoManager photos={b.photos} onChange={(photos) => saveBuild({ ...b, photos }).catch((e) => setPhotoError(e instanceof Error ? e.message : "Couldn't save the photos."))} onError={setPhotoError} />
+          {photoError ? <ErrorState title={photoError} /> : null}
         </Section>
       ) : b.photos.length > 1 ? (
-        <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
+        <ScrollView horizontal contentContainerStyle={{ gap: SPACING.sm }} showsHorizontalScrollIndicator={false}>
           {b.photos.slice(1).map((p) => (
-            <Image key={p} source={{ uri: photoUri(p) }} style={{ width: 110, height: 80, borderRadius: RADIUS.card }} />
+            <Image key={p} source={{ uri: photoUri(p) }} style={{ width: 120, height: 90, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" accessibilityIgnoresInvertColors />
           ))}
         </ScrollView>
       ) : null}
 
-      <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={14}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Txt v="h1">{b.make} {b.model}</Txt>
-          {swap || stage !== 'stock' ? (
-            <Txt v="label" style={{ color: BRAND }}>{[swap, stage !== 'stock' ? stageLabel(stage) : null].filter(Boolean).join(' · ')}</Txt>
-          ) : null}
-          <Txt v="label">{owner?.region}</Txt>
-          {owner ? (
-            <UserLink id={owner.id} style={{ alignSelf: 'flex-start' }} label={`Open @${owner.handle}`}>
-              <Txt v="label" style={{ color: BRAND, textTransform: owner.id === me ? 'uppercase' : 'none' }}>{owner.id === me ? 'Yours' : `@${owner.handle}`} ›</Txt>
-            </UserLink>
-          ) : null}
-          {b.nickname ? <Txt v="muted">{b.nickname}</Txt> : null}
-        </View>
-      </Row>
-
-      <Row gap={8} style={{ flexWrap: 'nowrap' }}>
-        <Stat value={`${Math.round(effectivePower(b))}`} label={b.dynoBhp ? 'bhp · dyno' : 'bhp · est.'} />
-        <Stat value={b.torqueLbFt ? `${b.torqueLbFt}` : '–'} label="lb-ft" />
-        <Stat value={`${bhpPerTonne(b)}`} label="bhp / tonne" />
-      </Row>
-
-      <Card>
-        <StatBar label="Power" value={powerBar(b)} />
-        <StatBar label="Handling" value={0.3 + count(HANDLING) * 0.17} />
-        <StatBar label="Looks" value={0.3 + count(LOOKS) * 0.15} />
-        <StatBar label="Sound" value={0.25 + count(SOUND) * 0.2} />
-        <Txt v="caption">
-          Class {letter} from {Math.round(figure)} {b.kind === 'bike' ? 'bhp per tonne' : 'weight-adjusted bhp'}. {b.dynoBhp ? 'Dyno verified.' : b.ownerId === me ? 'Upload a dyno sheet to verify.' : 'Not dyno verified.'}
-        </Txt>
-      </Card>
-
-      {(() => {
-        if (won.length === 0) return null;
-        const covers = won.filter((a) => categoryInfo(a.category).cover);
-        return (
-          <Section title={`Trophies (${won.length})`}>
-            {covers.length > 0 ? (
-              <ScrollView horizontal contentContainerStyle={{ gap: 10 }} showsHorizontalScrollIndicator={false}>
-                {covers.map((a) => (
-                  <Cover key={a.eventId + a.category} award={a} build={b} owner={owner} event={events.find((e) => e.id === a.eventId)} width={200} />
-                ))}
-              </ScrollView>
-            ) : null}
-            <Row gap={10}>
-              {won.map((a) => (
-                <Card key={a.eventId + a.category} style={{ width: 96, alignItems: 'center', gap: 4, padding: 8 }}>
-                  <Trophy colour={categoryInfo(a.category).cover ? BRAND : C.chalk} size={36} />
-                  <Txt v="micro" style={{ textAlign: 'center', color: C.chalk }}>{categoryInfo(a.category).label}</Txt>
-                  <Txt v="micro" style={{ textAlign: 'center', textTransform: 'none' }} numberOfLines={2}>{events.find((e) => e.id === a.eventId)?.title}</Txt>
-                </Card>
+      {won.length ? (
+        <Section title={`Trophies (${won.length})`}>
+          {covers.length > 0 ? (
+            <ScrollView horizontal contentContainerStyle={{ gap: SPACING.sm }} showsHorizontalScrollIndicator={false}>
+              {covers.map((a) => (
+                <Cover key={a.eventId + a.category} award={a} build={b} owner={owner} event={events.find((e) => e.id === a.eventId)} width={200} />
               ))}
-            </Row>
-          </Section>
-        );
-      })()}
-
-      <Section title={`Mods (${b.mods.length})${isModified(b) ? ' · modified' : ''}`}>
-        <Card>
-          {b.mods.length === 0 ? <Txt v="muted">Stock for now.</Txt> : null}
-          {MOD_CATEGORIES.flatMap((cat) => b.mods.filter((m) => m.category === cat.key)).map((m, i, all) => (
-            <FadeUp key={m.id} index={i}>
-              <Row
-                style={[
-                  { justifyContent: 'space-between', flexWrap: 'nowrap', paddingBottom: 6 },
-                  i < all.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.kerb },
-                ]}
-              >
-                <Txt v="micro" style={{ width: 62 }}>{modCategoryShort(m.category)}</Txt>
-                <View style={{ flex: 1 }}>
-                  <Txt>{m.name}</Txt>
-                  {isRoadIllegal(m) ? <Tag label={`⚠ ${OFF_ROAD_TAG}`} tone="warning" /> : null}
+            </ScrollView>
+          ) : null}
+          <View>
+            {won.map((a, i) => (
+              <View key={a.eventId + a.category}>
+                {i ? <RowDivider inset /> : null}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 56 }}>
+                  <View style={{ width: 40, alignItems: 'center' }} aria-hidden>
+                    <Trophy colour={categoryInfo(a.category).cover ? COLOR.state.warning : COLOR.text.primary} size={28} />
+                  </View>
+                  <View style={{ flex: 1, gap: SPACING.xxs }}>
+                    <DsText v="body">{categoryInfo(a.category).label}</DsText>
+                    <DsText v="meta" numberOfLines={1}>
+                      {events.find((e) => e.id === a.eventId)?.title ?? ''}
+                    </DsText>
+                  </View>
                 </View>
-                {m.bhpGain ? <Txt v="mono" style={{ color: BRAND }}>+{m.bhpGain} BHP</Txt> : null}
-              </Row>
-            </FadeUp>
-          ))}
-        </Card>
+              </View>
+            ))}
+          </View>
+        </Section>
+      ) : null}
+
+      <Section title={`Mods (${b.mods.length})`}>
+        {groups.length === 0 ? <DsText v="secondary">Stock for now.</DsText> : null}
+        {groups.map((g) => (
+          <View key={g.cat.key} style={{ gap: SPACING.xxs }}>
+            <DsText v="label" accessibilityRole="header">
+              {g.cat.label}
+            </DsText>
+            {g.mods.map((m, i) => (
+              <View key={m.id}>
+                {i ? <RowDivider /> : null}
+                <ListRow
+                  title={m.name}
+                  trailing={
+                    <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
+                      {m.bhpGain ? <DsText v="meta">+{m.bhpGain} bhp</DsText> : null}
+                      {isRoadIllegal(m) ? <Tag label="Off-road only" tone="warning" accessibilityLabel={OFF_ROAD_TAG} /> : null}
+                    </View>
+                  }
+                  accessibilityLabel={metaLine([m.name, m.bhpGain ? `plus ${m.bhpGain} bhp` : null, isRoadIllegal(m) ? OFF_ROAD_TAG : null])}
+                />
+              </View>
+            ))}
+          </View>
+        ))}
       </Section>
-      <Txt v="caption">
-        {b.engineSwap ? 'Donor engine' : 'Stock'} {b.stockBhp} bhp · {b.weightKg} kg {b.kind === 'bike' ? 'wet' : 'kerb'}{b.engineSwap?.weightDeltaKg ? ` (incl. ${b.engineSwap.weightDeltaKg > 0 ? '+' : ''}${b.engineSwap.weightDeltaKg} kg from the swap)` : ''}
-      </Txt>
-      {b.ownerId !== me ? <ReportLink target="build" id={b.id} userId={b.ownerId} what="build" /> : null}
+
+      <OptionsSheet
+        visible={menu}
+        title="Build options"
+        options={[
+          ...(owner ? [{ label: `View ${at(owner)}`, onPress: () => openProfile(owner.id) }] : []),
+          { label: 'Report build', onPress: () => openReport('build', b.id, b.ownerId, 'build') },
+        ]}
+        onClose={() => setMenu(false)}
+      />
     </ScrollView>
   );
 }

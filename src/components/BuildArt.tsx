@@ -1,12 +1,12 @@
 import { View } from 'react-native';
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import type { VehicleKind } from '../lib/types';
-import { C } from '../theme';
+import { C, COLOR, RADII } from '../theme';
 
 /** Placeholder art for a build with no photo yet: a silhouette in the build's colour. */
 export function BuildArt({ kind, colour = C.sodium, height = 150 }: { kind: VehicleKind; colour?: string; height?: number }) {
   return (
-    <View style={{ height, borderRadius: 10, overflow: 'hidden', backgroundColor: '#111827' }}>
+    <View style={{ height, borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media }}>
       <Svg width="100%" height="100%" viewBox="0 0 240 110" preserveAspectRatio="xMidYMid meet">
         <Defs>
           <RadialGradient id="glow" cx="50%" cy="110%" r="70%">

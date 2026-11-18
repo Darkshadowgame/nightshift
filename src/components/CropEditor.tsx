@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, PanResponder, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, Image, Modal, PanResponder, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ASPECTS,
@@ -17,8 +17,8 @@ import {
   type Handle,
   type Rotation,
 } from '../lib/crop';
-import { BRAND, C } from '../theme';
-import { Button, Chip, Row, Txt } from './ui';
+import { COLOR, SPACING, outline } from '../theme';
+import { Button, ChoiceGroup, DsText } from './ds';
 
 const HANDLE = 40;
 const MARK = 20;
@@ -138,21 +138,23 @@ export function CropEditor({
 
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onCancel}>
-      <View style={[st.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}>
-        <View style={{ paddingHorizontal: 16, gap: 4 }}>
-          <Txt v="h3">{saved ? 'Crop or rotate photo' : 'Crop the photo'}</Txt>
-          <Txt v="caption">
+      <View style={[st.screen, { paddingTop: insets.top + SPACING.sm, paddingBottom: insets.bottom + SPACING.sm }]}>
+        <View style={{ paddingHorizontal: SPACING.screen, gap: SPACING.xs }}>
+          <DsText v="heading" accessibilityRole="header">
+            {saved ? 'Crop or rotate photo' : 'Crop the photo'}
+          </DsText>
+          <DsText v="caption">
             {saved
               ? "This changes the saved photo. Originals aren't kept, so anything cropped off now can't be got back, and blurred plates stay blurred."
               : 'Drag the box to move it, or a corner to resize. Plates are checked on the cropped photo next.'}
-          </Txt>
+          </DsText>
         </View>
 
         <View style={st.stage} onLayout={onStage}>
           {failed ? (
-            <Txt v="muted">Couldn't open that photo.</Txt>
+            <DsText v="secondary">Couldn't open that photo.</DsText>
           ) : !size || !b ? (
-            <ActivityIndicator color={BRAND} />
+            <ActivityIndicator color={COLOR.text.secondary} />
           ) : (
             <View style={{ width: dispW, height: dispH }}>
               <Image
@@ -202,27 +204,17 @@ export function CropEditor({
           )}
         </View>
 
-        <View style={{ gap: 10 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}>
-            {ASPECTS.map((a) => (
-              <Chip key={a.key} label={a.label} on={aspect === a.key} onPress={() => pickAspect(a.key)} />
-            ))}
-          </ScrollView>
-          <Row style={{ flexWrap: 'nowrap', paddingHorizontal: 16 }}>
-            <Button label="Rotate 90°" kind="secondary" onPress={rotate} disabled={!box || busy} style={{ flex: 1 }} accessibilityLabel="Rotate 90 degrees clockwise" />
-            <Button label="Reset" kind="secondary" onPress={reset} disabled={!box || busy} style={{ flex: 1 }} />
-          </Row>
-          <Row style={{ flexWrap: 'nowrap', paddingHorizontal: 16 }}>
-            <Button
-              label={busy ? 'Cropping…' : saved ? 'Save crop' : 'Use this crop'}
-              onPress={() => box && onDone(box, rot, view.w, view.h)}
-              busy={busy}
-              disabled={!box}
-              style={{ flex: 1 }}
-            />
-            {onSkip ? <Button label="Skip crop" kind="secondary" onPress={onSkip} disabled={busy} /> : null}
-            <Button label="Cancel" kind="secondary" onPress={onCancel} disabled={busy} />
-          </Row>
+        <View style={{ gap: SPACING.md, paddingHorizontal: SPACING.screen }}>
+          <ChoiceGroup label="Shape" options={ASPECTS.map((a) => ({ key: a.key, label: a.label }))} value={aspect} onChange={pickAspect} />
+          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+            <Button label="Rotate 90°" tier="secondary" size="sm" onPress={rotate} disabled={!box || busy} style={{ flex: 1 }} block accessibilityLabel="Rotate 90 degrees clockwise" />
+            <Button label="Reset" tier="secondary" size="sm" onPress={reset} disabled={!box || busy} style={{ flex: 1 }} block />
+          </View>
+          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+            <Button label={saved ? 'Save crop' : 'Use this crop'} onPress={() => box && onDone(box, rot, view.w, view.h)} busy={busy} disabled={!box} style={{ flex: 1 }} block />
+            {onSkip ? <Button label="Skip" tier="secondary" onPress={onSkip} disabled={busy} accessibilityLabel="Skip crop" /> : null}
+            <Button label="Cancel" tier="secondary" onPress={onCancel} disabled={busy} />
+          </View>
         </View>
       </View>
     </Modal>
@@ -230,13 +222,13 @@ export function CropEditor({
 }
 
 const st = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.asphalt, gap: 12 },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', margin: 24 },
-  shade: { position: 'absolute', backgroundColor: 'rgba(5,8,14,0.66)' },
-  box: { position: 'absolute', borderWidth: 1.5, borderColor: C.chalk },
-  gridV: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: 'rgba(233,237,244,0.55)' },
-  gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(233,237,244,0.55)' },
+  screen: { flex: 1, backgroundColor: COLOR.surface.bg, gap: SPACING.md },
+  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', margin: SPACING.xl },
+  shade: { position: 'absolute', backgroundColor: COLOR.surface.scrim },
+  box: { position: 'absolute', borderWidth: 1.5, borderColor: COLOR.text.primary },
+  gridV: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: outline(COLOR.text.primary) },
+  gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: outline(COLOR.text.primary) },
   handle: { position: 'absolute', width: HANDLE, height: HANDLE },
-  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: BRAND, borderRadius: 1 },
-  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: BRAND, borderRadius: 1 },
+  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: COLOR.action.selected, borderRadius: 1 },
+  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: COLOR.action.selected, borderRadius: 1 },
 });

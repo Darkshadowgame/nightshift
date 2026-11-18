@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { allVariants } from '../data/vehicles';
 import type { VehicleKind } from '../lib/types';
 import {
@@ -15,10 +15,11 @@ import {
   yearsLabel,
   type Variant,
 } from '../lib/vehicles';
-import { C, F, RADIUS, STATE, TYPE } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
+import { DsText, Icon, Press, SearchField } from './ds';
 import { SearchSelect } from './SearchSelect';
 import { SuggestMissing } from './SuggestMissing';
-import { Card, Txt, s as ui } from './ui';
+import { s as ui } from './ui';
 
 /**
  * Make → model → variant, searchable, for cars and bikes. Picking a variant
@@ -50,23 +51,19 @@ export function VehiclePicker({
   const noun = kind === 'car' ? 'car' : 'bike';
 
   return (
-    <View style={{ gap: 8 }}>
-      <TextInput
+    <View style={{ gap: SPACING.sm }}>
+      <SearchField
         value={query}
         onChangeText={setQuery}
-        placeholder={kind === 'car' ? 'Quick search, e.g. Golf R Mk7 or Type R FK8' : 'Quick search, e.g. R6 2017 or Street Triple'}
-        placeholderTextColor={C.fog}
-        style={ui.input}
-        autoCorrect={false}
-        autoCapitalize="none"
+        placeholder={kind === 'car' ? 'Search, e.g. Golf R Mk7 or Type R FK8' : 'Search, e.g. R6 2017 or Street Triple'}
         accessibilityLabel={`Search every ${noun}`}
       />
       {query.trim() ? (
-        <View style={{ gap: 6 }}>
+        <View style={{ gap: SPACING.xs }}>
           {hits.map((v) => (
             <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
           ))}
-          {hits.length === 0 ? <Txt v="muted">No match. Pick the make below or type your own.</Txt> : null}
+          {hits.length === 0 ? <DsText v="secondary">No match. Pick the make below or type your own.</DsText> : null}
         </View>
       ) : null}
 
@@ -89,8 +86,8 @@ export function VehiclePicker({
       />
 
       {family && variants.length ? (
-        <View style={{ gap: 6 }}>
-          <Txt v="label">Generation and engine</Txt>
+        <View style={{ gap: SPACING.xs }}>
+          <DsText v="label">Generation and engine</DsText>
           {variants.map((v) => (
             <VariantRow key={v.id} v={v} on={v.id === vehicleId} onPress={() => onPickVariant(v)} />
           ))}
@@ -98,33 +95,35 @@ export function VehiclePicker({
       ) : null}
 
       {!family && make.trim() && model.trim() ? (
-        <Txt v="caption">Not in our list, so add the specs below yourself.</Txt>
+        <DsText v="caption">Not in our list, so add the power and weight below yourself.</DsText>
       ) : null}
       {family && !variant ? (
-        <Txt v="caption">Pick yours above, or name it your own way here:</Txt>
+        <DsText v="caption">Pick yours above, or name it your own way here:</DsText>
       ) : null}
       {family && !variant ? (
         <TextInput
           value={model}
           onChangeText={(t) => onMakeModel(make, t)}
           placeholder="Model as it shows on your build"
-          placeholderTextColor={C.fog}
+          placeholderTextColor={COLOR.text.secondary}
           style={ui.input}
           accessibilityLabel="Model name shown on your build"
         />
       ) : null}
 
       {variant ? (
-        <Card accent={STATE.success}>
-          <Txt v="label" style={{ color: STATE.success }}>Stock specs filled in</Txt>
-          <Txt>
-            {variant.make} {modelLabel(variant)} · {variant.engine} · {yearsLabel(variant)}
-          </Txt>
-          <Txt v="caption">
-            {variant.bhp} bhp · {variant.weightKg} kg {kind === 'car' ? 'kerb' : 'wet'}{variant.weightApprox ? ' (approx. from dry)' : ''}
-            {variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}. Change anything below if yours differs.
-          </Txt>
-        </Card>
+        <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
+          <Icon name="success" size={20} colour={COLOR.state.success} />
+          <View style={{ flex: 1, gap: SPACING.xxs }}>
+            <DsText v="body">
+              {variant.make} {modelLabel(variant)} · {variant.engine} · {yearsLabel(variant)}
+            </DsText>
+            <DsText v="caption">
+              Standard figures filled in: {variant.bhp} bhp · {variant.weightKg} kg {kind === 'car' ? 'kerb' : 'wet'}{variant.weightApprox ? ' (approx. from dry)' : ''}
+              {variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}. Change anything below if yours differs.
+            </DsText>
+          </View>
+        </View>
       ) : null}
 
       <SuggestMissing
@@ -133,7 +132,7 @@ export function VehiclePicker({
         placeholder={kind === 'car' ? 'e.g. Vauxhall Astra VXR Arctic Edition' : 'e.g. Honda CBR400RR NC29'}
         context={[kind, make, model].filter(Boolean).join(' · ')}
       />
-      <Txt v="caption">Stock figures are manufacturer UK figures (PS × 0.986 = bhp).</Txt>
+      <DsText v="caption">Standard figures are the manufacturer's UK figures.</DsText>
     </View>
   );
 }
@@ -148,18 +147,34 @@ function rangeOf(vs: Variant[]): string | undefined {
 function VariantRow({ v, on, withName, onPress }: { v: Variant; on?: boolean; withName?: boolean; onPress: () => void }) {
   const line = variantLine(v);
   return (
-    <Pressable
+    <Press
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: !!on }}
-      accessibilityLabel={`${withName ? `${v.make} ${v.model}, ` : ''}${line}`}
-      style={({ pressed }) => [
-        { paddingVertical: 9, paddingHorizontal: 12, minHeight: 44, borderRadius: RADIUS.card, borderWidth: 1, borderColor: on ? STATE.selected : C.kerbHi, backgroundColor: on ? `${STATE.selected}1f` : C.tarmac },
-        pressed && { opacity: 0.8 },
-      ]}
+      haptic="select"
+      role="radio"
+      state={{ checked: !!on }}
+      label={`${withName ? `${v.make} ${v.model}, ` : ''}${line}`}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.sm,
+        paddingVertical: SPACING.sm,
+        paddingHorizontal: SPACING.md,
+        minHeight: 44,
+        borderRadius: RADII.control,
+        borderWidth: 1,
+        borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
+        backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+      }}
     >
-      {withName ? <Text style={{ fontFamily: F.bodyBold, fontSize: TYPE.body, color: on ? STATE.selected : C.chalk }}>{v.make} {v.model}</Text> : null}
-      <Text style={{ fontFamily: withName ? F.body : F.bodyBold, fontSize: withName ? TYPE.caption : TYPE.body, color: withName ? C.fog : on ? STATE.selected : C.chalk }}>{line}</Text>
-    </Pressable>
+      <View style={{ flex: 1 }}>
+        {withName ? (
+          <DsText v="bodyStrong">
+            {v.make} {v.model}
+          </DsText>
+        ) : null}
+        <DsText v={withName ? 'caption' : 'body'}>{line}</DsText>
+      </View>
+      {on ? <Icon name="check" size={18} colour={COLOR.action.selected} /> : null}
+    </Press>
   );
 }
