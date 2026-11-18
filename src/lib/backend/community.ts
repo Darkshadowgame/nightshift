@@ -74,6 +74,8 @@ export interface PostRow {
   comment_count: number;
   liked_by_me: boolean;
   hidden: boolean;
+  /** The meet it was made at (20261120100000). For a viewer who can't see that meet point yet, lat/lng is the meet's area centre and place_name is null. */
+  event_id?: string | null;
 }
 
 export interface CommentRow {
@@ -181,6 +183,7 @@ export function postFromRow(r: PostRow, sign: Signed = same): Post {
     ...(r.place_name ? { placeName: r.place_name } : {}),
     visibility: r.visibility,
     ...(r.build_id ? { buildId: r.build_id } : {}),
+    ...(r.event_id ? { eventId: r.event_id } : {}),
     createdAt: r.created_at,
     likeCount: r.like_count ?? 0,
     commentCount: r.comment_count ?? 0,
@@ -564,15 +567,16 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       const rows = await rpc<PostRow[]>('feed_posts', { p_scope: 'author', p_before: null, p_author: base[0].author_id });
       let row = (rows ?? []).find((r) => r.id === id);
       if (!row) {
-        const plain = await call<(Omit<PostRow, 'lat' | 'lng' | 'liked_by_me' | 'hidden'> & { hidden_at: string | null })[]>(
+        // The place columns can't be read directly (only through feed_posts()), so this one comes without a place.
+        const plain = await call<(Omit<PostRow, 'lat' | 'lng' | 'place_name' | 'liked_by_me' | 'hidden'> & { hidden_at: string | null })[]>(
           () =>
-            client.from('posts').select('id,author_id,body,photos,place_name,visibility,build_id,created_at,like_count,comment_count,hidden_at').eq('id', id) as unknown as PromiseLike<
-              Result<(Omit<PostRow, 'lat' | 'lng' | 'liked_by_me' | 'hidden'> & { hidden_at: string | null })[]>
+            client.from('posts').select('id,author_id,body,photos,visibility,build_id,created_at,like_count,comment_count,hidden_at').eq('id', id) as unknown as PromiseLike<
+              Result<(Omit<PostRow, 'lat' | 'lng' | 'place_name' | 'liked_by_me' | 'hidden'> & { hidden_at: string | null })[]>
             >,
         );
         const likes = await call<{ post_id: string }[]>(() => client.from('post_likes').select('post_id').eq('post_id', id) as unknown as PromiseLike<Result<{ post_id: string }[]>>);
         if (!plain?.length) return null;
-        row = { ...plain[0], lat: null, lng: null, liked_by_me: (likes ?? []).length > 0, hidden: !!plain[0].hidden_at };
+        row = { ...plain[0], lat: null, lng: null, place_name: null, liked_by_me: (likes ?? []).length > 0, hidden: !!plain[0].hidden_at };
       }
       const [post] = await postsWithPhotos([row]);
       const comments = await call<CommentRow[]>(() =>
