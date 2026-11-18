@@ -27,7 +27,16 @@ const DAY = 86_400_000;
 describe('moderation (mirrors private.text_problem)', () => {
   it('has every word the server has, and the server has every word here', () => {
     const block = MIGRATION.slice(MIGRATION.indexOf('insert into private.banned_terms'), MIGRATION.indexOf('-- Lower case, the usual swaps'));
-    const sqlTerms = Array.from(block.matchAll(/\('([a-z ]+)'\)/g)).map((m) => m[1]);
+    let sqlTerms = Array.from(block.matchAll(/\('([a-z ]+)'\)/g)).map((m) => m[1]);
+    // Later migrations that take words off the list ("delete from private.banned_terms … in (…)").
+    const dir = require('path').join(__dirname, '..', 'supabase', 'migrations');
+    for (const f of require('fs').readdirSync(dir).sort()) {
+      const sql: string = require('fs').readFileSync(require('path').join(dir, f), 'utf8');
+      for (const m of sql.matchAll(/delete from private\.banned_terms[\s\S]*?in \(([^)]*)\)/g)) {
+        const gone = Array.from(m[1].matchAll(/'([a-z ]+)'/g)).map((x) => x[1]);
+        sqlTerms = sqlTerms.filter((t) => !gone.includes(t));
+      }
+    }
     expect([...sqlTerms].sort()).toEqual([...BANNED_TERMS].sort());
   });
   it('the SQL normalises with the same swaps', () => {
@@ -40,7 +49,8 @@ describe('moderation (mirrors private.text_problem)', () => {
   });
   it('catches listed words on whole words only', () => {
     expect(textProblem('what a cunt')).toBe(TEXT_PROBLEMS.words);
-    expect(textProblem('F.U.C.K that')).toBe(TEXT_PROBLEMS.words);
+    expect(textProblem('C.U.N.T')).toBe(TEXT_PROBLEMS.words);
+    expect(textProblem("My turbo's fucked")).toBeNull();
     expect(textProblem('Scunthorpe meet was good')).toBeNull();
     expect(textProblem('Small niggle with the gearbox')).toBeNull();
     expect(textProblem('Ignition retard and tranny fluid')).toBeNull();

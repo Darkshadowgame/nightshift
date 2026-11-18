@@ -19,8 +19,7 @@ export const BANNED_TERMS: readonly string[] = [
   'gook', 'gooks', 'spic', 'spics', 'kike', 'kikes', 'wog', 'wogs', 'coon', 'coons',
   'raghead', 'ragheads', 'towelhead', 'towelheads', 'gypo', 'gyppo', 'pikey', 'pikeys',
   'faggot', 'faggots', 'dyke', 'dykes',
-  'cunt', 'cunts', 'fuck', 'fucks', 'fucking', 'fucked', 'fucker', 'fuckers',
-  'motherfucker', 'motherfuckers', 'whore', 'whores', 'slut', 'sluts',
+  'cunt', 'cunts', 'whore', 'whores', 'slut', 'sluts',
 ];
 
 export const TEXT_PROBLEMS = {

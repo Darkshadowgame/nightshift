@@ -394,7 +394,7 @@ select lives_ok(format($$ select public.like_post(%L, true) $$, current_setting(
 select lives_ok(format($$ select public.like_post(%L, true) $$, current_setting('t.post')), 'like_post: twice counts once');
 select is((select like_count || ':' || liked_by_me from public.feed_posts('local') where id = current_setting('t.post')::uuid), '1:true', 'like_post: counted, and liked by me');
 select lives_ok(format($$ select public.comment_post(%L, 'Proper shot that') $$, current_setting('t.post')), 'comment_post: D comments');
-select throws_ok(format($$ select public.comment_post(%L, 'fuck off') $$, current_setting('t.post')), 'P0001',
+select throws_ok(format($$ select public.comment_post(%L, 'what a cunt') $$, current_setting('t.post')), 'P0001',
   'Keep it friendly: that has a word Nightshift doesn''t allow.', 'comment_post: the word filter');
 select is((select comment_count from public.posts where id = current_setting('t.post')::uuid), 1, 'comment_post: counted');
 select lives_ok(format($$ select public.report_content('post', %L, 'spam') $$, current_setting('t.post')), 'report_content: posts can be reported');
