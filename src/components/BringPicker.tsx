@@ -1,13 +1,69 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { buildTag } from '../lib/bringing';
 import { classOf } from '../lib/classes';
+import { photoUri } from '../lib/photos';
 import type { Build } from '../lib/types';
-import { BRAND, C, RADIUS, STATE } from '../theme';
-import { Button, Card, ClassBadge, Row, Txt } from './ui';
+import { COLOR, RADII, SPACING } from '../theme';
+import { BuildThumb, Button, ClassBadge, DsText, Press } from './ds';
+
+/** Which build: thumb, class, "Make Model", its tag, and whether the invite covers it. One radio row. */
+export function BuildOption({ build, on, fits, locked, onPress }: { build: Build; on: boolean; fits: boolean; locked?: boolean; onPress?: () => void }) {
+  const tag = buildTag(build);
+  return (
+    <Press
+      onPress={onPress}
+      disabled={locked || !onPress}
+      haptic="select"
+      role="radio"
+      state={{ checked: on, disabled: !!locked }}
+      label={`${build.make} ${build.model}, class ${classOf(build)}${tag ? `, ${tag}` : ''}${fits ? '' : ", doesn't match the invite"}`}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.md,
+        padding: SPACING.sm,
+        minHeight: 56,
+        borderRadius: RADII.control,
+        borderWidth: 1,
+        borderStyle: locked ? 'dashed' : 'solid',
+        borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
+        backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+      }}
+    >
+      <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} size={36} />
+      <View style={{ flex: 1, gap: SPACING.xxs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <ClassBadge letter={classOf(build)} size="sm" decorative />
+          <DsText v="body" numberOfLines={1} tone={locked ? 'secondary' : 'primary'} style={{ flexShrink: 1 }}>
+            {build.make} {build.model}
+          </DsText>
+        </View>
+        {tag || build.nickname ? (
+          <DsText v="meta" numberOfLines={1}>
+            {[tag, build.nickname].filter(Boolean).join(' · ')}
+          </DsText>
+        ) : null}
+        {fits ? null : (
+          <DsText v="caption" tone="warning">
+            Doesn't match the invite
+          </DsText>
+        )}
+      </View>
+      {onPress ? (
+        <View
+          style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong, alignItems: 'center', justifyContent: 'center' }}
+        >
+          {on ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: COLOR.action.selected }} /> : null}
+        </View>
+      ) : null}
+    </Press>
+  );
+}
 
 /**
- * Pick which of your builds you're bringing. Builds the invite doesn't cover
- * are shown and marked; `lockUnfit` (at check-in) makes them unpickable.
+ * Pick which of your builds you're bringing, inline on the event. Builds the invite doesn't cover
+ * are shown and marked; `lockUnfit` (at check-in) makes them unpickable. The confirm button is the
+ * page's primary action while the picker is open.
  */
 export function BringPicker({
   title,
@@ -20,6 +76,7 @@ export function BringPicker({
   onConfirm,
   onCancel,
   lockUnfit,
+  busy,
 }: {
   title: string;
   builds: Build[];
@@ -32,50 +89,24 @@ export function BringPicker({
   onConfirm: () => void;
   onCancel: () => void;
   lockUnfit?: boolean;
+  busy?: boolean;
 }) {
   return (
-    <Card accent={BRAND}>
-      <Txt v="eyebrow">{title}</Txt>
-      <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
+    <View style={{ gap: SPACING.md }}>
+      <DsText v="label">{title}</DsText>
+      <View accessibilityRole="radiogroup" accessibilityLabel={title} style={{ gap: SPACING.sm }}>
         {builds.map((b) => {
-          const on = b.id === picked;
           const ok = fits(b);
-          const locked = lockUnfit && !ok;
-          const tag = buildTag(b);
-          return (
-            <Pressable
-              key={b.id}
-              onPress={() => onPick(b.id)}
-              disabled={locked}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: on, disabled: !!locked }}
-              accessibilityLabel={`${b.make} ${b.model}, class ${classOf(b)}${tag ? `, ${tag}` : ''}${ok ? '' : ", doesn't match the invite"}`}
-              style={({ pressed }) => [
-                {
-                  flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minHeight: 44, borderRadius: RADIUS.card, borderWidth: 1,
-                  borderColor: on ? BRAND : C.kerbHi, backgroundColor: on ? `${BRAND}1f` : locked ? C.asphalt : C.tarmac,
-                },
-                locked && { borderStyle: 'dashed' },
-                pressed && !locked && { opacity: 0.8 },
-              ]}
-            >
-              <ClassBadge letter={classOf(b)} size="sm" />
-              <View style={{ flex: 1 }}>
-                <Txt numberOfLines={1} style={locked ? { color: C.fog } : undefined}>{b.make} {b.model}</Txt>
-                {tag ? <Txt v="label" style={{ color: C.chalk }} numberOfLines={1}>{tag}</Txt> : null}
-                {b.nickname ? <Txt v="caption" numberOfLines={1}>{b.nickname}</Txt> : null}
-                {ok ? null : <Txt v="micro" style={{ color: STATE.warning }}>Doesn't match the invite</Txt>}
-              </View>
-              <Txt v="label" style={{ color: on ? BRAND : C.fog }}>{on ? '● ' : '○ '}</Txt>
-            </Pressable>
-          );
+          return <BuildOption key={b.id} build={b} on={b.id === picked} fits={ok} locked={lockUnfit && !ok} onPress={() => onPick(b.id)} />;
         })}
       </View>
-      {note ? <Txt v="caption" accessibilityLiveRegion="polite">{note}</Txt> : null}
-      <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label={confirmLabel} style={{ flex: 1 }} disabled={!picked} onPress={onConfirm} />
-        <Button label="Not now" kind="secondary" onPress={onCancel} />
-      </Row>
-    </Card>
+      {note ? (
+        <DsText v="caption" accessibilityLiveRegion="polite">
+          {note}
+        </DsText>
+      ) : null}
+      <Button label={confirmLabel} size="lg" block disabled={!picked} hint="Pick one first" busy={busy} onPress={onConfirm} />
+      <Button label="Not now" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={onCancel} />
+    </View>
   );
 }
