@@ -149,6 +149,10 @@ export default function TonightScreen() {
   // ---------------------------------------------------------------------------
   const map = useRef<NightMapHandle>(null);
   const [view, setView] = useState<{ centre: LatLng; span: number; key: number; fit?: boolean } | null>(null);
+  // The first view fits tonight's meets until you touch the map: after any tap (a pin, a cluster, a
+  // card, the map) it never re-fits on its own, or picking something small zoomed right out (owner,
+  // 18 Nov: the sheet's peek changes when a card shows, which re-ran the fit).
+  const autoFit = useRef(true);
   const [region, setRegionNow] = useState<MapRegion>({ centre: meUser?.home ?? START, span: START_SPAN });
   const regionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setRegion = useCallback((r: MapRegion) => {
@@ -165,6 +169,7 @@ export default function TonightScreen() {
   const [here, setHere] = useState<LatLng | null>(null);
   const [locNote, setLocNote] = useState<string | null>(null);
   async function locate(ask: boolean, explicit: boolean) {
+    if (explicit) autoFit.current = false;
     // A browser that never answers the location prompt still gets an answer (C6, Review 14).
     const pos = await Promise.race([
       currentPosition(ask),
@@ -319,6 +324,7 @@ export default function TonightScreen() {
   }, [views, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span]);
 
   function zoomCluster(id: string) {
+    autoFit.current = false;
     const c = placeView.clusters.find((x) => x.id === id) ?? eventClusters.current.find((x) => x.id === id);
     if (!c) return;
     feel.select();
@@ -361,6 +367,7 @@ export default function TonightScreen() {
     [views, places, pins],
   );
   function show(id: string, zoom = true, onlyIfHidden = false) {
+    autoFit.current = false;
     feel.select();
     setMode('map');
     setSelected(id);
@@ -387,8 +394,9 @@ export default function TonightScreen() {
   const fitSig = fitPoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|');
   const mapPadding = useMemo<MapPadding>(() => ({ top: FIT_TOP, bottom: peek + sheetTop }), [peek, sheetTop]);
   useEffect(() => {
-    if (!ready || !box.h || params.focus || (view && !view.fit)) return;
+    if (!ready || !box.h || params.focus || !autoFit.current || (view && !view.fit)) return;
     const t = setTimeout(() => {
+      if (!autoFit.current) return;
       const r = fitRegion(fitPoints, meUser?.home ?? START);
       setView((x) => (x && !x.fit ? x : { ...r, fit: true, key: (x?.key ?? 0) + 1 }));
     }, 150);
@@ -400,6 +408,7 @@ export default function TonightScreen() {
     if (params.focus && ready) showRef.current(params.focus);
   }, [params.focus, params.t, ready]);
   const onSelectPin = useCallback((id: string) => {
+    autoFit.current = false;
     if (id.startsWith('cl:')) zoomClusterRef.current(id);
     else showRef.current(id, false, true);
   }, []);
@@ -408,6 +417,7 @@ export default function TonightScreen() {
     setDetent('peek');
   }, []);
   const onMapPress = useCallback(() => {
+    autoFit.current = false;
     if (selectedRef.current) close();
   }, [close]);
 
