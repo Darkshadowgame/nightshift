@@ -68,11 +68,15 @@ export function BuildCard({ build, now, onPress, action, aspect }: { build: Buil
   );
 }
 
-/** The four kinds of part (Redesign 2, 3.9): the Add a mod sheet's segments and the build page's mod groups. */
+/**
+ * The four kinds of part (Redesign 2, 3.9): the Add a mod sheet's segments and the build page's mod
+ * groups. "Chassis" (suspension and brakes) rather than "Suspension", so the four segments stay one
+ * row at 1.3x text on a 375 pt phone (Review 15 problem 10).
+ */
 export type ModSection = 'engine' | 'suspension' | 'wheels' | 'looks';
 export const MOD_SECTIONS: { key: ModSection; label: string }[] = [
   { key: 'engine', label: 'Engine' },
-  { key: 'suspension', label: 'Suspension' },
+  { key: 'suspension', label: 'Chassis' },
   { key: 'wheels', label: 'Wheels' },
   { key: 'looks', label: 'Looks' },
 ];

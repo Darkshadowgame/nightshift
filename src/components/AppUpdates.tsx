@@ -15,7 +15,7 @@ export function versionLine(): string {
   const build = process.env.EXPO_PUBLIC_BUILD_NUMBER;
   if (Updates.updateId && update) return `Nightshift ${update}`;
   if (build) return `Nightshift build ${build} (built-in)`;
-  return `Nightshift ${Constants.expoConfig?.version ?? '1.0.0'} (preview)`;
+  return `Nightshift ${Constants.expoConfig?.version ?? '1.0.0'}`;
 }
 
 /**
@@ -54,10 +54,13 @@ export function AppUpdates() {
   }
 
   if (state === 'ready') return <Button label="Restart to update" block onPress={() => Updates.reloadAsync()} />;
+  // Where updates can't be checked (the web preview), there's nothing to offer: no disabled button
+  // and no note about another platform (4.3; Review 15 problem 15).
+  if (!enabled) return null;
   return (
     <View style={{ gap: SPACING.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-        <Button label="Check for updates" tier="secondary" size="sm" busy={state === 'checking'} disabled={!enabled} hint="Updates work in the installed iPhone app, not in this preview." onPress={check} />
+        <Button label="Check for updates" tier="secondary" size="sm" busy={state === 'checking'} onPress={check} />
         {state === 'none' ? <Tag label="Up to date" tone="success" /> : null}
       </View>
       {state === 'error' ? <ErrorState title={`Couldn't check: ${error ?? 'try again later'}`} onRetry={check} /> : null}

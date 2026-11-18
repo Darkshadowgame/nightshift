@@ -9,7 +9,7 @@ import { LadderSheet } from '../../components/LadderSheet';
 import { NoticeBell } from '../../components/NoticeBell';
 import { useRep } from '../../components/Rep';
 import { statusTag } from '../../components/TonightCards';
-import { allAwards, categoryInfo } from '../../lib/awards';
+import { allAwards, categoryInfo, votingCloses } from '../../lib/awards';
 import { lastBrought } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
@@ -64,7 +64,8 @@ const DEMO_RESULTS_EVENT = 'ev-past-snowdome';
  * Settings is the gear in the header only (REVIEW-12 #6; said once, C5).
  */
 export default function Me() {
-  const { users, me, crews, builds, events, votes } = useStore();
+  const store = useStore();
+  const { users, me, crews, builds, events, votes } = store;
   const now = useNow();
   const rep = useRep(me);
   const [ladder, setLadder] = useState(false);
@@ -84,6 +85,13 @@ export default function Me() {
   const hosted = events.filter((e) => host(e) && phaseOf(e, now) !== 'cancelled').length;
   const results = events.find((e) => e.id === DEMO_RESULTS_EVENT && phaseOf(e, now) === 'over' && !past.some((x) => x.id === e.id));
   const pastShown = [...past.slice(0, 5), ...(results ? [results] : [])];
+  const atMeets = events.filter((e) => checkedIn(e) && !e.cancelled);
+  const decided = atMeets.some((e) => now >= votingCloses(e) || (store.backend === 'local' && votes.some((v) => v.eventId === e.id && v.voterId === me)));
+  const trophyHint = decided
+    ? "Not this time. Trophies go to the builds the people at a meet vote for."
+    : atMeets.length
+      ? 'Winners show here when the voting at your meets ends.'
+      : 'Check in at a meet, and the people there vote for the best builds.';
   const timeOf = (e: (typeof events)[number]) => eventTimeLabel(e.startsAt, endTime(e), now);
 
   return (
@@ -180,8 +188,10 @@ export default function Me() {
         {myAwards.length === 0 ? (
           <EmptyState
             variant="inline"
-            // Said for where you are (Review 14): once you've checked in, the next step is the vote, not "check in".
-            title={events.some((e) => checkedIn(e)) ? 'None yet. Winners show here when the voting at your meets ends.' : 'None yet. Check in at a meet, and the people there vote for the best builds.'}
+            // Said for where you are (Reviews 14 and 15): before a check-in, how trophies work; after one,
+            // when they come; once a meet you were at has its results (on the demo night, once you've
+            // voted), that this time it wasn't you.
+            title={trophyHint}
           />
         ) : null}
         {covers.length ? (

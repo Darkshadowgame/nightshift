@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FlatList, Image, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
-import { at, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { at, mainBuild, openProfile, openReport, OptionsSheet, PersonRow, personMark, type SheetOption } from '../../components/Community';
+import { ownBuilds } from '../../lib/bringing';
 import { INPUT } from '../../components/ComposerParts';
 import { ActionBar, Avatar, Button, DsText, ErrorState, HeaderActions, IconButton, LoadingState, Press, screenHeader, useToast } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
@@ -22,7 +23,7 @@ const TOAST_ROOM = 76;
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { users } = useStore();
+  const { users, builds } = useStore();
   const community = useCommunity();
   const toast = useToast();
   const now = useNow();
@@ -90,8 +91,10 @@ export default function ChatScreen() {
             ...(other ? [{ label: 'Block', danger: true, onPress: () => openReport('block', other, other) }] : []),
             { label: 'Delete chat', danger: true, onPress: () => community.run((s) => s.leave(id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) },
           ];
-    // A chat's title is content (a handle or a group name): sentence case, never shouted.
-    nav.setOptions({ ...screenHeader({ title, content: true }), headerRight: () => <HeaderActions onMenu={() => setMenu(options)} /> });
+    // 4.1 and K3 (Review 15): a group chat is titled with its name in caps, like any titled screen.
+    // A 1-to-1 chat has no header title: the person shows as a person row (avatar, @handle, their
+    // build) pinned at the top of the thread, never a bare "@handle" title.
+    nav.setOptions({ ...screenHeader({ title: conv.kind === 'group' ? title : '' }), headerRight: () => <HeaderActions onMenu={() => setMenu(options)} /> });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav, conv?.id, conv?.name, conv?.memberIds.length, other, users.length]);
 
@@ -189,8 +192,14 @@ export default function ChatScreen() {
     );
   };
 
+  const person = conv.kind === 'direct' && other ? users.find((u) => u.id === other) : undefined;
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      {person ? (
+        <View style={{ paddingHorizontal: SPACING.screen, borderBottomWidth: 1, borderBottomColor: COLOR.surface.raisedHi }}>
+          <PersonRow user={person} build={mainBuild(ownBuilds(person.id, builds))} onPress={() => openProfile(person.id)} />
+        </View>
+      ) : null}
       <FlatList
         ref={list}
         data={rows}

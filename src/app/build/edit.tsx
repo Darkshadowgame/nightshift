@@ -362,8 +362,8 @@ export default function EditBuild() {
         <Section title="4 · Photos and colour">
           <PhotoManager photos={photos} onChange={setPhotos} onError={setError} saveLater />
           <DsText v="caption">
-            Crop as you add, then tap a photo to crop it again, set the cover (first photo) or move it. Number plates are blurred on your phone before a photo is saved, and location data is removed.
-            {plateRedactorAvailable ? '' : ' (Automatic plate detection only works in the iPhone app.)'}
+            Crop as you add, then tap a photo to crop it again, set the cover (first photo) or move it.
+            {plateRedactorAvailable ? ' Number plates are blurred on your phone before a photo is saved, and location data is removed.' : ' Crop out any readable number plate. Location data is removed.'}
           </DsText>
           <DsText v="label">Card colour</DsText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }} accessibilityLabel="Card colour">

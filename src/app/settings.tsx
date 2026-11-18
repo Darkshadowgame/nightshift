@@ -135,9 +135,8 @@ export default function SettingsScreen() {
           }}
         />
         {error?.at === 'travel' ? <ErrorState title={error.text} /> : null}
-        {!notificationsSupported ? (
-          <DsText v="caption">On the web, these show under the bell only.</DsText>
-        ) : allowed === false && (settings.reminders || travel.alerts === 'notify') ? (
+        {/* Without phone notifications they simply show under the bell: no platform note (Review 15). */}
+        {!notificationsSupported ? null : allowed === false && (settings.reminders || travel.alerts === 'notify') ? (
           <View style={{ gap: SPACING.sm }}>
             <DsText v="caption" tone="warning">Notifications are off for Nightshift, so these show under the bell only.</DsText>
             <Button label="Allow notifications" tier="secondary" size="sm" onPress={allow} />

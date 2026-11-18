@@ -2,7 +2,7 @@ import { carShape } from '../../lib/buildShape';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { BuildRow, buildLine, buildMeta, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { BuildRow, buildLine, buildMeta, mainBuild, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { PostList } from '../../components/CommunityFeed';
 import { PaintedArt } from '../../components/BuildArt';
 import { useIsDemo } from '../../components/BuildBits';
@@ -10,21 +10,16 @@ import { buildPicture } from '../../lib/similarPhoto';
 import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PhotoCard, RowDivider, Section, metaLine, useToast, type ActionBarButton } from '../../components/ds';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { allAwards, categoryInfo } from '../../lib/awards';
-import { classOf, effectivePower } from '../../lib/classes';
+import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { CONNECT } from '../../lib/connections';
 import { publicProfile } from '../../lib/people';
 import { useStore } from '../../lib/store';
-import type { Build } from '../../lib/types';
 import { ASPECT, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { photoSource } from '../../lib/photoSource';
-
-/** The build with the most to look at: a photo first, then the most power. */
-function coverBuild(builds: Build[]): Build | undefined {
-  return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]) || effectivePower(b) - effectivePower(a))[0];
-}
+import { openChat } from '../../lib/openChat';
 
 /**
  * Someone's profile, or yours (Redesign 2, 3.7; T3): a Hero from their best build, @handle and
@@ -70,7 +65,7 @@ export default function UserScreen() {
   }, [nav, p?.id, isMe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!p) return <NotFoundState what="Profile" message="This person isn't on Nightshift any more." />;
-  const cover = coverBuild(p.builds);
+  const cover = mainBuild(p.builds);
   const handle = `@${p.handle}`;
   const coverPic = cover ? buildPicture(cover, demo) : null;
   const coverPhoto = coverPic?.ref;
@@ -86,7 +81,8 @@ export default function UserScreen() {
     ...moderateOptions(id),
   ];
 
-  const message = () => act(async () => router.push({ pathname: '/chat/[id]', params: { id: await community.run((s) => s.startDirect(id)) } }));
+  // The chat takes the profile's place (and the going list's), so back goes to where you started (Review 15).
+  const message = () => act(async () => openChat(await community.run((s) => s.startDirect(id)), nav.getState() as Parameters<typeof openChat>[1]));
   const connect = () =>
     act(async () => {
       const r = await community.run((s) => s.requestConnection(id));

@@ -110,7 +110,6 @@ export function PhotoManager({
           ) : null}
           <DsText v="caption">
             Edits work on the saved photo. Originals aren't kept, so blurred plates stay blurred and a crop can't be undone later.
-            {plateRedactorAvailable ? '' : ' (Re-checking plates needs the iPhone app.)'}
           </DsText>
         </View>
       ) : null}

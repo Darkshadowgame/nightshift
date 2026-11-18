@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Image, View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
-import { classOf } from '../lib/classes';
+import { classOf, effectivePower } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
 import { plural } from '../lib/format';
@@ -177,6 +177,11 @@ export function PersonNearRow({ card, state }: { card: Card_; state: ConnectionS
       accessibilityLabel={metaLine([at(card.user), b ? `${b.make} ${b.model}, class ${classOf(b)}, ${powerText(b)}` : 'no car or bike yet', distanceLabel(card.miles), connectWord(state)])}
     />
   );
+}
+
+/** Someone's main build, the one their profile leads with: a photo first, then the most power. */
+export function mainBuild(builds: readonly Build[]): Build | undefined {
+  return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]) || effectivePower(b) - effectivePower(a))[0];
 }
 
 /** A person's row anywhere else (connections, a chat's members): avatar, @handle, their build. */
