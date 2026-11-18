@@ -422,11 +422,11 @@ export function EventForm({
 
   const whenStep = (
     <>
-      <ChoiceGroup label="Day" options={dayChoices.map((d, i) => ({ key: String(i), label: d.label }))} value={String(Math.min(day, dayChoices.length - 1))} onChange={(k) => setDay(Number(k))} />
+      <ChoiceGroup chips label="Day" options={dayChoices.map((d, i) => ({ key: String(i), label: d.label }))} value={String(Math.min(day, dayChoices.length - 1))} onChange={(k) => setDay(Number(k))} />
       <Button label="Pick a date" icon="plus" tier="tertiary" size="sm" onPress={() => setPickDateOpen(true)} accessibilityLabel="Pick any date in the next 60 days" style={{ alignSelf: 'flex-start' }} />
       <ChoiceGroup label="Start time" options={quickTimes.map((t) => ({ key: t.time, label: t.label }))} value={time} onChange={setTime} />
       <Button label="Other time" icon="plus" tier="tertiary" size="sm" onPress={() => setTimeSheet('start')} accessibilityLabel="Pick any start time, in 15-minute steps" style={{ alignSelf: 'flex-start' }} />
-      <ChoiceGroup label="End time (optional)" options={endOptions} value={endTime ?? 'none'} onChange={(k) => setEndTime(k === 'none' ? null : k)} />
+      <ChoiceGroup chips label="End time (optional)" options={endOptions} value={endTime ?? 'none'} onChange={(k) => setEndTime(k === 'none' ? null : k)} />
       <Button label="Other end time" icon="plus" tier="tertiary" size="sm" onPress={() => setTimeSheet('end')} style={{ alignSelf: 'flex-start' }} />
       {chosen.ok ? <DsText v="bodyStrong">Starts {startText}</DsText> : <ErrorState title={chosen.reason} />}
       {!isPublicType(type) ? (

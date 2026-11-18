@@ -174,14 +174,17 @@ export function ChoiceGroup<K extends string>({
   value,
   onChange,
   layout = 'pills',
+  chips = false,
 }: {
   label: string;
   options: { key: K; label: string; hint?: string }[];
   value: K | null;
   onChange: (key: K) => void;
   layout?: 'pills' | 'list';
+  /** Always chips: for a row that can grow past four (a picked date, a custom end), so it never changes look. */
+  chips?: boolean;
 }) {
-  const segmented = layout === 'pills' && value !== null && options.length >= 2 && options.length <= 4 && options.every((o) => !o.hint && o.label.length <= SEGMENT_MAX);
+  const segmented = !chips && layout === 'pills' && value !== null && options.length >= 2 && options.length <= 4 && options.every((o) => !o.hint && o.label.length <= SEGMENT_MAX);
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ gap: SPACING.sm }}>
       {label ? <DsText v="label">{label}</DsText> : null}

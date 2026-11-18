@@ -1,3 +1,4 @@
+import { modCount } from '../../lib/modGroups';
 import { carShape } from '../../lib/buildShape';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -709,7 +710,7 @@ export default function EventScreen() {
                       <ListRow
                         leading={{ avatar: { name: u?.name, handle: u?.handle } }}
                         title={userLabel(uid)}
-                        subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)} · ${plural(b.mods.length, 'mod')}` : 'No car or bike'}
+                        subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)} · ${plural(modCount(b.mods), 'mod')}` : 'No car or bike'}
                         meta={b && !fitsInvite(ev, b) ? "Doesn't match the invite" : undefined}
                         onPress={() => openUser(uid)}
                       />
