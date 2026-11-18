@@ -87,7 +87,7 @@ export function remindersFor(event: NightEvent, me: string, crews: Crew[]): Remi
         event,
         'reveal',
         reveal,
-        `${event.title}: location unlocked`,
+        `${event.title}: stop unlocked`,
         host
           ? `People going can now see where your ${label} is.`
           : `Open Nightshift to see where the ${label} is. Starts ${formatTime(event.startsAt)}.`,
@@ -104,7 +104,7 @@ export function remindersFor(event: NightEvent, me: string, crews: Crew[]): Remi
         ? `Check-in is open. ${event.areaName}.`
         : isPublicType(event.type) || event.revealMinutesBefore >= SOON_MINUTES
           ? `Check-in is open. ${event.areaName}.`
-          : `Location unlocked and check-in is open. ${event.areaName}.`,
+          : `The stop is unlocked and check-in is open. ${event.areaName}.`,
     ),
   );
   return out;

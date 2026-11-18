@@ -42,6 +42,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/feedback_test.sql` | pgTAP: feedback sending, reading (own and staff), the screenshot bucket, the flood guard (33 checks) |
 | `supabase/tests/feedback_triage_test.sql` | pgTAP: the form's fields, a retry can't duplicate, senders read their own (not the notes), `feedback_status()` by id signed out, staff-only triage, `handled_at`, the email trigger queues a call (37 checks) |
 | `supabase/tests/vehicles_test.sql` | pgTAP: what you're bringing: own builds only, going vs asking per build, changing it, check-in, awards from brought builds, the garage columns (42 checks) |
+| `supabase/tests/check_in_vehicle_test.sql` | pgTAP: `check_in()` records a fitting build when none was on record and never refuses for it, still refuses someone else's build and a change once one is set; reminder wording "stop unlocked" (10 checks) |
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
 | `supabase/tests/bundled_places_test.sql` | pgTAP: bundled ids (unique, format, no author), nobody signed in can add, change or delete one, finishing (with the road's own limit), visiting and rating one through the RPCs, `spot_stats` and `place_rep_for` the same for others, signed out refused (30 checks) |
@@ -897,6 +898,19 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   storage check in `community_test.sql` after `20261118000000_message_photos_own.sql`).
 * **Smoke test:** 106 of 106 (adds: a block hides the blocker's view of event chat, an event
   reported, a suspension stops a new thread and `my_moderation_status()` says so).
+
+### 7a-8. What's live (18 Nov 2026, check-in with no vehicle on record)
+
+* **Migration** `20261118170000_check_in_vehicle_reminder_words.sql` pushed with `db push --remote --yes`
+  (checked first inside a rolled-back transaction with its test). `check_in()` now matches `checkIn()` in
+  `src/lib/events.ts` (REVIEW-6-perf.md item 14): checked in before with no build on record, a build the
+  invite covers is recorded and one it doesn't is ignored, never refused. The reveal reminder says
+  "{title}: stop unlocked" and the 30-minute one "The stop is unlocked and check-in is open" (glossary).
+* **pgTAP:** 623 of 623 on the hosted database (adds `check_in_vehicle_test.sql`, 10).
+* **Smoke test:** 106 of 106. One earlier run hit a transient `deadlock detected` and one lost notices,
+  feedback and Realtime reads at the same time as other work on the project; the next run passed in full.
+* Note: another branch applied `20261118140000_report_reason_sell_only` live before its file reached
+  main, so `db push` refuses until that file is in the local folder (a copy of its one statement works).
 
 ### 7c. The smoke test
 
