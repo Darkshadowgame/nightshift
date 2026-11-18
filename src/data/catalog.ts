@@ -30,11 +30,15 @@ export function modCategoryShort(key: ModCategory): string {
   return MOD_CATEGORIES.find((c) => c.key === key)?.short ?? 'OTHER';
 }
 
-/** Brands offered as quick picks in the invite filter. */
-export const FILTER_BRANDS = [
-  'Volkswagen', 'Audi', 'BMW', 'Ford', 'Honda', 'Toyota', 'Nissan', 'Subaru', 'Mercedes', 'Vauxhall',
-  'Yamaha', 'Kawasaki', 'Suzuki', 'Ducati', 'Triumph',
+/**
+ * The invite filter's common makes, shown first; search finds every make in the vehicle data
+ * (brands.ts). Spelt as the vehicle data spells them, so they match people's builds.
+ */
+export const COMMON_CAR_MAKES = [
+  'Volkswagen', 'Ford', 'BMW', 'Audi', 'Vauxhall', 'Honda', 'Toyota', 'Mercedes', 'Nissan', 'Hyundai', 'Kia', 'Mazda',
+  'Mini', 'Peugeot', 'Renault', 'SEAT', 'Cupra', 'Skoda', 'Subaru', 'Porsche', 'Citroen',
 ];
+export const COMMON_BIKE_MAKES = ['Yamaha', 'Honda', 'Kawasaki', 'Suzuki', 'Triumph', 'Ducati', 'BMW', 'KTM', 'Aprilia'];
 
 // ---------------------------------------------------------------------------
 // Quick-pick mods

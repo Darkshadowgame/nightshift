@@ -2,7 +2,9 @@ import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Avatar, Button, DsText, EmptyState, ListRow, RowDivider, Section, Tag, metaLine } from '../../components/ds';
 import { useRep } from '../../components/Rep';
-import { allAwards, categoryInfo, hasLegend } from '../../lib/awards';
+import { allAwards, categoryInfo } from '../../lib/awards';
+import { EVENT_LABELS, isHost, phaseOf } from '../../lib/events';
+import { levelLabel, levelName } from '../../lib/rep';
 import { formatWhen, plural } from '../../lib/format';
 import { PLACE_NAMES, SCREEN_TITLES } from '../../lib/glossary';
 import { useStore } from '../../lib/store';
@@ -10,8 +12,8 @@ import { useNow } from '../../lib/clock';
 import { COLOR, SPACING, SPOT_COLOURS } from '../../theme';
 
 /**
- * Me: who you are, in one screen. Profile (avatar, handle, level, crew),
- * trophies and your places, then Settings, feedback and how the app works.
+ * Me: who you are, in one screen. Profile (avatar, handle, level, crew), your events
+ * (going, hosting, past), trophies and your places, then Settings, feedback and how the app works.
  * Every setting lives on the one Settings screen.
  */
 export default function Me() {
@@ -24,6 +26,13 @@ export default function Me() {
   const crew = crews.find((c) => c.id === user?.crewId);
   const mySpots = spots.filter((x) => x.authorId === me);
   const myBuilds = builds.filter((b) => b.ownerId === me);
+  // Your events (REVIEW-9): hosting and going (soonest first), then the ones you went to.
+  const start = (iso: string) => new Date(iso).getTime();
+  const mineEvents = events.filter((e) => isHost(e, me, crews) || e.going.includes(me) || (e.checkIns[me] ?? []).length > 0);
+  const upcoming = mineEvents.filter((e) => { const p = phaseOf(e, now); return p !== 'over' && p !== 'cancelled'; }).sort((a, b) => start(a.startsAt) - start(b.startsAt));
+  const past = mineEvents.filter((e) => phaseOf(e, now) === 'over' && ((e.checkIns[me] ?? []).length > 0 || isHost(e, me, crews))).sort((a, b) => start(b.startsAt) - start(a.startsAt));
+  const checkedInAnywhere = events.some((e) => (e.checkIns[me] ?? []).length > 0);
+  const nextLevel = rep.level.level + 1;
 
   return (
     <ScrollView contentContainerStyle={st.page}>
@@ -35,8 +44,9 @@ export default function Me() {
           </DsText>
           {user?.name && user.name !== user.handle ? <DsText v="secondary">{user.name}</DsText> : null}
           {/* The level as a plain fact: not an action, so not sodium (DESIGN-SYSTEM rule 11). */}
-          <DsText v="meta">{metaLine([`Level ${rep.level.level}`, `${rep.ledger.total.toLocaleString('en-GB')} rep`, plural(myBuilds.length, 'build')])}</DsText>
-          {hasLegend(awards, me, now) ? <Tag label="Legend this week" tone="selected" /> : null}
+          <DsText v="meta">{metaLine([levelLabel(rep.level.level), plural(myBuilds.length, 'build')])}</DsText>
+          {/* One ladder (REVIEW-9 decision 14): rep is the points, the level is where they put you. */}
+          <DsText v="meta">{`${rep.ledger.total.toLocaleString('en-GB')} rep · ${(rep.level.next - rep.level.rep).toLocaleString('en-GB')} to Level ${nextLevel} (${levelName(nextLevel)})`}</DsText>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
@@ -56,9 +66,38 @@ export default function Me() {
         )}
       </Section>
 
+      <Section title="Your events" right={<Button label="Find more" tier="tertiary" size="sm" onPress={() => router.push({ pathname: '/', params: { view: 'list', t: String(Date.now()) } })} />}>
+        {upcoming.length === 0 && past.length === 0 ? (
+          <EmptyState variant="inline" title="Nothing yet. Say you're going to something on Tonight, or host one." />
+        ) : null}
+        {upcoming.map((e) => (
+          <ListRow
+            key={e.id}
+            leading={{ pin: e.type, colour: COLOR.text.primary }}
+            title={e.title}
+            subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
+            trailing={<Tag label={isHost(e, me, crews) ? 'Hosting' : 'Going'} tone={isHost(e, me, crews) ? 'selected' : 'success'} />}
+            onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
+          />
+        ))}
+        {past.slice(0, 5).map((e) => (
+          <ListRow
+            key={e.id}
+            leading={{ pin: e.type, colour: COLOR.text.secondary }}
+            title={e.title}
+            subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
+            trailing={<Tag label={isHost(e, me, crews) ? 'Hosted' : 'Went'} />}
+            onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
+          />
+        ))}
+      </Section>
+
       <Section title="Trophies">
         {myAwards.length === 0 ? (
-          <EmptyState variant="inline" title="None yet. Check in at a meet, and people there vote for the best builds." />
+          <EmptyState
+            variant="inline"
+            title={checkedInAnywhere ? 'None yet. People who turn up vote for the best builds once a meet starts.' : 'None yet. Check in at a meet, and people there vote for the best builds.'}
+          />
         ) : (
           myAwards.map((a) => {
             const b = builds.find((x) => x.id === a.buildId);
@@ -95,11 +134,11 @@ export default function Me() {
       </Section>
 
       <View>
-        <ListRow title={SCREEN_TITLES.settings} subtitle="Account, navigation, notifications, privacy" onPress={() => router.push('/settings')} />
+        <ListRow title={SCREEN_TITLES.settings} subtitle="Account, notifications, privacy, driving" onPress={() => router.push('/settings')} />
         <RowDivider />
         <ListRow title={SCREEN_TITLES.feedback} subtitle="A bug, an idea, or something wrong on the map" onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
         <RowDivider />
-        <ListRow title={SCREEN_TITLES.help} subtitle="Meet points, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
+        <ListRow title={SCREEN_TITLES.help} subtitle="Meet points, check-in, classes, trophies and levels" onPress={() => router.push('/help')} />
       </View>
     </ScrollView>
   );

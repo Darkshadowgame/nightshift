@@ -2,15 +2,16 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { BuildHero } from '../../components/BuildHero';
-import { at, openProfile, openReport, OptionsSheet, personMark } from '../../components/Community';
+import { at, isStaffNow, openProfile, openReport, OptionsSheet, personMark } from '../../components/Community';
 import { Cover, Trophy } from '../../components/Cover';
-import { DsText, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
+import { Button, DsText, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
+import { DynoSection } from '../../components/DynoSection';
 import { PhotoManager } from '../../components/PhotoManager';
 import { MOD_CATEGORIES } from '../../data/catalog';
 import { allAwards, categoryInfo } from '../../lib/awards';
-import { classOf, effectivePower, performanceFigure } from '../../lib/classes';
+import { classOf, performanceFigure } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
-import { useCommunityQuery } from '../../lib/communityStore';
+import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { plural } from '../../lib/format';
 import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
 import { useStore } from '../../lib/store';
@@ -19,6 +20,8 @@ import { stageFromMods, stageLabel } from '../../lib/tune';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { photoSource } from '../../lib/photoSource';
+import { dynoBadge, latestRun, powerText } from '../../lib/dyno';
+import { DynoBadge } from '../../components/DynoBadge';
 
 /**
  * A build: kind, name, owner, tags, the photo, then a stat block (power, weight, class, tune),
@@ -34,6 +37,8 @@ export default function BuildScreen() {
   const [menu, setMenu] = useState(false);
   const likes = useCommunityQuery((c) => c.buildLikes([id]), [id]);
   const mine = b?.ownerId === me;
+  const community = useCommunity();
+  const toast = useToast();
 
   useLayoutEffect(() => {
     if (!b) return;
@@ -54,6 +59,8 @@ export default function BuildScreen() {
   const likeCount = likes.data?.[b.id] ?? 0;
   const groups = MOD_CATEGORIES.map((cat) => ({ cat, mods: b.mods.filter((m) => m.category === cat.key) })).filter((g) => g.mods.length);
   const covers = won.filter((a) => categoryInfo(a.category).cover);
+  const badge = dynoBadge(b, now);
+  const latest = latestRun(b.dynoRuns);
 
   return (
     <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}>
@@ -89,12 +96,14 @@ export default function BuildScreen() {
       </View>
 
       <BuildHero build={b} height={b.photos[0] ? 240 : 200} trophies={won.length} />
+      <DynoBadge build={b} />
 
       <View style={{ gap: SPACING.sm }}>
         {/* Two rows of two, so "Stage 2+" and a four-figure weight never clip on a small phone. */}
         <StatBlock
           stats={[
-            { value: `${Math.round(effectivePower(b))}`, unit: 'bhp', label: b.dynoBhp ? 'Power · dyno' : 'Power · est.' },
+            // Proven by a dyno run, or "claimed" (the owner's figures), said on the build page only.
+            { value: powerText(b).split(' ')[0], unit: powerText(b).split(' ')[1], label: badge?.state === 'proven' ? 'Power · dyno' : 'Power · claimed' },
             { value: `${b.weightKg}`, unit: 'kg', label: b.kind === 'bike' ? 'Weight · wet' : 'Weight · kerb' },
           ]}
         />
@@ -106,13 +115,18 @@ export default function BuildScreen() {
         />
         <DsText v="caption">
           {metaLine([
-            `Class ${letter} from ${Math.round(figure)} ${b.kind === 'bike' ? 'bhp per tonne' : 'weight-adjusted bhp'}`,
+            // One plain line for Class (REVIEW-9 decision 14): no "weight-adjusted bhp".
+            `Class ${letter}: its power for its weight (${Math.round(figure)} on the ${b.kind === 'bike' ? 'bike' : 'car'} scale)`,
+            // A wheel run: Class uses a crank estimate, labelled as one (owner rule).
+            latestRun(b.dynoRuns)?.at === 'wheels' ? `from est. ${b.dynoBhp} bhp at the crank` : null,
             `${b.engineSwap ? 'donor engine' : 'stock'} ${b.stockBhp} bhp`,
             `${b.weightKg} kg ${b.kind === 'bike' ? 'wet' : 'kerb'}${b.engineSwap?.weightDeltaKg ? ` (incl. ${b.engineSwap.weightDeltaKg > 0 ? '+' : ''}${b.engineSwap.weightDeltaKg} kg from the swap)` : ''}`,
           ])}
-          . {b.dynoBhp ? 'Dyno verified.' : mine ? 'Upload a dyno sheet to verify.' : 'Not dyno verified.'}
+          . {b.dynoBhp ? 'Power from the latest dyno run (see Dyno).' : 'Power is estimated from the standard figure and the mods.'}
         </DsText>
       </View>
+
+      <DynoSection build={b} mine={mine} onSave={saveBuild} />
 
       {mine ? (
         <Section title={`Photos (${b.photos.length})`}>
@@ -159,6 +173,15 @@ export default function BuildScreen() {
 
       <Section title={`Mods (${b.mods.length})`}>
         {groups.length === 0 ? <DsText v="secondary">Stock for now.</DsText> : null}
+        {mine ? (
+          <Button
+            label="Add a mod"
+            icon="plus"
+            tier="secondary"
+            block
+            onPress={() => router.push({ pathname: '/build/edit', params: { id: b.id, section: 'mods' } })}
+          />
+        ) : null}
         {groups.map((g) => (
           <View key={g.cat.key} style={{ gap: SPACING.xxs }}>
             <DsText v="label" accessibilityRole="header">
@@ -200,6 +223,20 @@ export default function BuildScreen() {
             : [
                 ...(owner ? [{ label: `View ${at(owner)}`, onPress: () => openProfile(owner.id) }] : []),
                 { label: 'Report build', onPress: () => openReport('build', b.id, b.ownerId, 'build') },
+                // Staff: a fake or edited sheet loses its badge (logged in the audit log).
+                ...(isStaffNow() && latest?.photo && !latest.badgeRemoved
+                  ? [
+                      {
+                        label: 'Remove the Dyno badge',
+                        detail: 'For a fake or edited dyno sheet. Logged in the audit log.',
+                        onPress: () =>
+                          community
+                            .run((s) => s.removeDynoBadge(latest.id, 'Fake or edited dyno sheet'))
+                            .then(() => toast({ message: 'Dyno badge removed' }))
+                            .catch((e) => setPhotoError(e instanceof Error ? e.message : "Couldn't remove it.")),
+                      },
+                    ]
+                  : []),
               ]
         }
         onClose={() => setMenu(false)}

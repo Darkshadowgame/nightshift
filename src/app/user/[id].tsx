@@ -20,6 +20,7 @@ import type { Build } from '../../lib/types';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { photoSource } from '../../lib/photoSource';
+import { levelLabel } from '../../lib/rep';
 
 /** The build with the most to look at: a photo first, then the most power. */
 function coverBuild(builds: Build[]): Build | undefined {
@@ -112,8 +113,7 @@ export default function UserScreen() {
             <DsText v="secondary">{metaLine([isMe ? `${p.name} (you)` : p.name, p.region])}</DsText>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
-            <Tag label={`Level ${rep.level.level}`} />
-            {p.legend ? <Tag label="Legend this week" tone="info" /> : null}
+            <Tag label={levelLabel(rep.level.level)} raw />
             {SAMPLE_PEOPLE.includes(p.id) ? <Tag label="Sample" /> : null}
             {!isMe && state === 'connected' ? <Tag label={CONNECT.connected} tone="success" /> : null}
           </View>

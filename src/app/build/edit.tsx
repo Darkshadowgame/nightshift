@@ -37,7 +37,10 @@ const str = (n: number | undefined) => (n ? String(n) : '');
 const mid = () => newId('m');
 
 export default function EditBuild() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
+  /** "Add a mod" on the build page opens here at the mods (REVIEW-9 decision 11). */
+  const scrollRef = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
+  const scrolledToMods = useRef(false);
   const store = useStore();
   const existing = id ? store.builds.find((b) => b.id === id) : undefined;
 
@@ -129,7 +132,9 @@ export default function EditBuild() {
     stockBhp: specs.stockBhp,
     weightKg: specs.weightKg,
     torqueLbFt: specs.torqueLbFt,
-    dynoBhp: num(dyno),
+    // With dyno runs, the latest run sets it (dyno.ts); the runs are kept as they are.
+    dynoBhp: existing?.dynoRuns?.length ? existing.dynoBhp : num(dyno),
+    ...(existing?.dynoRuns?.length ? { dynoRuns: existing.dynoRuns } : {}),
     mods,
     photos,
     colour,
@@ -195,6 +200,7 @@ export default function EditBuild() {
       <Stack.Screen options={{ title: title(existing ? SCREEN_TITLES.editBuild : SCREEN_TITLES.addBuild) }} />
       {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={close} /> : null}
       <ScrollView
+        ref={scrollRef as never}
         contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
@@ -237,7 +243,13 @@ export default function EditBuild() {
           </View>
           <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
             <Field label={swapOn ? 'Original torque lb-ft' : 'Torque lb-ft'} value={torque} onChange={setTorque} />
-            <Field label="Dyno bhp (optional)" value={dyno} onChange={setDyno} />
+            {existing?.dynoRuns?.length ? (
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                <DsText v="caption">Dyno: set from your dyno runs on the build page.</DsText>
+              </View>
+            ) : (
+              <Field label="Dyno bhp (optional)" value={dyno} onChange={setDyno} />
+            )}
           </View>
           {ready ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
@@ -252,6 +264,14 @@ export default function EditBuild() {
           )}
         </Section>
 
+        <View
+          onLayout={(e) => {
+            if (section !== 'mods' || scrolledToMods.current) return;
+            scrolledToMods.current = true;
+            const y = e.nativeEvent.layout.y;
+            setTimeout(() => scrollRef.current?.scrollTo({ y, animated: true }), 50);
+          }}
+        >
         <Section title={`3 · Engine and mods (${mods.length + (swapOn && donorModel.trim() ? 1 : 0)})`}>
           <SegmentedControl<'original' | 'swapped'>
             value={swapOn ? 'swapped' : 'original'}
@@ -311,6 +331,7 @@ export default function EditBuild() {
             }}
           />
         </Section>
+        </View>
 
         <Section title="4 · Photos and colour">
           <PhotoManager photos={photos} onChange={setPhotos} onError={setError} saveLater />

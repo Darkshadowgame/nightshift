@@ -12,9 +12,9 @@ import { EVENT_COLOURS, SPOT_COLOURS, COLOR } from '../theme';
 import { EntityCard, metaLine, type EntityTag, type TagTone } from './ds';
 
 /** A role as one status tag: Going, Hosting, Requested, You can go. Public needs no tag. */
-export function roleTag(role: Role): EntityTag | undefined {
+export function roleTag(role: Role, filter?: { everyone: boolean }): EntityTag | undefined {
   const tone: Partial<Record<Role, TagTone>> = { host: 'selected', going: 'success', requested: 'warning', invited: 'info', declined: 'danger' };
-  const label = roleLabel(role);
+  const label = roleLabel(role, filter);
   return label && tone[role] ? { label, tone: tone[role] } : undefined;
 }
 
@@ -65,7 +65,7 @@ export function EventEntityCard({
       mark={{ pin: locked ? 'locked' : e.type, colour: done ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
       title={e.title}
       sample={isSeedEvent(e.id)}
-      status={tag ?? (v.phase === 'live' && !roleTag(v.role) ? { label: 'Live', tone: 'live' } : roleTag(v.role))}
+      status={tag ?? (v.phase === 'live' && !roleTag(v.role, e.filter) ? { label: 'Live', tone: 'live' } : roleTag(v.role, e.filter))}
       meta={metaLine([whenLine(v, now), `${e.going.length} going`, miles != null ? `${locked ? `about ${Math.max(1, Math.round(miles))} mi` : formatMiles(miles)}${milesFrom}` : null])}
       detail={place}
       finished={done}

@@ -14,17 +14,11 @@ import { travelOf } from '../lib/discover';
 import { SCREEN_TITLES } from '../lib/glossary';
 import { clearLaps } from '../lib/lapStore';
 import { LEGAL_PAGES } from '../lib/legal';
-import { layerOn, setLayer, type Layer } from '../lib/mapLayers';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../lib/notify';
 import { useStore } from '../lib/store';
 import { COLOR, SPACING } from '../theme';
 
 /** The layers that start off (they're for driving, not for finding a meet). The rest are under Layers on Tonight's map. */
-const EXTRA_LAYERS: { key: Layer; label: string; hint: string }[] = [
-  { key: 'cameras', label: 'Speed cameras', hint: 'Fixed and average-speed cameras, once you zoom in. May be incomplete.' },
-  { key: 'shops', label: 'Shops', hint: 'Car and bike businesses from OpenStreetMap, and partners (always marked).' },
-  { key: 'roads', label: 'Road reports', hint: "Drivers' reports and road closures." },
-];
 
 /** Where each group starts, for the jump links at the top (REVIEW-8: a long wall of options). */
 const GroupY = createContext<((title: string, y: number) => void) | null>(null);
@@ -87,10 +81,9 @@ export default function SettingsScreen() {
   }
 
   const jumps: [string, string][] = [
-    ['Navigation and voice', 'Navigation'],
-    ['Map layers', 'Map'],
     ['Notifications', 'Notifications'],
     ['Privacy', 'Privacy'],
+    ['Driving', 'Driving'],
     ['Feedback', 'Feedback'],
     ['About and legal', 'Legal'],
     ...(demo ? ([['Demo', 'Demo']] as [string, string][]) : []),
@@ -138,41 +131,7 @@ export default function SettingsScreen() {
         {error?.at === 'account' ? <ErrorState title={error.text} /> : null}
       </Group>
 
-      <Group title="Navigation and voice">
-        <ChoiceGroup
-          label="Navigate opens"
-          value={settings.directionsApp ?? 'nightshift'}
-          onChange={(id) => setSettings({ directionsApp: id })}
-          options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
-        />
-        <DsText v="caption">Nightshift guides you turn by turn, with a voice and camera alerts. The others open that app.</DsText>
-        <ChoiceGroup
-          label="The driving map"
-          value={settings.navMap === 'north' ? 'north' : 'heading'}
-          onChange={(k) => setSettings({ navMap: k })}
-          options={[
-            { key: 'heading', label: 'Turns with you' },
-            { key: 'north', label: 'North up' },
-          ]}
-        />
-        <DsText v="label">Your icon on the map</DsText>
-        <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
-        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onValueChange={(v) => setSettings({ navVoice: v })} />
-        {settings.navVoice !== false ? <VoicePicker /> : null}
-        <SwitchRow
-          label="Speed camera alerts"
-          hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."
-          value={settings.navCameraAlerts !== false}
-          onValueChange={(v) => setSettings({ navCameraAlerts: v })}
-        />
-      </Group>
 
-      <Group title="Map layers">
-        {EXTRA_LAYERS.map((l) => (
-          <SwitchRow key={l.key} label={l.label} hint={l.hint} value={layerOn(settings, l.key)} onValueChange={(v) => setSettings(setLayer(settings, l.key, v))} />
-        ))}
-        <DsText v="caption">These start off. Events, drives, photo spots, tracks and meet spots are under Layers on the Tonight map.</DsText>
-      </Group>
 
       <Group title="Notifications">
         <SwitchRow
@@ -230,6 +189,35 @@ export default function SettingsScreen() {
         {status.data?.role === 'admin' || status.data?.role === 'owner' ? (
           <ListRow title="Audit log" subtitle="Every moderation action, by whom" onPress={() => router.push('/moderation-log')} />
         ) : null}
+      </Group>
+
+      <Group title="Driving">
+        <ChoiceGroup
+          label="Navigate opens"
+          value={settings.directionsApp ?? 'nightshift'}
+          onChange={(id) => setSettings({ directionsApp: id })}
+          options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
+        />
+        <DsText v="caption">For the drive view, when you head to a meet or a drive with your car: Nightshift guides you there with a voice and camera alerts, or opens another app.</DsText>
+        <ChoiceGroup
+          label="The driving map"
+          value={settings.navMap === 'north' ? 'north' : 'heading'}
+          onChange={(k) => setSettings({ navMap: k })}
+          options={[
+            { key: 'heading', label: 'Turns with you' },
+            { key: 'north', label: 'North up' },
+          ]}
+        />
+        <DsText v="label">Your icon on the map</DsText>
+        <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
+        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onValueChange={(v) => setSettings({ navVoice: v })} />
+        {settings.navVoice !== false ? <VoicePicker /> : null}
+        <SwitchRow
+          label="Speed camera alerts"
+          hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."
+          value={settings.navCameraAlerts !== false}
+          onValueChange={(v) => setSettings({ navCameraAlerts: v })}
+        />
       </Group>
 
       <Group title="Feedback">

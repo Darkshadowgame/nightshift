@@ -87,3 +87,18 @@ describe('results', () => {
     expect(hasLegend(awards, 'u4', at(28 + 8 * 24))).toBe(false);
   });
 });
+
+describe('nominees (REVIEW-9 decision 8)', () => {
+  const { nominees } = jest.requireActual('../src/lib/awards') as typeof import('../src/lib/awards');
+  const list = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => ({ id }));
+  test('each trophy shows a different few', () => {
+    const first = nominees(list, 0).map((b) => b.id);
+    const second = nominees(list, 1).map((b) => b.id);
+    expect(first).toHaveLength(3);
+    expect(first).not.toEqual(second);
+  });
+  test('short lists are shown whole, and your vote is always shown', () => {
+    expect(nominees(list.slice(0, 2), 4)).toHaveLength(2);
+    expect(nominees(list, 0, 3, 'g').map((b) => b.id)).toContain('g');
+  });
+});

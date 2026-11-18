@@ -235,8 +235,33 @@ export function repForLevel(level: number): number {
   return (250 * n * (n + 1)) / 2;
 }
 
+/**
+ * One ladder (REVIEW-9 decision 14): rep is the points, the level is where they put you, and each
+ * level has a name. Legend is the top. Class (the build) and trophies are separate on purpose.
+ */
+export const LEVEL_NAMES: { from: number; name: string }[] = [
+  { from: 1, name: 'Newcomer' },
+  { from: 2, name: 'Regular' },
+  { from: 3, name: 'Known face' },
+  { from: 4, name: 'Local name' },
+  { from: 6, name: 'Scene veteran' },
+  { from: 8, name: 'Legend' },
+];
+
+/** The name for a level: "Newcomer" … "Legend". */
+export function levelName(level: number): string {
+  return [...LEVEL_NAMES].reverse().find((x) => level >= x.from)?.name ?? LEVEL_NAMES[0].name;
+}
+
+/** "Level 3 · Known face". */
+export function levelLabel(level: number): string {
+  return `Level ${level} · ${levelName(level)}`;
+}
+
 export interface LevelInfo {
   level: number;
+  /** The level's name: Newcomer, Regular … Legend. */
+  name: string;
   rep: number;
   /** Rep at the start of this level. */
   floor: number;
@@ -252,7 +277,7 @@ export function levelFor(rep: number): LevelInfo {
   while (repForLevel(level + 1) <= r) level++;
   const floor = repForLevel(level);
   const next = repForLevel(level + 1);
-  return { level, rep: r, floor, next, progress: (r - floor) / (next - floor) };
+  return { level, name: levelName(level), rep: r, floor, next, progress: (r - floor) / (next - floor) };
 }
 
 /** What makes two builds the same vehicle: car or bike, make, model and year (case and spacing ignored). */

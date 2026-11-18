@@ -14,7 +14,7 @@ import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { ModerationGate } from '../components/ModerationGate';
+import { ConnectionToasts, ModerationGate } from '../components/ModerationGate';
 import { OfflinePill } from '../components/OfflinePill';
 import { IconButton, ToastProvider } from '../components/ds';
 import { fallbackTab, NO_BACK } from '../lib/backFallback';
@@ -48,9 +48,19 @@ function Gate() {
     <Stack
       screenOptions={({ navigation, route }) => ({
         // Back is always there (REVIEW-8 problem 2): with nothing behind (a link, a notification,
-        // the web address bar) it goes to the screen's tab. One label everywhere: "Go back".
-        ...(!NO_BACK.has(route.name) && !navigation.canGoBack()
-          ? { headerLeft: () => <IconButton icon="back" label="Go back" colour={C.chalk} onPress={() => router.replace(fallbackTab(route.name))} /> }
+        // the web address bar) it goes to the screen's tab. One button everywhere, however the
+        // screen was reached (REVIEW-9 decision 12): the DS back arrow, labelled "Go back".
+        ...(!NO_BACK.has(route.name)
+          ? {
+              headerLeft: () => (
+                <IconButton
+                  icon="back"
+                  label="Go back"
+                  colour={C.chalk}
+                  onPress={() => (navigation.canGoBack() ? navigation.goBack() : router.replace(fallbackTab(route.name)))}
+                />
+              ),
+            }
           : {}),
         headerBackTitle: 'Back',
         headerStyle: { backgroundColor: C.asphalt },
@@ -124,6 +134,9 @@ function Gate() {
         allowed, which must be sign-in, welcome or the map, never a modal or Credits.
       */}
       <Stack.Screen name="feedback" options={{ title: title(T.feedback), presentation: 'modal' }} />
+      {/* Unknown links: the app's own "This page doesn't exist" (REVIEW-9 decision 6). The sitemap is the same screen. */}
+      <Stack.Screen name="+not-found" options={{ title: '' }} />
+      <Stack.Screen name="_sitemap" options={{ title: '' }} />
     </Stack>
   );
   // Staff status and moderator warnings, once signed in (the Stack stays the same element).
@@ -131,6 +144,7 @@ function Gate() {
     <>
       {stack}
       {onboarded ? <ModerationGate /> : null}
+      {onboarded ? <ConnectionToasts /> : null}
     </>
   );
 }

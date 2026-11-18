@@ -128,6 +128,8 @@ export interface CommunityService {
   /** Warnings I haven't acknowledged yet (shown when the app opens). */
   myWarnings(): Promise<Warning[]>;
   acknowledgeWarning(id: string): Promise<void>;
+  /** Staff: take the "Dyno proven" badge off a run's sheet (logged in the audit log). */
+  removeDynoBadge(runId: string, reason: string): Promise<void>;
   /** Staff: one person's profile, counts, ban and moderation log. */
   memberOverview(userId: string): Promise<MemberOverview>;
   /** Staff: their public writing, newest first, 30 at a time. */
@@ -240,6 +242,8 @@ export interface QueueItem {
 export type CommunityChange =
   | { kind: 'message'; conversationId: string; senderId: string | null; body: string }
   | { kind: 'connections' }
+  /** Someone accepted your connection request (the demo's sample people do, after a moment). */
+  | { kind: 'accepted'; userId: string }
   | { kind: 'read'; conversationId: string };
 
 // ---------------------------------------------------------------------------
@@ -392,6 +396,8 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
           if (cur.connections.some((r) => r.from === ME && r.to === userId && r.status === 'pending')) {
             ctx.set({ ...cur, connections: cur.connections.map((r) => (r.from === ME && r.to === userId ? { ...r, status: 'accepted', answeredAt: iso() } : r)) });
             emit({ kind: 'connections' });
+            // Say so: a toast and a notice under the bell (REVIEW-9 decision 15), not a silent switch.
+            emit({ kind: 'accepted', userId });
           }
         }, delay);
       }
@@ -733,6 +739,9 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       return [];
     },
     async acknowledgeWarning() {},
+    async removeDynoBadge() {
+      throw new Error('Only staff can do that.');
+    },
     async memberOverview() {
       throw new Error('Moderation is for the Nightshift team, signed in.');
     },

@@ -8,6 +8,7 @@ import { shortAgo } from '../lib/format';
 import { useNow } from '../lib/clock';
 import { actionLine } from '../lib/moderation';
 import { SPACING } from '../theme';
+import { StaffOnly } from '../components/StaffOnly';
 
 const ACTIONS: { key: string; label: string }[] = [
   { key: 'all', label: 'Everything' },
@@ -20,6 +21,7 @@ const ACTIONS: { key: string; label: string }[] = [
   { key: 'dismiss', label: 'Dismissed' },
   { key: 'promote', label: 'Promoted' },
   { key: 'demote', label: 'Demoted' },
+  { key: 'remove_dyno', label: 'Dyno badges' },
   { key: 'auto_report', label: 'Automatic' },
 ];
 
@@ -27,7 +29,7 @@ const ACTIONS: { key: string; label: string }[] = [
  * Admins and the owner (Settings › Audit log): every moderation action, newest
  * first, filtered by who did it and what. The log can't be changed or deleted.
  */
-export default function ModerationLogScreen() {
+function ModerationLogScreen() {
   const community = useCommunity();
   const now = useNow();
   const team = useCommunityQuery((s) => s.team(), []);
@@ -77,5 +79,13 @@ export default function ModerationLogScreen() {
       {more && rows ? <Button label="Show older" tier="tertiary" onPress={() => load(rows[rows.length - 1].createdAt)} /> : null}
       <DsText v="caption">Kept for good: nobody can edit or delete it, not even the owner.</DsText>
     </ScrollView>
+  );
+}
+
+export default function GatedModerationLogScreen() {
+  return (
+    <StaffOnly>
+      <ModerationLogScreen />
+    </StaffOnly>
   );
 }

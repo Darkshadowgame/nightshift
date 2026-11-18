@@ -31,6 +31,7 @@ import { plural } from '../../lib/format';
 import { roleLabel } from '../../lib/glossary';
 import { useStore } from '../../lib/store';
 import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
+import { levelLabel } from '../../lib/rep';
 
 /** A crew: the same anatomy as an event or place. Hero, stats, one primary, then members and events. */
 export default function CrewScreen() {
@@ -140,7 +141,7 @@ export default function CrewScreen() {
                   leading={{ avatar: { name: user!.name, handle: user!.handle } }}
                   title={handle(uid)}
                   subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
-                  meta={`Level ${rep.level.level} · ${rep.ledger.total.toLocaleString('en-GB')} rep`}
+                  meta={`${levelLabel(rep.level.level)} · ${rep.ledger.total.toLocaleString('en-GB')} rep`}
                   trailing={role !== 'member' ? <Tag label={role === 'owner' ? 'Owner' : 'Host'} /> : undefined}
                   onPress={() => router.push({ pathname: '/user/[id]', params: { id: uid } })}
                 />
@@ -285,7 +286,7 @@ export default function CrewScreen() {
 function EventEntity({ view, now }: { view: EventView; now: Date }) {
   const e = view.event;
   const when = whenLine(e, now);
-  const role = roleLabel(view.role);
+  const role = roleLabel(view.role, e.filter);
   return (
     <EntityCard
       kind="event"

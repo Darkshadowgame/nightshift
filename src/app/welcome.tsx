@@ -13,7 +13,7 @@ import { markJustOnboarded } from '../lib/firstRun';
 import { fuzz } from '../lib/geo';
 import { newId } from '../lib/ids';
 import { currentPosition } from '../lib/location';
-import { nearestRegion, regionCentre } from '../lib/profile';
+import { nearestRegion, regionCentre, suggestHandle } from '../lib/profile';
 import { useStore } from '../lib/store';
 import type { Build, LatLng, VehicleKind } from '../lib/types';
 import { findVariant, specFill, type Variant } from '../lib/vehicles';
@@ -52,6 +52,8 @@ export default function Welcome() {
 
   // Step 2: home and handle (also the display name to start with; change it on your profile).
   const [handle, setHandle] = useState('');
+  /** The demo needs no handle typed: one is made up, changeable on your profile (REVIEW-9). */
+  const [handleSeed] = useState(() => 1000 + Math.floor(Math.random() * 9000));
   const [home, setHome] = useState<LatLng | null>(null);
   const [picking, setPicking] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -84,7 +86,7 @@ export default function Welcome() {
     try {
       // Tonight reads this as it opens (the profile saving is what opens it).
       markJustOnboarded(build?.id);
-      const h = handle.trim().replace(/^@+/, '');
+      const h = handle.trim().replace(/^@+/, '') || (demo ? suggested : '');
       await saveProfile({ handle: h, name: h, region: nearestRegion(home), home });
       if (build) await saveBuild(build).catch((e) => toast({ message: e instanceof Error ? e.message : "Couldn't save your car. Add it in the Garage.", tone: 'danger' }));
     } catch (e) {
@@ -93,6 +95,7 @@ export default function Welcome() {
     }
   }
 
+  const suggested = suggestHandle(variant?.model, handleSeed);
   // The fixed demo area is for testing only: development builds, or with the demo's GPS skip on.
   const devArea = demo && (__DEV__ || settings.simulateGps);
 
@@ -160,7 +163,7 @@ export default function Welcome() {
                 <DsText v="eyebrow" tone="action">
                   Step 2 of 2
                 </DsText>
-                <Button label="‹ Back" tier="tertiary" size="sm" accessibilityLabel="Back to step 1" onPress={() => setStep(1)} />
+                <Button label="Back" icon="back" tier="tertiary" size="sm" accessibilityLabel="Back to step 1" onPress={() => setStep(1)} />
               </View>
               <DsText v="heading" accessibilityRole="header">
                 Where's home?
@@ -193,7 +196,7 @@ export default function Welcome() {
               <TextInput
                 value={handle}
                 onChangeText={setHandle}
-                placeholder="e.g. night_owl"
+                placeholder={demo ? suggested : 'e.g. night_owl'}
                 placeholderTextColor={COLOR.text.secondary}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -201,7 +204,11 @@ export default function Welcome() {
                 style={[typeStyle('input'), st.input]}
                 accessibilityLabel="Your handle"
               />
-              <DsText v="caption">Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.</DsText>
+              <DsText v="caption">
+                {demo
+                  ? `Shown on your profile, in chat and on trophies. Leave it empty in the demo to be @${suggested}; change it any time on your profile.`
+                  : 'Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.'}
+              </DsText>
             </View>
 
             {variant ? <DsText v="caption">{`Bringing: ${variant.make} ${variant.model} ${variant.gen}. Add mods later in the Garage.`}</DsText> : null}
@@ -221,7 +228,11 @@ export default function Welcome() {
           initial={home ? [home] : []}
           onDone={([stop]) => {
             setPicking(false);
-            if (stop) setHome(fuzz(stop.at));
+            if (stop) {
+              setHome(fuzz(stop.at));
+              // The "Location is off" line is answered once home is set on the map (REVIEW-9).
+              setLocError(null);
+            }
           }}
           onCancel={() => setPicking(false)}
         />
@@ -252,7 +263,7 @@ export default function Welcome() {
               block
               busy={saving}
               haptic="success"
-              disabled={!home || handle.trim().length < 3}
+              disabled={!home || (handle.trim().length < 3 && !(demo && handle.trim().length === 0))}
               hint={!home ? 'Set your home area first' : 'Add a handle first'}
               onPress={finish}
             />

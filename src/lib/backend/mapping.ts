@@ -8,7 +8,7 @@ import type { Award, AwardCategory, Vote } from '../awards';
 import type { AlertMode } from '../discover';
 import type { Notice } from '../notice';
 import type { ProgressMap } from '../placeStore';
-import type { Build, ClassLetter, Crew, EngineSwap, EventType, LatLng, Mod, ModCategory, NightEvent, PlaceRep, PlanChangeLog, Spot, Stop, TuneStage, User, VehicleKind, ChatMessage } from '../types';
+import type { Build, ClassLetter, DynoRun, Crew, EngineSwap, EventType, LatLng, Mod, ModCategory, NightEvent, PlaceRep, PlanChangeLog, Spot, Stop, TuneStage, User, VehicleKind, ChatMessage } from '../types';
 
 // ---------------------------------------------------------------------------
 // Rows (only the columns the app reads)
@@ -19,11 +19,15 @@ export interface HomeRow { user_id: string; lat: number; lng: number }
 export interface SettingsRow { travel_miles: number; new_event_alerts: AlertMode }
 export interface ModRow { id: string; build_id?: string; category: ModCategory; name: string; bhp_gain: number | null; position: number }
 export interface BuildPhotoRow { id?: string; storage_path: string; position: number }
+export interface DynoRunRow {
+  id?: string; build_id?: string; run_on: string; shop: string | null; power_bhp: number; torque_lb_ft: number | null;
+  measured_at: 'wheels' | 'crank'; power_unit: string | null; torque_unit: string | null; storage_path: string | null; position: number;
+}
 export interface BuildRow {
   id: string; owner_id: string; kind: VehicleKind; make: string; model: string; year: number | null; nickname: string | null;
   stock_bhp: number; weight_kg: number; torque_lb_ft: number | null; dyno_bhp: number | null; colour: string | null;
   vehicle_id: string | null; tune_stage: TuneStage | null; engine_swap: EngineSwap | null;
-  build_mods?: ModRow[]; build_photos?: BuildPhotoRow[];
+  build_mods?: ModRow[]; build_photos?: BuildPhotoRow[]; build_dyno_runs?: DynoRunRow[];
 }
 export interface CrewMemberRow { user_id: string; role: 'owner' | 'host' | 'member'; joined_at: string }
 export interface CrewRow { id: string; name: string; tag: string; crew_members?: CrewMemberRow[] }
@@ -118,11 +122,35 @@ export function buildFromRow(r: BuildRow, photoUrl: (path: string) => string = (
   if (r.vehicle_id) b.vehicleId = r.vehicle_id;
   if (r.tune_stage) b.tuneStage = r.tune_stage;
   if (r.engine_swap) b.engineSwap = r.engine_swap;
+  if (r.build_dyno_runs?.length) b.dynoRuns = [...r.build_dyno_runs].sort((a, c) => a.position - c.position).map((d) => dynoRunFromRow(d, photoUrl));
   return b;
 }
 
+const POWER_UNITS = ['bhp', 'hp', 'whp', 'PS', 'kW'] as const;
+const TORQUE_UNITS = ['lb-ft', 'Nm'] as const;
+
+export function dynoRunFromRow(d: DynoRunRow, photoUrl: (path: string) => string = (p) => p): DynoRun {
+  const run: DynoRun = { id: d.id ?? `${d.run_on}-${d.position}`, date: d.run_on, powerBhp: Number(d.power_bhp), at: d.measured_at };
+  if (num(d.torque_lb_ft) !== undefined) run.torqueLbFt = num(d.torque_lb_ft);
+  if (d.shop) run.shop = d.shop;
+  const pu = POWER_UNITS.find((u) => u === d.power_unit);
+  if (pu) run.powerUnit = pu;
+  const tu = TORQUE_UNITS.find((u) => u === d.torque_unit);
+  if (tu) run.torqueUnit = tu;
+  if (d.storage_path) run.photo = photoUrl(d.storage_path);
+  return run;
+}
+
+/** Rows for a build's dyno runs; `pathOf` gives each run's stored photo path (or null). */
+export function dynoRunsToRows(buildId: string, runs: DynoRun[], pathOf: (run: DynoRun) => string | null): DynoRunRow[] {
+  return runs.map((r, position) => ({
+    build_id: buildId, run_on: r.date, shop: r.shop?.trim() ? r.shop.trim().slice(0, 60) : null, power_bhp: r.powerBhp, torque_lb_ft: r.torqueLbFt ?? null,
+    measured_at: r.at, power_unit: r.powerUnit ?? null, torque_unit: r.torqueUnit ?? null, storage_path: pathOf(r), position,
+  }));
+}
+
 /** The builds row to upsert (owner_id comes from auth.uid() on insert). Empty strings become null. */
-export function buildToRow(b: Build): Omit<BuildRow, 'owner_id' | 'build_mods' | 'build_photos'> {
+export function buildToRow(b: Build): Omit<BuildRow, 'owner_id' | 'build_mods' | 'build_photos' | 'build_dyno_runs'> {
   const trim = (s?: string) => (s && s.trim() ? s.trim() : null);
   const colour = b.colour && /^#[0-9a-fA-F]{6}$/.test(b.colour) ? b.colour : null;
   return {

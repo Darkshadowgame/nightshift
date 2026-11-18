@@ -65,6 +65,31 @@ export interface Build {
   tuneStage?: TuneStage;
   /** Set when the build runs another engine. Also kept as an "… engine swap" engine mod. */
   engineSwap?: EngineSwap;
+  /** Dyno runs, oldest first (dyno.ts). The latest sets `dynoBhp`. */
+  dynoRuns?: DynoRun[];
+  /** Signed in: the server's say on the Dyno badge (public.dyno_badges); the phone never decides it alone. */
+  dynoVerified?: boolean;
+}
+
+/** One dyno run: peak figures from a sheet, as the owner checked them (dynoParse.ts reads the sheet). */
+export interface DynoRun {
+  id: string;
+  /** The day of the run, YYYY-MM-DD. */
+  date: string;
+  /** The rolling road or shop (optional). */
+  shop?: string;
+  /** Peak power in bhp, as measured (at the wheels or the crank). */
+  powerBhp: number;
+  /** Peak torque in lb-ft. */
+  torqueLbFt?: number;
+  at: 'wheels' | 'crank';
+  /** The units the sheet printed, kept for showing it as it was. */
+  powerUnit?: 'bhp' | 'hp' | 'whp' | 'PS' | 'kW';
+  torqueUnit?: 'lb-ft' | 'Nm';
+  /** The sheet's photo (a stored photo ref). */
+  photo?: string;
+  /** Staff took the Dyno badge off this sheet (reported as fake or edited). Set by the server. */
+  badgeRemoved?: boolean;
 }
 
 export interface LatLng {

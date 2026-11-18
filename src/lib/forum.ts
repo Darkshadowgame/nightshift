@@ -123,12 +123,17 @@ export const HANDOVERS: readonly { key: Handover; label: string }[] = [
 /** The most a price can be: £1,000,000. */
 export const MAX_PRICE_PENCE = 100_000_000;
 
+/** "250 ono", "£250 ONO", "250 o.n.o.": the seller typed "or nearest offer" with the price. */
+export function typedOno(typed: string): boolean {
+  return /\b(o\.?n\.?o\.?|or nearest offer)\s*$/i.test(typed.trim());
+}
+
 /**
- * Pence from what someone typed: "450", "£450", "1,250.50", "45.5". Null when empty,
- * NaN when it isn't a price.
+ * Pence from what someone typed: "450", "£450", "1,250.50", "45.5", and with ONO after it
+ * ("250 ono", "£250 ONO": see typedOno). Null when empty, NaN when it isn't a price.
  */
 export function parsePrice(typed: string): number | null {
-  const t = typed.trim().replace(/^£/, '').replace(/,/g, '').trim();
+  const t = typed.trim().replace(/\s*(o\.?n\.?o\.?|or nearest offer)\s*$/i, '').replace(/^£/, '').replace(/,/g, '').trim();
   if (!t) return null;
   if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
   const [pounds, pence = ''] = t.split('.');

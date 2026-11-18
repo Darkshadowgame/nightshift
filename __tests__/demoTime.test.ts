@@ -69,8 +69,9 @@ describe('keeping the demo fresh', () => {
     expect(needsRefresh(used, ANCHOR, new Date(ANCHOR.getTime() + REFRESH_AFTER_MS))).toBe(true);
   });
 
-  test('older saves without an anchor work it out from the live meet', () => {
-    expect(inferAnchor(slice(ANCHOR).events)).toEqual(ANCHOR);
+  test('older saves without an anchor work it out from the live meet (it started 45 minutes before)', () => {
+    const live = { ...byId(slice(ANCHOR).events, 'ev-rolling-live'), startsAt: new Date(ANCHOR.getTime() - 45 * 60_000).toISOString() };
+    expect(inferAnchor([live])).toEqual(ANCHOR);
   });
 });
 
@@ -99,20 +100,41 @@ describe('restarting the demo events', () => {
 });
 
 describe('the sample scene', () => {
-  test('has an invite a few hours away that you are not going to yet', () => {
-    const e = byId(seed(ANCHOR).events, 'ev-meet-soon');
-    const hours = (new Date(e.startsAt).getTime() - ANCHOR.getTime()) / 3_600_000;
-    expect(hours).toBeGreaterThanOrEqual(2);
-    expect(hours).toBeLessThanOrEqual(4);
-    expect(e.going).not.toContain('me');
-    expect(phaseOf(e, ANCHOR)).toBe('upcoming');
+  test('meets run at real evening times; live only once started (REVIEW-9 decision 3)', () => {
+    const midday = new Date(2026, 10, 18, 12, 0); // a Wednesday
+    const s = seed(midday);
+    for (const id of ['ev-meet-now', 'ev-rolling-live', 'ev-rolling-host']) {
+      const e = byId(s.events, id);
+      const start = new Date(e.startsAt);
+      expect(start.getDate()).toBe(18);
+      expect(start.getHours()).toBeGreaterThanOrEqual(19);
+      expect(start.getHours()).toBeLessThanOrEqual(23);
+      expect(phaseOf(e, midday)).not.toBe('live');
+      expect(Object.keys(e.checkIns)).toHaveLength(0);
+    }
+    expect(byId(s.events, 'ev-rolling-live').currentStop).toBe(0);
+    // Coffee and cars: a weekend morning.
+    const coffee = new Date(byId(s.events, 'ev-meet-soon').startsAt);
+    expect([0, 6]).toContain(coffee.getDay());
+    expect(coffee.getHours()).toBe(10);
+  });
+
+  test('late at night, one meet is live tonight and the rest move to tomorrow evening', () => {
+    const late = new Date(2026, 10, 18, 23, 30);
+    const s = seed(late);
+    expect(phaseOf(byId(s.events, 'ev-meet-now'), late)).toBe('live');
+    const roll = new Date(byId(s.events, 'ev-rolling-live').startsAt);
+    expect([roll.getDate(), roll.getHours()]).toEqual([19, 19]);
+    for (const e of s.events) if (phaseOf(e, late) === 'live') expect(new Date(e.startsAt).getTime()).toBeLessThanOrEqual(late.getTime());
+  });
+
+  test('the open meets are open to anyone nearby, car or not', () => {
     const s = seed(ANCHOR);
     const users = s.users.map((u) => (u.id === 'me' ? { ...u, home: DEMO_HOME } : u));
-    // You start with no car: invites match once you add one (a stock car is enough here).
     expect(s.builds.some((b) => b.ownerId === 'me')).toBe(false);
-    expect(roleOf(e, 'me', s.crews, users, s.builds)).toBe('none');
-    const stock = { id: 'b-new', ownerId: 'me', kind: 'car' as const, make: 'Ford', model: 'Fiesta ST', stockBhp: 197, weightKg: 1262, mods: [], photos: [] };
-    expect(roleOf(e, 'me', s.crews, users, [...s.builds, stock])).toBe('invited');
+    for (const id of ['ev-meet-now', 'ev-rolling-live', 'ev-meet-soon']) expect(roleOf(byId(s.events, id), 'me', s.crews, users, s.builds)).toBe('invited');
+    // A narrower invite still needs a car that fits.
+    expect(roleOf(byId(s.events, 'ev-meet-tam'), 'me', s.crews, users, s.builds)).toBe('none');
   });
 
   test('the Sunday meet is on a Sunday, at least two days back', () => {

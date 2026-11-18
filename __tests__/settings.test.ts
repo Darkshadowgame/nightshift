@@ -19,14 +19,21 @@ describe('settings from older saves', () => {
   });
 });
 
-describe('saved map layers', () => {
-  test('older saves get every core layer on, and a partial save keeps its choices', () => {
-    expect(upgradeSettings({ moreLayersOff: true } as never, true).mapLayers).toEqual({ events: true, photo: true, drive: true, track: true, venue: true });
-    expect(upgradeSettings({ moreLayersOff: true, mapLayers: { drive: false } } as never, true).mapLayers).toMatchObject({ drive: false, events: true });
+describe('saved map layers (REVIEW-9 decision 13: Events only by default)', () => {
+  const ONLY_EVENTS = { events: true, photo: false, drive: false, track: false, venue: false };
+  test('older saves go to Events only once, keeping Events and Posts as they were', () => {
+    expect(upgradeSettings({ moreLayersOff: true } as never, true).mapLayers).toEqual(ONLY_EVENTS);
+    const old = upgradeSettings({ moreLayersOff: true, mapLayers: { events: false, drive: true }, postsLayer: true, shops: true, roadReports: true } as never, true);
+    expect(old.mapLayers).toEqual({ ...ONLY_EVENTS, events: false });
+    expect([old.postsLayer, old.shops, old.eventsOnlyMap]).toEqual([true, false, true]);
   });
 
-  test('new installs have every core layer on and the map hint not yet seen', () => {
-    expect(DEFAULT_SETTINGS.mapLayers).toEqual({ events: true, photo: true, drive: true, track: true, venue: true });
+  test('after that, a choice is kept', () => {
+    expect(upgradeSettings({ moreLayersOff: true, eventsOnlyMap: true, mapLayers: { drive: true } } as never, true).mapLayers).toMatchObject({ drive: true, events: true });
+  });
+
+  test('new installs have Events only and the map hint not yet seen', () => {
+    expect(DEFAULT_SETTINGS.mapLayers).toEqual(ONLY_EVENTS);
     expect(DEFAULT_SETTINGS.mapHintSeen).toBeFalsy();
   });
 });

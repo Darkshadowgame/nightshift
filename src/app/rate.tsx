@@ -12,6 +12,7 @@ import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
 import { COLOR, RADII, SPACING } from '../theme';
+import { levelLabel } from '../lib/rep';
 
 const SWIPE = 110;
 
@@ -108,7 +109,7 @@ export default function RateBuilds() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
             <Avatar {...personMark(owner)} size="sm" />
             <DsText v="secondary" style={{ flex: 1 }} numberOfLines={1}>
-              {metaLine([at(owner), `Level ${repFor(b.ownerId).level.level}`])}
+              {metaLine([at(owner), levelLabel(repFor(b.ownerId).level.level)])}
             </DsText>
             {SAMPLE_PEOPLE.includes(b.ownerId) ? <Tag label="Sample" /> : null}
           </View>

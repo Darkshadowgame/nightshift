@@ -125,8 +125,8 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 - [ ] Tonight opens with **Start here**: tonight's pick (the live **Late rolling meet** in the
       demo) and **I'm going**. Tap it: a toast says you're going in your Civic, and the event
       opens with your car as what you're bringing.
-- [ ] In the demo you start fresh: Tonight › List › **Your events** only has what you just
-      said yes to. You're not hosting anything, not in a crew, and Me shows Level 1, 0 rep and
+- [ ] In the demo you start fresh: Me › **Your events** only has what you just
+      said yes to. You're not hosting anything, not in a crew, and Me shows Level 1 · Newcomer, 0 rep and
       no trophies.
 - [ ] The sample people and events (marked **Sample**) are around your own area now, not
       the Midlands. Within a few seconds the sample stops get real street names near you
@@ -163,9 +163,9 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 - [ ] Tonight › Map: the **Late rolling meet** pin pulses (it's live) and sits on top of
       the locked pins near it. The sheet's first row says what's live or next, with a
       countdown; tap it to show it on the map. Tap a pin, then **Open event**.
-- [ ] Tonight › **List**: Your events, Live now, Tonight and This week, as cards. The old
+- [ ] Tonight › **List**: Live now, Tonight, This week and Later, as cards. The old
       Events tab is gone; an old `/events` link opens this list.
-- [ ] **Coffee and cars, late edition** (about 3 hours away) > **I'm
+- [ ] **Coffee and cars** (the next weekend morning) > **I'm
       going**. The first time, iOS asks to allow notifications: allow it. Its reminders
       are scheduled straight away (step 9). Stay going for step 9.
 - [ ] Tonight › **+ Host** > **Host an event** (the same sheet has **Suggest a place**): make a meet for later tonight. Tap **Choose on the map**: a full-screen map
@@ -187,7 +187,7 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
       invite once real people (or the smoke test) ask. Approve one (they move to Going), decline the other.
 - [ ] Open **Sunrise ride: …** (bikes only, on the second-nearest drive; Me › All crews > Peak Chasers):
       you get **Request to go** with the reason, not "going". Chat stays closed until
-      you're in. Request it: Tonight › List › Your events now lists it as **Requested**, and the map
+      you're in. Request it: Tonight › List now tags it **Requested**, and the map
       shows it locked ("you asked to go"). Open it to **Withdraw request**.
 - [ ] **What you're bringing:** Garage > **+ Add a car or bike** so you have two (say a
       bike). Open an invite: **I'm going** / **Request to go** now asks which one, each

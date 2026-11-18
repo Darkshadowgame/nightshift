@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ALL_LAYERS, LAYER_INFO, type Layer } from '../lib/mapLayers';
+import { LAYER_INFO, TONIGHT_LAYERS, type Layer } from '../lib/mapLayers';
 import { ALL_CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, MENU_ORDER, type ShopCategory } from '../lib/shopCategories';
 import { VEHICLE_LABELS, type TrackVehicle } from '../lib/laptimes';
 import { ALL_VEHICLES } from '../lib/tracks';
@@ -37,7 +37,7 @@ export interface LayersPanelProps {
 
 export function LayersPanel(p: LayersPanelProps) {
   const [showKey, setShowKey] = useState(false);
-  const layers = ALL_LAYERS.filter((k) => !p.hidden?.includes(k));
+  const layers = TONIGHT_LAYERS.filter((k) => !p.hidden?.includes(k));
   return (
     <Sheet visible={p.visible} title="Map layers" onClose={p.onClose}>
       <View style={{ gap: SPACING.lg }}>

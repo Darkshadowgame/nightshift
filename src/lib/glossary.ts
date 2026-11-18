@@ -24,8 +24,12 @@ import type { SpotKind } from './types';
  * | Couldn't                              | Could not                             |
  */
 
-/** The one label for how you relate to an event: card, hero, HUD, Find and the map card. */
-export function roleLabel(role: Role): string {
+/**
+ * The one label for how you relate to an event: card, hero, HUD, Find and the map card.
+ * "You can go" only means something on a limited invite: on one open to anyone it says nothing (REVIEW-9).
+ */
+export function roleLabel(role: Role, filter?: { everyone: boolean }): string {
+  if (role === 'invited' && filter?.everyone) return '';
   switch (role) {
     case 'host':
       return 'Hosting';

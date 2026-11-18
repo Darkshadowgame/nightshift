@@ -212,3 +212,17 @@ describe('a typed remap counts as the stage (REVIEW-7 bug 4)', () => {
     expect(stageFromMods([{ name: 'Cat-back' }, { name: 'Remap pending' }])).toBe('stock');
   });
 });
+
+describe('stage hint (REVIEW-9)', () => {
+  const { stageHint } = jest.requireActual('../src/lib/tune') as typeof import('../src/lib/tune');
+  test('a decat or remap with the stage on Stock suggests a stage', () => {
+    expect(stageHint([{ name: 'Cat-back' }, { name: 'Decat / cat delete' }], 'stock')).toBe('stage2');
+    expect(stageHint([{ name: 'ECU remap' }], 'stock')).toBe('stage1');
+    expect(stageHint([{ name: 'Hybrid turbo' }, { name: 'ECU remap' }], 'stage1')).toBe('stage3');
+  });
+  test('nothing when the stage already covers it, or for Custom', () => {
+    expect(stageHint([{ name: 'ECU remap' }], 'stage2')).toBeNull();
+    expect(stageHint([{ name: 'Decat / cat delete' }], 'custom')).toBeNull();
+    expect(stageHint([{ name: 'Coilovers' }], 'stock')).toBeNull();
+  });
+});

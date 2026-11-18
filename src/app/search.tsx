@@ -34,6 +34,7 @@ import {
   type Vehicles,
   type When,
 } from '../lib/discover';
+import { classOf } from '../lib/classes';
 import { EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
 import { formatWhen, plural } from '../lib/format';
@@ -47,6 +48,8 @@ import { useStore } from '../lib/store';
 import type { EventType, LatLng, SpotKind } from '../lib/types';
 import { clearRecent, distanceNote, rememberRecent, samePlace, savedPlaces, setSlot, SLOT_LABELS, whereQueries, type Destination, type SavedSlot } from '../lib/whereTo';
 import { COLOR, EVENT_COLOURS, RADII, SPACING, SPOT_COLOURS } from '../theme';
+import { DynoBadge } from '../components/DynoBadge';
+import { buildMeta } from '../components/Community';
 
 type Tab = 'all' | 'events' | 'places' | 'people';
 const TABS: { key: Tab; label: string }[] = [
@@ -157,15 +160,21 @@ export default function SearchScreen() {
     [spots, me, origin],
   );
   const found = useMemo(() => {
-    if (!typed) return { events: [], places: [], people: [] };
+    if (!typed) return { events: [], places: [], people: [], builds: [] };
+    // People by their cars too (REVIEW-9 decision 10): "golf" finds the Golf GTI's owner.
+    const buildText = (b: (typeof builds)[number]) => [b.make, b.model, b.nickname, b.year ? String(b.year) : undefined];
+    const carMatch = (userId: string) => builds.find((b) => b.ownerId === userId && matches(query, ...buildText(b)));
     return {
       events: hits.filter((h) =>
         matches(query, h.view.event.title, h.view.event.areaName, EVENT_LABELS[h.view.event.type], h.view.shownStop >= 0 ? h.view.event.stops[h.view.shownStop].name : undefined),
       ),
       places: allPlaces.filter(({ s }) => matches(query, s.name, s.region, PLACE_NAMES[s.kind].one)),
-      people: users.filter((u) => u.id !== me && matches(query, u.name, u.handle)),
+      people: users
+        .filter((u) => u.id !== me && (matches(query, u.name, u.handle) || !!carMatch(u.id)))
+        .map((u) => ({ u, car: matches(query, u.name, u.handle) ? undefined : carMatch(u.id) })),
+      builds: builds.filter((b) => matches(query, ...buildText(b))),
     };
-  }, [typed, query, hits, allPlaces, users, me]);
+  }, [typed, query, hits, allPlaces, users, builds, me]);
 
   // ---- Addresses: Apple's live suggestions, or the geocoder. ----
   const saved = savedPlaces(settings.places);
@@ -246,7 +255,7 @@ export default function SearchScreen() {
         title={h.view.event.title}
         subtitle={metaLine([EVENT_LABELS[h.view.event.type], formatWhen(h.view.event.startsAt, now)])}
         meta={hitNote(h, false)}
-        trailing={roleTag(h.view.role) ? <Tag label={roleTag(h.view.role)!.label} tone={roleTag(h.view.role)!.tone} /> : undefined}
+        trailing={roleTag(h.view.role, h.view.event.filter) ? <Tag label={roleTag(h.view.role, h.view.event.filter)!.label} tone={roleTag(h.view.role, h.view.event.filter)!.tone} /> : undefined}
         onPress={() => openEvent(h.view.event.id)}
       />
     ));
@@ -329,13 +338,37 @@ export default function SearchScreen() {
           {tab === 'all' || tab === 'people' ? (
             found.people.length ? (
               <Section title={plural(found.people.length, 'person', 'people')}>
-                {found.people.slice(0, cap(4)).map((u) => (
-                  <ListRow key={u.id} leading={{ avatar: { name: u.name, handle: u.handle } }} title={`@${u.handle}`} subtitle={u.name} onPress={() => openPerson(u.id)} />
+                {found.people.slice(0, cap(4)).map(({ u, car }) => (
+                  <ListRow
+                    key={u.id}
+                    leading={{ avatar: { name: u.name, handle: u.handle } }}
+                    title={`@${u.handle}`}
+                    subtitle={car ? `${car.make} ${car.model}` : u.name}
+                    onPress={() => openPerson(u.id)}
+                  />
                 ))}
               </Section>
             ) : tab === 'people' ? (
-              <EmptyState variant="inline" title="Nobody by that name or handle." />
+              <EmptyState variant="inline" title="Nobody by that name, handle or car." />
             ) : null
+          ) : null}
+          {(tab === 'all' || tab === 'people') && found.builds.length ? (
+            <Section title={plural(found.builds.length, 'build')}>
+              {found.builds.slice(0, cap(4)).map((b) => {
+                const owner = users.find((u) => u.id === b.ownerId);
+                return (
+                  <ListRow
+                    key={b.id}
+                    leading={{ classBadge: classOf(b) }}
+                    title={`${b.make} ${b.model}`}
+                    subtitle={b.ownerId === me ? 'Yours' : owner ? `@${owner.handle}` : undefined}
+                    meta={buildMeta(b)}
+                    trailing={<DynoBadge build={b} />}
+                    onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
+                  />
+                );
+              })}
+            </Section>
           ) : null}
           {wantsAddresses ? addressSection : null}
         </>
@@ -357,7 +390,7 @@ export default function SearchScreen() {
                   view={h.view}
                   now={now}
                   miles={h.miles}
-                  tag={fresh.has(h.view.event.id) && !roleTag(h.view.role) ? { label: 'New', tone: 'info' } : undefined}
+                  tag={fresh.has(h.view.event.id) && !roleTag(h.view.role, h.view.event.filter) ? { label: 'New', tone: 'info' } : undefined}
                   onPress={() => openEvent(h.view.event.id)}
                 />
               ))
@@ -383,7 +416,7 @@ export default function SearchScreen() {
         />
       ) : (
         <>
-          <Section title="Saved">
+          <Section title="Saved for directions">
             {SLOTS.map((k) => {
               // Home falls back to the home area from your profile (set in onboarding), so it's never
               // "Not set" once you have one (REVIEW-8): a saved address only makes it exact.
@@ -396,10 +429,10 @@ export default function SearchScreen() {
                   title={SLOT_LABELS[k]}
                   subtitle={
                     fromProfile
-                      ? `Your home area${meUser.region ? `, ${meUser.region}` : ''}, to about 1 km. Search your address and save it as Home to make it exact.`
+                      ? `Your home area${meUser.region ? `, ${meUser.region}` : ''}, to about 1 km. For directions you can save an exact address as Home: saved on this phone only, never shared.`
                       : d
                         ? [d.name, d.address].filter(Boolean).join(', ')
-                        : `Not set. Search for it, then save it as ${SLOT_LABELS[k]}.`
+                        : `Not set. Search for it, then save it as ${SLOT_LABELS[k]}. Saved on this phone only, for directions.`
                   }
                   onPress={d ? () => pick(d) : undefined}
                 />
@@ -476,6 +509,8 @@ function Picked({ place, note, slot, onSave, onBack }: { place: Destination; not
         ))}
         <Button label="Back to results" tier="tertiary" size="sm" onPress={onBack} />
       </View>
+      {/* Not your profile's home area, which stays rough (REVIEW-9): this one never leaves the phone. */}
+      <DsText v="caption">Saved on this phone only, for directions.</DsText>
     </View>
   );
 }

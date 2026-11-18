@@ -12,7 +12,8 @@ function icon(glyph: Glyph) {
 /**
  * Four tabs (docs/SPEC.md, "What's on tonight near me, and go with my car"):
  * Tonight (the map and the list of what's on), Community, Garage and Me.
- * The bell is on Tonight and Community only.
+ * One header on every tab (REVIEW-9 decision 12): caps title, "+ New" where you can make
+ * something, and the bell. Tab names read out in the same case ("Community, 5 new").
  */
 export default function TabsLayout() {
   // Unread messages and connection requests waiting for you.
@@ -38,18 +39,19 @@ export default function TabsLayout() {
       }}
     >
       {/* Tonight draws its own header (search, map or list, + and the bell). */}
-      <Tabs.Screen name="index" options={{ title: 'Tonight', headerShown: false, tabBarIcon: icon('map') }} />
+      <Tabs.Screen name="index" options={{ title: 'Tonight', headerShown: false, tabBarIcon: icon('map'), tabBarAccessibilityLabel: 'Tonight' }} />
       <Tabs.Screen
         name="community"
         options={{
           ...screenHeader({ title: 'Community', bell: true }),
           tabBarIcon: icon('community'),
+          tabBarAccessibilityLabel: badge > 0 ? `Community, ${badge} new` : 'Community',
           tabBarBadge: badge > 0 ? (badge > 99 ? '99+' : badge) : undefined,
           tabBarBadgeStyle: { backgroundColor: COLOR.action.primary, color: COLOR.action.onPrimary, fontFamily: TYPE_SCALE.tag.fontFamily },
         }}
       />
-      <Tabs.Screen name="garage" options={{ title: 'Garage', tabBarIcon: icon('car') }} />
-      <Tabs.Screen name="me" options={{ ...screenHeader({ title: 'Me' }), tabBarIcon: icon('me') }} />
+      <Tabs.Screen name="garage" options={{ ...screenHeader({ title: 'Garage', bell: true }), tabBarIcon: icon('car'), tabBarAccessibilityLabel: 'Garage' }} />
+      <Tabs.Screen name="me" options={{ ...screenHeader({ title: 'Me', bell: true }), tabBarIcon: icon('me'), tabBarAccessibilityLabel: 'Me' }} />
     </Tabs>
   );
 }

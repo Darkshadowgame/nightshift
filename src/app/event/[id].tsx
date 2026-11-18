@@ -318,7 +318,7 @@ export default function EventScreen() {
       : `At ${currentStop.name}`
     : `${ev.areaName} · ${(going || host) && unlockAt > now ? LOCATION.showsAt(formatTime(unlockAt.toISOString())).toLowerCase() : LOCATION.hidden}`;
   const checkedIn = Object.values(ev.checkIns).filter((x) => x.length > 0).length;
-  const roleText = roleLabel(role);
+  const roleText = roleLabel(role, ev.filter);
   const status =
     phase === 'live'
       ? { label: 'Live', tone: 'live' as const }
@@ -488,12 +488,15 @@ export default function EventScreen() {
   ) : null;
 
   const checkedInTitle = currentStop ? `Checked in at ${currentStop.name}` : 'Checked in';
+  // Checking in promises rep: say it landed (REVIEW-9). Rep is per event, so only on the first check-in.
+  const repLine = myCheckIns.length === 1 && !host ? `+${REP.attended} rep. ` : '';
   const checkedInBody =
-    ev.type === 'rolling' && nextStop
+    repLine +
+    (ev.type === 'rolling' && nextStop
       ? 'When the hosts move on, the next meet point shows here and you get a notice.'
       : phase === 'live'
         ? 'Vote for trophies from the builds that turned up.'
-        : 'Voting for trophies opens when it starts.';
+        : 'Voting for trophies opens when it starts.');
 
   let primaryBlock: ReactNode = null;
   switch (primary.kind) {
@@ -588,7 +591,6 @@ export default function EventScreen() {
   // ---------------------------------------------------------------------------
   type MenuOption = { label: string; detail?: string; destructive?: boolean; onPress: () => void };
   const menuOptions: MenuOption[] = ([
-    { label: 'Share', onPress: doShare },
     canEdit ? { label: 'Edit event', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
     going && !host && !closed ? { label: GOING.leave, detail: 'Takes you off the going list and cancels your reminders', destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
     host && !closed ? { label: 'Cancel event', destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
@@ -603,7 +605,8 @@ export default function EventScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <Stack.Screen options={screenHeader({ onMenu: () => setMenu(true) })} />
+      {/* Share is the host's main job after posting, so it's in the header, not the menu (REVIEW-9). */}
+      <Stack.Screen options={screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) })} />
       <ScrollView ref={scroll as never} contentContainerStyle={PAGE} keyboardShouldPersistTaps="handled">
         <DetailHero
           kind={EVENT_LABELS[ev.type]}
@@ -748,8 +751,8 @@ export default function EventScreen() {
         <Section title={`Going (${ev.going.length})`}>
           {mixLine(ev, builds) ? <DsText v="secondary">{mixLine(ev, builds)}</DsText> : null}
           {ev.going.length > 0 ? (
-            <Press onPress={() => router.push('/help')} role="link" label="What class and Legend mean, in How Nightshift works" style={{ minHeight: 32, justifyContent: 'center' }}>
-              <DsText v="caption">Class S to D is a build's power to weight. Legend is this week's best in show. More in How Nightshift works ›</DsText>
+            <Press onPress={() => router.push('/help')} role="link" label="What class means, in How Nightshift works" style={{ minHeight: 32, justifyContent: 'center' }}>
+              <DsText v="caption">Class S to D is a build's power for its weight. More in How Nightshift works ›</DsText>
             </Press>
           ) : null}
           {ev.going.length === 0 ? (
@@ -767,7 +770,7 @@ export default function EventScreen() {
                       leading={{ avatar: { name: u?.name, handle: u?.handle } }}
                       title={userLabel(uid)}
                       subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
-                      meta={[hostIds.includes(uid) ? 'Hosting' : null, hasLegend(awardsSoFar, uid, now) ? 'Legend this week' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
+                      meta={[hostIds.includes(uid) ? 'Hosting' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
                       trailing={b ? <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={30} /> : undefined}
                       onPress={() => openUser(uid)}
                     />

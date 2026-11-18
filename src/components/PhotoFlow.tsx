@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState, type ReactNode } from 'react';
-import { Image } from 'react-native';
+import { Image, Platform } from 'react-native';
+import { pickImageOnWeb } from '../lib/webImagePicker';
 import { isWholeImage, type AspectKey, type Box, type Rotation } from '../lib/crop';
 import { cropPhoto, discardTemp, findPlates, finishPhoto, photoUri, plateRedactorAvailable } from '../lib/photos';
 import { CropEditor } from './CropEditor';
@@ -28,11 +29,14 @@ export function usePhotoFlow({
   onError,
   cameraDenied = 'Allow camera access to take a photo.',
   aspect = 'free',
+  plates = 'always',
 }: {
   onPhoto: (ref: string, replaces?: string) => void;
   onError: (message: string | null) => void;
   cameraDenied?: string;
   aspect?: AspectKey;
+  /** 'ifFound': skip the plate review when no plate is found (a dyno sheet usually has none). */
+  plates?: 'always' | 'ifFound';
 }): {
   pick: (camera?: boolean) => Promise<void>;
   recrop: (ref: string) => void;
@@ -62,6 +66,12 @@ export function usePhotoFlow({
       if (camera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) return cb.current.onError(cameraDenied);
+      }
+      if (Platform.OS === 'web' && !camera) {
+        const picked = await pickImageOnWeb();
+        if (!picked) return;
+        setStep({ step: 'crop', uri: picked.uri, width: picked.width, height: picked.height, saved: false, temps: [picked.uri] });
+        return;
       }
       const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.9, exif: false };
       const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
@@ -97,6 +107,10 @@ export function usePhotoFlow({
   async function next(uri: string, width: number | undefined, height: number | undefined, s: Extract<Step, { step: 'crop' }>, temps: string[]) {
     if (!s.saved && plateRedactorAvailable) {
       const found = await findPlates(uri);
+      if (plates === 'ifFound' && !(found?.boxes ?? []).length) {
+        done(await finishPhoto(uri, [], width, height), temps, s.replaces);
+        return;
+      }
       setStep({
         step: 'plates',
         photo: { uri, width: found?.width || width || 0, height: found?.height || height || 0, boxes: found?.boxes ?? [] },

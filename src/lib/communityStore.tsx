@@ -45,6 +45,8 @@ interface Community {
   /** Run a change and refresh afterwards. Rejects with the server's sentence. */
   run<T>(fn: (s: CommunityService) => Promise<T>): Promise<T>;
   stateOf(userId: string): ConnectionState;
+  /** The last request someone accepted while the app was open, for the toast. */
+  accepted: { userId: string; text: string; n: number } | null;
 }
 
 const Ctx = createContext<Community | null>(null);
@@ -112,6 +114,9 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const [blocked, setBlocked] = useState<ReadonlySet<string>>(EMPTY_SET);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showInNearby, setShow] = useState(true);
+  const [accepted, setAccepted] = useState<Community['accepted']>(null);
+  const addNoticeRef = useRef(store.addNotice);
+  addNoticeRef.current = store.addNotice;
   const active = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -153,6 +158,13 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     };
     const stop = service.watch((c) => {
       later();
+      if (c.kind === 'accepted') {
+        const who = usersRef.current.find((u) => u.id === c.userId);
+        const text = `${who?.name ?? (who ? `@${who.handle}` : 'They')} accepted your request. You can message now.`;
+        addNoticeRef.current({ eventId: '', kind: 'connection', userId: c.userId, at: new Date().toISOString(), text });
+        setAccepted((a) => ({ userId: c.userId, text, n: (a?.n ?? 0) + 1 }));
+        return;
+      }
       if (c.kind !== 'message' || !c.senderId || c.senderId === me || active.current === c.conversationId) return;
       if (!remindersRef.current || AppState.currentState !== 'active') return;
       const who = usersRef.current.find((u) => u.id === c.senderId);
@@ -211,8 +223,9 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         return out;
       },
       stateOf: (id) => connections[id] ?? 'none',
+      accepted,
     };
-  }, [service, backend, me, version, connections, blocked, conversations, showInNearby, forumRep, refresh, bump]);
+  }, [service, backend, me, version, connections, blocked, conversations, showInNearby, forumRep, refresh, bump, accepted]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -235,6 +248,7 @@ const NONE: Community = {
     throw new Error('Community is not available here.');
   },
   stateOf: () => 'none',
+  accepted: null,
 };
 
 export function useCommunity(): Community {

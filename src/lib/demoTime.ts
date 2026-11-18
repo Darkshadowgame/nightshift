@@ -53,14 +53,24 @@ export function needsRefresh(slice: DemoSlice, anchor: Date, now: Date, scene: S
  * the anchor, so it stays in the past.
  */
 export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date, scene: SceneOptions = {}): DemoSlice {
-  const then = new Map(seed(anchor, scene).events.map((e) => [e.id, e]));
-  const fresh = new Map(seed(now, scene).events.map((e) => [e.id, e]));
+  const seededNow = seed(now, scene);
+  // Untouched: simply the scene as it's laid out now (evening times, live only once started).
+  if (isUntouchedDemo(slice, anchor, scene)) return { events: seededNow.events, chat: seededNow.chat, votes: seededNow.votes };
+  const thenList = seed(anchor, scene).events;
+  const then = new Map(thenList.map((e) => [e.id, e]));
+  const fresh = new Map(seededNow.events.map((e) => [e.id, e]));
+  // A sample event you never touched is laid out afresh, so it isn't "moved on" before it starts.
+  const untouched = new Set(slice.events.filter((e) => then.has(e.id) && JSON.stringify(then.get(e.id)) === JSON.stringify(e)).map((e) => e.id));
   const age = now.getTime() - anchor.getTime();
   const wholeDays = Math.round(age / DAY_MS) * DAY_MS;
   const deltas = new Map<string, number>();
 
   const events = slice.events.map((e) => {
     if (!SEED_IDS.has(e.id)) return e;
+    if (untouched.has(e.id) && fresh.has(e.id)) {
+      deltas.set(e.id, new Date(fresh.get(e.id)!.startsAt).getTime() - new Date(e.startsAt).getTime());
+      return fresh.get(e.id)!;
+    }
     const was = then.get(e.id);
     const target = fresh.get(e.id);
     const delta =

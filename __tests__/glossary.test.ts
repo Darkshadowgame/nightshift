@@ -4,7 +4,11 @@ import type { Role } from '../src/lib/eventView';
 describe('glossary', () => {
   it('has one label per role', () => {
     const roles: Role[] = ['host', 'going', 'requested', 'invited', 'public', 'declined', 'none'];
-    expect(roles.map(roleLabel)).toEqual(['Hosting', 'Going', 'Requested', 'You can go', 'Public', 'Declined', '']);
+    expect(roles.map((r) => roleLabel(r))).toEqual(['Hosting', 'Going', 'Requested', 'You can go', 'Public', 'Declined', '']);
+  });
+  it('says "You can go" only on a limited invite', () => {
+    expect(roleLabel('invited', { everyone: false })).toBe('You can go');
+    expect(roleLabel('invited', { everyone: true })).toBe('');
   });
   it('never gives hosting a layer colour tone', () => {
     expect(roleTone('host')).toBe('brand');

@@ -70,7 +70,7 @@ export default function ReportScreen() {
 
   const reasons = (
     <>
-      <ChoiceGroup label="Reason" layout="list" options={REPORT_REASONS.map((r) => ({ key: r.key, label: r.label }))} value={reason} onChange={setReason} />
+      <ChoiceGroup label="Reason" layout="list" options={REPORT_REASONS.filter((r) => r.key !== 'fake_dyno' || target === 'build').map((r) => ({ key: r.key, label: r.label }))} value={reason} onChange={setReason} />
       <TextField
         value={note}
         onChangeText={setNote}

@@ -16,6 +16,7 @@ import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import {
   Button,
+  Card,
   DsText,
   EmptyState,
   IconButton,
@@ -33,6 +34,7 @@ import {
 import { EventEntityCard, PlaceEntityCard, roleTag } from '../../components/TonightCards';
 import { checkInWindowOpen, EVENT_LABELS } from '../../lib/events';
 import { viewEvents, type EventView } from '../../lib/eventView';
+import { windowFor } from '../../lib/discover';
 import { describeFilter } from '../../lib/invites';
 import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
 import { fitRegion, formatMiles } from '../../lib/geo';
@@ -60,7 +62,7 @@ import { usePostPins } from '../../lib/communityStore';
 import { shortAgo } from '../../lib/format';
 import { LOCATION, openPlaceLabel, PLACE_NAMES, roleLabel } from '../../lib/glossary';
 import { clearJustOnboarded, justOnboarded } from '../../lib/firstRun';
-import { ALL_LAYERS, CORE_LAYERS, layerOn, toggleLayer as toggledLayer, type CoreLayer, type Layer } from '../../lib/mapLayers';
+import { ALL_LAYERS, DRIVE_ONLY_LAYERS, layerOn, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
 import { ART, C, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, ROAD_COLOUR, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
 
 
@@ -96,8 +98,6 @@ const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
   { glyph: 'venue', colour: SPOT_COLOURS.venue, label: `${PLACE_NAMES.venue.one} (café, museum)` },
   { glyph: 'shop', colour: SHOP_COLOUR, label: 'Shop (OpenStreetMap)' },
   { glyph: 'partner', colour: PARTNER_COLOUR, label: 'Partner (paid, always marked)' },
-  { glyph: 'camera', colour: LAYER.camera, label: 'Speed camera' },
-  { glyph: 'hazard', colour: ROAD_COLOUR, label: 'Road report or closure' },
   { glyph: 'area', colour: C.chalk, label: 'A group of places (zoomed out): tap to zoom in' },
 ];
 
@@ -138,7 +138,8 @@ export default function TonightScreen() {
   // Every layer is saved in settings, the core ones too (mapLayers.ts), so they come back as left.
   const layersKey = [settings.mapLayers, settings.cameras, settings.shops, settings.roadReports, settings.postsLayer];
   const layers = useMemo(
-    () => Object.fromEntries(ALL_LAYERS.map((k) => [k, layerOn(settings, k)])) as Record<Layer, boolean>,
+    // Speed cameras and road reports are for the drive view only (REVIEW-9 decision 13): never on Tonight.
+    () => Object.fromEntries(ALL_LAYERS.map((k) => [k, !DRIVE_ONLY_LAYERS.includes(k) && layerOn(settings, k)])) as Record<Layer, boolean>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     layersKey,
   );
@@ -497,7 +498,7 @@ export default function TonightScreen() {
       return {
         title: e.title,
         glyph: v.shownStop >= 0 ? e.type : 'locked',
-        meta: [EVENT_LABELS[e.type], roleLabel(v.role), `${clock.label} ${clock.value}`, `${e.going.length} going`].filter(Boolean).join(' · '),
+        meta: [EVENT_LABELS[e.type], roleLabel(v.role, e.filter), `${clock.label} ${clock.value}`, `${e.going.length} going`].filter(Boolean).join(' · '),
         body: `${place}\n${describeFilter(e.filter)}`,
         colour: EVENT_COLOURS[e.type],
         open: () => router.push({ pathname: '/event/[id]', params: { id: e.id } }),
@@ -543,7 +544,6 @@ export default function TonightScreen() {
     const r = fitRegion(nearestPoints([...evs, ...shownPlaces], from, 60));
     if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
   }
-  const lead = hud.live[0] ?? hud.next;
   const toast = useToast();
 
   // ---------------------------------------------------------------------------
@@ -580,12 +580,18 @@ export default function TonightScreen() {
   }, [intro, views]);
   const [joining, setJoining] = useState(false);
   async function goWithMyCar(v: EventView) {
-    if (!introBuild) return;
     setJoining(true);
     try {
-      const res = await store.setGoing(v.event.id, true, introBuild.id);
+      const res = await store.setGoing(v.event.id, true, introBuild?.id);
       setIntro(null);
-      toast({ message: res === 'requested' ? 'Asked the host. You’ll hear when they say yes.' : `You’re going in your ${introBuild.make} ${introBuild.model}. Check in when you get there.` });
+      toast({
+        message:
+          res === 'requested'
+            ? 'Asked the host. You’ll hear when they say yes.'
+            : introBuild
+              ? `You’re going in your ${introBuild.make} ${introBuild.model}. Check in when you get there.`
+              : 'You’re going. Check in when you get there.',
+      });
       router.push({ pathname: '/event/[id]', params: { id: v.event.id } });
     } catch (e) {
       toast({ message: e instanceof Error ? e.message : "Couldn't do that just now.", tone: 'danger' });
@@ -658,22 +664,29 @@ export default function TonightScreen() {
     if (selectedRef.current) close();
   }, [close]);
 
-  /** Tonight near you: live now, the rest of the next 12 hours, then the week. */
+  /**
+   * One set of events everywhere (REVIEW-9 decision 2): live now, tonight (to 5am), this week, then later.
+   * The map shows the same events as pins; Search and the bell find the same ones.
+   */
   const origin = here ?? meUser?.home ?? region.centre;
   /** Every distance on Tonight is from you (a GPS fix) or else from home, and says which. */
   const milesFrom = here ? ' from you' : ' from home';
   const lists = useMemo(() => {
-    const t = now.getTime();
+    const tonightEnd = windowFor('tonight', now)!.to.getTime();
+    const weekEnd = now.getTime() + 7 * 86_400_000;
     const start = (v: EventView) => new Date(v.event.startsAt).getTime();
     const upcoming = views.filter((v) => v.phase !== 'live').sort((a, b) => start(a) - start(b));
-    const mine = (v: EventView) => v.role === 'host' || v.role === 'going' || v.role === 'requested';
     return {
-      yours: [...hud.live.filter(mine), ...upcoming.filter(mine)],
       live: hud.live,
-      tonight: upcoming.filter((v) => start(v) <= t + 12 * 3_600_000),
-      week: upcoming.filter((v) => start(v) > t + 12 * 3_600_000 && start(v) <= t + 7 * 86_400_000),
+      tonight: upcoming.filter((v) => start(v) < tonightEnd),
+      week: upcoming.filter((v) => start(v) >= tonightEnd && start(v) <= weekEnd),
+      later: upcoming.filter((v) => start(v) > weekEnd),
     };
   }, [views, now, hud.live]);
+  /** The sheet's lead row is only ever something on today (REVIEW-9: "Today near you" over a track day 9 days away). */
+  const todayLead = lists.live[0] ?? lists.tonight[0] ?? null;
+  const tonightCount = lists.live.length + lists.tonight.length;
+  const comingUp = lists.week.length + lists.later.length;
   const nearPlaces = useMemo(() => {
     const shownPlaces = places.filter((s) => s.status !== 'pending' && (layers[s.kind] || (s.kind === 'venue' && venuesViaShops)));
     return shownPlaces
@@ -686,7 +699,9 @@ export default function TonightScreen() {
     const at = v.shownStop >= 0 ? v.event.stops[v.shownStop].at ?? v.event.area : v.event.area;
     return milesBetween(origin, at);
   };
-  const nothingOn = ready && !lead && lists.week.length === 0;
+  const nothingOn = ready && !todayLead && comingUp === 0;
+  /** No car or bike yet: meets open to anyone show; add one to see the invites that need a car. */
+  const noCar = ready && myBuilds.length === 0;
 
   // The map's buttons and notes ride just above the sheet, up to half; they fade out as it opens fully.
   const [stackH, setStackH] = useState(176);
@@ -701,7 +716,8 @@ export default function TonightScreen() {
   const stackStyle = useAnimatedStyle(() => ride(sheetY.value, stackH));
   const noteStyle = useAnimatedStyle(() => ride(sheetY.value, noteH));
   const chromeLive = detent !== 'full';
-  const moreOn = ALL_LAYERS.filter((k) => !CORE_LAYERS.includes(k as CoreLayer) && k !== 'venue' && layers[k]).length;
+  // Anything on besides Events lights the layers button.
+  const moreOn = ALL_LAYERS.filter((k) => k !== 'events' && layers[k]).length;
   const [showLayers, setShowLayers] = useState(false);
   const showNote = (cams && (!cams.tooWide || camerasAsked)) || shopView || openDataCredit;
 
@@ -713,32 +729,33 @@ export default function TonightScreen() {
           Start here
         </DsText>
         <DsText v="secondary">
-          {introBuild ? `Say you're going, with your ${introBuild.make} ${introBuild.model}. Then check in when you get there.` : 'Add your car or bike, then say you’re going.'}
+          {introBuild ? `Say you're going, with your ${introBuild.make} ${introBuild.model}. Then check in when you get there.` : 'Open to anyone. Say you’re going, then check in when you get there.'}
         </DsText>
         <EventEntityCard view={pick} now={now} miles={milesTo(pick)} milesFrom={milesFrom} onPress={() => openEvent(pick.event.id)} />
-        {introBuild ? (
-          <Button label="I'm going" size="lg" block busy={joining} haptic="success" onPress={() => goWithMyCar(pick)} />
-        ) : (
-          <Button label="Add a car or bike" size="lg" block onPress={() => router.push('/build/edit')} />
-        )}
+        <Button label="I'm going" size="lg" block busy={joining} haptic="success" onPress={() => goWithMyCar(pick)} />
         <Button label="Not now" tier="tertiary" size="sm" onPress={() => setIntro(null)} style={{ alignSelf: 'center' }} />
       </View>
     ) : null;
 
+  const addCarCard = noCar ? (
+    <Card>
+      <DsText v="title">Add your car to see more</DsText>
+      <DsText v="secondary">These are the meets open to anyone. Add your car or bike to see the ones invited by make, class or mods.</DsText>
+      <Button label="Add a car or bike" tier="secondary" block onPress={() => router.push('/build/edit')} />
+    </Card>
+  ) : null;
+
+  const pickSkip = introCard && pick ? [pick] : [];
   const listBody = (
     <ScrollView contentContainerStyle={st.list} keyboardShouldPersistTaps="handled">
       {introCard}
-      <Section title="Your events">
-        {lists.yours.length ? (
-          lists.yours.map((v) => <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} milesFrom={milesFrom} onPress={() => openEvent(v.event.id)} />)
-        ) : (
-          <EmptyState variant="inline" title="Nothing yet. Say you're going to something below, or host one." />
-        )}
-      </Section>
-      <EventSection title="Live now" list={lists.live} skip={lists.yours} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
-      <EventSection title={laterLabel(now)} list={lists.tonight} skip={lists.yours} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
-      <EventSection title="This week" list={lists.week} skip={lists.yours} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
-      {nothingOn ? <EmptyState variant="inline" title="Nothing on near you this week." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} /> : null}
+      {!todayLead && !nothingOn ? <EmptyState variant="inline" title="Nothing on near you tonight. Here's what's coming up." /> : null}
+      <EventSection title="Live now" list={lists.live} skip={pickSkip} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
+      <EventSection title={laterLabel(now)} list={lists.tonight} skip={pickSkip} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
+      {addCarCard}
+      <EventSection title="This week" list={lists.week} skip={pickSkip} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
+      <EventSection title="Later" list={lists.later} skip={pickSkip} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
+      {nothingOn ? <EmptyState variant="inline" title="Nothing on near you yet." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} /> : null}
     </ScrollView>
   );
 
@@ -870,12 +887,20 @@ export default function TonightScreen() {
                       <DsText v="eyebrow" tone="action" accessibilityRole="header">
                         {`${dayWord(now)} near you`}
                       </DsText>
-                      {hud.tonight > 0 ? <DsText v="meta">{hud.tonight} in the next 12 h</DsText> : null}
+                      {tonightCount > 0 ? <DsText v="meta">{`${tonightCount} ${dayWord(now).toLowerCase()}`}</DsText> : null}
                     </View>
-                    {lead ? (
-                      <LeadRow lead={lead} now={now} miles={milesTo(lead)} onPress={() => show(`ev:${lead.event.id}`)} />
+                    {todayLead ? (
+                      <LeadRow lead={todayLead} now={now} miles={milesTo(todayLead)} onPress={() => show(`ev:${todayLead.event.id}`)} />
                     ) : ready ? (
-                      <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} />
+                      <EmptyState
+                        variant="inline"
+                        title={`Nothing on near you ${dayWord(now).toLowerCase()}.`}
+                        action={
+                          comingUp > 0
+                            ? { label: `See what's coming up (${comingUp})`, onPress: () => setMode('list') }
+                            : { label: 'Host one', onPress: () => router.push('/event/new') }
+                        }
+                      />
                     ) : null}
                   </View>
                 )
@@ -892,8 +917,10 @@ export default function TonightScreen() {
                       </View>
                     </View>
                   ) : null}
-                  <EventSection title="Live now" list={lists.live} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={(id) => show(`ev:${id}`)} />
-                  <EventSection title={laterLabel(now)} list={lists.tonight} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={(id) => show(`ev:${id}`)} />
+                  {/* The live meet shows once: as the lead (or the Start here pick), not again in the list (REVIEW-9). */}
+                  <EventSection title="Live now" list={lists.live} skip={introCard && pick ? [pick] : todayLead ? [todayLead] : []} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={(id) => show(`ev:${id}`)} />
+                  <EventSection title={laterLabel(now)} list={lists.tonight} skip={introCard && pick ? [pick] : todayLead ? [todayLead] : []} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={(id) => show(`ev:${id}`)} />
+                  {addCarCard}
                   <EventSection
                     title="This week"
                     list={lists.week.slice(0, 6)}
@@ -902,6 +929,15 @@ export default function TonightScreen() {
                     milesTo={milesTo} milesFrom={milesFrom}
                     onOpen={(id) => show(`ev:${id}`)}
                     right={lists.week.length > 6 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setMode('list')} accessibilityLabel="See every event as a list" /> : undefined}
+                  />
+                  <EventSection
+                    title="Later"
+                    list={lists.later.slice(0, 4)}
+                    skip={[]}
+                    now={now}
+                    milesTo={milesTo} milesFrom={milesFrom}
+                    onOpen={(id) => show(`ev:${id}`)}
+                    right={lists.later.length > 4 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setMode('list')} accessibilityLabel="See every event as a list" /> : undefined}
                   />
                   {nothingOn ? <DsText v="secondary">Nothing coming up near you. Host one for your mates with the + at the top.</DsText> : null}
                   {nearPlaces.length ? (
@@ -1037,7 +1073,7 @@ function LeadRow({ lead, now, miles, onPress }: { lead: EventView; now: Date; mi
   const e = lead.event;
   const clock = eventClock(lead, now);
   const locked = unlocksIn(lead, now);
-  const role = roleTag(lead.role);
+  const role = roleTag(lead.role, e.filter);
   return (
     <ListRow
       leading={{ pin: lead.shownStop >= 0 ? e.type : 'locked', colour: EVENT_COLOURS[e.type] }}

@@ -13,6 +13,7 @@ import { SPACING } from '../theme';
 import { at, MEET_ACTION, openProfile, personMark, PersonNearRow } from './Community';
 import { Button, ChipGroup, DsText, EmptyState, ErrorState, ListRow, LoadingState, RowDivider, SegmentedControl, Sheet, Tag, metaLine, selectionSummary } from './ds';
 import { useRepFor } from './Rep';
+import { levelLabel } from '../lib/rep';
 
 const DISTANCES = [10, 25, 50, 100] as const;
 type Distance = `${(typeof DISTANCES)[number]}`;
@@ -97,7 +98,7 @@ export function CommunityPeople() {
                     leading={{ avatar: personMark(u) }}
                     title={at(u)}
                     subtitle={u?.name}
-                    meta={metaLine([`Level ${repFor(id).level.level}`, lead ? `${lead.make} ${lead.model} · class ${classOf(lead)}` : null])}
+                    meta={metaLine([levelLabel(repFor(id).level.level), lead ? `${lead.make} ${lead.model} · class ${classOf(lead)}` : null])}
                     onPress={() => openProfile(id)}
                   />
                 </View>

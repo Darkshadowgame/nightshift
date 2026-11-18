@@ -10,6 +10,7 @@ import { openModerate } from '../components/Community';
 import { useNow } from '../lib/clock';
 import { useStore } from '../lib/store';
 import { COLOR, SPACING } from '../theme';
+import { StaffOnly } from '../components/StaffOnly';
 
 const SUSPEND_DAYS: { label: string; days: number | null }[] = [
   { label: '1 day', days: 1 },
@@ -47,7 +48,7 @@ const HIDEABLE = new Set(['thread', 'reply', 'message', 'post', 'comment', 'chat
  * a copy of what was reported. Dismiss, hide (or cancel an event, reject a
  * place), or suspend the person so they can't post or message.
  */
-export default function ModerationScreen() {
+function ModerationScreen() {
   const { users } = useStore();
   const community = useCommunity();
   const now = useNow();
@@ -152,5 +153,13 @@ export default function ModerationScreen() {
         );
       })}
     </ScrollView>
+  );
+}
+
+export default function GatedModerationScreen() {
+  return (
+    <StaffOnly>
+      <ModerationScreen />
+    </StaffOnly>
   );
 }

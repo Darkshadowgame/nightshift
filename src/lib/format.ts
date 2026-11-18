@@ -53,9 +53,11 @@ export function shortAgo(iso: string, now: Date): string {
  * The toast after hosting: "Invites sent to 12 people", "… to 1 person", "… to fewer than 3 people"
  * (signed in, small counts stay vague); a public event is just "Published".
  */
-export function sentToast(invited: string, isPublic: boolean): string {
+export function sentToast(invited: string, isPublic: boolean, openToAll = false): string {
   if (isPublic) return 'Published';
-  if (invited === '1') return 'Invites sent to 1 person';
-  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invites sent to ${invited} people`;
+  if (openToAll) return /^\d+$/.test(invited) && invited !== '1' ? `Invites sent to ${invited} people nearby` : invited === '1' ? 'Invites sent to 1 person nearby' : 'Invites sent to people nearby';
+  // Who: the people nearby whose car or bike fits (REVIEW-9: "Invites sent to 1 person" with no clue who).
+  if (invited === '1') return 'Invites sent to 1 person nearby whose car or bike fits';
+  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invites sent to ${invited} people nearby whose car or bike fits`;
   return 'Invites sent';
 }

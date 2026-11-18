@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
-import { classOf, effectivePower } from '../lib/classes';
+import { classOf } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
 import { plural, shortAgo } from '../lib/format';
@@ -14,6 +14,9 @@ import { COLOR, RADII, SPACING } from '../theme';
 import { Avatar, BuildThumb, Button, ClassBadge, DsText, EntityCard, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
 import { photoSource } from '../lib/photoSource';
 import { PhotoCredit } from './PhotoCredit';
+import { levelLabel } from '../lib/rep';
+import { powerText } from '../lib/dyno';
+import { DynoBadge } from './DynoBadge';
 
 /** A person's mark data for the DS Avatar: initials from their name, else their handle. */
 export function personMark(u?: Pick<User, 'name' | 'handle'> | null): { name?: string | null; handle?: string | null } {
@@ -27,7 +30,8 @@ export function at(u?: Pick<User, 'handle'> | null): string {
 
 /** A build's facts, the same everywhere: "583 bhp · 4 mods". */
 export function buildMeta(b: Build): string {
-  return metaLine([`${Math.round(effectivePower(b))} bhp`, plural(b.mods.length, 'mod')]);
+  // Wheel dyno figures stay whp (never inflated); otherwise the bhp Class uses.
+  return metaLine([powerText(b), plural(b.mods.length, 'mod')]);
 }
 
 /** "Connect with people at a meet": the one way into connections, from every empty list of people or chats. */
@@ -110,7 +114,7 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
             <Tag label="Sample" />
           </View>
         ) : null}
-        <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay link={false} />
+        <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay />
       </View>
       <DsText v="bodyStrong" numberOfLines={2}>
         {build.make} {build.model}
@@ -118,14 +122,16 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
       <DsText v="meta" numberOfLines={1}>
         {metaLine([buildMeta(build), trophies ? plural(trophies, 'trophy', 'trophies') : null])}
       </DsText>
+      <DynoBadge build={build} />
     </Press>
   );
 }
 
 /** A two-column grid of build tiles; one build gets the full width (REVIEW-8: a half-width card with an empty half). */
-export function BuildGrid({ builds, trophiesOf, sampleId }: { builds: Build[]; trophiesOf?: (id: string) => number; sampleId?: (b: Build) => boolean }) {
+export function BuildGrid({ builds, trophiesOf, sampleId, halfOnly }: { builds: Build[]; trophiesOf?: (id: string) => number; sampleId?: (b: Build) => boolean; halfOnly?: boolean }) {
   const half = useTileWidth();
-  const w = builds.length === 1 ? half * 2 + SPACING.md : half;
+  // `halfOnly`: under a bigger main build (Garage), a lone other build stays half width (REVIEW-9 decision 11).
+  const w = builds.length === 1 && !halfOnly ? half * 2 + SPACING.md : half;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }}>
       {builds.map((b) => (
@@ -152,10 +158,11 @@ export function PersonNearRow({ card, level, state, sample }: { card: Card_; lev
       leading={{ avatar: personMark(card.user) }}
       title={at(card.user)}
       subtitle={b ? `${b.make} ${b.model}${more > 0 ? ` +${more} more` : ''}` : 'No car or bike yet'}
-      meta={metaLine([`Level ${level}`, distanceLabel(card.miles), connectWord(state)])}
+      meta={metaLine([levelLabel(level), distanceLabel(card.miles), connectWord(state)])}
       trailing={
         b ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+            <DynoBadge build={b} />
             <ClassBadge letter={classOf(b)} size="sm" decorative />
             <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={36} />
           </View>
@@ -215,7 +222,7 @@ export function PostCard({
             accessibilityLabel="Photo in the post"
             accessibilityIgnoresInvertColors
           />
-          <PhotoCredit photoRef={p} overlay link={!!full} />
+          <PhotoCredit photoRef={p} overlay corner="topRight" />
           {i === 0 && !full && post.photos.length > 1 ? (
             <View style={{ position: 'absolute', right: SPACING.sm, bottom: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
               <Tag label={`+${post.photos.length - 1} photos`} />

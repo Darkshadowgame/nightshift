@@ -84,11 +84,25 @@ export function invitees(users: User[], builds: Build[], filter: InviteFilter, a
 }
 
 /**
+ * Nothing narrowed: cars and bikes, any class, any mods, any brand. DESIGN-SYSTEM.md: nothing
+ * picked means everyone, so the form saves this as `everyone` (the DB column the server reads).
+ */
+export function narrowsNothing(filter: Pick<InviteFilter, 'cars' | 'bikes' | 'classes' | 'minMods' | 'brands'>): boolean {
+  return filter.cars && filter.bikes && filter.classes.length === 0 && filter.minMods <= 0 && filter.brands.length === 0;
+}
+
+/** The filter as saved: `everyone` set from the picks (REVIEW-9 decision 5), the radius kept. */
+export function normaliseFilter(filter: InviteFilter): InviteFilter {
+  if (filter.everyone || narrowsNothing(filter)) return { ...filter, everyone: true, cars: true, bikes: true, classes: [], minMods: 0, brands: [] };
+  return filter;
+}
+
+/**
  * The invite in one line. An invite open to everyone still has a radius, so it
- * says so ("Public · anyone within 100 mi") rather than "everyone welcome".
+ * says so ("Anyone within 100 mi") rather than "everyone welcome".
  */
 export function describeFilter(filter: InviteFilter): string {
-  if (filter.everyone) return `Public · anyone within ${filter.radiusMiles} mi`;
+  if (filter.everyone) return `Anyone within ${filter.radiusMiles} mi`;
   const parts: string[] = [];
   if (filter.cars && !filter.bikes) parts.push('Cars');
   else if (filter.bikes && !filter.cars) parts.push('Bikes');

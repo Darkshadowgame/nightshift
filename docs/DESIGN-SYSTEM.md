@@ -135,6 +135,27 @@ Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `ini
     rather than cut a word ("MESSAGE…", "CHECKPOINT/S"). Meta lines in rows and cards get two lines.
 26. **Words** for events come from `glossary.ts`: meet point, "Location shows at 21:30", "Shown to people going".
 
+### Added after Review 9 (18 Nov 2026)
+
+27. **One back button.** The root layout draws the DS `IconButton icon="back"` ("Go back") on every
+    pushed screen, with history or without; no screen sets `headerLeft` or types "‹" or "←".
+    `__tests__/headerLint.test.ts` checks it.
+28. **One tab header.** Every tab: caps title, "+ New" where you can make something, the bell.
+    Community, Garage and Me use `screenHeader()`; Tonight draws `ScreenHeader` above its search.
+29. **Invites: nothing picked is everyone.** No "Public" switch. With no vehicle, class, mod or brand
+    picked, the event is saved as open to anyone (`everyone`), and reads "Anyone within 25 mi".
+    "You can go" shows only on a limited invite.
+30. **Photo credits are an ⓘ** in a corner of the photo (`PhotoCredit overlay`), opening the author,
+    licence and the Commons link in a Sheet. Never credit text over a picture.
+31. **One ladder for people:** rep points move you up named levels ("Level 3 · Known face"; Legend
+    is the top). Class is the build's; trophies are a build's on the night.
+33. **Dyno proven** is the DS `Tag` (success) reading "✓ Dyno" next to a build's power wherever it
+    shows (`DynoBadge`): tap it for the run. "Dyno 2023" in neutral for a run over two years old.
+    Wheel figures read "whp". No badge means a claimed figure, said as "Power · claimed" on the
+    build page only.
+32. **Tonight's map starts with Events only.** Other layers stay in the layers sheet, off until
+    turned on; speed cameras and road reports are the drive view's only.
+
 ## Do and don't
 
 | Do | Don't |

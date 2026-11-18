@@ -3,7 +3,7 @@ import type { Build } from '../src/lib/types';
 
 describe('describeFilter', () => {
   it('never says "everyone welcome" next to a radius', () => {
-    expect(describeFilter({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 100 })).toBe('Public · anyone within 100 mi');
+    expect(describeFilter({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 100 })).toBe('Anyone within 100 mi');
   });
   it('lists the build filters in plain words, with "and"', () => {
     expect(describeFilter({ ...DEFAULT_FILTER, everyone: false, cars: true, bikes: true, classes: ['A', 'S'], minMods: 3, brands: [], radiusMiles: 25 })).toBe(

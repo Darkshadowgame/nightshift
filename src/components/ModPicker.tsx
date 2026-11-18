@@ -9,6 +9,7 @@ import {
   offRoadParts,
   quickModsFor,
   stageEstimate,
+  stageHint,
   stageIncludes,
   stageLabel,
   suggestedGain,
@@ -101,6 +102,7 @@ export function ModPicker({
     onChange(mods.filter((x) => x.id !== m.id), isStageMod(m) ? 'stock' : stage);
   }
 
+  const hint = stageHint(mods, stage);
   const toggle = (c: (typeof chips)[number]) => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage);
 
   return (
@@ -109,6 +111,13 @@ export function ModPicker({
         <ChoiceGroup<TuneStage> label={`Tune stage${swapped ? ' (swapped engine)' : ''}`} options={TUNE_STAGES.map((st) => ({ key: st, label: stageLabel(st) }))} value={stage} onChange={pickStage} />
         {kind === 'car' && !aspKnown ? <ChoiceGroup label="What kind of engine?" options={ASP_CHOICES} value={engine?.asp ?? null} onChange={onAsp} /> : null}
         <DsText v="secondary">{stageIncludes(kind, engine?.asp, stage)}</DsText>
+        {/* A remap, a decat or a bigger turbo with the stage still lower: suggest it (REVIEW-9). */}
+        {hint ? (
+          <View style={{ gap: SPACING.xs }} accessibilityLiveRegion="polite">
+            <DsText v="secondary" tone="primary">{`Your mods usually mean ${stageLabel(hint)}. Update the tune stage?`}</DsText>
+            <Button label={`Set ${stageLabel(hint)}`} tier="secondary" size="sm" onPress={() => pickStage(hint)} style={{ alignSelf: 'flex-start' }} />
+          </View>
+        ) : null}
         {estimate ? (
           <View style={{ gap: SPACING.xxs }} accessibilityLiveRegion="polite">
             <DsText v="body">

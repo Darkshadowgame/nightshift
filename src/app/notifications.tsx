@@ -13,6 +13,7 @@ const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
   moved: 'Moved on',
   host: 'You moved the meet on',
   nearby: 'New near you',
+  connection: 'Connection',
 };
 
 /** Under the bell (Tonight and Community): reminders and news about your events, newest first. */
@@ -49,8 +50,20 @@ export default function NotificationsScreen() {
         />
       }
       renderItem={({ item: n }) => {
-        const event = events.find((e) => e.id === n.eventId);
         const fresh = unreadIds.has(n.id);
+        if (n.kind === 'connection' && n.userId) {
+          const userId = n.userId;
+          return (
+            <ListRow
+              unread={fresh}
+              title={n.text}
+              meta={`${KIND_LABEL.connection} · ${formatRelative(n.at, now)}`}
+              onPress={() => router.push({ pathname: '/user/[id]', params: { id: userId } })}
+              accessibilityHint="Opens their profile"
+            />
+          );
+        }
+        const event = events.find((e) => e.id === n.eventId);
         return (
           <ListRow
             unread={fresh}

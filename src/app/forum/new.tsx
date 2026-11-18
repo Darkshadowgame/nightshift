@@ -1,4 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { SCREEN_TITLES, title as screenTitle } from '../../lib/glossary';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { BuildChooser, ComposerPhotos, Field, INPUT } from '../../components/ComposerParts';
@@ -18,6 +19,7 @@ import {
   type Handover,
   type ListingCondition,
   type ListingKind,
+  typedOno,
 } from '../../lib/forum';
 import { REGIONS } from '../../lib/profile';
 import { useStore } from '../../lib/store';
@@ -81,6 +83,8 @@ export default function NewThread() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+      {/* "Sell or find a part" opens a listing, so the header says so (REVIEW-9). */}
+      <Stack.Screen options={{ title: screenTitle(listing ? 'For sale or wanted' : SCREEN_TITLES.newThread) }} />
       <View style={{ gap: SPACING.xs }}>
         <ChoiceGroup<BoardKey> label="Board" value={board} onChange={setBoard} options={BOARDS.map((b) => ({ key: b.key, label: b.label }))} />
         <DsText v="caption">{info.hint}</DsText>
@@ -104,17 +108,21 @@ export default function NewThread() {
             <Field label={kind === 'sale' ? 'Price' : 'Budget'} hint={kind === 'sale' ? 'Optional. Leave it empty for offers.' : 'Optional. Leave it empty if you’re open to offers.'}>
               <TextInput
                 value={price}
-                onChangeText={setPrice}
-                placeholder="£ e.g. 450"
+                onChangeText={(t) => {
+                  setPrice(t);
+                  // "250 ono" turns ONO on (REVIEW-9).
+                  if (typedOno(t)) setOno(true);
+                }}
+                placeholder="£ e.g. 450 or 450 ono"
                 placeholderTextColor={COLOR.text.secondary}
-                keyboardType="decimal-pad"
-                inputMode="decimal"
+                keyboardType="default"
+                autoCapitalize="none"
                 maxLength={12}
                 accessibilityLabel={kind === 'sale' ? 'Price in pounds' : 'Budget in pounds'}
                 style={INPUT}
               />
             </Field>
-            {pence != null && !Number.isNaN(pence) ? <SwitchRow label="Or nearest offer (ONO)" value={ono} onValueChange={setOno} /> : null}
+            <SwitchRow label="Or nearest offer (ONO)" hint={pence == null ? 'Add a price first.' : undefined} value={ono && pence != null} onValueChange={setOno} />
           </View>
           {kind === 'sale' ? <ChoiceGroup<ListingCondition> label="Condition" value={condition} onChange={setCondition} options={CONDITIONS.map((c) => ({ key: c.key, label: c.label }))} /> : null}
           <ChoiceGroup<Handover> label={kind === 'sale' ? 'Collection or postage' : 'Collect or posted'} value={handover} onChange={setHandover} options={HANDOVERS.map((h) => ({ key: h.key, label: h.label }))} />
@@ -141,7 +149,7 @@ export default function NewThread() {
         {error ? <ErrorState title={error} /> : null}
         {sellingHint(`${title} ${body}`, board) ? <DsText v="caption" tone="warning">{SELLING_HINT}</DsText> : null}
         <DsText v="caption">
-          {listing ? 'Nightshift never handles payments: meet safely and pay in person. ' : ''}
+          {listing ? 'Nightshift never handles payments. Collecting: meet somewhere public and pay in person. Posting: use a payment with buyer protection. ' : ''}
           No street racing, no timing on public roads and nothing about where police are.
         </DsText>
       </View>

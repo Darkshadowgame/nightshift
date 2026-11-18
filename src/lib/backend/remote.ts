@@ -17,6 +17,7 @@ import {
   buildFromRow,
   buildPhotoPath,
   buildToRow,
+  dynoRunsToRows,
   chatFromRow,
   crewFromRow,
   eventFromRows,
@@ -201,10 +202,29 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
 
   async function loadBuilds(): Promise<Build[]> {
     const rows = await call<BuildRow[]>(() =>
-      client.from('builds').select('*, build_mods(id,category,name,bhp_gain,position), build_photos(storage_path,position)').order('created_at').limit(2000),
+      client
+        .from('builds')
+        .select(
+          '*, build_mods(id,category,name,bhp_gain,position), build_photos(storage_path,position), build_dyno_runs(id,run_on,shop,power_bhp,torque_lb_ft,measured_at,power_unit,torque_unit,storage_path,position)',
+        )
+        .order('created_at')
+        .limit(2000),
     );
-    const urls = await signed(rows.flatMap((r) => (r.build_photos ?? []).map((p) => p.storage_path)));
-    return rows.map((r) => buildFromRow(r, (p) => urls.get(p) ?? p));
+    const urls = await signed(
+      rows.flatMap((r) => [...(r.build_photos ?? []).map((p) => p.storage_path), ...(r.build_dyno_runs ?? []).map((d) => d.storage_path ?? '')]),
+    );
+    const builds = rows.map((r) => buildFromRow(r, (p) => urls.get(p) ?? p));
+    // The "Dyno proven" badge is the server's call (public.dyno_badges), never the phone's alone.
+    const withRuns = rows.filter((r) => r.build_dyno_runs?.length).map((r) => r.id);
+    if (!withRuns.length) return builds;
+    const badges = await rpc<{ build_id: string; run_id: string; dyno_verified: boolean; removed: boolean }[]>('dyno_badges', { p_build_ids: withRuns }).catch(() => null);
+    if (!badges) return builds.map((b) => (b.dynoRuns?.length ? { ...b, dynoVerified: false } : b));
+    const byBuild = new Map(badges.map((x) => [x.build_id, x]));
+    return builds.map((b) => {
+      const x = byBuild.get(b.id);
+      if (!x) return b;
+      return { ...b, dynoVerified: x.dyno_verified, dynoRuns: b.dynoRuns?.map((r) => (r.id === x.run_id && x.removed ? { ...r, badgeRemoved: true } : r)) };
+    });
   }
 
   async function loadPeople(): Promise<Pick<Persisted, 'users' | 'crews' | 'onboarded'> & { onboardedAt?: string }> {
@@ -314,8 +334,10 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
   // Writes
   // -------------------------------------------------------------------------
 
-  /** The Storage paths of a build's photos as the phone has them now. */
-  const pathsOf = (buildId: string) => (get().builds.find((x) => x.id === buildId)?.photos ?? []).map((r) => storagePathOf(r)).filter((p): p is string => !!p);
+  /** Every photo ref a build holds: its photos and its dyno sheets. */
+  const refsOf = (b: Build | undefined) => [...(b?.photos ?? []), ...(b?.dynoRuns ?? []).flatMap((r) => (r.photo ? [r.photo] : []))];
+  /** The Storage paths of a build's photos (and dyno sheets) as the phone has them now. */
+  const pathsOf = (buildId: string) => refsOf(get().builds.find((x) => x.id === buildId)).map((r) => storagePathOf(r)).filter((p): p is string => !!p);
 
   /** `prevPaths`: the photos the build had before this edit, so dropped files can go. */
   async function writeBuild(b: Build, prevPaths: string[]): Promise<void> {
@@ -332,7 +354,24 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       paths.push(path);
       uploaded.push(ref);
     }
+    // Dyno sheets go in the same bucket and folder as the build's photos.
+    const dynoPaths = new Map<string, string>();
+    for (const r of b.dynoRuns ?? []) {
+      if (!r.photo) continue;
+      const existing = storagePathOf(r.photo);
+      if (existing) {
+        dynoPaths.set(r.id, existing);
+        continue;
+      }
+      const path = buildPhotoPath(uid, b.id, uuid(), /\.png$/i.test(r.photo) ? 'png' : 'jpg');
+      await upload(path, r.photo);
+      dynoPaths.set(r.id, path);
+      uploaded.push(r.photo);
+    }
     await call(() => client.from('builds').upsert(buildToRow(b), { onConflict: 'id' }) as unknown as PromiseLike<Result<unknown>>);
+    await call(() => client.from('build_dyno_runs').delete().eq('build_id', b.id) as unknown as PromiseLike<Result<unknown>>);
+    if (b.dynoRuns?.length)
+      await call(() => client.from('build_dyno_runs').insert(dynoRunsToRows(b.id, b.dynoRuns!, (r) => dynoPaths.get(r.id) ?? null)) as unknown as PromiseLike<Result<unknown>>);
     await call(() => client.from('build_mods').delete().eq('build_id', b.id) as unknown as PromiseLike<Result<unknown>>);
     if (b.mods.length) await call(() => client.from('build_mods').insert(modsToRows(b.id, b.mods)) as unknown as PromiseLike<Result<unknown>>);
     await call(() => client.from('build_photos').delete().eq('build_id', b.id) as unknown as PromiseLike<Result<unknown>>);
@@ -340,7 +379,8 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       await call(() =>
         client.from('build_photos').insert(paths.map((storage_path, position) => ({ build_id: b.id, storage_path, position }))) as unknown as PromiseLike<Result<unknown>>,
       );
-    const dropped = prevPaths.filter((p) => !paths.includes(p) && p.startsWith(`${uid}/`));
+    const keep = [...paths, ...dynoPaths.values()];
+    const dropped = prevPaths.filter((p) => !keep.includes(p) && p.startsWith(`${uid}/`));
     // (prevPaths may be only the dropped ones, from the outbox: the filter is the same.)
     if (dropped.length) await client.storage.from('photos').remove(dropped).catch(() => {});
     // The uploaded copies are on the server now; the phone's files can go.
@@ -499,7 +539,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
 
     async saveBuild(b) {
       const before = pathsOf(b.id);
-      const kept = new Set(b.photos.map((r) => storagePathOf(r)));
+      const kept = new Set(refsOf(b).map((r) => storagePathOf(r)));
       // On screen straight away; the server copy (with signed photo links) replaces it once saved.
       set((s) => ({ ...s, builds: s.builds.some((x) => x.id === b.id) ? s.builds.map((x) => (x.id === b.id ? b : x)) : [...s.builds, b] }));
       try {
@@ -511,7 +551,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       if (ctx.outbox.get().length === 0) await quietly(refreshBuilds());
     },
     async deleteBuild(id) {
-      const paths = (get().builds.find((x) => x.id === id)?.photos ?? []).map((r) => storagePathOf(r)).filter((p): p is string => !!p);
+      const paths = pathsOf(id);
       set((s) => ({ ...s, builds: s.builds.filter((b) => b.id !== id) }));
       try {
         await writeDeleteBuild(id, paths);

@@ -109,6 +109,20 @@ export function eligibleFor(category: AwardCategory, event: NightEvent, builds: 
   return cands;
 }
 
+/**
+ * The builds shown first for one trophy (REVIEW-9 decision 8): a different few for each trophy, so
+ * six trophies aren't the same three cards. Each trophy starts at its own place in the list; your
+ * current vote is always shown. Everyone stays one tap away ("Show all").
+ */
+export function nominees<T extends { id: string }>(eligible: readonly T[], trophyIndex: number, count = 3, keep?: string): T[] {
+  if (eligible.length <= count) return [...eligible];
+  const start = (trophyIndex * count) % eligible.length;
+  const picked = Array.from({ length: count }, (_, i) => eligible[(start + i) % eligible.length]);
+  const kept = keep ? eligible.find((b) => b.id === keep) : undefined;
+  if (kept && !picked.some((b) => b.id === kept.id)) picked[count - 1] = kept;
+  return picked;
+}
+
 export function votingCloses(event: NightEvent): Date {
   return new Date(endTime(event).getTime() + VOTING_HOURS_AFTER * 3_600_000);
 }

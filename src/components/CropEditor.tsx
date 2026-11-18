@@ -17,6 +17,7 @@ import {
   type Handle,
   type Rotation,
 } from '../lib/crop';
+import { plateRedactorAvailable } from '../lib/photos';
 import { COLOR, outline, RADII, SPACING } from '../theme';
 import { Button, ChoiceGroup, DsText } from './ds';
 
@@ -146,7 +147,9 @@ export function CropEditor({
           <DsText v="caption">
             {saved
               ? "This changes the saved photo. Originals aren't kept, so anything cropped off now can't be got back, and blurred plates stay blurred."
-              : 'Drag the box to move it, or a corner to resize. Plates are checked on the cropped photo next.'}
+              : plateRedactorAvailable
+                ? 'Drag the box to move it, or a corner to resize. Plates are checked on the cropped photo next.'
+                : "Drag the box to move it, or a corner to resize. Automatic plate blurring is in the iPhone app only: here, crop a readable plate out."}
           </DsText>
         </View>
 

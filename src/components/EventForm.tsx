@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FILTER_BRANDS } from '../data/catalog';
 import { BAN_ZONES } from '../data/seed';
 import { eventArea } from '../lib/area';
 import { useNow } from '../lib/clock';
@@ -9,19 +8,20 @@ import { isCrewHost } from '../lib/crews';
 import { banZoneAt, duplicateHosted, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen, plural } from '../lib/format';
 import { fitRegion } from '../lib/geo';
-import { GOING, leadText, LOCATION, MEET_POINT } from '../lib/glossary';
-import { classRange, DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, leftOutMessage, vehicleSelection, type VehicleKey } from '../lib/invites';
+import { leadText, LOCATION, MEET_POINT } from '../lib/glossary';
+import { classRange, DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
 import { nearestRegion } from '../lib/profile';
 import { newId, useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
-import { orderedTimes, startFrom, type DayChoice } from '../lib/when';
+import { calendarDays, endFrom, orderedTimes, quickDays, startFrom, timeAfter, type DayChoice } from '../lib/when';
+import { BrandPicker } from './BrandPicker';
 import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortName } from '../lib/zones';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Callout, Field, MediaFrame, TextField } from './Detail';
-import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, Press, RowDivider, Section, Sheet, StatBlock, SwitchRow } from './ds';
+import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, Press, RowDivider, Section, Sheet, SheetOption, StatBlock, SwitchRow } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -38,14 +38,10 @@ const TYPE_HINTS: Record<EventType, string> = {
   show: 'A public show. The venue is visible to everyone.',
   trackday: 'A circuit or sprint venue. Public, and the only place lap times count.',
 };
-const DAY_CHOICES: DayChoice[] = [
-  { label: 'Tonight', days: 0 },
-  { label: 'Tomorrow', days: 1 },
-  { label: 'In 2 days', days: 2 },
-  { label: 'This weekend', days: -1 },
-  { label: 'Next week', days: 7 },
-];
-const TIME_CHOICES = ['19:00', '20:30', '22:00', '22:30', '23:00', '23:59', '06:00', '09:00'];
+/** Quick start times; "Other time" offers every 15 minutes (REVIEW-9 decision 4). */
+const TIME_CHOICES = ['10:00', '19:00', '19:30', '20:00', '21:00', '22:00', '22:30'];
+/** Quick end times: hours after the start. */
+const LENGTH_CHOICES = [120, 180, 240];
 const REVEAL_CHOICES = [0, 30, 60, 120];
 const MOD_CHOICES = [0, 1, 3, 5, 8];
 const RADIUS_CHOICES = [10, 25, 50, 100];
@@ -90,10 +86,16 @@ export function EventForm({
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
 
   const [step, setStep] = useState<Step>(0);
-  const [dayChoices] = useState<DayChoice[]>(() =>
-    initial ? [{ label: formatWhen(initial.startsAt, now).replace(/ \d\d:\d\d$/, '') + ' (as planned)', days: 0, date: initial.startsAt }, ...DAY_CHOICES] : DAY_CHOICES,
+  const [baseDays] = useState<DayChoice[]>(() =>
+    initial ? [{ label: formatWhen(initial.startsAt, now).replace(/ \d\d:\d\d$/, '') + ' (as planned)', days: 0, date: initial.startsAt }, ...quickDays(now)] : quickDays(now),
   );
-  const [timeChoices] = useState<string[]>(() => (initial && !TIME_CHOICES.includes(hhmm(initial.startsAt)) ? [hhmm(initial.startsAt), ...TIME_CHOICES] : TIME_CHOICES));
+  /** A date from "Pick a date", shown as its own choice once picked. */
+  const [pickedDay, setPickedDay] = useState<DayChoice | null>(null);
+  const dayChoices = pickedDay ? [...baseDays, pickedDay] : baseDays;
+  const [pickDateOpen, setPickDateOpen] = useState(false);
+  /** Which time the hour-and-minute sheet is setting. */
+  const [timeSheet, setTimeSheet] = useState<'start' | 'end' | null>(null);
+  const [endTime, setEndTime] = useState<string | null>(initial?.endsAt ? hhmm(initial.endsAt) : null);
   const [type, setType] = useState<EventType>(initial?.type ?? 'meet');
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -122,7 +124,8 @@ export function EventForm({
   /** PSPOs the host has said they checked (by zone id), for the Review step's lighter confirm. */
   const [pspoAck, setPspoAck] = useState<string>('');
 
-  const chosen = startFrom(dayChoices[day], time, now);
+  const chosen = startFrom(dayChoices[Math.min(day, dayChoices.length - 1)], time, now);
+  const chosenEnd = chosen.ok ? endFrom(chosen.start, endTime) : null;
 
   const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
   const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
@@ -272,7 +275,7 @@ export function EventForm({
     const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], stopLabel);
     // The rough area is fuzzed from the stops with the event's own id, so it never sits on a stop.
     const where = eventArea(finalStops.map((st) => st.at!), id, isPublicType(type));
-    const when = startFrom(dayChoices[day], time, new Date());
+    const when = startFrom(dayChoices[Math.min(day, dayChoices.length - 1)], time, new Date());
     if (!when.ok) return setError(when.reason);
     const start = when.start;
     // Editing as a crew member who isn't a named host keeps the named hosts as they were.
@@ -293,15 +296,15 @@ export function EventForm({
       revealMinutesBefore: isPublicType(type) ? 0 : reveal,
       hostIds,
       crewId: crewOwned ? (initial?.crewId ?? (canCrewHost ? myCrew?.id : undefined)) : undefined,
-      filter,
+      // Nothing narrowed is "everyone" (the DB's invite_everyone), so the summary says "Anyone within X mi".
+      filter: normaliseFilter(filter),
       going: initial?.going ?? [me],
       checkIns: initial?.checkIns ?? {},
     };
-    if (initial?.endsAt) {
-      // Keep the same length when the start moves.
-      const length = new Date(initial.endsAt).getTime() - new Date(initial.startsAt).getTime();
-      event.endsAt = new Date(start.getTime() + length).toISOString();
-    }
+    // The optional end time: the same evening, or the small hours after (REVIEW-9 decision 4).
+    const end = endFrom(start, endTime);
+    if (end) event.endsAt = end.toISOString();
+    else delete event.endsAt;
     const twin = !initial ? duplicateHosted(store.events, event, me) : undefined;
     if (twin) return setError(`You already host ${twin.title} at that time. Open it from Tonight, or change the name or time.`);
     setError(null);
@@ -329,7 +332,16 @@ export function EventForm({
     setPicking(i);
   }
 
-  const startText = chosen.ok ? formatWhen(chosen.start.toISOString(), now) : '';
+  const startText = chosen.ok ? `${formatWhen(chosen.start.toISOString(), now)}${chosenEnd ? ` to ${hhmm(chosenEnd.toISOString())}` : ''}` : '';
+  const dayNow = dayChoices[Math.min(day, dayChoices.length - 1)];
+  // The quick times that are still to come on this day, plus the one picked.
+  const quickTimes = orderedTimes(dayNow, Array.from(new Set([...TIME_CHOICES, time])), now).filter((t) => t.time === time || startFrom(dayNow, t.time, now).ok);
+  const endOptions = chosen.ok
+    ? [
+        { key: 'none', label: 'No set end' },
+        ...Array.from(new Set([...LENGTH_CHOICES.map((m) => timeAfter(chosen.start, m)), ...(endTime ? [endTime] : [])])).map((t) => ({ key: t, label: `Until ${t}` })),
+      ]
+    : [{ key: 'none', label: 'No set end' }];
   const revealText = isPublicType(type) ? 'Visible to everyone' : `${LOCATION.lead(reveal)}, to people going`;
   const coHostNames = coHosts.map((h) => displayHandle(users.find((u) => u.id === h)?.handle ?? h));
 
@@ -357,8 +369,12 @@ export function EventForm({
 
   const whenStep = (
     <>
-      <ChoiceGroup label="Day" options={dayChoices.map((d, i) => ({ key: String(i), label: d.label }))} value={String(day)} onChange={(k) => setDay(Number(k))} />
-      <ChoiceGroup label="Start time" options={orderedTimes(dayChoices[day], timeChoices, now).map((t) => ({ key: t.time, label: t.label }))} value={time} onChange={setTime} />
+      <ChoiceGroup label="Day" options={dayChoices.map((d, i) => ({ key: String(i), label: d.label }))} value={String(Math.min(day, dayChoices.length - 1))} onChange={(k) => setDay(Number(k))} />
+      <Button label="Pick a date" icon="plus" tier="tertiary" size="sm" onPress={() => setPickDateOpen(true)} accessibilityLabel="Pick any date in the next 60 days" style={{ alignSelf: 'flex-start' }} />
+      <ChoiceGroup label="Start time" options={quickTimes.map((t) => ({ key: t.time, label: t.label }))} value={time} onChange={setTime} />
+      <Button label="Other time" icon="plus" tier="tertiary" size="sm" onPress={() => setTimeSheet('start')} accessibilityLabel="Pick any start time, in 15-minute steps" style={{ alignSelf: 'flex-start' }} />
+      <ChoiceGroup label="End time (optional)" options={endOptions} value={endTime ?? 'none'} onChange={(k) => setEndTime(k === 'none' ? null : k)} />
+      <Button label="Other end time" icon="plus" tier="tertiary" size="sm" onPress={() => setTimeSheet('end')} style={{ alignSelf: 'flex-start' }} />
       {chosen.ok ? <DsText v="bodyStrong">Starts {startText}</DsText> : <ErrorState title={chosen.reason} />}
       {!isPublicType(type) ? (
         <>
@@ -471,17 +487,12 @@ export function EventForm({
   );
 
   const vehicles = vehicleSelection(filter);
+  // No Public switch (REVIEW-9 decision 5): nothing picked in a row means everyone in it.
   const whoStep = (
     <>
-      <SwitchRow
-        label={`${GOING.public}: any car or bike`}
-        hint="Skip the build filters. The radius still applies."
-        value={filter.everyone}
-        onValueChange={(everyone) => setFilter((f) => ({ ...f, everyone }))}
-      />
-      {!filter.everyone ? (
+      {(
         <>
-          <DsText v="secondary">Pick nothing in a row to invite everyone in it.</DsText>
+          <DsText v="secondary">Pick nothing in a row to invite everyone in it. Nothing picked at all: anyone within the radius.</DsText>
           <ChipGroup<VehicleKey>
             label="Vehicles"
             allLabel="Cars and bikes"
@@ -505,9 +516,9 @@ export function EventForm({
             value={String(filter.minMods)}
             onChange={(k) => setFilter((f) => ({ ...f, minMods: Number(k) }))}
           />
-          <ChipGroup<string> label="Brands" allLabel="Every brand" raw options={FILTER_BRANDS.map((b) => ({ key: b, label: b }))} selected={filter.brands} onChange={(next) => setFilter((f) => ({ ...f, brands: next }))} />
+          <BrandPicker vehicles={vehicles} selected={filter.brands} onChange={(brands) => setFilter((f) => ({ ...f, brands }))} />
         </>
-      ) : null}
+      )}
       <ChoiceGroup label="Radius from the area" options={RADIUS_CHOICES.map((r) => ({ key: String(r), label: `${r} mi` }))} value={String(filter.radiusMiles)} onChange={(k) => setFilter((f) => ({ ...f, radiusMiles: Number(k) }))} />
       <StatBlock
         stats={[
@@ -552,7 +563,7 @@ export function EventForm({
           onEdit={() => go(2)}
         />
         <RowDivider />
-        <ReviewRow label="Who's invited" value={describeFilter(filter)} onEdit={() => go(3)} />
+        <ReviewRow label="Who's invited" value={describeFilter(normaliseFilter(filter))} onEdit={() => go(3)} />
         <RowDivider />
         <ReviewRow
           label="Hosts"
@@ -560,7 +571,7 @@ export function EventForm({
           onEdit={() => go(3)}
         />
       </View>
-      <Callout tone="info" title={inviteSentence(filter, peopleCount)}>
+      <Callout tone="info" title={inviteSentence(normaliseFilter(filter), peopleCount)}>
         {isPublicType(type) ? 'Anyone can see it and where it is.' : `${revealText}. Until then, people see the area name and ${areaCircle(areaRadiusMiles)}.`}
       </Callout>
       {leftOut ? (
@@ -634,6 +645,29 @@ export function EventForm({
         onCancel={() => setPicking(null)}
       />
 
+      <Sheet visible={pickDateOpen} title="Pick a date" onClose={() => setPickDateOpen(false)}>
+        {calendarDays(now).map((d) => (
+          <SheetOption
+            key={d.date}
+            label={d.label}
+            onPress={() => {
+              const base = baseDays.length;
+              setPickedDay(d);
+              setDay(base);
+              setPickDateOpen(false);
+            }}
+          />
+        ))}
+      </Sheet>
+
+      <TimeSheet
+        visible={timeSheet !== null}
+        title={timeSheet === 'end' ? 'End time' : 'Start time'}
+        value={timeSheet === 'end' ? (endTime ?? (chosen.ok ? timeAfter(chosen.start, 180) : '23:00')) : time}
+        onPick={(t) => (timeSheet === 'end' ? setEndTime(t) : setTime(t))}
+        onClose={() => setTimeSheet(null)}
+      />
+
       <Sheet visible={askInjunction} title="Court injunction" onClose={() => setAskInjunction(false)} doneLabel="Cancel">
         <View style={{ gap: SPACING.md }}>
           {check.injunction ? <DsText v="body">{injunctionConfirmText(check.injunction.zone, verb)}</DsText> : null}
@@ -650,6 +684,25 @@ export function EventForm({
         </View>
       </Sheet>
     </View>
+  );
+}
+
+/** Hours from the morning round to the small hours, so evening times sit together. */
+const HOURS = [...Array.from({ length: 18 }, (_, i) => i + 6), 0, 1, 2, 3, 4, 5].map((h) => String(h).padStart(2, '0'));
+const MINUTES = ['00', '15', '30', '45'];
+
+/** Any time in 15-minute steps: an hour, then the minutes (REVIEW-9 decision 4). */
+function TimeSheet({ visible, title, value, onPick, onClose }: { visible: boolean; title: string; value: string; onPick: (t: string) => void; onClose: () => void }) {
+  const [h, m] = value.split(':');
+  const minute = MINUTES.includes(m) ? m : '00';
+  return (
+    <Sheet visible={visible} title={title} onClose={onClose}>
+      <View style={{ gap: SPACING.lg }}>
+        <DsText v="title">{`${h}:${minute}`}</DsText>
+        <ChoiceGroup label="Hour" options={HOURS.map((x) => ({ key: x, label: x }))} value={h} onChange={(x) => onPick(`${x}:${minute}`)} />
+        <ChoiceGroup label="Minutes" options={MINUTES.map((x) => ({ key: x, label: `:${x}` }))} value={minute} onChange={(x) => onPick(`${h}:${x}`)} />
+      </View>
+    </Sheet>
   );
 }
 

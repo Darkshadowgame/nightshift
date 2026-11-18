@@ -693,6 +693,9 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       const rows = await rpc<{ id: string; reason: string; note: string | null; created_at: string }[]>('my_warnings');
       return (rows ?? []).map((w) => ({ id: w.id, reason: w.reason, note: w.note, createdAt: w.created_at }));
     },
+    async removeDynoBadge(runId, reason) {
+      await rpc('remove_dyno_badge', { p_run_id: runId, p_reason: reason.trim() || null });
+    },
     async acknowledgeWarning(id) {
       await rpc('acknowledge_warning', { p_id: id });
     },

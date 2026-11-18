@@ -23,7 +23,7 @@ of Tonight and Community only.
 
 | Tab | What it's for | Header |
 |---|---|---|
-| **Tonight** | What's on near you: a **Map / List** switch. The map keeps the bottom sheet from MAP-REDESIGN.md (peek: what's live or next; half and full: Live now, Tonight, This week and places near the map, as cards). The list shows **Your events** (going, hosting, requested), **Live now**, **Tonight** and **This week**. Events and places are `EntityCard`s in both. | "TONIGHT", **+ Host** (one sheet: Host an event, Suggest a place), the bell; under it the one search pill and Map / List |
+| **Tonight** | What's on near you: a **Map / List** switch. The map keeps the bottom sheet from MAP-REDESIGN.md (peek: what's live or next; half and full: Live now, Tonight, This week and places near the map, as cards). The list shows **Live now**, **Tonight**, **This week** and **Later** (the same events as the map pins, Search and the bell; your own carry Going, Hosting or Requested), and with no car an **Add your car to see more** card. Your events are on Me. Events and places are `EntityCard`s in both. | "TONIGHT", **+ Host** (one sheet: Host an event, Suggest a place), the bell; under it the one search pill and Map / List |
 | **Community** | Feed, People, Forum, Messages | "COMMUNITY", **+ New**, the bell |
 | **Garage** | Your builds | "GARAGE", **+ Add** |
 | **Me** | Profile (avatar, handle, level as a plain fact, crew), trophies, your places, then Settings, Send feedback and How Nightshift works | "ME" |
@@ -53,10 +53,11 @@ of Tonight and Community only.
   and **I'm going** with the car you just added.
 * **The demo starts you fresh:** sample people and events (marked Sample) are round
   your home area, but you're not going to anything, not hosting, not in a crew, with
-  no car, rep or trophies until you act. "Car park meet-up" is on now with check-in open,
-  and the live rolling meet is open to any car or bike, so you can say you're going, see
-  the meet point, check in and vote straight away (REVIEW-7). The next-12-hours list is
-  headed "Later today" before 17:00 and "Tonight" after.
+  no car, rep or trophies until you act. The sample meets run at real evening times (REVIEW-9):
+  "Car park meet-up" 19:00–22:00, the rolling meet 19:30–23:00 and the crew one from 21:00 tonight,
+  "Coffee and cars" on the next weekend morning; late at night the car park meet is tonight's live
+  one and the rest move to tomorrow evening. They're "live" only once started. The open meets are open
+  to anyone, car or not. The tonight list is headed "Later today" before 17:00 and "Tonight" after.
 * Every route is declared inside a guard in `src/app/_layout.tsx` (the component
   gallery only in development builds); `__tests__/routes.test.ts` checks it. The root
   layout has the `ToastProvider`.
@@ -713,7 +714,8 @@ Code: `src/lib/crews.ts`, tests in `__tests__/crews.test.ts`.
     magazine-style cover of their build, pinned to their garage.
   * **Trophies** on the build page.
   * **Rep:** Best in show 500, Best car or bike 300, class 200, style 150.
-  * **Legend badge:** Best in show winners carry a "Legend" badge for a week.
+  * **Levels (one ladder, REVIEW-9):** rep moves you up named levels: Newcomer, Regular, Known face,
+    Local name, Scene veteran, Legend (level 8 and up). There's no separate weekly Legend badge.
 * Ties go to the build that reached the top count first.
 
 Code: `src/lib/awards.ts`, tests in `__tests__/awards.test.ts`.
@@ -845,8 +847,8 @@ Owner's request: "Obviously you need to use real maps and location."
 1. **Tonight** (tab): the header (title, **+ Host**, the bell), the search pill and **Map / List**.
    *Map:* a dark map with game-style hexagon pins (events filled, places outlined; a number
    on a pin is a group of places when zoomed out, tap to zoom in), the right stack (Layers,
-   Locate me, Near me) and the bottom sheet (MAP-REDESIGN.md). *List:* Your events, Live
-   now, Tonight, This week. First run: **Start here** with tonight's pick and I'm going.
+   Locate me, Near me) and the bottom sheet (MAP-REDESIGN.md). *List:* Live
+   now, Tonight, This week, Later. First run: **Start here** with tonight's pick and I'm going.
 2. **Search:** one field; All, Events (with filters), Places (nearest, with kind chips),
    People; addresses with Go here.
 3. **Event detail:** hero, hosts, invite filter summary, the stops timeline
@@ -876,7 +878,7 @@ One vocabulary, in `src/lib/glossary.ts` (screens import it rather than writing 
 | **event** (cruise, rolling meet, meet, show, track day) | "meet" as the generic word |
 | **Hosting**, **Going**, **Requested**, **You can go** (your build fits the invite), **Public**, **Declined** (`roleLabel()`) | You host, Asked to go, Open to all |
 | **Request to go** / **Cancel request** | Ask to go, Withdraw request |
-| **Public · anyone within N mi** (invite line) | Everyone welcome |
+| **Anyone within N mi** (invite line) | Everyone welcome |
 | **meet point** (where an event is; "Meet point 2" on a rolling meet) | stop, spot, venue (for events) |
 | **Location shows 1 h before** / **Location shows at 21:30** / **Shown to people going** (`LOCATION`) | unlocks, unlocked, reveal, stop locked |
 | the **area** (the circle before the location shows) | rough area |

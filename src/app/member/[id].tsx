@@ -9,6 +9,7 @@ import { shortAgo } from '../../lib/format';
 import { useNow } from '../../lib/clock';
 import { actionLine, BAN_CHOICES, banMessage, canActOn, canBan, roleChoices, ROLE_LABEL, WARN_REASONS, type BanScope, type StaffRole } from '../../lib/moderation';
 import { SPACING } from '../../theme';
+import { StaffOnly } from '../../components/StaffOnly';
 
 const KIND_LABEL: Record<HistoryItem['kind'], string> = {
   post: 'Post',
@@ -34,7 +35,7 @@ function openItem(h: HistoryItem) {
  * when reported), and Warn, Community ban, Lift and role changes. The server
  * checks every action against the staff role (docs/MODERATION.md).
  */
-export default function MemberModerationScreen() {
+function MemberModerationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const community = useCommunity();
   const now = useNow();
@@ -248,5 +249,13 @@ export default function MemberModerationScreen() {
         ))}
       </Section>
     </ScrollView>
+  );
+}
+
+export default function GatedMemberModerationScreen() {
+  return (
+    <StaffOnly>
+      <MemberModerationScreen />
+    </StaffOnly>
   );
 }

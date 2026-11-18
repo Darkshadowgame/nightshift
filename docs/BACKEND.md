@@ -1007,6 +1007,30 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   lost the three Realtime checks (event moved on, chat line, notice) and passed the rest; the next run
   passed in full.
 
+### 7a-12. What's live (19 Nov 2026, REVIEW-9: dyno runs)
+
+* **Migration** `20261119090000_dyno_runs.sql`: `build_dyno_runs` (day, rolling road, peak power in bhp
+  and torque in lb-ft, `measured_at` wheels or crank, the sheet's units, the sheet photo's Storage path,
+  position). Signed-in users read, only the build's owner writes (the same rules as `build_photos`);
+  the photo lives in the owner's folder of the `photos` bucket; no runs in the future; 20 a build at
+  most (trigger `private.dyno_runs_check`). `builds.dyno_bhp` stays the figure Class uses: the app sets
+  it from the latest run (a crank figure as it is, a wheel figure plus 15% for cars or 10% for bikes,
+  labelled as an estimate), so older app versions keep working.
+* Pushed with `db push --remote --yes` after a dry run, a `pg_dump` of `public` (kept off the repo) and the
+  migration plus `dyno_runs_test.sql` in a rolled-back transaction on the hosted database (12 of 12).
+* **The "Dyno proven" badge** (`20261119100000_dyno_report_reason.sql`, `20261119100100_dyno_badge.sql`):
+  `public.dyno_badges(build_ids)` decides it on every read (`dyno_verified`, `dyno_old`, `dyno_year`,
+  `removed`), with the rules of `dynoBadge()` in `src/lib/dyno.ts`: the latest run has a sheet photo,
+  `builds.dyno_bhp` matches it within 2% (wheel runs plus 15% or 10%), it's under 730 days old, and staff
+  haven't removed it. It isn't a column, so nobody can set it. Report reason `fake_dyno` ("Fake or edited
+  dyno sheet"). Staff: `public.remove_dyno_badge(run_id, reason)` records the sheet's path in
+  `dyno_badge_removals` (closed to users; saving the same sheet again keeps it off) and logs
+  `remove_dyno` in the audit log. pgTAP: `dyno_badge_test.sql` (16), run in a rolled-back transaction
+  before the push.
+* **pgTAP:** 822 of 822 on the hosted database (adds `dyno_runs_test.sql`, 12, and `dyno_badge_test.sql`, 16).
+* **Smoke test:** 121 of 121 (adds: A adds a dyno run with its sheet, B reads it with the build, B can't
+  add one to A's build; B sees the badge proven, it goes when A edits the power by hand, B can't remove it).
+
 ### 7c. The smoke test
 
 ```bash

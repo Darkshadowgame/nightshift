@@ -3,10 +3,10 @@ import { useLayoutEffect, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { BuildHero } from '../../components/BuildHero';
 import { BuildGrid, buildMeta } from '../../components/Community';
-import { DsText, EmptyState, HeaderActions, Press, Section, StatBlock, Tag } from '../../components/ds';
+import { Button, DsText, EmptyState, HeaderActions, Icon, Press, Section, StatBlock, Tag } from '../../components/ds';
 import { allAwards } from '../../lib/awards';
 import { lastBrought } from '../../lib/bringing';
-import { bhpPerTonne, classOf, effectivePower } from '../../lib/classes';
+import { bhpPerTonne, classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { COVER_ASPECT } from '../../lib/crop';
 import { plural } from '../../lib/format';
@@ -14,7 +14,9 @@ import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
 import { stageFromMods, stageLabel } from '../../lib/tune';
 import type { Build } from '../../lib/types';
-import { SPACING } from '../../theme';
+import { COLOR, SPACING } from '../../theme';
+import { dynoBadge, powerText } from '../../lib/dyno';
+import { DynoBadge } from '../../components/DynoBadge';
 
 /** The demo's example build for you (see seed.ts). */
 const SAMPLE_BUILD = 'b-me-0';
@@ -36,7 +38,7 @@ export default function Garage() {
 
   useLayoutEffect(() => {
     nav.setOptions({
-      headerRight: () => <HeaderActions action={{ label: '+ New', accessibilityLabel: 'Add a car or bike', onPress: () => router.push('/build/edit') }} />,
+      headerRight: () => <HeaderActions action={{ label: '+ New', accessibilityLabel: 'Add a car or bike', onPress: () => router.push('/build/edit') }} bell />,
     });
   }, [nav]);
 
@@ -70,9 +72,18 @@ export default function Garage() {
         >
           <BuildHero build={main} {...(main.photos[0] ? { aspect: COVER_ASPECT } : { height: 180 })} trophies={won} tag={sample ? 'Sample' : undefined} />
           <View style={{ gap: SPACING.xs }}>
-            <DsText v="eyebrow" tone="secondary">
-              Main build
-            </DsText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <DsText v="eyebrow" tone="secondary">
+                Main build
+              </DsText>
+              {/* Says the card opens (REVIEW-9 decision 11). */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs }}>
+                <DsText v="label" tone="action">
+                  Open build
+                </DsText>
+                <Icon name="chevron" size={16} colour={COLOR.action.link} />
+              </View>
+            </View>
             <DsText v="titleLg" numberOfLines={2}>
               {main.make} {main.model}
             </DsText>
@@ -88,20 +99,22 @@ export default function Garage() {
               {swap ? <Tag label={swap} raw /> : null}
             </View>
           ) : null}
+          <DynoBadge build={main} />
           <StatBlock
             stats={[
-              { value: `${Math.round(effectivePower(main))}`, unit: 'bhp', label: main.dynoBhp ? 'Power · dyno' : 'Power · est.' },
+              { value: powerText(main).split(' ')[0], unit: powerText(main).split(' ')[1], label: dynoBadge(main, now)?.state === 'proven' ? 'Power · dyno' : 'Power' },
               { value: `${bhpPerTonne(main)}`, label: 'bhp / tonne' },
               { value: `${main.mods.length}`, label: main.mods.length === 1 ? 'Mod' : 'Mods' },
             ]}
           />
         </Press>
+        <Button label="Add a mod" icon="plus" tier="secondary" block onPress={() => router.push({ pathname: '/build/edit', params: { id: main.id, section: 'mods' } })} />
         {sample ? <DsText v="caption">A sample build with sample trophies from the demo meet. Open it, then Edit to make it yours.</DsText> : null}
       </View>
 
       {others.length ? (
         <Section title={`Other builds (${others.length})`}>
-          <BuildGrid builds={others} trophiesOf={trophiesOf} sampleId={isSample} />
+          <BuildGrid builds={others} trophiesOf={trophiesOf} sampleId={isSample} halfOnly />
         </Section>
       ) : null}
 

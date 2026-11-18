@@ -16,7 +16,7 @@ export default function NewEvent() {
         const id = await saveEvent(event);
         if (settings.reminders) askPermission().catch(() => {});
         // Said once, as you arrive on the event: the same count the form showed.
-        toast({ message: sentToast(sent.invited, isPublicType(event.type)) });
+        toast({ message: sentToast(sent.invited, isPublicType(event.type), event.filter.everyone) });
         openCreated({ pathname: '/event/[id]', params: { id } });
       }}
     />

@@ -89,6 +89,8 @@ interface Store extends Persisted {
   /** "Where to?" recent places, Home and Work (kept in the phone's settings only). */
   updatePlaces: (fn: (p: SavedPlaces) => SavedPlaces) => void;
   markNoticesRead: () => void;
+  /** Put a notice under the bell (e.g. "Bex accepted your request"). */
+  addNotice: (n: Omit<Notice, 'id' | 'read'>) => void;
   markLocationNoticeSeen: () => void;
   /** Queue a suggestion or report (see feedbackQueue.ts); it's sent to the team when there's a connection. */
   queueFeedback: (item: PendingFeedback) => void;
@@ -600,6 +602,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       markNoticesRead: () => {
         repo?.markNoticesRead().catch(() => {});
       },
+      addNotice: (n) => set((s) => ({ ...s, notices: [{ ...n, id: newId('n'), read: false }, ...s.notices].slice(0, 100) })),
       setSettings: (patch) => set((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
       updatePlaces: (fn) => set((s) => ({ ...s, settings: { ...s.settings, places: fn(savedPlaces(s.settings.places)) } })),
       markUnlockSeen: (eventId, stopIds) =>

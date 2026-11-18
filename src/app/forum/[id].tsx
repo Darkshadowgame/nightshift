@@ -14,6 +14,7 @@ import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { ListingCard, soldWord } from '../../components/ListingCard';
+import { levelLabel } from '../../lib/rep';
 
 /** A thread: the question, replies (Helpful, Solved), and a reply box. */
 export default function ThreadScreen() {
@@ -144,7 +145,7 @@ export default function ThreadScreen() {
         <ListRow
           leading={{ avatar: personMark(author) }}
           title={at(author)}
-          meta={metaLine([`Level ${repFor(thread.authorId).level.level}`, shortAgo(thread.createdAt, now)])}
+          meta={metaLine([levelLabel(repFor(thread.authorId).level.level), shortAgo(thread.createdAt, now)])}
           onPress={() => openProfile(thread.authorId)}
           chevron={false}
         />

@@ -5,7 +5,7 @@ import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { banMessage } from '../lib/moderation';
 import { COLOR, RADII, SPACING } from '../theme';
 import { setStaffNow } from './Community';
-import { Button, DsText, Sheet } from './ds';
+import { Button, DsText, Sheet, useToast } from './ds';
 
 /**
  * Mounted once, signed in: learns whether this person is staff (for the
@@ -64,4 +64,18 @@ export function BanBanner({ status }: { status: ModerationStatus | null | undefi
       {status.scope === 'community' ? <DsText v="caption">You can still read, use the map, events and your garage, and message your connections.</DsText> : null}
     </View>
   );
+}
+
+/**
+ * "Bex accepted your request. You can message now." as a toast when it happens (REVIEW-9 decision 15).
+ * The same line lands under the bell (communityStore). Mounted inside the ToastProvider.
+ */
+export function ConnectionToasts() {
+  const { accepted } = useCommunity();
+  const toast = useToast();
+  useEffect(() => {
+    if (accepted) toast({ message: accepted.text });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accepted?.n]);
+  return null;
 }

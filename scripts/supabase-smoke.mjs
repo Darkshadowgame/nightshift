@@ -168,6 +168,27 @@ async function main() {
   const signedOk = signed?.signedUrl ? (await fetch(signed.signedUrl)).ok : false;
   check("B reads A's photo through a signed URL", signedOk);
 
+  // --- Dyno runs (REVIEW-9): the owner adds one with its sheet, B reads it, B can't add one --------
+  const today = new Date().toISOString().slice(0, 10);
+  const { error: dyErr } = await A.client.from('build_dyno_runs').insert({
+    build_id: buildA.id, run_on: today, shop: 'Smoke rolling road', power_bhp: 312, torque_lb_ft: 295, measured_at: 'wheels', power_unit: 'kW', torque_unit: 'Nm', storage_path: made.photoPath, position: 0,
+  });
+  check('build_dyno_runs: the owner adds a run with its sheet', !dyErr, dyErr?.message);
+  const { data: dyRead } = await B.client.from('builds').select('id, build_dyno_runs(power_bhp, measured_at, storage_path)').eq('id', buildA.id).single();
+  check("B reads A's dyno run with the build", dyRead?.build_dyno_runs?.[0]?.power_bhp == 312 && dyRead.build_dyno_runs[0].measured_at === 'wheels');
+  const { error: dyBad } = await B.client.from('build_dyno_runs').insert({ build_id: buildA.id, run_on: today, power_bhp: 999, measured_at: 'crank' });
+  check("B can't add a dyno run to A's build", !!dyBad);
+  // The "Dyno proven" badge: the server's call. 312 whp at the wheels is about 367 bhp at the crank.
+  await A.client.from('builds').update({ dyno_bhp: 367 }).eq('id', buildA.id);
+  const { data: badge } = await B.client.rpc('dyno_badges', { p_build_ids: [buildA.id] });
+  check('dyno_badges: a recent run with its sheet, matching: proven (read by B)', badge?.[0]?.dyno_verified === true, JSON.stringify(badge?.[0] ?? null));
+  await A.client.from('builds').update({ dyno_bhp: 420 }).eq('id', buildA.id);
+  const { data: badge2 } = await B.client.rpc('dyno_badges', { p_build_ids: [buildA.id] });
+  check('dyno_badges: power edited by hand loses it', badge2?.[0]?.dyno_verified === false);
+  const { data: dyRow } = await A.client.from('build_dyno_runs').select('id').eq('build_id', buildA.id).single();
+  const { error: rmErr } = await B.client.rpc('remove_dyno_badge', { p_run_id: dyRow?.id, p_reason: 'test' });
+  check('remove_dyno_badge: staff only', !!rmErr, rmErr?.message);
+
   // --- Host a rolling meet ----------------------------------------------------
   const startsAt = new Date(Date.now() + 2 * 3600_000).toISOString();
   const saved = await rpc(A, 'save_event', {

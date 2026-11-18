@@ -36,7 +36,7 @@ describe('first-run profile', () => {
 
 describe('other people', () => {
   test('a public profile has builds and trophies but no location', () => {
-    const now = new Date();
+    const now = new Date(2026, 10, 18, 20, 30); // an evening: the rolling meet is on
     const s = seed(now);
     const awards = allAwards(s.votes, s.events, s.builds, now);
     const p = publicProfile('dan', s.users, s.builds, s.crews, s.events, awards, now)!;
@@ -49,5 +49,15 @@ describe('other people', () => {
     expect(JSON.stringify(p)).not.toContain('home');
     expect(Object.keys(p)).not.toContain('home');
     expect(publicProfile('nobody', s.users, s.builds, s.crews, s.events, awards, now)).toBeNull();
+  });
+});
+
+describe('a made-up demo handle (REVIEW-9)', () => {
+  const { suggestHandle, handleProblem } = jest.requireActual('../src/lib/profile') as typeof import('../src/lib/profile');
+  test('from the car, or "night", and always a valid handle', () => {
+    expect(suggestHandle('Civic Type R FK8', 4821)).toBe('civic_4821');
+    expect(suggestHandle(undefined, 1234)).toBe('night_1234');
+    expect(suggestHandle('86', 1234)).toBe('night_1234');
+    for (const h of [suggestHandle('Golf GTI Mk7', 9999), suggestHandle('', 1000)]) expect(handleProblem(h, [], 'me')).toBeNull();
   });
 });

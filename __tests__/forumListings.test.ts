@@ -13,6 +13,15 @@ describe('listings (For sale and wanted)', () => {
     expect(parsePrice('4.999')).toBeNaN();
   });
 
+  it('reads "250 ono" and "£250 ONO" (REVIEW-9)', () => {
+    const { typedOno } = jest.requireActual('../src/lib/forum') as typeof import('../src/lib/forum');
+    expect(parsePrice('250 ono')).toBe(25000);
+    expect(parsePrice('£250 ONO')).toBe(25000);
+    expect(parsePrice('250')).toBe(25000);
+    expect(parsePrice('ono')).toBeNull();
+    expect([typedOno('250 ono'), typedOno('£250 ONO'), typedOno('250'), typedOno('£1,250 o.n.o.')]).toEqual([true, true, false, true]);
+  });
+
   it('labels prices and budgets', () => {
     expect(priceLabel({ kind: 'sale', pricePence: 45000, ono: true })).toBe('£450 ONO');
     expect(priceLabel({ kind: 'sale', pricePence: 125050 })).toBe('£1,250.50');

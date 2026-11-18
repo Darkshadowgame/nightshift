@@ -295,3 +295,28 @@ export function restage(mods: Mod[], stage: TuneStage, before: StageEngine | nul
   if ((mod.bhpGain ?? undefined) !== (old && old > 0 ? old : undefined)) return mods;
   return mods.map((m) => (m === mod ? { ...m, bhpGain: next && next > 0 ? next : undefined } : m));
 }
+
+const STAGE_ORDER: TuneStage[] = ['stock', 'stage1', 'stage2', 'stage2plus', 'stage3', 'stage4'];
+
+/** Mod names that mean a tune, and the stage they usually go with. */
+const STAGE_SIGNS: { stage: TuneStage; re: RegExp }[] = [
+  { stage: 'stage3', re: /\b(hybrid|big)\s+turbo\b|\bforged\b|\banti-?lag\b/i },
+  { stage: 'stage2', re: /\bde-?cat\b|\bcat delete\b|\bdownpipe\b|\bintercooler\b|\bpops\b|\bderestrict/i },
+  { stage: 'stage1', re: /\bremap\b|\becu\b|\bflash\b|\b(dyno|custom|fuel) map\b/i },
+];
+
+/**
+ * After adding mods that mean a tune (a remap, a decat, a hybrid turbo…) with the tune stage
+ * still lower: the stage they usually go with, to suggest (REVIEW-9). Null when the stage
+ * already covers them, or it's Custom.
+ */
+export function stageHint(mods: readonly Pick<Mod, 'name'>[], stage: TuneStage): TuneStage | null {
+  if (stage === 'custom') return null;
+  let best: TuneStage | null = null;
+  for (const m of mods) {
+    if (isStageMod(m)) continue;
+    const hit = STAGE_SIGNS.find((s) => s.re.test(m.name));
+    if (hit && (!best || STAGE_ORDER.indexOf(hit.stage) > STAGE_ORDER.indexOf(best))) best = hit.stage;
+  }
+  return best && STAGE_ORDER.indexOf(best) > STAGE_ORDER.indexOf(stage) ? best : null;
+}

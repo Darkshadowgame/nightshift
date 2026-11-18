@@ -132,3 +132,14 @@ Work in this order. Each item ships over the air unless marked native.
    (`private.banned_terms`), add staff (`insert into public.staff …`), decide on an appeals
    address, and whether swearing short of the list is fine. **Later:** typing indicator, video,
    real push for messages (paid Apple account), and paging the feed and people by distance at scale.
+8. **Dyno section (owner request, 18 Nov 2026)**: runs per build on the build page (day, rolling
+   road, peak power and torque, wheels or crank, the sheet's photo), the latest as a StatBlock
+   with before and after, and a history. Over the air now: the photo through the usual picker
+   (plate review only when a plate is found) and the figures typed in, with the sheet parser
+   (`src/lib/dynoParse.ts`, Dynojet, MAHA, Dastek and Mustang layouts) wired to `ocrText()`,
+   which returns null in the installed app. **Native, for build 12 (not merged):** branch
+   `native-dyno-ocr` adds Apple Vision text recognition (`VNRecognizeTextRequest`, accurate,
+   en-GB) as `recognizeText(uri)` on the NavDirections module; `ocrText()` picks it up with no
+   JS change, and the form then says "We read 312 bhp and 295 lb-ft: check these". Merging it
+   changes the fingerprint and needs a new IPA. On the web there's no text reading (tesseract.js
+   would add a few MB of download for a preview feature).

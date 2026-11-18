@@ -35,6 +35,8 @@ export interface Settings {
   spectatorTracks?: boolean;
   /** Set once Shops and Speed cameras moved under "More" and went off by default (Nov 2026). */
   moreLayersOff?: boolean;
+  /** Set once Tonight's map went to Events only by default (REVIEW-9, 18 Nov 2026). */
+  eventsOnlyMap?: boolean;
   /** Where "Start navigation" goes. Nightshift's own driving view unless you chose "Always use" another app. */
   directionsApp: DirectionsApp;
   /** Driving view: spoken instructions. */
@@ -72,7 +74,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: false, trackVehicles: ['car', 'bike'],
-  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true,
+  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true, eventsOnlyMap: true,
   directionsApp: 'nightshift', navVoice: true, navCameraAlerts: true, mapLayers: { ...DEFAULT_LAYERS },
 };
 
@@ -90,5 +92,9 @@ export function upgradeSettings(saved: Partial<Settings> | undefined, upgraded: 
   if (!saved?.moreLayersOff) next = { ...next, cameras: false, shops: false, moreLayersOff: true };
   // The core layers were only in screen state before Nov 2026: fill any that a save doesn't have.
   next = { ...next, mapLayers: savedLayers(saved?.mapLayers) };
+  // Tonight's map went to Events only (REVIEW-9): once, every other layer off; Events and your Posts layer stay as they were.
+  if (!saved?.eventsOnlyMap) {
+    next = { ...next, mapLayers: { ...DEFAULT_LAYERS, events: next.mapLayers.events }, shops: false, cameras: false, eventsOnlyMap: true };
+  }
   return upgraded ? next : { ...next, simulateGps: false };
 }

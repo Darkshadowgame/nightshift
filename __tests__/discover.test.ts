@@ -260,7 +260,8 @@ describe('new events near you', () => {
 });
 
 describe('the demo scene', () => {
-  const now = new Date();
+  // An evening: the rolling meet has started (the demo lays its meets out at real evening times).
+  const now = new Date(2026, 10, 18, 20, 30);
   const s = seed(now);
   // You start fresh (no car, no events): add a stock car, as the first-run step does.
   const stock = { id: 'b-new', ownerId: 'me', kind: 'car' as const, make: 'Ford', model: 'Fiesta ST', stockBhp: 197, weightKg: 1262, mods: [], photos: [] };
@@ -278,7 +279,7 @@ describe('the demo scene', () => {
     expect(s.votes.some((v) => v.voterId === 'me')).toBe(false);
   });
 
-  test('on first run, the invite a few hours away is new near you; your own and finished ones are not', () => {
+  test('on first run, the weekend coffee meet is new near you; your own and finished ones are not', () => {
     const { arrived, matches } = nearbyArrivals(s.events, [], meWho, now);
     const ids = matches.map((e) => e.id);
     expect(arrived).toHaveLength(s.events.length);
@@ -313,5 +314,7 @@ describe('find summary', () => {
     expect(hitNote({ miles: 30, canGo: false, view: { role: 'none' } }, false)).toBe('about 30 mi from home · request to go');
     expect(hitNote({ miles: 2, canGo: true, view: { role: 'host' } }, false)).toBe("about 2 mi from home · you're hosting");
     expect(hitNote({ miles: 2, canGo: true, view: { role: 'going' } }, false)).toBe("about 2 mi from home · you're going");
+    expect(hitNote({ miles: 2, canGo: true, view: { role: 'invited', event: { type: 'meet', filter: { everyone: true } } } }, false)).toBe('about 2 mi from home');
+    expect(hitNote({ miles: 2, canGo: true, view: { role: 'public' } }, false)).toBe('about 2 mi from home');
   });
 });

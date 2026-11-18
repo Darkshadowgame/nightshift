@@ -79,6 +79,8 @@ export type ReportReason =
   | 'scam'
   | 'underage'
   | 'other'
+  /** Builds only: the dyno sheet behind the "Dyno proven" badge looks fake or edited. */
+  | 'fake_dyno'
   /** Only raised by Nightshift itself: someone whose posts are nearly all selling. */
   | 'sell_only';
 
@@ -94,6 +96,7 @@ export const REPORT_REASONS: readonly { key: ReportReason; label: string }[] = [
   { key: 'scam', label: 'Scam or fraud' },
   { key: 'spam', label: 'Spam' },
   { key: 'underage', label: 'Someone under 18' },
+  { key: 'fake_dyno', label: 'Fake or edited dyno sheet' },
   { key: 'other', label: 'Something else' },
 ];
 
@@ -346,6 +349,7 @@ const ACTION_LABEL: Record<string, string> = {
   dismiss: 'Dismissed report',
   auto_report: 'Automatic report',
   cooldown: 'Automatic 24-hour cooldown',
+  remove_dyno: 'Removed a Dyno badge',
 };
 
 /** One line of the moderation log: what, how long, by whom (and their role then). */

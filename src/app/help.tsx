@@ -38,18 +38,19 @@ const TOPICS: { title: string; lines: string[] }[] = [
     title: 'Trophies and votes',
     lines: [
       'The people who checked in vote for the best builds, from the start until 24 hours after it ends. Winners get trophies, and the best get a cover shoot.',
-      'Best in show also makes you a Legend for a week: a badge on your profile and next to your name.',
     ],
   },
   {
     title: 'Classes',
-    lines: ['Every build has a class from S to D, worked out from power to weight. Hosts can invite certain classes, for example an S and A meet.'],
+    lines: [
+      "Every build has a class from S to D: its power for its weight. Cars and bikes each have their own scale, so a litre superbike and an M4 are both S. Hosts can invite certain classes, for example an S and A meet.",
+    ],
   },
   {
-    title: 'Rep and levels',
+    title: 'Levels',
     lines: [
-      'You earn rep for turning up (150 for each event you check in at), hosting, trophies, drives and places people use. Your level is a plain count of it, nothing more.',
-      "Class is about your build, not you: S to D from power to weight. Level and rep are about you. Legend is this week's best in show.",
+      'One ladder for you: you earn rep points for turning up (150 for each event you check in at), hosting, trophies, drives and places people use, and they move you up the levels.',
+      'Newcomer, Regular, Known face, Local name, Scene veteran, then Legend at the top. Class is about your build, not you; trophies are for a build on the night.',
     ],
   },
   {

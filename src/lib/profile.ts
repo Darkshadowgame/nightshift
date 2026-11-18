@@ -43,6 +43,15 @@ export function normaliseHandle(raw: string): string {
   return raw.trim().replace(/^@+/, '').toLowerCase();
 }
 
+/**
+ * A handle for someone trying the demo who hasn't typed one (REVIEW-9): "night_4821", or after
+ * the car they picked ("civic_4821"). Changeable later on the profile. `n` is 1000–9999.
+ */
+export function suggestHandle(model: string | undefined, n: number): string {
+  const word = (model ?? '').toLowerCase().split(/[^a-z0-9]+/).find((w) => /^[a-z][a-z0-9]{2,11}$/.test(w));
+  return `${word ?? 'night'}_${Math.max(1000, Math.min(9999, Math.round(n)))}`;
+}
+
 export function handleProblem(raw: string, users: User[], me: string): string | null {
   const handle = normaliseHandle(raw);
   if (handle.length < 3) return 'Handles need at least 3 characters.';
