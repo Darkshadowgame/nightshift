@@ -9,6 +9,9 @@
  *   setClockOffset(ms)             // 0 for the real clock
  *   setClockTo(virtualNow)         // move the app's clock so that "now" reads `virtualNow`
  *   onClockChange(fn)              // called when the offset changes (returns an unsubscribe)
+ *   realNowMs()                    // the phone's own clock: only for elapsed time, ids and network stamps
+ *
+ * `__tests__/clockLint.test.ts` bans `new Date()` and `Date.now()` everywhere else in src.
  *
  * The offset lives in memory. Whoever owns the demo (demoTime.ts) sets it on start-up and
  * persists whatever it needs; this file holds no policy.
@@ -20,6 +23,16 @@ const listeners = new Set<(offsetMs: number) => void>();
 /** Milliseconds on the app's clock. */
 export function appNowMs(): number {
   return Date.now() + offset;
+}
+
+/**
+ * The phone's real clock, in ms. Only for things nobody reads as a time of day: how long since the
+ * last GPS fix, throttles, animation frames, unique ids, cache ages and timestamps sent to the server.
+ * Anything shown on screen or used to decide what's on (ETAs, countdowns, "live", "tonight") uses
+ * `appNow()` instead, so the demo night reads the same at any real time.
+ */
+export function realNowMs(): number {
+  return Date.now();
 }
 
 /** Now, on the app's clock. Use this instead of `new Date()`. */

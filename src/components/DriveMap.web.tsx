@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { realNowMs } from '../lib/appClock';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type * as Leaflet from 'leaflet';
 import { iconRotation } from '../lib/driveView';
@@ -93,7 +94,7 @@ export function DriveMap(props: DriveMapProps) {
         }
         if ((map as unknown as { _animatingZoom?: boolean })._animatingZoom) return;
         const v = t.speed != null && t.speed > 0 ? t.speed : 0;
-        const want = predictAhead(t.focus, t.speed, t.heading, Date.now() - since.current);
+        const want = predictAhead(t.focus, t.speed, t.heading, realNowMs() - since.current);
         const h = out.clientHeight || 700;
         const zoom = altitudeToZoom(Math.min(1400, 450 + v * 25), want.lat, h);
         if (!cam || roughMetres(cam.at, want) > CAMERA_JUMP_METRES) {
@@ -125,11 +126,11 @@ export function DriveMap(props: DriveMapProps) {
   }, []);
 
   // When the latest fix arrived, for guessing ahead between fixes.
-  const since = useRef(Date.now());
+  const since = useRef(realNowMs());
   const lastFocus = useRef<LatLng | null>(null);
   if (focus !== lastFocus.current) {
     lastFocus.current = focus;
-    since.current = Date.now();
+    since.current = realNowMs();
   }
 
   // Look round only while stopped.

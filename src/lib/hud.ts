@@ -70,9 +70,8 @@ export function mapHud(views: EventView[], now: Date): { live: EventView[]; next
 }
 
 /**
- * Draw order for map pins, last on top: spots, then locked areas, then places
- * you can see, then live events. Otherwise a locked circle pin can sit over a
- * live meet and steal the tap.
+ * Draw order for map pins, last on top: cameras and shops, then places, then
+ * events, then live events. Otherwise a pin can sit over a live meet and steal the tap.
  */
 type Layered = { glyph: string; live?: boolean };
 
@@ -85,7 +84,6 @@ export function pinLayer(p: Layered): number {
   // Shop listings are background too; a partner's pin sits with the places.
   if (SHOP_GLYPHS.has(p.glyph)) return 0;
   if (p.glyph === 'partner') return 1;
-  if (p.glyph === 'locked') return 2;
   if (p.glyph === 'photo' || p.glyph === 'drive' || p.glyph === 'track' || p.glyph === 'venue') return 1;
   return 3;
 }

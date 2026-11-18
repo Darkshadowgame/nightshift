@@ -149,3 +149,23 @@ describe('the web preview demo drive', () => {
     expect(r.steps.filter((s) => s.kind === 'arrive')).toHaveLength(2);
   });
 });
+
+describe('the demo drive follows the baked road (Review 11)', () => {
+  const { straightRoute: route } = require('../src/lib/driveView');
+  const a = { lat: 52.63, lng: -1.7 };
+  const b = { lat: 52.6105, lng: -1.672 };
+  const road = [a, { lat: 52.63, lng: -1.68 }, { lat: 52.615, lng: -1.672 }, b];
+  test('a leg with a road goes along it, from its start to the point exactly', () => {
+    const r = route([a, b], ['Leisure park car park'], 60, () => road);
+    const pts: { lat: number; lng: number }[] = [];
+    for (let i = 0; i < r.coords.length; i += 2) pts.push({ lat: r.coords[i], lng: r.coords[i + 1] });
+    expect(pts[0]).toEqual(a);
+    expect(pts[pts.length - 1]).toEqual(b);
+    expect(pts.some((p) => Math.abs(p.lat - 52.63) < 1e-9 && Math.abs(p.lng + 1.68) < 1e-9)).toBe(true);
+    expect(r.distance).toBeGreaterThan(route([a, b]).distance);
+    expect(r.legs[0].endIndex).toBe(pts.length - 1);
+  });
+  test('a leg without one is still a straight line', () => {
+    expect(route([a, b], [], 60, () => null)).toEqual(route([a, b]));
+  });
+});

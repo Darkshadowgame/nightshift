@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { MediaFrame } from '../../components/Detail';
 import { EventForm } from '../../components/EventForm';
-import { ActionBar, Card, DsText, ErrorState, Hero, LocationLine, PAGE_WITH_BAR, useToast } from '../../components/ds';
+import { ActionBar, Card, DsText, Hero, LocationLine, PAGE_WITH_BAR, useToast } from '../../components/ds';
 import { NightMap } from '../../components/NightMap';
 import { useNow } from '../../lib/clock';
-import { EVENT_LABELS, isPublicType, shareText } from '../../lib/events';
+import { EVENT_LABELS, isPublicType } from '../../lib/events';
+import { eventSharePayload } from '../../lib/share';
+import { useShareLink } from '../../components/ShareLink';
 import { sentToast } from '../../lib/format';
 import { aroundArea } from '../../lib/glossary';
 import { clearHostDraft, draftSummary, loadHostDraft, type HostDraft } from '../../lib/hostDraft';
@@ -84,17 +86,13 @@ export default function NewEvent() {
 /** "It's up": the meet as people will see it, Share first so people come. */
 function Posted({ event }: { event: NightEvent }) {
   const now = useNow();
-  const [shareFailed, setShareFailed] = useState(false);
+  // Share (X, Review 11): the share sheet, else "Link copied", else the link to copy (src/lib/share.ts).
+  const sharer = useShareLink();
   const colour = EVENT_COLOURS[event.type];
   const radius = event.areaRadiusMiles ?? 3;
   const revealAt = new Date(new Date(event.startsAt).getTime() - event.revealMinutesBefore * 60_000);
-  async function share() {
-    try {
-      await Share.share({ message: shareText(event, whenLabel(event.startsAt, now)), title: event.title });
-    } catch {
-      // Errors stay under the thing that failed, never in a toast (4.7).
-      setShareFailed(true);
-    }
+  function share() {
+    return sharer.share(eventSharePayload(event, whenLabel(event.startsAt, now)));
   }
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
@@ -118,12 +116,12 @@ function Posted({ event }: { event: NightEvent }) {
           <DsText v="titleLg">It's up. Share it so people come.</DsText>
           {isPublicType(event.type) ? null : <LocationLine state="host" time={clock(revealAt)} leadMinutes={event.revealMinutesBefore} />}
         </View>
-        {shareFailed ? <ErrorState title="Couldn't open sharing on this device. Send people the meet's name and time instead." /> : null}
       </ScrollView>
       <ActionBar
         primary={{ label: 'Share', icon: 'share', onPress: share }}
         secondary={{ label: 'Open the meet', onPress: () => openCreated({ pathname: '/event/[id]', params: { id: event.id } }) }}
       />
+      {sharer.sheet}
     </View>
   );
 }

@@ -1,11 +1,12 @@
 import * as Location from 'expo-location';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chime, navDirectionsAvailable, route as fetchRoute, speak, stopSpeaking } from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
+import { DEMO_ROAD_CREDIT, demoRoadTo } from '../data/demoRoads';
 import {
   AlertPill,
   CompassGlyph,
@@ -21,9 +22,9 @@ import {
 } from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
-import { buzz, Button, ChoiceGroup, DsText, Icon, Sheet, SwitchRow } from '../components/ds';
+import { buzz, Button, ChoiceGroup, DsText, EmptyState, Icon, Sheet, SwitchRow } from '../components/ds';
 import { VoicePicker } from '../components/VoicePicker';
-import { appNow } from '../lib/appClock';
+import { appNow, clockOffset, realNowMs } from '../lib/appClock';
 import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
@@ -145,18 +146,18 @@ export default function DriveScreen() {
     const ev = store.events.find((e) => e.id === t.id);
     return ev ? planForEvent(ev, store.me, store.crews, appNow()) : null;
   });
-  const insets = useSafeAreaInsets();
 
   if (!plan) {
+    // A bad or old link: the header's back (to Tonight with no history) and one way on. Never a dead end.
     return (
-      <View style={[st.screen, st.centred, { paddingTop: insets.top + SPACING.xl }]}>
-        <DsText v="heading" accessibilityRole="header">
-          Nothing to navigate to
-        </DsText>
-        <DsText v="secondary" style={{ textAlign: 'center' }}>
-          The meet point isn't shown to you yet, or it's gone.
-        </DsText>
-        <Button block label="Back" tier="secondary" size="lg" onPress={() => router.back()} />
+      <View style={[st.screen, { paddingHorizontal: SPACING.screen }]}>
+        <BackHeader />
+        <EmptyState
+          glyph="destination"
+          title="Nothing to navigate to"
+          body="The meet point isn't shown to you yet, or the meet has gone."
+          action={{ label: "See tonight's meets", onPress: () => router.replace('/') }}
+        />
       </View>
     );
   }
@@ -165,12 +166,30 @@ export default function DriveScreen() {
   return <DriveSession plan={plan} />;
 }
 
+/**
+ * The driving view has no header of its own (it's full screen); its not-found and "needs the app"
+ * pages show the header, so they get the root layout's one back button (4.2): back, or Tonight
+ * when there's nothing behind (backFallback.ts).
+ */
+function BackHeader() {
+  return (
+    <Stack.Screen
+      options={{
+        headerShown: true,
+        title: '',
+        headerStyle: { backgroundColor: COLOR.surface.bg },
+        headerShadowVisible: false,
+      }}
+    />
+  );
+}
+
 /** Web preview and builds without the native module: say so, and offer other apps. */
 function NeedsApp({ plan }: { plan: NavPlan }) {
-  const insets = useSafeAreaInsets();
   const to = plan.stops[0].at;
   return (
-    <View style={[st.screen, { paddingTop: insets.top + SPACING.xl, paddingHorizontal: SPACING.screen, gap: SPACING.md }]}>
+    <View style={[st.screen, { paddingTop: SPACING.lg, paddingHorizontal: SPACING.screen, gap: SPACING.md }]}>
+      <BackHeader />
       <DsText v="eyebrow" tone="action">
         Navigation
       </DsText>
@@ -187,7 +206,6 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
       <Button block label="Apple Maps" size="lg" onPress={() => openDirections('apple', to)} />
       <Button block label="Google Maps" tier="secondary" onPress={() => openDirections('google', to)} />
       <Button block label="Waze" tier="secondary" onPress={() => openDirections('waze', to)} />
-      <Button block label="Back" tier="secondary" onPress={() => router.back()} />
     </View>
   );
 }
@@ -247,7 +265,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const [checkedIn, setCheckedIn] = useState<string[]>([]);
   const [driveNote, setDriveNote] = useState<string | null>(null);
   /** Ticks every second: the ETA, "stopped" once fixes dry up, and recentring after a look round. */
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => realNowMs());
   const orientation: MapOrientation = settings.navMap === 'north' ? 'north' : 'heading';
   const icon = useMemo(() => navIconOf(settings.navIcon), [settings.navIcon]);
   /** When you last panned the map (stopped only); null while it follows you. */
@@ -326,7 +344,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       setLegsDone({ done: 0, total: points.length - 1 });
       try {
         const raw = noDirections
-          ? straightRoute(points, legStops.map((i) => (i >= 0 ? stops[i].name : '')))
+          ? straightRoute(points, legStops.map((i) => (i >= 0 ? stops[i].name : '')), 60, (_from, to) => demoRoadTo(to))
           : await fetchRoute(points, { onProgress: (done, total) => setLegsDone({ done, total }) });
         if (!raw || closed.current) return;
         const r = dropViaArrivals(buildRoute(raw, legStops.map((i) => (i >= 0 ? stops[i].name : ''))), legStops);
@@ -364,7 +382,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         }
       } finally {
         routing.current = false;
-        lastRoute.current = Date.now();
+        lastRoute.current = realNowMs();
         setLegsDone(null);
       }
     },
@@ -428,7 +446,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           if (spot?.path?.length) {
             runDone.current = true;
             store
-              .finishDrive(spot.id, simulatedRun(spot.path, driveMiles(spot), Date.now()))
+              .finishDrive(spot.id, simulatedRun(spot.path, driveMiles(spot), realNowMs()))
               .then((verdict) => setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed. It counts.' : verdict.reason))
               .catch((e) => setDriveNote(e instanceof Error ? e.message : "Couldn't record the drive."));
           }
@@ -452,9 +470,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       setOsmRoad((prev) => (prev?.wayId === info?.wayId ? prev : info));
       return;
     }
-    if (roadLoading.current || !lookupDue(false, roadLookupAt.current, Date.now())) return;
+    if (roadLoading.current || !lookupDue(false, roadLookupAt.current, realNowMs())) return;
     roadLoading.current = true;
-    roadLookupAt.current = Date.now();
+    roadLookupAt.current = realNowMs();
     fetchRoads(cell.centre)
       .then((list) => {
         if (list) remember(roadCache.current, cell.key, list);
@@ -468,7 +486,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     (f: Fix) => {
       if (closed.current) return;
       fixRef.current = f;
-      fixAt.current = Date.now();
+      fixAt.current = realNowMs();
       setFix(f);
       setReportCentre((c) => (!c || metresBetween(c, f.at) > 1500 ? f.at : c));
       lookUpRoad(f);
@@ -498,7 +516,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       const a = activeRef.current;
       if (!a) {
-        if (!routing.current && Date.now() - lastRoute.current > 15_000) doRoute(f.at, 'start');
+        if (!routing.current && realNowMs() - lastRoute.current > 15_000) doRoute(f.at, 'start');
         return;
       }
 
@@ -516,7 +534,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       const off = checkOffRoute(offState.current, snap, f);
       offState.current = off.state;
-      if (off.off && nextRef.current < stops.length && !routing.current && Date.now() - lastRoute.current > 20_000) {
+      if (off.off && nextRef.current < stops.length && !routing.current && realNowMs() - lastRoute.current > 20_000) {
         say(off.state.reason === 'wrongWay' ? 'Turn around when it is safe, or wait for a new route.' : 'Finding a new route.');
         // Off a detour too: start again from here, closures included.
         vias.current = [];
@@ -585,8 +603,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       const limit = activeLimit(zs, ahead);
       const over = isOver(f.speed, limit);
-      if (over && !overRef.current && Date.now() - lastChime.current > 10_000) {
-        lastChime.current = Date.now();
+      if (over && !overRef.current && realNowMs() - lastChime.current > 10_000) {
+        lastChime.current = realNowMs();
         chime();
         feel.warning();
       }
@@ -650,7 +668,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     let sent = false;
     const tick = () => {
       if (sent) return;
-      const left = pending.until - Date.now();
+      const left = pending.until - realNowMs();
       if (left <= 0) {
         sent = true;
         pendingRef.current = null;
@@ -685,7 +703,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     const f = fixRef.current;
     if (!f) return;
     feel.success();
-    setPending({ kind, at: f.at, heading: f.course, until: Date.now() + ROAD_RULES.undoMs });
+    setPending({ kind, at: f.at, heading: f.course, until: realNowMs() + ROAD_RULES.undoMs });
     say('Thanks, reported.');
   }
 
@@ -711,7 +729,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     let shown: number | null = null;
     const t = setInterval(() => {
       const f = fixRef.current;
-      const fresh = f && Date.now() - fixAt.current < 3000;
+      const fresh = f && realNowMs() - fixAt.current < 3000;
       const pick = pickHeading({
         course: fresh ? f.course : null,
         speed: fresh ? f.speed : null,
@@ -750,7 +768,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             speed: loc.coords.speed != null && loc.coords.speed >= 0 ? loc.coords.speed : null,
             course: loc.coords.heading != null && loc.coords.heading >= 0 ? loc.coords.heading : null,
             accuracy: loc.coords.accuracy ?? null,
-            t: loc.timestamp || Date.now(),
+            t: loc.timestamp || realNowMs(),
           }),
       );
       if (closed.current || AppState.currentState !== 'active') s.remove();
@@ -778,10 +796,12 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       const here = noDirections ? null : await currentPosition(true);
       // Closed (or sent to the background) while finding you: don't start a timer nothing will stop.
       if (closed.current || AppState.currentState !== 'active') return;
-      let origin: LatLng = here?.ok ? here.at : { lat: stops[0].at.lat - 0.01, lng: stops[0].at.lng };
+      // The demo night's meets have a baked road from home (demoRoads.ts): start where it starts.
+      const road = noDirections ? demoRoadTo(stops[0].at) : null;
+      let origin: LatLng = here?.ok ? here.at : road ? road[0] : { lat: stops[0].at.lat - 0.01, lng: stops[0].at.lng };
       let along = 0;
       let gen = 0;
-      let t = Date.now();
+      let t = realNowMs();
       timer = setInterval(() => {
         const a = activeRef.current;
         if (!a) {
@@ -847,7 +867,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   function end() {
     closed.current = true;
     stopSpeaking();
-    router.back();
+    // Opened from a link with nothing behind: back to the event, else Tonight.
+    if (router.canGoBack()) router.back();
+    else router.replace(plan.eventId ? { pathname: '/event/[id]', params: { id: plan.eventId } } : '/');
   }
 
   function retry() {
@@ -886,7 +908,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   // The clock: ETA, "stopped" once fixes dry up, and going back to following you after a look round.
   useEffect(() => {
-    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    const t = setInterval(() => setNowMs(realNowMs()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -906,7 +928,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   // Off the route with no name from OpenStreetMap: the phone's geocoder, every 15 s or 150 m at most.
   useEffect(() => {
     if (!fix || routeRoad || osmRoad?.name) return;
-    const now = Date.now();
+    const now = realNowMs();
     if (!nameLookupDue(nameLookup.current, fix.at, now)) return;
     nameLookup.current = { at: fix.at, t: now };
     let live = true;
@@ -983,7 +1005,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const limit = shownLimit(hud?.limit ?? null, osmRoad?.limit ?? null);
   const speedMph = mphOf(speedNow);
   const over = overLimit(speedNow, limit);
-  const trip = phase === 'driving' && progress ? tripSummary(nowMs, progress.toEnd, progress.secondsToEnd) : null;
+  // Arrival times read the app's clock (the demo night's 21:10, not the phone's), so both demo runs match.
+  const clockNowMs = nowMs + clockOffset();
+  const trip = phase === 'driving' && progress ? tripSummary(clockNowMs, progress.toEnd, progress.secondsToEnd) : null;
 
   // One alert at a time over the map: the zone you're in or coming to, else the next camera.
   let alertPill: string | null = null;
@@ -994,7 +1018,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   } else if (hud?.ahead[0]) {
     alertPill = `CAMERA IN ${formatDistance(hud.ahead[0].along - along)}${hud.ahead[0].mph ? ` · ${hud.ahead[0].mph} MPH` : ''}`;
   }
-  const credits = [osmRoad ? OSM_CREDIT : null, cameraAlerts && mapCameras.length > 0 ? CAMERA_CREDIT : null].filter(Boolean).join(' · ');
+  const bakedRoad = noDirections && stops.some((x) => demoRoadTo(x.at));
+  const credits = [osmRoad ? OSM_CREDIT : bakedRoad ? DEMO_ROAD_CREDIT : null, cameraAlerts && mapCameras.length > 0 ? CAMERA_CREDIT : null].filter(Boolean).join(' · ');
 
   const toggleOrientation = () => {
     feel.tap();
@@ -1005,9 +1030,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     setMuted(m);
     if (m) stopSpeaking();
   };
-  const onUserPan = useCallback(() => setPannedAt(Date.now()), []);
+  const onUserPan = useCallback(() => setPannedAt(realNowMs()), []);
   const onPressYou = useCallback(() => {
-    if (canPan(fixRef.current && Date.now() - fixAt.current < 4000 ? fixRef.current.speed : 0)) setIconOpen(true);
+    if (canPan(fixRef.current && realNowMs() - fixAt.current < 4000 ? fixRef.current.speed : 0)) setIconOpen(true);
   }, []);
   const onLongPress = useCallback((at: LatLng) => {
     const you = fixRef.current?.at;
@@ -1018,7 +1043,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     <>
       {nextStop && stops.length - next > 1 && toNextStop !== undefined && secsToNextStop !== undefined && phase === 'driving' ? (
         <SubLine>
-          Next: {nextStop.name} · {formatDistance(toNextStop)} · {etaClock(nowMs, secsToNextStop)}
+          Next: {nextStop.name} · {formatDistance(toNextStop)} · {etaClock(clockNowMs, secsToNextStop)}
         </SubLine>
       ) : null}
       {plan.driveId ? (
@@ -1178,7 +1203,6 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
 const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLOR.surface.bg },
-  centred: { alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.xl },
   panel: { backgroundColor: COLOR.surface.card, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border },
   overlayTop: { position: 'absolute', top: SPACING.sm, left: SPACING.sm, right: SPACING.sm, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   overlayBottom: { position: 'absolute', left: SPACING.sm, right: SPACING.sm, bottom: SPACING.sm, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: SPACING.sm },

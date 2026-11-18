@@ -35,7 +35,7 @@ import { TrackPanel } from '../../components/TrackPanel';
 import { ZoneNotice } from '../../components/ZoneCard';
 import { SYSTEM_AUTHOR } from '../../data/places';
 import { BAN_ZONES } from '../../data/seed';
-import { appNow } from '../../lib/appClock';
+import { appNow, realNowMs } from '../../lib/appClock';
 import { radiusFor } from '../../lib/commons';
 import { plural } from '../../lib/format';
 import { ONLY_ON_PHONE, PLACE_NAMES } from '../../lib/glossary';
@@ -413,7 +413,7 @@ function useDrivePanel(
       const sub = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 25 }, (loc) => {
         const r = runRef.current;
         if (!r) return;
-        const t = loc.timestamp || Date.now();
+        const t = loc.timestamp || realNowMs();
         if (runExpired(r, miles, t)) {
           end();
           setRun(null);

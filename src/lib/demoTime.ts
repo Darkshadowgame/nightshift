@@ -1,5 +1,5 @@
 import { seed, SEED_EVENT_IDS, type SceneOptions } from '../data/seed';
-import { clockOffset, setClockOffset, weekdayAt } from './appClock';
+import { clockOffset, realNowMs, setClockOffset, weekdayAt } from './appClock';
 import type { Vote } from './awards';
 import { endTime } from './events';
 import type { ChatMessage, NightEvent, Spot } from './types';
@@ -53,7 +53,7 @@ export function demoOffsetOnLaunch(saved: { offset: number; start: number } | nu
 type Storage = { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> };
 
 /** Demo mode starting: set the app's clock to the demo night (kept, or a fresh Friday 21:10). */
-export async function startDemoClock(storage: Storage, realNow = Date.now()): Promise<{ fresh: boolean }> {
+export async function startDemoClock(storage: Storage, realNow = realNowMs()): Promise<{ fresh: boolean }> {
   let saved: { offset: number; start: number } | null = null;
   try {
     const raw = await storage.getItem(DEMO_CLOCK_KEY);
@@ -68,7 +68,7 @@ export async function startDemoClock(storage: Storage, realNow = Date.now()): Pr
 }
 
 /** "Restart the demo night" and "Reset everything": the clock goes back to Friday 21:10. */
-export function restartDemoClock(storage: Storage, realNow = Date.now()): void {
+export function restartDemoClock(storage: Storage, realNow = realNowMs()): void {
   const offset = freshDemoOffset(realNow);
   setClockOffset(offset);
   storage.setItem(DEMO_CLOCK_KEY, JSON.stringify({ offset, start: realNow + offset })).catch(() => {});

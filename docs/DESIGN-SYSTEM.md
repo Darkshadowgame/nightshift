@@ -277,7 +277,13 @@ old "One way to do X" and "Added after Review N" lists.
 
 ### 4.9 Numbers and units (`src/lib/format.ts`)
 * Distance: `distanceText(miles, from)`: "2 mi" (from you), "2 mi from home", "about 6 mi" (a hidden
-  meet), "under 1 mi". Never "from the map's centre".
+  meet), "under 1 mi". Never "from the map's centre". Whole miles, rounded to the nearest mile.
+* **Distance to a meet: one rule, one function (Review 11).** Every screen (Tonight map card and list,
+  the event page, Search, lists) uses `meetDistance(event, distanceOrigin(here, home), pointHidden)`.
+  It measures from **one origin** (your GPS fix while location is on, else your home) to the
+  meet's **area centre** (public, never the meet point), so the number is the same before and after
+  you go and on every screen. "2 mi" / "2 mi from home"; while the meet point is hidden to you,
+  "about 2 mi" / "about 2 mi from home". Places use the same origin and rounding.
 * Power: "197 bhp" plus the "✓ Dyno" tag when proven. whp, bhp per tonne and "claimed" only on the
   Power and dyno page.
 * Counts: always `plural()`: "9 going", "1 person", "3 mods". Going mix: `goingSummary()` →

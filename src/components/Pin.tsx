@@ -18,7 +18,6 @@ export type Glyph =
   | 'area'
   /** "Where to?": a searched address or place you're driving to. */
   | 'destination'
-  | 'locked'
   | 'camera'
   | 'average'
   // Shops layer: the layer itself, each category, and partners.
@@ -56,7 +55,7 @@ const INK = ART.ink;
 
 
 /** Events are drawn filled ("something happening"); places, shops and cameras outlined ("somewhere to go"). */
-export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rolling', 'cruise', 'show', 'trackday', 'locked']);
+export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rolling', 'cruise', 'show', 'trackday']);
 
 /**
  * Game-style hexagon badge with a glyph, as on the concept board. `count`
@@ -286,13 +285,6 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       );
     case 'you':
       return <Path d="M20 10 27 29 20 25 13 29Z" fill={c} />;
-    case 'locked':
-      return (
-        <>
-          <Rect x={13} y={19} width={14} height={10} rx={1.5} fill={c} />
-          <Path d="M16 19v-3a4 4 0 0 1 8 0v3" fill="none" stroke={c} strokeWidth={2.4} />
-        </>
-      );
     case 'camera':
       // A roadside speed camera: housing, lens and post.
       return (

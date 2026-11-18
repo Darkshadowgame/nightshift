@@ -212,3 +212,74 @@ export function inViewOnly<T>(
   const box = viewBox(centre, span * MARGIN);
   return items.filter((x) => (keep?.(x) ?? false) || points(x).some((p) => !!p && inBox(p, box)));
 }
+
+// ---------------------------------------------------------------------------
+// Event pins: never piled up (Review 11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Two event pins closer than this share of the view's height would overlap (a 42 pt pin on a
+ * map about 470 pt tall), so they become one count pin.
+ */
+export const EVENT_CLUSTER_SHARE = 0.09;
+/** At or below this span (street level) events are never grouped: tapping one must open it. */
+export const EVENT_CLUSTER_MIN_SPAN = 0.02;
+
+export interface EventCluster<T> {
+  /** "cl:ev:{lead id}": stable while the same pin leads. */
+  id: string;
+  at: LatLng;
+  /** Live first, then the order given: the lead's glyph and colour draw the group. */
+  members: T[];
+  zoomCentre: LatLng;
+  zoomSpan: number;
+}
+
+function degreesApart(a: LatLng, b: LatLng): number {
+  const k = Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
+  return Math.hypot(a.lat - b.lat, (a.lng - b.lng) * k);
+}
+
+/**
+ * Group event pins that would sit on top of each other at `span` (the same on iPhone and the web
+ * preview, because it happens before the map draws). The lead of each group is its live pin, else
+ * the first given; the group sits on the lead and zooms in far enough to split when tapped.
+ * `keepId` (the selected event) is never grouped, so its pin stays tappable under the card.
+ */
+export function clusterEventPins<T extends { id: string; at: LatLng; live?: boolean }>(
+  pins: readonly T[],
+  span: number,
+  keepId?: string | null,
+): { pins: T[]; clusters: EventCluster<T>[] } {
+  if (span <= EVENT_CLUSTER_MIN_SPAN) return { pins: [...pins], clusters: [] };
+  const near = span * EVENT_CLUSTER_SHARE;
+  const order = [...pins].sort((a, b) => Number(!!b.live) - Number(!!a.live));
+  const used = new Set<string>();
+  const out: T[] = [];
+  const clusters: EventCluster<T>[] = [];
+  for (const lead of order) {
+    if (used.has(lead.id)) continue;
+    used.add(lead.id);
+    if (lead.id === keepId) {
+      out.push(lead);
+      continue;
+    }
+    const members = [lead, ...order.filter((p) => !used.has(p.id) && p.id !== keepId && degreesApart(lead.at, p.at) < near)];
+    members.forEach((m) => used.add(m.id));
+    if (members.length === 1) {
+      out.push(lead);
+      continue;
+    }
+    const fit = fitRegion(members.map((m) => m.at))!;
+    const apart = Math.max(...members.map((m) => degreesApart(lead.at, m.at)));
+    clusters.push({
+      id: `cl:ev:${lead.id}`,
+      at: lead.at,
+      members,
+      zoomCentre: fit.centre,
+      // Far enough in that the members split (spacing above the share), at least one step in.
+      zoomSpan: Math.max(EVENT_CLUSTER_MIN_SPAN, Math.min(span / 2, (apart / EVENT_CLUSTER_SHARE) * 0.8)),
+    });
+  }
+  return { pins: out, clusters };
+}

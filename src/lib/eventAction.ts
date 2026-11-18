@@ -5,7 +5,7 @@ import { canSeeStop, checkInOpensAt, checkInWindowOpen, endTime, hasRequested, i
 import type { Role } from './eventView';
 import { countdown } from './hud';
 import { formatTime, formatWhen, plural } from './format';
-import { aroundArea, locationSentence, NOT_OPEN } from './glossary';
+import { locationSentence, NOT_OPEN } from './glossary';
 import { classRange } from './invites';
 import { clock, clockWithCountdown, dayWord } from './when';
 import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from './types';
@@ -132,7 +132,8 @@ export function statusLine(
       if (state.request) return { text: `${openToLine(event.filter)} Ask a host to let you in.` };
       if (isPublicType(event.type)) return { text: shownSentence() };
       if (reveal.getTime() > now.getTime()) return { text: locationSentence({ state: 'notGoing', time: clock(reveal) }) };
-      return { text: `${aroundArea(event.areaName)}. The meet point shows to people going.` };
+      // The area is in the page's meta line already ("Around Tamworth"): said once.
+      return { text: 'The meet point shows to people going.' };
     }
     case 'requested':
       return { text: 'You asked to go. A host will say yes or no.' };

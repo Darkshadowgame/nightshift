@@ -1,14 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { TrophiesSection, VoteSheet, voteCategories } from '../../components/AwardsSection';
 import { bhpLine, BringSheet, shortBuildName } from '../../components/BringPicker';
 import { isStaffNow, openModerate, openReport } from '../../components/Community';
 import { CheckInCelebration, MediaFrame, NotFoundState, TextField } from '../../components/Detail';
 import {
   ActionBar,
-  AreaArt,
   Button,
+  ClassBadge,
   ConfirmSheet,
   displayHandle,
   DsText,
@@ -33,27 +33,30 @@ import { UnlockReveal } from '../../components/motion';
 import { useNavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
 import { PhotoCredit } from '../../components/PhotoCredit';
+import { useShareLink } from '../../components/ShareLink';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { eventPhotoRef, roleTag } from '../../components/TonightCards';
 import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
-import { categoryInfo } from '../../lib/awards';
+import { categoryInfo, votingCloses, type AwardCategory } from '../../lib/awards';
 import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { eventPrimary, goingMix, statusLine, statusPill } from '../../lib/eventAction';
-import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
+import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
 import { newlyUnlocked, roleOf } from '../../lib/eventView';
-import { formatTime, formatWhen, goingSummary, plural } from '../../lib/format';
-import { aroundArea, DEMO_NIGHT, GOING, MEET_POINT } from '../../lib/glossary';
+import { formatTime, goingSummary, plural } from '../../lib/format';
+import { aroundArea, GOING, MEET_POINT } from '../../lib/glossary';
 import { describeFilter } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
 import { planForEvent } from '../../lib/navPlan';
 import { askPermission, notificationsSupported } from '../../lib/notify';
 import { lastPage, PAGE as LIST_PAGE } from '../../lib/paging';
+import { milesBetween } from '../../lib/geo';
 import { photoSource } from '../../lib/photoSource';
 import { REP } from '../../lib/rep';
+import { eventSharePayload } from '../../lib/share';
 import { useStore } from '../../lib/store';
 import type { Build, LatLng } from '../../lib/types';
 import { clock, endedLabel, timeRange } from '../../lib/when';
@@ -89,7 +92,9 @@ export default function EventScreen() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [goingOpen, setGoingOpen] = useState(false);
-  const [voteOpen, setVoteOpen] = useState(false);
+  /** The trophy the vote sheet is open on (null: closed). */
+  const [voteCat, setVoteCat] = useState<AwardCategory | null>(null);
+  const sharer = useShareLink();
   const [chatOpen, setChatOpen] = useState(false);
   /** The "What are you bringing?" sheet: before I'm going, to change it, or at check-in. */
   const [bring, setBring] = useState<null | 'go' | 'change' | 'checkin'>(null);
@@ -238,7 +243,7 @@ export default function EventScreen() {
       await store.checkIn(ev.id, current, news ? atCheckIn!.id : undefined, pos);
       setCheckInPick(undefined);
       setJustCheckedIn(true);
-      toast({ message: skipGps ? DEMO_NIGHT.checkIn : 'Checked in' });
+      toast({ message: 'Checked in' });
     } catch (err) {
       setError('checkin', err instanceof Error ? err.message : "Couldn't check in.");
     } finally {
@@ -255,13 +260,10 @@ export default function EventScreen() {
     toast({ message: allowed || !notificationsSupported ? `We'll remind you at ${time}` : `Allow notifications in Settings to get it at ${time}` });
   }
 
-  async function doShare() {
+  /** Share: the share sheet, else "Link copied", else the link to copy (src/lib/share.ts). Never a dead end. */
+  function doShare() {
     setMenu(false);
-    try {
-      await Share.share({ message: shareText(ev, formatWhen(ev.startsAt, appNow())), title: ev.title });
-    } catch {
-      setError('menu', "Couldn't open the share sheet.");
-    }
+    return sharer.share(eventSharePayload(ev, timeRange(ev.startsAt, ev.endsAt, now)));
   }
 
   async function postPhoto(ref: string) {
@@ -281,6 +283,7 @@ export default function EventScreen() {
 
   function leave() {
     setConfirmLeave(false);
+    setErrorState(null);
     const was = chosen?.id;
     attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.").then((ok) => {
       if (ok) toast({ message: `You're not going to ${ev.title}`, action: { label: 'Undo', onPress: () => store.setGoing(ev.id, true, was).catch(() => {}) } });
@@ -315,16 +318,22 @@ export default function EventScreen() {
   let primary: ActionBarButton | null = null;
   let secondary: ActionBarButton | null = null;
   let pill: string | null = statusPill(state);
+  /** Going (not hosting) and nothing to do yet: "Can't make it" is the bar's secondary (Review 11). */
+  const leaveInBar = going && !host && (state.kind === 'waiting' || state.kind === 'navigate');
+  const leaveButton: ActionBarButton = { label: GOING.leave, onPress: () => setConfirmLeave(true) };
+  const canRemind = state.kind === 'waiting' && !state.placing && new Date(state.at) > now && !reminded;
   switch (state.kind) {
     case 'join':
       primary = { label: state.request ? 'Ask to go' : "I'm going", onPress: state.request ? () => (mine.length > 1 ? setBring('go') : commitGoing(defaultPick?.id)) : imGoing, busy, haptic: 'success' };
       break;
     case 'waiting':
-      if (!state.placing && new Date(state.at) > now && !reminded) secondary = { label: 'Remind me', onPress: () => remindMe(state.at) };
+      if (leaveInBar) secondary = leaveButton;
+      else if (canRemind) secondary = { label: 'Remind me', onPress: () => remindMe(state.at) };
       if (reminded) pill = `Reminder at ${formatTime(state.at)}`;
       break;
     case 'navigate':
       if (navTo) primary = { label: nav.label, onPress: nav.open };
+      if (leaveInBar) secondary = leaveButton;
       break;
     case 'checkin':
       primary = { label: 'Check in', onPress: doCheckIn, busy, haptic: 'success' };
@@ -335,7 +344,7 @@ export default function EventScreen() {
       else if (phase === 'live') secondary = addPhoto;
       break;
     case 'vote':
-      primary = { label: firstUnvoted ? `Vote for ${categoryInfo(firstUnvoted).label.toLowerCase()}` : 'Vote', onPress: () => setVoteOpen(true) };
+      primary = { label: 'Vote', onPress: () => setVoteCat(firstUnvoted ?? null) };
       secondary = addPhoto;
       break;
     case 'voted':
@@ -353,7 +362,9 @@ export default function EventScreen() {
   // ---------------------------------------------------------------------------
   const photoRef = eventPhotoRef(ev, builds);
   const placeShown = currentStop?.at && canSeeStop(ev, current, me, crews, now);
-  const where = placeShown ? ev.areaName : aroundArea(ev.areaName);
+  // The area is said once (C5): in the meta line, as "Around Tamworth" (the one form), unless the
+  // status line already names the town with the meet point.
+  const where = placeShown && ev.areaName && status.text.includes(ev.areaName) ? null : aroundArea(ev.areaName);
   const time =
     phase === 'cancelled'
       ? `Cancelled · ${timeRange(ev.startsAt, ev.endsAt, now)}`
@@ -389,7 +400,8 @@ export default function EventScreen() {
 
   type MenuOption = { label: string; detail?: string; destructive?: boolean; onPress: () => void };
   const menuOptions: MenuOption[] = ([
-    going && !host && !closed ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
+    going && !host && !closed && !leaveInBar ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
+    leaveInBar && canRemind && state.kind === 'waiting' ? { label: `Remind me at ${formatTime(state.at)}`, onPress: () => (setMenu(false), remindMe(state.at)) } : null,
     (going || host) && !closed && mine.length > 0 ? { label: 'Change what you’re bringing', onPress: () => (setMenu(false), setBring('change')) } : null,
     ev.requests?.includes(me) ? { label: GOING.cancelRequest, onPress: () => (setMenu(false), attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.")) } : null,
     navTo ? { label: 'Open in another app', onPress: () => (setMenu(false), nav.openOther()) } : null,
@@ -400,6 +412,26 @@ export default function EventScreen() {
     !host ? { label: 'Report', onPress: () => (setMenu(false), openReport('event', ev.id, undefined, 'event')) } : null,
   ] as (MenuOption | null)[]).filter((x): x is MenuOption => !!x);
 
+  // Earlier meets at the same meet point with their trophies out (Last week's meet): one row in About.
+  const earlier = currentStop?.at
+    ? events.filter((x) => x.id !== ev.id && phaseOf(x, now) === 'over' && !x.cancelled && now >= votingCloses(x) && x.stops.some((st) => st.at && milesBetween(st.at, currentStop.at!) < 0.2))
+    : [];
+  // A meet with no photo shows the real map at the top, not a drawing (L1): then it isn't repeated below.
+  const mapOnTop = !photoRef;
+  const map = (
+    <>
+      <NightMap
+        pins={anyVisible ? mapPins : []}
+        paths={mapPaths}
+        circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour }]}
+        centre={mapCentre}
+        span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.06) : Math.max(0.12, (areaMiles * 2.6) / 69)}
+        follow
+      />
+      {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
+    </>
+  );
+
   const voted = (cat: string) => votes.find((v) => v.eventId === ev.id && v.voterId === me && v.category === cat)?.buildId;
 
   return (
@@ -409,13 +441,7 @@ export default function EventScreen() {
         <Hero
           bleed
           photo={photoRef ? photoSource(photoRef) : null}
-          media={
-            photoRef ? undefined : (
-              <View style={{ aspectRatio: 16 / 9 }}>
-                <AreaArt colour={colour} />
-              </View>
-            )
-          }
+          media={mapOnTop ? <View style={{ aspectRatio: 16 / 9, overflow: 'hidden' }}>{map}</View> : undefined}
           overlay={photoRef ? <PhotoCredit photoRef={photoRef} overlay corner="topRight" /> : undefined}
           eyebrow={EVENT_LABELS[ev.type]}
           layerColour={colour}
@@ -428,7 +454,7 @@ export default function EventScreen() {
         <View style={{ gap: SPACING.md }}>
           <LocationLine text={status.text} done={status.done} />
           {justCheckedIn ? (
-            <CheckInCelebration play title={`Checked in at ${currentStop?.name ?? `the ${MEET_POINT.one}`}`} body={`+${REP.attended} rep. Vote for the best builds that turned up.`} />
+            <CheckInCelebration play title={`+${REP.attended} rep`} body={`For turning up at ${currentStop?.name ?? `the ${MEET_POINT.one}`}.`} />
           ) : null}
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
@@ -436,17 +462,9 @@ export default function EventScreen() {
           <GoingStrip people={goingPeople} summary={goingSummary(ev.going.length, mix.cars, mix.bikes)} onPress={ev.going.length ? () => setGoingOpen(true) : undefined} />
         </View>
 
-        <MediaFrame height={180}>
-          <NightMap
-            pins={anyVisible ? mapPins : []}
-            paths={mapPaths}
-            circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour }]}
-            centre={mapCentre}
-            span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.06) : Math.max(0.12, (areaMiles * 2.6) / 69)}
-            follow
-          />
-          {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
-        </MediaFrame>
+        <TrophiesSection event={ev} />
+
+        {mapOnTop ? null : <MediaFrame height={180}>{map}</MediaFrame>}
 
         {showPhotos && (tiles.length > 0 || canAddPhoto) ? (
           <View onLayout={(l) => (photosAt.current = l.nativeEvent.layout.y)}>
@@ -469,19 +487,20 @@ export default function EventScreen() {
         ) : null}
 
         {cats.length > 0 && (state.kind === 'vote' || state.kind === 'voted') ? (
-          <Section title="Vote">
+          <Section title={state.kind === 'voted' ? 'You voted' : 'Vote'}>
             <View>
               {cats.map((c, i) => {
                 const pick = voted(c);
                 const b = pick ? builds.find((x) => x.id === pick) : undefined;
+                const owner = b ? users.find((u) => u.id === b.ownerId) : undefined;
                 return (
                   <View key={c}>
                     {i > 0 ? <RowDivider inset /> : null}
                     <ListRow
                       leading={{ icon: pick ? 'success' : 'plus', colour: pick ? COLOR.state.success : COLOR.text.secondary }}
                       title={categoryInfo(c).label}
-                      subtitle={b ? `You voted: ${b.make} ${b.model}` : 'Not voted yet'}
-                      onPress={() => setVoteOpen(true)}
+                      subtitle={b ? `You voted: ${b.make} ${b.model}${owner ? ` · ${displayHandle(owner.handle)}` : ''}` : 'Not voted yet'}
+                      onPress={() => setVoteCat(c)}
                       accessibilityHint={pick ? 'Change your vote' : 'Vote'}
                     />
                   </View>
@@ -490,8 +509,6 @@ export default function EventScreen() {
             </View>
           </Section>
         ) : null}
-
-        <TrophiesSection event={ev} />
 
         {going || host ? (
           <Section title="Chat">
@@ -567,6 +584,15 @@ export default function EventScreen() {
             onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
           />
           <DsText v="secondary">{`Open to: ${describeFilter(ev.filter)}`}</DsText>
+          {earlier.map((x) => (
+            <ListRow
+              key={x.id}
+              leading={{ icon: 'success', colour: COLOR.state.success }}
+              title={x.title}
+              subtitle={`${endedLabel(endTime(x), now)} · Trophies`}
+              onPress={() => router.push({ pathname: '/event/[id]', params: { id: x.id } })}
+            />
+          ))}
         </Section>
       </ScrollView>
 
@@ -596,7 +622,8 @@ export default function EventScreen() {
         onClose={() => setBring(null)}
       />
 
-      <VoteSheet event={ev} visible={voteOpen} onClose={() => setVoteOpen(false)} />
+      <VoteSheet event={ev} category={voteCat} onClose={() => setVoteCat(null)} />
+      {sharer.sheet}
 
       <Sheet visible={goingOpen} title={goingSummary(ev.going.length, mix.cars, mix.bikes)} onClose={() => setGoingOpen(false)}>
         <View>
@@ -610,7 +637,8 @@ export default function EventScreen() {
                 <ListRow
                   leading={{ avatar: { name: u?.name, handle: u?.handle } }}
                   title={userLabel(uid)}
-                  subtitle={b ? `Class ${classOf(b)} · ${b.make} ${b.model} · ${bhpLine(b)}` : 'Passenger'}
+                  subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'Passenger'}
+                  trailing={b ? <ClassBadge letter={classOf(b)} size="sm" /> : undefined}
                   meta={[hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null].filter(Boolean).join(' · ') || undefined}
                   onPress={() => {
                     setGoingOpen(false);
@@ -656,14 +684,12 @@ export default function EventScreen() {
           });
         }}
       />
-      <ConfirmSheet
-        visible={confirmLeave}
-        title={GOING.leave}
-        message={`Take yourself off ${ev.title}? You won't get its reminders.`}
-        verb="Leave"
-        onCancel={() => setConfirmLeave(false)}
-        onConfirm={leave}
-      />
+      <Sheet visible={confirmLeave} title={GOING.leave} doneLabel="Cancel" onClose={() => setConfirmLeave(false)}>
+        <View style={{ gap: SPACING.md }}>
+          <DsText v="body">{`Take yourself off ${ev.title}? You won't get its reminders. You can undo it straight after.`}</DsText>
+          <Button label="Leave it" tier="destructive" block onPress={leave} />
+        </View>
+      </Sheet>
     </KeyboardAvoidingView>
   );
 }

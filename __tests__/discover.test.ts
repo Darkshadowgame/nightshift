@@ -267,11 +267,11 @@ describe('the demo scene', () => {
   const stock = { id: 'b-new', ownerId: 'me', kind: 'car' as const, make: 'Ford', model: 'Fiesta ST', stockBhp: 197, weightKg: 1262, mods: [], photos: [] };
   const meWho: Who = { me: 'me', crews: s.crews, users: s.users, builds: [...s.builds, stock] };
 
-  test('you start fresh: not going to, hosting or in a crew for anything', () => {
+  test("you start fresh: hosting nothing, in no crew, going only to Sunday coffee (so you can say you can't make it)", () => {
     expect(s.builds.filter((b) => b.ownerId === 'me')).toHaveLength(0);
     expect(s.users.find((u) => u.id === 'me')!.crewId).toBeUndefined();
     for (const e of s.events) {
-      expect(e.going).not.toContain('me');
+      expect(e.going.includes('me')).toBe(e.id === 'ev-meet-soon');
       expect(e.hostIds).not.toContain('me');
       expect(Object.keys(e.checkIns)).not.toContain('me');
     }
@@ -279,11 +279,12 @@ describe('the demo scene', () => {
     expect(s.votes.some((v) => v.voterId === 'me')).toBe(false);
   });
 
-  test('on first run, the weekend coffee meet is new near you; your own and finished ones are not', () => {
+  test("on first run, the hot hatch meet is new near you; the coffee meet you're going to, your own and finished ones are not", () => {
     const { arrived, matches } = nearbyArrivals(s.events, [], meWho, now);
     const ids = matches.map((e) => e.id);
     expect(arrived).toHaveLength(s.events.length);
-    expect(ids).toContain('ev-meet-soon');
+    expect(ids).toContain('ev-meet-tam');
+    expect(ids).not.toContain('ev-meet-soon'); // you're going already
     expect(ids).not.toContain('ev-rolling-live'); // live already
     expect(ids).not.toContain('ev-cruise-peak'); // S and A class only
     expect(ids).not.toContain('ev-past-snowdome'); // finished

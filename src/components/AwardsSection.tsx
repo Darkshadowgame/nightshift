@@ -11,7 +11,7 @@ import type { NightEvent } from '../lib/types';
 import { COLOR, SPACING } from '../theme';
 import { bhpLine } from './BringPicker';
 import { Cover } from './Cover';
-import { Button, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, Sheet, displayHandle, useToast } from './ds';
+import { ChoiceGroup, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, Sheet, displayHandle, useToast } from './ds';
 import { RevealIn } from './motion';
 import { PhotoCredit } from './PhotoCredit';
 
@@ -71,48 +71,48 @@ export function voteCategories(event: NightEvent, builds: Parameters<typeof cate
 }
 
 /**
- * Vote (Redesign 2, 3.5): a Sheet, one trophy per page, the builds that turned up as photo cards in
- * two columns. Tap to vote ("Voted" toast), then the next trophy. Never your own build.
+ * Vote (Redesign 2, 3.5; Review 11): a Sheet for one trophy, opened at the trophy you tapped (the
+ * ActionBar's Vote opens the first you haven't voted on). The trophies sit on top as one choice, so
+ * "best car" is one tap away whichever opened. The builds that turned up are photo cards in two
+ * columns; tap one to vote: the sheet closes and a toast says what you voted for. Never your own build.
  */
-export function VoteSheet({ event, visible, onClose, onVoted }: { event: NightEvent; visible: boolean; onClose: () => void; onVoted?: () => void }) {
+export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: () => void }) {
   const { builds, users, votes, me, vote } = useStore();
   const now = useNow();
   const toast = useToast();
   const cats = voteCategories(event, builds, me, now);
-  const [page, setPage] = useState(0);
+  const [shown, setShown] = useState<AwardCategory | null>(category);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (visible) {
-      // Open on the first trophy you haven't voted on yet.
-      const first = cats.findIndex((c) => !votes.some((v) => v.eventId === event.id && v.voterId === me && v.category === c));
-      setPage(Math.max(0, first));
+    if (category) {
+      setShown(category);
       setError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
-  const cat = cats[Math.min(page, cats.length - 1)];
+  }, [category]);
+  const cat = shown && cats.includes(shown) ? shown : cats[0];
   if (!cat) return null;
   const label = categoryInfo(cat).label;
   const options = eligibleFor(cat, event, builds).filter((b) => b.ownerId !== me);
   const myVote = votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === cat)?.buildId;
-  const last = page >= cats.length - 1;
 
   async function pick(buildId: string) {
     setError(null);
     try {
       await vote(event.id, cat, buildId);
-      toast({ message: `Voted for ${label.toLowerCase()}` });
-      onVoted?.();
-      if (last) onClose();
-      else setPage((p) => p + 1);
+      const b = builds.find((x) => x.id === buildId);
+      onClose();
+      toast({ message: `Voted for ${b ? `${b.make} ${b.model}` : 'that build'}: ${label.toLowerCase()}` });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't count that vote.");
     }
   }
 
   return (
-    <Sheet visible={visible} title={cats.length > 1 ? `${label} · ${page + 1} of ${cats.length}` : label} onClose={onClose}>
+    <Sheet visible={!!category} title={`Vote: ${label}`} onClose={onClose}>
       <View style={{ gap: SPACING.md }}>
+        {cats.length > 1 ? (
+          <ChoiceGroup label="" options={cats.map((c) => ({ key: c, label: categoryInfo(c).label }))} value={cat} onChange={(c) => setShown(c)} />
+        ) : null}
         <DsText v="secondary">Tap the build you think wins. You can change it until voting closes.</DsText>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
           {options.map((b) => {
@@ -138,12 +138,6 @@ export function VoteSheet({ event, visible, onClose, onVoted }: { event: NightEv
           })}
         </View>
         {error ? <ErrorState title={error} /> : null}
-        {cats.length > 1 ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {page > 0 ? <Button tier="tertiary" size="sm" label="Back a trophy" onPress={() => setPage((p) => p - 1)} /> : <View />}
-            {!last ? <Button tier="tertiary" size="sm" label="Skip this one" onPress={() => setPage((p) => p + 1)} /> : null}
-          </View>
-        ) : null}
       </View>
     </Sheet>
   );

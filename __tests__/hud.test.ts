@@ -69,15 +69,15 @@ describe('map HUD', () => {
 });
 
 describe('pin order', () => {
-  test('live pins draw last (on top), locked areas under visible events, spots at the bottom', () => {
+  test('live pins draw last (on top), events over places, cameras at the bottom', () => {
     const pins = [
       { id: 'live', glyph: 'rolling', live: true },
-      { id: 'lock', glyph: 'locked' },
-      { id: 'spot', glyph: 'photo' },
       { id: 'meet', glyph: 'meet' },
-      { id: 'lock2', glyph: 'locked' },
+      { id: 'spot', glyph: 'photo' },
+      { id: 'cam', glyph: 'camera' },
+      { id: 'cruise', glyph: 'cruise' },
     ];
-    expect(orderPins(pins).map((p) => p.id)).toEqual(['spot', 'lock', 'lock2', 'meet', 'live']);
+    expect(orderPins(pins).map((p) => p.id)).toEqual(['cam', 'spot', 'meet', 'cruise', 'live']);
   });
 });
 

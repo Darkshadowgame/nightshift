@@ -227,7 +227,7 @@ function tonightAt(now: Date, hour: number, minute = 0, addDays = 0): Date {
  * | Car park meet-up (meet)       | live, 20:30–23:00, shown     | going, check in and vote work at once   |
  * | Late rolling meet             | 22:00–00:30, location 21:30  | the location countdown, then Move on    |
  * | Saturday night cruise         | tomorrow 20:00, Class S, A   | "Not open to your car" for slow builds  |
- * | Sunday coffee and cars (meet) | Sun 10:00                    | a daytime meet in This week             |
+ * | Sunday coffee and cars (meet) | Sun 10:00, you're going      | a daytime meet; "Can't make it" (task 10)|
  * | Last week's meet              | ended a week ago             | results, trophies and photos            |
  *
  * Laid out relative to `now`, so `seed(now)` works at any time (tests, older saves): the live meet
@@ -363,7 +363,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
       stops: [{ id: 'ms-1', name: 'Town centre car park', at: here(52.6333, -1.6951) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
-      going: ['tom', 'em', 'jord', 'bex'], checkIns: {},
+      // You're going (Review 11): "You can't make it after all" (scorecard task 10) has something to undo.
+      going: ['tom', 'em', 'jord', 'bex', ME], checkIns: {},
     },
     {
       // Later in the week: A and B class, so a typical hot hatch can go.

@@ -228,11 +228,12 @@ export function nameLookupDue(last: { at: LatLng; t: number } | null, at: LatLng
 export const DEMO_ROUTE_SPEED = 13.4;
 
 /**
- * A route without Apple's directions (the web preview's demo drive): straight lines through the
- * points, a point every ~60 m so the simulated drive moves smoothly, one "Head towards" step at the
- * start of each leg and an arrival at the end. Same shape as Apple's, so buildRoute() reads it.
+ * A route without Apple's directions (the web preview's demo drive): through the points, a point
+ * every ~60 m so the simulated drive moves smoothly, one "Head towards" step at the start of each
+ * leg and an arrival at the end. Same shape as Apple's, so buildRoute() reads it. A leg follows
+ * `roadFor(from, to)` when it gives a road (the demo's baked roads, Review 11), else a straight line.
  */
-export function straightRoute(points: LatLng[], names: string[] = [], spacingM = 60): RawRouteLike {
+export function straightRoute(points: LatLng[], names: string[] = [], spacingM = 60, roadFor?: (from: LatLng, to: LatLng) => LatLng[] | null): RawRouteLike {
   const coords: number[] = [];
   const steps: RawRouteLike['steps'] = [];
   const legs: RawRouteLike['legs'] = [];
@@ -242,14 +243,24 @@ export function straightRoute(points: LatLng[], names: string[] = [], spacingM =
   for (let k = 0; k + 1 < points.length; k++) {
     const a = points[k];
     const b = points[k + 1];
-    const d = metresBetween(a, b);
+    const road = roadFor?.(a, b) ?? null;
+    // Starts at the leg's start and ends on its point exactly, however close the road gets.
+    const path = road && road.length > 1 ? [a, ...road.slice(metresBetween(a, road[0]) > 25 ? 0 : 1, metresBetween(road[road.length - 1], b) > 25 ? undefined : -1), b] : [a, b];
     const startIndex = coords.length / 2 - 1;
     const name = names[k];
+    let d = 0;
+    for (let j = 0; j + 1 < path.length; j++) {
+      const p0 = path[j];
+      const p1 = path[j + 1];
+      const seg = metresBetween(p0, p1);
+      d += seg;
+      const n = Math.max(1, Math.ceil(seg / spacingM));
+      for (let i = 1; i <= n; i++) push({ lat: p0.lat + ((p1.lat - p0.lat) * i) / n, lng: p0.lng + ((p1.lng - p0.lng) * i) / n });
+    }
     steps.push({ text: name ? `Head towards ${name}` : 'Head off', distance: d, lat: a.lat, lng: a.lng, index: startIndex, leg: k });
-    const n = Math.max(1, Math.ceil(d / spacingM));
-    for (let i = 1; i <= n; i++) push({ lat: a.lat + ((b.lat - a.lat) * i) / n, lng: a.lng + ((b.lng - a.lng) * i) / n });
     const endIndex = coords.length / 2 - 1;
-    steps.push({ text: 'Arrive at your destination', distance: 0, lat: b.lat, lng: b.lng, index: endIndex, leg: k });
+    const end = path[path.length - 1];
+    steps.push({ text: 'Arrive at your destination', distance: 0, lat: end.lat, lng: end.lng, index: endIndex, leg: k });
     legs.push({ endIndex, distance: d, time: d / DEMO_ROUTE_SPEED });
     total += d;
   }

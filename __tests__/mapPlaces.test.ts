@@ -195,3 +195,36 @@ describe('events culled to the view', () => {
     expect(inViewOnly(all, points, { lat: 54.5, lng: -3 }, 9)).toHaveLength(3);
   });
 });
+
+describe('event pins never pile up (Review 11)', () => {
+  const { clusterEventPins } = require('../src/lib/mapPlaces');
+  // The five Tamworth meets of the demo night.
+  const pins = [
+    { id: 'ev:a', at: { lat: 52.6105, lng: -1.672 } },
+    { id: 'ev:b', at: { lat: 52.6205, lng: -1.7265 }, live: true },
+    { id: 'ev:c', at: { lat: 52.6333, lng: -1.6951 } },
+    { id: 'ev:d', at: { lat: 52.6842, lng: -1.8105 } },
+    { id: 'ev:e', at: { lat: 52.5156, lng: -1.7072 } },
+  ];
+  const apart = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+    Math.hypot(a.lat - b.lat, (a.lng - b.lng) * Math.cos((a.lat * Math.PI) / 180));
+  test('no two pins left overlapping at the start zoom', () => {
+    const span = 0.5;
+    const out = clusterEventPins(pins, span);
+    const drawn = [...out.pins.map((p: { at: unknown }) => p.at), ...out.clusters.map((c: { at: unknown }) => c.at)];
+    for (let i = 0; i < drawn.length; i++) for (let j = i + 1; j < drawn.length; j++) expect(apart(drawn[i], drawn[j])).toBeGreaterThanOrEqual(span * 0.09);
+    expect(out.pins.length + out.clusters.reduce((n: number, c: { members: unknown[] }) => n + c.members.length, 0)).toBe(5);
+  });
+  test('a group leads with its live pin and opens up when tapped', () => {
+    const out = clusterEventPins(pins, 0.5);
+    const c = out.clusters.find((x: { members: { id: string }[] }) => x.members.some((m) => m.id === 'ev:b'));
+    expect(c.members[0].id).toBe('ev:b');
+    expect(c.id).toBe('cl:ev:ev:b');
+    const inner = clusterEventPins(c.members, c.zoomSpan);
+    expect(inner.clusters).toEqual([]);
+  });
+  test('the selected pin is never grouped, and street level never groups', () => {
+    expect(clusterEventPins(pins, 0.5, 'ev:a').pins.map((p: { id: string }) => p.id)).toContain('ev:a');
+    expect(clusterEventPins(pins, 0.02).clusters).toEqual([]);
+  });
+});

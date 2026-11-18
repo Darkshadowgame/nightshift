@@ -1,6 +1,7 @@
 import { endTime, EVENT_LABELS } from '../lib/events';
 import type { EventView, Role } from '../lib/eventView';
-import { distanceText } from '../lib/format';
+import { distanceText, meetDistance, type DistanceOrigin } from '../lib/format';
+import { milesBetween } from '../lib/geo';
 import { NOT_OPEN, PLACE_NAMES } from '../lib/glossary';
 import { photoSource, sampleRef } from '../lib/photoSource';
 import type { Build, NightEvent, Spot } from '../lib/types';
@@ -47,10 +48,9 @@ export function cardTime(e: NightEvent, now: Date): string {
   return whenLabel(start, now);
 }
 
-/** "2 mi" / "2 mi from home" to a shown meet point, "about 6 mi" to a hidden one's area. */
-export function cardDistance(v: EventView, miles: number | null | undefined, fromHome: boolean): string | null {
-  if (miles == null) return null;
-  return v.shownStop < 0 ? distanceText(miles, 'about') : distanceText(miles, fromHome ? 'home' : 'you');
+/** The one distance to a meet (format.ts `meetDistance`): the same number before and after you go. */
+export function cardDistance(v: EventView, origin: DistanceOrigin | null | undefined): string | null {
+  return meetDistance(v.event, origin ?? null, v.shownStop < 0);
 }
 
 /** "Not open to your car" on events you can't simply join (Redesign 2: only the negative shows). */
@@ -65,20 +65,17 @@ export function notOpenLine(v: EventView): string | undefined {
 export function EventEntityCard({
   view: v,
   now,
-  miles,
+  origin,
   onPress,
   tag,
   action,
-  milesFrom = '',
   builds,
   titleOnPhoto,
 }: {
   view: EventView;
-  /** " from home" when the distance isn't from a GPS fix. */
-  milesFrom?: string;
   now: Date;
-  /** Distance to the shown meet point or the area, already worked out. */
-  miles?: number | null;
+  /** Where distances are measured from (format.ts `distanceOrigin`). */
+  origin?: DistanceOrigin | null;
   onPress: () => void;
   /** Overrides the role tag. */
   tag?: EntityTag;
@@ -100,7 +97,7 @@ export function EventEntityCard({
       live={v.phase === 'live'}
       title={e.title}
       tag={tag ?? roleTag(v.role, e.filter) ?? null}
-      meta={metaLine([cardTime(e, now), cardDistance(v, miles, milesFrom.includes('home')), `${e.going.length} going`])}
+      meta={metaLine([cardTime(e, now), cardDistance(v, origin), `${e.going.length} going`])}
       detail={notOpenLine(v)}
       finished={done}
       onPress={onPress}
@@ -111,14 +108,14 @@ export function EventEntityCard({
 }
 
 /** An event as a row (This week, Later, notifications): pin, title, "Tomorrow 20:00 · about 9 mi", tag. */
-export function EventRow({ view: v, now, miles, milesFrom = '', onPress }: { view: EventView; now: Date; miles?: number | null; milesFrom?: string; onPress: () => void }) {
+export function EventRow({ view: v, now, origin, onPress }: { view: EventView; now: Date; origin?: DistanceOrigin | null; onPress: () => void }) {
   const e = v.event;
   const tag = roleTag(v.role, e.filter);
   return (
     <ListRow
       leading={{ pin: e.type, colour: v.phase === 'over' ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
       title={e.title}
-      subtitle={metaLine([cardTime(e, now), cardDistance(v, miles, milesFrom.includes('home'))])}
+      subtitle={metaLine([cardTime(e, now), cardDistance(v, origin)])}
       meta={notOpenLine(v)}
       trailing={tag ? <Tag label={tag.label} tone={tag.tone as TagTone} /> : undefined}
       onPress={onPress}
@@ -126,8 +123,18 @@ export function EventRow({ view: v, now, miles, milesFrom = '', onPress }: { vie
   );
 }
 
+/** "12 mi drive": a drive's length. */
+export function driveLength(s: Spot): string | null {
+  return s.kind === 'drive' && s.miles ? `${s.miles} mi drive` : null;
+}
+
+/** The distance to a place, from the same origin and with the same rounding as meets. */
+export function placeDistance(s: Spot, origin: DistanceOrigin | null | undefined): string | null {
+  return origin ? distanceText(milesBetween(origin.at, s.at), origin.from) : null;
+}
+
 /** A drive, photo spot or track on a browse surface. */
-export function PlaceEntityCard({ spot: s, miles, onPress, milesFrom = '' }: { spot: Spot; miles?: number | null; onPress: () => void; milesFrom?: string }) {
+export function PlaceEntityCard({ spot: s, origin, onPress }: { spot: Spot; origin?: DistanceOrigin | null; onPress: () => void }) {
   const ref = s.photo ?? sampleRef(s.id);
   return (
     <PhotoCard
@@ -138,7 +145,7 @@ export function PlaceEntityCard({ spot: s, miles, onPress, milesFrom = '' }: { s
       layerColour={s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind]}
       title={s.name}
       tag={s.status === 'pending' ? { label: 'Waiting', tone: 'warning' } : null}
-      meta={metaLine([s.kind === 'drive' && s.miles ? `${s.miles} mi drive` : null, s.region, miles != null ? distanceText(miles, milesFrom.includes('home') ? 'home' : 'you') : null])}
+      meta={metaLine([driveLength(s), s.region, placeDistance(s, origin)])}
       onPress={onPress}
     />
   );

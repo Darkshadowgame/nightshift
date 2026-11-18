@@ -163,8 +163,7 @@ export function locationSentence({ state, time, minutesTo, point, town, leadMinu
 export const DEMO_NIGHT = {
   tag: 'Demo night',
   title: 'Demo night',
-  body: 'The demo always runs on a Friday night, so you can try everything. Nothing leaves this phone.',
-  checkIn: 'Checked in (demo: no location check)',
+  body: "The demo always runs on a Friday night, so you can try everything. Nothing leaves this phone, and check-in doesn't need you to be at the meet point.",
 } as const;
 
 /** The one explanation of class, behind a tap on the badge. */

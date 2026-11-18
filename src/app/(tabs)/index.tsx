@@ -30,7 +30,7 @@ import { FadeUp } from '../../components/motion';
 import { NightMap } from '../../components/NightMap';
 import { Pin } from '../../components/Pin';
 import { PhotoCredit } from '../../components/PhotoCredit';
-import { cardDistance, cardTime, EventEntityCard, EventRow, eventPhotoRef, notOpenLine, PlaceEntityCard, roleTag } from '../../components/TonightCards';
+import { cardDistance, cardTime, driveLength, EventEntityCard, EventRow, eventPhotoRef, notOpenLine, placeDistance, roleTag } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { areaRadius } from '../../lib/area';
 import { useNow } from '../../lib/clock';
@@ -40,14 +40,13 @@ import { canJoinDirectly, viewEvents, type EventView } from '../../lib/eventView
 import { EVENT_LABELS } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
-import { distanceText } from '../../lib/format';
-import { milesBetween } from '../../lib/geo';
+import { distanceOrigin } from '../../lib/format';
 import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
 import { currentPosition } from '../../lib/location';
 import { layerOn, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
-import { inViewOnly, placesForView, regionKey } from '../../lib/mapPlaces';
+import { clusterEventPins, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
 import { visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
@@ -153,8 +152,8 @@ export default function TonightScreen() {
     if (ready) locate(false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
-  const origin = here ?? meUser?.home ?? region.centre;
-  const fromHome = !here;
+  /** Every distance on Tonight: from you while location is on, else from home (format.ts `meetDistance`). */
+  const origin = useMemo(() => distanceOrigin(here, meUser?.home), [here, meUser?.home]);
 
   // ---------------------------------------------------------------------------
   // Events: one set everywhere (live now, tonight to 5am, this week, later).
@@ -171,7 +170,6 @@ export default function TonightScreen() {
   }
   const views = stableViews.current.views;
   const pointOf = (v: EventView): LatLng => (v.shownStop >= 0 ? (v.event.stops[v.shownStop].at ?? v.event.area) : v.event.area);
-  const milesTo = (v: EventView) => milesBetween(origin, pointOf(v));
 
   const lists = useMemo(() => {
     const tonightEnd = windowFor('tonight', now)!.to.getTime();
@@ -210,6 +208,7 @@ export default function TonightScreen() {
   }, [places, layers, snapped.key, selected]);
   const postPins = usePostPins(region.centre, region.span, layers.posts);
 
+  const eventClusters = useRef<EventCluster<MapPin>[]>([]);
   const { pins, paths, circles } = useMemo(() => {
     const pins: MapPin[] = [];
     const paths: MapPath[] = [];
@@ -231,23 +230,33 @@ export default function TonightScreen() {
       snapped.span,
       (v) => v.event.id === selEvent,
     );
+    // Events: one pin each (the meet's own glyph; a circle round it while the meet point is hidden),
+    // and pins that would overlap at this zoom become one count pin (clusterEventPins).
+    const eventPins: MapPin[] = [];
     for (const v of inView) {
       const e = v.event;
       const colour = EVENT_COLOURS[e.type];
       if (v.shownStop >= 0) {
         const stop = e.stops[v.shownStop];
-        if (stop.at) pins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live' });
+        if (stop.at) eventPins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live' });
         if (e.type === 'cruise') paths.push({ id: `rt:${e.id}`, coords: e.stops.flatMap((s) => (s.at ? [s.at] : [])), colour, dashed: true });
       } else {
         circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour });
-        pins.push({ id: `ev:${e.id}`, at: e.area, glyph: 'locked', colour, title: `${e.title}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live' });
+        eventPins.push({ id: `ev:${e.id}`, at: e.area, glyph: e.type, colour, title: `${e.title}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live' });
       }
     }
+    const grouped = clusterEventPins(eventPins, snapped.span, selEvent ? `ev:${selEvent}` : null);
+    pins.push(...grouped.pins);
+    for (const c of grouped.clusters) {
+      const lead = c.members[0];
+      pins.push({ ...lead, id: c.id, title: `${c.members.length} meets here`, size: 42, count: c.members.length, live: c.members.some((m) => m.live) });
+    }
+    eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
   }, [views, placeView, postPins, snapped.key, selected, snapped.centre, snapped.span]);
 
   function zoomCluster(id: string) {
-    const c = placeView.clusters.find((x) => x.id === id);
+    const c = placeView.clusters.find((x) => x.id === id) ?? eventClusters.current.find((x) => x.id === id);
     if (!c) return;
     feel.select();
     setView((x) => ({ centre: c.zoomCentre, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
@@ -370,7 +379,7 @@ export default function TonightScreen() {
         live={v.phase === 'live'}
         title={e.title}
         tag={roleTag(v.role, e.filter) ?? null}
-        meta={metaLine([cardTime(e, now), cardDistance(v, milesTo(v), fromHome), `${e.going.length} going`])}
+        meta={metaLine([cardTime(e, now), cardDistance(v, origin), `${e.going.length} going`])}
         detail={notOpenLine(v)}
         onPress={() => openEvent(e.id)}
         overlay={
@@ -410,7 +419,7 @@ export default function TonightScreen() {
           eyebrow={PLACE_NAMES[s.kind].one}
           layerColour={SPOT_COLOURS[s.kind]}
           title={s.name}
-          meta={metaLine([s.kind === 'drive' && s.miles ? `${s.miles} mi drive` : null, s.region, distanceText(milesBetween(origin, s.at), fromHome ? 'home' : 'you')])}
+          meta={metaLine([driveLength(s), s.region, placeDistance(s, origin)])}
           overlay={
             <View style={st.closeOnPhoto}>
               <IconButton icon="close" label="Close" variant="glass" onPress={close} />
@@ -471,7 +480,7 @@ export default function TonightScreen() {
           <Section title="Live now">
             {live.map((v) => (
               <FadeUp key={v.event.id} index={i++}>
-                <EventEntityCard view={v} now={now} builds={builds} miles={milesTo(v)} milesFrom={fromHome ? ' from home' : ''} onPress={() => onOpen(v)} />
+                <EventEntityCard view={v} now={now} builds={builds} origin={origin} onPress={() => onOpen(v)} />
               </FadeUp>
             ))}
           </Section>
@@ -480,7 +489,7 @@ export default function TonightScreen() {
           <Section title="Tonight">
             {tonight.map((v) => (
               <FadeUp key={v.event.id} index={i++}>
-                <EventEntityCard view={v} now={now} builds={builds} miles={milesTo(v)} milesFrom={fromHome ? ' from home' : ''} onPress={() => onOpen(v)} />
+                <EventEntityCard view={v} now={now} builds={builds} origin={origin} onPress={() => onOpen(v)} />
               </FadeUp>
             ))}
           </Section>
@@ -491,7 +500,7 @@ export default function TonightScreen() {
               {week.map((v, n) => (
                 <View key={v.event.id}>
                   {n > 0 ? <RowDivider inset /> : null}
-                  <EventRow view={v} now={now} miles={milesTo(v)} milesFrom={fromHome ? ' from home' : ''} onPress={() => onOpen(v)} />
+                  <EventRow view={v} now={now} origin={origin} onPress={() => onOpen(v)} />
                 </View>
               ))}
             </View>
@@ -503,7 +512,7 @@ export default function TonightScreen() {
               {later.slice(0, mode === 'list' ? later.length : 5).map((v, n) => (
                 <View key={v.event.id}>
                   {n > 0 ? <RowDivider inset /> : null}
-                  <EventRow view={v} now={now} miles={milesTo(v)} milesFrom={fromHome ? ' from home' : ''} onPress={() => onOpen(v)} />
+                  <EventRow view={v} now={now} origin={origin} onPress={() => onOpen(v)} />
                 </View>
               ))}
             </View>

@@ -231,13 +231,26 @@ describe('time wording (4.10, when.ts)', () => {
 
 describe('numbers and units (4.9, format.ts)', () => {
   const f = require('../src/lib/format');
-  it('says where a distance is from', () => {
+  it('says where a distance is from, in whole miles', () => {
     expect(f.distanceText(2)).toBe('2 mi');
-    expect(f.distanceText(2.34)).toBe('2.3 mi');
+    expect(f.distanceText(2.34)).toBe('2 mi');
+    expect(f.distanceText(1.2)).toBe('1 mi');
     expect(f.distanceText(0.4)).toBe('under 1 mi');
     expect(f.distanceText(2, 'home')).toBe('2 mi from home');
     expect(f.distanceText(6.2, 'about')).toBe('about 6 mi');
     expect(f.distanceText(14.6)).toBe('15 mi');
+  });
+  it('gives one distance to a meet from one origin, whether or not its point shows', () => {
+    const home = { lat: 52.63, lng: -1.7 };
+    const ev = { area: { lat: 52.66, lng: -1.7 } };
+    expect(f.distanceOrigin(null, home)).toEqual({ at: home, from: 'home' });
+    expect(f.distanceOrigin({ lat: 1, lng: 1 }, home).from).toBe('you');
+    expect(f.distanceOrigin(null, { lat: 0, lng: 0 })).toBeNull();
+    const o = f.distanceOrigin(null, home);
+    expect(f.meetDistance(ev, o)).toBe('2 mi from home');
+    expect(f.meetDistance(ev, o, true)).toBe('about 2 mi from home');
+    expect(f.meetDistance(ev, f.distanceOrigin(home, home))).toBe('2 mi');
+    expect(f.meetDistance(ev, null)).toBeNull();
   });
   it('sums up who is going without class codes', () => {
     expect(f.goingSummary(9, 7, 2)).toBe('9 going · 7 cars, 2 bikes');

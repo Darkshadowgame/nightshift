@@ -1,4 +1,5 @@
 import type * as Leaflet from 'leaflet';
+import { realNowMs } from '../../lib/appClock';
 import { ART } from '../../theme';
 import { GRID_BACKGROUND, GRID_SIZE, TILE_FAILS_BEFORE_GRID, TILE_MAX_ZOOM, TILE_SOURCES } from './tiles.web';
 
@@ -159,7 +160,7 @@ export function longPress(map: Leaflet.Map, onHold: (at: Leaflet.LatLng) => void
     const point = map.mouseEventToLatLng(e as unknown as MouseEvent);
     timer = setTimeout(() => {
       timer = null;
-      firedAt = Date.now();
+      firedAt = realNowMs();
       onHold(point);
     }, 550);
   };
@@ -168,8 +169,8 @@ export function longPress(map: Leaflet.Map, onHold: (at: Leaflet.LatLng) => void
   };
   const menu = (e: MouseEvent) => {
     e.preventDefault();
-    if (Date.now() - firedAt < 1000) return;
-    firedAt = Date.now();
+    if (realNowMs() - firedAt < 1000) return;
+    firedAt = realNowMs();
     onHold(map.mouseEventToLatLng(e));
   };
   // A second finger is a pinch, not a hold.
@@ -184,7 +185,7 @@ export function longPress(map: Leaflet.Map, onHold: (at: Leaflet.LatLng) => void
   el.addEventListener('touchstart', touch, { passive: true });
   map.on('movestart zoomstart', cancel);
   return {
-    justHeld: () => Date.now() - firedAt < 700,
+    justHeld: () => realNowMs() - firedAt < 700,
     remove: () => {
       cancel();
       el.removeEventListener('pointerdown', down);

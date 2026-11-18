@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
+import { realNowMs } from '../lib/appClock';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { iconRotation, type MapOrientation, type NavIconShape } from '../lib/driveView';
@@ -80,19 +81,19 @@ export const DriveMap = memo(function DriveMap({
   // The camera runs its own steady loop (heading.ts, "camera's smoothing"): it eases towards the
   // latest fix and heading and guesses ahead between fixes, so the map glides instead of jumping
   // every time GPS or the compass updates. Nothing here re-renders React.
-  const target = useRef({ focus, mapHeading, heading, speed, following, northUp, since: Date.now() });
+  const target = useRef({ focus, mapHeading, heading, speed, following, northUp, since: realNowMs() });
   const lastFocus = useRef<LatLng | null>(null);
   if (focus !== lastFocus.current) {
     lastFocus.current = focus;
-    target.current.since = Date.now();
+    target.current.since = realNowMs();
   }
   target.current = { focus, mapHeading, heading, speed, following, northUp, since: target.current.since };
 
   useEffect(() => {
     let cam: { at: LatLng; heading: number; altitude: number; pitch: number } | null = null;
-    let last = Date.now();
+    let last = realNowMs();
     const id = setInterval(() => {
-      const now = Date.now();
+      const now = realNowMs();
       const dt = Math.min(500, now - last);
       last = now;
       const t = target.current;

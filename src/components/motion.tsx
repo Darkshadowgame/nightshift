@@ -278,7 +278,7 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
 }
 
 // ---------------------------------------------------------------------------
-// Location shown: dim, a scan sweeps round the lock, the pin swaps, a card rises.
+// Location shown: dim, a scan sweeps round the area, its dashed ring becomes the pin, a card rises.
 // ---------------------------------------------------------------------------
 
 export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; colour: string; title: string; onDone: () => void }) {
@@ -335,7 +335,7 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
               <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: RADII.pill, borderWidth: 3, borderColor: 'transparent', borderTopColor: colour }, sweepStyle]} />
             ) : null}
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, lockStyle]}>
-              <Pin glyph="locked" colour={COLOR.text.secondary} size={56} />
+              <Pin glyph="area" colour={colour} size={56} />
             </Animated.View>
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, openStyle]}>
               <Pin glyph={glyph} colour={colour} size={56} />

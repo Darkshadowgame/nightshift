@@ -31,3 +31,24 @@ describe('demo seed', () => {
     for (const b of stage2) expect(b.tuneStage).toBe('stage2');
   });
 });
+
+describe('the demo night (Review 11)', () => {
+  test("you're going to Sunday coffee and cars, so you can say you can't make it", () => {
+    const coffee = s.events.find((e) => e.id === 'ev-meet-soon')!;
+    expect(coffee.going).toContain('me');
+    expect(new Date(coffee.startsAt).getDay()).toBe(0);
+  });
+  test('every demo meet point has a road from the demo home (no straight lines through buildings)', () => {
+    const { demoRoadTo } = require('../src/data/demoRoads');
+    const { milesBetween } = require('../src/lib/geo');
+    for (const id of ['ev-meet-now', 'ev-meet-soon', 'ev-meet-tam', 'ev-rolling-late']) {
+      const e = s.events.find((x) => x.id === id)!;
+      for (const st of e.stops) {
+        const road = demoRoadTo(st.at!);
+        expect(road).not.toBeNull();
+        expect(milesBetween(road[0], { lat: 52.63, lng: -1.7 })).toBeLessThan(0.1);
+        expect(road.length).toBeGreaterThan(10);
+      }
+    }
+  });
+});

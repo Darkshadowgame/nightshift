@@ -150,9 +150,10 @@ describe('the demo night (Redesign 2, 3.1)', () => {
     expect([...new Set(night.votes.map((v) => v.category))].sort()).toEqual(['best-bike', 'best-car', 'best-in-show']);
   });
 
-  test('a brand-new user can go to the live meet and Sunday coffee, car or not', () => {
+  test("a brand-new user can go to the live meet and the late one, car or not, and is going to Sunday coffee", () => {
     const users = night.users.map((u) => (u.id === 'me' ? { ...u, home: DEMO_HOME } : u));
-    for (const id of ['ev-meet-now', 'ev-rolling-late', 'ev-meet-soon']) expect(['invited', 'public']).toContain(roleOf(at(id), 'me', night.crews, users, night.builds));
+    for (const id of ['ev-meet-now', 'ev-rolling-late']) expect(['invited', 'public']).toContain(roleOf(at(id), 'me', night.crews, users, night.builds));
+    expect(roleOf(at('ev-meet-soon'), 'me', night.crews, users, night.builds)).toBe('going');
   });
 });
 

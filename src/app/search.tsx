@@ -27,7 +27,7 @@ import { idsIn } from '../lib/connections';
 import { ALL_TYPES, defaultFilters, describeFilters, searchEvents, travelOf, TRAVEL_CHOICES, VEHICLE_LABELS, WHEN_LABELS, type SearchFilters, type SearchHit, type Vehicles, type When } from '../lib/discover';
 import { endTime, EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
-import { distanceText, plural } from '../lib/format';
+import { distanceOrigin, distanceText, meetDistance, plural } from '../lib/format';
 import { milesBetween } from '../lib/geo';
 import { NOT_OPEN, PLACE_NAMES, roleLabel } from '../lib/glossary';
 import { currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
@@ -246,9 +246,8 @@ export default function SearchScreen() {
         leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
         title={e.title}
         subtitle={metaLine([EVENT_LABELS[e.type], eventTimeLabel(e.startsAt, endTime(e), now)])}
-        // TODO(R11 X): use format.ts's single distance function for an event (the same number as
-        // Tonight and the event page) once it lands; these miles are from home to the area or stop.
-        meta={metaLine([hidden ? distanceText(h.miles, 'about') : distanceText(h.miles, 'home'), !mine && !h.canGo ? NOT_OPEN : null])}
+        // One distance on every screen (format.ts meetDistance): from home to the meet's area.
+        meta={metaLine([meetDistance(e, distanceOrigin(null, origin), hidden), !mine && !h.canGo ? NOT_OPEN : null])}
         trailing={mine ? <Tag label={roleLabel(role)} tone={role === 'going' ? 'success' : 'neutral'} /> : undefined}
         onPress={() => openEvent(e.id)}
       />

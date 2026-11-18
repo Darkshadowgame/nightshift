@@ -22,7 +22,7 @@ import { ONLY_ON_PHONE } from '../lib/glossary';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Field, TextField } from './Detail';
 import { buzz, Button, ChipGroup, ChoiceGroup, ClassBadge, DateTimeField, displayHandle, DsText, EmptyState, ErrorState, ListRow, RowDivider, Section, Tag } from './ds';
-import { appNow } from '../lib/appClock';
+import { appNow, realNowMs } from '../lib/appClock';
 import { usePhotoFlow } from './PhotoFlow';
 
 /** Track screen: the circuit's details and records, then the app's own track times. */
@@ -258,7 +258,7 @@ function AddTime({
   function save() {
     setError(null);
     try {
-      const lap = makeLap(draft, ctx, `lap-${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`);
+      const lap = makeLap(draft, ctx, `lap-${realNowMs().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`);
       addLap(lap);
       buzz('success');
       onDone();
