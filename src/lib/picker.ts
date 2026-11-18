@@ -115,17 +115,18 @@ export function formatLatLng(at: LatLng): string {
 
 /**
  * A readable name for the crosshair when the phone's geocoder can't give one (the web preview,
- * offline): the nearest known place within 2 mi ("Near Ventura Park"), else the region
- * ("Somewhere in the West Midlands"). Never raw coordinates (REVIEW-7 problem 4).
+ * offline): the nearest known place within 2 mi ("Near Ventura Park"), else the nearest town
+ * ("Near Tamworth", from areaNameNear). Never raw coordinates (REVIEW-7 problem 4), never
+ * "Somewhere in Midlands" (Review 13).
  */
-export function describePoint(at: LatLng, known: readonly { name: string; at: LatLng }[], region: string): string {
+export function describePoint(at: LatLng, known: readonly { name: string; at: LatLng }[], town: string): string {
   let best: { name: string; miles: number } | null = null;
   for (const k of known) {
     const miles = milesBetween(at, k.at);
     if (miles <= 2 && (!best || miles < best.miles)) best = { name: k.name, miles };
   }
   if (best) return best.miles < 0.15 ? `At ${best.name}` : `Near ${best.name} (${best.miles < 1 ? best.miles.toFixed(1) : Math.round(best.miles)} mi)`;
-  return `Somewhere in ${region}`;
+  return `Near ${town}`;
 }
 
 /**

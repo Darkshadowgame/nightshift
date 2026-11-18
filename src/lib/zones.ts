@@ -242,6 +242,19 @@ export function injunctionConfirmText(zone: Pick<BanZone, 'name'>, verb = 'Publi
   return `This spot is inside ${zoneShortName(zone)}'s court injunction. Organising or attending a meet here can be contempt of court. ${verb} anyway?`;
 }
 
+/** The confirm sheet's words for one or more PSPOs. */
+export function pspoConfirmText(zones: readonly Pick<BanZone, 'name'>[], verb = 'Publish'): string {
+  return `This spot is inside ${zones.map(zoneShortName).join(' and ')}'s PSPO, which can fine car meets and people gathering to watch. Check the order first. ${verb} anyway?`;
+}
+
+/** The meet-ban confirm's words for whatever zone a spot is in (court injunction first). */
+export function banConfirmText(zone: BanZone, verb = 'Publish'): string {
+  const kind = zoneKind(zone);
+  if (kind === 'injunction') return injunctionConfirmText(zone, verb);
+  if (kind === 'pspo') return pspoConfirmText([zone], verb);
+  return `This spot is inside ${zoneShortName(zone)}'s dispersal-order hotspot, where police can move people on. ${verb} anyway?`;
+}
+
 /** The meet-point placer's line: "Inside a court injunction area: Birmingham (whole city)". One bracket at most. */
 export function zoneLine(z: BanZone): string {
   const kind = zoneKind(z);

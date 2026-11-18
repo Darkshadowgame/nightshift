@@ -41,7 +41,7 @@ const TOPICS: { title: string; lines: string[] }[] = [
   },
   {
     title: 'Privacy',
-    lines: ['Nobody is shown on the map, ever. Your home area is saved to about 1 km and only used to show what’s near you.'],
+    lines: ['Nobody is shown on the map, ever. Your home area is saved to about half a mile and only used to show what’s near you.'],
   },
 ];
 

@@ -23,7 +23,7 @@ in `src/app` or `src/components` outside `ds/` (theme.ts is the only other place
 |---|---|---|
 | `SPACING` | `xxs 2, xs 4, sm 8, md 12, lg 16, xl 24, xxl 32, xxxl 48`; `screen 16`, `section 24` | Every gap, padding and margin comes from here. `screen` is the page gutter, `section` the gap between Sections. |
 | `RADII` | `tag 4, control 8, card 12, sheet 16, pill 999` | One radius per job: tags; buttons, inputs, chips; cards, embeds, toasts; sheet tops; search fields and dots. |
-| `TYPE_SCALE` | `display, heading, hero, titleLg, title, body, bodyStrong, secondary, caption, meta, label, eyebrow, button(Sm/Lg), tag, input, stat` | Each has family, size, line height, case and a text-size cap. Use through `DsText v=…` or `typeStyle()`. `hero` (30/34, upright display face, as typed) is for titles on photos and the sign-in tagline. `label` letter-spacing 1.0, `eyebrow` 1.5 (less shouting). Eyebrows are fog by default. `meta` is Barlow Medium 13, not the condensed label face (condensed "mi" read as "ml"). |
+| `TYPE_SCALE` | `display, heading, hero, titleLg, title, titleSm, body, bodyStrong, secondary, caption, meta, label, eyebrow, button(Sm/Lg), tag, input, stat` | Each has family, size, line height, case and a text-size cap. Use through `DsText v=…` or `typeStyle()`. `hero` (30/34, upright display face, as typed) is for titles on photos and the sign-in tagline. `label` letter-spacing 1.0, `eyebrow` 1.5 (less shouting). Eyebrows are fog by default. `meta` is Barlow Medium 13, not the condensed label face (condensed "mi" read as "ml"). |
 | `ELEVATION` | `flat`, `float`, `sheet`, `bar` | Only floating chrome (map buttons, toasts, a card over the map), sheets and the `ActionBar` (`bar`) cast a shadow. Cards on the page are flat with a border. |
 | `ASPECT` | `event 16/9, build 4/3, post 4/5` | Photo shapes for `PhotoCard` and `Hero`. |
 | `COLOR` | roles below | Pick by role, never by hue. |
@@ -192,7 +192,10 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `EntityCard` | Deprecated on browse surfaces (use `PhotoCard`); `sample` no longer draws a tag. | B, C, D. |
 | `DateField` / `DateSheet` | Deprecated (use `DateTimeField` / `DateTimeSheet`); the calendar is now `MonthCalendar`, shared with `DateTimeSheet`. | C (EventForm), D (dyno form). |
 | `StatBlock` | Sets are now build = bhp, Class, Mods; Me = Meets, Hosted, Trophies. | D. |
-| `ConfirmSheet` / `ConfirmBody` | New `cancelLabel` ("Keep editing" for the discard confirm). | C (host flow). |
+| `ConfirmSheet` / `ConfirmBody` | New `cancelLabel` ("Keep editing" for the discard confirm). Review 13: the only confirm in the app; `safeFirst` + `confirmLabel` for the owner's meet-ban warning ("Change location" / "Post anyway"); `onDismiss` for the scrim; `children` for a quiet line under the message. | Every confirm. A `Sheet` with a destructive button or `doneLabel="Cancel"` fails `__tests__/confirm.test.tsx`. |
+| `ToastProvider` (Review 13) | 3.2 s for every toast (with or without Undo); one at a time; dismissed when the screen changes (`screenKey`, the root passes the route path; a toast raised within 400 ms of the change belongs to the new screen); never takes a tap: the pill is `pointerEvents="box-none"`, only its action (Undo, Change) is tappable. | The driving view has no ActionBar: to keep a toast clear of End, its bottom panel can report its height with `useToastAnchor()`. |
+| `PhotoCard` (Review 13) | A narrow card (`narrowCard`: under 220 pt of room at the current text size, e.g. the vote grid) puts the ClassBadge on the kind line and the title in `titleSm` over three lines, so a name wraps by words at 1.3x, never cut mid-word. `titleOnPhoto` only puts words on a real photo (or a `fallback` snapshot): on the drawn silhouette they go under it. | X's vote cards and Z's Me get it for free. |
+| `Hero`, `BuildLine`, `Sheet` title (Review 13) | Hero's title on a photo is three lines at most; BuildLine and a Sheet's title wrap to two lines. | — |
 | `Icon` | New `pin`, `calendar`, `share`. | — |
 | `Tabs` | Not in the rulebook any more: one `SegmentedControl` switches the view (4.4). Kept until Community moves over. | D. |
 
@@ -215,14 +218,14 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `EmptyState` | Nothing here | `block`: glyph, one line, one primary (whole screen). `inline`: one line, optional link (a section). |
 | `LoadingState` | Waiting | `rows` for lists, `inline` spinner. Buttons use `busy`. |
 | `ErrorState` | It failed | Under the thing that failed. Copy starts "Couldn't". Never a toast. |
-| `Sheet` / `SheetOption` | Pick, confirm, the `···` menu, vote, filters | Closes with **Done** (or its action). **Cancel** only on forms that lose work. Never on top of another sheet. A sheet's primary goes **last**: an `<ActionBar primary=… />` or a block primary `Button`. The Sheet pins it under the scroll so it is always fully visible at 375x667 (an ActionBar inside a Sheet draws flat, no inset). |
-| `ConfirmSheet` | Before something that can't be undone; leaving a form with changes | "{Verb} it" / "Keep it" (the host flow: "Discard it" / "Keep editing"). |
+| `Sheet` / `SheetOption` | Pick, the `···` menu, vote, filters | Closes with **Done** (or its action). Never **Cancel**, and never a confirm: that's `ConfirmSheet`. Never on top of another sheet. A sheet's primary goes **last**: an `<ActionBar primary=… />` or a block primary `Button`. The Sheet pins it under the scroll so it is always fully visible at 375x667 (an ActionBar inside a Sheet draws flat, no inset). |
+| `ConfirmSheet` | Every confirm: before something that can't be undone; leaving a form with changes; the meet-ban warning | The only confirm (4.5). No header Done or Cancel: two buttons in the body. Leaving a form with changes: "Discard it" / "Keep editing". Every other destructive confirm: "{Verb} it" / "Keep it". The meet-ban warning (owner 9.3) alone puts the way back first: "Change location" (primary) / "Post anyway". |
 | `SearchField` | Search | One per surface. `onOpen` makes it the read-only map pill. The magnifier says "search", so the words never do: a leading "Search " is dropped from the placeholder ("Meets, places…"). No browser focus ring on web: the pill's border shows focus. |
 | `SwitchRow` | A setting that's on or off | Label, hint, switch; sodium track when on. |
 | `Field` / `TextField` / `INPUT` | Form fields | Caps label above, then one message slot: `error` (red) in place of the `hint`, never both. 48 tall. `DateTimeField` takes `error` too. |
 | `Card` | A plain block (a form group, facts) | Flat, hairline. Browse items are `PhotoCard`. |
 | `StatBlock` | 2–4 numbers | build = bhp, Class, Mods; Me = Meets, Hosted, Trophies. No sodium numbers. |
-| `ToastProvider` / `useToast` | Every done action | One line, 3.2 s, above the ActionBar or tab bar; "Undo" on leave and remove. A floating pill on `kerbHi` with `ELEVATION.toast`, so it never reads as a card in the page. |
+| `ToastProvider` / `useToast` | Every done action | One line, 3.2 s, one at a time, above the ActionBar or tab bar; "Undo" on leave and remove. Gone when the screen changes. Never takes a tap (only its Undo does). A floating pill on `kerbHi` with `ELEVATION.toast`, so it never reads as a card in the page. |
 
 Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `initials`, `displayHandle`,
 `toggleSelection`, `normaliseSelection`, `passesFilter`, `selectionSummary`, `segmentLabel`, `metaLine`,
@@ -281,6 +284,10 @@ old "One way to do X" and "Added after Review N" lists.
 * Read something: push. Create or edit: a modal route (T4). Pick from options, confirm, the `···`
   menu, vote, filters: a `Sheet`.
 * Never a sheet on a sheet, never a modal on a modal. A Sheet closes with Done (or its action).
+* **One confirm pattern (Review 13):** `ConfirmSheet` is the only confirm, with no header Cancel or
+  Done. Leaving a form with changes: "Discard it" / "Keep editing". Every other destructive confirm:
+  "{Verb} it" / "Keep it" ("Leave it" / "Keep it", "Remove it" / "Keep it"). The one exception is
+  the owner's meet-ban warning (9.3): "Change location" (primary, first) / "Post anyway".
 
 ### 4.6 Empty states
 * Whole screen empty: `EmptyState block` (glyph, one line, one primary).
@@ -289,7 +296,10 @@ old "One way to do X" and "Added after Review N" lists.
 
 ### 4.7 Toasts
 * Every done action gets one: going, checked in, voted, posted, saved, sent, request sent.
-* One line, 3.2 s, above the ActionBar or tab bar, never over the primary.
+* One line, 3.2 s (with or without Undo), one at a time, above the ActionBar or tab bar, never over
+  the primary.
+* Gone when the screen changes: a toast never follows you to the next screen (Review 13).
+* Never takes a tap: touches go through to what's under it; only its Undo is tappable.
 * "Undo" on leave and remove. Never an error in a toast.
 
 ### 4.8 Badges

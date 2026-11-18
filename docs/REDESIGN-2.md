@@ -537,6 +537,10 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
   menu, vote, filters: a `Sheet`.
 * Never a sheet on top of a sheet. Never a modal on top of a modal.
 * A Sheet closes with **Done** (or the action it exists for). **Cancel** only on forms that lose work.
+* **One confirm pattern (Review 13 decision):** `ConfirmSheet` is the only confirm, with no header
+  Cancel (or Done): its two buttons are in the body. Leaving a form with changes: **"Discard it" /
+  "Keep editing"**. Every other destructive confirm: **"{Verb} it" / "Keep it"** ("Leave it" /
+  "Keep it"). Only the meet-ban warning (9.3) differs: "Change location" first, then "Post anyway".
 
 ### 4.6 Empty states
 * Whole screen empty: `EmptyState block`: glyph, one line, one primary.
@@ -546,6 +550,7 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 ### 4.7 Toasts *(extends rule 10)*
 * Every done action gets a toast: going, checked in, voted, posted, saved, sent, request sent.
 * One line, 3.2 s, sits above the ActionBar or tab bar, never over the primary.
+* One at a time; gone when the screen changes; it never takes a tap (only its Undo does). *(Review 13)*
 * "Undo" on leave and remove. Never an error in a toast (errors stay under the thing that failed).
 
 ### 4.8 Badges

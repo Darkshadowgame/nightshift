@@ -288,6 +288,12 @@ export const TYPE_SCALE = {
   titleLg: { fontFamily: F.displayMed, fontSize: 24, lineHeight: 29, scale: 'body' },
   /** Content titles in rows and cards, as typed. */
   title: { fontFamily: F.displayMed, fontSize: 18, lineHeight: 23, scale: 'body' },
+  /**
+   * The title of a narrow card (a two-column grid: the vote sheet), as typed. Smaller so a long
+   * word ("Competition", "Volkswagen") fits its column at 1.3x text and wraps by words, never cut
+   * mid-word (Review 13).
+   */
+  titleSm: { fontFamily: F.displayMed, fontSize: 15, lineHeight: 19, scale: 'body' },
   body: { fontFamily: F.body, fontSize: 15, lineHeight: 21, scale: 'body' },
   bodyStrong: { fontFamily: F.bodyBold, fontSize: 15, lineHeight: 21, scale: 'body' },
   secondary: { fontFamily: F.body, fontSize: 14, lineHeight: 19, scale: 'body' },

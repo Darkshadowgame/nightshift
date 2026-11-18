@@ -10,7 +10,7 @@ import { ChakraPetch_600SemiBold_Italic } from '@expo-google-fonts/chakra-petch/
 import { ChakraPetch_700Bold } from '@expo-google-fonts/chakra-petch/700Bold';
 import { ChakraPetch_700Bold_Italic } from '@expo-google-fonts/chakra-petch/700Bold_Italic';
 import { useFonts } from 'expo-font';
-import { router, Stack, type Href } from 'expo-router';
+import { router, Stack, usePathname, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -154,6 +154,8 @@ function Gate() {
 }
 
 export default function RootLayout() {
+  // A toast goes when the screen changes (Redesign 2, 4.7; Review 13).
+  const pathname = usePathname();
   const [loaded] = useFonts({
     Barlow_400Regular,
     Barlow_500Medium,
@@ -172,7 +174,7 @@ export default function RootLayout() {
         <RoadsProvider>
           <CommunityProvider>
             {/* Toasts sit just above the ActionBar when a screen has one, else above the tab bar (Redesign 2, 4.7). */}
-            <ToastProvider>
+            <ToastProvider screenKey={pathname}>
               <StatusBar style="light" />
               <Gate />
               <OfflinePill />

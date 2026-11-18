@@ -116,12 +116,13 @@ export function describeFilter(filter: InviteFilter): string {
 }
 
 /**
- * The host form's "Who can come" (Review 12 decision 2): open reads as open with no hesitation,
- * the title first and the reach under it. `people` is the count as the form has it: "18",
- * "fewer than 3", "…" or "?".
+ * The host form's "Who can come" (Review 12 decision 2, Review 13): open reads as open with no
+ * hesitation, the title first and, under it, who gets invited (the radius is the invite's reach,
+ * never a limit on who may come). `people` is the count as the form has it: "18", "fewer than 3",
+ * "…" or "?".
  *
- *   Anyone can come
- *   within 25 mi of the meet · about 18 people nearby
+ *   Open to everyone
+ *   We'll invite drivers within 25 mi · about 18 people
  *
  *   Only some can come
  *   Cars · Class A–S · within 25 mi · 7 people match
@@ -129,17 +130,21 @@ export function describeFilter(filter: InviteFilter): string {
 export function inviteHeadline(filter: InviteFilter, people: string): { title: string; detail: string } {
   const n = /^\d+$/.test(people) ? Number(people) : null;
   if (filter.everyone) {
-    const count = n === null ? `${people} people nearby` : n === 1 ? 'about 1 person nearby' : `about ${n} people nearby`;
-    return { title: 'Anyone can come', detail: `within ${filter.radiusMiles} mi of the meet · ${count}` };
+    // The radius is who gets invited, not who may come (Review 13, third review running).
+    const count = n === null ? `${people} people` : n === 1 ? 'about 1 person' : `about ${n} people`;
+    return { title: 'Open to everyone', detail: `We'll invite drivers within ${filter.radiusMiles} mi · ${count}` };
   }
   const count = n === null ? `${people} people match` : n === 1 ? '1 person matches' : `${n} people match`;
   return { title: 'Only some can come', detail: `${describeFilter(filter)} · ${count}` };
 }
 
-/** The same in one line, for the Check and post summary: "Anyone can come · within 25 mi of the meet · about 18 people nearby". */
+/**
+ * The same in one line, for the Check and post summary: "Open to everyone · we'll invite drivers
+ * within 25 mi · about 18 people", or "Only some can come · Bikes · within 10 mi · 7 people match".
+ */
 export function inviteSummary(filter: InviteFilter, people: string): string {
   const h = inviteHeadline(filter, people);
-  return filter.everyone ? `${h.title} · ${h.detail}` : h.detail;
+  return `${h.title} · ${filter.everyone ? h.detail.charAt(0).toLowerCase() + h.detail.slice(1) : h.detail}`;
 }
 
 const ORDER = 'SABCD';

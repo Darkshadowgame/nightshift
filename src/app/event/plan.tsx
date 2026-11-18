@@ -12,22 +12,23 @@ import { useNow } from '../../lib/clock';
 import { banZoneAt, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
 import { formatTime } from '../../lib/format';
 import { nameForPlace } from '../../lib/location';
-import { shouldAutoName } from '../../lib/placeNames';
+import { fallbackPointName, shouldAutoName } from '../../lib/placeNames';
+import { areaNameNear } from '../../lib/profile';
+import { visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
-import { zonePins, zoneShapes } from '../../lib/zones';
+import { banConfirmText, zoneKind, zoneShapes } from '../../lib/zones';
 import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
 
-/** Meet bans drawn on the map: circles, and council outlines for borough-wide orders. */
+/** Meet bans drawn on the map: outlines only, explained in one line under it (Review 13: no unexplained hexagons). */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
-const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 type Selected = number | 'new';
 
 /** Rolling meets: hosts rename, move, remove or add meet points on the night. */
 export default function ChangePlan() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { events, me, crews, users, changePlan } = useStore();
+  const { events, me, crews, users, changePlan, spots } = useStore();
   const now = useNow();
   const ev = events.find((e) => e.id === id);
   const [selected, setSelected] = useState<Selected>(() => (ev ? Math.min(ev.currentStop + 1, ev.stops.length - 1) : 0));
@@ -37,6 +38,8 @@ export default function ChangePlan() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ text: string; warning?: string } | null>(null);
   const [picking, setPicking] = useState(false);
+  /** The meet-ban warning before moving or adding a point inside one (warn, never block: owner 9.3). */
+  const [askBan, setAskBan] = useState<{ verb: string; run: () => void } | null>(null);
   const autoName = useRef<string | undefined>(undefined);
 
   if (!ev || !isHost(ev, me, crews)) {
@@ -102,6 +105,12 @@ export default function ChangePlan() {
   const centre = point?.at ?? ev.stops[ev.currentStop]?.at ?? ev.area;
   const canPlace = selected === 'new' || !!move?.ok;
 
+  /** Inside a meet ban, ask first (the same confirm as posting, owner 9.3); else just do it. */
+  function guard(verb: string, run: () => void) {
+    if (pendingZone) setAskBan({ verb, run });
+    else run();
+  }
+
   /** Back from the full-screen picker: the new place waits for "Move here" / "Add meet point". */
   function picked(at: LatLng, knownName?: string) {
     setPicking(false);
@@ -118,7 +127,8 @@ export default function ChangePlan() {
       });
     };
     if (knownName) takeName(knownName);
-    else nameForPlace(at).then(takeName);
+    // No geocoder (the web preview) or no answer: the nearest known place or town (Review 13).
+    else nameForPlace(at).then((found) => takeName(found ?? fallbackPointName(at, visibleSpots(spots, me), areaNameNear(at))));
   }
 
   return (
@@ -139,7 +149,7 @@ export default function ChangePlan() {
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
               key={`${selected}`}
-              pins={[...BAN_PINS, ...pins]}
+              pins={pins}
               circles={BAN_SHAPES.circles}
               polygons={BAN_SHAPES.polygons}
               paths={[{ id: 'line', coords: line, colour: COLOR.surface.raisedHi, dashed: true }]}
@@ -151,6 +161,7 @@ export default function ChangePlan() {
           </View>
         </MediaFrame>
       </Press>
+      <DsText v="caption">Orange outlines are meet bans.</DsText>
 
       {done ? (
         <Callout tone={done.warning ? 'warning' : 'success'} title={`${done.text} Everyone going got “Hosts changed the plan”.`}>
@@ -171,7 +182,7 @@ export default function ChangePlan() {
               pending ? (
                 <View style={{ gap: SPACING.sm }}>
                   {pendingZone ? <ZoneNotice zone={pendingZone} subject="The new meet point" /> : <DsText v="secondary">Not in a known meet ban.</DsText>}
-                  <Button label={pendingZone ? 'Move here anyway' : 'Move here'} block onPress={() => apply({ kind: 'move', stopId: point.id, at: pending }, `Moved ${point.name}.`)} />
+                  <Button label="Move here" block onPress={() => guard('Move', () => apply({ kind: 'move', stopId: point.id, at: pending }, `Moved ${point.name}.`))} />
                   <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                     <Button label="Pick again" tier="secondary" style={{ flex: 1 }} block onPress={() => setPicking(true)} />
                     <Button label="Not now" tier="secondary" style={{ flex: 1 }} block onPress={() => setPending(null)} />
@@ -215,19 +226,41 @@ export default function ChangePlan() {
           )}
           <Button label={pending ? 'Pick again on the map' : 'Choose on the map'} tier="secondary" block onPress={() => setPicking(true)} />
           <Button
-            label={pendingZone ? 'Add meet point anyway' : 'Add meet point'}
+            label="Add meet point"
             block
-            onPress={() => (pending ? apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new meet point'}.`) : setError('Choose the new meet point on the map first.'))}
+            onPress={() => (pending ? guard('Add', () => apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new meet point'}.`)) : setError('Choose the new meet point on the map first.'))}
           />
           {error ? <ErrorState title={error} /> : null}
         </Section>
       )}
 
+      <ConfirmSheet
+        visible={!!askBan && !!pendingZone}
+        title={pendingZone && zoneKind(pendingZone) === 'injunction' ? 'Court injunction' : 'Meet ban'}
+        message={pendingZone && askBan ? banConfirmText(pendingZone, askBan.verb) : ''}
+        verb={askBan?.verb ?? 'Move'}
+        confirmLabel={`${askBan?.verb ?? 'Move'} anyway`}
+        cancelLabel="Pick again"
+        safeFirst
+        onConfirm={() => {
+          const run = askBan?.run;
+          setAskBan(null);
+          run?.();
+        }}
+        onCancel={() => {
+          setAskBan(null);
+          setPicking(true);
+        }}
+        onDismiss={() => setAskBan(null)}
+      >
+        <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>
+      </ConfirmSheet>
+
       <MapPicker
         visible={picking}
         mode="point"
         title={point ? `Move ${point.name}` : 'Place the new meet point'}
-        hint="Move the map so the crosshair is on the new meet point, or tap a grey pin to use a known place. Orange outlines and pins are meet bans."
+        hint="Move the map so the crosshair is on the new meet point, or tap a grey pin to use a known place. Orange outlines are meet bans."
         confirmLabel={point ? 'Move meet point here' : 'Set meet point here'}
         start={pending ?? centre}
         span={0.06}

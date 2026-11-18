@@ -86,7 +86,8 @@ export function Hero({
   const titleRow = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
       {classLetter ? <ClassBadge letter={classLetter} size={onPhoto ? 'md' : 'sm'} /> : null}
-      <DsText v={onPhoto ? 'hero' : 'titleLg'} accessibilityRole="header" style={{ flexShrink: 1 }}>
+      {/* On a photo, three lines at most: at 1.3x text a long title never climbs out of the picture (Review 13). */}
+      <DsText v={onPhoto ? 'hero' : 'titleLg'} accessibilityRole="header" numberOfLines={onPhoto ? 3 : undefined} style={{ flexShrink: 1 }}>
         {title}
       </DsText>
     </View>

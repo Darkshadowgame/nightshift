@@ -55,7 +55,7 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', hideDone, child
         <View style={{ width: 36, height: 5, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raisedHi }} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, gap: SPACING.sm }}>
-        <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
+        <DsText v="heading" accessibilityRole="header" numberOfLines={2} style={{ flex: 1 }}>
           {title}
         </DsText>
         {hideDone ? null : (
@@ -125,49 +125,94 @@ export function SheetOption({ label, detail, onPress, destructive }: { label: st
 }
 
 /**
- * Confirm before something that can't be undone: the question, then "{Verb} it" (destructive red,
- * or primary for a non-destructive switch) and "Keep it". Lives in a Sheet so it looks the same
- * wherever it's asked.
+ * The one confirm (Redesign 2, 4.5; Review 13): the question, then two buttons in the body and no
+ * header Done or Cancel. Every confirm in the app is this sheet:
+ *
+ * - Something destructive: "{Verb} it" (red) and "Keep it". `verb="Leave"` gives Leave it / Keep it.
+ * - Leaving a form with changes: `verb="Discard"`, `cancelLabel="Keep editing"`.
+ * - A non-destructive switch: `destructive={false}` draws "{Verb} it" as the primary.
+ * - The meet-ban warning (owner decision 9.3): `safeFirst` puts the way back ("Change location")
+ *   on top as the primary and the risky choice under it ("Post anyway", `confirmLabel`).
+ *
+ * The scrim still closes it, as the cancel.
  */
 export function ConfirmSheet({
   visible,
   title,
   message,
   verb,
+  confirmLabel,
   cancelLabel,
   destructive = true,
+  safeFirst,
   busy,
   onConfirm,
   onCancel,
+  onDismiss,
+  children,
 }: {
   visible: boolean;
   title: string;
   message: string;
   /** "Leave" gives "Leave it / Keep it" (glossary.confirmLabels). */
   verb: string;
-  /** Instead of "Keep it": "Keep editing" when leaving a form with changes (4.2). */
+  /** Instead of "{Verb} it": only for the owner's meet-ban warning ("Post anyway"). */
+  confirmLabel?: string;
+  /** Instead of "Keep it": "Keep editing" when leaving a form with changes (4.2), "Change location" on the ban warning. */
   cancelLabel?: string;
   destructive?: boolean;
+  /** The way back is the primary, on top (the meet-ban warning). */
+  safeFirst?: boolean;
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** The scrim (and Android back): closes without either choice. Defaults to `onCancel`. */
+  onDismiss?: () => void;
+  /** A quiet line under the message ("Nightshift only warns…"). */
+  children?: ReactNode;
 }) {
   return (
-    // One way to back out (rule 4.5, REVIEW-11): "Keep it" in the body, no header Cancel as well.
-    <Sheet visible={visible} title={title} onClose={onCancel} hideDone>
-      <ConfirmBody message={message} verb={verb} cancelLabel={cancelLabel} destructive={destructive} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />
+    // One way to back out (rule 4.5, REVIEW-11): the cancel button in the body, no header Cancel as well.
+    <Sheet visible={visible} title={title} onClose={onDismiss ?? onCancel} hideDone>
+      <ConfirmBody message={message} verb={verb} confirmLabel={confirmLabel} cancelLabel={cancelLabel} destructive={destructive} safeFirst={safeFirst} busy={busy} onConfirm={onConfirm} onCancel={onCancel}>
+        {children}
+      </ConfirmBody>
     </Sheet>
   );
 }
 
-/** The inside of ConfirmSheet, on its own for the gallery. */
-export function ConfirmBody({ message, verb, cancelLabel, destructive = true, busy, onConfirm, onCancel }: { message: string; verb: string; cancelLabel?: string; destructive?: boolean; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
-  const labels = { ...confirmLabels(verb), ...(cancelLabel ? { cancel: cancelLabel } : null) };
+/** The inside of ConfirmSheet, on its own for the gallery (and a photo's inline remove). */
+export function ConfirmBody({
+  message,
+  verb,
+  confirmLabel,
+  cancelLabel,
+  destructive = true,
+  safeFirst,
+  busy,
+  onConfirm,
+  onCancel,
+  children,
+}: {
+  message: string;
+  verb: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  safeFirst?: boolean;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  children?: ReactNode;
+}) {
+  const labels = { ...confirmLabels(verb), ...(confirmLabel ? { confirm: confirmLabel } : null), ...(cancelLabel ? { cancel: cancelLabel } : null) };
+  const confirm = <Button key="confirm" label={labels.confirm} tier={destructive ? 'destructive' : 'primary'} block busy={busy} onPress={onConfirm} />;
+  const cancel = <Button key="cancel" label={labels.cancel} tier={safeFirst ? 'primary' : 'secondary'} block onPress={onCancel} />;
   return (
     <View style={{ gap: SPACING.md }}>
       <DsText v="body">{message}</DsText>
-      <Button label={labels.confirm} tier={destructive ? 'destructive' : 'primary'} block busy={busy} onPress={onConfirm} />
-      <Button label={labels.cancel} tier="secondary" block onPress={onCancel} />
+      {children}
+      {safeFirst ? [cancel, confirm] : [confirm, cancel]}
     </View>
   );
 }

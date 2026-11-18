@@ -12,24 +12,21 @@ import { leadText, LOCATION, MEET_POINT } from '../lib/glossary';
 import { clearHostDraft, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
 import { DEFAULT_FILTER, fromVehicleSelection, hostLeftOut, inviteHeadline, inviteSummary, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
-import { shouldAutoName } from '../lib/placeNames';
+import { fallbackPointName, shouldAutoName } from '../lib/placeNames';
 import { areaNameNear } from '../lib/profile';
+import { visibleSpots } from '../lib/spots';
 import { newId, useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
-import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortName } from '../lib/zones';
+import { injunctionConfirmText, publishCheck, pspoConfirmText } from '../lib/zones';
 import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
-import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, Icon, PAGE_WITH_BAR, Press, RowDivider, Section, Sheet, StepHeading, SwitchRow, TextField } from './ds';
+import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, Icon, PAGE_WITH_BAR, Press, RowDivider, Section, StepHeading, SwitchRow, TextField } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
-
-/** Meet bans drawn on the map: circles, and council outlines for borough-wide orders. */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
-const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 /** What a host can make (Redesign 2, 3.6): Show and Track day still display, but aren't made here. */
 const TYPES: EventType[] = ['meet', 'cruise', 'rolling'];
@@ -289,7 +286,11 @@ export function EventForm({
   /** The last name the geocoder gave each meet point, so a name the host typed is never overwritten. */
   const autoNames = useRef<Record<string, string>>({});
 
-  /** Drop a meet point, then name it after the street and town (the host can edit it). */
+  /**
+   * Drop a meet point, then name it after the street and town (the host can edit it). With no
+   * geocoder (the web preview) or no answer, it's named from the nearest known place or town, so
+   * the name is filled in before Next (Review 13).
+   */
   function placeStop(i: number, at: LatLng, knownName?: string) {
     const key = stops[i]?.key;
     if (!key) return;
@@ -299,8 +300,8 @@ export function EventForm({
       return;
     }
     setStop(i, { at });
-    nameForPlace(at).then((name) => {
-      if (!name) return;
+    nameForPlace(at).then((found) => {
+      const name = found ?? fallbackPointName(at, visibleSpots(store.spots, me), areaNameNear(at));
       setStops((xs) =>
         xs.map((x) => {
           if (x.key !== key || x.at !== at || !shouldAutoName(x.name, autoNames.current[key])) return x;
@@ -507,7 +508,8 @@ export function EventForm({
         >
           <MediaFrame height={180} style={errorAt('point') ? { borderColor: COLOR.state.danger } : undefined}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <NightMap pins={[...BAN_PINS, ...pointPins(null)]} paths={routePaths} circles={BAN_SHAPES.circles} polygons={BAN_SHAPES.polygons} centre={preview.centre} span={preview.span} follow />
+              {/* Only your own points: meet bans show in the picker, with their legend, and under a point that's in one (Review 13). */}
+              <NightMap pins={pointPins(null)} paths={routePaths} centre={preview.centre} span={preview.span} follow />
             </View>
             {placed.length === 0 ? (
               <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, backgroundColor: COLOR.surface.scrim }]}>
@@ -551,7 +553,7 @@ export function EventForm({
         return (
           <View key={st.key} style={{ gap: SPACING.sm }}>
             {i > 0 ? <RowDivider /> : null}
-            <Field label={singlePlace ? `${label} name` : label} hint={singlePlace ? 'What people know it by, e.g. the car park or venue.' : null} error={errorAt(`stop:${i}`)}>
+            <Field label={singlePlace ? `${label} name` : label} hint="Needed. What people know it by, e.g. the car park or venue." error={errorAt(`stop:${i}`)}>
               <TextField
                 value={st.name}
                 onChangeText={(name) => {
@@ -628,7 +630,7 @@ export function EventForm({
           <BrandPicker vehicles={vehicles} selected={filter.brands} onChange={(brands) => setFilter((f) => ({ ...f, brands }))} />
           <ChoiceGroup label="Within" options={RADIUS_CHOICES.map((r) => ({ key: String(r), label: `${r} mi` }))} value={String(filter.radiusMiles)} onChange={(k) => setFilter((f) => ({ ...f, radiusMiles: Number(k) }))} />
           <Button
-            label="Open to anyone again"
+            label="Open to everyone again"
             tier="tertiary"
             size="sm"
             style={{ alignSelf: 'flex-start' }}
@@ -722,7 +724,7 @@ export function EventForm({
   const banWords = check.injunction
     ? injunctionConfirmText(check.injunction.zone, verb)
     : check.pspos.length
-      ? `This spot is inside ${check.pspos.map(zoneShortName).join(' and ')}'s PSPO, which can fine car meets and people gathering to watch. Check the order first. ${verb} anyway?`
+      ? pspoConfirmText(check.pspos, verb)
       : '';
 
   return (
@@ -780,22 +782,25 @@ export function EventForm({
         onCancel={() => setLeaveAction(null)}
       />
 
-      <Sheet visible={askBan} title={check.injunction ? 'Court injunction' : 'Meet ban'} onClose={() => setAskBan(false)}>
-        <View style={{ gap: SPACING.md }}>
-          <DsText v="body">{banWords}</DsText>
-          <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>
-          <Button
-            label="Change location"
-            tier="primary"
-            block
-            onPress={() => {
-              setAskBan(false);
-              go(1);
-            }}
-          />
-          <Button label={`${verb} anyway`} tier="destructive" block busy={saving} onPress={publish} />
-        </View>
-      </Sheet>
+      {/* The meet-ban warning (owner decision 9.3): warn, never block, with Change location as the main button. */}
+      <ConfirmSheet
+        visible={askBan}
+        title={check.injunction ? 'Court injunction' : 'Meet ban'}
+        message={banWords}
+        verb={verb}
+        confirmLabel={`${verb} anyway`}
+        cancelLabel="Change location"
+        safeFirst
+        busy={saving}
+        onConfirm={publish}
+        onCancel={() => {
+          setAskBan(false);
+          go(1);
+        }}
+        onDismiss={() => setAskBan(false)}
+      >
+        <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>
+      </ConfirmSheet>
     </View>
   );
 }

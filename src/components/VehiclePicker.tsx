@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { allVariants } from '../data/vehicles';
 import { classOf } from '../lib/classes';
 import { carShape } from '../lib/buildShape';
@@ -18,15 +18,21 @@ import {
   type Variant,
 } from '../lib/vehicles';
 import { COLOR, SPACING } from '../theme';
-import { Button, DsText, Icon, INPUT, ListRow, PhotoCard, SearchField } from './ds';
+import { Button, DsText, Icon, ListRow, PhotoCard, SearchField } from './ds';
 import { FadeUp } from './motion';
-import { SearchSelect } from './SearchSelect';
 import { SuggestMissing } from './SuggestMissing';
 
+/** Where the picker is: the one search, or the "Enter it yourself" list flow (make, model, version). */
+type Stage = 'search' | 'make' | 'model' | 'version';
+
 /**
- * Make → model → variant, searchable, for cars and bikes. Picking a variant
- * hands its stock specs to `onPickVariant`; free-typed makes and models still
- * work for anything that isn't listed.
+ * Pick a car or bike (Redesign 2, 4.4; Review 13, K2): one search with results, never a dropdown.
+ * Type a make or model, tap yours; its stock specs go to `onPickVariant`.
+ *
+ * "Can't find it? Enter it yourself" turns the same place into a list flow, one search at a time:
+ * Make (pick from the list, or use what you typed) → Model → Generation and engine (when we know
+ * it) → done. Anything not listed still works as typed. Onboarding and the Garage's "+" are the
+ * same picker.
  */
 export function VehiclePicker({
   kind,
@@ -36,15 +42,11 @@ export function VehiclePicker({
   onMakeModel,
   onPickVariant,
   editableBelow = false,
-  searchFirst = false,
 }: {
-  /**
-   * Onboarding: one way to pick (search), with Make and Model behind "Can't find it?". Once
-   * picked, the confirmation sits right under the search so it's on screen.
-   */
-  searchFirst?: boolean;
   /** The figures can be changed in fields below the picker (the build form); not in onboarding. */
   editableBelow?: boolean;
+  /** @deprecated Always search-first now (Review 13); kept so old callers still compile. */
+  searchFirst?: boolean;
   kind: VehicleKind;
   make: string;
   model: string;
@@ -57,97 +59,151 @@ export function VehiclePicker({
   const variant = findVariant(list, vehicleId);
   const family = familyFor(list, kind, make, model, variant);
   const variants = useMemo(() => (family ? variantsFor(list, kind, make, family) : []), [list, kind, make, family]);
+  const [stage, setStageRaw] = useState<Stage>('search');
   const [query, setQuery] = useState('');
-  const [browsing, setBrowsing] = useState(false);
-  const showSelects = !searchFirst || browsing;
-  const hits = useMemo(() => searchVariants(list, kind, query, 8), [list, kind, query]);
+  const setStage = (s: Stage) => {
+    setQuery('');
+    setStageRaw(s);
+  };
+  // Car or bike changed: start again at the search.
+  const [lastKind, setLastKind] = useState(kind);
+  if (lastKind !== kind) {
+    setLastKind(kind);
+    setStageRaw('search');
+    setQuery('');
+  }
   const noun = kind === 'car' ? 'car' : 'bike';
+  const typed = query.trim();
 
-  return (
-    <View style={{ gap: SPACING.sm }}>
-      <SearchField
-        value={query}
-        onChangeText={setQuery}
-        placeholder={kind === 'car' ? 'Type a make or model, e.g. Fiesta ST' : 'Type a make or model, e.g. Street Triple'}
-        accessibilityLabel={`Search every ${noun}`}
-      />
-      {query.trim() ? (
-        <View>
-          {hits.map((v) => (
-            <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
-          ))}
-          {hits.length === 0 ? <DsText v="secondary">{searchFirst ? 'No match. Try fewer words, or enter it yourself below.' : 'No match. Pick the make below or type your own.'}</DsText> : null}
-        </View>
-      ) : null}
+  const hits = useMemo(() => (stage === 'search' ? searchVariants(list, kind, query, 8) : []), [stage, list, kind, query]);
+  const makes = useMemo(() => (stage === 'make' ? makesFor(list, kind, query).slice(0, 8) : []), [stage, list, kind, query]);
+  const models = useMemo(() => (stage === 'model' ? modelsFor(list, kind, make, query).slice(0, 8) : []), [stage, list, kind, make, query]);
 
-      {searchFirst && variant && !browsing && !query.trim() ? <PickedCard variant={variant} /> : null}
-      {searchFirst && !browsing ? (
+  function pickMake(m: string) {
+    onMakeModel(m, m === make ? model : '');
+    setStage('model');
+  }
+  function pickModel(m: string) {
+    const mk = canonicalMake(list, kind, make);
+    onMakeModel(mk, m);
+    setStage(variantsFor(list, kind, mk, m).length ? 'version' : 'search');
+  }
+  /** "Use “Escort Cosworth”": a row that takes what you typed when it isn't listed. */
+  const useTyped = (options: string[], onUse: (t: string) => void) =>
+    typed && !options.some((o) => o.toLowerCase() === typed.toLowerCase()) ? (
+      <ListRow leading={{ icon: 'plus' }} title={`Use “${typed}”`} chevron={false} onPress={() => onUse(typed)} />
+    ) : null;
+
+  if (stage === 'search') {
+    const freeTyped = !variant && make.trim() && model.trim();
+    return (
+      <View style={{ gap: SPACING.sm }}>
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder={kind === 'car' ? 'Type a make or model, e.g. Fiesta ST' : 'Type a make or model, e.g. Street Triple'}
+          accessibilityLabel={`Search every ${noun}`}
+        />
+        {typed && hits.length >= 3 && new Set(hits.map((v) => `${v.make} ${v.model}`)).size === 1 ? (
+          // Six Fiesta STs (Review 13): say how to tell them apart.
+          <DsText v="caption">{`${hits.length} versions. Pick yours by its years and power.`}</DsText>
+        ) : null}
+        {typed ? (
+          <View>
+            {hits.map((v) => (
+              <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
+            ))}
+            {hits.length === 0 ? <DsText v="secondary">No match. Try fewer words, or enter it yourself.</DsText> : null}
+          </View>
+        ) : null}
+        {variant && !typed ? (editableBelow ? <Picked variant={variant} kind={kind} editableBelow /> : <PickedCard variant={variant} />) : null}
+        {freeTyped && !typed ? (
+          <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
+            <Icon name="success" size={20} colour={COLOR.state.success} />
+            <View style={{ flex: 1, gap: SPACING.xxs }}>
+              <DsText v="body">{`${make.trim()} ${model.trim()}`}</DsText>
+              <DsText v="caption">{editableBelow ? 'Entered yourself, so add the power and weight below.' : 'Entered yourself. Add the power and weight in the Garage.'}</DsText>
+            </View>
+          </View>
+        ) : null}
         <Button
           tier="tertiary"
           size="sm"
-          label={variant ? 'Not quite right? Enter it yourself' : "Can't find it? Enter it yourself"}
+          label={variant || freeTyped ? 'Not quite right? Enter it yourself' : "Can't find it? Enter it yourself"}
           style={{ alignSelf: 'flex-start' }}
-          onPress={() => setBrowsing(true)}
+          onPress={() => setStage('make')}
         />
-      ) : null}
+      </View>
+    );
+  }
 
-      {showSelects ? (
-      <>
-      <SearchSelect
-        label="Make"
-        value={make}
-        placeholder={`Pick or type the ${noun}'s make`}
-        search={(q) => makesFor(list, kind, q).map((m) => ({ key: m, title: m }))}
-        onPick={(o) => onMakeModel(o.title, o.title === make ? model : '')}
-        onFree={(t) => onMakeModel(t, t === make ? model : '')}
-      />
-      <SearchSelect
-        label="Model"
-        value={family ?? model}
-        placeholder={make ? 'Pick or type the model' : 'Pick the make first'}
-        search={(q) => modelsFor(list, kind, make, q).map((m) => ({ key: m, title: m, detail: rangeOf(variantsFor(list, kind, make, m)) }))}
-        onPick={(o) => onMakeModel(canonicalMake(list, kind, make), o.title)}
-        onFree={(t) => onMakeModel(make, t)}
-        disabled={!make.trim()}
-      />
+  // "Enter it yourself": one step at a time, each a search with a list under it.
+  const back = <Button tier="tertiary" size="sm" label="Back to search" style={{ alignSelf: 'flex-start' }} onPress={() => setStage('search')} />;
+  const suggest = (
+    <SuggestMissing
+      screen="vehicle-picker"
+      label={`Suggest a missing ${noun}`}
+      placeholder={kind === 'car' ? 'e.g. Vauxhall Astra VXR Arctic Edition' : 'e.g. Honda CBR400RR NC29'}
+      context={[kind, make, model].filter(Boolean).join(' · ')}
+    />
+  );
+  const chosenMake = make.trim() ? (
+    <ListRow title={canonicalMake(list, kind, make)} subtitle="Make" trailing={<DsText v="buttonSm" tone="action">Change</DsText>} chevron={false} onPress={() => setStage('make')} accessibilityLabel={`Make: ${make}. Change it`} />
+  ) : null;
 
-      {family && variants.length ? (
-        <View>
-          <DsText v="label">Generation and engine</DsText>
-          {variants.map((v) => (
-            <VariantRow key={v.id} v={v} on={v.id === vehicleId} onPress={() => onPickVariant(v)} />
-          ))}
-        </View>
+  return (
+    <View style={{ gap: SPACING.sm }}>
+      <StepLabel stage={stage} />
+      {stage === 'make' ? (
+        <>
+          <SearchField value={query} onChangeText={setQuery} autoFocus placeholder={`Type the ${noun}'s make`} accessibilityLabel={`Make of your ${noun}`} />
+          <View>
+            {makes.map((m) => (
+              <ListRow key={m} title={m} chevron onPress={() => pickMake(m)} trailing={m === make ? <Icon name="check" size={18} colour={COLOR.text.primary} /> : undefined} />
+            ))}
+            {useTyped(makes, pickMake)}
+          </View>
+        </>
       ) : null}
-
-      {!family && make.trim() && model.trim() ? (
-        <DsText v="caption">Not in our list, so add the power and weight below yourself.</DsText>
+      {stage === 'model' ? (
+        <>
+          {chosenMake}
+          <SearchField value={query} onChangeText={setQuery} autoFocus placeholder="Type the model" accessibilityLabel={`Model of your ${noun}`} />
+          <View>
+            {models.map((m) => (
+              <ListRow key={m} title={m} subtitle={rangeOf(variantsFor(list, kind, make, m))} chevron onPress={() => pickModel(m)} />
+            ))}
+            {useTyped(models, (t) => {
+              onMakeModel(make, t);
+              setStage('search');
+            })}
+          </View>
+        </>
       ) : null}
-      {family && !variant ? (
-        <DsText v="caption">Pick yours above, or name it your own way here:</DsText>
+      {stage === 'version' ? (
+        <>
+          {chosenMake}
+          <View>
+            {variants.map((v) => (
+              <VariantRow key={v.id} v={v} on={v.id === vehicleId} onPress={() => { onPickVariant(v); setStage('search'); }} />
+            ))}
+            <ListRow title={`None of these: just “${family ?? model}”`} subtitle={editableBelow ? 'Add the power and weight below yourself.' : undefined} chevron={false} onPress={() => setStage('search')} />
+          </View>
+        </>
       ) : null}
-      {family && !variant ? (
-        <TextInput
-          value={model}
-          onChangeText={(t) => onMakeModel(make, t)}
-          placeholder="Model as it shows on your build"
-          placeholderTextColor={COLOR.text.secondary}
-          style={INPUT}
-          accessibilityLabel="Model name shown on your build"
-        />
-      ) : null}
-
-      {variant ? (searchFirst ? <PickedCard variant={variant} /> : <Picked variant={variant} kind={kind} editableBelow={editableBelow} />) : null}
-
-      <SuggestMissing
-        screen="vehicle-picker"
-        label={`Suggest a missing ${noun}`}
-        placeholder={kind === 'car' ? 'e.g. Vauxhall Astra VXR Arctic Edition' : 'e.g. Honda CBR400RR NC29'}
-        context={[kind, make, model].filter(Boolean).join(' · ')}
-      />
-      </>
-      ) : null}
+      {back}
+      {suggest}
     </View>
+  );
+}
+
+/** The step of "Enter it yourself" as a label: MAKE, MODEL, GENERATION AND ENGINE. */
+function StepLabel({ stage }: { stage: Stage }) {
+  const words = stage === 'make' ? 'Enter it yourself: make' : stage === 'model' ? 'Enter it yourself: model' : 'Generation and engine';
+  return (
+    <DsText v="label" accessibilityRole="header">
+      {words}
+    </DsText>
   );
 }
 

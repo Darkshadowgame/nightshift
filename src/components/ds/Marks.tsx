@@ -95,7 +95,8 @@ export function BuildLine({ letter, name, power }: { letter: ClassLetter; name: 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
       <ClassBadge letter={letter} size="sm" decorative />
-      <DsText v="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
+      {/* Two lines at large text: a name wraps by words rather than being cut (Review 13). */}
+      <DsText v="secondary" numberOfLines={2} style={{ flexShrink: 1 }}>
         {`${name} · ${power}`}
       </DsText>
     </View>

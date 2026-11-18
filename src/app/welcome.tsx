@@ -20,7 +20,7 @@ import { COLOR, LAYER, RADII, SPACING } from '../theme';
 
 /** Where the map starts before a home is set: the middle of England, zoomed out. */
 const UK_MIDDLE = regionCentre('Midlands');
-/** The home circle on the map: saved to about 1 km. */
+/** The home circle on the map: saved to about half a mile. */
 const HOME_RADIUS_MILES = 0.6;
 
 /**
@@ -28,7 +28,7 @@ const HOME_RADIUS_MILES = 0.6;
  * 1. What do you drive? Car or bike, one search, tap yours: the picked card (class badge and bhp)
  *    replaces the results. "Can't find it? Enter it yourself" opens make and model. Skip for now.
  * 2. Where's home? A real map with the area circle (the demo starts on the sample area), and a
- *    handle, pre-filled with a suggestion. Home is saved to about 1 km and sets the region.
+ *    handle, pre-filled with a suggestion. Home is saved to about half a mile (4.9: miles) and sets the region.
  * Travel distance and notifications start at sensible defaults (25 mi, notify) and live in
  * Settings. The 18+ and terms box is at sign-in. The guard in _layout moves on once the profile
  * is saved. Onboarding draws its own header: back, then GET STARTED (and Sign out when signed in);
@@ -148,7 +148,6 @@ export default function Welcome() {
               ]}
             />
             <VehiclePicker
-              searchFirst
               kind={kind}
               make={make}
               model={model}
@@ -188,7 +187,7 @@ export default function Welcome() {
             </Pressable>
             <View style={{ gap: SPACING.xxs }}>
               {home ? <DsText v="bodyStrong">{`Around ${areaNameNear(home)}`}</DsText> : null}
-              <DsText v="secondary">Saved to about 1 km. Never your address.</DsText>
+              <DsText v="secondary">Saved to about half a mile. Never your address.</DsText>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {home ? <Button label="Move it" tier="tertiary" size="sm" accessibilityLabel="Move your home area on the map" onPress={() => setPicking(true)} /> : null}
@@ -214,7 +213,7 @@ export default function Welcome() {
           visible={picking}
           mode="point"
           title="Your home area"
-          hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your address."
+          hint="Put the crosshair roughly where you live. It's saved to about half a mile, never your address."
           confirmLabel="Set home area here"
           colour={LAYER.event}
           start={home ?? UK_MIDDLE}

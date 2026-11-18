@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../data/seed';
-import { worstZone, zoneKind, zoneLine, zonePins, zoneShapes, zonesAt } from '../lib/zones';
+import { worstZone, zoneKind, zoneLine, zoneShapes, zonesAt } from '../lib/zones';
 import { ZoneCard } from './ZoneCard';
 import { currentPosition, geocoderAvailable, nameForPlace } from '../lib/location';
 import {
@@ -20,7 +20,7 @@ import {
   type PickPlace,
 } from '../lib/picker';
 import { longGap, MAX_POINT_GAP_MILES, visibleSpots } from '../lib/spots';
-import { nearestRegion } from '../lib/profile';
+import { areaNameNear } from '../lib/profile';
 import { useStore } from '../lib/store';
 import type { LatLng, SpotKind } from '../lib/types';
 import { COLOR, ELEVATION, HIT, line, outline, RADII, SPACING, SPOT_COLOURS } from '../theme';
@@ -30,9 +30,12 @@ import { Pin, type Glyph } from './Pin';
 import { PlaceSearch } from './PlaceSearch';
 import { Button, DsText, ErrorState, IconButton, Press } from './ds';
 
-/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
+/**
+ * Ban zones drawn on the map: circles, and council outlines for borough-wide orders. Outlines
+ * only, no zone pins: the hint's one line explains the outlines, and nothing else on the map goes
+ * unexplained (Review 13: hexagon pins with no legend). The line under the crosshair opens a zone.
+ */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
-const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 /** Wait this long after the map stops moving before naming the crosshair (the geocoder dislikes bursts). */
 const NAME_DELAY_MS = 500;
@@ -150,10 +153,11 @@ function PickerBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region.centre.lat, region.centre.lng, onPlace?.id]);
 
-  // Never raw coordinates: the geocoder's name, else the nearest known place or the region (REVIEW-7 problem 4).
+  // Never raw coordinates: the geocoder's name, else the nearest known place or town (REVIEW-7
+  // problem 4; never "Somewhere in Midlands", Review 13).
   const allKnown = useMemo(() => visibleSpots(spots, me), [spots, me]);
   const fallbackName = useMemo(
-    () => describePoint(region.centre, nearbyPlaces(allKnown, region.centre, Math.max(region.span, 0.1)), nearestRegion(region.centre)),
+    () => describePoint(region.centre, nearbyPlaces(allKnown, region.centre, Math.max(region.span, 0.1)), areaNameNear(region.centre)),
     [allKnown, region],
   );
   const label = onPlace ? onPlace.name : (address ?? (geocoderAvailable ? 'Finding the address…' : fallbackName));
@@ -253,7 +257,7 @@ function PickerBody({
       <View style={{ flex: 1 }}>
       <NightMap
         ref={map}
-        pins={[...(zones ? BAN_PINS : []), ...contextPins, ...extraPins, ...drawn]}
+        pins={[...contextPins, ...extraPins, ...drawn]}
         paths={[...contextPaths, ...extraPaths, ...drawnPaths]}
         circles={zones ? BAN_SHAPES.circles : undefined}
         polygons={zones ? BAN_SHAPES.polygons : undefined}

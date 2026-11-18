@@ -29,15 +29,17 @@ describe('hostLeftOut (B4)', () => {
 
 describe('inviteHeadline and inviteSummary (Review 12 decision 2: open reads as open)', () => {
   it('says anyone can come first, then the reach and about how many people nearby', () => {
-    expect(inviteHeadline({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toEqual({ title: 'Anyone can come', detail: 'within 25 mi of the meet · about 18 people nearby' });
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toBe('Anyone can come · within 25 mi of the meet · about 18 people nearby');
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1')).toBe('Anyone can come · within 25 mi of the meet · about 1 person nearby');
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3')).toBe('Anyone can come · within 10 mi of the meet · fewer than 3 people nearby');
+    // The radius is who gets invited, not a limit (Review 13).
+    expect(inviteHeadline({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toEqual({ title: 'Open to everyone', detail: "We'll invite drivers within 25 mi · about 18 people" });
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toBe("Open to everyone · we'll invite drivers within 25 mi · about 18 people");
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1')).toBe("Open to everyone · we'll invite drivers within 25 mi · about 1 person");
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3')).toBe("Open to everyone · we'll invite drivers within 10 mi · fewer than 3 people");
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).not.toMatch(/Anyone can come|of the meet/);
   });
   it('titles a limited meet "Only some can come"', () => {
     expect(inviteHeadline({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7')).toEqual({ title: 'Only some can come', detail: 'Bikes · within 10 mi · 7 people match' });
   });
   it('says a limited meet as its limits and how many match', () => {
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7')).toBe('Bikes · within 10 mi · 7 people match');
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7')).toBe('Only some can come · Bikes · within 10 mi · 7 people match');
   });
 });

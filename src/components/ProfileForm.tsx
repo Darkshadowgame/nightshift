@@ -46,7 +46,7 @@ export function ProfileForm({
 
   const isDemoHome = !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
 
-  /** Every way of setting home ends here: saved fuzzed to about 1 km, never exact. */
+  /** Every way of setting home ends here: saved fuzzed to about half a mile, never exact. */
   function setHomeNear(at: LatLng) {
     const rough = fuzz(at);
     setHome(rough);
@@ -106,8 +106,8 @@ export function ProfileForm({
         <TextField value={name} onChangeText={setName} placeholder="First name or nickname" accessibilityLabel="Display name" />
       </Section>
 
-      <Section title="Rough home area">
-        <DsText v="secondary">Only used to find events near you. It's saved to about 1 km, never your exact address, and nobody sees it.</DsText>
+      <Section title="Home area">
+        <DsText v="secondary">Only used to find events near you. It's saved to about half a mile, never your exact address, and nobody sees it.</DsText>
         <Button label={locating ? 'Finding you…' : 'Use my current location'} tier="secondary" block onPress={useMyLocation} busy={locating} />
         {locError ? <ErrorState title={locError} /> : null}
         <PlaceSearch placeholder="Or search your town or postcode" onPick={(h) => setHomeNear(h.at)} />
@@ -122,11 +122,11 @@ export function ProfileForm({
           </View>
         </Press>
         <DsText v="meta" tone={home ? 'success' : 'secondary'}>
-          {isDemoHome ? 'Home area set: the demo area (Tamworth)' : home ? 'Home area set, to about 1 km' : 'Not set yet'}
+          {isDemoHome ? 'Home area set: the demo area (Tamworth)' : home ? 'Home area set, to about half a mile' : 'Not set yet'}
         </DsText>
         <DsText v="caption">
           {demo
-            ? "Tap the map to fine-tune it. In the demo, sample people and events (marked Sample) are drawn round your home area so there's something to try."
+            ? "Tap the map to fine-tune it. In the demo, the people and meets you see are made up and placed round your home area, so there's something to try."
             : 'Tap the map to fine-tune it.'}
         </DsText>
       </Section>
@@ -159,8 +159,8 @@ export function ProfileForm({
       <MapPicker
         visible={picking}
         mode="point"
-        title="Your rough home area"
-        hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your exact address."
+        title="Your home area"
+        hint="Put the crosshair roughly where you live. It's saved to about half a mile, never your exact address."
         confirmLabel="Set home area here"
         colour={LAYER.event}
         start={centre}

@@ -95,10 +95,10 @@ describe('labels', () => {
   it('reads a stat', () => {
     expect(statA11yLabel({ label: 'Power', value: '583', unit: 'bhp' })).toBe('Power 583 bhp');
   });
-  it('keeps toasts up longer with an action, capped', () => {
+  it('keeps every toast up for 3.2 s, with or without Undo (4.7)', () => {
     expect(toastDuration('Saved', false)).toBe(3200);
-    expect(toastDuration('Saved', true)).toBe(5200);
-    expect(toastDuration('x'.repeat(500), true)).toBe(8000);
+    expect(toastDuration('Saved', true)).toBe(3200);
+    expect(toastDuration('x'.repeat(500), true)).toBe(3200);
   });
 });
 

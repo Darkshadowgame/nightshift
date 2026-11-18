@@ -118,3 +118,19 @@ export function shouldAutoName(current: string, lastAuto: string | undefined): b
   const c = current.trim();
   return c === '' || (!!lastAuto && c === lastAuto.trim());
 }
+
+/**
+ * A meet point's name when the phone can't name it (the web preview, offline): the nearest known
+ * place within a mile ("Near Ventura Park"), else the nearest town ("Tamworth meet point"). The
+ * host flow fills it in as soon as the point is placed, so the name field is never empty when you
+ * tap Next (Review 13); the host can still change it.
+ */
+export function fallbackPointName(at: LatLng, known: readonly { name: string; at: LatLng; kind?: string }[], town: string): string {
+  let best: { name: string; miles: number } | null = null;
+  for (const k of known) {
+    if (k.kind === 'drive') continue;
+    const miles = milesBetween(at, k.at);
+    if (miles <= 1 && (!best || miles < best.miles)) best = { name: k.name, miles };
+  }
+  return best ? `Near ${best.name}` : `${town} meet point`;
+}

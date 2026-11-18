@@ -114,8 +114,8 @@ describe('readable picker labels and where the post picker opens (REVIEW-7)', ()
   test('names the nearest known place, else the region, never coordinates', () => {
     expect(describePoint({ lat: 52.6205, lng: -1.7265 }, known, 'West Midlands')).toBe('At Ventura Park');
     expect(describePoint({ lat: 52.63, lng: -1.7265 }, known, 'West Midlands')).toBe('Near Ventura Park (0.7 mi)');
-    expect(describePoint({ lat: 53.5, lng: -1.7 }, known, 'Yorkshire')).toBe('Somewhere in Yorkshire');
-    expect(describePoint({ lat: 53.5, lng: -1.7 }, known, 'Yorkshire')).not.toMatch(/°/);
+    expect(describePoint({ lat: 53.5, lng: -1.7 }, known, 'Huddersfield')).toBe('Near Huddersfield');
+    expect(describePoint({ lat: 53.5, lng: -1.7 }, known, 'Huddersfield')).not.toMatch(/°|Somewhere/);
   });
   test('the post picker never opens on home', () => {
     const home = { lat: 52.6, lng: -1.7 };

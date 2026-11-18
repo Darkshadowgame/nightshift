@@ -107,10 +107,13 @@ export function statA11yLabel(s: { label: string; value: string; unit?: string }
   return [s.label, s.value, s.unit].filter(Boolean).join(' ');
 }
 
-/** How long a toast stays: longer when it has an action or a long message. */
-export function toastDuration(message: string, hasAction: boolean, base = 3200): number {
-  const extra = Math.max(0, message.length - 60) * 30;
-  return Math.min(base + extra + (hasAction ? 2000 : 0), 8000);
+/**
+ * How long a toast stays: 3.2 s, every toast, with or without Undo (Redesign 2, 4.7; Review 13
+ * measured 5.5 s when this grew with the action and the length). The arguments stay so callers
+ * don't change; the rule is one length.
+ */
+export function toastDuration(_message: string, _hasAction: boolean, base = 3200): number {
+  return base;
 }
 
 /** "2026-11-18" for a date in local time (the date picker's value). */

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Image, View } from 'react-native';
+import { Image, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import type { CarShape } from '../../lib/buildShape';
 import type { ClassLetter, VehicleKind } from '../../lib/types';
@@ -53,6 +53,13 @@ const src = (p: Photo) => (typeof p === 'string' ? { uri: p } : p);
  * a gradient of the build's `paint`. Never a grey box.
  *
  * `size="sm"`: a row-shaped card (picture left, words right) for a picked build in onboarding.
+ *
+ * Larger text (Review 13, L2: nothing clipped or overlapping at 1.3x):
+ * - A narrow card (a two-column grid, under NARROW_CARD points of room at the current text size)
+ *   puts the class badge on the kind line, above the title, so the title has the full width; the
+ *   title is `titleSm` and wraps to three lines, by words, never cut mid-word.
+ * - `titleOnPhoto` needs a real photo (or a `fallback` snapshot): on the drawn silhouette the title
+ *   goes under the picture, so it never runs over the car (Me at 1.3x).
  */
 export function PhotoCard({
   kind,
@@ -113,6 +120,12 @@ export function PhotoCard({
   accessibilityHint?: string;
 }) {
   const ratio = aspect ?? (kind === 'build' ? ASPECT.build : kind === 'post' ? ASPECT.post : ASPECT.event);
+  // How much room the words have, at the current text size: a narrow card stacks badge and title.
+  const { fontScale } = useWindowDimensions();
+  const [width, setWidth] = useState(0);
+  const narrow = size === 'lg' && narrowCard(width, fontScale);
+  // Words over the picture only when it's a photo (or a snapshot), never over the drawn silhouette.
+  const onPhoto = !!titleOnPhoto && (!!photo || !!fallback);
   const placeLike = kind === 'event' || kind === 'place';
   const kindColour = placeLike && !finished ? contentColour(layerColour, COLOR.text.secondary) : COLOR.text.secondary;
   const label = entityA11yLabel({
@@ -127,20 +140,24 @@ export function PhotoCard({
     <Picture kind={kind} photo={photo} fallback={fallback} paint={paint} vehicle={vehicle} shape={shape} colour={placeLike ? (layerColour ?? COLOR.layer.event) : undefined} />
   );
 
+  const badgeOnKindLine = narrow && !!classLetter;
   const kindLine =
-    live || eyebrow ? (
+    live || eyebrow || badgeOnKindLine ? (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+        {badgeOnKindLine ? <ClassBadge letter={classLetter!} size="sm" decorative /> : null}
         {live ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.state.liveDot }} /> : null}
-        <DsText v="tag" numberOfLines={1} style={{ color: live ? COLOR.state.live : kindColour, flexShrink: 1 }}>
-          {[live ? 'Live' : null, eyebrow].filter(Boolean).join(' · ')}
-        </DsText>
+        {live || eyebrow ? (
+          <DsText v="tag" numberOfLines={1} style={{ color: live ? COLOR.state.live : kindColour, flexShrink: 1 }}>
+            {[live ? 'Live' : null, eyebrow].filter(Boolean).join(' · ')}
+          </DsText>
+        ) : null}
       </View>
     ) : null;
 
   const titleRow = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-      {classLetter ? <ClassBadge letter={classLetter} size="sm" decorative /> : null}
-      <DsText v="title" numberOfLines={2} style={{ flexShrink: 1 }}>
+      {classLetter && !badgeOnKindLine ? <ClassBadge letter={classLetter} size="sm" decorative /> : null}
+      <DsText v={narrow ? 'titleSm' : 'title'} numberOfLines={narrow ? 3 : 2} style={{ flexShrink: 1 }}>
         {title}
       </DsText>
     </View>
@@ -211,7 +228,7 @@ export function PhotoCard({
     <>
       <View style={{ aspectRatio: ratio, backgroundColor: COLOR.surface.media }}>
         {picture}
-        {titleOnPhoto ? (
+        {onPhoto ? (
           <>
             <Gradient style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '70%' }} />
             <View style={{ position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs }}>
@@ -226,10 +243,10 @@ export function PhotoCard({
           </View>
         ) : null}
       </View>
-      {titleOnPhoto && !facts ? null : (
+      {onPhoto && !facts ? null : (
         <View style={{ paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: action ? SPACING.md : SPACING.lg, gap: SPACING.xs }}>
-          {titleOnPhoto ? null : kindLine}
-          {titleOnPhoto ? null : titleRow}
+          {onPhoto ? null : kindLine}
+          {onPhoto ? null : titleRow}
           {facts}
         </View>
       )}
@@ -244,7 +261,7 @@ export function PhotoCard({
   ) : null;
 
   return (
-    <View style={frame}>
+    <View style={frame} onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))}>
       {onPress ? (
         <Press onPress={onPress} feedback={action ? 'control' : 'card'} label={label} hint={accessibilityHint}>
           {content}
@@ -255,9 +272,17 @@ export function PhotoCard({
         </View>
       )}
       {overlayLayer}
-      {button ? <View style={{ paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg, paddingTop: titleOnPhoto && !meta && !detail ? SPACING.md : 0 }}>{button}</View> : null}
+      {button ? <View style={{ paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg, paddingTop: onPhoto && !meta && !detail ? SPACING.md : 0 }}>{button}</View> : null}
     </View>
   );
+}
+
+/** Below this much room (points at 1x text), a card is narrow: badge above the title, smaller title. */
+export const NARROW_CARD = 220;
+
+/** A card `width` points wide is narrow at this text size (a two-column grid; any card at large text sizes). */
+export function narrowCard(width: number, fontScale = 1): boolean {
+  return width > 0 && width / Math.max(1, fontScale) < NARROW_CARD;
 }
 
 /** The picture: photo, else the given fallback, else a drawing that's never a grey box. */
