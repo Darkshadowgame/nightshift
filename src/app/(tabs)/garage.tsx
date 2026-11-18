@@ -36,7 +36,7 @@ export default function Garage() {
 
   useLayoutEffect(() => {
     nav.setOptions({
-      headerRight: () => <HeaderActions action={{ label: '+ Add', accessibilityLabel: 'Add a car or bike', onPress: () => router.push('/build/edit') }} bell />,
+      headerRight: () => <HeaderActions action={{ label: '+ Add', accessibilityLabel: 'Add a car or bike', onPress: () => router.push('/build/edit') }} />,
     });
   }, [nav]);
 
