@@ -128,10 +128,177 @@ export const DRIVE_TYPE = { banner: 38, speed: 44, readout: 22, body: 17 } as co
  */
 export const FONT_SCALE = { chrome: 1.3, drive: 1.2 } as const;
 
+/** @deprecated v1 names. Use `RADII` (v2): `RADIUS.card` (8) is `RADII.control`, `RADIUS.sheet` (12) is `RADII.card`. */
 export const RADIUS = { tag: 4, card: 8, sheet: 12, pill: 999 } as const;
 
-/** Spacing: screen padding 16, section gap 20, inside a card 8, between cards 12. */
+/** @deprecated v1 names, kept so screens compile until they migrate. Use `SPACING` (v2). `section: 20` is off-scale (v2 uses 24). */
 export const SPACE = { screen: 16, section: 20, inCard: 8, between: 12, bottom: 40 } as const;
+
+// ===========================================================================
+// Design system v2 tokens (docs/DESIGN-SYSTEM.md). New code uses only these.
+// ===========================================================================
+
+/** 4-pt spacing scale. `screen` is the page gutter, `section` the gap between Sections. */
+export const SPACING = {
+  none: 0,
+  xxs: 2,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
+  screen: 16,
+  section: 24,
+} as const;
+export type SpaceToken = keyof typeof SPACING;
+
+/** Corner radii, one per job. Nothing else: no 6, 10, 20. */
+export const RADII = {
+  /** Tags, class badges. */
+  tag: 4,
+  /** Buttons, inputs, chips, segmented controls, list-row press areas. */
+  control: 8,
+  /** Cards, map embeds, stat tiles, toasts. */
+  card: 12,
+  /** The top corners of a bottom sheet. */
+  sheet: 16,
+  /** Search fields, unread counts, round buttons. */
+  pill: 999,
+} as const;
+
+/** Alpha helpers (hex colours only). The only three alphas: no other suffixes. */
+export const tint = (hex: string) => `${hex}1f`;
+export const line = (hex: string) => `${hex}40`;
+export const outline = (hex: string) => `${hex}99`;
+
+/**
+ * Semantic colour roles. Pick by role, never by hue.
+ * - action: things you can tap or that are selected. Sodium means "tap this" or "on", nothing else.
+ * - text: chalk for text, fog for secondary, `info` for neutral notes, `emphasis` for "you can go" style
+ *   notes that used to be sodium.
+ * - surface: page, card, raised, media, glass, scrim, borders.
+ * - state: live, success, warning, danger, info. Never a layer colour.
+ * - classMetal: the S–D class ladder. Only on ClassBadge.
+ * - layer: map and place identity. Only on pins, the layers panel, an entity's kind eyebrow and accent.
+ * - avatar: chalk on kerb. A person is not an action, so never sodium.
+ * - paint: build card colours (not layer hexes).
+ */
+export const COLOR = {
+  action: {
+    primary: C.sodium,
+    onPrimary: C.ink,
+    link: C.sodium,
+    selected: C.sodium,
+    selectedTint: tint(C.sodium),
+    disabledBorder: line(C.sodium),
+    destructive: C.alert,
+  },
+  text: {
+    primary: C.chalk,
+    secondary: C.fog,
+    emphasis: C.chalk,
+    info: STATE.info,
+    onAction: C.ink,
+    disabled: C.fog,
+  },
+  surface: {
+    bg: SURFACE.bg,
+    card: SURFACE.surface,
+    raised: SURFACE.raised,
+    raisedHi: C.kerbHi,
+    /** Behind photos and build art while they load. */
+    media: '#111827',
+    glass: SURFACE.glass,
+    glassRaised: SURFACE.glassRaised,
+    scrim: SURFACE.scrim,
+    border: SURFACE.border,
+    /** Inputs and anything that must read as a control: 3:1 or better. */
+    borderStrong: SURFACE.borderStrong,
+    skeleton: C.kerb,
+  },
+  state: {
+    live: STATE.live,
+    liveDot: STATE.liveDot,
+    success: STATE.success,
+    warning: STATE.warning,
+    danger: STATE.danger,
+    info: STATE.info,
+  },
+  classMetal: CLASS,
+  layer: LAYER,
+  avatar: { bg: C.kerb, fg: C.chalk, border: C.kerbHi },
+  paint: ['#e9edf4', '#1b1f27', '#c8102e', '#1f4fa8', '#f2c14e', '#2f7d4f', '#7a7f8a', '#e86a1c'],
+} as const;
+
+type TypeStyle = {
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  letterSpacing?: number;
+  /** Chrome is uppercase; content never is. */
+  caps?: boolean;
+  /** How far the iOS text size can grow it: body text fully, chrome capped at FONT_SCALE.chrome. */
+  scale: 'body' | 'chrome';
+  tabular?: boolean;
+};
+
+/**
+ * The v2 type scale. Content (titles, names, places, messages) is never uppercased;
+ * capitals are for chrome only (headers, eyebrows, labels, buttons, tags).
+ */
+export const TYPE_SCALE = {
+  /** Hero titles of app-made things only (screen names, trophies). */
+  display: { fontFamily: F.displayItalic, fontSize: 28, lineHeight: 32, caps: true, scale: 'chrome' },
+  /** Screen header titles. */
+  heading: { fontFamily: F.display, fontSize: 17, lineHeight: 22, caps: true, scale: 'chrome' },
+  /** Hero titles of user content (an event, a build, a place), as typed. */
+  titleLg: { fontFamily: F.displayMed, fontSize: 24, lineHeight: 29, scale: 'body' },
+  /** Content titles in rows and cards, as typed. */
+  title: { fontFamily: F.displayMed, fontSize: 18, lineHeight: 23, scale: 'body' },
+  body: { fontFamily: F.body, fontSize: 15, lineHeight: 21, scale: 'body' },
+  bodyStrong: { fontFamily: F.bodyBold, fontSize: 15, lineHeight: 21, scale: 'body' },
+  secondary: { fontFamily: F.body, fontSize: 14, lineHeight: 19, scale: 'body' },
+  caption: { fontFamily: F.body, fontSize: 13, lineHeight: 17, scale: 'body' },
+  /** One-line facts: "Tonight 22:30 · 7 going · 3.2 mi". Keeps its case, tabular figures. */
+  meta: { fontFamily: F.label, fontSize: 13, lineHeight: 17, letterSpacing: 0.4, scale: 'chrome', tabular: true },
+  /** Field labels, stat labels. */
+  label: { fontFamily: F.label, fontSize: 12, lineHeight: 16, letterSpacing: 1.4, caps: true, scale: 'chrome' },
+  /** Section titles and an entity's kind. */
+  eyebrow: { fontFamily: F.labelBold, fontSize: 12, lineHeight: 16, letterSpacing: 2, caps: true, scale: 'chrome' },
+  button: { fontFamily: F.labelBold, fontSize: 15, lineHeight: 19, letterSpacing: 2, caps: true, scale: 'chrome' },
+  buttonSm: { fontFamily: F.labelBold, fontSize: 13, lineHeight: 17, letterSpacing: 1.4, caps: true, scale: 'chrome' },
+  buttonLg: { fontFamily: F.labelBold, fontSize: 18, lineHeight: 22, letterSpacing: 2, caps: true, scale: 'chrome' },
+  tag: { fontFamily: F.labelBold, fontSize: 11, lineHeight: 14, letterSpacing: 1, caps: true, scale: 'chrome' },
+  input: { fontFamily: F.body, fontSize: 16, lineHeight: 21, scale: 'body' },
+  stat: { fontFamily: F.display, fontSize: 20, lineHeight: 24, scale: 'chrome', tabular: true },
+} as const satisfies Record<string, TypeStyle>;
+export type TypeToken = keyof typeof TYPE_SCALE;
+
+/**
+ * Elevation: only floating chrome and sheets cast a shadow. Cards on the page are flat
+ * (a border, not a shadow). `boxShadow` works on iOS, Android (new architecture) and web.
+ */
+export const ELEVATION = {
+  flat: {},
+  /** Map chrome, toasts, a card floating over the map. */
+  float: { boxShadow: '0px 3px 10px rgba(0,0,0,0.4)' },
+  /** Bottom sheets. */
+  sheet: { boxShadow: '0px -4px 16px rgba(0,0,0,0.5)' },
+} as const;
+
+/** Press feedback: one for controls, one for cards. */
+export const PRESS = {
+  control: { opacity: 0.8 },
+  card: { opacity: 0.9, scale: 0.98 },
+} as const;
+
+/** Motion timings (ms). Reduced motion turns movement into a short fade of `fast`. */
+export const MOTION = { fast: 150, base: 220, sheet: 280, toast: 3200 } as const;
+
+/** Minimum tap target. */
+export const HIT = 44;
 
 /** Map colours for events, by type. Events are drawn filled (Pin.tsx), places outlined. */
 export const EVENT_COLOURS = {
