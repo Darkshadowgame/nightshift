@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.source         = { git: '' }
   s.static_framework = true
   s.swift_version  = '5.9'
-  s.frameworks     = 'MapKit', 'AVFoundation', 'AudioToolbox'
+  s.frameworks     = 'MapKit', 'AVFoundation', 'AudioToolbox', 'Vision', 'ImageIO'
 
   s.dependency 'ExpoModulesCore'
 

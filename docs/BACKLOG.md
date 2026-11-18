@@ -137,7 +137,7 @@ Work in this order. Each item ships over the air unless marked native.
    with before and after, and a history. Over the air now: the photo through the usual picker
    (plate review only when a plate is found) and the figures typed in, with the sheet parser
    (`src/lib/dynoParse.ts`, Dynojet, MAHA, Dastek and Mustang layouts) wired to `ocrText()`,
-   which returns null in the installed app. **Native, for build 12 (not merged):** branch
+   which returns null in the installed app. **Native, for build 12 (this branch, not merged):** branch
    `native-dyno-ocr` adds Apple Vision text recognition (`VNRecognizeTextRequest`, accurate,
    en-GB) as `recognizeText(uri)` on the NavDirections module; `ocrText()` picks it up with no
    JS change, and the form then says "We read 312 bhp and 295 lb-ft: check these". Merging it

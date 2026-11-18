@@ -10,6 +10,7 @@ import MapKit
 ///   Settings, or the best installed en-GB voice (premium > enhanced > default).
 /// - `voices` lists the installed English voices for that picker.
 /// - `chime` plays a short system sound (it follows the ring/silent switch).
+/// - `recognizeText` reads the text in a photo with Apple Vision (the dyno sheet reader, build 12).
 /// - `searchPlaces` / `resolvePlace`: "Where to?" autocomplete (MKLocalSearchCompleter) and the
 ///   chosen suggestion's position (MKLocalSearch). What's typed goes to Apple only; nothing is logged.
 public class NavDirectionsModule: Module {
@@ -75,6 +76,17 @@ public class NavDirectionsModule: Module {
     AsyncFunction("resolvePlace") { (id: String, promise: Promise) in
       self.places.resolve(id, promise: promise)
     }.runOnQueue(.main)
+
+    // Build 12: text from a photo for the dyno sheet reader (Apple Vision, on the phone).
+    AsyncFunction("recognizeText") { (uri: String, promise: Promise) in
+      DispatchQueue.global(qos: .userInitiated).async {
+        do {
+          promise.resolve(try NavTextReader.recognize(uri: uri))
+        } catch {
+          promise.reject("ERR_TEXT_READ", error.localizedDescription)
+        }
+      }
+    }
 
     AsyncFunction("stopSpeaking") { () -> Bool in
       self.speaker.stop()
