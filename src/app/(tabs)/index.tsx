@@ -45,7 +45,7 @@ import { milesBetween } from '../../lib/geo';
 import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
-import { currentPosition } from '../../lib/location';
+import { currentPosition, locationHelp } from '../../lib/location';
 import { layerOn, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
 import { clusterEventPins, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
@@ -169,7 +169,8 @@ export default function TonightScreen() {
     }
     setLocated(false);
     // Only when asked: the map stays on your home area without a word otherwise.
-    if (explicit) setLocNote(pos.reason === 'denied' ? 'Location is off for Nightshift. Turn it on in Settings to see where you are.' : "Couldn't find where you are just now. Try again outside.");
+    // Why, and how to turn it on, on this platform (Review 14).
+    if (explicit) setLocNote(locationHelp(pos.reason));
   }
   useEffect(() => {
     if (ready) locate(false, false);

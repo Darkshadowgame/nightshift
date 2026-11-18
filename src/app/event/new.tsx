@@ -1,7 +1,6 @@
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { MediaFrame } from '../../components/Detail';
 import { EventForm } from '../../components/EventForm';
 import { ActionBar, Card, DsText, Hero, LocationLine, PAGE_WITH_BAR, useToast } from '../../components/ds';
 import { NightMap } from '../../components/NightMap';
@@ -100,13 +99,14 @@ function Posted({ event }: { event: NightEvent }) {
       <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
         <Hero
           media={
-            // Short enough that the "Invites sent" toast, above the ActionBar, doesn't sit on the words (Review 13, L2).
-            <MediaFrame height={150}>
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <NightMap pins={[]} circles={[{ id: 'area', centre: event.area, radiusMiles: radius, colour: COLOR.text.secondary }]} centre={event.area} span={Math.max(0.08, radius / 15)} />
-              </View>
-            </MediaFrame>
+            // The map fills the Hero's whole 16:9 box: no blank band under it (Review 14). The toast
+            // gets its own room above the ActionBar, so the map no longer has to be cut short for it.
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <NightMap pins={[]} circles={[{ id: 'area', centre: event.area, radiusMiles: radius, colour: COLOR.text.secondary }]} centre={event.area} span={Math.max(0.08, radius / 15)} />
+            </View>
           }
+          // A wide, short box so the location line stays in view above the toast at 1.3x text.
+          aspect={21 / 9}
           eyebrow={EVENT_LABELS[event.type]}
           layerColour={colour}
           title={event.title}

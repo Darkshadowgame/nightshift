@@ -78,3 +78,14 @@ describe('web map: credit', () => {
     }
   });
 });
+
+import { shortCredit } from '../src/components/webmap/tiles.web';
+
+describe('shortCredit (Review 14: one short line on small maps, full on tap)', () => {
+  it('shortens each source to its first holder plus OSM', () => {
+    expect(shortCredit(TILE_SOURCES[0].credit)).toBe('© Stadia · OSM');
+    expect(shortCredit(TILE_SOURCES[1].credit)).toBe('© Esri · OSM');
+    expect(shortCredit(creditLine('Data: DVSA'))).toBe('Data: DVSA · © Stadia · OSM');
+    expect(shortCredit('Data: DVSA')).toBe('Data: DVSA');
+  });
+});

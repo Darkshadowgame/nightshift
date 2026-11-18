@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { currentPosition, nameForPlace, searchDestinations, searchPlaces, SearchError, townForPlace } from '../src/lib/location';
+import { currentPosition, locationHelp, POSITION_TIMEOUT_MS, nameForPlace, searchDestinations, searchPlaces, SearchError, townForPlace } from '../src/lib/location';
 
 jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3, High: 4 },
@@ -133,5 +133,22 @@ describe('live suggestions on build 11', () => {
     });
     resolvePlace.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'ERR_PLACE_STALE' }));
     await expect(mod.resolveSuggestion(list![0])).rejects.toThrow('That result has gone. Search again.');
+  });
+});
+
+describe('never silent (Review 14)', () => {
+  test('a prompt that never gets an answer gives up as unavailable', async () => {
+    jest.useFakeTimers();
+    L.getForegroundPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: true } as never);
+    L.requestForegroundPermissionsAsync.mockReturnValue(new Promise(() => {}));
+    const p = currentPosition();
+    await jest.advanceTimersByTimeAsync(POSITION_TIMEOUT_MS + 1);
+    await expect(p).resolves.toEqual({ ok: false, reason: 'unavailable' });
+    jest.useRealTimers();
+  });
+  test('says why and how to turn it on', () => {
+    expect(locationHelp('denied', true)).toMatch(/browser's site settings/);
+    expect(locationHelp('denied', false)).toMatch(/Settings → Nightshift → Location/);
+    expect(locationHelp('unavailable', true)).toMatch(/try again/);
   });
 });

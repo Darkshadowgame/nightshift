@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { DEMO_HOME, DEMO_REGION } from '../data/seed';
 import { DEFAULT_ALERTS, DEFAULT_TRAVEL_MILES, type AlertMode } from '../lib/discover';
 import { fuzz } from '../lib/geo';
-import { currentPosition } from '../lib/location';
+import { currentPosition, locationHelp } from '../lib/location';
 import { nearestRegion, REGIONS, regionCentre, type ProfileDraft } from '../lib/profile';
 import type { LatLng } from '../lib/types';
 import { useStore } from '../lib/store';
@@ -12,20 +12,29 @@ import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { PlaceSearch } from './PlaceSearch';
 import { TravelPrefs } from './TravelPrefs';
-import { Button, ChoiceGroup, DsText, ErrorState, Press, Section, TextField } from './ds';
+import { useDiscardGuard } from './ComposerParts';
+import { ActionBar, Button, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, Press, Section, TextField, useToast } from './ds';
 
-/** Handle, name, region, rough home area and how far you'd travel. Used on first run and on Me. */
+/**
+ * Your profile (Settings → Handle, name and home area): handle, name, region, rough home area and
+ * how far you'd travel. A T4 form (Redesign 2, 4.2 and 4.3; Review 14 decision 3): Save is the
+ * ActionBar's primary, always in view; back with changes asks first ("Discard it" / "Keep
+ * editing"); a save says "Saved" and goes back.
+ */
 export function ProfileForm({
   initial,
   submitLabel,
   onSubmit,
+  onSaved,
 }: {
   initial: ProfileDraft;
   submitLabel: string;
-  /** Throw with a readable message if the draft can't be saved. */
   /** May reject with a readable reason, shown under the form. */
   onSubmit: (draft: ProfileDraft) => void | Promise<void>;
+  /** After a save: leave the form (the discard guard is off by then). */
+  onSaved: () => void;
 }) {
+  const toast = useToast();
   const [handle, setHandle] = useState(initial.handle);
   const [name, setName] = useState(initial.name);
   const [region, setRegion] = useState(initial.region);
@@ -44,6 +53,11 @@ export function ProfileForm({
   /** The fixed demo area is for testing only: development builds, or with the demo's GPS skip on. */
   const devArea = demo && (__DEV__ || !!settings.simulateGps);
 
+  // Back with changes asks first (4.2).
+  const snapshot = JSON.stringify([handle, name, region, home, travelMiles, alerts]);
+  const [first] = useState(snapshot);
+  const guard = useDiscardGuard(snapshot !== first, 'your changes');
+
   const isDemoHome = !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
 
   /** Every way of setting home ends here: saved fuzzed to about half a mile, never exact. */
@@ -61,12 +75,8 @@ export function ProfileForm({
     const pos = await currentPosition(true);
     setLocating(false);
     if (pos.ok) setHomeNear(pos.at);
-    else
-      setLocError(
-        pos.reason === 'denied'
-          ? 'Location is off for Nightshift. Search for your town or postcode instead, or turn it on in Settings.'
-          : "Couldn't find where you are. Search for your town or postcode instead.",
-      );
+    // Why, and how to turn it on (Review 14); the map always works instead.
+    else setLocError(`${locationHelp(pos.reason)} Or move it on the map.`);
   }
 
   function pickRegion(r: string) {
@@ -88,6 +98,8 @@ export function ProfileForm({
     setSaving(true);
     try {
       await onSubmit({ handle, name, region, home, travelMiles, alerts });
+      toast({ message: 'Saved' });
+      guard.leave(onSaved);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
@@ -96,7 +108,8 @@ export function ProfileForm({
   }
 
   return (
-    <View style={{ gap: SPACING.section }}>
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets showsVerticalScrollIndicator={false}>
       <Section title="Handle">
         <TextField value={handle} onChangeText={setHandle} placeholder="e.g. night_owl" autoCapitalize="none" autoCorrect={false} accessibilityLabel="Handle" />
         <DsText v="caption">Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.</DsText>
@@ -124,11 +137,8 @@ export function ProfileForm({
         <DsText v="meta" tone={home ? 'success' : 'secondary'}>
           {isDemoHome ? 'Home area set: the demo area (Tamworth)' : home ? 'Home area set, to about half a mile' : 'Not set yet'}
         </DsText>
-        <DsText v="caption">
-          {demo
-            ? "Tap the map to fine-tune it. In the demo, the people and meets you see are made up and placed round your home area, so there's something to try."
-            : 'Tap the map to fine-tune it.'}
-        </DsText>
+        {/* No demo note here (4.6, Review 14): the Demo night tag explains the demo. */}
+        <DsText v="caption">Tap the map to fine-tune it.</DsText>
       </Section>
 
       <Section title="Region">
@@ -153,8 +163,10 @@ export function ProfileForm({
 
       {devArea && !isDemoHome ? <Button label="Developer: use the demo area (Tamworth)" tier="secondary" block onPress={pickDemoArea} /> : null}
 
-      <Button label={submitLabel} block onPress={submit} busy={saving} haptic="success" />
       {error ? <ErrorState title={error} /> : null}
+    </ScrollView>
+    <ActionBar primary={{ label: submitLabel, onPress: () => void submit(), busy: saving, haptic: 'success' }} />
+    {guard.sheet}
 
       <MapPicker
         visible={picking}

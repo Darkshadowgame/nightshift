@@ -33,7 +33,10 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: COLOR.surface.bg, borderTopColor: COLOR.surface.border },
         tabBarActiveTintColor: COLOR.action.selected,
         tabBarInactiveTintColor: COLOR.text.secondary,
-        tabBarAllowFontScaling: true,
+        // Like the iOS tab bar, the labels keep their size at large text (the screens above them grow);
+        // and the item's padding is trimmed to 3 so the label has 16 pt, room for even 1.3x (Review 14).
+        tabBarAllowFontScaling: false,
+        tabBarItemStyle: { paddingTop: 3, paddingBottom: 3 },
         // The bar gives the label 10 pt under a 28 pt icon box; capitals at 11 pt need 12. The icons are 26 pt,
         // so the box shrinks to fit them and the line is set to 12 (no descenders in capitals): nothing clipped (B6).
         tabBarLabelStyle: { ...typeStyle('tag'), lineHeight: 12, color: undefined },

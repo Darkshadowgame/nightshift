@@ -200,3 +200,16 @@ describe('search order matches the generation list (REVIEW-7 inconsistency 12)',
     expect(searchVariants(list, 'car', 'civic type r', 10).map((x: { id: string }) => x.id)).toEqual(['fk8', 'fk2', 'fn2', 'ep3']);
   });
 });
+
+import { allVariants as allV } from '../src/data/vehicles';
+import { groupByModel as groupModels, searchVariants as searchV } from '../src/lib/vehicles';
+
+describe('groupByModel (Review 14 decision 4: the count matches the rows)', () => {
+  it('keeps a Fiesta ST-Line out of the Fiesta ST group, ST group first', () => {
+    const hits = searchV(allV(), 'car', 'Fiesta ST', 8);
+    const groups = groupModels(hits, 'Fiesta ST');
+    expect(groups[0].model).toBe('Fiesta ST');
+    for (const g of groups) for (const v of g.variants) expect(v.model).toBe(g.model);
+    expect(groups.reduce((n, g) => n + g.variants.length, 0)).toBe(hits.length);
+  });
+});

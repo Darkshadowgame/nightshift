@@ -118,7 +118,9 @@ export function SegmentedControl<K extends string>({
   // row, the control becomes two rows instead of cutting a label off ("MESSAGE…").
   const [row, setRow] = useState(0);
   const [need, setNeed] = useState<Record<string, number>>({});
-  const padEach = SPACING.xs * 2 + 3 + SPACING.xs;
+  // Each segment keeps SPACING.sm either side of its label plus a clear gap to the next, so labels
+  // never nearly touch at 1.3x text (Review 14); short of that, it goes to two rows.
+  const padEach = SPACING.sm * 2 + 3 + SPACING.md;
   const total = options.reduce((sum, o) => sum + (need[o.key] ?? 0) + padEach, 0) + 6;
   const twoRows = row > 0 && options.length > 2 && total > row;
   return (
@@ -161,7 +163,8 @@ export function SegmentedControl<K extends string>({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: RADII.control - 2,
-              paddingHorizontal: SPACING.xs,
+              paddingHorizontal: SPACING.sm,
+              paddingVertical: SPACING.xs,
               backgroundColor: on ? COLOR.action.selected : 'transparent',
             }}
           >

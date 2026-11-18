@@ -19,8 +19,41 @@ export const ADDRESS_SEARCH_IN_APP = 'Address search works in the iPhone app.';
 
 export type Position = { ok: true; at: LatLng } | { ok: false; reason: 'denied' | 'unavailable' };
 
-/** Ask for when-in-use location if needed, then read where the phone is. */
+/**
+ * How long to wait for a position before saying so. A browser whose permission prompt never gets
+ * an answer (dismissed, or no prompt at all) would otherwise wait for ever, and "Show where I am"
+ * would fail silently (Review 14, C6).
+ */
+export const POSITION_TIMEOUT_MS = 8000;
+
+/**
+ * Why there's no position, and how to turn it on, in one plain sentence for the screen that asked
+ * (never silent, Review 14). The iPhone app points at Settings; the web preview at the browser.
+ */
+export function locationHelp(reason: 'denied' | 'unavailable', web = Platform.OS === 'web'): string {
+  if (web)
+    return reason === 'denied'
+      ? "Location is blocked for this site. Allow it in your browser's site settings (the icon by the address), then try again."
+      : "Couldn't get your location. Check your browser lets this site use it, then try again.";
+  return reason === 'denied'
+    ? 'Location is off for Nightshift. Turn it on in Settings → Nightshift → Location, then try again.'
+    : "Couldn't find where you are just now. Check Location Services is on in Settings, then try again.";
+}
+
+/** Ask for when-in-use location if needed, then read where the phone is (gives up after POSITION_TIMEOUT_MS). */
 export async function currentPosition(ask = true): Promise<Position> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<Position>((done) => {
+    timer = setTimeout(() => done({ ok: false, reason: 'unavailable' }), POSITION_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([readPosition(ask), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readPosition(ask: boolean): Promise<Position> {
   try {
     let perm = await Location.getForegroundPermissionsAsync();
     if (!perm.granted && ask && perm.canAskAgain !== false) perm = await Location.requestForegroundPermissionsAsync();

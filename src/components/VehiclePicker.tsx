@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { allVariants } from '../data/vehicles';
 import { classOf } from '../lib/classes';
+import { plural } from '../lib/format';
 import { carShape } from '../lib/buildShape';
 import type { VehicleKind } from '../lib/types';
 import {
   canonicalMake,
   familyFor,
   findVariant,
+  groupByModel,
   makesFor,
   modelLabel,
   modelsFor,
@@ -95,7 +97,9 @@ export function VehiclePicker({
     ) : null;
 
   if (stage === 'search') {
-    const sameName = hits.filter((v) => v.make === hits[0]?.make && v.model === hits[0]?.model).length;
+    const groups = groupByModel(hits, typed);
+    // A heading per model only when it helps: several models, or several versions of one.
+    const headed = groups.length > 1 || (groups[0]?.variants.length ?? 0) >= 3;
     const freeTyped = !variant && make.trim() && model.trim();
     return (
       <View style={{ gap: SPACING.sm }}>
@@ -105,14 +109,21 @@ export function VehiclePicker({
           placeholder={kind === 'car' ? 'Type a make or model, e.g. Fiesta ST' : 'Type a make or model, e.g. Street Triple'}
           accessibilityLabel={`Search every ${noun}`}
         />
-        {typed && sameName >= 3 ? (
-          // Five Fiesta STs (Review 13): say how to tell them apart.
-          <DsText v="caption">{`${sameName} versions of the ${hits[0].model}. Pick yours by its years and power.`}</DsText>
-        ) : null}
+        {typed && headed ? <DsText v="caption">Pick yours by its years and power.</DsText> : null}
         {typed ? (
-          <View>
-            {hits.map((v) => (
-              <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
+          <View style={{ gap: SPACING.sm }}>
+            {groups.map((g) => (
+              <View key={`${g.make}|${g.model}`}>
+                {/* Grouped by exact model name (Review 14): the count is the rows under it, and an ST-Line is never counted as an ST. */}
+                {headed ? (
+                  <DsText v="bodyStrong" style={{ paddingVertical: SPACING.xs }}>
+                    {`${g.make} ${g.model} · ${plural(g.variants.length, 'version')}`}
+                  </DsText>
+                ) : null}
+                {g.variants.map((v) => (
+                  <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
+                ))}
+              </View>
             ))}
             {hits.length === 0 ? <DsText v="secondary">No match. Try fewer words, or enter it yourself.</DsText> : null}
           </View>

@@ -7,7 +7,7 @@ import { Button } from './Button';
 import { Icon, type IconName } from './Icon';
 import type { Haptic } from './Press';
 import { DsText } from './Text';
-import { useToastAnchor } from './Toast';
+import { useToastAnchor, useToastClearance } from './Toast';
 
 export type ActionBarButton = {
   label: string;
@@ -47,7 +47,8 @@ export const InSheetContext = createContext(false);
  * - `children` replace the buttons (a comment field on a post or thread page).
  *
  * When the primary's label changes (I'm going → Open) the new one fades in over `MOTION.morph`.
- * Toasts sit just above the bar (it tells the ToastProvider its height). `inset={false}` inside a
+ * Toasts sit just above the bar (it tells the ToastProvider its height), in room the bar keeps
+ * free while one shows, so a toast never covers the page. `inset={false}` inside a
  * tab screen, where the tab bar already clears the home indicator.
  */
 export function ActionBar({
@@ -70,6 +71,7 @@ export function ActionBar({
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const anchor = useToastAnchor();
+  const clearance = useToastClearance();
   const inSheet = useContext(InSheetContext);
   const id = useId();
   const hasContent = !!(primary || secondary || status || children);
@@ -81,6 +83,9 @@ export function ActionBar({
   // The status pill only stands in for a primary: with a primary showing it would say the same twice.
   const pill = !primary && status ? status : null;
   return (
+    <>
+    {/* Room for the toast while one shows, so it floats over empty space, not the page's last line. */}
+    {!inSheet && clearance ? <View pointerEvents="none" style={{ height: clearance }} /> : null}
     <View
       onLayout={inSheet ? undefined : (e) => anchor(id, e.nativeEvent.layout.height)}
       style={inSheet ? { gap: SPACING.sm } : [
@@ -114,6 +119,7 @@ export function ActionBar({
         </>
       )}
     </View>
+    </>
   );
 }
 

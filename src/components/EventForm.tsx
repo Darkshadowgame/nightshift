@@ -8,9 +8,9 @@ import { useNow } from '../lib/clock';
 import { isCrewHost } from '../lib/crews';
 import { banZoneAt, duplicateHosted, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { fitRegion } from '../lib/geo';
-import { leadText, LOCATION, MEET_POINT } from '../lib/glossary';
+import { leadText, locationSentence, MEET_POINT } from '../lib/glossary';
 import { clearHostDraft, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
-import { DEFAULT_FILTER, fromVehicleSelection, hostLeftOut, inviteHeadline, inviteSummary, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
+import { DEFAULT_FILTER, fromVehicleSelection, hostLeftOut, inviteRows, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { fallbackPointName, shouldAutoName } from '../lib/placeNames';
 import { areaNameNear } from '../lib/profile';
@@ -43,7 +43,7 @@ const HOUR = 3_600_000;
 /** A new meet ends 3 hours after it starts unless the host says otherwise. */
 const DEFAULT_LENGTH = 3 * HOUR;
 
-const STEPS = ['What and when', 'Where', 'Who can come', 'Check and post'] as const;
+const STEPS = ['What and when', 'Where', "Who it's for", 'Check and post'] as const;
 type Step = 0 | 1 | 2 | 3;
 const LAST: Step = 3;
 
@@ -70,7 +70,7 @@ function draftStart(d: HostDraft, now: Date): Date | null {
 }
 
 /**
- * The host flow (Redesign 2, 3.6), four steps: What and when → Where → Who can come → Check and
+ * The host flow (Redesign 2, 3.6), four steps: What and when → Where → Who it's for → Check and
  * post. Used to create an event and to edit one before it starts. `onSubmit` gets the finished
  * event and may throw with a readable reason.
  *
@@ -431,11 +431,12 @@ export function EventForm({
   }
 
   const whenText = timeRange(start, end, now);
-  const revealText = isPublicType(type) ? 'Everyone sees where it is' : `${LOCATION.lead(reveal)}, to people going`;
+  // The host form of the location line (4.11), as on the "It's up" page: "People going see it at 09:00 (1 h before)."
+  const revealText = isPublicType(type) ? 'Everyone sees where it is' : locationSentence({ state: 'host', time: clock(new Date(start.getTime() - reveal * 60_000)), leadMinutes: reveal });
   const coHostNames = coHosts.map((h) => displayHandle(users.find((u) => u.id === h)?.handle ?? h));
   const vehicles = vehicleSelection(filter);
-  const summary = inviteSummary(normaliseFilter(filter), peopleCount);
-  const headline = inviteHeadline(normaliseFilter(filter), peopleCount);
+  // Two plain rows, never one (Review 14 decision 1): who may come, then who we'll tell (the radius).
+  const rows = inviteRows(normaliseFilter(filter), peopleCount);
 
   // ---------------------------------------------------------------------------
   // Steps
@@ -600,11 +601,15 @@ export function EventForm({
 
   const whoStep = (
     <>
-      <View style={{ gap: SPACING.xxs }}>
-        <DsText v="title" accessibilityLiveRegion="polite">
-          {headline.title}
+      <View style={{ gap: SPACING.sm }} accessibilityLiveRegion="polite">
+        <DsText v="body">
+          <DsText v="bodyStrong">Who can come: </DsText>
+          {rows.come}
         </DsText>
-        <DsText v="secondary">{headline.detail}</DsText>
+        <DsText v="body">
+          <DsText v="bodyStrong">Who we'll tell: </DsText>
+          {rows.tell}
+        </DsText>
         {remote && serverCount === 'offline' ? <DsText v="caption">Can't count while offline.</DsText> : null}
       </View>
       {leftOut && leftOutWhy ? <DsText v="secondary" tone="warning">{leftOutWhy}</DsText> : null}
@@ -694,7 +699,9 @@ export function EventForm({
           onEdit={() => go(1)}
         />
         <RowDivider />
-        <ReviewRow label="Who can come" value={summary} onEdit={() => go(2)} />
+        <ReviewRow label="Who can come" value={rows.come} onEdit={() => go(2)} />
+        <RowDivider />
+        <ReviewRow label="Who we'll tell" value={rows.tell.charAt(0).toUpperCase() + rows.tell.slice(1)} onEdit={() => go(2)} />
         <RowDivider />
         <ReviewRow label="Location" value={revealText} onEdit={() => { setMore(true); go(2); }} />
         {coHosts.length || crewOwned ? (

@@ -65,3 +65,18 @@ export function creditLine(credit?: string, tiles: string = TILE_CREDIT): string
   if (!credit || tiles.toLowerCase().includes(credit.replace(/^©\s*/, '').toLowerCase()) || (osm.test(credit) && osm.test(tiles))) return tiles;
   return `${credit} · ${tiles}`;
 }
+
+/**
+ * The credit's short form for the map corner ("© Stadia · OSM"): any screen credit before the
+ * tiles' (e.g. "Data: DVSA"), the first holder's first word, and OSM when OpenStreetMap is
+ * credited. The full line shows on tap.
+ */
+export function shortCredit(line: string): string {
+  const at = line.indexOf('©');
+  if (at < 0) return line;
+  const prefix = line.slice(0, at).replace(/[\s·]+$/, '');
+  const first = line.slice(at + 1).trim().split(/[\s,©·]+/)[0];
+  const osm = /openstreetmap/i.test(line) && !/openstreetmap/i.test(first);
+  const short = osm ? `© ${first} · OSM` : `© ${first}`;
+  return prefix ? `${prefix} · ${short}` : short;
+}

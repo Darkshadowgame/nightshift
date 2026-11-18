@@ -400,3 +400,20 @@ export function findDonor(engines: DonorEngine[], variants: Variant[], id: strin
   const v = variants.find((x) => x.id === id);
   return v ? donorFromVariant(v) : undefined;
 }
+
+/**
+ * Search results grouped by exact model name (Review 14 decision 4), so a count only ever
+ * describes the rows under it: "Fiesta ST" (5) apart from "Fiesta" (the ST-Line). The group whose
+ * name the query names exactly comes first; otherwise the order of the results.
+ */
+export function groupByModel(hits: Variant[], query = ''): { make: string; model: string; variants: Variant[] }[] {
+  const groups: { make: string; model: string; variants: Variant[] }[] = [];
+  for (const v of hits) {
+    const g = groups.find((x) => x.make === v.make && x.model === v.model);
+    if (g) g.variants.push(v);
+    else groups.push({ make: v.make, model: v.model, variants: [v] });
+  }
+  const q = query.trim().toLowerCase();
+  const named = (g: { make: string; model: string }) => q === g.model.toLowerCase() || q === `${g.make} ${g.model}`.toLowerCase();
+  return [...groups.filter(named), ...groups.filter((g) => !named(g))];
+}

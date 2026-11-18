@@ -38,6 +38,7 @@ import type { Build, EventType, LatLng, SpotKind, User } from '../lib/types';
 import { eventTimeLabel } from '../lib/when';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
 import { COLOR, EVENT_COLOURS, RADII, SPACING, SPOT_COLOURS } from '../theme';
+import { TOWNS } from '../data/towns';
 
 type Tab = 'all' | 'meets' | 'places' | 'people';
 const TABS: { key: Tab; label: string }[] = [
@@ -52,7 +53,26 @@ const VEHICLES: Vehicles[] = ['any', 'cars', 'bikes'];
 /** Wait for typing to stop: Apple's suggestions are quick, the geocoder slower. */
 const DEBOUNCE_MS = liveSearchAvailable ? 300 : 600;
 /** The one line when nothing matches (Redesign 2, 3.12). */
-const NOTHING = 'Nothing called that near you.';
+const NOTHING = 'Nothing called that near you. Try a town, a meet or a handle.';
+/** No geocoder (the web preview): say what works here instead of "nothing" (Review 14, C6). */
+const NO_ADDRESS_SEARCH = 'Full address search works in the iPhone app; towns work here.';
+
+/**
+ * The bundled towns that match what's typed (whole words from the start of the name), so
+ * "Birmingham" finds the city where the phone has no geocoder (Review 14 decision 6). Exact
+ * matches first, then the nearest to `from`.
+ */
+function townHits(query: string, from: LatLng, limit = 5): Destination[] {
+  const q = norm(query);
+  if (q.length < 2) return [];
+  return TOWNS.filter((t) => {
+    const name = norm(t.name);
+    return name.startsWith(q) || name.split(' ').some((w) => w.startsWith(q));
+  })
+    .sort((a, b) => Number(norm(b.name) === q) - Number(norm(a.name) === q) || milesBetween(from, a.at) - milesBetween(from, b.at))
+    .slice(0, limit)
+    .map((t) => ({ at: t.at, name: t.name, address: 'Town' }));
+}
 
 /** Lower case, no accents or punctuation, for matching what's typed. */
 function norm(t: string): string {
@@ -171,6 +191,14 @@ export default function SearchScreen() {
   const seq = useRef(0);
   const canAddress = geocoderAvailable || liveSearchAvailable;
   const wantsAddresses = (tab === 'all' || tab === 'places') && canAddress;
+  // No geocoder here: the bundled towns stand in, shown as places with Go here.
+  const towns = useMemo<AddressHit[]>(
+    () =>
+      canAddress || !(tab === 'all' || tab === 'places')
+        ? []
+        : townHits(query, origin).map((d) => ({ key: `town:${d.name}`, title: d.name, subtitle: metaLine(['Town', distanceText(milesBetween(origin, d.at), 'home')]), dest: d })),
+    [canAddress, tab, query, origin],
+  );
   useEffect(() => {
     const mine = ++seq.current;
     if (!wantsAddresses || !whereQueries(query)) {
@@ -286,7 +314,7 @@ export default function SearchScreen() {
     <>
       {addrState === 'searching' && !addresses.length ? <LoadingState variant="inline" label="Searching addresses" /> : null}
       {addrState === 'error' ? <ErrorState title={addrError} /> : null}
-      {addresses.map((h) => (
+      {[...towns, ...addresses].map((h) => (
         <ListRow
           key={h.key}
           leading={{ pin: 'destination', colour: COLOR.text.secondary }}
@@ -304,6 +332,7 @@ export default function SearchScreen() {
     typed &&
     addrState !== 'searching' &&
     !addresses.length &&
+    !towns.length &&
     (tab === 'all' ? !found.meets.length && !found.places.length && !found.people.length : tab === 'meets' ? !found.meets.length : tab === 'places' ? !found.places.length : !found.people.length);
 
   return (
@@ -327,13 +356,13 @@ export default function SearchScreen() {
         <Picked place={picked} note={distanceNote(here, picked.at)} onClear={() => setPicked(null)} />
       ) : typed ? (
         <>
-          {nothing ? <EmptyState variant="inline" title={NOTHING} /> : null}
+          {nothing ? <EmptyState variant="inline" title={!canAddress && tab !== 'people' && tab !== 'meets' ? NO_ADDRESS_SEARCH : NOTHING} /> : null}
           {(tab === 'all' || tab === 'meets') && found.meets.length ? (
             <Section title={plural(found.meets.length, 'meet')} right={tab === 'all' && found.meets.length > 4 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('meets')} /> : undefined}>
               {found.meets.slice(0, cap(4)).map(meetRow)}
             </Section>
           ) : null}
-          {(tab === 'all' || tab === 'places') && (found.places.length || addresses.length || addrState === 'searching' || addrState === 'error') ? (
+          {(tab === 'all' || tab === 'places') && (found.places.length || addresses.length || towns.length || addrState === 'searching' || addrState === 'error') ? (
             <Section title="Places" right={tab === 'all' && found.places.length > 4 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('places')} /> : undefined}>
               {found.places.slice(0, cap(4)).map(placeRow)}
               {addressRows}
@@ -413,7 +442,7 @@ function Picked({ place, note, onClear }: { place: Destination; note: string | n
           key={`${place.at.lat},${place.at.lng}`}
           pins={[{ id: 'destination', at: place.at, glyph: 'destination', colour: COLOR.text.primary, title: place.name, size: 40 }]}
           centre={place.at}
-          span={0.02}
+          span={place.address === 'Town' ? 0.15 : 0.02}
           showsUser
         />
       </View>
