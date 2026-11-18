@@ -17,7 +17,7 @@ import type { Build, ClassLetter, DynoRun, Crew, EngineSwap, EventType, LatLng, 
 export interface ProfileRow { id: string; handle: string | null; display_name: string | null; region: string | null; onboarded: boolean }
 export interface HomeRow { user_id: string; lat: number; lng: number }
 export interface SettingsRow { travel_miles: number; new_event_alerts: AlertMode }
-export interface ModRow { id: string; build_id?: string; category: ModCategory; name: string; bhp_gain: number | null; position: number }
+export interface ModRow { id: string; build_id?: string; category: ModCategory; name: string; bhp_gain: number | null; position: number; note?: string | null }
 export interface BuildPhotoRow { id?: string; storage_path: string; position: number }
 export interface DynoRunRow {
   id?: string; build_id?: string; run_on: string; shop: string | null; power_bhp: number; torque_lb_ft: number | null;
@@ -108,7 +108,7 @@ export function userFromRows(p: ProfileRow, opts: { home?: HomeRow | null; setti
 export function buildFromRow(r: BuildRow, photoUrl: (path: string) => string = (p) => p): Build {
   const mods: Mod[] = [...(r.build_mods ?? [])]
     .sort((a, b) => a.position - b.position)
-    .map((m) => ({ id: m.id, category: m.category, name: m.name, ...(num(m.bhp_gain) !== undefined ? { bhpGain: num(m.bhp_gain) } : {}) }));
+    .map((m) => ({ id: m.id, category: m.category, name: m.name, ...(num(m.bhp_gain) !== undefined ? { bhpGain: num(m.bhp_gain) } : {}), ...(m.note ? { note: m.note } : {}) }));
   const photos = [...(r.build_photos ?? [])].sort((a, b) => a.position - b.position).map((p) => photoUrl(p.storage_path));
   const b: Build = {
     id: r.id, ownerId: r.owner_id, kind: r.kind, make: r.make, model: r.model,
@@ -161,7 +161,7 @@ export function buildToRow(b: Build): Omit<BuildRow, 'owner_id' | 'build_mods' |
 }
 
 export function modsToRows(buildId: string, mods: Mod[]): Omit<ModRow, 'id'>[] {
-  return mods.map((m, i) => ({ build_id: buildId, category: m.category, name: m.name.trim().slice(0, 60), bhp_gain: m.bhpGain ?? null, position: i }));
+  return mods.map((m, i) => ({ build_id: buildId, category: m.category, name: m.name.trim().slice(0, 60), bhp_gain: m.bhpGain ?? null, position: i, note: m.note?.trim().slice(0, 80) || null }));
 }
 
 /** The Storage path inside a signed URL (…/object/sign/photos/<path>?token=…), or null for anything else. */

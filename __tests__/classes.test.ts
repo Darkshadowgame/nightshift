@@ -36,10 +36,12 @@ describe('classes', () => {
     expect(classOf(bike(15, 140))).toBe('D'); // 125
   });
 
-  test('a dyno figure wins over stock plus mods', () => {
-    const b = car(395, 1575, { dynoBhp: 470, mods: [{ id: 'm', category: 'engine', name: 'map', bhpGain: 20 }] });
+  test('a dyno figure backed by a sheet wins over stock plus mods; a bare figure does not', () => {
+    const mods = [{ id: 'm', category: 'engine' as const, name: 'map', bhpGain: 20 }];
+    const b = car(395, 1575, { dynoBhp: 470, mods, dynoRuns: [{ id: 'r', date: '2026-03-01', powerBhp: 470, at: 'crank', photo: 'p.jpg' }] });
     expect(effectivePower(b)).toBe(470);
     expect(classOf(b)).toBe('S');
+    expect(effectivePower(car(395, 1575, { dynoBhp: 470, mods }))).toBe(415);
   });
 
   test('claimed mod gains raise the class without a dyno sheet', () => {
@@ -61,9 +63,11 @@ describe('classes', () => {
   });
 
   test('modified means three or more mods', () => {
-    const m = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `${i}`, category: 'other' as const, name: 'm' }));
+    const m = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `${i}`, category: 'other' as const, name: `m${i}` }));
     expect(isModified({ mods: m(2) })).toBe(false);
     expect(isModified({ mods: m(3) })).toBe(true);
+    // REVIEW-10 #4: a Stage 1 tune and an ECU remap are one engine tune.
+    expect(isModified({ mods: [{ id: 'a', category: 'engine', name: 'Stage 1 tune' }, { id: 'b', category: 'engine', name: 'ECU remap' }, { id: 'c', category: 'intake', name: 'Cold air intake' }] })).toBe(false);
   });
 });
 
@@ -71,7 +75,8 @@ describe('bhp per tonne', () => {
   const { bhpPerTonne } = require('../src/lib/classes') as typeof import('../src/lib/classes');
   test('effective bhp over weight, and 0 with no weight', () => {
     expect(bhpPerTonne({ stockBhp: 300, mods: [], weightKg: 1500 })).toBe(200);
-    expect(bhpPerTonne({ stockBhp: 300, dynoBhp: 450, mods: [], weightKg: 1500 })).toBe(300);
+    expect(bhpPerTonne({ stockBhp: 300, dynoBhp: 450, mods: [], weightKg: 1500, dynoRuns: [{ id: 'r', date: '2026-03-01', powerBhp: 450, at: 'crank', photo: 'p.jpg' }] })).toBe(300);
+    expect(bhpPerTonne({ stockBhp: 300, dynoBhp: 450, mods: [], weightKg: 1500 })).toBe(200);
     expect(bhpPerTonne({ stockBhp: 300, mods: [], weightKg: 0 })).toBe(0);
   });
 });

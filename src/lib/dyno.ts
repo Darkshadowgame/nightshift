@@ -1,17 +1,19 @@
-import { effectivePower } from './classes';
+import { DYNO_MATCH, effectivePower, powerIsEstimate, sheetCrank, WHEEL_LOSS as LOSS } from './classes';
 import type { Build, DynoRun, VehicleKind } from './types';
 
 /**
  * A build's dyno runs (REVIEW-9 dyno section). Pure, so it's tested.
  *
- * Class uses the latest run's power at the crank (flywheel). A crank figure is used as it is.
+ * REVIEW-10 #3: only a run with a photo of its sheet feeds Class (classes.ts sheetRun); a typed
+ * figure with no sheet is kept in the history but never moves you up. Class uses that run's power
+ * at the crank (flywheel). A crank figure is used as it is.
  * A wheel figure is turned into an estimated crank figure by adding typical drivetrain loss
  * (15% for cars, 10% for bikes), and the build page labels it "estimated from wheel power".
  * That keeps rolling-road (wheel) and engine-dyno (crank) owners on the same scale as everyone
  * else's standard (crank) figures.
  */
 
-export const WHEEL_LOSS: Record<VehicleKind, number> = { car: 0.15, bike: 0.1 };
+export const WHEEL_LOSS: Record<VehicleKind, number> = LOSS;
 export const MAX_DYNO_RUNS = 20;
 
 /** The power Class uses from a run: the crank figure, or an estimate from wheel power. */
@@ -39,10 +41,11 @@ export function withoutRun(build: Build, runId: string): Build {
 }
 
 function withRuns(build: Build, runs: DynoRun[]): Build {
-  const latest = latestRun(runs);
   const next: Build = { ...build, dynoRuns: runs };
-  if (latest) next.dynoBhp = crankBhp(latest, build.kind);
-  else if (build.dynoRuns?.length) delete next.dynoBhp; // the runs set it; with none left, back to the estimate
+  // The newest run with a sheet sets it; with none, back to the claimed power.
+  const crank = sheetCrank(next);
+  if (crank) next.dynoBhp = crank;
+  else delete next.dynoBhp;
   return next;
 }
 
@@ -102,7 +105,7 @@ export function isoDay(d: Date): string {
 /** A run counts for the badge for two years. */
 export const BADGE_DAYS = 730;
 /** The power shown must match the run within 2%. */
-export const BADGE_TOLERANCE = 0.02;
+export const BADGE_TOLERANCE = DYNO_MATCH;
 
 export type DynoBadge =
   /** Backed by a recent run with its sheet: "✓ Dyno". `figure` is from the run (whp at the wheels). */
@@ -135,11 +138,25 @@ export function dynoBadge(build: Pick<Build, 'kind' | 'dynoBhp' | 'dynoRuns' | '
 }
 
 /**
- * The power to show for a build, one line: "312 whp" from a wheel run (never inflated to a crank
- * figure), else the bhp Class uses ("583 bhp").
+ * The one headline power (REVIEW-10 #5): bhp at the crank, the figure Class and bhp/tonne use,
+ * "est." when it's worked out from a wheels run. `whp` is the latest wheels run's figure, shown as
+ * secondary text ("221 whp on the dyno") when there is one.
  */
-export function powerText(build: Build): string {
+export function headlinePower(build: Build): { bhp: number; est: boolean; whp: number | null } {
   const run = latestRun(build.dynoRuns);
-  if (run && run.at === 'wheels') return `${Math.round(run.powerBhp)} whp`;
-  return `${Math.round(effectivePower(build))} bhp`;
+  return { bhp: Math.round(effectivePower(build)), est: powerIsEstimate(build), whp: run && run.at === 'wheels' ? Math.round(run.powerBhp) : null };
+}
+
+/** "583 bhp", or "260 bhp est." from a wheels run. */
+export function powerText(build: Build): string {
+  const p = headlinePower(build);
+  return `${p.bhp} bhp${p.est ? ' est.' : ''}`;
+}
+
+/** The secondary wheels line, or null: "221 whp on the dyno". */
+export function whpText(build: Build): string | null {
+  const p = headlinePower(build);
+  if (!p.whp) return null;
+  const run = latestRun(build.dynoRuns);
+  return `${p.whp} whp at the wheels on the dyno${run && !run.photo ? ' (typed, no sheet)' : ''}`;
 }

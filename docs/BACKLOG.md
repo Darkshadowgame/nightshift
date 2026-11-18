@@ -143,3 +143,8 @@ Work in this order. Each item ships over the air unless marked native.
    JS change, and the form then says "We read 312 bhp and 295 lb-ft: check these". Merging it
    changes the fingerprint and needs a new IPA. On the web there's no text reading (tesseract.js
    would add a few MB of download for a preview feature).
+   **Build 12, badge rule (owner, REVIEW-10):** once the phone can read the sheet, the ✓ Dyno
+   badge also needs the figure read from the sheet to match the figure saved within 2%
+   (`BADGE_TOLERANCE`), on the phone and in `public.dyno_badges()` (store the read figure with
+   the run). Until then a sheet photo is enough for the badge and for Class, and others can
+   report fake sheets. Typed runs with no sheet never change Class (since REVIEW-10).

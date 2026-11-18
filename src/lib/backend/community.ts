@@ -430,7 +430,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     },
     async showInNearby() {
       const rows = await call<{ show_in_nearby: boolean }[]>(() => client.from('profile_settings').select('show_in_nearby').eq('user_id', uid) as unknown as PromiseLike<Result<{ show_in_nearby: boolean }[]>>);
-      return rows?.[0]?.show_in_nearby ?? true;
+      return rows?.[0]?.show_in_nearby ?? false;
     },
     async setShowInNearby(on) {
       await rpc('save_community_prefs', { p_show_in_nearby: on });

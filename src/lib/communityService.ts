@@ -274,7 +274,7 @@ export interface DemoCommunity {
 
 export function emptyDemoCommunity(): DemoCommunity {
   return {
-    version: 1, around: null, connections: [], sent: [], blocks: [], hidden: false, rated: {}, likes: {}, threads: [], replies: [], solved: [], posts: [],
+    version: 1, around: null, connections: [], sent: [], blocks: [], hidden: true, rated: {}, likes: {}, threads: [], replies: [], solved: [], posts: [],
     comments: [], conversations: [], messages: [], reports: [],
   };
 }

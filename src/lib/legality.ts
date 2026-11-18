@@ -1,5 +1,5 @@
 import { QUICK_MODS } from '../data/catalog';
-import { isStageMod } from './tune';
+import { modUnit } from './modGroups';
 import type { Mod } from './types';
 
 /**
@@ -28,21 +28,13 @@ export function isRoadIllegal(mod: Pick<Mod, 'name'>): boolean {
   return OFF_ROAD_NAMES.has(norm(mod.name)) || OFF_ROAD_WORDS.test(mod.name);
 }
 
-/** One key per kind of mod: the quick-pick part it matches, the tune stage, or the typed name. */
-function modType(m: Pick<Mod, 'name'>): string {
-  if (isStageMod(m)) return 'stage';
-  const n = norm(m.name);
-  const quick = QUICK_MODS.find((q) => norm(q.name) === n);
-  return quick ? `q:${quick.key}` : `t:${n}`;
-}
-
-/** The mods on one build that earn rep: road legal, each kind once, at most MAX_REWARDED_MODS. */
+/** The mods on one build that earn rep: road legal, each kind once (a group counts once: modGroups.ts), at most MAX_REWARDED_MODS. */
 export function rewardedMods<T extends Pick<Mod, 'name'>>(mods: readonly T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const m of mods) {
     if (isRoadIllegal(m)) continue;
-    const t = modType(m);
+    const t = modUnit(m);
     if (seen.has(t)) continue;
     seen.add(t);
     out.push(m);

@@ -13,14 +13,29 @@ describe('dyno runs (REVIEW-9)', () => {
     expect(crankBhp(run('a', '2026-03-12', 180, 'wheels'), 'bike')).toBe(200);
   });
 
-  test('the latest run sets the power Class uses; removing every run goes back to the estimate', () => {
-    let b = withRun(build, run('a', '2026-03-12', 312, 'wheels', 295));
-    b = withRun(b, run('b', '2026-01-02', 300, 'crank'));
+  test('the newest run with a sheet sets the power Class uses; removing every run goes back to the claim', () => {
+    const sheet = (r: DynoRun): DynoRun => ({ ...r, photo: 'p.jpg' });
+    let b = withRun(build, sheet(run('a', '2026-03-12', 312, 'wheels', 295)));
+    b = withRun(b, sheet(run('b', '2026-01-02', 300, 'crank')));
     expect(latestRun(b.dynoRuns)!.id).toBe('a');
     expect(effectivePower(b)).toBe(367);
     b = withoutRun(withoutRun(b, 'a'), 'b');
     expect(b.dynoBhp).toBeUndefined();
     expect(effectivePower(b)).toBe(316);
+  });
+
+  test('REVIEW-10 #3: a typed run with no sheet never changes Class', () => {
+    const typed = withRun(build, run('a', '2026-03-12', 400, 'crank'));
+    expect(typed.dynoBhp).toBeUndefined();
+    expect(effectivePower(typed)).toBe(316);
+    // A newer typed run doesn't replace the older sheet run Class uses.
+    const both = withRun(withRun(build, { ...run('s', '2026-01-02', 330, 'crank'), photo: 'p.jpg' }), run('t', '2026-03-12', 450, 'crank'));
+    expect(effectivePower(both)).toBe(330);
+    // Staff taking the badge off the sheet takes it out of Class too.
+    const removed = { ...both, dynoRuns: both.dynoRuns!.map((r) => ({ ...r, badgeRemoved: true })) };
+    expect(effectivePower(removed)).toBe(316);
+    // A dynoBhp with no sheet behind it (an old save, a hand edit) is ignored.
+    expect(effectivePower({ ...build, dynoBhp: 500 })).toBe(316);
   });
 
   test('summary and before/after, like for like', () => {
@@ -39,14 +54,18 @@ describe('dyno runs (REVIEW-9)', () => {
 });
 
 describe('the Dyno proven badge (owner rules)', () => {
-  const { dynoBadge, powerText } = jest.requireActual('../src/lib/dyno') as typeof import('../src/lib/dyno');
+  const { dynoBadge, powerText, whpText } = jest.requireActual('../src/lib/dyno') as typeof import('../src/lib/dyno');
   const sheet = (r: DynoRun): DynoRun => ({ ...r, photo: 'p1.jpg' });
   const withSheet = (r: DynoRun) => withRun(build, sheet(r));
 
   test('a recent run with its sheet, matching the power: proven, wheels shown as whp', () => {
     const b = withSheet(run('a', '2026-03-12', 312, 'wheels', 295));
     expect(dynoBadge(b, NOW)).toMatchObject({ state: 'proven', figure: 312, unit: 'whp' });
-    expect(powerText(b)).toBe('312 whp');
+    // One power figure (REVIEW-10 #5): crank bhp, est. from wheels; whp as the secondary line.
+    expect(powerText(b)).toBe('367 bhp est.');
+    expect(whpText(b)).toBe('312 whp at the wheels on the dyno');
+    expect(whpText(withRun(build, run('t', '2026-03-12', 300, 'wheels')))).toBe('300 whp at the wheels on the dyno (typed, no sheet)');
+    expect(powerText(withSheet(run('c', '2026-03-12', 330, 'crank')))).toBe('330 bhp');
     expect(dynoBadge(withSheet(run('c', '2026-03-12', 330, 'crank')), NOW)).toMatchObject({ state: 'proven', unit: 'bhp' });
   });
 

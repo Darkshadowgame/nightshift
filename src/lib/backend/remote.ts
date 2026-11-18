@@ -205,7 +205,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       client
         .from('builds')
         .select(
-          '*, build_mods(id,category,name,bhp_gain,position), build_photos(storage_path,position), build_dyno_runs(id,run_on,shop,power_bhp,torque_lb_ft,measured_at,power_unit,torque_unit,storage_path,position)',
+          '*, build_mods(id,category,name,bhp_gain,position,note), build_photos(storage_path,position), build_dyno_runs(id,run_on,shop,power_bhp,torque_lb_ft,measured_at,power_unit,torque_unit,storage_path,position)',
         )
         .order('created_at')
         .limit(2000),

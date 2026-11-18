@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Image, View } from 'react-native';
-import { changeText, crankBhp, isoDay, latestRun, runChange, runDay, runProblem, runsNewestFirst, runSummary, WHEEL_LOSS, withoutRun, withRun } from '../lib/dyno';
+import { sheetCrank, sheetRun } from '../lib/classes';
+import { changeText, isoDay, latestRun, runChange, runDay, runProblem, runsNewestFirst, runSummary, WHEEL_LOSS, withoutRun, withRun } from '../lib/dyno';
 import { parseDynoText, toBhp, toLbFt, type PowerUnit, type TorqueUnit } from '../lib/dynoParse';
 import { ocrText } from '../lib/ocr';
 import { photoSource } from '../lib/photoSource';
 import { photoUri } from '../lib/photos';
-import { newId } from '../lib/store';
+import { newId, useStore } from '../lib/store';
 import type { Build, DynoRun } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, DsText, EmptyState, ErrorState, Field, ListRow, RowDivider, Section, SegmentedControl, Sheet, StatBlock, TextField, metaLine, useToast } from './ds';
+import { Button, DateField, DsText, EmptyState, ErrorState, Field, ListRow, RowDivider, Section, SegmentedControl, Sheet, StatBlock, TextField, metaLine, useToast } from './ds';
 import { openReport } from './Community';
 import { DynoBadge } from './DynoBadge';
 import { usePhotoFlow } from './PhotoFlow';
@@ -39,6 +40,7 @@ const number = (s: string) => (s.trim() ? Number(s.replace(',', '.').replace(/[^
  */
 export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: boolean; onSave: (b: Build) => Promise<void> }) {
   const toast = useToast();
+  const demo = useStore().backend === 'local';
   const [draft, setDraft] = useState<Draft | null>(null);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +111,14 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
 
   if (!mine && !latest) return null;
   const change = latest ? runChange(latest, runs[1], b.kind) : null;
+  // REVIEW-10 #3: only a run with its sheet feeds Class; say which figure Class uses, plainly.
+  const fed = sheetRun(b);
+  const crank = sheetCrank(b);
+  const classCaption = !fed
+    ? 'Typed figures with no sheet photo never change Class: it uses the claimed power (standard plus mods). Add a photo of the sheet to get the ✓ Dyno badge.'
+    : fed.at === 'wheels'
+      ? `Class uses about ${crank} bhp at the crank from the run with its sheet${fed.id !== latest?.id ? ` (${runDay(fed.date)})` : ''}: wheel power plus ${Math.round(WHEEL_LOSS[b.kind] * 100)}% for drivetrain loss.`
+      : `Class uses the crank (flywheel) figure from the run with its sheet${fed.id !== latest?.id ? ` (${runDay(fed.date)})` : ''}.`;
 
   return (
     <Section title={`Dyno${runs.length ? ` (${runs.length})` : ''}`}>
@@ -123,11 +133,7 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
           <DynoBadge build={b} />
           <DsText v="meta">{metaLine([runSummary(latest), latest.shop])}</DsText>
           {change ? <DsText v="secondary">{`Since ${runDay(runs[1].date)}: ${changeText(change)}`}</DsText> : null}
-          <DsText v="caption">
-            {latest.at === 'wheels'
-              ? `Class uses about ${crankBhp(latest, b.kind)} bhp at the crank: an estimate from wheel power, adding ${Math.round(WHEEL_LOSS[b.kind] * 100)}% for drivetrain loss.`
-              : 'Class uses this crank (flywheel) figure.'}
-          </DsText>
+          <DsText v="caption">{classCaption}</DsText>
           {latest.photo ? (
             <Image source={photoSource(latest.photo)} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} resizeMode="contain" accessibilityLabel="The dyno sheet" />
           ) : null}
@@ -197,12 +203,18 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
               ]}
             />
             <DsText v="caption">Most rolling roads measure at the wheels; some also print a flywheel (crank) figure. Pick the one you typed.</DsText>
-            <Field label="Day of the run" hint="YYYY-MM-DD">
-              <TextField value={draft.date} onChangeText={(date) => setDraft({ ...draft, date })} placeholder={isoDay(new Date())} accessibilityLabel="Day of the run" autoCapitalize="none" />
-            </Field>
+            <DateField label="Day of the run" value={draft.date} max={isoDay(new Date())} onChange={(date) => setDraft({ ...draft, date })} />
             <Field label="Rolling road or shop (optional)">
               <TextField value={draft.shop} onChangeText={(shop) => setDraft({ ...draft, shop })} maxLength={60} accessibilityLabel="Rolling road or shop" />
             </Field>
+            {/* REVIEW-10 #3: what earns the badge, said plainly where you add the run. */}
+            <DsText v="caption" tone={draft.photo ? 'secondary' : 'warning'}>
+              {draft.photo
+                ? demo
+                  ? 'With the sheet photo this run gets the ✓ Dyno badge and counts for Class. In the demo the badge is a sample: sheets aren\'t checked. Others can report fake sheets.'
+                  : 'With the sheet photo this run gets the ✓ Dyno badge and counts for Class. Others can report fake sheets.'
+                : 'Add a photo of the sheet to get the ✓ Dyno badge. Others can report fake sheets. Without a sheet, the run is kept in your history but doesn\'t change Class.'}
+            </DsText>
             <Button label="Save dyno run" block haptic="success" busy={saving} disabled={!!problem} hint={problem ?? undefined} onPress={save} />
             {draft.id ? <Button label="Remove this run" tier="destructive" block onPress={() => remove(draft.id!)} /> : null}
           </View>

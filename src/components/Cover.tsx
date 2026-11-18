@@ -3,7 +3,9 @@ import { Image, StyleSheet, View } from 'react-native';
 import { photoSource } from '../lib/photoSource';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
-import { classOf, effectivePower } from '../lib/classes';
+import { classOf } from '../lib/classes';
+import { powerText } from '../lib/dyno';
+import { modCount } from '../lib/modGroups';
 import type { Build, NightEvent, User } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
 import { BuildArt } from './BuildArt';
@@ -43,7 +45,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
           {build.make} {build.model}
         </DsText>
         <DsText v="meta" tone="primary">
-          @{owner?.handle ?? 'unknown'} · {Math.round(effectivePower(build))} bhp · Class {classOf(build)} · {build.mods.length} mods
+          @{owner?.handle ?? 'unknown'} · {powerText(build)} · Class {classOf(build)} · {modCount(build.mods)} mods
         </DsText>
         {event?.title ? (
           <DsText v="meta" tone="primary" numberOfLines={1}>

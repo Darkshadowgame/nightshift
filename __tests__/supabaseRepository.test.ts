@@ -357,7 +357,7 @@ describe('plain data goes to tables', () => {
     expect(upsert.ops[0][1][0]).toMatchObject({ id: BUILD, make: 'VW', model: 'Golf R', stock_bhp: 296 });
     expect(upsert.ops[0][1][0]).not.toHaveProperty('owner_id');
     const modsInsert = m.queries.find((q) => q.table === 'build_mods' && q.ops[0][0] === 'insert')!;
-    expect(modsInsert.ops[0][1][0]).toEqual([{ build_id: BUILD, category: 'exhaust', name: 'Cat-back', bhp_gain: 10, position: 0 }]);
+    expect(modsInsert.ops[0][1][0]).toEqual([{ build_id: BUILD, category: 'exhaust', name: 'Cat-back', bhp_gain: 10, position: 0, note: null }]);
     const photos = m.queries.find((q) => q.table === 'build_photos' && q.ops[0][0] === 'insert')!;
     expect((photos.ops[0][1][0] as { storage_path: string }[]).map((p) => p.storage_path)).toEqual([`${ME}/builds/${BUILD}/old.jpg`, uploaded]);
     expect(m.storage.remove).toHaveBeenCalledWith([`${ME}/builds/${BUILD}/gone.jpg`]);

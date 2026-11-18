@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Avatar, Button, DsText, EmptyState, ListRow, RowDivider, Section, Tag, metaLine } from '../../components/ds';
+import { Avatar, Button, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, Tag, metaLine } from '../../components/ds';
+import { LadderSheet } from '../../components/LadderSheet';
 import { useRep } from '../../components/Rep';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { EVENT_LABELS, isHost, phaseOf } from '../../lib/events';
@@ -33,6 +35,8 @@ export default function Me() {
   const past = mineEvents.filter((e) => phaseOf(e, now) === 'over' && ((e.checkIns[me] ?? []).length > 0 || isHost(e, me, crews))).sort((a, b) => start(b.startsAt) - start(a.startsAt));
   const checkedInAnywhere = events.some((e) => (e.checkIns[me] ?? []).length > 0);
   const nextLevel = rep.level.level + 1;
+  const [ladder, setLadder] = useState(false);
+  const checkedIn = (e: (typeof events)[number]) => (e.checkIns[me] ?? []).length > 0;
 
   return (
     <ScrollView contentContainerStyle={st.page}>
@@ -43,10 +47,20 @@ export default function Me() {
             @{user?.handle}
           </DsText>
           {user?.name && user.name !== user.handle ? <DsText v="secondary">{user.name}</DsText> : null}
-          {/* The level as a plain fact: not an action, so not sodium (DESIGN-SYSTEM rule 11). */}
-          <DsText v="meta">{metaLine([levelLabel(rep.level.level), plural(myBuilds.length, 'build')])}</DsText>
-          {/* One ladder (REVIEW-9 decision 14): rep is the points, the level is where they put you. */}
-          <DsText v="meta">{`${rep.ledger.total.toLocaleString('en-GB')} rep · ${(rep.level.next - rep.level.rep).toLocaleString('en-GB')} to Level ${nextLevel} (${levelName(nextLevel)})`}</DsText>
+          <DsText v="meta">{plural(myBuilds.length, 'build')}</DsText>
+          {/* The level opens the ladder (REVIEW-10 #15): levels, points, how to earn. */}
+          <Press
+            onPress={() => setLadder(true)}
+            label={`${levelLabel(rep.level.level)}, ${rep.ledger.total} rep`}
+            hint="Shows every level and how to earn rep"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 44, alignSelf: 'flex-start' }}
+          >
+            <View style={{ gap: SPACING.xxs }}>
+              <DsText v="meta" tone="action">{levelLabel(rep.level.level)}</DsText>
+              <DsText v="meta">{`${rep.ledger.total.toLocaleString('en-GB')} rep · ${(rep.level.next - rep.level.rep).toLocaleString('en-GB')} to Level ${nextLevel} (${levelName(nextLevel)})`}</DsText>
+            </View>
+            <Icon name="chevron" size={16} colour={COLOR.action.link} />
+          </Press>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
@@ -76,7 +90,7 @@ export default function Me() {
             leading={{ pin: e.type, colour: COLOR.text.primary }}
             title={e.title}
             subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
-            trailing={<Tag label={isHost(e, me, crews) ? 'Hosting' : 'Going'} tone={isHost(e, me, crews) ? 'selected' : 'success'} />}
+            trailing={<Tag label={isHost(e, me, crews) ? 'Hosting' : checkedIn(e) ? 'Checked in' : 'Going'} tone={isHost(e, me, crews) ? 'selected' : 'success'} />}
             onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
           />
         ))}
@@ -132,6 +146,8 @@ export default function Me() {
           ))
         )}
       </Section>
+
+      <LadderSheet visible={ladder} onClose={() => setLadder(false)} level={rep.level} ledger={rep.ledger} />
 
       <View>
         <ListRow title={SCREEN_TITLES.settings} subtitle="Account, notifications, privacy, driving" onPress={() => router.push('/settings')} />

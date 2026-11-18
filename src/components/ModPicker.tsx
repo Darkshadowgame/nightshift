@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { MOD_GROUPS, type ModGroup } from '../data/catalog';
 import { newId } from '../lib/store';
 import {
@@ -23,7 +23,7 @@ import type { Mod, TuneStage, VehicleKind } from '../lib/types';
 import { isRoadIllegal, MAX_REWARDED_MODS, OFF_ROAD_TAG } from '../lib/legality';
 import type { Aspiration } from '../lib/vehicles';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, Chip, ChoiceGroup, DsText, IconButton, INPUT, Press, RowDivider, Tag } from './ds';
+import { Button, Chip, ChoiceGroup, DsText, IconButton, INPUT, RowDivider, Tabs, Tag } from './ds';
 import { SuggestMissing } from './SuggestMissing';
 
 const mid = () => newId('m');
@@ -151,37 +151,16 @@ export function ModPicker({
 
       <View style={{ gap: SPACING.sm }}>
         <DsText v="label">Add parts</DsText>
-        {/* One of many, scrolled sideways: the same radio pill as ChoiceGroup, in one row. */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }} accessibilityRole="radiogroup" accessibilityLabel="Part type">
-          {groups.map((g) => {
+        {/* REVIEW-10 #11: categories are tabs, so they never look like the part chips under them. */}
+        <Tabs<ModGroup>
+          accessibilityLabel="Part type"
+          value={activeGroup}
+          onChange={setGroup}
+          options={groups.map((g) => {
             const n = chips.filter((c) => c.group === g.key && hasQuickMod(mods, c)).length;
-            const on = g.key === activeGroup;
-            const label = n ? `${g.label} · ${n}` : g.label;
-            return (
-              <Press
-                key={g.key}
-                onPress={() => setGroup(g.key)}
-                haptic="select"
-                role="radio"
-                state={{ checked: on }}
-                label={label}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: SPACING.sm,
-                  minHeight: 34,
-                  paddingHorizontal: SPACING.md,
-                  borderRadius: RADII.control,
-                  borderWidth: 1,
-                  borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
-                  backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
-                }}
-              >
-                <DsText v="body">{label}</DsText>
-              </Press>
-            );
+            return { key: g.key, label: g.label, count: n || undefined };
           })}
-        </ScrollView>
+        />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
           {shown.map((c) => (
             <Chip key={c.key} label={c.name} raw on={hasQuickMod(mods, c)} onPress={() => toggle(c)} accessibilityLabel={c.roadLegal === false ? `${c.name}, ${OFF_ROAD_TAG}` : c.name} />
@@ -189,7 +168,7 @@ export function ModPicker({
         </View>
         <DsText v="caption">
           Tap to add, tap again to remove.{stage !== 'stock' ? ' With a tune stage set, power parts start at +0 because the stage figure covers them.' : ''}
-          {shown.some((c) => c.roadLegal === false) ? ' Some parts here are off-road only: you can log them, but they earn no rep.' : ''} Rep counts each road-legal mod once, up to {MAX_REWARDED_MODS} per build.
+          {shown.some((c) => c.roadLegal === false) ? ' Some parts here are off-road only: you can log them, but they earn no rep.' : ''} Parts that do the same job count once (a Stage 1 tune and an ECU remap are one engine tune). Rep counts each road-legal one, up to {MAX_REWARDED_MODS} per build.
         </DsText>
         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
           <TextInput value={modName} onChangeText={setModName} placeholder="Something else, e.g. Wagner intercooler" placeholderTextColor={COLOR.text.secondary} style={[INPUT, { flex: 2, minWidth: 0 }]} onSubmitEditing={addFree} maxLength={60} accessibilityLabel={`Mod name, added under ${MOD_GROUPS.find((g) => g.key === activeGroup)?.label ?? 'Other'}`} />

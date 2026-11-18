@@ -9,7 +9,9 @@ import { DynoSection } from '../../components/DynoSection';
 import { PhotoManager } from '../../components/PhotoManager';
 import { MOD_CATEGORIES } from '../../data/catalog';
 import { allAwards, categoryInfo } from '../../lib/awards';
-import { classOf, performanceFigure } from '../../lib/classes';
+import { bhpPerTonne, classOf, powerIsEstimate, sheetRun } from '../../lib/classes';
+import { modCount, sharedGroupLabel } from '../../lib/modGroups';
+import { AddModSheet } from '../../components/AddModSheet';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { plural } from '../../lib/format';
@@ -20,7 +22,7 @@ import { stageFromMods, stageLabel } from '../../lib/tune';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { photoSource } from '../../lib/photoSource';
-import { dynoBadge, latestRun, powerText } from '../../lib/dyno';
+import { dynoBadge, headlinePower, latestRun, whpText } from '../../lib/dyno';
 import { DynoBadge } from '../../components/DynoBadge';
 
 /**
@@ -35,6 +37,7 @@ export default function BuildScreen() {
   const b = builds.find((x) => x.id === id);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
+  const [addMod, setAddMod] = useState(false);
   const likes = useCommunityQuery((c) => c.buildLikes([id]), [id]);
   const mine = b?.ownerId === me;
   const community = useCommunity();
@@ -52,7 +55,8 @@ export default function BuildScreen() {
 
   const owner = users.find((u) => u.id === b.ownerId);
   const letter = classOf(b);
-  const figure = performanceFigure(b);
+  const power = headlinePower(b);
+  const whp = whpText(b);
   const won = allAwards(votes, events, builds, now).filter((a) => a.buildId === b.id);
   const swap = swapTag(b);
   const stage = b.tuneStage ?? stageFromMods(b.mods);
@@ -102,27 +106,23 @@ export default function BuildScreen() {
         {/* Two rows of two, so "Stage 2+" and a four-figure weight never clip on a small phone. */}
         <StatBlock
           stats={[
-            // Proven by a dyno run, or "claimed" (the owner's figures), said on the build page only.
-            { value: powerText(b).split(' ')[0], unit: powerText(b).split(' ')[1], label: badge?.state === 'proven' ? 'Power · dyno' : 'Power · claimed' },
+            // One power figure (REVIEW-10 #5): bhp at the crank, "est." from a wheels run; proven by a sheet or claimed.
+            { value: `${power.bhp}`, unit: power.est ? 'bhp est.' : 'bhp', label: badge?.state === 'proven' ? 'Power · dyno' : sheetRun(b) ? 'Power · sheet' : 'Power · claimed' },
             { value: `${b.weightKg}`, unit: 'kg', label: b.kind === 'bike' ? 'Weight · wet' : 'Weight · kerb' },
           ]}
         />
         <StatBlock
           stats={[
             { value: letter, label: 'Class' },
+            { value: `${bhpPerTonne(b)}`, label: 'bhp / tonne' },
             { value: stageLabel(stage), label: 'Tune' },
           ]}
         />
+        {whp ? <DsText v="secondary">{whp}</DsText> : null}
         <DsText v="caption">
-          {metaLine([
-            // One plain line for Class (REVIEW-9 decision 14): no "weight-adjusted bhp".
-            `Class ${letter}: its power for its weight (${Math.round(figure)} on the ${b.kind === 'bike' ? 'bike' : 'car'} scale)`,
-            // A wheel run: Class uses a crank estimate, labelled as one (owner rule).
-            latestRun(b.dynoRuns)?.at === 'wheels' ? `from est. ${b.dynoBhp} bhp at the crank` : null,
-            `${b.engineSwap ? 'donor engine' : 'stock'} ${b.stockBhp} bhp`,
-            `${b.weightKg} kg ${b.kind === 'bike' ? 'wet' : 'kerb'}${b.engineSwap?.weightDeltaKg ? ` (incl. ${b.engineSwap.weightDeltaKg > 0 ? '+' : ''}${b.engineSwap.weightDeltaKg} kg from the swap)` : ''}`,
-          ])}
-          . {b.dynoBhp ? 'Power from the latest dyno run (see Dyno).' : 'Power is estimated from the standard figure and the mods.'}
+          {/* One plain line for Class (REVIEW-10 #5): no "on the car scale" number. */}
+          {`Class ${letter} comes from ${power.bhp} bhp${powerIsEstimate(b) ? ' (estimated from the wheels run)' : ''} for ${b.weightKg} kg${b.kind === 'bike' ? ' wet' : ''}; ${b.kind === 'bike' ? 'bikes' : 'cars'} have their own scale. `}
+          {sheetRun(b) ? 'The power is from your dyno run with its sheet.' : `The power is claimed: ${b.engineSwap ? 'the donor engine' : 'standard'} ${b.stockBhp} bhp plus the mods. Typed dyno runs without a sheet don't change it.`}
         </DsText>
       </View>
 
@@ -171,7 +171,7 @@ export default function BuildScreen() {
         </Section>
       ) : null}
 
-      <Section title={`Mods (${b.mods.length})`}>
+      <Section title={`Mods (${modCount(b.mods)})`}>
         {groups.length === 0 ? <DsText v="secondary">Stock for now.</DsText> : null}
         {mine ? (
           <Button
@@ -179,9 +179,10 @@ export default function BuildScreen() {
             icon="plus"
             tier="secondary"
             block
-            onPress={() => router.push({ pathname: '/build/edit', params: { id: b.id, section: 'mods' } })}
+            onPress={() => setAddMod(true)}
           />
         ) : null}
+        {mine ? <AddModSheet visible={addMod} build={b} onClose={() => setAddMod(false)} /> : null}
         {groups.map((g) => (
           <View key={g.cat.key} style={{ gap: SPACING.xxs }}>
             <DsText v="label" accessibilityRole="header">
@@ -192,6 +193,7 @@ export default function BuildScreen() {
                 {i ? <RowDivider /> : null}
                 <ListRow
                   title={m.name}
+                  subtitle={metaLine([m.note, sharedGroupLabel(m, b.mods) ? `Counts once as ${sharedGroupLabel(m, b.mods)!.toLowerCase()}` : null]) || undefined}
                   trailing={
                     <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
                       {m.bhpGain ? <DsText v="meta">+{m.bhpGain} bhp</DsText> : null}

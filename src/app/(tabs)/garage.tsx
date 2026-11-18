@@ -1,5 +1,5 @@
 import { router, useNavigation } from 'expo-router';
-import { useLayoutEffect, useMemo } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { BuildHero } from '../../components/BuildHero';
 import { BuildGrid, buildMeta } from '../../components/Community';
@@ -15,7 +15,9 @@ import { swapTag } from '../../lib/swap';
 import { stageFromMods, stageLabel } from '../../lib/tune';
 import type { Build } from '../../lib/types';
 import { COLOR, SPACING } from '../../theme';
-import { dynoBadge, powerText } from '../../lib/dyno';
+import { dynoBadge, headlinePower, whpText } from '../../lib/dyno';
+import { modCount } from '../../lib/modGroups';
+import { AddModSheet } from '../../components/AddModSheet';
 import { DynoBadge } from '../../components/DynoBadge';
 
 /** The demo's example build for you (see seed.ts). */
@@ -35,6 +37,7 @@ export default function Garage() {
   const trophiesOf = (id: string) => awards.filter((a) => a.buildId === id).length;
   const main = lastBrought(events, me, builds) ?? mine[0];
   const others = mine.filter((b) => b.id !== main?.id);
+  const [addMod, setAddMod] = useState(false);
 
   useLayoutEffect(() => {
     nav.setOptions({
@@ -102,13 +105,16 @@ export default function Garage() {
           <DynoBadge build={main} />
           <StatBlock
             stats={[
-              { value: powerText(main).split(' ')[0], unit: powerText(main).split(' ')[1], label: dynoBadge(main, now)?.state === 'proven' ? 'Power · dyno' : 'Power' },
+              // One power figure (REVIEW-10 #5): crank bhp, bhp/tonne from the same, whp as a line under.
+              { value: `${headlinePower(main).bhp}`, unit: headlinePower(main).est ? 'bhp est.' : 'bhp', label: dynoBadge(main, now)?.state === 'proven' ? 'Power · dyno' : 'Power' },
               { value: `${bhpPerTonne(main)}`, label: 'bhp / tonne' },
-              { value: `${main.mods.length}`, label: main.mods.length === 1 ? 'Mod' : 'Mods' },
+              { value: `${modCount(main.mods)}`, label: modCount(main.mods) === 1 ? 'Mod' : 'Mods' },
             ]}
           />
+          {whpText(main) ? <DsText v="secondary">{whpText(main)}</DsText> : null}
         </Press>
-        <Button label="Add a mod" icon="plus" tier="secondary" block onPress={() => router.push({ pathname: '/build/edit', params: { id: main.id, section: 'mods' } })} />
+        <Button label="Add a mod" icon="plus" tier="secondary" block onPress={() => setAddMod(true)} />
+        <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />
         {sample ? <DsText v="caption">A sample build with sample trophies from the demo meet. Open it, then Edit to make it yours.</DsText> : null}
       </View>
 

@@ -113,7 +113,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const [connections, setConnections] = useState<Record<string, ConnectionState>>({});
   const [blocked, setBlocked] = useState<ReadonlySet<string>>(EMPTY_SET);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [showInNearby, setShow] = useState(true);
+  // Off until you opt in (REVIEW-10 #6).
+  const [showInNearby, setShow] = useState(false);
   const [accepted, setAccepted] = useState<Community['accepted']>(null);
   const addNoticeRef = useRef(store.addNotice);
   addNoticeRef.current = store.addNotice;
@@ -240,7 +241,7 @@ const NONE: Community = {
   badge: 0,
   unread: 0,
   incoming: [],
-  showInNearby: true,
+  showInNearby: false,
   forumRep: {},
   refresh: async () => {},
   setActiveConversation: () => {},

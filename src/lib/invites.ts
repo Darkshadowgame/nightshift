@@ -1,5 +1,6 @@
 import { classOf } from './classes';
 import { milesBetween } from './geo';
+import { modCount } from './modGroups';
 import type { Build, InviteFilter, LatLng, User } from './types';
 
 export const DEFAULT_FILTER: InviteFilter = {
@@ -30,7 +31,7 @@ export function rowsLeavingOut(build: Build, filter: InviteFilter): string[] {
   const out: string[] = [];
   if ((build.kind === 'car' && !filter.cars) || (build.kind === 'bike' && !filter.bikes)) out.push(`Vehicles: ${filter.cars ? 'cars' : 'bikes'} only (it's a ${build.kind})`);
   if (filter.classes.length > 0 && !filter.classes.includes(classOf(build))) out.push(`Class ${classRange(filter.classes)} (it's class ${classOf(build)})`);
-  if (build.mods.length < filter.minMods) out.push(`Minimum mods ${filter.minMods}+ (it has ${build.mods.length})`);
+  if (modCount(build.mods) < filter.minMods) out.push(`Minimum mods ${filter.minMods}+ (it has ${modCount(build.mods)})`);
   if (filter.brands.length > 0 && !filter.brands.some((b) => b.trim().toLowerCase() === build.make.trim().toLowerCase())) out.push(`Brands (it's a ${build.make})`);
   return out;
 }
@@ -54,7 +55,7 @@ export function buildMatches(build: Build, filter: InviteFilter): boolean {
   if (build.kind === 'car' && !filter.cars) return false;
   if (build.kind === 'bike' && !filter.bikes) return false;
   if (filter.classes.length > 0 && !filter.classes.includes(classOf(build))) return false;
-  if (build.mods.length < filter.minMods) return false;
+  if (modCount(build.mods) < filter.minMods) return false;
   if (filter.brands.length > 0) {
     const make = build.make.trim().toLowerCase();
     if (!filter.brands.some((b) => b.trim().toLowerCase() === make)) return false;

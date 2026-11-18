@@ -7,7 +7,8 @@ import { ModPicker } from '../../components/ModPicker';
 import { SearchSelect } from '../../components/SearchSelect';
 import { VehiclePicker } from '../../components/VehiclePicker';
 import { allEngines, allVariants } from '../../data/vehicles';
-import { classOf, classUp, effectivePower } from '../../lib/classes';
+import { claimedPower, classOf, classUp, effectivePower } from '../../lib/classes';
+import { modCount } from '../../lib/modGroups';
 import { chassisWeight, isSwapMod, swapFromMods, swapProblem, swapSpecs, withSwapMod } from '../../lib/swap';
 import { restage, stageFromMods, withStage, type StageEngine } from '../../lib/tune';
 import { findDonor, findVariant, guessVariant, searchDonors, specFill, yearsLabel, type Aspiration, type Variant } from '../../lib/vehicles';
@@ -61,7 +62,6 @@ export default function EditBuild() {
   const [stockBhp, setStockBhp] = useState(existing ? (swap0 ? str(initialVariant?.bhp) : String(existing.stockBhp)) : '');
   const [weight, setWeight] = useState(existing ? String(chassisWeight(existing)) : '');
   const [torque, setTorque] = useState(existing ? (swap0 ? str(initialVariant?.torqueLbFt) : str(existing.torqueLbFt)) : '');
-  const [dyno, setDyno] = useState(existing?.dynoBhp ? String(existing.dynoBhp) : '');
   const [colour, setColour] = useState(existing?.colour ?? COLOURS[0]);
   const [mods, setMods] = useState<Mod[]>((existing?.mods ?? []).filter((m) => !isSwapMod(m)));
   const [stage, setStage] = useState<TuneStage>(existing?.tuneStage ?? stageFromMods(existing?.mods ?? []));
@@ -132,8 +132,8 @@ export default function EditBuild() {
     stockBhp: specs.stockBhp,
     weightKg: specs.weightKg,
     torqueLbFt: specs.torqueLbFt,
-    // With dyno runs, the latest run sets it (dyno.ts); the runs are kept as they are.
-    dynoBhp: existing?.dynoRuns?.length ? existing.dynoBhp : num(dyno),
+    // Only dyno runs with a sheet set it (dyno.ts); no typed figure here (REVIEW-10 #3).
+    dynoBhp: existing?.dynoBhp,
     ...(existing?.dynoRuns?.length ? { dynoRuns: existing.dynoRuns } : {}),
     mods,
     photos,
@@ -243,19 +243,15 @@ export default function EditBuild() {
           </View>
           <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
             <Field label={swapOn ? 'Original torque lb-ft' : 'Torque lb-ft'} value={torque} onChange={setTorque} />
-            {existing?.dynoRuns?.length ? (
-              <View style={{ flex: 1, justifyContent: 'center' }}>
-                <DsText v="caption">Dyno: set from your dyno runs on the build page.</DsText>
-              </View>
-            ) : (
-              <Field label="Dyno bhp (optional)" value={dyno} onChange={setDyno} />
-            )}
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <DsText v="caption">Dyno figures go in Dyno on the build page, with a photo of the sheet.</DsText>
+            </View>
           </View>
           {ready ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
               <ClassBadge letter={classOf(draft)} size="md" />
               <DsText v="secondary" style={{ flex: 1 }} accessibilityLiveRegion="polite">
-                Class {classOf(draft)} at {Math.round(effectivePower(draft))} bhp{draft.dynoBhp ? ' (dyno)' : swapOn ? ' (donor engine plus mods)' : ' (standard plus mods)'}
+                Class {classOf(draft)} at {Math.round(effectivePower(draft))} bhp{effectivePower(draft) !== claimedPower(draft) ? ' (dyno run with its sheet)' : swapOn ? ' (donor engine plus mods)' : ' (standard plus mods)'}
                 {swapOn ? ` and ${draft.weightKg} kg` : ''}.
               </DsText>
             </View>
@@ -272,7 +268,7 @@ export default function EditBuild() {
             setTimeout(() => scrollRef.current?.scrollTo({ y, animated: true }), 50);
           }}
         >
-        <Section title={`3 · Engine and mods (${mods.length + (swapOn && donorModel.trim() ? 1 : 0)})`}>
+        <Section title={`3 · Engine and mods (${modCount(mods) + (swapOn && donorModel.trim() ? 1 : 0)})`}>
           <SegmentedControl<'original' | 'swapped'>
             value={swapOn ? 'swapped' : 'original'}
             onChange={(v) => setSwapOn(v === 'swapped')}

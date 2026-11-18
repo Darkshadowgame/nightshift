@@ -39,6 +39,8 @@ export interface Mod {
   name: string;
   /** Claimed power gain, used when there's no dyno figure. */
   bhpGain?: number;
+  /** An optional note from the owner ("BC Racing BR, 30 mm drop"), up to 80 characters. */
+  note?: string;
 }
 
 export interface Build {

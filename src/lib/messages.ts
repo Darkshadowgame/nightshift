@@ -1,6 +1,8 @@
 import { formatWhen } from './format';
 import type { NightEvent, Spot, Build } from './types';
-import { classOf, effectivePower } from './classes';
+import { classOf } from './classes';
+import { powerText } from './dyno';
+import { modCount } from './modGroups';
 
 /**
  * Messages (Community › Messages): 1-to-1 and group chats between connected
@@ -141,7 +143,7 @@ export function sharePlace(s: Spot): ShareCard {
 
 export function shareBuild(b: Build): ShareCard {
   const title = `${b.make} ${b.model}`.slice(0, 120);
-  return { kind: 'build', id: b.id, title, subtitle: `Class ${classOf(b)} · ${Math.round(effectivePower(b))} bhp · ${b.mods.length} mods` };
+  return { kind: 'build', id: b.id, title, subtitle: `Class ${classOf(b)} · ${powerText(b)} · ${modCount(b.mods)} mods` };
 }
 
 /** Where a card opens. */

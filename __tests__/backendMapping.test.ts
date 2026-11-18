@@ -93,7 +93,7 @@ describe('garage', () => {
   });
   it('mods become rows in order; photo paths start with your id (the bucket policy)', () => {
     expect(modsToRows(B1, [{ id: 'x', category: 'engine', name: ' Remap ', bhpGain: 40 }])).toEqual([
-      { build_id: B1, category: 'engine', name: 'Remap', bhp_gain: 40, position: 0 },
+      { build_id: B1, category: 'engine', name: 'Remap', bhp_gain: 40, position: 0, note: null },
     ]);
     expect(buildPhotoPath(U1, B1, 'f')).toBe(`${U1}/builds/${B1}/f.jpg`);
   });
