@@ -161,7 +161,8 @@ export function NotFoundState({ what, message }: { what: string; message?: strin
       <EmptyState
         title={`${what} not found`}
         body={message ?? 'It may have been deleted, or the link is old.'}
-        action={{ label: 'Go back', onPress: () => (router.canGoBack() ? router.back() : router.replace('/')) }}
+        // Back is the header's (4.2): never a second back in the body. One way on instead.
+        action={{ label: "See tonight's meets", onPress: () => router.replace('/') }}
       />
     </View>
   );

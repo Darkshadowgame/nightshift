@@ -2,6 +2,8 @@
  * Design system v2 (docs/DESIGN-SYSTEM.md). Screens import components from here only.
  * Tokens live in src/theme.ts (SPACING, RADII, TYPE_SCALE, ELEVATION, COLOR, PRESS, MOTION, ASPECT).
  */
+// Web: hide the browser's scroll bars, so nothing draws over photos (Review 12 decision 3).
+import './webScrollbars';
 export { DsText, typeStyle, maxScale, type TextTone } from './Text';
 export { Icon, type IconName } from './Icon';
 export { Press, buzz, type Haptic } from './Press';

@@ -7,6 +7,25 @@ import { Press } from './Press';
 import { DsText } from './Text';
 
 /**
+ * The one "selected" face for anything you pick (Review 12 decision 4): a chip, a ChoiceGroup
+ * option, a day, an hour or a minute in the DateTimeSheet, a day in the month calendar. Off is an
+ * outline; on is a sodium tint with a sodium border, and the text goes bold sodium (`chipText`).
+ */
+export function chipFace(on: boolean) {
+  return {
+    borderRadius: RADII.control,
+    borderWidth: 1,
+    borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
+    backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+  } as const;
+}
+
+/** The text colour that goes with `chipFace`. */
+export function chipText(on: boolean, off: string = COLOR.text.primary): string {
+  return on ? COLOR.action.selected : off;
+}
+
+/**
  * A chip: the one pill face in the app (REVIEW-10 #11). Off is an outline; on is a sodium tint,
  * a sodium border and bold sodium text (so "on" never relies on colour alone). No tick, no radio
  * dot. Many-of-many filters use ChipGroup; a one-of-many row of 5+ options (ChoiceGroup) uses the
@@ -27,15 +46,12 @@ export function Chip({ label, on, onPress, raw, count, accessibilityLabel, role 
         gap: SPACING.xs,
         minHeight: 34,
         paddingHorizontal: SPACING.md,
-        borderRadius: RADII.control,
-        borderWidth: 1,
-        borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
-        backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+        ...chipFace(on),
         ...(hint ? { paddingVertical: SPACING.sm, alignItems: 'flex-start' as const } : null),
       }}
     >
       <View style={{ flexShrink: 1 }}>
-        <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: on ? COLOR.action.selected : COLOR.text.primary }}>
+        <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on) }}>
           {count !== undefined ? `${label} ${count}` : label}
         </DsText>
         {hint ? <DsText v="caption">{hint}</DsText> : null}
@@ -159,14 +175,11 @@ export function SegmentedControl<K extends string>({
   );
 }
 
-/** Short enough for a SegmentedControl tile (caps, four across on an SE). */
-const SEGMENT_MAX = 14;
-
 /**
- * One of many for settings and forms (travel distance, alerts, report reason, event type).
- * REVIEW-10 #11, one set of selectors: 2–4 short options render as a SegmentedControl; more (or
- * longer) options wrap as chips in the one Chip face (`role="radio"`), and `list` stacks the same
- * chips full width with a hint under each. No radio dots.
+ * One of many for settings and forms (travel distance, alerts, report reason, event type, the
+ * minutes in the DateTimeSheet). Always the one Chip face with `role="radio"` (Redesign 2, 4.4:
+ * a SegmentedControl only switches the view below it, so a form choice never looks like one).
+ * `pills` wraps them in a row; `list` stacks them full width with a hint under each. No radio dots.
  */
 export function ChoiceGroup<K extends string>({
   label,
@@ -174,29 +187,23 @@ export function ChoiceGroup<K extends string>({
   value,
   onChange,
   layout = 'pills',
-  chips = false,
 }: {
   label: string;
   options: { key: K; label: string; hint?: string }[];
   value: K | null;
   onChange: (key: K) => void;
   layout?: 'pills' | 'list';
-  /** Always chips: for a row that can grow past four (a picked date, a custom end), so it never changes look. */
+  /** @deprecated ChoiceGroup is always chips now. Kept so old callers still compile. */
   chips?: boolean;
 }) {
-  const segmented = !chips && layout === 'pills' && value !== null && options.length >= 2 && options.length <= 4 && options.every((o) => !o.hint && o.label.length <= SEGMENT_MAX);
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ gap: SPACING.sm }}>
       {label ? <DsText v="label">{label}</DsText> : null}
-      {segmented ? (
-        <SegmentedControl options={options} value={value as K} onChange={onChange} accessibilityLabel={label} />
-      ) : (
-        <View style={layout === 'pills' ? { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm } : { gap: SPACING.xs }}>
-          {options.map((o) => (
-            <Chip key={o.key} role="radio" label={o.label} hint={layout === 'list' ? o.hint : undefined} accessibilityLabel={o.hint ? `${o.label}, ${o.hint}` : o.label} on={o.key === value} onPress={() => onChange(o.key)} />
-          ))}
-        </View>
-      )}
+      <View style={layout === 'pills' ? { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm } : { gap: SPACING.xs }}>
+        {options.map((o) => (
+          <Chip key={o.key} role="radio" label={o.label} hint={layout === 'list' ? o.hint : undefined} accessibilityLabel={o.hint ? `${o.label}, ${o.hint}` : o.label} on={o.key === value} onPress={() => onChange(o.key)} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -237,7 +244,7 @@ export function Tabs<K extends string>({
               <DsText v="buttonSm" style={{ color: on ? COLOR.action.selected : COLOR.text.secondary }}>
                 {text}
               </DsText>
-              {o.dot ? <View aria-hidden style={{ width: 8, height: 8, borderRadius: RADII.pill, backgroundColor: COLOR.action.selected }} /> : null}
+              {o.dot ? <View aria-hidden style={{ width: 8, height: 8, borderRadius: RADII.pill, backgroundColor: COLOR.badge.bg }} /> : null}
             </Press>
           );
         })}

@@ -200,7 +200,7 @@ describe('DateTimeSheet', () => {
     expect(picks[0]).toEqual(new Date(2026, 10, 21, 10, 0));
     tap(root, '20:00');
     expect(picks[1]).toEqual(new Date(2026, 10, 22, 20, 0));
-    tap(root, ':30, 3 of 4');
+    tap(root, ':30'); // a chip now (Review 12 decision 4), not a segment
     expect(picks[2]).toEqual(new Date(2026, 10, 22, 10, 30));
     expect(texts(root.container)).toContain('Sun 10:00');
   });

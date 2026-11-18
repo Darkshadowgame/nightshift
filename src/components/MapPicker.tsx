@@ -28,7 +28,7 @@ import type { MapPath, MapPin, MapRegion, NightMapHandle } from './mapTypes';
 import { NightMap } from './NightMap';
 import { Pin, type Glyph } from './Pin';
 import { PlaceSearch } from './PlaceSearch';
-import { Button, DsText, ErrorState, Press } from './ds';
+import { Button, DsText, ErrorState, IconButton, Press } from './ds';
 
 /** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
@@ -240,11 +240,12 @@ function PickerBody({
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       <View style={[st.top, { paddingTop: insets.top + SPACING.sm }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+        {/* Back at the top left, like every pushed screen (4.2); a picker loses nothing, so no Cancel (4.5). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginLeft: -SPACING.sm }}>
+          <IconButton icon="back" label="Back without choosing" colour={COLOR.text.primary} onPress={onCancel} />
           <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
             {title}
           </DsText>
-          <Button label="Cancel" tier="tertiary" size="sm" onPress={onCancel} />
         </View>
         {hint ? <DsText v="caption">{hint}</DsText> : null}
         <PlaceSearch onPick={(h) => jump(h.at, Math.min(region.span, mode === 'path' ? 0.12 : 0.04))} />

@@ -13,7 +13,7 @@ export default function NotFound() {
       <EmptyState
         title="This page doesn't exist"
         body="The link may be old, or mistyped."
-        action={{ label: 'Go to Tonight', onPress: () => router.replace('/') }}
+        action={{ label: "See tonight's meets", onPress: () => router.replace('/') }}
       />
     </View>
   );

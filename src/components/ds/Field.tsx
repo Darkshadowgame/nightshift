@@ -19,13 +19,23 @@ export function TextField({ style, multilineHeight, ...rest }: TextInputProps & 
   return <TextInput placeholderTextColor={COLOR.text.secondary} style={[INPUT, multilineHeight ? { minHeight: multilineHeight, textAlignVertical: 'top' } : null, style]} {...rest} />;
 }
 
-/** A form field: a caps label above, a hint under it. */
-export function Field({ label, hint, children }: { label: string; hint?: string | null; children: ReactNode }) {
+/**
+ * A form field: a caps label above, then one message slot under it (Review 12 decision 1): the
+ * `error` when there is one, in its place the `hint`. An error never sits on top of, or next to,
+ * the helper text.
+ */
+export function Field({ label, hint, error, children }: { label: string; hint?: string | null; error?: string | null; children: ReactNode }) {
   return (
     <View style={{ gap: SPACING.xs }}>
       <DsText v="label">{label}</DsText>
       {children}
-      {hint ? <DsText v="caption">{hint}</DsText> : null}
+      {error ? (
+        <DsText v="caption" tone="danger" accessibilityLiveRegion="polite">
+          {error}
+        </DsText>
+      ) : hint ? (
+        <DsText v="caption">{hint}</DsText>
+      ) : null}
     </View>
   );
 }

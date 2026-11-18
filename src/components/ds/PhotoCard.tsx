@@ -8,7 +8,7 @@ import { BuildArt } from '../BuildArt';
 import { Button } from './Button';
 import type { EntityTag } from './EntityCard';
 import { Gradient } from './Gradient';
-import { entityA11yLabel, rgba } from './logic';
+import { contentColour, entityA11yLabel, rgba } from './logic';
 import { ClassBadge, Tag, type Photo } from './Marks';
 import { Press, type Haptic } from './Press';
 import { DsText } from './Text';
@@ -114,7 +114,7 @@ export function PhotoCard({
 }) {
   const ratio = aspect ?? (kind === 'build' ? ASPECT.build : kind === 'post' ? ASPECT.post : ASPECT.event);
   const placeLike = kind === 'event' || kind === 'place';
-  const kindColour = placeLike && layerColour && !finished ? layerColour : COLOR.text.secondary;
+  const kindColour = placeLike && !finished ? contentColour(layerColour, COLOR.text.secondary) : COLOR.text.secondary;
   const label = entityA11yLabel({
     eyebrow: [live ? 'Live' : null, eyebrow].filter(Boolean).join(', ') || undefined,
     title,

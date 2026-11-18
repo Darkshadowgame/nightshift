@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { appNow } from '../../lib/appClock';
-import { COLOR, RADII, SPACING } from '../../theme';
+import { COLOR, SPACING } from '../../theme';
+import { chipFace, chipText } from './Choice';
 import { Field, INPUT } from './Field';
 import { Icon } from './Icon';
 import { localDay, monthGrid, parseLocalDay } from './logic';
@@ -63,9 +64,9 @@ export function MonthCalendar({ value, min, max, onPick }: { value: string | nul
                 role="button"
                 state={{ selected: on, disabled: !!off }}
                 label={dayLabel(day)}
-                style={{ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: RADII.control, backgroundColor: on ? COLOR.action.selected : 'transparent', borderWidth: day === today && !on ? 1 : 0, borderColor: COLOR.surface.borderStrong }}
+                style={{ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', ...chipFace(on), borderColor: on ? COLOR.action.selected : day === today ? COLOR.surface.borderStrong : 'transparent' }}
               >
-                <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: on ? COLOR.action.onPrimary : off ? COLOR.text.disabled : COLOR.text.primary }}>
+                <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on, off ? COLOR.text.disabled : COLOR.text.primary) }}>
                   {String(Number(day.slice(8)))}
                 </DsText>
               </Press>

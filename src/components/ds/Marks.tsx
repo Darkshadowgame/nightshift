@@ -132,7 +132,7 @@ export function Tag({ label, tone = 'neutral', raw, accessibilityLabel }: { labe
             : tone === 'live'
               ? COLOR.state.live
               : tone === 'selected'
-                ? COLOR.action.selected
+                ? COLOR.text.primary
                 : COLOR.text.secondary;
   return (
     <View

@@ -4,7 +4,7 @@ import { COLOR, RADII, SPACING } from '../../theme';
 import { Pin } from '../Pin';
 import { Button } from './Button';
 import type { Leading } from './ListRow';
-import { entityA11yLabel, type EntityKind } from './logic';
+import { contentColour, entityA11yLabel, type EntityKind } from './logic';
 import { Avatar, ClassBadge, Tag, type Photo, type TagTone } from './Marks';
 import { Press } from './Press';
 import { DsText } from './Text';
@@ -72,8 +72,8 @@ export function EntityCard({
   accessibilityHint?: string;
 }) {
   const placeLike = kind === 'event' || kind === 'place';
-  const accent = placeLike && layerColour && !finished ? layerColour : undefined;
-  const eyebrowColour = placeLike && layerColour ? layerColour : COLOR.text.secondary;
+  const accent = placeLike && layerColour && !finished ? contentColour(layerColour, COLOR.surface.borderStrong) : undefined;
+  const eyebrowColour = placeLike ? contentColour(layerColour, COLOR.text.secondary) : COLOR.text.secondary;
   const label = entityA11yLabel({
     eyebrow: eyebrow ?? KIND_LABEL[kind],
     title,
@@ -168,7 +168,7 @@ function Mark({ mark }: { mark: Leading }) {
   if ('pin' in mark)
     return (
       <View aria-hidden>
-        <Pin glyph={mark.pin} colour={mark.colour} size={24} />
+        <Pin glyph={mark.pin} colour={contentColour(mark.colour, COLOR.text.secondary)} size={24} />
       </View>
     );
   return null;

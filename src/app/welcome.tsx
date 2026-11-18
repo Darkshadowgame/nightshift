@@ -12,7 +12,7 @@ import { markJustOnboarded } from '../lib/firstRun';
 import { fuzz } from '../lib/geo';
 import { newId } from '../lib/ids';
 import { currentPosition } from '../lib/location';
-import { nearestRegion, regionCentre, suggestHandle } from '../lib/profile';
+import { areaNameNear, nearestRegion, regionCentre, suggestHandle } from '../lib/profile';
 import { useStore } from '../lib/store';
 import type { Build, LatLng, VehicleKind } from '../lib/types';
 import { findVariant, specFill, type Variant } from '../lib/vehicles';
@@ -31,8 +31,10 @@ const HOME_RADIUS_MILES = 0.6;
  *    handle, pre-filled with a suggestion. Home is saved to about 1 km and sets the region.
  * Travel distance and notifications start at sensible defaults (25 mi, notify) and live in
  * Settings. The 18+ and terms box is at sign-in. The guard in _layout moves on once the profile
- * is saved. Onboarding draws its own header: back (step 2), GET STARTED and Sign in instead; the step
- * is the body's StepHeading, as in the host flow. Never a back button at the bottom.
+ * is saved. Onboarding draws its own header: back, then GET STARTED (and Sign out when signed in);
+ * the step is the body's StepHeading, as in the host flow. Back on step 1 of the demo goes back
+ * to sign-in (it leaves the demo), so the header never says "Sign in instead" in the middle of the
+ * demo. Never a back button at the bottom.
  */
 export default function Welcome() {
   const { saveProfile, saveBuild, backend, me } = useStore();
@@ -115,11 +117,17 @@ export default function Welcome() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[st.header, { paddingTop: insets.top + SPACING.xs }]}>
-        {step === 2 ? <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={() => setStep(1)} /> : <View style={{ width: SPACING.sm }} />}
+        {step === 2 ? (
+          <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={() => setStep(1)} />
+        ) : demo ? (
+          <IconButton icon="back" label="Back to sign-in" colour={COLOR.text.primary} onPress={() => auth.leaveDemo()} />
+        ) : (
+          <View style={{ width: SPACING.sm }} />
+        )}
         <DsText v="heading" accessibilityRole="header" style={{ flex: 1 }}>
           GET STARTED
         </DsText>
-        <Button label={demo ? 'Sign in instead' : 'Sign out'} tier="tertiary" size="sm" onPress={() => (demo ? auth.leaveDemo() : auth.signOut())} />
+        {demo ? null : <Button label="Sign out" tier="tertiary" size="sm" onPress={() => auth.signOut()} />}
       </View>
       <ScrollView ref={scroller} contentContainerStyle={st.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
         {step === 1 ? (
@@ -179,7 +187,7 @@ export default function Welcome() {
               ) : null}
             </Pressable>
             <View style={{ gap: SPACING.xxs }}>
-              {home ? <DsText v="bodyStrong">{`Around ${nearestRegion(home)}`}</DsText> : null}
+              {home ? <DsText v="bodyStrong">{`Around ${areaNameNear(home)}`}</DsText> : null}
               <DsText v="secondary">Saved to about 1 km. Never your address.</DsText>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>

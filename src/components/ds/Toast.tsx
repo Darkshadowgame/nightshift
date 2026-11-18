@@ -25,8 +25,10 @@ export function ToastView({ message, tone = 'success', action, onDismiss }: Toas
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       style={[
-        { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 52, paddingLeft: SPACING.lg, paddingRight: SPACING.sm, borderRadius: RADII.card, backgroundColor: COLOR.surface.glassRaised, borderWidth: 1, borderColor: COLOR.surface.raisedHi },
-        ELEVATION.float,
+        // A floating pill on the lightest surface with a shadow, so it never reads as a card in the
+        // page (Review 12, 4.7: the "Invites sent" toast on the success page looked inline).
+        { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 52, paddingLeft: SPACING.lg, paddingRight: SPACING.sm, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raisedHi, borderWidth: 1, borderColor: COLOR.surface.borderStrong },
+        ELEVATION.toast,
       ]}
     >
       <Icon name={tone === 'success' ? 'success' : tone === 'danger' ? 'alert' : 'info'} size={20} colour={colour} />

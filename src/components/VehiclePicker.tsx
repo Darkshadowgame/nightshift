@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { allVariants } from '../data/vehicles';
 import { classOf } from '../lib/classes';
+import { carShape } from '../lib/buildShape';
 import type { VehicleKind } from '../lib/types';
 import {
   canonicalMake,
@@ -186,6 +187,7 @@ function PickedCard({ variant }: { variant: Variant }) {
           kind="build"
           size="sm"
           vehicle={variant.kind}
+          shape={carShape(variant)}
           paint={COLOR.paint[3]}
           title={`${variant.make} ${modelLabel(variant)}`}
           meta={`${variant.bhp} bhp · ${yearsLabel(variant)}`}

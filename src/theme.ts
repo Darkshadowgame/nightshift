@@ -336,6 +336,8 @@ export const ELEVATION = {
   flat: {},
   /** Map chrome, toasts, a card floating over the map. */
   float: { boxShadow: '0px 3px 10px rgba(0,0,0,0.4)' },
+  /** Toasts: a deeper shadow than map chrome, so a toast floats clear of the cards under it. */
+  toast: { boxShadow: '0px 6px 20px rgba(0,0,0,0.6)' },
   /** Bottom sheets. */
   sheet: { boxShadow: '0px -4px 16px rgba(0,0,0,0.5)' },
   /** The ActionBar pinned to the bottom of a detail screen or form. */

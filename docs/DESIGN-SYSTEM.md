@@ -157,6 +157,28 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 
 **`PaintArt({ paint?, vehicle?, shape? })`**, **`AreaArt({ colour? })`** — the no-photo pictures, filling their parent.
 
+### Added after Review 12
+
+* **One selected look.** `chipFace(on)` and `chipText(on)` (Choice.tsx) are the only "selected"
+  face for picks: Chip, ChoiceGroup (always chips now), the DateTimeSheet's day, hour and minute,
+  and the month calendar. `SegmentedControl` (filled sodium) only switches the view below it.
+* **No sodium on content.** `contentColour(colour, fallback)` (ds/logic.ts) turns the Events layer
+  colour (sodium) into fog wherever a layer colour reaches content: `Hero` and `PhotoCard` kind
+  lines, `EntityCard` eyebrow, accent and mark, `ListRow` pins. Map pins keep it. `Tag tone="selected"`
+  is chalk; the unread dot (ListRow, Tabs) is red. `__tests__/accent.test.tsx` renders them with
+  the Events colour and fails on any sodium; `designLint` limits sodium inside `ds/` to Button,
+  Choice, DateField, SearchField, SwitchRow, Text, logic and PhotoCard's map stand-in, and
+  `tone="brand"` to the wordmark, covers and motion moments.
+* **Web scroll bars are hidden** (`ds/webScrollbars.web.ts`, loaded by the ds index), so nothing
+  draws over hero photos, maps or cards on the web preview. Pages still scroll.
+* **Field errors** sit in the field's one message slot (`Field error`), in place of its hint.
+* **ActionBar status** ("Location at 21:30") is a quiet line: a fog icon and fog text, no fill, so
+  it never reads as a button.
+* **Not found** (`NotFoundState`, `+not-found`): the header back only, plus one primary "See
+  tonight's meets". Never a "Go back" button in the body (4.2).
+* **Area names** default to the nearest town (`areaNameNear`, src/lib/profile.ts, from
+  `src/data/towns.ts` when there's no geocoder), never the region when a town is near.
+
 ### Changed in Redesign 2
 
 | Component | Change | Callers |
@@ -187,9 +209,9 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `ClassBadge` | A build's class | Skewed tile in its metal. Never stands in for a person. A tap opens one line (`CLASS_EXPLAINER`) in a Sheet. |
 | `BuildThumb` | A build's picture in a row | Photo or silhouette, 4:3. |
 | `Tag` | A state | `neutral, success, warning, danger, info, live, selected`. Caps, outline. `raw` for names. Green (`success`) only for done: Going, Checked in, ✓ Dyno. |
-| `Chip` / `ChipGroup` | Filters: many of many | Off: outline. On: tint, sodium border, bold sodium text. **Nothing on = no filter.** |
+| `Chip` / `ChipGroup` | Filters: many of many | Off: outline. On: tint, sodium border, bold sodium text (`chipFace(on)` / `chipText(on)`: the one selected look, also used by ChoiceGroup, the DateTimeSheet's days, hours and minutes and the month calendar). **Nothing on = no filter.** |
 | `SegmentedControl` | 2–4 exclusive options that switch the view below | One per screen, never nested. Counts allowed. |
-| `ChoiceGroup` | One of many in a form or setting | Pills up to 5 options (2–4 short ones draw as a SegmentedControl), `list` beyond. |
+| `ChoiceGroup` | One of many in a form or setting | Always the Chip face with `role="radio"` (never a SegmentedControl, Review 12): `pills` wrap in a row, `list` stacks them with a hint each. |
 | `EmptyState` | Nothing here | `block`: glyph, one line, one primary (whole screen). `inline`: one line, optional link (a section). |
 | `LoadingState` | Waiting | `rows` for lists, `inline` spinner. Buttons use `busy`. |
 | `ErrorState` | It failed | Under the thing that failed. Copy starts "Couldn't". Never a toast. |
@@ -197,10 +219,10 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `ConfirmSheet` | Before something that can't be undone; leaving a form with changes | "{Verb} it" / "Keep it" (the host flow: "Discard it" / "Keep editing"). |
 | `SearchField` | Search | One per surface. `onOpen` makes it the read-only map pill. The magnifier says "search", so the words never do: a leading "Search " is dropped from the placeholder ("Meets, places…"). No browser focus ring on web: the pill's border shows focus. |
 | `SwitchRow` | A setting that's on or off | Label, hint, switch; sodium track when on. |
-| `Field` / `TextField` / `INPUT` | Form fields | Caps label above, hint below, 48 tall. |
+| `Field` / `TextField` / `INPUT` | Form fields | Caps label above, then one message slot: `error` (red) in place of the `hint`, never both. 48 tall. `DateTimeField` takes `error` too. |
 | `Card` | A plain block (a form group, facts) | Flat, hairline. Browse items are `PhotoCard`. |
 | `StatBlock` | 2–4 numbers | build = bhp, Class, Mods; Me = Meets, Hosted, Trophies. No sodium numbers. |
-| `ToastProvider` / `useToast` | Every done action | One line, 3.2 s, above the ActionBar or tab bar; "Undo" on leave and remove. |
+| `ToastProvider` / `useToast` | Every done action | One line, 3.2 s, above the ActionBar or tab bar; "Undo" on leave and remove. A floating pill on `kerbHi` with `ELEVATION.toast`, so it never reads as a card in the page. |
 
 Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `initials`, `displayHandle`,
 `toggleSelection`, `normaliseSelection`, `passesFilter`, `selectionSummary`, `segmentLabel`, `metaLine`,

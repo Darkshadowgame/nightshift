@@ -3,7 +3,7 @@
  * Real photos for the demo's sample builds, posts and photo spots, from
  * Wikimedia Commons. Free licences only (CC0, public domain, CC BY, CC BY-SA),
  * each credited on screen with its author and licence and linked to its Commons
- * page. Number plates are unreadable or blurred by us (marked `edited`).
+ * page. Number plates are unreadable or covered by us (marked `edited`).
  * Thumbnails are bundled at 480 px (4:3), so no network is needed to show them.
  */
 export interface SamplePhoto {
@@ -33,7 +33,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Alexander Migl',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Plate blurred',
+    edited: 'Plate covered',
   },
   'b-kez-0': {
     image: require('../../assets/sample-photos/b-kez-0.jpg'),
@@ -160,7 +160,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Calreyn88',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Plate blurred',
+    edited: 'Plate covered',
   },
   'b-gaz-0': {
     image: require('../../assets/sample-photos/b-gaz-0.jpg'),
@@ -178,7 +178,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Calreyn88',
     licence: 'CC BY 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by/4.0',
-    edited: 'Plate blurred',
+    edited: 'Plate covered',
   },
   'b-lew-0': {
     image: require('../../assets/sample-photos/b-lew-0.jpg'),
@@ -196,7 +196,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Calreyn88',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Plate blurred',
+    edited: 'Plate covered',
   },
   // Photo spots
   'ph-mam-nick': {

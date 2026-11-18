@@ -10,19 +10,19 @@ import { banZoneAt, duplicateHosted, EVENT_LABELS, isPublicType, stopsFromDraft,
 import { fitRegion } from '../lib/geo';
 import { leadText, LOCATION, MEET_POINT } from '../lib/glossary';
 import { clearHostDraft, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
-import { DEFAULT_FILTER, fromVehicleSelection, hostLeftOut, inviteSummary, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
+import { DEFAULT_FILTER, fromVehicleSelection, hostLeftOut, inviteHeadline, inviteSummary, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
-import { nearestRegion } from '../lib/profile';
+import { areaNameNear } from '../lib/profile';
 import { newId, useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
 import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortName } from '../lib/zones';
-import { COLOR, EVENT_COLOURS, SPACING } from '../theme';
+import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
-import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, PAGE_WITH_BAR, Press, RowDivider, Section, Sheet, StepHeading, SwitchRow, TextField } from './ds';
+import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, Icon, PAGE_WITH_BAR, Press, RowDivider, Section, Sheet, StepHeading, SwitchRow, TextField } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -77,10 +77,14 @@ function draftStart(d: HostDraft, now: Date): Date | null {
  * post. Used to create an event and to edit one before it starts. `onSubmit` gets the finished
  * event and may throw with a readable reason.
  *
- * - The header's back goes to the step before. On the first step, leaving a new meet with
- *   anything in it asks "Keep this meet as a draft?" (the draft is saved as you go); leaving an
- *   edit with changes asks "Discard your changes?".
- * - Next and Post live in the ActionBar and are never disabled: what's missing shows above them.
+ * - The header's back goes to the step before. On the first step, leaving with changes asks
+ *   first (4.2): "Discard this meet?" or "Discard your changes?", Discard it / Keep editing. A new
+ *   meet is saved as a draft as you go, so a closed app still carries on where it left off.
+ * - Next and Post live in the ActionBar and are never disabled. What's missing shows in the one
+ *   message slot of the thing that needs it (a field's error replaces its hint), never in a band
+ *   over the page (Review 12 decision 1).
+ * - Where: one way to set a meet point, the map card ("Tap to place the meet point"); its name
+ *   field appears once it's placed, and the area name starts as the nearest town.
  * - Meet bans warn, never block (owner): a court injunction or a PSPO asks before posting, with
  *   "Change location" as the main button.
  * - Invites follow the chip rule: nothing picked in a row means everyone in it.
@@ -138,10 +142,13 @@ export function EventForm({
   /** "Limit who can come" and "More options" are open. */
   const [limiting, setLimiting] = useState(() => !normaliseFilter(filter).everyone);
   const [more, setMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /** What's missing, and where it shows: a field (`name`, `start`, `end`, `point`, `stop:<i>`) or the form. */
+  const [error, setErrorRaw] = useState<{ at: string; message: string } | null>(null);
+  const setError = (e: { at: string; message: string } | string | null) => setErrorRaw(typeof e === 'string' ? { at: 'form', message: e } : e);
+  const errorAt = (at: string) => (error?.at === at ? error.message : null);
+  /** Typing in a field clears its own error. */
+  const clearAt = (at: string) => error?.at === at && setErrorRaw(null);
   const [saving, setSaving] = useState(false);
-  /** Set once Next was tapped on Where, so unnamed meet points show their own error. */
-  const [checkNames, setCheckNames] = useState(false);
   /** The meet-ban confirm before posting is open. */
   const [askBan, setAskBan] = useState(false);
 
@@ -153,7 +160,7 @@ export function EventForm({
   }
 
   // ---------------------------------------------------------------------------
-  // The draft (REVIEW-10 decision 2): saved as you go; leaving asks "Keep this meet as a draft?".
+  // The draft (REVIEW-10 decision 2): saved as you go, so a closed app carries on where it left off.
   // ---------------------------------------------------------------------------
   const draftNow: HostDraft = {
     step,
@@ -189,7 +196,7 @@ export function EventForm({
   const [exit, setExit] = useState<{ action: { type: string } | null } | null>(null);
   const changed = editing ? draftKey !== startKey : worthKeeping(draftNow);
   // Back (the header's, a swipe) goes to the step before; on the first step, a meet with anything
-  // in it asks first.
+  // in it asks first (Discard it / Keep editing, 4.2).
   usePreventRemove(!exit && (step > 0 || changed), ({ data }) => {
     // Dispatching from inside the guard would be stopped again (and loop): turn it off first.
     if (finished.current) return setExit({ action: data.action });
@@ -200,14 +207,11 @@ export function EventForm({
     if (exit?.action) navigation.dispatch(exit.action as never);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exit]);
-  function leave(keep: boolean) {
+  function discard() {
     const action = leaveAction;
     setLeaveAction(null);
     finished.current = true;
-    if (!editing) {
-      if (keep) saveHostDraft(me, { ...draftNow, savedAt: appNow().toISOString() });
-      else clearHostDraft(me);
-    }
+    if (!editing) clearHostDraft(me);
     setExit({ action });
   }
 
@@ -234,7 +238,17 @@ export function EventForm({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area.lat, area.lng]);
-  const suggestedAreaName = placed.length ? (town ?? nearestRegion(area)) : meUser.region;
+  // The nearest town from the bundled list when there's no geocoder (the web preview): never the region.
+  const suggestedAreaName = placed.length ? (town ?? areaNameNear(area)) : areaNameNear(meUser.home);
+  // Once a point is placed, the area name starts as that town; a name the host typed is kept.
+  const autoArea = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!placed.length) return;
+    if (areaName.trim() && areaName !== autoArea.current) return;
+    autoArea.current = suggestedAreaName;
+    if (areaName !== suggestedAreaName) setAreaName(suggestedAreaName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestedAreaName, placed.length]);
   const shownArea = areaName.trim() || suggestedAreaName;
   const localMatches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
   // Signed in, other people's homes never reach the phone: the server counts (invite_count(), "fewer than 3" as null).
@@ -305,20 +319,20 @@ export function EventForm({
     return 'Meet point';
   }
 
-  /** What's missing on a step, if anything (shown above Next, which is never disabled). */
-  function problem(s: Step): string | null {
+  /** What's missing on a step, if anything, and the field it belongs to (Next is never disabled). */
+  function problem(s: Step): { at: string; message: string } | null {
     if (s === 0) {
-      if (!title.trim()) return 'Give the meet a name.';
-      if (start.getTime() <= appNow().getTime()) return 'Pick a start time in the future.';
-      if (start.getTime() - appNow().getTime() > (MAX_DAYS_AHEAD + 1) * 86_400_000) return `Pick a date in the next ${MAX_DAYS_AHEAD} days.`;
-      if (end && end.getTime() <= start.getTime()) return 'Pick an end after the start.';
+      if (!title.trim()) return { at: 'name', message: 'Give the meet a name.' };
+      if (start.getTime() <= appNow().getTime()) return { at: 'start', message: 'Pick a start time in the future.' };
+      if (start.getTime() - appNow().getTime() > (MAX_DAYS_AHEAD + 1) * 86_400_000) return { at: 'start', message: `Pick a date in the next ${MAX_DAYS_AHEAD} days.` };
+      if (end && end.getTime() <= start.getTime()) return { at: 'end', message: 'Pick an end after the start.' };
     }
     if (s === 1) {
-      if (!visibleStops[0]?.at) return `Choose the ${pointLabel(0, visibleStops.length).toLowerCase()} on the map.`;
-      if (type === 'cruise' && placed.length < 2) return 'A cruise needs at least a start and a finish.';
-      if (type === 'rolling' && visibleStops.some((x) => !x.at)) return 'Place every meet point on the map, or remove the empty one.';
+      if (!visibleStops[0]?.at) return { at: 'point', message: `Tap the map to place the ${pointLabel(0, visibleStops.length).toLowerCase()}.` };
+      if (type === 'cruise' && placed.length < 2) return { at: 'point', message: 'A cruise needs at least a start and a finish.' };
+      if (type === 'rolling' && visibleStops.some((x) => !x.at)) return { at: 'point', message: 'Place every meet point on the map, or remove the empty one.' };
       const unnamed = visibleStops.findIndex((x) => x.at && !x.name.trim());
-      if (unnamed >= 0) return `Give the ${pointLabel(unnamed, visibleStops.length).toLowerCase()} a name people will recognise.`;
+      if (unnamed >= 0) return { at: `stop:${unnamed}`, message: 'Name it the way people know it, e.g. the car park or venue.' };
     }
     return null;
   }
@@ -330,7 +344,6 @@ export function EventForm({
   }
 
   function nextStep() {
-    if (step === 1) setCheckNames(true);
     const p = problem(step);
     if (p) return setError(p);
     go((step + 1) as Step);
@@ -342,7 +355,6 @@ export function EventForm({
     for (const s of [0, 1] as Step[]) {
       const p = problem(s);
       if (p) {
-        if (s === 1) setCheckNames(true);
         go(s);
         return setError(p);
       }
@@ -422,6 +434,7 @@ export function EventForm({
   const coHostNames = coHosts.map((h) => displayHandle(users.find((u) => u.id === h)?.handle ?? h));
   const vehicles = vehicleSelection(filter);
   const summary = inviteSummary(normaliseFilter(filter), peopleCount);
+  const headline = inviteHeadline(normaliseFilter(filter), peopleCount);
 
   // ---------------------------------------------------------------------------
   // Steps
@@ -436,82 +449,126 @@ export function EventForm({
         onChange={(t) => !editing && setType(t)}
       />
       <DsText v="secondary">{TYPE_HINTS[type]}</DsText>
-      <Field label="Name">
-        <TextField value={title} onChangeText={setTitle} placeholder="e.g. Sunday coffee and cars" maxLength={60} accessibilityLabel="Name" />
+      <Field label="Name" error={errorAt('name')}>
+        <TextField
+          value={title}
+          onChangeText={(t) => {
+            setTitle(t);
+            clearAt('name');
+          }}
+          placeholder="e.g. Sunday coffee and cars"
+          maxLength={60}
+          accessibilityLabel="Name"
+        />
       </Field>
       <DateTimeField
         label="Starts"
+        error={errorAt('start')}
         value={start}
-        onChange={setStart}
+        onChange={(d) => {
+          setStart(d);
+          clearAt('start');
+          clearAt('end');
+        }}
         minDate={now}
         maxDate={new Date(now.getTime() + MAX_DAYS_AHEAD * 86_400_000)}
         days={14}
         stepMinutes={15}
       />
-      <DateTimeField label="Ends" value={end} onChange={setEnd} after={start} placeholder="No set end" minDate={new Date(start.getTime() + 15 * 60_000)} maxDate={new Date(start.getTime() + 24 * HOUR)} stepMinutes={15} />
+      <DateTimeField
+        label="Ends"
+        error={errorAt('end')}
+        value={end}
+        onChange={(d) => {
+          setEnd(d);
+          clearAt('end');
+        }}
+        after={start} placeholder="No set end" minDate={new Date(start.getTime() + 15 * 60_000)} maxDate={new Date(start.getTime() + 24 * HOUR)} stepMinutes={15} />
       <Field label="Details (optional)">
         <TextField value={description} onChangeText={setDescription} placeholder="Anything people should know" multiline multilineHeight={88} accessibilityLabel="Details" />
       </Field>
     </>
   );
 
+  // The map card is the one way to place a point: it opens on the next point still to place.
+  const nextToPlace = singlePlace ? 0 : Math.max(0, visibleStops.findIndex((x) => !x.at));
+  const cardTarget = visibleStops.every((x) => x.at) ? activeStop : nextToPlace;
+  const cardLabel = pointLabel(cardTarget, visibleStops.length).toLowerCase();
   const whereStep = (
     <>
-      <Press onPress={() => openPicker(activeStop)} label={`Open the map to place the ${pointLabel(activeStop, visibleStops.length).toLowerCase()}`} feedback="card">
-        <MediaFrame height={180}>
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <NightMap pins={[...BAN_PINS, ...pointPins(null)]} paths={routePaths} circles={BAN_SHAPES.circles} polygons={BAN_SHAPES.polygons} centre={preview.centre} span={preview.span} follow />
-          </View>
-          {placed.length === 0 ? (
-            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.scrim }]}>
-              <DsText v="buttonSm">Tap to choose on the map</DsText>
+      <View style={{ gap: SPACING.xs }}>
+        <Press
+          onPress={() => {
+            clearAt('point');
+            openPicker(cardTarget);
+          }}
+          label={placed.length && visibleStops[cardTarget]?.at ? `Move the ${cardLabel} on the map` : `Place the ${cardLabel} on the map`}
+          feedback="card"
+        >
+          <MediaFrame height={180} style={errorAt('point') ? { borderColor: COLOR.state.danger } : undefined}>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <NightMap pins={[...BAN_PINS, ...pointPins(null)]} paths={routePaths} circles={BAN_SHAPES.circles} polygons={BAN_SHAPES.polygons} centre={preview.centre} span={preview.span} follow />
             </View>
-          ) : null}
-        </MediaFrame>
-      </Press>
+            {placed.length === 0 ? (
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, backgroundColor: COLOR.surface.scrim }]}>
+                <Icon name="pin" size={24} colour={COLOR.text.primary} />
+                <DsText v="bodyStrong">{`Tap to place the ${cardLabel}`}</DsText>
+              </View>
+            ) : (
+              <View pointerEvents="none" style={{ position: 'absolute', left: SPACING.sm, bottom: SPACING.sm, flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, borderRadius: RADII.pill, backgroundColor: COLOR.surface.glass }}>
+                <Icon name="pin" size={14} colour={COLOR.text.primary} />
+                <DsText v="meta" style={{ color: COLOR.text.primary }}>
+                  {visibleStops[cardTarget]?.at ? `Tap to move the ${cardLabel}` : `Tap to place the ${cardLabel}`}
+                </DsText>
+              </View>
+            )}
+          </MediaFrame>
+        </Press>
+        {errorAt('point') ? (
+          <DsText v="caption" tone="danger" accessibilityLiveRegion="polite">
+            {errorAt('point')}
+          </DsText>
+        ) : null}
+      </View>
       {visibleStops.map((st, i) => {
         const zone = st.at ? banZoneAt(st.at, BAN_ZONES) : undefined;
         const label = pointLabel(i, visibleStops.length);
+        const removable = !singlePlace && visibleStops.length > 2;
+        const remove = () => {
+          setStops((xs) => xs.filter((_, j) => j !== i));
+          setActiveStop(0);
+        };
+        // A point not placed yet has no field (nothing to type until it's on the map).
+        if (!st.at) {
+          if (singlePlace) return null;
+          return (
+            <View key={st.key} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+              <DsText v="label" style={{ flex: 1 }}>{`${label}: not placed yet`}</DsText>
+              {removable ? <Button label="Remove" tier="tertiary" size="sm" accessibilityLabel={`Remove the ${label.toLowerCase()}`} onPress={remove} /> : null}
+            </View>
+          );
+        }
         return (
           <View key={st.key} style={{ gap: SPACING.sm }}>
             {i > 0 ? <RowDivider /> : null}
-            <Field label={label}>
+            <Field label={singlePlace ? `${label} name` : label} hint={singlePlace ? 'What people know it by, e.g. the car park or venue.' : null} error={errorAt(`stop:${i}`)}>
               <TextField
                 value={st.name}
-                onChangeText={(name) => setStop(i, { name })}
+                onChangeText={(name) => {
+                  setStop(i, { name });
+                  clearAt(`stop:${i}`);
+                }}
                 onFocus={() => setActiveStop(i)}
-                placeholder={st.at ? (geocoderAvailable ? 'Naming it from the map…' : `Name this ${MEET_POINT.one}`) : 'Choose it on the map first'}
+                placeholder={geocoderAvailable ? 'Naming it from the map…' : `Name this ${MEET_POINT.one}`}
                 accessibilityLabel={`${label} name`}
               />
             </Field>
-            {checkNames && st.at && !st.name.trim() && !error ? (
-              <DsText v="caption" tone="danger">
-                Name it, e.g. the car park or venue people know it by.
-              </DsText>
+            {!singlePlace ? (
+              <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' }}>
+                <Button label="Move" tier="tertiary" size="sm" accessibilityLabel={`Move the ${label.toLowerCase()} on the map`} onPress={() => openPicker(i)} />
+                {removable ? <Button label="Remove" tier="tertiary" size="sm" accessibilityLabel={`Remove the ${label.toLowerCase()}`} onPress={remove} /> : null}
+              </View>
             ) : null}
-            <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' }}>
-              <Button
-                label={st.at ? 'Move on the map' : 'Choose on the map'}
-                tier="secondary"
-                size="sm"
-                style={{ flex: 1 }}
-                block
-                onPress={() => openPicker(i)}
-                accessibilityLabel={`${st.at ? 'Move' : 'Choose'} the ${label.toLowerCase()} on the map`}
-              />
-              {!singlePlace && visibleStops.length > 2 ? (
-                <Button
-                  label="Remove"
-                  tier="tertiary"
-                  size="sm"
-                  accessibilityLabel={`Remove the ${label.toLowerCase()}`}
-                  onPress={() => {
-                    setStops((xs) => xs.filter((_, j) => j !== i));
-                    setActiveStop(0);
-                  }}
-                />
-              ) : null}
-            </View>
             {zone ? <ZoneNotice zone={zone} subject={st.name || label} compact /> : null}
           </View>
         );
@@ -531,9 +588,11 @@ export function EventForm({
           }}
         />
       ) : null}
-      <Field label="Area name" hint={isPublicType(type) ? 'Shown with the event.' : `Before the location shows, people see “Around ${shownArea}” and ${areaCircle(areaRadiusMiles)}.`}>
-        <TextField value={areaName} onChangeText={setAreaName} placeholder={suggestedAreaName} maxLength={30} accessibilityLabel="Area name" />
-      </Field>
+      {placed.length ? (
+        <Field label="Area name" hint={isPublicType(type) ? 'Shown with the event.' : `Before the location shows, people see “Around ${shownArea}” and ${areaCircle(areaRadiusMiles)}.`}>
+          <TextField value={areaName} onChangeText={setAreaName} placeholder={suggestedAreaName} maxLength={30} accessibilityLabel="Area name" />
+        </Field>
+      ) : null}
     </>
   );
 
@@ -541,8 +600,9 @@ export function EventForm({
     <>
       <View style={{ gap: SPACING.xxs }}>
         <DsText v="title" accessibilityLiveRegion="polite">
-          {summary}
+          {headline.title}
         </DsText>
+        <DsText v="secondary">{headline.detail}</DsText>
         {remote && serverCount === 'offline' ? <DsText v="caption">Can't count while offline.</DsText> : null}
       </View>
       {leftOut && leftOutWhy ? <DsText v="secondary" tone="warning">{leftOutWhy}</DsText> : null}
@@ -677,10 +737,11 @@ export function EventForm({
         <StepHeading step={step + 1} of={STEPS.length} title={STEPS[step]} />
         <View style={{ gap: SPACING.lg }}>{body}</View>
       </ScrollView>
-      {/* What's missing sits right above Next, never below the fold at 375x667 (said once, C5). */}
-      {error ? (
+      {/* A field's error sits in that field's message slot. Only an error with no field (a clash
+          with a meet you already host, a save that failed) shows here, above the ActionBar. */}
+      {error?.at === 'form' ? (
         <View style={{ paddingHorizontal: SPACING.screen, paddingVertical: SPACING.sm, backgroundColor: COLOR.surface.bg, borderTopWidth: 1, borderTopColor: COLOR.surface.border }}>
-          <ErrorState title={error} />
+          <ErrorState title={error.message} />
         </View>
       ) : null}
       <ActionBar
@@ -709,27 +770,17 @@ export function EventForm({
         onCancel={() => setPicking(null)}
       />
 
-      {editing ? (
-        <ConfirmSheet
-          visible={leaveAction !== null}
-          title="Discard your changes?"
-          message={`Your changes to ${initial?.title ?? 'this event'} aren't saved yet.`}
-          verb="Discard"
-          cancelLabel="Keep editing"
-          onConfirm={() => leave(false)}
-          onCancel={() => setLeaveAction(null)}
-        />
-      ) : (
-        <Sheet visible={leaveAction !== null} title="Keep this meet as a draft?" onClose={() => setLeaveAction(null)} doneLabel="Stay">
-          <View style={{ gap: SPACING.md }}>
-            <DsText v="body">{`${title.trim() || 'Your meet'} stays on this phone. Tap + on Tonight to carry on where you left off.`}</DsText>
-            <Button label="Keep draft" tier="secondary" block onPress={() => leave(true)} />
-            <Button label="Discard it" tier="destructive" block onPress={() => leave(false)} />
-          </View>
-        </Sheet>
-      )}
+      <ConfirmSheet
+        visible={leaveAction !== null}
+        title={editing ? 'Discard your changes?' : 'Discard this meet?'}
+        message={editing ? `Your changes to ${initial?.title ?? 'this event'} aren't saved yet.` : `${title.trim() || 'Your meet'} isn't posted yet.`}
+        verb="Discard"
+        cancelLabel="Keep editing"
+        onConfirm={discard}
+        onCancel={() => setLeaveAction(null)}
+      />
 
-      <Sheet visible={askBan} title={check.injunction ? 'Court injunction' : 'Meet ban'} onClose={() => setAskBan(false)} doneLabel="Cancel">
+      <Sheet visible={askBan} title={check.injunction ? 'Court injunction' : 'Meet ban'} onClose={() => setAskBan(false)}>
         <View style={{ gap: SPACING.md }}>
           <DsText v="body">{banWords}</DsText>
           <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>

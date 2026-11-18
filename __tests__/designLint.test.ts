@@ -133,6 +133,29 @@ describe('Redesign 2 lint', () => {
     const tabs = readFileSync(join(ROOT, 'src/app/(tabs)/_layout.tsx'), 'utf8');
     expect(tabs).toMatch(/tabBarBadgeStyle: \{ backgroundColor: COLOR\.badge\.bg/);
   });
+  it('keeps sodium inside the design system to the primary and "selected" (Review 12 decision 5)', () => {
+    // Only these ds files may hold sodium: the primary Button, the selected face (Choice, the month
+    // calendar), a focused SearchField, an on SwitchRow, the wordmark tone, contentColour itself and
+    // PhotoCard's map stand-in. Content components (Hero, ListRow, cards, Tag, Toast) go through
+    // contentColour and are checked by rendering in accent.test.tsx.
+    const DS_SODIUM = /\bBRAND\b|\bC\.sodium\b|COLOR\.action\.(primary|selected|selectedTint)\b|STATE\.selected\b|COLOR\.layer\.event\b|LAYER\.event\b/;
+    const allowed = new Set(['Button.tsx', 'Choice.tsx', 'DateField.tsx', 'SearchField.tsx', 'SwitchRow.tsx', 'Text.tsx', 'logic.ts', 'PhotoCard.tsx']);
+    const dsDir = join(ROOT, 'src/components/ds');
+    const hits = readdirSync(dsDir).filter((f) =>
+      readFileSync(join(dsDir, f), 'utf8')
+        .split('\n')
+        .some((line) => DS_SODIUM.test(line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, ''))),
+    );
+    expect(hits.filter((f) => !allowed.has(f))).toEqual([]);
+  });
+  it('uses the sodium text tone only for the wordmark and its moments', () => {
+    expect(filesMatching(/tone="brand"|tone: 'brand'/).filter((f) => !['src/components/Wordmark.tsx', 'src/components/Cover.tsx', 'src/components/motion.tsx'].includes(f))).toEqual([]);
+  });
+  it('never passes the Events layer colour to a kind eyebrow or tag as text colour outside the design system', () => {
+    // A layer colour reaches content only through a ds prop (layerColour, leading.colour), where
+    // contentColour() drops sodium. Painting text with it directly is the break Review 12 found.
+    expect(filesMatching(/\bcolor\s*:\s*(EVENT_COLOURS\[|LAYER\.event|COLOR\.layer\.event)/).filter((f) => !KNOWN_SODIUM.has(f))).toEqual([]);
+  });
   it('catches what it should', () => {
     expect(SODIUM.test('colour={BRAND}')).toBe(true);
     expect(SODIUM.test('COLOR.action.primary')).toBe(true);

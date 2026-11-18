@@ -61,3 +61,26 @@ describe('a made-up demo handle (REVIEW-9)', () => {
     for (const h of [suggestHandle('Golf GTI Mk7', 9999), suggestHandle('', 1000)]) expect(handleProblem(h, [], 'me')).toBeNull();
   });
 });
+
+describe('area names come from the nearest town (Review 12 decision 1)', () => {
+  const { areaNameNear, nearestTown } = jest.requireActual('../src/lib/profile') as typeof import('../src/lib/profile');
+  const { TOWNS } = jest.requireActual('../src/data/towns') as typeof import('../src/data/towns');
+  it('names the demo area Tamworth, never the region', () => {
+    expect(nearestTown({ lat: 52.62, lng: -1.7 })).toBe('Tamworth');
+    expect(areaNameNear({ lat: 52.62, lng: -1.7 })).toBe('Tamworth');
+    expect(areaNameNear({ lat: 52.48, lng: -1.9 })).toBe('Birmingham');
+  });
+  it('falls back to the region far from any town', () => {
+    expect(nearestTown({ lat: 58.6, lng: -4.9 }, 20)).toBeNull();
+    expect(areaNameNear({ lat: 58.6, lng: -4.9 })).toBe('Scotland');
+  });
+  it('keeps every town in the UK and named once', () => {
+    expect(new Set(TOWNS.map((t) => t.name)).size).toBe(TOWNS.length);
+    for (const t of TOWNS) {
+      expect(t.at.lat).toBeGreaterThan(49.8);
+      expect(t.at.lat).toBeLessThan(61);
+      expect(t.at.lng).toBeGreaterThan(-8.3);
+      expect(t.at.lng).toBeLessThan(1.8);
+    }
+  });
+});

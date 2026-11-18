@@ -5,6 +5,7 @@ import { ASPECT, COLOR, SPACING } from '../../theme';
 import { Pin, type Glyph } from '../Pin';
 import type { EntityTag } from './EntityCard';
 import { Gradient } from './Gradient';
+import { contentColour } from './logic';
 import { ClassBadge, Tag, type Photo } from './Marks';
 import { DsText } from './Text';
 
@@ -61,7 +62,7 @@ export function Hero({
 }) {
   const lines = (Array.isArray(meta) ? meta : [meta]).filter((l): l is string => !!l);
   const onPhoto = !!photo && titleOnPhoto;
-  const kindColour = layerColour ?? COLOR.text.secondary;
+  const kindColour = contentColour(layerColour, COLOR.text.secondary);
 
   const kindRow =
     eyebrow || live || glyph || tag ? (

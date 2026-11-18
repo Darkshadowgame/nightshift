@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect, useId, type ReactNode } from 'rea
 import { View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLOR, ELEVATION, MOTION, RADII, SPACING } from '../../theme';
+import { COLOR, ELEVATION, MOTION, SPACING } from '../../theme';
 import { Button } from './Button';
-import type { IconName } from './Icon';
+import { Icon, type IconName } from './Icon';
 import type { Haptic } from './Press';
 import { DsText } from './Text';
 import { useToastAnchor } from './Toast';
@@ -118,16 +118,21 @@ function barButton(b: ActionBarButton) {
   return { label: b.label, onPress: b.onPress, busy: b.busy, icon: b.icon, haptic: b.haptic, accessibilityLabel: b.accessibilityLabel, accessibilityHint: b.accessibilityHint };
 }
 
-/** "Location at 21:30": what the bar is waiting for, in place of a primary. Not a button. */
+/**
+ * "Location at 21:30": what the bar is waiting for, in place of a primary. A quiet status line
+ * (a clock-face icon and plain text, no fill, no border, no pill shape), so it never reads as a
+ * button next to the secondary (Review 12).
+ */
 function StatusPill({ text }: { text: string }) {
   return (
     <View
       accessible
       accessibilityRole="text"
       accessibilityLabel={text}
-      style={{ flex: 1, minHeight: 48, justifyContent: 'center', paddingHorizontal: SPACING.lg, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raised }}
+      style={{ flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}
     >
-      <DsText v="bodyStrong" numberOfLines={2}>
+      <Icon name="calendar" size={18} colour={COLOR.text.secondary} />
+      <DsText v="body" numberOfLines={2} style={{ flexShrink: 1, color: COLOR.text.secondary }}>
         {text}
       </DsText>
     </View>

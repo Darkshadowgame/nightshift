@@ -2,8 +2,8 @@ import { useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { appNow, clockOffset } from '../../lib/appClock';
 import { dayKey, dayLabelShort, dayOptions, whenLabel } from '../../lib/when';
-import { COLOR, RADII, SPACING } from '../../theme';
-import { ChoiceGroup } from './Choice';
+import { COLOR, SPACING } from '../../theme';
+import { ChoiceGroup, chipFace, chipText } from './Choice';
 import { MonthCalendar } from './DateField';
 import { Field, INPUT } from './Field';
 import { Icon } from './Icon';
@@ -167,17 +167,14 @@ export function DateTimeSheet({
                   paddingHorizontal: SPACING.sm,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: RADII.control,
-                  borderWidth: 1,
-                  borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
-                  backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+                  ...chipFace(on),
                   opacity: off ? 0.35 : 1,
                 }}
               >
-                <DsText v="meta" style={{ color: on ? COLOR.action.selected : COLOR.text.secondary }}>
+                <DsText v="meta" style={{ color: chipText(on, COLOR.text.secondary) }}>
                   {word}
                 </DsText>
-                <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: on ? COLOR.action.selected : COLOR.text.primary }}>
+                <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on) }}>
                   {num}
                 </DsText>
               </Press>
@@ -193,14 +190,13 @@ export function DateTimeSheet({
               paddingHorizontal: SPACING.sm,
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: RADII.control,
-              borderWidth: 1,
-              borderColor: !inRow && current ? COLOR.action.selected : COLOR.surface.borderStrong,
-              backgroundColor: !inRow && current ? COLOR.action.selectedTint : 'transparent',
+              ...chipFace(!inRow && !!current),
             }}
           >
-            <Icon name="calendar" size={18} colour={COLOR.text.secondary} />
-            <DsText v="meta">Another day</DsText>
+            <Icon name="calendar" size={18} colour={chipText(!inRow && !!current, COLOR.text.secondary)} />
+            <DsText v="meta" style={{ color: chipText(!inRow && !!current, COLOR.text.secondary) }}>
+              Another day
+            </DsText>
           </Press>
         </ScrollView>
       )}
@@ -226,14 +222,11 @@ export function DateTimeSheet({
                     minHeight: 40,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderRadius: RADII.control,
-                    borderWidth: 1,
-                    borderColor: on ? COLOR.action.selected : COLOR.surface.border,
-                    backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+                    ...chipFace(on),
                     opacity: off ? 0.35 : 1,
                   }}
                 >
-                  <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: on ? COLOR.action.selected : COLOR.text.primary, fontVariant: ['tabular-nums'] }}>
+                  <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on), fontVariant: ['tabular-nums'] }}>
                     {String(h).padStart(2, '0')}
                   </DsText>
                 </Press>
@@ -268,16 +261,17 @@ function clamp(d: Date, min?: Date, max?: Date): Date {
 export function DateTimeField({
   label,
   hint,
+  error,
   value,
   onChange,
   placeholder = 'Pick',
   ...opts
-}: Opts & { label: string; hint?: string; value: Date | null; onChange: (d: Date) => void; placeholder?: string }) {
+}: Opts & { label: string; hint?: string; error?: string | null; value: Date | null; onChange: (d: Date) => void; placeholder?: string }) {
   const [open, setOpen] = useState(false);
   const now = opts.now ?? appNow();
   const shown = value ? dateTimeText(value, now, opts.mode, opts.after) : placeholder;
   return (
-    <Field label={label} hint={hint}>
+    <Field label={label} hint={hint} error={error}>
       <Press onPress={() => setOpen(true)} label={`${label}: ${shown}. Change`} style={[INPUT, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <DsText v="input" style={value ? undefined : { color: COLOR.text.secondary }}>
           {shown}

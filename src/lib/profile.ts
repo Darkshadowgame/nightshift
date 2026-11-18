@@ -1,5 +1,6 @@
 import { alertProblem, travelProblem, type AlertMode } from './discover';
-import { fuzz } from './geo';
+import { TOWNS } from '../data/towns';
+import { fuzz, milesBetween } from './geo';
 import type { LatLng, User } from './types';
 
 /** Regions to pick from on first run, with a map centre for each. */
@@ -21,6 +22,24 @@ export const REGIONS: { name: string; centre: LatLng }[] = [
 export function nearestRegion(p: LatLng): string {
   const d = (r: LatLng) => (r.lat - p.lat) ** 2 + ((r.lng - p.lng) * Math.cos((p.lat * Math.PI) / 180)) ** 2;
   return [...REGIONS].sort((a, b) => d(a.centre) - d(b.centre))[0].name;
+}
+
+/** The nearest town or city within `maxMiles` ("Tamworth"), from the bundled list; null when none is that close. */
+export function nearestTown(p: LatLng, maxMiles = 20): string | null {
+  let best: { name: string; miles: number } | null = null;
+  for (const t of TOWNS) {
+    const miles = milesBetween(p, t.at);
+    if (!best || miles < best.miles) best = { name: t.name, miles };
+  }
+  return best && best.miles <= maxMiles ? best.name : null;
+}
+
+/**
+ * What to call the area round a point when nothing better is known: the nearest town, else the
+ * region. "Around Tamworth", never "Around Midlands" when a town is near (Review 12 decision 1).
+ */
+export function areaNameNear(p: LatLng): string {
+  return nearestTown(p) ?? nearestRegion(p);
 }
 
 export function regionCentre(region: string): LatLng {

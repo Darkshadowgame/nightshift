@@ -4,7 +4,7 @@ import type { ClassLetter } from '../../lib/types';
 import { COLOR, SPACING } from '../../theme';
 import { Pin, type Glyph } from '../Pin';
 import { Icon, type IconName } from './Icon';
-import { entityA11yLabel } from './logic';
+import { contentColour, entityA11yLabel } from './logic';
 import { Avatar, BuildLine, ClassBadge, type Photo } from './Marks';
 import { Press } from './Press';
 import { DsText } from './Text';
@@ -21,7 +21,7 @@ function LeadingMark({ leading }: { leading: Leading }) {
   if ('pin' in leading)
     return (
       <View aria-hidden>
-        <Pin glyph={leading.pin} colour={leading.colour} size={36} />
+        <Pin glyph={leading.pin} colour={contentColour(leading.colour, COLOR.text.secondary)} size={36} />
       </View>
     );
   if ('classBadge' in leading) return <ClassBadge letter={leading.classBadge} size="md" decorative />;
@@ -65,7 +65,7 @@ export function ListRow({
   trailing?: ReactNode;
   /** Defaults to true when the row opens something. */
   chevron?: boolean;
-  /** A sodium dot before the title: new since you last looked. */
+  /** A red dot before the title: new since you last looked (red means "now", never sodium: 5.4). */
   unread?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -82,7 +82,7 @@ export function ListRow({
       {leading ? <LeadingMark leading={leading} /> : null}
       <View style={{ flex: 1, gap: SPACING.xxs }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-          {unread ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.action.primary }} /> : null}
+          {unread ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.badge.bg }} /> : null}
           <DsText v={unread ? 'bodyStrong' : 'body'} numberOfLines={2} style={{ flexShrink: 1 }}>
             {title}
           </DsText>

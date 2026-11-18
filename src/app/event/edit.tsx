@@ -23,7 +23,7 @@ export default function EditEvent() {
   if (!allowed.ok) {
     return (
       <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
-        <EmptyState title="Can't edit this event" body={allowed.reason} action={{ label: 'Go back', onPress: () => router.back() }} />
+        <EmptyState title="Can't edit this event" body={allowed.reason} action={{ label: 'Open the meet', onPress: () => router.replace({ pathname: '/event/[id]', params: { id: event.id } }) }} />
       </View>
     );
   }

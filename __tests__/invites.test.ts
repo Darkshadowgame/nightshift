@@ -1,4 +1,4 @@
-import { DEFAULT_FILTER, describeFilter, hostLeftOut, inviteSummary } from '../src/lib/invites';
+import { DEFAULT_FILTER, describeFilter, hostLeftOut, inviteHeadline, inviteSummary } from '../src/lib/invites';
 import type { Build } from '../src/lib/types';
 
 describe('describeFilter', () => {
@@ -27,11 +27,15 @@ describe('hostLeftOut (B4)', () => {
   });
 });
 
-describe('inviteSummary (REVIEW-11: open reads as open)', () => {
-  it('says open to anyone, and about how many people nearby', () => {
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toBe('Open to anyone within 25 mi · about 18 people nearby');
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1')).toBe('Open to anyone within 25 mi · about 1 person nearby');
-    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3')).toBe('Open to anyone within 10 mi · fewer than 3 people nearby');
+describe('inviteHeadline and inviteSummary (Review 12 decision 2: open reads as open)', () => {
+  it('says anyone can come first, then the reach and about how many people nearby', () => {
+    expect(inviteHeadline({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toEqual({ title: 'Anyone can come', detail: 'within 25 mi of the meet · about 18 people nearby' });
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toBe('Anyone can come · within 25 mi of the meet · about 18 people nearby');
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1')).toBe('Anyone can come · within 25 mi of the meet · about 1 person nearby');
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3')).toBe('Anyone can come · within 10 mi of the meet · fewer than 3 people nearby');
+  });
+  it('titles a limited meet "Only some can come"', () => {
+    expect(inviteHeadline({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7')).toEqual({ title: 'Only some can come', detail: 'Bikes · within 10 mi · 7 people match' });
   });
   it('says a limited meet as its limits and how many match', () => {
     expect(inviteSummary({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7')).toBe('Bikes · within 10 mi · 7 people match');
