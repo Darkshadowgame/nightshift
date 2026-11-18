@@ -2,16 +2,19 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { openReport } from '../../components/Community';
-import { DetailHero, NotFoundState, PAGE } from '../../components/Detail';
+import { NotFoundState } from '../../components/Detail';
 import {
+  ActionBar,
   Button,
   ConfirmSheet,
   displayHandle,
   DsText,
   EmptyState,
-  EntityCard,
   ErrorState,
+  Hero,
   ListRow,
+  metaLine,
+  PAGE_WITH_BAR,
   RowDivider,
   screenHeader,
   Section,
@@ -20,18 +23,14 @@ import {
   StatBlock,
   Tag,
 } from '../../components/ds';
-import { useRepFor } from '../../components/Rep';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { crewEvents, crewHostLoss, crewless, crewRole, isCrewHost } from '../../lib/crews';
 import { EVENT_LABELS } from '../../lib/events';
 import { viewEvent, type EventView } from '../../lib/eventView';
-import { whenLine } from '../../lib/eventAction';
-import { plural } from '../../lib/format';
-import { roleLabel } from '../../lib/glossary';
+import { formatWhen } from '../../lib/format';
 import { useStore } from '../../lib/store';
 import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
-import { levelLabel } from '../../lib/rep';
 
 /** A crew: the same anatomy as an event or place. Hero, stats, one primary, then members and events. */
 export default function CrewScreen() {
@@ -40,7 +39,6 @@ export default function CrewScreen() {
   const { crews, users, builds, events, me } = store;
   const now = useNow();
   const crew = crews.find((c) => c.id === id);
-  const repFor = useRepFor();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmJoin, setConfirmJoin] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -50,10 +48,9 @@ export default function CrewScreen() {
   const members = useMemo(
     () =>
       (crew?.memberIds ?? [])
-        .map((uid) => ({ user: users.find((u) => u.id === uid), rep: repFor(uid) }))
-        .filter((m) => m.user)
-        .sort((a, b) => b.rep.ledger.total - a.rep.ledger.total),
-    [crew, users, repFor],
+        .map((uid) => ({ user: users.find((u) => u.id === uid) }))
+        .filter((m) => m.user),
+    [crew, users],
   );
 
   if (!crew) return <NotFoundState what="Crew" message="This crew no longer exists." />;
@@ -63,14 +60,13 @@ export default function CrewScreen() {
   const owner = crew.ownerId === me;
   const canHost = isCrewHost(crew, me);
   const otherCrew = !member && meUser?.crewId ? crews.find((c) => c.id === meUser.crewId) : undefined;
-  const combined = members.reduce((s, m) => s + m.rep.ledger.total, 0);
   const evs = crewEvents(crew, events).map((e) => viewEvent(e, me, crews, users, builds, now));
   const upcoming = evs.filter((v) => v.phase !== 'over');
   const past = evs.filter((v) => v.phase === 'over');
   // Crew events you host only through your crew role: leaving (or joining another crew) ends that.
   const losing = crewHostLoss(me, { crews, users }, events, now);
   const losingText = losing.length
-    ? `You'll stop hosting ${losing.map((e) => e.title).join(', ')}: you host ${losing.length === 1 ? 'it' : 'them'} as a crew host, not a named host.`
+    ? `You'll no longer host ${losing.map((e) => e.title).join(', ')}: you host ${losing.length === 1 ? 'it' : 'them'} as a crew host, not a named host.`
     : null;
   const canAdd = member && canHost;
   const free = canAdd ? crewless({ crews, users }, [me]) : [];
@@ -93,44 +89,37 @@ export default function CrewScreen() {
   const handle = (uid: string) => (uid === me ? 'You' : displayHandle(users.find((u) => u.id === uid)?.handle ?? uid));
 
   return (
-    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
       <Stack.Screen options={screenHeader({ onMenu: () => setMenu(true) })} />
-      <DetailHero
-        kind={`Crew · ${crew.tag}`}
-        status={member ? { label: `You: ${yourRole}`, tone: 'success' } : null}
+      <Hero
+        eyebrow={`Crew · ${crew.tag}`}
+        tag={member ? { label: yourRole, tone: 'success' } : null}
         title={crew.name}
-        lines={[`${crew.ownerId ? `Owner ${handle(crew.ownerId)}` : 'No owner'}${crew.hostIds?.length ? ` · hosts ${crew.hostIds.map(handle).join(', ')}` : ''}`]}
-      >
-        <DsText v="secondary">The owner and hosts run crew events; the owner picks the hosts.</DsText>
-      </DetailHero>
+        meta={`${crew.ownerId ? `Owner ${handle(crew.ownerId)}` : 'No owner'}${crew.hostIds?.length ? ` · hosts ${crew.hostIds.map(handle).join(', ')}` : ''}`}
+      />
 
       <StatBlock
         stats={[
           { label: 'Members', value: String(crew.memberIds.length) },
           { label: 'Events', value: String(evs.length) },
-          { label: 'Rep', value: combined.toLocaleString('en-GB') },
         ]}
       />
 
-      {member ? (
-        canHost ? (
-          <Button label="Host a crew event" size="lg" block onPress={() => router.push('/event/new')} />
-        ) : null
-      ) : (
+      {!member ? (
         <View style={{ gap: SPACING.sm }}>
-          <Button label={`Join ${crew.name}`} size="lg" block haptic="success" onPress={() => (losingText || otherCrew ? setConfirmJoin(true) : act(() => store.joinCrew(crew.id)))} />
           {error ? <ErrorState title={error} /> : null}
           <DsText v="caption">
             You join as a member. The owner can make you a host later.
             {otherCrew ? ` You'll leave ${otherCrew.name}: you can be in one crew at a time.` : ''}
           </DsText>
         </View>
-      )}
+      ) : null}
 
       <Section title={`Members (${members.length})`}>
         {members.length === 0 ? <EmptyState variant="inline" title="No members yet." /> : null}
         <View>
-          {members.map(({ user, rep }, i) => {
+          {members.map(({ user }, i) => {
             const uid = user!.id;
             const b = buildOf(uid);
             const role = crewRole(crew, uid);
@@ -141,7 +130,6 @@ export default function CrewScreen() {
                   leading={{ avatar: { name: user!.name, handle: user!.handle } }}
                   title={handle(uid)}
                   subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
-                  meta={`${levelLabel(rep.level.level)} · ${rep.ledger.total.toLocaleString('en-GB')} rep`}
                   trailing={role !== 'member' ? <Tag label={role === 'owner' ? 'Owner' : 'Host'} /> : undefined}
                   onPress={() => router.push({ pathname: '/user/[id]', params: { id: uid } })}
                 />
@@ -211,11 +199,7 @@ export default function CrewScreen() {
               </View>
             )
           ) : null}
-          {demo ? (
-            <Button label={picking ? 'Done' : 'Invite members'} tier="secondary" block onPress={() => setPicking((x) => !x)} />
-          ) : (
-            <Button label="Invite members" tier="secondary" block disabled hint="Coming soon" onPress={() => undefined} />
-          )}
+          {demo ? <Button label={picking ? 'Done' : 'Invite members'} tier="secondary" block onPress={() => setPicking((x) => !x)} /> : null}
         </Section>
       ) : null}
 
@@ -279,25 +263,29 @@ export default function CrewScreen() {
         onCancel={() => setConfirmJoin(false)}
       />
     </ScrollView>
+    <ActionBar
+      primary={
+        member
+          ? canHost
+            ? { label: 'Host a crew event', onPress: () => router.push('/event/new') }
+            : null
+          : { label: `Join ${crew.name}`, haptic: 'success', onPress: () => (losingText || otherCrew ? setConfirmJoin(true) : act(() => store.joinCrew(crew.id))) }
+      }
+    />
+    </View>
   );
 }
 
-/** A crew event on the browse anatomy: kind, title, when, area, your role. */
+/** A crew event as a row: pin, title, when, going. */
 function EventEntity({ view, now }: { view: EventView; now: Date }) {
   const e = view.event;
-  const when = whenLine(e, now);
-  const role = roleLabel(view.role, e.filter);
+  const over = view.phase === 'over' || view.phase === 'cancelled';
   return (
-    <EntityCard
-      kind="event"
-      eyebrow={EVENT_LABELS[e.type]}
-      layerColour={EVENT_COLOURS[e.type]}
-      mark={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
+    <ListRow
+      leading={{ pin: e.type, colour: over ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
       title={e.title}
-      status={view.phase === 'live' ? { label: 'Live', tone: 'live' } : role && view.phase !== 'over' ? { label: role, tone: view.role === 'going' ? 'success' : 'neutral' } : undefined}
-      meta={[when.absolute, `${e.going.length} going`].join(' · ')}
-      detail={e.areaName}
-      finished={view.phase === 'over' || view.phase === 'cancelled'}
+      subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now), `${e.going.length} going`])}
+      trailing={view.phase === 'live' ? <Tag label="Live" tone="live" /> : undefined}
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
     />
   );

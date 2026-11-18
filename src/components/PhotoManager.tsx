@@ -31,7 +31,7 @@ export function PhotoManager({
   const flow = usePhotoFlow({
     onError,
     // A build's first photo becomes the garage card's cover: start the crop on the Cover shape.
-    aspect: photos.length === 0 ? 'cover' : 'free',
+    aspect: photos.length === 0 ? '4:3' : 'free',
     onPhoto: (ref, replaces) => {
       if (replaces) {
         onChange(photos.map((p) => (p === replaces ? ref : p)));
@@ -128,7 +128,7 @@ function Small({ label, onPress, disabled, danger, accessibilityLabel }: { label
 
 const st = StyleSheet.create({
   thumb: { borderRadius: RADII.control, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
-  thumbOn: { borderColor: COLOR.action.selected },
+  thumbOn: { borderColor: COLOR.text.primary },
   img: { width: 120, height: 90, backgroundColor: COLOR.surface.media },
   cover: { position: 'absolute', left: SPACING.xs, bottom: SPACING.xs, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag },
   panel: { gap: SPACING.md, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },

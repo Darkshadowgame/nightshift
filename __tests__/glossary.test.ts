@@ -81,36 +81,23 @@ describe('glossary', () => {
  */
 const ROOT = join(__dirname, '..');
 const KNOWN: Record<string, string[]> = {
-  'src/app/(tabs)/garage.tsx': ['Sample (tag)', 'bhp/tonne'],
   'src/app/(tabs)/index.tsx': ['rep', 'invited'],
-  'src/app/(tabs)/me.tsx': ['Find'],
-  'src/app/build/[id].tsx': ['bhp/tonne', 'car scale', 'claimed'],
-  'src/app/build/edit.tsx': ['rep'],
   'src/app/connections.tsx': ['stop'],
-  'src/app/crew/[id].tsx': ['stop', 'rep', 'level'],
-  'src/app/crew/new.tsx': ['stop'],
-  'src/app/crews.tsx': ['rep'],
   'src/app/drive.tsx': ['stop'],
   'src/app/event/[id].tsx': ['stop', 'invited', 'you can go'],
   'src/app/event/plan.tsx': ['stop', 'locked'],
   'src/app/forum/[id].tsx': ['Sample (tag)'],
-  'src/app/help.tsx': ['rep', 'level', 'Legend'],
   'src/app/post/[id].tsx': ['Sample (tag)'],
-  'src/app/rate.tsx': ['Sample (tag)'],
   'src/app/report.tsx': ['stop'],
-  'src/app/settings.tsx': ['rep', 'level'],
   'src/app/shop/[id].tsx': ['Find'],
   'src/app/spot/[id].tsx': ['stop', 'rep'],
   'src/app/user/[id].tsx': ['Sample (tag)', 'rep'],
   'src/app/welcome.tsx': ['Sample area'],
-  'src/components/AddModSheet.tsx': ['rep'],
   'src/components/AwardsSection.tsx': ['rep'],
   'src/components/Community.tsx': ['Sample (tag)', 'level'],
   'src/components/CommunityFeed.tsx': ['Find'],
   'src/components/EventForm.tsx': ['stop', 'invited'],
-  'src/components/ModPicker.tsx': ['rep'],
   'src/components/TonightCards.tsx': ['unlock', 'locked'],
-  'src/components/TravelPrefs.tsx': ['you can go'],
 };
 
 function sources(dir: string): string[] {

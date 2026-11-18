@@ -232,6 +232,6 @@ const st = StyleSheet.create({
   gridV: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: outline(COLOR.text.primary) },
   gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: outline(COLOR.text.primary) },
   handle: { position: 'absolute', width: HANDLE, height: HANDLE },
-  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: COLOR.action.selected, borderRadius: RADII.pill },
-  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: COLOR.action.selected, borderRadius: RADII.pill },
+  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: COLOR.text.primary, borderRadius: RADII.pill },
+  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: COLOR.text.primary, borderRadius: RADII.pill },
 });

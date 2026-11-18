@@ -2,7 +2,8 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { usePhotoFlow } from '../components/PhotoFlow';
-import { Button, ChoiceGroup, DsText, EmptyState, ErrorState, ListRow, Section, SwitchRow, Tag, typeStyle } from '../components/ds';
+import { ActionBar, Button, ChoiceGroup, DsText, EmptyState, ErrorState, ListRow, PAGE_WITH_BAR, Section, SwitchRow, Tag, typeStyle, useToast } from '../components/ds';
+import { appNow } from '../lib/appClock';
 import { FEEDBACK_KINDS, FEEDBACK_MAX, FEEDBACK_PHOTOS_MAX, kindLabel, makeReport, statusLabel, type FeedbackKind } from '../lib/feedbackQueue';
 import { currentPosition } from '../lib/location';
 import { deletePhotos, photoUri } from '../lib/photos';
@@ -32,6 +33,7 @@ export default function FeedbackScreen() {
   const [listError, setListError] = useState<string | null>(null);
   const route = (typeof from === 'string' && from) || 'unknown';
   const context = feedbackContext(route);
+  const toast = useToast();
 
   const flow = usePhotoFlow({
     onError: setError,
@@ -54,6 +56,7 @@ export default function FeedbackScreen() {
 
   async function send() {
     setError(null);
+    if (!message.trim()) return setError('Write something first.');
     setBusy(true);
     try {
       let location: { lat: number; lng: number } | null = null;
@@ -65,8 +68,9 @@ export default function FeedbackScreen() {
         }
         location = pos.at;
       }
-      queueFeedback(makeReport({ kind, message, screen: route, photos: signedIn ? photos : [], context, location }, newId('fb'), new Date()));
+      queueFeedback(makeReport({ kind, message, screen: route, photos: signedIn ? photos : [], context, location }, newId('fb'), appNow()));
       setSent(true);
+      toast({ message: 'Feedback sent' });
       setMessage('');
       setPhotos([]);
       setWithLocation(false);
@@ -87,7 +91,8 @@ export default function FeedbackScreen() {
   const list = sentFeedback ?? [];
 
   return (
-    <ScrollView contentContainerStyle={st.page} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1 }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled">
       {flow.view}
       {sent ? (
         <View style={st.done} accessibilityLiveRegion="polite">
@@ -97,7 +102,6 @@ export default function FeedbackScreen() {
               ? 'No signal right now, so it’s waiting on your phone and goes as soon as there is.'
               : 'Every report is read. Check back here to see what happens to it.'}
           </DsText>
-          <Button label="Send more feedback" tier="secondary" size="sm" onPress={() => setSent(false)} />
         </View>
       ) : (
         <View style={{ gap: SPACING.lg }}>
@@ -150,7 +154,6 @@ export default function FeedbackScreen() {
             onValueChange={setWithLocation}
           />
 
-          <Button label="Send feedback" size="lg" block onPress={send} busy={busy} disabled={!message.trim()} hint="Write something first" haptic="success" />
           {error ? <ErrorState title={error} /> : null}
 
           <Button label={showDetails ? 'Hide what’s sent with it' : 'What’s sent with it'} tier="tertiary" size="sm" onPress={() => setShowDetails((v) => !v)} />
@@ -186,11 +189,16 @@ export default function FeedbackScreen() {
         {listError ? <ErrorState title={listError} onRetry={refresh} /> : null}
       </Section>
     </ScrollView>
+    {sent ? (
+      <ActionBar secondary={{ label: 'Send more feedback', onPress: () => setSent(false) }} />
+    ) : (
+      <ActionBar primary={{ label: 'Send feedback', onPress: send, busy, haptic: 'success' }} />
+    )}
+    </View>
   );
 }
 
 const st = StyleSheet.create({
-  page: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
   done: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
   input: { minHeight: 120, textAlignVertical: 'top', padding: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   thumb: { width: 72, height: 72, borderRadius: RADII.control, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.raisedHi },

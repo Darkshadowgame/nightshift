@@ -6,10 +6,11 @@ import { parseDynoText, toBhp, toLbFt, type PowerUnit, type TorqueUnit } from '.
 import { ocrText } from '../lib/ocr';
 import { photoSource } from '../lib/photoSource';
 import { photoUri } from '../lib/photos';
+import { appNow } from '../lib/appClock';
 import { newId, useStore } from '../lib/store';
 import type { Build, DynoRun } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, DateField, DsText, EmptyState, ErrorState, Field, ListRow, RowDivider, Section, SegmentedControl, Sheet, StatBlock, TextField, metaLine, useToast } from './ds';
+import { Button, Card, DateTimeField, DsText, EmptyState, ErrorState, Field, ListRow, RowDivider, Section, SegmentedControl, StatBlock, TextField, metaLine, useToast } from './ds';
 import { openReport } from './Community';
 import { DynoBadge } from './DynoBadge';
 import { usePhotoFlow } from './PhotoFlow';
@@ -30,6 +31,11 @@ interface Draft {
 
 const POWER_UNITS: PowerUnit[] = ['bhp', 'PS', 'kW'];
 const TORQUE_UNITS: TorqueUnit[] = ['lb-ft', 'Nm'];
+/** A saved ISO day (isoDay) as a local Date at noon, or null. */
+const dayDate = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d, 12) : null;
+};
 const number = (s: string) => (s.trim() ? Number(s.replace(',', '.').replace(/[^0-9.]/g, '')) : undefined);
 
 /**
@@ -48,7 +54,7 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
   const runs = runsNewestFirst(b.dynoRuns);
   const latest = latestRun(b.dynoRuns);
 
-  const blank = (photo?: string): Draft => ({ photo, power: '', torque: '', powerUnit: 'bhp', torqueUnit: 'lb-ft', at: 'wheels', date: isoDay(new Date()), shop: '', read: null });
+  const blank = (photo?: string): Draft => ({ photo, power: '', torque: '', powerUnit: 'bhp', torqueUnit: 'lb-ft', at: 'wheels', date: isoDay(appNow()), shop: '', read: null });
 
   async function fromPhoto(ref: string) {
     setReading(true);
@@ -86,7 +92,8 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
   const problem = run ? runProblem(run) : null;
 
   async function save() {
-    if (!run || problem) return;
+    if (!run) return;
+    if (problem) return setError(problem);
     setSaving(true);
     try {
       await onSave(withRun(b, run));
@@ -158,7 +165,7 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
           })}
         </View>
       ) : null}
-      {mine ? (
+      {mine && !draft ? (
         <View style={{ gap: SPACING.sm }}>
           <Button label="Add a dyno sheet" icon="plus" tier="secondary" block busy={flow.busy || reading} onPress={() => flow.pick()} accessibilityLabel="Add a photo or screenshot of a dyno sheet" />
           <Button label="Type the figures" tier="tertiary" size="sm" onPress={() => setDraft(blank())} style={{ alignSelf: 'center' }} />
@@ -167,12 +174,14 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
       {!mine && latest?.photo ? (
         <Button label="Report this dyno sheet" tier="tertiary" size="sm" onPress={() => openReport('build', b.id, b.ownerId, 'dyno sheet')} style={{ alignSelf: 'center' }} />
       ) : null}
-      {error ? <ErrorState title={error} /> : null}
+      {error && !draft ? <ErrorState title={error} /> : null}
       {flow.view}
 
-      <Sheet visible={!!draft} title={draft?.id ? 'Dyno run' : 'New dyno run'} onClose={() => setDraft(null)} doneLabel="Cancel">
-        {draft ? (
+      {/* The form sits in the page (not a sheet), so its date picker is the only sheet (4.5). */}
+      {draft ? (
+        <Card>
           <View style={{ gap: SPACING.md }}>
+            <DsText v="title">{draft.id ? 'Dyno run' : 'New dyno run'}</DsText>
             {draft.read ? (
               <DsText v="body" tone="primary">
                 {`We read ${[draft.read.power ? `${Math.round(draft.read.power)} ${draft.at === 'wheels' ? 'whp' : 'bhp'}` : null, draft.read.torque ? `${Math.round(draft.read.torque)} lb-ft` : null].filter(Boolean).join(' and ')}: check these against the sheet.`}
@@ -203,7 +212,7 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
               ]}
             />
             <DsText v="caption">Most rolling roads measure at the wheels; some also print a flywheel (crank) figure. Pick the one you typed.</DsText>
-            <DateField label="Day of the run" value={draft.date} max={isoDay(new Date())} onChange={(date) => setDraft({ ...draft, date })} />
+            <DateTimeField label="Day of the run" mode="date" past value={dayDate(draft.date)} maxDate={appNow()} onChange={(d) => setDraft({ ...draft, date: isoDay(d) })} />
             <Field label="Rolling road or shop (optional)">
               <TextField value={draft.shop} onChangeText={(shop) => setDraft({ ...draft, shop })} maxLength={60} accessibilityLabel="Rolling road or shop" />
             </Field>
@@ -215,11 +224,13 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
                   : 'With the sheet photo this run gets the ✓ Dyno badge and counts for Class. Others can report fake sheets.'
                 : 'Add a photo of the sheet to get the ✓ Dyno badge. Others can report fake sheets. Without a sheet, the run is kept in your history but doesn\'t change Class.'}
             </DsText>
-            <Button label="Save dyno run" block haptic="success" busy={saving} disabled={!!problem} hint={problem ?? undefined} onPress={save} />
+            {error ? <ErrorState title={error} /> : null}
+            <Button label="Save dyno run" block haptic="success" busy={saving} onPress={save} />
+            <Button label="Cancel" tier="tertiary" size="sm" onPress={() => { setDraft(null); setError(null); }} style={{ alignSelf: 'center' }} />
             {draft.id ? <Button label="Remove this run" tier="destructive" block onPress={() => remove(draft.id!)} /> : null}
           </View>
-        ) : null}
-      </Sheet>
+        </Card>
+      ) : null}
     </Section>
   );
 }

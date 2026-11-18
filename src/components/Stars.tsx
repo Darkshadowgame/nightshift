@@ -9,7 +9,7 @@ const STAR = 'M12 2.6l2.9 6 6.5.8-4.8 4.5 1.2 6.5L12 17.3l-5.8 3.1 1.2-6.5L2.6 9
 function Star({ on, size }: { on: boolean; size: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" pointerEvents="none">
-      <Path d={STAR} fill={on ? COLOR.action.primary : 'none'} stroke={on ? COLOR.action.primary : COLOR.surface.borderStrong} strokeWidth={1.6} strokeLinejoin="round" />
+      <Path d={STAR} fill={on ? COLOR.text.primary : 'none'} stroke={on ? COLOR.text.primary : COLOR.surface.borderStrong} strokeWidth={1.6} strokeLinejoin="round" />
     </Svg>
   );
 }

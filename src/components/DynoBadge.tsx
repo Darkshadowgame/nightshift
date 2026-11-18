@@ -32,7 +32,7 @@ export function DynoBadge({ build }: { build: Build }) {
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
         style={{ alignSelf: 'flex-start' }}
       >
-        <Tag label={proven ? (demo ? '✓ Dyno · Demo' : '✓ Dyno') : `Dyno ${badge.year}`} tone={proven ? 'success' : 'neutral'} />
+        <Tag label={proven ? '✓ Dyno' : `Dyno ${badge.year}`} tone={proven ? 'success' : 'neutral'} />
       </Press>
       <Sheet visible={open} title={proven ? (demo ? 'Dyno (demo)' : 'Dyno proven') : `Dyno run, ${badge.year}`} onClose={() => setOpen(false)}>
         <View style={{ gap: SPACING.sm }}>

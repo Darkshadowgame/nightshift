@@ -20,7 +20,7 @@ import {
   type StageEngine,
 } from '../lib/tune';
 import type { Mod, TuneStage, VehicleKind } from '../lib/types';
-import { isRoadIllegal, MAX_REWARDED_MODS, OFF_ROAD_TAG } from '../lib/legality';
+import { isRoadIllegal, OFF_ROAD_TAG } from '../lib/legality';
 import type { Aspiration } from '../lib/vehicles';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Button, Chip, ChoiceGroup, DsText, IconButton, INPUT, RowDivider, Tabs, Tag } from './ds';
@@ -138,7 +138,7 @@ export function ModPicker({
         {optionalOffRoad.length ? (
           <View style={{ gap: SPACING.sm }}>
             <DsText v="caption" tone="warning">
-              Often fitted at this stage, but not added for you: off-road only, and no rep.
+              Often fitted at this stage, but not added for you: off-road only.
             </DsText>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {optionalOffRoad.map((c) => (
@@ -168,7 +168,7 @@ export function ModPicker({
         </View>
         <DsText v="caption">
           Tap to add, tap again to remove.{stage !== 'stock' ? ' With a tune stage set, power parts start at +0 because the stage figure covers them.' : ''}
-          {shown.some((c) => c.roadLegal === false) ? ' Some parts here are off-road only: you can log them, but they earn no rep.' : ''} Parts that do the same job count once (a Stage 1 tune and an ECU remap are one engine tune). Rep counts each road-legal one, up to {MAX_REWARDED_MODS} per build.
+          {shown.some((c) => c.roadLegal === false) ? ' Some parts here are off-road only: you can still log them.' : ''} Parts that do the same job count once (a Stage 1 tune and an ECU remap are one mod).
         </DsText>
         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
           <TextInput value={modName} onChangeText={setModName} placeholder="Something else, e.g. Wagner intercooler" placeholderTextColor={COLOR.text.secondary} style={[INPUT, { flex: 2, minWidth: 0 }]} onSubmitEditing={addFree} maxLength={60} accessibilityLabel={`Mod name, added under ${MOD_GROUPS.find((g) => g.key === activeGroup)?.label ?? 'Other'}`} />

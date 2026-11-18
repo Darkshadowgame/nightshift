@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { openLegal } from '../components/AboutSection';
-import { Button, DsText, Section } from '../components/ds';
+import { DsText, ListRow, RowDivider, Section } from '../components/ds';
 import { SCREEN_TITLES } from '../lib/glossary';
 import { SPACING } from '../theme';
 
@@ -10,56 +10,42 @@ const TOPICS: { title: string; lines: string[] }[] = [
   {
     title: 'Tonight',
     lines: [
-      "Tonight shows what's on near your home area: live now, later tonight and this week, on the map or as a list.",
-      'Tap + New to host your own meet, cruise, rolling meet, show or track day, or to suggest a place.',
+      "Tonight shows what's on near you: live now, later tonight and this week, on the map or as a list.",
+      'Tap + on Tonight to host a meet, a cruise or a rolling meet.',
     ],
   },
   {
     title: "I'm going",
     lines: [
-      "Say you're going with the car or bike you're bringing. Invites are matched to your builds, so add yours in the Garage.",
-      "If the invite doesn't cover your build, you can ask to go and a host says yes or no.",
+      "Say you're going with the car or bike you're bringing. Some meets are only open to certain cars; those say \"Not open to your car\", and you can ask a host to let you in.",
     ],
   },
   {
-    title: 'Meet points',
+    title: 'The meet point',
     lines: [
-      'Until a meet is close, you only see its area (a circle on the map). The exact meet point is shown to the people going, usually 1 hour before. The event says when ("Location shows at 21:30").',
-      'A rolling meet has more than one meet point. The hosts move it on. Everyone going sees the one it is at now, so you can join late; the ones after it stay hidden.',
+      'Before a meet, you see the area around it. The meet point shows to the people going, usually 1 hour before; the meet says when ("Location shows at 21:30").',
+      'A rolling meet moves on during the night. Everyone going sees where it is now, so you can join late.',
     ],
   },
   {
     title: 'Check in',
-    lines: [
-      "When you get there, check in. It needs you to be there: within half a mile of an event's meet point, or 0.2 mi of a photo spot or a drive's checkpoint. Checking in is what lets you vote.",
-    ],
+    lines: ["When you get there, check in on the meet's page. Checking in is what lets you vote and add photos from the meet."],
   },
   {
-    title: 'Trophies and votes',
-    lines: [
-      'The people who checked in vote for the best builds, from the start until 24 hours after it ends. Winners get trophies, and the best get a cover shoot.',
-    ],
+    title: 'Votes and trophies',
+    lines: ['The people who checked in vote for Best in show, and for Best car and Best bike when both turn up. Voting runs until 24 hours after the end. Winners get a magazine cover.'],
   },
   {
-    title: 'Classes',
-    lines: [
-      "Every build has a class from S to D: its power for its weight. Cars and bikes each have their own scale, so a litre superbike and an M4 are both S. Hosts can invite certain classes, for example an S and A meet.",
-    ],
-  },
-  {
-    title: 'Levels',
-    lines: [
-      'One ladder for you: you earn rep points for turning up (150 for each event you check in at), hosting, trophies, drives and places people use, and they move you up the levels.',
-      'Newcomer, Regular, Known face, Local name, Scene veteran, then Legend at the top. Class is about your build, not you; trophies are for a build on the night.',
-    ],
+    title: 'Class',
+    lines: ["Class is your build's power for its weight, from S (the quickest) to D. Cars and bikes each have their own scale. A dyno run with its sheet photo gets the ✓ Dyno badge."],
   },
   {
     title: 'Privacy',
-    lines: ['Nobody is shown on the map, ever. Your home area is saved to about 1 km and only used to find what’s near you.'],
+    lines: ['Nobody is shown on the map, ever. Your home area is saved to about 1 km and only used to show what’s near you.'],
   },
 ];
 
-/** "How Nightshift works": the in-app help (Settings › About and legal, and Me). Short and in the app, for when you're stuck at a meet. */
+/** "How Nightshift works" (T5): the in-app help, from Me and Settings › About. Short and in the app, for when you're stuck at a meet. */
 export default function Help() {
   return (
     <ScrollView contentContainerStyle={st.page}>
@@ -72,11 +58,13 @@ export default function Help() {
           ))}
         </Section>
       ))}
-      <View style={{ gap: SPACING.sm }}>
-        <DsText v="secondary">Still stuck, or something's wrong?</DsText>
-        <Button label={SCREEN_TITLES.feedback} tier="secondary" block onPress={() => router.push({ pathname: '/feedback', params: { from: '/help' } })} />
-        <Button label="Support page" tier="tertiary" onPress={() => openLegal('support')} accessibilityHint="Opens in Safari" />
-      </View>
+      <Section title="Still stuck?" gap="sm">
+        <View>
+          <ListRow title={SCREEN_TITLES.feedback} onPress={() => router.push({ pathname: '/feedback', params: { from: '/help' } })} />
+          <RowDivider />
+          <ListRow title="Support page" onPress={() => openLegal('support')} accessibilityHint="Opens in Safari" />
+        </View>
+      </Section>
     </ScrollView>
   );
 }

@@ -1,7 +1,7 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { Button, ClassBadge, ConfirmSheet, DsText, ErrorState, Icon, INPUT, Press, Section, SegmentedControl } from '../../components/ds';
+import { ActionBar, ClassBadge, ConfirmSheet, DsText, ErrorState, HeaderActions, Icon, INPUT, PAGE_WITH_BAR, Press, Section, SegmentedControl } from '../../components/ds';
 import { ClassUpMoment } from '../../components/motion';
 import { ModPicker } from '../../components/ModPicker';
 import { SearchSelect } from '../../components/SearchSelect';
@@ -79,6 +79,17 @@ export default function EditBuild() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [celebrate, setCelebrate] = useState<{ from: ClassLetter; to: ClassLetter } | null>(null);
+  // Back with changes asks first (Redesign 2, 4.2): "Discard it" / "Keep editing".
+  const snapshot = JSON.stringify([kind, make, model, year, nickname, stockBhp, weight, torque, colour, mods, stage, swapOn, donorModel, swapBhp, swapTorque, weightDelta, photos]);
+  const [initial] = useState(snapshot);
+  const [leaveAction, setLeaveAction] = useState<{ type: string } | null>(null);
+  const [exit, setExit] = useState<{ action: { type: string } | null; deleted?: boolean } | null>(null);
+  const navigation = useNavigation();
+  usePreventRemove(snapshot !== initial && !exit, ({ data }) => setLeaveAction(data.action));
+  useEffect(() => {
+    if (exit?.action) navigation.dispatch(exit.action as never);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exit]);
 
   const variant = findVariant(variants, vehicleId);
   const donor = findDonor(engines, variants, donorId);
@@ -146,7 +157,11 @@ export default function EditBuild() {
   /** The same vehicle already in your garage (B3): saving adds a second one, so say so. */
   const twin = draft.make && draft.model ? duplicateBuild(draft, store.builds) : undefined;
   /** Close the form: back where you came from, or the Garage when it was opened by a link (no history). */
-  const close = () => (router.canGoBack() ? router.back() : router.replace('/garage'));
+  const close = () => setExit({ action: null });
+  useEffect(() => {
+    if (exit?.deleted) router.dismissAll();
+    else if (exit && !exit.action) (router.canGoBack() ? router.back() : router.replace('/garage'));
+  }, [exit]);
 
   function pickVariant(v: Variant) {
     const fill = specFill(v, num(year));
@@ -197,11 +212,17 @@ export default function EditBuild() {
 
   return (
     <>
-      <Stack.Screen options={{ title: title(existing ? SCREEN_TITLES.editBuild : SCREEN_TITLES.addBuild) }} />
+      <Stack.Screen
+        options={{
+          title: title(existing ? SCREEN_TITLES.editBuild : SCREEN_TITLES.addBuild),
+          ...(existing ? { headerRight: () => <HeaderActions onMenu={() => setConfirmDelete(true)} /> } : {}),
+        }}
+      />
       {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={close} /> : null}
+      <View style={{ flex: 1 }}>
       <ScrollView
         ref={scrollRef as never}
-        contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}
+        contentContainerStyle={PAGE_WITH_BAR}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
@@ -336,17 +357,16 @@ export default function EditBuild() {
             {plateRedactorAvailable ? '' : ' (Automatic plate detection only works in the iPhone app.)'}
           </DsText>
           <DsText v="label">Card colour</DsText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }} accessibilityRole="radiogroup" accessibilityLabel="Card colour">
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }} accessibilityLabel="Card colour">
             {swatches.map((c, i) => (
               <Press
                 key={c}
                 onPress={() => setColour(c)}
                 haptic="select"
-                role="radio"
-                label={`Colour ${i + 1} of ${swatches.length}`}
-                state={{ checked: colour === c }}
+                label={`Colour ${i + 1} of ${swatches.length}${colour === c ? ', chosen' : ''}`}
+                state={{ selected: colour === c }}
                 hitSlop={6}
-                style={{ width: 32, height: 32, borderRadius: RADII.pill, backgroundColor: c, borderWidth: colour === c ? 3 : 1, borderColor: colour === c ? COLOR.action.selected : COLOR.surface.borderStrong }}
+                style={{ width: 32, height: 32, borderRadius: RADII.pill, backgroundColor: c, borderWidth: colour === c ? 3 : 1, borderColor: colour === c ? COLOR.text.primary : COLOR.surface.borderStrong }}
               >
                 <View />
               </Press>
@@ -359,15 +379,28 @@ export default function EditBuild() {
             <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }} accessibilityRole="alert">
               <Icon name="alert" size={20} colour={COLOR.state.warning} />
               <DsText v="secondary" tone="warning" style={{ flex: 1 }}>
-                {`You already have this ${twinName} in your garage. Saving adds a second one; its mods don't earn rep twice.`}
+                {`You already have this ${twinName} in your garage. Saving adds a second one.`}
               </DsText>
             </View>
           ) : null}
-          <Button label="Save build" size="lg" block haptic="success" onPress={save} busy={saving} />
           {error && !confirmDelete ? <ErrorState title={error} /> : null}
-          {existing ? <Button label="Delete build" tier="destructive" block onPress={() => setConfirmDelete(true)} /> : null}
         </View>
       </ScrollView>
+      <ActionBar primary={{ label: 'Save build', onPress: save, busy: saving, haptic: 'success' }} />
+      </View>
+      <ConfirmSheet
+        visible={!!leaveAction}
+        title={existing ? 'Discard your changes?' : 'Discard this build?'}
+        message="What you've typed here won't be saved."
+        verb="Discard"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          const action = leaveAction;
+          setLeaveAction(null);
+          setExit({ action });
+        }}
+        onCancel={() => setLeaveAction(null)}
+      />
       {existing ? (
         <ConfirmSheet
           visible={confirmDelete}
@@ -376,7 +409,7 @@ export default function EditBuild() {
           verb="Delete"
           onConfirm={() => {
             setError(null);
-            store.deleteBuild(existing.id).then(() => router.dismissAll()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete the build."));
+            store.deleteBuild(existing.id).then(() => setExit({ action: null, deleted: true })).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete the build."));
           }}
           onCancel={() => setConfirmDelete(false)}
         />

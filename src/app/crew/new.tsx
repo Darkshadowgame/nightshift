@@ -53,7 +53,7 @@ export default function NewCrew() {
       {current ? (
         <Callout tone={losing.length ? 'warning' : 'neutral'} title={`Starting a crew means leaving ${current.name}.`}>
           {losing.length
-            ? `You'll stop hosting ${losing.map((e) => e.title).join(', ')}: you host ${losing.length === 1 ? 'it' : 'them'} as a ${current.name} host, not a named host. Events that name you as a host stay yours.`
+            ? `You'll no longer host ${losing.map((e) => e.title).join(', ')}: you host ${losing.length === 1 ? 'it' : 'them'} as a ${current.name} host, not a named host. Events that name you as a host stay yours.`
             : undefined}
         </Callout>
       ) : null}

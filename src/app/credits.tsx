@@ -1,29 +1,30 @@
-import { Linking, ScrollView, StyleSheet } from 'react-native';
-import { Button, DsText, ListRow, RowDivider, Section } from '../components/ds';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { DsText, ListRow, RowDivider, Section } from '../components/ds';
 import { BRANDS_NOTE, CREDITS } from '../lib/legal';
 import { SPACING } from '../theme';
 
-/** Settings › About and legal › Open data and credits. */
+/** Open data and credits (T5), from Settings › About. A row with a source opens it in Safari. */
 export default function Credits() {
   return (
     <ScrollView contentContainerStyle={st.page}>
       <Section title="Open data and credits" gap="sm">
-        {CREDITS.map((c, i) => (
-          <ListRowWithLink key={c.what} what={c.what} who={c.who} licence={c.licence} url={c.url} last={i === CREDITS.length - 1} />
-        ))}
+        <View>
+          {CREDITS.map((c, i) => (
+            <View key={c.what}>
+              {i ? <RowDivider /> : null}
+              <ListRow
+                title={c.what}
+                subtitle={c.who}
+                meta={c.licence}
+                onPress={c.url ? () => Linking.openURL(c.url!).catch(() => {}) : undefined}
+                accessibilityHint={c.url ? 'Opens the source and licence in Safari' : undefined}
+              />
+            </View>
+          ))}
+        </View>
       </Section>
       <DsText v="caption">{BRANDS_NOTE}</DsText>
     </ScrollView>
-  );
-}
-
-function ListRowWithLink({ what, who, licence, url, last }: { what: string; who: string; licence?: string; url?: string; last: boolean }) {
-  return (
-    <>
-      <ListRow title={what} subtitle={who} meta={licence} />
-      {url ? <Button label="Source and licence" tier="tertiary" size="sm" onPress={() => Linking.openURL(url).catch(() => {})} accessibilityLabel={`${what}: source and licence, opens in Safari`} /> : null}
-      {last ? null : <RowDivider />}
-    </>
   );
 }
 

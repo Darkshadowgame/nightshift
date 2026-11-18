@@ -99,7 +99,6 @@ const KNOWN_SODIUM = new Set([
   'src/components/motion.tsx',
   'src/app/dev/components.tsx',
   // Still to move over (WP-B, C, D).
-  'src/app/build/edit.tsx',
   'src/app/chat/new.tsx',
   'src/app/drive.tsx',
   'src/app/event/plan.tsx',
@@ -109,13 +108,10 @@ const KNOWN_SODIUM = new Set([
   'src/components/AwardsSection.tsx',
   'src/components/BringPicker.tsx',
   'src/components/Community.tsx',
-  'src/components/CropEditor.tsx',
   'src/components/DriveHud.tsx',
   'src/components/EventForm.tsx',
   'src/components/NoticeBell.tsx',
-  'src/components/PhotoManager.tsx',
   'src/components/SearchSelect.tsx',
-  'src/components/Stars.tsx',
   'src/components/VehiclePicker.tsx',
 ]);
 
@@ -127,8 +123,6 @@ const KNOWN_TYPED_DATE = new Set(['src/components/TrackPanel.tsx']);
 const RADIO = /role="radio"/;
 const KNOWN_RADIO = new Set([
   'src/app/dev/components.tsx',
-  'src/app/build/edit.tsx',
-  'src/components/AddModSheet.tsx',
   'src/components/AwardsSection.tsx',
   'src/components/BringPicker.tsx',
   'src/components/DriveHud.tsx',

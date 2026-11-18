@@ -1,161 +1,167 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Avatar, Button, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, Tag, metaLine } from '../../components/ds';
+import { buildName, powerLine } from '../../components/BuildBits';
+import { Cover } from '../../components/Cover';
+import { Avatar, DsText, EmptyState, Icon, ListRow, PhotoCard, Press, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
 import { LadderSheet } from '../../components/LadderSheet';
 import { useRep } from '../../components/Rep';
 import { allAwards, categoryInfo } from '../../lib/awards';
-import { EVENT_LABELS, isHost, phaseOf } from '../../lib/events';
-import { levelLabel, levelName } from '../../lib/rep';
-import { formatWhen, plural } from '../../lib/format';
-import { PLACE_NAMES, SCREEN_TITLES } from '../../lib/glossary';
-import { useStore } from '../../lib/store';
+import { lastBrought } from '../../lib/bringing';
+import { carShape } from '../../lib/buildShape';
+import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
-import { COLOR, SPACING, SPOT_COLOURS } from '../../theme';
+import { EVENT_LABELS, isHost, phaseOf } from '../../lib/events';
+import { formatWhen } from '../../lib/format';
+import { SCREEN_TITLES } from '../../lib/glossary';
+import { photoSource } from '../../lib/photoSource';
+import { attendedEvents, hostedEvents, levelLabel } from '../../lib/rep';
+import { useStore } from '../../lib/store';
+import { COLOR, SPACING } from '../../theme';
+
+const openEvent = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
 
 /**
- * Me: who you are, in one screen. Profile (avatar, handle, level, crew), your events
- * (going, hosting, past), trophies and your places, then Settings, feedback and how the app works.
- * Every setting lives on the one Settings screen.
+ * Me (Redesign 2, 3.10; T1): you, your meets and your trophies. Avatar, @handle and your level on
+ * one line (tap for the ladder; owner decision, section 9) → your main build → Meets, Hosted,
+ * Trophies → your meets, next then past → trophy covers → Edit profile, Settings, help, feedback.
  */
 export default function Me() {
-  const { users, me, crews, builds, events, votes, spots } = useStore();
+  const { users, me, crews, builds, events, votes } = useStore();
   const now = useNow();
   const rep = useRep(me);
-  const awards = allAwards(votes, events, builds, now);
-  const myAwards = awards.filter((a) => a.ownerId === me);
-  const user = users.find((u) => u.id === me);
-  const crew = crews.find((c) => c.id === user?.crewId);
-  const mySpots = spots.filter((x) => x.authorId === me);
-  const myBuilds = builds.filter((b) => b.ownerId === me);
-  // Your events (REVIEW-9): hosting and going (soonest first), then the ones you went to.
-  const start = (iso: string) => new Date(iso).getTime();
-  const mineEvents = events.filter((e) => isHost(e, me, crews) || e.going.includes(me) || (e.checkIns[me] ?? []).length > 0);
-  const upcoming = mineEvents.filter((e) => { const p = phaseOf(e, now); return p !== 'over' && p !== 'cancelled'; }).sort((a, b) => start(a.startsAt) - start(b.startsAt));
-  const past = mineEvents.filter((e) => phaseOf(e, now) === 'over' && ((e.checkIns[me] ?? []).length > 0 || isHost(e, me, crews))).sort((a, b) => start(b.startsAt) - start(a.startsAt));
-  const checkedInAnywhere = events.some((e) => (e.checkIns[me] ?? []).length > 0);
-  const nextLevel = rep.level.level + 1;
   const [ladder, setLadder] = useState(false);
+  const user = users.find((u) => u.id === me);
+  const main = lastBrought(events, me, builds) ?? builds.find((b) => b.ownerId === me);
+  const myAwards = allAwards(votes, events, builds, now).filter((a) => a.ownerId === me);
+  const covers = myAwards.filter((a) => categoryInfo(a.category).cover);
+  const otherAwards = myAwards.filter((a) => !categoryInfo(a.category).cover);
+  const startMs = (iso: string) => new Date(iso).getTime();
   const checkedIn = (e: (typeof events)[number]) => (e.checkIns[me] ?? []).length > 0;
+  const host = (e: (typeof events)[number]) => isHost(e, me, crews);
+  const mine = events.filter((e) => host(e) || e.going.includes(me) || checkedIn(e));
+  const next = mine.filter((e) => { const p = phaseOf(e, now); return p !== 'over' && p !== 'cancelled'; }).sort((a, b) => startMs(a.startsAt) - startMs(b.startsAt));
+  const past = mine.filter((e) => phaseOf(e, now) === 'over' && (checkedIn(e) || host(e))).sort((a, b) => startMs(b.startsAt) - startMs(a.startsAt));
+  const meets = attendedEvents(events, me, now).length;
+  const hosted = hostedEvents(events, me, crews, now).length;
 
   return (
     <ScrollView contentContainerStyle={st.page}>
-      <View style={st.profile}>
-        <Avatar name={user?.name} handle={user?.handle} size="lg" />
-        <View style={{ flex: 1, gap: SPACING.xxs }}>
-          <DsText v="titleLg" numberOfLines={1}>
-            @{user?.handle}
-          </DsText>
-          {user?.name && user.name !== user.handle ? <DsText v="secondary">{user.name}</DsText> : null}
-          <DsText v="meta">{plural(myBuilds.length, 'build')}</DsText>
-          {/* The level opens the ladder (REVIEW-10 #15): levels, points, how to earn. */}
-          <Press
-            onPress={() => setLadder(true)}
-            label={`${levelLabel(rep.level.level)}, ${rep.ledger.total} rep`}
-            hint="Shows every level and how to earn rep"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 44, alignSelf: 'flex-start' }}
-          >
-            <View style={{ gap: SPACING.xxs }}>
-              <DsText v="meta" tone="action">{levelLabel(rep.level.level)}</DsText>
-              <DsText v="meta">{`${rep.ledger.total.toLocaleString('en-GB')} rep · ${(rep.level.next - rep.level.rep).toLocaleString('en-GB')} to Level ${nextLevel} (${levelName(nextLevel)})`}</DsText>
-            </View>
-            <Icon name="chevron" size={16} colour={COLOR.action.link} />
-          </Press>
+      <View style={{ gap: SPACING.md }}>
+        <View style={st.profile}>
+          <Avatar name={user?.name} handle={user?.handle} size="lg" />
+          <View style={{ flex: 1, gap: SPACING.xxs }}>
+            <DsText v="titleLg" numberOfLines={1}>
+              @{user?.handle}
+            </DsText>
+            {/* Rep and level: one line, here only; the ladder opens on a tap (owner decision, section 9). */}
+            <Press
+              onPress={() => setLadder(true)}
+              label={`${levelLabel(rep.level.level)}, ${rep.ledger.total} rep`}
+              hint="Shows every level and how to earn rep"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, minHeight: 44, alignSelf: 'flex-start' }}
+            >
+              <DsText v="meta" tone="action">
+                {levelLabel(rep.level.level)}
+              </DsText>
+              <Icon name="chevron" size={16} colour={COLOR.action.link} />
+            </Press>
+          </View>
         </View>
-      </View>
-      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-        <Button label="Edit profile" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => router.push('/profile')} />
-        <Button label="Public view" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => router.push({ pathname: '/user/[id]', params: { id: me } })} />
-      </View>
-
-      <Section title="Crew" right={crew ? <Button label="All crews" tier="tertiary" size="sm" onPress={() => router.push('/crews')} /> : undefined}>
-        {crew ? (
-          <ListRow
-            title={crew.name}
-            subtitle={metaLine([crew.tag, plural(crew.memberIds.length, 'member')])}
-            onPress={() => router.push({ pathname: '/crew/[id]', params: { id: crew.id } })}
+        {main ? (
+          <PhotoCard
+            kind="build"
+            size="sm"
+            photo={main.photos[0] ? photoSource(main.photos[0]) : null}
+            paint={main.colour}
+            vehicle={main.kind}
+            shape={main.kind === 'car' ? carShape(main) : undefined}
+            classLetter={classOf(main)}
+            title={buildName(main)}
+            meta={powerLine(main, now)}
+            onPress={() => router.push({ pathname: '/build/[id]', params: { id: main.id } })}
+            accessibilityHint="Opens the build"
           />
         ) : (
-          <EmptyState variant="inline" title="Not in a crew. Crews host events together." action={{ label: 'Find a crew', onPress: () => router.push('/crews') }} />
+          <ListRow leading={{ icon: 'plus' }} title="Add your car or bike" onPress={() => router.push('/build/edit')} />
         )}
-      </Section>
+      </View>
 
-      <Section title="Your events" right={<Button label="Find more" tier="tertiary" size="sm" onPress={() => router.push({ pathname: '/', params: { view: 'list', t: String(Date.now()) } })} />}>
-        {upcoming.length === 0 && past.length === 0 ? (
-          <EmptyState variant="inline" title="Nothing yet. Say you're going to something on Tonight, or host one." />
+      <StatBlock
+        stats={[
+          { value: `${meets}`, label: meets === 1 ? 'Meet' : 'Meets' },
+          { value: `${hosted}`, label: 'Hosted' },
+          { value: `${myAwards.length}`, label: myAwards.length === 1 ? 'Trophy' : 'Trophies' },
+        ]}
+      />
+
+      <Section title="Your meets">
+        {next.length === 0 && past.length === 0 ? (
+          <EmptyState variant="inline" title="Nothing yet. Say you're going to a meet on Tonight." action={{ label: 'See tonight', onPress: () => router.navigate('/') }} />
         ) : null}
-        {upcoming.map((e) => (
-          <ListRow
-            key={e.id}
-            leading={{ pin: e.type, colour: COLOR.text.primary }}
-            title={e.title}
-            subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
-            trailing={<Tag label={isHost(e, me, crews) ? 'Hosting' : checkedIn(e) ? 'Checked in' : 'Going'} tone={isHost(e, me, crews) ? 'selected' : 'success'} />}
-            onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
-          />
-        ))}
-        {past.slice(0, 5).map((e) => (
-          <ListRow
-            key={e.id}
-            leading={{ pin: e.type, colour: COLOR.text.secondary }}
-            title={e.title}
-            subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
-            trailing={<Tag label={isHost(e, me, crews) ? 'Hosted' : 'Went'} />}
-            onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
-          />
-        ))}
+        {next.length || past.length ? (
+        <View>
+          {[...next, ...past.slice(0, 5)].map((e, i) => {
+            const over = phaseOf(e, now) === 'over';
+            const label = over ? (host(e) ? 'Hosted' : 'Went') : host(e) ? 'Hosting' : checkedIn(e) ? 'Checked in' : 'Going';
+            return (
+              <View key={e.id}>
+                {i ? <RowDivider /> : null}
+                <ListRow
+                  leading={{ pin: e.type, colour: over ? COLOR.text.secondary : COLOR.text.primary }}
+                  title={e.title}
+                  subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
+                  trailing={<Tag label={label} tone={over ? 'neutral' : host(e) ? 'info' : 'success'} />}
+                  onPress={() => openEvent(e.id)}
+                />
+              </View>
+            );
+          })}
+        </View>
+        ) : null}
       </Section>
 
       <Section title="Trophies">
-        {myAwards.length === 0 ? (
-          <EmptyState
-            variant="inline"
-            title={checkedInAnywhere ? 'None yet. People who turn up vote for the best builds once a meet starts.' : 'None yet. Check in at a meet, and people there vote for the best builds.'}
-          />
-        ) : (
-          myAwards.map((a) => {
-            const b = builds.find((x) => x.id === a.buildId);
-            const e = events.find((x) => x.id === a.eventId);
-            return (
-              <ListRow
-                key={`${a.eventId}:${a.category}`}
-                leading={{ icon: 'success', colour: COLOR.text.primary }}
-                title={categoryInfo(a.category).label}
-                subtitle={metaLine([b ? `${b.make} ${b.model}` : null, e?.title])}
-                meta={metaLine([plural(a.votes, 'vote'), formatWhen(a.at, now)])}
-                onPress={e ? () => router.push({ pathname: '/event/[id]', params: { id: e.id } }) : undefined}
-              />
-            );
-          })
-        )}
+        {myAwards.length === 0 ? <EmptyState variant="inline" title="None yet. Check in at a meet, and the people there vote for the best builds." /> : null}
+        {covers.length ? (
+          <ScrollView horizontal contentContainerStyle={{ gap: SPACING.sm }} showsHorizontalScrollIndicator={false}>
+            {covers.map((a) => {
+              const b = builds.find((x) => x.id === a.buildId);
+              const e = events.find((x) => x.id === a.eventId);
+              return b ? (
+                <Press key={`${a.eventId}:${a.category}`} onPress={() => e && openEvent(e.id)} feedback="card" label={metaLine([categoryInfo(a.category).label, e?.title])}>
+                  <Cover award={a} build={b} owner={user} event={e} width={150} />
+                </Press>
+              ) : null;
+            })}
+          </ScrollView>
+        ) : null}
+        {otherAwards.length ? (
+          <View>
+            {otherAwards.map((a, i) => {
+              const e = events.find((x) => x.id === a.eventId);
+              return (
+                <View key={`${a.eventId}:${a.category}`}>
+                  {i ? <RowDivider /> : null}
+                  <ListRow leading={{ icon: 'success', colour: COLOR.text.primary }} title={categoryInfo(a.category).label} subtitle={metaLine([e?.title, formatWhen(a.at, now)])} onPress={e ? () => openEvent(e.id) : undefined} />
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
       </Section>
-
-      <Section title="Your places" right={<Button label="Suggest one" tier="tertiary" size="sm" onPress={() => router.push('/spot/new')} />}>
-        {mySpots.length === 0 ? (
-          <EmptyState variant="inline" title="Suggest a great road to drive or a photo spot. You earn rep when it's approved." />
-        ) : (
-          mySpots.map((x) => (
-            <ListRow
-              key={x.id}
-              leading={{ pin: x.kind, colour: x.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[x.kind] }}
-              title={x.name}
-              subtitle={PLACE_NAMES[x.kind].one}
-              trailing={x.status === 'pending' ? <Tag label="Waiting" tone="warning" /> : <Tag label="Live" tone="success" />}
-              onPress={() => router.push({ pathname: '/spot/[id]', params: { id: x.id } })}
-            />
-          ))
-        )}
-      </Section>
-
-      <LadderSheet visible={ladder} onClose={() => setLadder(false)} level={rep.level} ledger={rep.ledger} />
 
       <View>
-        <ListRow title={SCREEN_TITLES.settings} subtitle="Account, notifications, privacy, driving" onPress={() => router.push('/settings')} />
+        <ListRow title="Edit profile" onPress={() => router.push('/profile')} />
         <RowDivider />
-        <ListRow title={SCREEN_TITLES.feedback} subtitle="A bug, an idea, or something wrong on the map" onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
+        <ListRow title={SCREEN_TITLES.settings} onPress={() => router.push('/settings')} />
         <RowDivider />
-        <ListRow title={SCREEN_TITLES.help} subtitle="Meet points, check-in, classes, trophies and levels" onPress={() => router.push('/help')} />
+        <ListRow title={SCREEN_TITLES.help} onPress={() => router.push('/help')} />
+        <RowDivider />
+        <ListRow title={SCREEN_TITLES.feedback} onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
       </View>
+
+      <LadderSheet visible={ladder} onClose={() => setLadder(false)} level={rep.level} ledger={rep.ledger} />
     </ScrollView>
   );
 }

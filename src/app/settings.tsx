@@ -1,12 +1,10 @@
 import { router } from 'expo-router';
-import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LEGAL_ROWS, openLegal } from '../components/AboutSection';
 import { AppUpdates, updateDetails, versionLine } from '../components/AppUpdates';
-import { NavIconChoices } from '../components/DriveHud';
 import { Button, ChoiceGroup, ConfirmSheet, DsText, ErrorState, ListRow, RowDivider, Section, SwitchRow, useToast } from '../components/ds';
 import { TravelPrefs } from '../components/TravelPrefs';
-import { VoicePicker } from '../components/VoicePicker';
 import { useAuth } from '../lib/auth';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { DIRECTIONS_APPS } from '../lib/directions';
@@ -16,29 +14,22 @@ import { clearLaps } from '../lib/lapStore';
 import { LEGAL_PAGES } from '../lib/legal';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../lib/notify';
 import { useStore } from '../lib/store';
-import { COLOR, SPACING } from '../theme';
+import { SPACING } from '../theme';
 
-/** The layers that start off (they're for driving, not for finding a meet). The rest are under Layers on Tonight's map. */
-
-/** Where each group starts, for the jump links at the top (REVIEW-8: a long wall of options). */
-const GroupY = createContext<((title: string, y: number) => void) | null>(null);
-
+/** One group of rows: the caps eyebrow, then rows that touch with a hairline. */
 function Group({ title, children }: { title: string; children: ReactNode }) {
-  const report = useContext(GroupY);
   return (
-    <View onLayout={(e) => report?.(title, e.nativeEvent.layout.y)}>
-      <Section title={title} gap="sm">
-        {children}
-      </Section>
-    </View>
+    <Section title={title} gap="sm">
+      {children}
+    </Section>
   );
 }
 
 /**
- * Settings: one screen of groups (docs/SPEC.md). Account, Navigation and voice,
- * Map layers, Notifications, Privacy, Feedback, About and legal; in the demo,
- * Demo. Developer switches (reset, test reminder, versions) stay hidden unless
- * this is a development build or the version line is long-pressed.
+ * Settings (Redesign 2, 3.11; T5): Account → Profile → Notifications → Privacy → Directions →
+ * About → Demo (demo only) → Staff (staff only). The driving view's own settings (map heading,
+ * icon, voice, cameras) live in its ··· menu; map layers live in the map's Layers sheet. The
+ * developer group shows in development builds, or after a long press on the version line.
  */
 export default function SettingsScreen() {
   const auth = useAuth();
@@ -49,18 +40,16 @@ export default function SettingsScreen() {
   const toast = useToast();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [error, setError] = useState<{ at: string; text: string } | null>(null);
-  const [confirm, setConfirm] = useState<null | 'reset' | 'delete'>(null);
+  const [confirm, setConfirm] = useState<null | 'reset' | 'delete' | 'restart'>(null);
   const [busy, setBusy] = useState<null | 'out' | 'delete'>(null);
   const [developer, setDeveloper] = useState(__DEV__);
-  const [driving, setDriving] = useState(false);
-  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
-  const groupY = useRef<Record<string, number>>({});
   useEffect(() => {
     permissionGranted().then(setAllowed);
   }, []);
   const user = users.find((u) => u.id === me);
   const travel = travelOf(user);
   const demo = backend === 'local';
+  const staff = !!status.data?.isStaff;
   const allow = () =>
     askPermission().then((ok) => {
       setAllowed(ok);
@@ -81,62 +70,31 @@ export default function SettingsScreen() {
     }
   }
 
-  const jumps: [string, string][] = [
-    ['Notifications', 'Notifications'],
-    ['Privacy', 'Privacy'],
-    ['Feedback', 'Feedback'],
-    ['About and legal', 'Legal'],
-    ...(demo ? ([['Demo', 'Demo']] as [string, string][]) : []),
-  ];
-
   return (
-    <GroupY.Provider value={(title, y) => (groupY.current[title] = y)}>
-    <ScrollView ref={scroller} contentContainerStyle={st.page}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: SPACING.xs, marginBottom: -SPACING.md }} accessibilityLabel="Jump to a group">
-        {jumps.map(([title, label]) => (
-          <Button
-            key={title}
-            label={label}
-            tier="tertiary"
-            size="sm"
-            accessibilityLabel={`Jump to ${title}`}
-            onPress={() => scroller.current?.scrollTo({ y: Math.max(0, (groupY.current[title] ?? 0) - SPACING.sm), animated: true })}
-          />
-        ))}
-      </View>
+    <ScrollView contentContainerStyle={st.page}>
       <Group title="Account">
         {demo ? (
-          <>
-            <DsText v="body">You're trying the demo.</DsText>
-            <DsText v="secondary">Sign in with your email to meet real people: going, check-ins, chat and votes are then shared. The demo stays here for later.</DsText>
-            <Button label="Sign in or create an account" block onPress={() => auth.leaveDemo()} />
-          </>
+          <ListRow title="Sign in or create an account" subtitle="You're trying the demo. It stays here for later." onPress={() => auth.leaveDemo()} />
         ) : (
-          <>
-            <DsText v="body">Signed in{auth.email ? ` as ${auth.email}` : ''}</DsText>
-            <DsText v="secondary">
-              {store.online
-                ? store.pendingWrites > 0
-                  ? `Sending ${store.pendingWrites} change${store.pendingWrites === 1 ? '' : 's'} made offline…`
-                  : 'Your profile, garage, events and chat are on Nightshift’s server, so other people see them.'
-                : `Offline: showing what this phone last saw.${store.pendingWrites > 0 ? ` ${store.pendingWrites} change${store.pendingWrites === 1 ? '' : 's'} will be sent when you're back online.` : ''}`}
-            </DsText>
-            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-              <Button label="Sign out" tier="secondary" busy={busy === 'out'} onPress={() => account('out')} style={{ flex: 1 }} block />
-              <Button label="Delete account" tier="destructive" onPress={() => setConfirm('delete')} style={{ flex: 1 }} block />
-            </View>
-          </>
+          <View>
+            <ListRow title={auth.email ? `Signed in as ${auth.email}` : 'Signed in'} subtitle={store.online ? (store.pendingWrites > 0 ? 'Sending changes made offline…' : undefined) : 'Offline: showing what this phone last saw'} />
+            <RowDivider />
+            <ListRow title={busy === 'out' ? 'Signing out…' : 'Sign out'} onPress={() => account('out')} />
+            <RowDivider />
+            <ListRow title="Delete account" subtitle="Deletes everything, straight away" onPress={() => setConfirm('delete')} />
+          </View>
         )}
-        <ListRow title="Your profile" subtitle="Handle, name and home area" onPress={() => router.push('/profile')} />
         {error?.at === 'account' ? <ErrorState title={error.text} /> : null}
       </Group>
 
-
+      <Group title="Profile">
+        <ListRow title="Handle, name and home area" subtitle={user ? `@${user.handle}` : undefined} onPress={() => router.push('/profile')} />
+      </Group>
 
       <Group title="Notifications">
         <SwitchRow
           label="Event reminders"
-          hint="When the location shows and 30 minutes before the start, for events you're going to or hosting."
+          hint="When the location shows, and 30 minutes before the start."
           value={settings.reminders}
           onValueChange={(v) => {
             setSettings({ reminders: v });
@@ -154,59 +112,60 @@ export default function SettingsScreen() {
         />
         {error?.at === 'travel' ? <ErrorState title={error.text} /> : null}
         {!notificationsSupported ? (
-          <DsText v="caption">Notifications only work in the iPhone app. The list under the bell works everywhere.</DsText>
+          <DsText v="caption">On the web, these show under the bell only.</DsText>
         ) : allowed === false && (settings.reminders || travel.alerts === 'notify') ? (
           <View style={{ gap: SPACING.sm }}>
-            <DsText v="caption" tone="warning">Notifications are off for Nightshift, so these land under the bell only.</DsText>
+            <DsText v="caption" tone="warning">Notifications are off for Nightshift, so these show under the bell only.</DsText>
             <Button label="Allow notifications" tier="secondary" size="sm" onPress={allow} />
           </View>
         ) : null}
       </Group>
 
       <Group title="Privacy">
-        <DsText v="secondary">
-          Nobody is ever shown on the map. Other people see your builds, trophies, crew and level, never a location. Your home area is saved to about 1 km
-          and only used to find events near you.
-        </DsText>
         <SwitchRow
-          label="Show me to drivers near me (rough distance only)"
-          hint="Off unless you turn it on. Drivers near you then see your builds and a rough distance, never where you live."
+          label="Show me in People near you"
+          hint="Off unless you turn it on. Others see a rough distance, never where you are."
           value={community.showInNearby}
           onValueChange={(v) => {
             setError(null);
-            community.run((s) => s.setShowInNearby(v)).catch(failed('community'));
+            community
+              .run((s) => s.setShowInNearby(v))
+              .then(() => toast({ message: v ? "You're shown in People near you" : "You're hidden from People near you" }))
+              .catch(failed('community'));
           }}
         />
         {error?.at === 'community' ? <ErrorState title={error.text} /> : null}
-        <ListRow title="Connections and blocked people" subtitle="Only people you're connected with can message you" onPress={() => router.push('/connections')} />
+        <ListRow title="Connections and blocked people" onPress={() => router.push('/connections')} />
         {status.data?.suspended ? (
           <DsText v="caption" tone="warning">
             {status.data.message ?? 'Your account is suspended: you can read and report, not post or message.'}
           </DsText>
         ) : null}
-        {status.data?.isStaff ? <ListRow title="Moderation" subtitle="Reports from everyone, for the Nightshift team only" onPress={() => router.push('/moderation')} /> : null}
-        {status.data?.isStaff ? <ListRow title="Moderation team" subtitle="Staff, their roles and how much each does" onPress={() => router.push('/moderation-team')} /> : null}
-        {status.data?.role === 'admin' || status.data?.role === 'owner' ? (
-          <ListRow title="Audit log" subtitle="Every moderation action, by whom" onPress={() => router.push('/moderation-log')} />
-        ) : null}
       </Group>
 
-      <Group title="Feedback">
-        <DsText v="secondary">Found a bug, got an idea, or is a place or event wrong? It goes straight to the Nightshift team, and you can see what happens to it.</DsText>
-        <Button label={SCREEN_TITLES.feedback} tier="secondary" block onPress={() => router.push({ pathname: '/feedback', params: { from: '/settings' } })} />
+      <Group title="Directions">
+        <ChoiceGroup
+          label="Open in"
+          value={settings.directionsApp ?? 'nightshift'}
+          onChange={(id) => setSettings({ directionsApp: id })}
+          options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
+        />
       </Group>
 
-      <Group title="About and legal">
-        <ListRow title={SCREEN_TITLES.help} subtitle="Meet points, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
-        <RowDivider />
-        {LEGAL_ROWS.map((r) => (
-          <View key={r.key}>
-            <ListRow title={LEGAL_PAGES[r.key].label} subtitle={r.subtitle} onPress={() => openLegal(r.key)} accessibilityHint="Opens in Safari" />
-            <RowDivider />
-          </View>
-        ))}
-        <ListRow title="Open data and credits" subtitle="OpenStreetMap, Wikimedia Commons, TfL and more" onPress={() => router.push('/credits')} />
-        <DsText v="caption">Nightshift is 18+. No ads, no tracking and we never sell your data.</DsText>
+      <Group title="About">
+        <View>
+          <ListRow title={SCREEN_TITLES.help} onPress={() => router.push('/help')} />
+          <RowDivider />
+          <ListRow title={SCREEN_TITLES.feedback} onPress={() => router.push({ pathname: '/feedback', params: { from: '/settings' } })} />
+          {LEGAL_ROWS.map((r) => (
+            <View key={r.key}>
+              <RowDivider />
+              <ListRow title={LEGAL_PAGES[r.key].label} subtitle={r.subtitle} onPress={() => openLegal(r.key)} accessibilityHint="Opens in Safari" />
+            </View>
+          ))}
+          <RowDivider />
+          <ListRow title="Open data and credits" onPress={() => router.push('/credits')} />
+        </View>
         {/* A long press on the version shows the developer switches. */}
         <Pressable
           onLongPress={() => {
@@ -223,62 +182,25 @@ export default function SettingsScreen() {
         <AppUpdates />
       </Group>
 
-      {/* Sat-nav settings (REVIEW-10): one collapsed group, lower down. Most people never need them. */}
-      <Group title="Driving">
-        <ListRow
-          title={driving ? 'Hide driving settings' : 'Driving settings'}
-          subtitle="Which app Navigate opens, the driving map, voice and camera alerts"
-          onPress={() => setDriving((d) => !d)}
-          accessibilityHint={driving ? "Hides the driving settings" : "Shows the driving settings"}
-        />
-        {driving ? (
-          <>
-        <ChoiceGroup
-          label="Navigate opens"
-          value={settings.directionsApp ?? 'nightshift'}
-          onChange={(id) => setSettings({ directionsApp: id })}
-          options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
-        />
-        <DsText v="caption">For the drive view, when you head to a meet or a drive with your car: Nightshift guides you there with a voice and camera alerts, or opens another app.</DsText>
-        <ChoiceGroup
-          label="The driving map"
-          value={settings.navMap === 'north' ? 'north' : 'heading'}
-          onChange={(k) => setSettings({ navMap: k })}
-          options={[
-            { key: 'heading', label: 'Turns with you' },
-            { key: 'north', label: 'North up' },
-          ]}
-        />
-        <DsText v="label">Your icon on the map</DsText>
-        <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
-        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onValueChange={(v) => setSettings({ navVoice: v })} />
-        {settings.navVoice !== false ? <VoicePicker /> : null}
-        <SwitchRow
-          label="Speed camera alerts"
-          hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."
-          value={settings.navCameraAlerts !== false}
-          onValueChange={(v) => setSettings({ navCameraAlerts: v })}
-        />
-          </>
-        ) : null}
-      </Group>
-
       {demo ? (
         <Group title="Demo">
-          <SwitchRow
-            label="Skip the GPS check"
-            hint="Road reports and the turn-by-turn view without being there. Check-ins, photo spots and drives in the demo never need you there."
-            value={!!settings.simulateGps}
-            onValueChange={(v) => setSettings({ simulateGps: v })}
-          />
-          <ListRow
-            title="Restart the demo events"
-            subtitle="Lays the sample events out again round your home area. Your profile, garage and what you made stay."
-            onPress={() => {
-              restartDemoEvents();
-              toast({ message: 'Demo events restarted' });
-            }}
-          />
+          <ListRow title="Restart the demo night" subtitle="Your profile and garage stay" onPress={() => setConfirm('restart')} />
+        </Group>
+      ) : null}
+
+      {staff ? (
+        <Group title="Staff">
+          <View>
+            <ListRow title="Moderation" subtitle="Reports from everyone" onPress={() => router.push('/moderation')} />
+            <RowDivider />
+            <ListRow title="Moderation team" onPress={() => router.push('/moderation-team')} />
+            {status.data?.role === 'admin' || status.data?.role === 'owner' ? (
+              <>
+                <RowDivider />
+                <ListRow title="Audit log" onPress={() => router.push('/moderation-log')} />
+              </>
+            ) : null}
+          </View>
         </Group>
       ) : null}
 
@@ -307,6 +229,18 @@ export default function SettingsScreen() {
       ) : null}
 
       <ConfirmSheet
+        visible={confirm === 'restart'}
+        title="Restart the demo night"
+        message="The demo's meets start again from Friday 21:10. Your profile and garage stay."
+        verb="Restart"
+        onConfirm={() => {
+          restartDemoEvents();
+          setConfirm(null);
+          toast({ message: 'Demo night restarted' });
+        }}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmSheet
         visible={confirm === 'reset'}
         title="Reset the demo"
         message="This clears your demo profile, garage and everything else in the demo, and starts again from the beginning."
@@ -321,14 +255,13 @@ export default function SettingsScreen() {
       <ConfirmSheet
         visible={confirm === 'delete'}
         title="Delete your account"
-        message="This deletes your profile, home area, garage and photos, check-ins, chat, posts and messages, votes, notices and crew place, straight away. Events only you host are cancelled; crews you own pass to a host. Places you suggested stay, without your name. It can't be undone."
+        message="This deletes your profile, home area, garage and photos, check-ins, chat, posts and messages, votes and notices, straight away. Events only you host are cancelled. Places you suggested stay, without your name. It can't be undone."
         verb="Delete"
         busy={busy === 'delete'}
         onConfirm={() => account('delete')}
         onCancel={() => setConfirm(null)}
       />
     </ScrollView>
-    </GroupY.Provider>
   );
 }
 

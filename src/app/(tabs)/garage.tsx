@@ -1,132 +1,79 @@
 import { router, useNavigation } from 'expo-router';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { BuildHero } from '../../components/BuildHero';
-import { BuildGrid, buildMeta } from '../../components/Community';
-import { Button, DsText, EmptyState, HeaderActions, Icon, Press, Section, StatBlock, Tag } from '../../components/ds';
-import { allAwards } from '../../lib/awards';
-import { lastBrought } from '../../lib/bringing';
-import { bhpPerTonne, classOf } from '../../lib/classes';
-import { useNow } from '../../lib/clock';
-import { COVER_ASPECT } from '../../lib/crop';
-import { plural } from '../../lib/format';
-import { useStore } from '../../lib/store';
-import { swapTag } from '../../lib/swap';
-import { stageFromMods, stageLabel } from '../../lib/tune';
-import type { Build } from '../../lib/types';
-import { COLOR, SPACING } from '../../theme';
-import { dynoBadge, headlinePower, whpText } from '../../lib/dyno';
-import { modCount } from '../../lib/modGroups';
 import { AddModSheet } from '../../components/AddModSheet';
-import { DynoBadge } from '../../components/DynoBadge';
+import { BuildCard, buildName, powerLine } from '../../components/BuildBits';
+import { Button, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, useToast } from '../../components/ds';
+import { usePhotoFlow } from '../../components/PhotoFlow';
+import { lastBrought } from '../../lib/bringing';
+import { classOf } from '../../lib/classes';
+import { useNow } from '../../lib/clock';
+import { useStore } from '../../lib/store';
+import { SPACING } from '../../theme';
 
-/** The demo's example build for you (see seed.ts). */
-const SAMPLE_BUILD = 'b-me-0';
-const isSample = (b: Build) => b.id === SAMPLE_BUILD && !!b.nickname?.startsWith('Example');
+const openBuild = (id: string) => router.push({ pathname: '/build/[id]', params: { id } });
+const addBuild = () => router.push('/build/edit');
 
 /**
- * Your garage: the heart of who you are on Nightshift. A hero for your main build (the one you
- * last brought to a meet, else your first), then the rest as a grid. "+ Add" is in the header.
+ * Garage (Redesign 2, 3.8; T1): your main build as a big photo card (the one you last brought to a
+ * meet, else your first) with its class, name and one power line, and one secondary, Add a mod.
+ * Other builds are rows. "+" in the header adds a car or bike.
  */
 export default function Garage() {
   const nav = useNavigation();
-  const { builds, me, votes, events } = useStore();
+  const { builds, me, events, saveBuild } = useStore();
   const now = useNow();
+  const toast = useToast();
   const mine = builds.filter((b) => b.ownerId === me);
-  const awards = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
-  const trophiesOf = (id: string) => awards.filter((a) => a.buildId === id).length;
   const main = lastBrought(events, me, builds) ?? mine[0];
   const others = mine.filter((b) => b.id !== main?.id);
   const [addMod, setAddMod] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const flow = usePhotoFlow({
+    aspect: '4:3',
+    onError: setError,
+    onPhoto: (ref) => {
+      if (!main) return;
+      saveBuild({ ...main, photos: [ref, ...main.photos] })
+        .then(() => toast({ message: 'Photo added' }))
+        .catch((e) => setError(e instanceof Error ? e.message : "Couldn't save the photo."));
+    },
+  });
 
   useLayoutEffect(() => {
-    nav.setOptions({
-      headerRight: () => <HeaderActions action={{ label: '+ New', accessibilityLabel: 'Add a car or bike', onPress: () => router.push('/build/edit') }} bell />,
-    });
+    nav.setOptions({ headerRight: () => <HeaderActions add={{ label: 'Add a car or bike', onPress: addBuild }} bell /> });
   }, [nav]);
 
   if (!main) {
     return (
-      <ScrollView contentContainerStyle={{ padding: SPACING.screen, paddingBottom: SPACING.xxxl }}>
-        <EmptyState
-          glyph="car"
-          title="Your garage is empty"
-          body="Add your car or bike. It's what you bring to meets: invites are matched to it, and it gets a class from S to D."
-          action={{ label: 'Add a car or bike', onPress: () => router.push('/build/edit') }}
-        />
+      <ScrollView contentContainerStyle={{ padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1, justifyContent: 'center' }}>
+        <EmptyState glyph="car" title="Add your car or bike" body="It's how you say what you're bringing to a meet." action={{ label: 'Add your car or bike', onPress: addBuild }} />
       </ScrollView>
     );
   }
 
-  const stage = main.tuneStage ?? stageFromMods(main.mods);
-  const swap = swapTag(main);
-  const won = trophiesOf(main.id);
-  const sample = isSample(main);
-
   return (
     <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}>
-      <View style={{ gap: SPACING.md }}>
-        <Press
-          onPress={() => router.push({ pathname: '/build/[id]', params: { id: main.id } })}
-          feedback="card"
-          label={`Your main build: ${main.make} ${main.model}, class ${classOf(main)}, ${buildMeta(main)}${stage !== 'stock' ? `, ${stageLabel(stage)}` : ''}${won ? `, ${plural(won, 'trophy', 'trophies')}` : ''}`}
-          hint="Opens the build"
-          style={{ gap: SPACING.md }}
-        >
-          <BuildHero build={main} {...(main.photos[0] ? { aspect: COVER_ASPECT } : { height: 180 })} trophies={won} tag={sample ? 'Sample' : undefined} />
-          <View style={{ gap: SPACING.xs }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <DsText v="eyebrow" tone="secondary">
-                Main build
-              </DsText>
-              {/* Says the card opens (REVIEW-9 decision 11). */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs }}>
-                <DsText v="label" tone="action">
-                  Open build
-                </DsText>
-                <Icon name="chevron" size={16} colour={COLOR.action.link} />
-              </View>
-            </View>
-            <DsText v="titleLg" numberOfLines={2}>
-              {main.make} {main.model}
-            </DsText>
-            {main.nickname ? (
-              <DsText v="secondary" numberOfLines={1}>
-                {main.nickname}
-              </DsText>
-            ) : null}
-          </View>
-          {stage !== 'stock' || swap ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
-              {stage !== 'stock' ? <Tag label={stageLabel(stage)} tone="info" /> : null}
-              {swap ? <Tag label={swap} raw /> : null}
-            </View>
-          ) : null}
-          <DynoBadge build={main} />
-          <StatBlock
-            stats={[
-              // One power figure (REVIEW-10 #5): crank bhp, bhp/tonne from the same, whp as a line under.
-              { value: `${headlinePower(main).bhp}`, unit: headlinePower(main).est ? 'bhp est.' : 'bhp', label: dynoBadge(main, now)?.state === 'proven' ? 'Power · dyno' : 'Power' },
-              { value: `${bhpPerTonne(main)}`, label: 'bhp / tonne' },
-              { value: `${modCount(main.mods)}`, label: modCount(main.mods) === 1 ? 'Mod' : 'Mods' },
-            ]}
-          />
-          {whpText(main) ? <DsText v="secondary">{whpText(main)}</DsText> : null}
-        </Press>
-        <Button label="Add a mod" icon="plus" tier="secondary" block onPress={() => setAddMod(true)} />
-        <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />
-        {sample ? <DsText v="caption">A sample build with sample trophies from the demo meet. Open it, then Edit to make it yours.</DsText> : null}
+      {flow.view}
+      <View style={{ gap: SPACING.sm }}>
+        <BuildCard build={main} now={now} onPress={() => openBuild(main.id)} action={{ label: 'Add a mod', onPress: () => setAddMod(true) }} />
+        {main.photos.length === 0 ? <Button label="Add a photo" tier="tertiary" size="sm" icon="plus" busy={flow.busy} onPress={() => flow.pick()} style={{ alignSelf: 'center' }} /> : null}
+        {error ? <ErrorState title={error} /> : null}
       </View>
+      <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />
 
       {others.length ? (
-        <Section title={`Other builds (${others.length})`}>
-          <BuildGrid builds={others} trophiesOf={trophiesOf} sampleId={isSample} halfOnly />
+        <Section title="Other builds">
+          <View>
+            {others.map((b, i) => (
+              <View key={b.id}>
+                {i ? <RowDivider /> : null}
+                <ListRow leading={{ classBadge: classOf(b) }} title={buildName(b)} subtitle={powerLine(b, now)} onPress={() => openBuild(b.id)} />
+              </View>
+            ))}
+          </View>
         </Section>
       ) : null}
-
-      <DsText v="caption" style={{ textAlign: 'center' }}>
-        Class comes from power-to-weight. Cars and bikes use separate scales, so a litre superbike and an M4 are both S.
-      </DsText>
     </ScrollView>
   );
 }

@@ -25,6 +25,7 @@ const BY_ROUTE: Record<string, TabHref> = {
   connections: '/community',
   'build/[id]': '/garage',
   'build/edit': '/garage',
+  'build/power': '/garage',
   rate: '/garage',
   settings: '/me',
   help: '/me',

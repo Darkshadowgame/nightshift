@@ -3,16 +3,13 @@ import { useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, View } from 'react-native';
 import { BuildHero } from '../components/BuildHero';
 import { at, buildMeta, personMark } from '../components/Community';
-import { Avatar, Button, DsText, EmptyState, ErrorState, LoadingState, Tag, metaLine } from '../components/ds';
-import { useRepFor } from '../components/Rep';
-import { SAMPLE_PEOPLE } from '../data/seed';
+import { Avatar, Button, DsText, EmptyState, ErrorState, LoadingState } from '../components/ds';
 import { buildsToRate } from '../lib/carsNear';
 import { classOf } from '../lib/classes';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
 import { COLOR, RADII, SPACING } from '../theme';
-import { levelLabel } from '../lib/rep';
 
 const SWIPE = 110;
 
@@ -24,7 +21,6 @@ const SWIPE = 110;
 export default function RateBuilds() {
   const { builds, users, me } = useStore();
   const community = useCommunity();
-  const repFor = useRepFor();
   const travel = users.find((u) => u.id === me)?.travelMiles ?? 25;
   const near = useCommunityQuery((s) => s.peopleNear(Math.max(travel, 50)), [travel]);
   const rated = useCommunityQuery((s) => s.rated(), []);
@@ -109,9 +105,8 @@ export default function RateBuilds() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
             <Avatar {...personMark(owner)} size="sm" />
             <DsText v="secondary" style={{ flex: 1 }} numberOfLines={1}>
-              {metaLine([at(owner), levelLabel(repFor(b.ownerId).level.level)])}
+              {at(owner)}
             </DsText>
-            {SAMPLE_PEOPLE.includes(b.ownerId) ? <Tag label="Sample" /> : null}
           </View>
         </View>
       </Animated.View>
