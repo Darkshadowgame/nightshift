@@ -20,7 +20,8 @@ import {
 } from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
-import { Button, Txt } from '../components/ui';
+import { buzz, Button } from '../components/ds';
+import { Txt } from '../components/ui';
 import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
@@ -109,7 +110,7 @@ import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../l
 import { useStore } from '../lib/store';
 import { speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
-import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, STATE, SURFACE, TYPE } from '../theme';
+import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, RADII, STATE, SURFACE, TYPE } from '../theme';
 
 /**
  * The driving view: turn-by-turn directions through an event's stops, a
@@ -148,7 +149,7 @@ export default function DriveScreen() {
       <View style={[st.screen, st.centred, { paddingTop: insets.top + 24 }]}>
         <Txt v="h2" scale="drive">Nothing to navigate to</Txt>
         <Txt v="muted" scale="drive" style={{ textAlign: 'center' }}>The stop isn't unlocked for you yet, or it's gone.</Txt>
-        <Button label="Back" kind="secondary" size="lg" onPress={() => router.back()} />
+        <Button block label="Back" tier="secondary" size="lg" onPress={() => router.back()} />
       </View>
     );
   }
@@ -168,13 +169,13 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
         {Platform.OS === 'web'
           ? 'The web preview has no directions or voice. Open Nightshift on the iPhone, or use another app for now.'
           : 'This install is older than the navigation update. Install the latest IPA, or use another app for now.'}
-        {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Count without directions does." : ''}
+        {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Count it without directions does." : ''}
       </Txt>
       <Txt scale="drive">{plan.title}</Txt>
-      <Button label="Apple Maps" size="lg" onPress={() => openDirections('apple', to)} />
-      <Button label="Google Maps" kind="secondary" onPress={() => openDirections('google', to)} />
-      <Button label="Waze" kind="secondary" onPress={() => openDirections('waze', to)} />
-      <Button label="Back" kind="secondary" onPress={() => router.back()} />
+      <Button block label="Apple Maps" size="lg" onPress={() => openDirections('apple', to)} />
+      <Button block label="Google Maps" tier="secondary" onPress={() => openDirections('google', to)} />
+      <Button block label="Waze" tier="secondary" onPress={() => openDirections('waze', to)} />
+      <Button block label="Back" tier="secondary" onPress={() => router.back()} />
     </View>
   );
 }
@@ -327,7 +328,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           say(reason === 'detour' ? 'Road closed ahead. Taking a way round.' : 'Route updated.');
         }
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Could not plan the route.';
+        const msg = e instanceof Error ? e.message : "Couldn't plan the route.";
         if (reason === 'start' && !activeRef.current) {
           setError(msg);
           setPhase('error');
@@ -450,7 +451,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
                   if (verdict.ok) feel.success();
                   setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed. It counts.' : verdict.reason);
                 })
-                .catch((e) => setDriveNote(e instanceof Error ? e.message : 'Could not record the drive.'));
+                .catch((e) => setDriveNote(e instanceof Error ? e.message : "Couldn't record the drive."));
             }
           }
         }
@@ -599,7 +600,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     (p: { kind: RoadReportKind; at: LatLng; heading: number | null }) => {
       roads
         .report(p.kind, p.at, p.heading, fixRef.current?.at ?? p.at)
-        .catch((e) => setNotice(e instanceof Error ? e.message : 'Could not send the report.'));
+        .catch((e) => setNotice(e instanceof Error ? e.message : "Couldn't send the report."));
     },
     [roads],
   );
@@ -662,7 +663,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     setPrompt(null);
     if (!r) return;
     feel.tap();
-    roads.answer(r.id, vote, fixRef.current?.at ?? null).catch((e) => setNotice(e instanceof Error ? e.message : 'Could not send that.'));
+    roads.answer(r.id, vote, fixRef.current?.at ?? null).catch((e) => setNotice(e instanceof Error ? e.message : "Couldn't send that."));
   }
   onFixRef.current = onFix;
 
@@ -779,7 +780,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         if (simulate) await startSim();
         else await startReal();
       } catch {
-        setError('Could not read your location. Try again with a clear view of the sky.');
+        setError("Couldn't read your location. Try again with a clear view of the sky.");
         setPhase('error');
       } finally {
         starting = false;
@@ -831,11 +832,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     }
     try {
       await store.checkIn(ev.id, stop.eventStop, undefined, at);
-      feel.success();
+      buzz('success');
       setCheckedIn((c) => [...c, stop.id]);
       setCheckInAt(null);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Could not check in.');
+      setNotice(e instanceof Error ? e.message : "Couldn't check in.");
     }
   }
 
@@ -1056,11 +1057,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       {phase === 'error' ? (
         <View style={[st.panel, { gap: 10 }]}>
           <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }} accessibilityLiveRegion="polite">{error}</Txt>
-          <Button label="Try again" size="lg" onPress={retry} />
+          <Button block label="Try again" size="lg" onPress={retry} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button label="Apple Maps" kind="secondary" style={{ flex: 1 }} onPress={() => openDirections('apple', stops[nextRef.current]?.at ?? stops[0].at)} />
-            <Button label="Google Maps" kind="secondary" style={{ flex: 1 }} onPress={() => openDirections('google', stops[nextRef.current]?.at ?? stops[0].at)} />
-            <Button label="Waze" kind="secondary" style={{ flex: 1 }} onPress={() => openDirections('waze', stops[nextRef.current]?.at ?? stops[0].at)} />
+            <Button block label="Apple Maps" tier="secondary" style={{ flex: 1 }} onPress={() => openDirections('apple', stops[nextRef.current]?.at ?? stops[0].at)} />
+            <Button block label="Google Maps" tier="secondary" style={{ flex: 1 }} onPress={() => openDirections('google', stops[nextRef.current]?.at ?? stops[0].at)} />
+            <Button block label="Waze" tier="secondary" style={{ flex: 1 }} onPress={() => openDirections('waze', stops[nextRef.current]?.at ?? stops[0].at)} />
           </View>
         </View>
       ) : null}
@@ -1081,8 +1082,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       {checkInStop && !moving && !checkedIn.includes(checkInStop.id) ? (
         <View style={[st.panel, { gap: 10, borderTopColor: STATE.success }]}>
           <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }}>You're at {checkInStop.name}.</Txt>
-          <Button label={`Check in at ${checkInStop.name}`} size="lg" onPress={() => doCheckIn(checkInAt!)} />
-          <Button label="Not now" kind="secondary" size="lg" onPress={() => setCheckInAt(null)} />
+          <Button block label={`Check in at ${checkInStop.name}`} size="lg" onPress={() => doCheckIn(checkInAt!)} />
+          <Button block label="Not now" tier="secondary" size="lg" onPress={() => setCheckInAt(null)} />
         </View>
       ) : null}
 
@@ -1105,9 +1106,9 @@ const st = StyleSheet.create({
   panel: { backgroundColor: C.tarmac, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 12, borderTopWidth: 1, borderTopColor: C.kerb },
   overlayTop: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   overlayBottom: { position: 'absolute', left: 10, right: 10, bottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
-  credit: { flexShrink: 1, backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 'auto' },
+  credit: { flexShrink: 1, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 'auto' },
   creditText: { fontFamily: F.label, color: C.fog, fontSize: TYPE.micro, textAlign: 'right' },
-  demo: { backgroundColor: SURFACE.glass, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  demo: { backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: 6, paddingVertical: 2 },
   demoText: { fontFamily: F.labelBold, color: BRAND, fontSize: TYPE.label, letterSpacing: 1 },
-  notice: { position: 'absolute', left: 12, right: 12, bottom: 80, backgroundColor: SURFACE.glassRaised, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: BRAND },
+  notice: { position: 'absolute', left: 12, right: 12, bottom: 80, backgroundColor: SURFACE.glassRaised, borderRadius: RADII.card, padding: 12, borderWidth: 1, borderColor: BRAND },
 });
