@@ -16,10 +16,9 @@ import {
   type Variant,
 } from '../lib/vehicles';
 import { COLOR, RADII, SPACING } from '../theme';
-import { DsText, Icon, Press, SearchField } from './ds';
+import { DsText, Icon, INPUT, Press, SearchField } from './ds';
 import { SearchSelect } from './SearchSelect';
 import { SuggestMissing } from './SuggestMissing';
-import { s as ui } from './ui';
 
 /**
  * Make → model → variant, searchable, for cars and bikes. Picking a variant
@@ -106,7 +105,7 @@ export function VehiclePicker({
           onChangeText={(t) => onMakeModel(make, t)}
           placeholder="Model as it shows on your build"
           placeholderTextColor={COLOR.text.secondary}
-          style={ui.input}
+          style={INPUT}
           accessibilityLabel="Model name shown on your build"
         />
       ) : null}

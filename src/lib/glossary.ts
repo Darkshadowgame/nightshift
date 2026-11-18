@@ -42,7 +42,7 @@ export function roleLabel(role: Role): string {
   }
 }
 
-/** Which state tone a role tag uses (ui.tsx `Tag` tones). Hosting is brand, never a layer colour. */
+/** Which state tone a role tag uses (the DS `Tag` tones). Hosting is brand, never a layer colour. */
 export type Tone = 'brand' | 'success' | 'warning' | 'info' | 'muted' | 'danger' | 'live';
 export function roleTone(role: Role): Tone {
   switch (role) {

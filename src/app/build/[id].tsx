@@ -6,7 +6,6 @@ import { at, openProfile, openReport, OptionsSheet, personMark } from '../../com
 import { Cover, Trophy } from '../../components/Cover';
 import { DsText, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
 import { PhotoManager } from '../../components/PhotoManager';
-import { NotFound } from '../../components/ui';
 import { MOD_CATEGORIES } from '../../data/catalog';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf, effectivePower, performanceFigure } from '../../lib/classes';
@@ -19,6 +18,7 @@ import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
 import { stageFromMods, stageLabel } from '../../lib/tune';
 import { COLOR, RADII, SPACING } from '../../theme';
+import { NotFoundState } from '../../components/Detail';
 
 /**
  * A build: kind, name, owner, tags, the photo, then a stat block (power, weight, class, tune),
@@ -47,7 +47,7 @@ export default function BuildScreen() {
     });
   }, [nav, b, mine]);
 
-  if (!b) return <NotFound what="Build" message="This build no longer exists." />;
+  if (!b) return <NotFoundState what="Build" message="This build no longer exists." />;
 
   const owner = users.find((u) => u.id === b.ownerId);
   const letter = classOf(b);

@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chime, navDirectionsAvailable, route as fetchRoute, speak, stopSpeaking } from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
@@ -20,8 +20,7 @@ import {
 } from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
-import { buzz, Button } from '../components/ds';
-import { Txt } from '../components/ui';
+import { buzz, Button, DsText } from '../components/ds';
 import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
@@ -110,7 +109,7 @@ import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../l
 import { useStore } from '../lib/store';
 import { speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
-import { BRAND, C, DRIVE_TYPE, F, FONT_SCALE, RADII, STATE, SURFACE, TYPE } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
 
 /**
  * The driving view: turn-by-turn directions through an event's stops, a
@@ -146,9 +145,13 @@ export default function DriveScreen() {
 
   if (!plan) {
     return (
-      <View style={[st.screen, st.centred, { paddingTop: insets.top + 24 }]}>
-        <Txt v="h2" scale="drive">Nothing to navigate to</Txt>
-        <Txt v="muted" scale="drive" style={{ textAlign: 'center' }}>The stop isn't unlocked for you yet, or it's gone.</Txt>
+      <View style={[st.screen, st.centred, { paddingTop: insets.top + SPACING.xl }]}>
+        <DsText v="heading" accessibilityRole="header">
+          Nothing to navigate to
+        </DsText>
+        <DsText v="secondary" style={{ textAlign: 'center' }}>
+          The stop isn't unlocked for you yet, or it's gone.
+        </DsText>
         <Button block label="Back" tier="secondary" size="lg" onPress={() => router.back()} />
       </View>
     );
@@ -162,16 +165,20 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
   const insets = useSafeAreaInsets();
   const to = plan.stops[0].at;
   return (
-    <View style={[st.screen, { paddingTop: insets.top + 24, paddingHorizontal: 20, gap: 14 }]}>
-      <Txt v="eyebrow" scale="drive">Navigation</Txt>
-      <Txt v="h1" scale="drive">Turn by turn needs the iPhone app</Txt>
-      <Txt v="muted" scale="drive">
+    <View style={[st.screen, { paddingTop: insets.top + SPACING.xl, paddingHorizontal: SPACING.screen, gap: SPACING.md }]}>
+      <DsText v="eyebrow" tone="action">
+        Navigation
+      </DsText>
+      <DsText v="titleLg" accessibilityRole="header">
+        Turn by turn needs the iPhone app
+      </DsText>
+      <DsText v="secondary">
         {Platform.OS === 'web'
           ? 'The web preview has no directions or voice. Open Nightshift on the iPhone, or use another app for now.'
           : 'This install is older than the navigation update. Install the latest IPA, or use another app for now.'}
         {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Count it without directions does." : ''}
-      </Txt>
-      <Txt scale="drive">{plan.title}</Txt>
+      </DsText>
+      <DsText v="title">{plan.title}</DsText>
       <Button block label="Apple Maps" size="lg" onPress={() => openDirections('apple', to)} />
       <Button block label="Google Maps" tier="secondary" onPress={() => openDirections('google', to)} />
       <Button block label="Waze" tier="secondary" onPress={() => openDirections('waze', to)} />
@@ -886,7 +893,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         id: s.id,
         at: s.at,
         glyph: s.role === 'checkpoint' ? 'drive' : plan.eventId ? 'cruise' : 'destination',
-        colour: i < next ? C.fog : i === next ? BRAND : C.chalk,
+        colour: i < next ? COLOR.text.secondary : i === next ? COLOR.action.primary : COLOR.text.primary,
       })),
     [stops, next, plan.eventId],
   );
@@ -981,7 +988,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         </SubLine>
       ) : null}
       {plan.driveId ? (
-        <SubLine colour={driveNote?.startsWith('Drive complete') ? STATE.success : undefined}>
+        <SubLine colour={driveNote?.startsWith('Drive complete') ? COLOR.state.success : undefined}>
           {driveNote ??
             (simulate ? "Demo drive: it doesn't count. Simulate the drive on its page to count it." : 'Pass every checkpoint in order and the drive counts.')}
         </SubLine>
@@ -1014,15 +1021,17 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           onLongPress={onLongPress}
         />
         <View pointerEvents="box-none" style={st.overlayTop}>
-          <View pointerEvents="none" style={{ flex: 1, gap: 6, alignItems: 'flex-start' }}>
+          <View pointerEvents="none" style={{ flex: 1, gap: SPACING.xs, alignItems: 'flex-start' }}>
             {alertPill ? <AlertPill text={alertPill} /> : null}
             {simulate ? (
               <View style={st.demo}>
-                <Text style={st.demoText} maxFontSizeMultiplier={FONT_SCALE.drive}>DEMO DRIVE · 4× SPEED</Text>
+                <DsText v="driveLabel" tone="action">
+                  Demo drive · 4× speed
+                </DsText>
               </View>
             ) : null}
           </View>
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: SPACING.sm }}>
             <MapButton
               onPress={toggleOrientation}
               label={orientation === 'north' ? 'North up. Switch to heading up' : 'Heading up. Switch to north up'}
@@ -1043,22 +1052,26 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           <ReportButton onPress={openReport} />
           {credits ? (
             <View pointerEvents="none" style={st.credit}>
-              <Text style={st.creditText} numberOfLines={2} maxFontSizeMultiplier={FONT_SCALE.drive}>{credits}</Text>
+              <DsText v="tag" tone="secondary" numberOfLines={2} style={{ textAlign: 'right', textTransform: 'none' }}>
+                {credits}
+              </DsText>
             </View>
           ) : null}
         </View>
         {notice ? (
           <View style={st.notice}>
-            <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }}>{notice}</Txt>
+            <DsText v="driveBody">{notice}</DsText>
           </View>
         ) : null}
       </View>
 
       {phase === 'error' ? (
-        <View style={[st.panel, { gap: 10 }]}>
-          <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }} accessibilityLiveRegion="polite">{error}</Txt>
+        <View style={st.panel}>
+          <DsText v="driveBody" accessibilityLiveRegion="polite">
+            {error}
+          </DsText>
           <Button block label="Try again" size="lg" onPress={retry} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
             <Button block label="Apple Maps" tier="secondary" style={{ flex: 1 }} onPress={() => openDirections('apple', stops[nextRef.current]?.at ?? stops[0].at)} />
             <Button block label="Google Maps" tier="secondary" style={{ flex: 1 }} onPress={() => openDirections('google', stops[nextRef.current]?.at ?? stops[0].at)} />
             <Button block label="Waze" tier="secondary" style={{ flex: 1 }} onPress={() => openDirections('waze', stops[nextRef.current]?.at ?? stops[0].at)} />
@@ -1080,8 +1093,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       ) : null}
 
       {checkInStop && !moving && !checkedIn.includes(checkInStop.id) ? (
-        <View style={[st.panel, { gap: 10, borderTopColor: STATE.success }]}>
-          <Txt scale="drive" style={{ fontSize: DRIVE_TYPE.body }}>You're at {checkInStop.name}.</Txt>
+        <View style={[st.panel, { borderTopColor: COLOR.state.success }]}>
+          <DsText v="driveBody">You're at {checkInStop.name}.</DsText>
           <Button block label={`Check in at ${checkInStop.name}`} size="lg" onPress={() => doCheckIn(checkInAt!)} />
           <Button block label="Not now" tier="secondary" size="lg" onPress={() => setCheckInAt(null)} />
         </View>
@@ -1101,14 +1114,12 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 }
 
 const st = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.asphalt },
-  centred: { alignItems: 'center', gap: 12, paddingHorizontal: 24 },
-  panel: { backgroundColor: C.tarmac, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, gap: 12, borderTopWidth: 1, borderTopColor: C.kerb },
-  overlayTop: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  overlayBottom: { position: 'absolute', left: 10, right: 10, bottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
-  credit: { flexShrink: 1, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: 4, paddingVertical: 1, marginLeft: 'auto' },
-  creditText: { fontFamily: F.label, color: C.fog, fontSize: TYPE.micro, textAlign: 'right' },
-  demo: { backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: 6, paddingVertical: 2 },
-  demoText: { fontFamily: F.labelBold, color: BRAND, fontSize: TYPE.label, letterSpacing: 1 },
-  notice: { position: 'absolute', left: 12, right: 12, bottom: 80, backgroundColor: SURFACE.glassRaised, borderRadius: RADII.card, padding: 12, borderWidth: 1, borderColor: BRAND },
+  screen: { flex: 1, backgroundColor: COLOR.surface.bg },
+  centred: { alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.xl },
+  panel: { backgroundColor: COLOR.surface.card, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border },
+  overlayTop: { position: 'absolute', top: SPACING.sm, left: SPACING.sm, right: SPACING.sm, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  overlayBottom: { position: 'absolute', left: SPACING.sm, right: SPACING.sm, bottom: SPACING.sm, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: SPACING.sm },
+  credit: { flexShrink: 1, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs, marginLeft: 'auto' },
+  demo: { backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs },
+  notice: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: 80, backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, padding: SPACING.md, borderWidth: 1, borderColor: COLOR.action.primary },
 });

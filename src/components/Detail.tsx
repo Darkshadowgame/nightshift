@@ -134,35 +134,11 @@ export function CheckInCelebration({ play, title, body, children }: { play: bool
   );
 }
 
+/** Fields moved to the design system; re-exported so detail screens keep one import. */
+export { Field, INPUT, TextField } from './ds';
+
 /** The page body for detail screens: gutter, section rhythm, room at the bottom. */
 export const PAGE = { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl } as const;
-
-/** The text field look (until the design system's Field lands): input type, strong border, control radius. */
-export const INPUT: TextStyle = {
-  ...typeStyle('input'),
-  backgroundColor: COLOR.surface.card,
-  borderColor: COLOR.surface.borderStrong,
-  borderWidth: 1,
-  borderRadius: RADII.control,
-  paddingHorizontal: SPACING.md,
-  paddingVertical: SPACING.md,
-  minHeight: 48,
-};
-
-export function TextField({ style, multilineHeight, ...rest }: TextInputProps & { multilineHeight?: number }) {
-  return <TextInput placeholderTextColor={COLOR.text.secondary} style={[INPUT, multilineHeight ? { minHeight: multilineHeight, textAlignVertical: 'top' } : null, style]} {...rest} />;
-}
-
-/** A form field: a caps label above, a hint under it. */
-export function Field({ label, hint, children }: { label: string; hint?: string | null; children: ReactNode }) {
-  return (
-    <View style={{ gap: SPACING.xs }}>
-      <DsText v="label">{label}</DsText>
-      {children}
-      {hint ? <DsText v="caption">{hint}</DsText> : null}
-    </View>
-  );
-}
 
 /** A detail route whose thing is gone: what, why, and Go back. */
 export function NotFoundState({ what, message }: { what: string; message?: string }) {

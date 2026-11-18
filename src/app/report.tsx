@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
-import { Button, Card, Chip, InlineError, Row, Section, ToggleRow, Txt, s as ui } from '../components/ui';
+import { ScrollView, View } from 'react-native';
+import { Callout } from '../components/Detail';
+import { Button, Card, ChoiceGroup, DsText, ErrorState, Section, SwitchRow, TextField } from '../components/ds';
 import { useCommunity } from '../lib/communityStore';
 import { REPORT_REASONS, reportProblem, type ReportReason, type ReportTarget } from '../lib/moderation';
 import { useStore } from '../lib/store';
-import { C, STATE } from '../theme';
+import { COLOR, SPACING } from '../theme';
 
 const TARGETS: ReportTarget[] = ['thread', 'reply', 'message', 'post', 'comment', 'profile', 'build', 'chat', 'event', 'crew', 'spot'];
 
@@ -49,7 +50,7 @@ export default function ReportScreen() {
           : `Thanks. The Nightshift team will look at it.${alsoBlock ? ` @${handle ?? 'They'} is blocked.` : ''}`,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send that.');
+      setError(e instanceof Error ? e.message : "Couldn't send that.");
     } finally {
       setBusy(false);
     }
@@ -57,64 +58,65 @@ export default function ReportScreen() {
 
   if (done) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.asphalt, padding: 16, gap: 16 }}>
-        <Card accent={STATE.success}>
-          <Txt v="h3">{blocking ? 'Blocked' : 'Report sent'}</Txt>
-          <Txt>{done}</Txt>
-          {blocking || alsoBlock ? <Txt v="caption">Unblock any time from Community › People › Connections and blocked people.</Txt> : null}
-        </Card>
-        <Button label="Done" onPress={() => router.back()} />
+      <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen, gap: SPACING.lg }}>
+        <Callout tone="success" title={blocking ? 'Blocked' : 'Report sent'}>
+          <DsText v="body">{done}</DsText>
+          {blocking || alsoBlock ? <DsText v="caption">Unblock any time from Community › People › Connections and blocked people.</DsText> : null}
+        </Callout>
+        <Button label="Done" block onPress={() => router.back()} haptic="success" />
       </View>
     );
   }
 
   const reasons = (
     <>
-      <View style={{ gap: 8 }}>
-        {REPORT_REASONS.map((r) => (
-          <Chip key={r.key} label={r.label} raw on={reason === r.key} onPress={() => setReason(r.key)} />
-        ))}
-      </View>
-      <TextInput
+      <ChoiceGroup label="Reason" layout="list" options={REPORT_REASONS.map((r) => ({ key: r.key, label: r.label }))} value={reason} onChange={setReason} />
+      <TextField
         value={note}
         onChangeText={setNote}
         placeholder={reason === 'other' ? "Say what's wrong" : 'Anything else we should know (optional)'}
-        placeholderTextColor={C.fog}
         multiline
+        multilineHeight={80}
         maxLength={500}
         accessibilityLabel="Note for the Nightshift team"
-        style={[ui.input, { minHeight: 80, textAlignVertical: 'top' }]}
       />
     </>
   );
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <ScrollView
+      style={{ backgroundColor: COLOR.surface.bg }}
+      contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.lg, paddingBottom: SPACING.xxxl }}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
       {blocking ? (
         <>
-          <Txt v="h2" style={{ textTransform: 'none' }}>Block @{handle ?? 'this person'}?</Txt>
+          <DsText v="titleLg" accessibilityRole="header">
+            Block @{handle ?? 'this person'}?
+          </DsText>
           <Card>
-            <Txt>They won't be able to message you or connect with you, and you won't see their posts, threads, replies, comments, messages or event chat.</Txt>
-            <Txt v="caption">They aren't told. Any connection between you ends.</Txt>
+            <DsText v="body">They won't be able to message you or connect with you, and you won't see their posts, threads, replies, comments, messages or event chat.</DsText>
+            <DsText v="caption">They aren't told. Any connection between you ends.</DsText>
           </Card>
-          <ToggleRow label="Report them too" hint="Tell the Nightshift team what happened." value={alsoReport} onValueChange={setAlsoReport} />
+          <SwitchRow label="Report them too" hint="Tell the Nightshift team what happened." value={alsoReport} onValueChange={setAlsoReport} />
           {alsoReport ? <Section title="What's wrong?">{reasons}</Section> : null}
-          <Row>
-            <Button label={busy ? 'Blocking…' : 'Block'} kind="danger" onPress={submit} busy={busy} style={{ flex: 1 }} />
-          </Row>
+          <Button label="Block" tier="destructive" block onPress={submit} busy={busy} />
         </>
       ) : (
         <>
-          <Txt v="h2">Report this {what}</Txt>
+          <DsText v="titleLg" accessibilityRole="header">
+            Report this {what}
+          </DsText>
           <Section title="What's wrong?">{reasons}</Section>
           {userId && userId !== community.me ? (
-            <ToggleRow label={`Also block @${handle ?? 'them'}`} hint="Hides everything they post from you and stops their messages." value={alsoBlock} onValueChange={setAlsoBlock} />
+            <SwitchRow label={`Also block @${handle ?? 'them'}`} hint="Hides everything they post from you and stops their messages." value={alsoBlock} onValueChange={setAlsoBlock} />
           ) : null}
-          <Button label="Send report" onPress={submit} busy={busy} disabled={!reason} />
-          <Txt v="caption">Reports are private. If someone's in danger, call 999.</Txt>
+          <Button label="Send report" block onPress={submit} busy={busy} disabled={!reason} hint="Pick a reason first" haptic="success" />
+          <DsText v="caption">Reports are private. If someone's in danger, call 999.</DsText>
         </>
       )}
-      <InlineError message={error} />
+      {error ? <ErrorState title={error} /> : null}
     </ScrollView>
   );
 }

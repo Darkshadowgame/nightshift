@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
-import { BRAND, C, F, FONT_SCALE, RADIUS, STATE, TYPE } from '../theme';
-import { Txt, s as ui } from './ui';
+import { TextInput, View } from 'react-native';
+import { COLOR, RADII, SPACING } from '../theme';
+import { Button, DsText, Icon, INPUT, Press } from './ds';
 
 export interface SelectOption {
   key: string;
@@ -51,33 +51,36 @@ export function SearchSelect({
 
   if (!open) {
     return (
-      <Pressable
-        onPress={() => !disabled && setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${value || 'not set'}`}
-        accessibilityHint="Opens a searchable list"
-        accessibilityState={{ disabled: !!disabled }}
-        style={({ pressed }) => [ui.input, { flexDirection: 'row', alignItems: 'center', gap: 8 }, (pressed || disabled) && { opacity: disabled ? 0.45 : 0.8 }]}
+      <Press
+        onPress={() => setOpen(true)}
+        disabled={disabled}
+        label={`${label}: ${value || 'not set'}`}
+        hint="Opens a searchable list"
+        style={[INPUT, { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }, disabled && { borderColor: COLOR.surface.border }]}
       >
         <View style={{ flex: 1 }}>
-          <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ fontFamily: F.label, fontSize: TYPE.micro, letterSpacing: 1.2, color: C.fog, textTransform: 'uppercase' }}>{label}</Text>
-          <Text style={{ fontFamily: F.body, fontSize: 16, color: value ? C.chalk : C.fog }} numberOfLines={1}>{value || placeholder}</Text>
+          <DsText v="label">{label}</DsText>
+          <DsText v="body" numberOfLines={1} style={{ color: value && !disabled ? COLOR.text.primary : COLOR.text.secondary }}>
+            {value || placeholder}
+          </DsText>
         </View>
-        <Text style={{ color: C.fog, fontSize: 14 }}>▾</Text>
-      </Pressable>
+        <View aria-hidden style={{ transform: [{ rotate: '90deg' }] }}>
+          <Icon name="chevron" size={16} colour={COLOR.text.secondary} />
+        </View>
+      </Press>
     );
   }
 
   return (
-    <View style={{ gap: 6, borderWidth: 1, borderColor: BRAND, borderRadius: RADIUS.card, padding: 8, backgroundColor: C.asphalt }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <View style={{ gap: SPACING.xs, borderWidth: 1, borderColor: COLOR.action.selected, borderRadius: RADII.card, padding: SPACING.sm, backgroundColor: COLOR.surface.bg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
         <TextInput
           value={query}
           onChangeText={setQuery}
           autoFocus
           placeholder={`Search ${label.toLowerCase()}`}
-          placeholderTextColor={C.fog}
-          style={[ui.input, { flex: 1 }]}
+          placeholderTextColor={COLOR.text.secondary}
+          style={[INPUT, { flex: 1 }]}
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="done"
@@ -87,9 +90,7 @@ export function SearchSelect({
             else if (onFree && typed) { onFree(typed); close(); }
           }}
         />
-        <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Close ${label} list`}>
-          <Txt v="label" style={{ color: BRAND }}>Close</Txt>
-        </Pressable>
+        <Button label="Close" tier="tertiary" size="sm" onPress={close} accessibilityLabel={`Close ${label} list`} />
       </View>
       {onFree && typed && !exact ? (
         <Row
@@ -102,9 +103,11 @@ export function SearchSelect({
       {shown.map((o) => (
         <Row key={o.key} title={o.title} detail={o.detail} on={o.title === value} onPress={() => { onPick(o); close(); }} />
       ))}
-      {shown.length === 0 && !(onFree && typed) ? <Txt v="muted" style={{ padding: 6 }}>Nothing matches.</Txt> : null}
+      {shown.length === 0 && !(onFree && typed) ? <DsText v="secondary" style={{ padding: SPACING.xs }}>Nothing matches.</DsText> : null}
       {options.length > shown.length ? (
-        <Txt v="caption" style={{ padding: 6 }}>{options.length - shown.length} more. Keep typing to narrow it down.</Txt>
+        <DsText v="caption" style={{ padding: SPACING.xs }}>
+          {options.length - shown.length} more. Keep typing to narrow it down.
+        </DsText>
       ) : null}
     </View>
   );
@@ -112,18 +115,25 @@ export function SearchSelect({
 
 function Row({ title, detail, on, accent, onPress }: { title: string; detail?: string; on?: boolean; accent?: boolean; onPress: () => void }) {
   return (
-    <Pressable
+    <Press
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={detail ? `${title}, ${detail}` : title}
-      accessibilityState={{ selected: !!on }}
-      style={({ pressed }) => [
-        { paddingVertical: 9, paddingHorizontal: 10, minHeight: 44, borderRadius: RADIUS.card, backgroundColor: on ? `${STATE.selected}1f` : C.tarmac, borderWidth: 1, borderColor: on ? STATE.selected : C.kerb },
-        pressed && { opacity: 0.7 },
-      ]}
+      haptic="select"
+      label={detail ? `${title}, ${detail}` : title}
+      state={{ selected: !!on }}
+      style={{
+        paddingVertical: SPACING.sm,
+        paddingHorizontal: SPACING.md,
+        minHeight: 44,
+        borderRadius: RADII.control,
+        backgroundColor: on ? COLOR.action.selectedTint : COLOR.surface.card,
+        borderWidth: 1,
+        borderColor: on ? COLOR.action.selected : COLOR.surface.border,
+      }}
     >
-      <Text style={{ fontFamily: F.bodyBold, fontSize: TYPE.body, color: accent || on ? BRAND : C.chalk }}>{title}</Text>
-      {detail ? <Text style={{ fontFamily: F.body, fontSize: TYPE.caption, color: C.fog }}>{detail}</Text> : null}
-    </Pressable>
+      <DsText v="bodyStrong" tone={accent || on ? 'action' : 'primary'}>
+        {title}
+      </DsText>
+      {detail ? <DsText v="caption">{detail}</DsText> : null}
+    </Press>
   );
 }

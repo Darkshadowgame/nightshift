@@ -5,13 +5,13 @@ import { at, moderateOptions, openProfile, openReport, OptionsSheet, personMark,
 import { Field, INPUT } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, EmptyState, ErrorState, IconButton, LoadingState, Press, RowDivider, Section, Tag } from '../../components/ds';
 import { NightMap } from '../../components/NightMap';
-import { NotFound } from '../../components/ui';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { shortAgo } from '../../lib/format';
 import { commentProblem, POST_LIMITS, withLike, type PostComment } from '../../lib/posts';
 import { useStore } from '../../lib/store';
 import { COLOR, POST_COLOUR, RADII, SPACING } from '../../theme';
+import { NotFoundState } from '../../components/Detail';
 
 /** One post with its comments. */
 export default function PostScreen() {
@@ -33,7 +33,7 @@ export default function PostScreen() {
           <LoadingState label="Loading the post" />
         </View>
       );
-    return <NotFound what="Post" message={q.error ?? "It may have been deleted, or it's for someone's connections only."} />;
+    return <NotFoundState what="Post" message={q.error ?? "It may have been deleted, or it's for someone's connections only."} />;
   }
   const { comments } = q.data;
   const post = liked === null ? q.data.post : withLike(q.data.post, liked);

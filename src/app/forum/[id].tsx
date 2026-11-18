@@ -5,7 +5,6 @@ import { at, BuildRow, openBuild, moderateOptions, openProfile, openReport, Opti
 import { BuildChooser, ComposerPhotos, INPUT } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, ErrorState, HeaderActions, Icon, IconButton, ListRow, LoadingState, Press, Section, Tag, metaLine } from '../../components/ds';
 import { useRepFor } from '../../components/Rep';
-import { NotFound } from '../../components/ui';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { boardLabel, LIMITS, replyProblem, SOLVED_REP, type ForumReply } from '../../lib/forum';
@@ -13,6 +12,7 @@ import { plural, shortAgo } from '../../lib/format';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
+import { NotFoundState } from '../../components/Detail';
 
 /** A thread: the question, replies (Helpful, Solved), and a reply box. */
 export default function ThreadScreen() {
@@ -52,7 +52,7 @@ export default function ThreadScreen() {
           <LoadingState label="Loading the thread" />
         </View>
       );
-    return <NotFound what="Thread" message={q.error ?? undefined} />;
+    return <NotFoundState what="Thread" message={q.error ?? undefined} />;
   }
   const replies = q.data.replies.filter((r) => !community.blocked.has(r.authorId));
   const author = users.find((u) => u.id === thread.authorId);

@@ -114,8 +114,8 @@ export const F = {
 };
 
 /**
- * The type scale (see `Txt` in components/ui.tsx). Nothing outside the driving
- * view uses other sizes; 11 is the smallest anywhere.
+ * @deprecated v1 type sizes (the old `Txt` kit is gone). Use `TYPE_SCALE` through `DsText` or
+ * `typeStyle()`; a few drawings (map labels, pins) still read these sizes.
  */
 export const TYPE = { display: 28, title: 20, heading: 16, body: 15, muted: 14, caption: 13, label: 12, micro: 11, mono: 13 } as const;
 
@@ -232,6 +232,30 @@ export const COLOR = {
   paint: ['#e9edf4', '#1b1f27', '#c8102e', '#1f4fa8', '#f2c14e', '#2f7d4f', '#7a7f8a', '#e86a1c'],
 } as const;
 
+/**
+ * Fixed colours that aren't roles, for drawings rather than UI: a real UK speed-limit sign (it
+ * looks the same whatever the theme), the ink inside pins, icons and build art, and the web
+ * preview's plain map. Never use these for text, surfaces or controls.
+ */
+export const ART = {
+  signWhite: '#ffffff',
+  signRed: '#d61f1f',
+  signBlack: '#111111',
+  /** Glyphs and labels drawn on a filled pin or icon. */
+  ink: C.asphalt,
+  /** Wheels and shadows in build art. */
+  shadow: '#070a10',
+  /** Bodywork in build art. */
+  body: C.kerb,
+  /** The web preview's map: background and grid. */
+  mapBg: '#080c13',
+  mapGrid: '#141c2a',
+  /** A speed camera with no known limit: the camera layer, dimmed. */
+  cameraDim: '#c45a5a',
+  /** Native shadows (iOS shadowColor). */
+  black: '#000000',
+} as const;
+
 type TypeStyle = {
   fontFamily: string;
   fontSize: number;
@@ -239,8 +263,8 @@ type TypeStyle = {
   letterSpacing?: number;
   /** Chrome is uppercase; content never is. */
   caps?: boolean;
-  /** How far the iOS text size can grow it: body text fully, chrome capped at FONT_SCALE.chrome. */
-  scale: 'body' | 'chrome';
+  /** How far the iOS text size can grow it: body text fully, chrome capped at FONT_SCALE.chrome, the driving view at FONT_SCALE.drive. */
+  scale: 'body' | 'chrome' | 'drive';
   tabular?: boolean;
 };
 
@@ -273,6 +297,26 @@ export const TYPE_SCALE = {
   tag: { fontFamily: F.labelBold, fontSize: 11, lineHeight: 14, letterSpacing: 1, caps: true, scale: 'chrome' },
   input: { fontFamily: F.body, fontSize: 16, lineHeight: 21, scale: 'body' },
   stat: { fontFamily: F.display, fontSize: 20, lineHeight: 24, scale: 'chrome', tabular: true },
+
+  // The driving view (drive.tsx, DriveHud, RoadReportControls): big, glanceable, capped at FONT_SCALE.drive.
+  /** The turn arrow glyph. */
+  driveArrow: { fontFamily: F.display, fontSize: 66, lineHeight: 72, scale: 'drive' },
+  /** Your speed. */
+  driveSpeed: { fontFamily: F.display, fontSize: DRIVE_TYPE.speed, lineHeight: 48, scale: 'drive', tabular: true },
+  /** The distance to the next turn. */
+  driveDistance: { fontFamily: F.display, fontSize: DRIVE_TYPE.banner, lineHeight: 42, scale: 'drive', tabular: true },
+  /** The next turn's road, the then-arrow. */
+  driveTitle: { fontFamily: F.bodyBold, fontSize: 24, lineHeight: 29, scale: 'drive' },
+  /** The road you're on; report tiles and prompts. */
+  driveRoad: { fontFamily: F.bodyBold, fontSize: DRIVE_TYPE.readout, lineHeight: 27, scale: 'drive' },
+  /** Arrive, to go, time. */
+  driveReadout: { fontFamily: F.display, fontSize: DRIVE_TYPE.readout, lineHeight: 27, scale: 'drive', tabular: true },
+  /** Lines and notices in the driving view. */
+  driveBody: { fontFamily: F.bodyBold, fontSize: DRIVE_TYPE.body, lineHeight: 22, scale: 'drive' },
+  /** Big buttons and titles in the driving view: END, REPORT, UNDO, DONE. */
+  driveButton: { fontFamily: F.display, fontSize: 20, lineHeight: 24, letterSpacing: 1.5, caps: true, scale: 'drive' },
+  /** Small caps labels in the driving view: THEN, MPH, ARRIVE. */
+  driveLabel: { fontFamily: F.labelBold, fontSize: 13, lineHeight: 16, letterSpacing: 1.2, caps: true, scale: 'drive' },
 } as const satisfies Record<string, TypeStyle>;
 export type TypeToken = keyof typeof TYPE_SCALE;
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -16,9 +16,9 @@ import Animated, {
 import { CLASS_COLOURS } from '../lib/classes';
 import { feel } from '../lib/feel';
 import type { ClassLetter } from '../lib/types';
-import { BRAND, C, F, STATE, SURFACE, TYPE } from '../theme';
+import { COLOR, MOTION, RADII, SPACING, tint } from '../theme';
+import { ClassBadge, DsText, typeStyle } from './ds';
 import { Pin, type Glyph } from './Pin';
-import { ClassBadge } from './ui';
 
 /**
  * Motion, following the specs in docs/research/competitors-design-branding.md (C1).
@@ -65,8 +65,8 @@ export function PulseRing({ live, size, pad, children }: { live: boolean; colour
     <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
       {live ? (
         <>
-          <Ring size={size} colour={STATE.live} delay={0} reduced={reduced} />
-          <Ring size={size} colour={STATE.live} delay={600} reduced={reduced} />
+          <Ring size={size} colour={COLOR.state.live} delay={0} reduced={reduced} />
+          <Ring size={size} colour={COLOR.state.live} delay={600} reduced={reduced} />
         </>
       ) : null}
       {children}
@@ -85,7 +85,7 @@ export function FadeUp({ index = 0, stagger = 40, children, style }: { index?: n
   const p = useSharedValue(0);
   useEffect(() => {
     const delay = Math.min(index, 10) * stagger;
-    p.value = withDelay(delay, withTiming(1, { duration: reduced ? 150 : 220, easing: Easing.out(Easing.quad) }));
+    p.value = withDelay(delay, withTiming(1, { duration: reduced ? MOTION.fast : MOTION.base, easing: Easing.out(Easing.quad) }));
   }, [index, stagger, reduced, p]);
   const anim = useAnimatedStyle(() => (reduced ? { opacity: p.value } : { opacity: p.value, transform: [{ translateY: 8 * (1 - p.value) }] }));
   return <Animated.View style={[style, anim]}>{children}</Animated.View>;
@@ -121,7 +121,7 @@ function Sparks({ count, distance, colours, go }: { count: number; distance: num
 // Check-in confirmation: ring draws in, tick pops, sparks burst once.
 // ---------------------------------------------------------------------------
 
-export function CheckInMark({ play, colour = STATE.success }: { play: boolean; colour?: string }) {
+export function CheckInMark({ play, colour = COLOR.state.success }: { play: boolean; colour?: string }) {
   const reduced = useReducedMotion();
   const ring = useSharedValue(play ? 0 : 1);
   const tick = useSharedValue(play ? 0 : 1);
@@ -130,8 +130,8 @@ export function CheckInMark({ play, colour = STATE.success }: { play: boolean; c
   useEffect(() => {
     if (!play) return;
     if (reduced) {
-      ring.value = withTiming(1, { duration: 150 });
-      tick.value = withTiming(1, { duration: 150 });
+      ring.value = withTiming(1, { duration: MOTION.fast });
+      tick.value = withTiming(1, { duration: MOTION.fast });
       return;
     }
     ring.value = withSpring(1, { damping: 14, stiffness: 180 });
@@ -151,11 +151,11 @@ export function CheckInMark({ play, colour = STATE.success }: { play: boolean; c
       {!reduced ? (
         <>
           <Animated.View style={[st.circle, { borderColor: colour }, waveStyle]} />
-          <Sparks count={10} distance={34} colours={[colour, BRAND, STATE.live]} go={burst} />
+          <Sparks count={10} distance={34} colours={[colour, COLOR.action.primary, COLOR.state.live]} go={burst} />
         </>
       ) : null}
-      <Animated.View style={[st.circle, { borderColor: colour, backgroundColor: `${colour}22` }, ringStyle]} />
-      <Animated.Text style={[{ fontFamily: F.display, color: colour, fontSize: TYPE.title + 2 }, tickStyle]}>✓</Animated.Text>
+      <Animated.View style={[st.circle, { borderColor: colour, backgroundColor: tint(colour) }, ringStyle]} />
+      <Animated.Text style={[typeStyle('titleLg', colour), tickStyle]}>✓</Animated.Text>
     </View>
   );
 }
@@ -176,7 +176,7 @@ export function RevealIn({ id, delay = 0, sparks, children, style }: { id: strin
     if (!first) return;
     revealed.add(id);
     if (reduced) {
-      p.value = withDelay(delay, withTiming(1, { duration: 150 }));
+      p.value = withDelay(delay, withTiming(1, { duration: MOTION.fast }));
       return;
     }
     p.value = withDelay(delay, withSpring(1, { damping: 12, stiffness: 120 }));
@@ -193,7 +193,7 @@ export function RevealIn({ id, delay = 0, sparks, children, style }: { id: strin
   );
   return (
     <View style={[{ alignItems: 'center', justifyContent: 'center' }, style]}>
-      {sparks && !reduced && first ? <Sparks count={24} distance={150} colours={[BRAND, STATE.live, STATE.success, STATE.warning]} go={burst} /> : null}
+      {sparks && !reduced && first ? <Sparks count={24} distance={150} colours={[COLOR.action.primary, COLOR.state.live, COLOR.state.success, COLOR.state.warning]} go={burst} /> : null}
       <Animated.View style={style2}>{children}</Animated.View>
     </View>
   );
@@ -216,10 +216,10 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
   };
 
   useEffect(() => {
-    show.value = withTiming(1, { duration: reduced ? 150 : 200 });
+    show.value = withTiming(1, { duration: reduced ? MOTION.fast : MOTION.base });
     const timers: ReturnType<typeof setTimeout>[] = [];
     if (reduced) {
-      flip.value = withDelay(300, withTiming(180, { duration: 150 }));
+      flip.value = withDelay(300, withTiming(180, { duration: MOTION.fast }));
       timers.push(setTimeout(feel.success, 300));
     } else {
       const ease = Easing.inOut(Easing.cubic);
@@ -253,7 +253,9 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
     <Modal transparent animationType="none" visible onRequestClose={finish}>
       <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel={`Class up: ${from} to ${to}. Tap to continue.`}>
         <Animated.View style={[StyleSheet.absoluteFill, st.scrim, back]}>
-          <Text style={st.eyebrow}>Class up</Text>
+          <DsText v="eyebrow" tone="action">
+            Class up
+          </DsText>
           <View style={{ width: 120, height: 120, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, front]}>
               <ClassBadge letter={from} size="xl" />
@@ -263,10 +265,12 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
             </Animated.View>
             {!reduced ? <Animated.View pointerEvents="none" style={[st.streak, streakStyle]} /> : null}
           </View>
-          <Text style={[st.big, { color: CLASS_COLOURS[to] }]}>
+          <DsText v="display" style={{ color: CLASS_COLOURS[to] }}>
             {from} › {to}
-          </Text>
-          <Text style={st.hint}>Your build moved up a class. Tap to carry on.</Text>
+          </DsText>
+          <DsText v="secondary" style={{ textAlign: 'center' }}>
+            Your build moved up a class. Tap to carry on.
+          </DsText>
         </Animated.View>
       </Pressable>
     </Modal>
@@ -293,11 +297,11 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
-    dim.value = withTiming(1, { duration: reduced ? 150 : 250 });
+    dim.value = withTiming(1, { duration: reduced ? MOTION.fast : MOTION.base });
     if (reduced) {
       swap.value = 1;
-      card.value = withTiming(1, { duration: 150 });
-      timers.push(setTimeout(feel.success, 150));
+      card.value = withTiming(1, { duration: MOTION.fast });
+      timers.push(setTimeout(feel.success, MOTION.fast));
     } else {
       sweep.value = withTiming(1, { duration: 700, easing: Easing.linear });
       swap.value = withDelay(700, withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) }));
@@ -311,7 +315,7 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
   }, []);
 
   const wrap = useAnimatedStyle(() => ({ opacity: out.value }));
-  const scrim = useAnimatedStyle(() => ({ opacity: 0.6 * dim.value }));
+  const scrim = useAnimatedStyle(() => ({ opacity: dim.value }));
   const sweepStyle = useAnimatedStyle(() => ({
     opacity: sweep.value === 0 || sweep.value === 1 ? 0 : 1,
     transform: [{ rotate: `${360 * sweep.value}deg` }],
@@ -324,22 +328,24 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
   return (
     <Animated.View style={[StyleSheet.absoluteFill, wrap]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel={`Unlocked: ${title}. Tap to close.`}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, scrim]} />
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim }, scrim]} />
         <View style={[StyleSheet.absoluteFill, st.centre]}>
           <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
             {!reduced ? (
-              <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: 48, borderWidth: 3, borderColor: 'transparent', borderTopColor: colour }, sweepStyle]} />
+              <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: RADII.pill, borderWidth: 3, borderColor: 'transparent', borderTopColor: colour }, sweepStyle]} />
             ) : null}
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, lockStyle]}>
-              <Pin glyph="locked" colour={C.fog} size={56} />
+              <Pin glyph="locked" colour={COLOR.text.secondary} size={56} />
             </Animated.View>
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, openStyle]}>
               <Pin glyph={glyph} colour={colour} size={56} />
             </Animated.View>
           </View>
           <Animated.View style={[st.card, { borderLeftColor: colour }, cardStyle]}>
-            <Animated.Text style={[st.cardEyebrow, { color: colour }, letters]}>Unlocked</Animated.Text>
-            <Text style={st.cardTitle} numberOfLines={1}>{title}</Text>
+            <Animated.Text style={[typeStyle('eyebrow', colour), letters]}>Unlocked</Animated.Text>
+            <DsText v="title" numberOfLines={1}>
+              {title}
+            </DsText>
           </Animated.View>
         </View>
       </Pressable>
@@ -348,17 +354,12 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
 }
 
 const st = StyleSheet.create({
-  circle: { position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 2 },
+  circle: { position: 'absolute', width: 40, height: 40, borderRadius: RADII.pill, borderWidth: 2 },
   centre: { alignItems: 'center', justifyContent: 'center' },
-  scrim: { backgroundColor: SURFACE.glassRaised, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
-  eyebrow: { fontFamily: F.labelBold, fontSize: TYPE.muted, color: BRAND, letterSpacing: 3, textTransform: 'uppercase' },
-  big: { fontFamily: F.displayItalic, fontSize: 34 },
-  hint: { fontFamily: F.body, fontSize: TYPE.muted, color: C.fog, textAlign: 'center' },
-  streak: { position: 'absolute', top: -20, bottom: -20, width: 14, backgroundColor: 'rgba(255,255,255,0.75)' },
+  scrim: { backgroundColor: COLOR.surface.glassRaised, alignItems: 'center', justifyContent: 'center', gap: SPACING.md, padding: SPACING.xl },
+  streak: { position: 'absolute', top: -SPACING.lg, bottom: -SPACING.lg, width: 14, backgroundColor: COLOR.text.primary, opacity: 0.75 },
   card: {
-    marginTop: 12, backgroundColor: SURFACE.glassRaised, borderColor: C.kerb, borderWidth: 1, borderLeftWidth: 3, borderRadius: 8,
-    paddingHorizontal: 14, paddingVertical: 10, maxWidth: '86%', alignItems: 'center',
+    marginTop: SPACING.md, backgroundColor: COLOR.surface.glassRaised, borderColor: COLOR.surface.border, borderWidth: 1, borderLeftWidth: 3, borderRadius: RADII.card,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, maxWidth: '86%', alignItems: 'center',
   },
-  cardEyebrow: { fontFamily: F.labelBold, fontSize: TYPE.label, textTransform: 'uppercase' },
-  cardTitle: { fontFamily: F.displayMed, fontSize: TYPE.heading, color: C.chalk, textTransform: 'uppercase' },
 });

@@ -4,12 +4,12 @@ import { ScrollView, TextInput, View } from 'react-native';
 import { at, OptionsSheet, openProfile, openReport, personMark, type SheetOption } from '../../components/Community';
 import { Field, INPUT } from '../../components/ComposerParts';
 import { Button, ChipGroup, ConfirmSheet, DsText, ErrorState, ListRow, RowDivider, Section, Tag } from '../../components/ds';
-import { NotFound } from '../../components/ui';
 import { useCommunity } from '../../lib/communityStore';
 import { idsIn } from '../../lib/connections';
 import { GROUP_NAME_MAX, MAX_GROUP } from '../../lib/messages';
 import { useStore } from '../../lib/store';
 import { COLOR, SPACING } from '../../theme';
+import { NotFoundState } from '../../components/Detail';
 
 /** A group's info: name, members, admins, add and remove people, leave. */
 export default function GroupInfo() {
@@ -22,7 +22,7 @@ export default function GroupInfo() {
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
-  if (!conv || conv.kind !== 'group') return <NotFound what="Group" message="You're not in this group any more." />;
+  if (!conv || conv.kind !== 'group') return <NotFoundState what="Group" message="You're not in this group any more." />;
 
   const me = community.me;
   const admin = conv.adminIds.includes(me);

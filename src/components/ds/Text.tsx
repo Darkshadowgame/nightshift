@@ -16,9 +16,10 @@ export function typeStyle(token: TypeToken, colour?: string): TextStyle {
   };
 }
 
-/** The larger-text cap for a token: body text scales fully, chrome caps at FONT_SCALE.chrome. */
+/** The larger-text cap for a token: body text scales fully, chrome caps at FONT_SCALE.chrome, the driving view at FONT_SCALE.drive. */
 export function maxScale(token: TypeToken): number | undefined {
-  return TYPE_SCALE[token].scale === 'chrome' ? FONT_SCALE.chrome : undefined;
+  const scale = TYPE_SCALE[token].scale;
+  return scale === 'chrome' ? FONT_SCALE.chrome : scale === 'drive' ? FONT_SCALE.drive : undefined;
 }
 
 /**
@@ -39,7 +40,7 @@ export function DsText({
   /** Layout only (margins, flex, alignment). */
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
-} & Pick<TextProps, 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityLiveRegion' | 'selectable' | 'aria-hidden' | 'nativeID'>) {
+} & Pick<TextProps, 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityLiveRegion' | 'selectable' | 'aria-hidden' | 'nativeID' | 'adjustsFontSizeToFit' | 'allowFontScaling'>) {
   const colour =
     tone === 'primary'
       ? COLOR.text.primary

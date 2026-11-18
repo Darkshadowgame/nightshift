@@ -1,9 +1,8 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { Button, ClassBadge, ConfirmSheet, DsText, ErrorState, Icon, Press, Section, SegmentedControl } from '../../components/ds';
+import { Button, ClassBadge, ConfirmSheet, DsText, ErrorState, Icon, INPUT, Press, Section, SegmentedControl } from '../../components/ds';
 import { ClassUpMoment } from '../../components/motion';
-import { s as ui } from '../../components/ui';
 import { ModPicker } from '../../components/ModPicker';
 import { SearchSelect } from '../../components/SearchSelect';
 import { VehiclePicker } from '../../components/VehiclePicker';
@@ -399,7 +398,7 @@ function Field({
         keyboardType={text ? 'default' : allowSign ? 'numbers-and-punctuation' : 'number-pad'}
         placeholder={placeholder}
         placeholderTextColor={COLOR.text.secondary}
-        style={ui.input}
+        style={INPUT}
         accessibilityLabel={a11y ?? label}
       />
     </View>

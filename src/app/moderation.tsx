@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Button, Card, Chip, EmptyState, InlineError, LinkText, Row, Tag, Txt } from '../components/ui';
+import { Button, Card, DsText, EmptyState, ErrorState, LoadingState, Tag, useToast } from '../components/ds';
 import type { ModerationAction, QueueItem } from '../lib/communityService';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { shortAgo } from '../lib/format';
@@ -9,7 +9,7 @@ import { reportReasonLabel, REPORT_WHAT } from '../lib/moderation';
 import { openModerate } from '../components/Community';
 import { useNow } from '../lib/clock';
 import { useStore } from '../lib/store';
-import { STATE } from '../theme';
+import { COLOR, SPACING } from '../theme';
 
 const SUSPEND_DAYS: { label: string; days: number | null }[] = [
   { label: '1 day', days: 1 },
@@ -56,11 +56,11 @@ export default function ModerationScreen() {
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
+  const toast = useToast();
 
   if (status.data && !status.data.isStaff) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
         <EmptyState title="For the Nightshift team" body="Moderation is only for staff. To report something, use Report on it." />
       </View>
     );
@@ -68,14 +68,13 @@ export default function ModerationScreen() {
 
   const act = async (i: QueueItem, action: ModerationAction, days?: number | null) => {
     setError(null);
-    setDone(null);
     setBusy(`${i.reportId}:${action}:${days ?? ''}`);
     try {
       await community.run((s) => s.moderate(i.reportId, action, days));
-      setDone(action === 'dismiss' ? 'Dismissed.' : action === 'suspend' ? 'Suspended.' : action === 'hide' ? 'Hidden.' : 'Restored.');
+      toast({ message: action === 'dismiss' ? 'Dismissed' : action === 'suspend' ? 'Suspended' : action === 'hide' ? 'Hidden' : 'Restored' });
       setOpen(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not do that.');
+      setError(e instanceof Error ? e.message : "Couldn't do that.");
     } finally {
       setBusy(null);
     }
@@ -85,64 +84,66 @@ export default function ModerationScreen() {
   const admin = status.data?.role === 'admin' || status.data?.role === 'owner';
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 60 }}>
-      <Txt v="caption">
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.md, paddingBottom: SPACING.xxxl }}>
+      <DsText v="caption">
         Open reports, most reported first. Three reports hide a post, reply, comment or chat line until you decide. Automatic reports come from the spam and
         sell-only rules. To warn someone or ban them from Community, open their recent posts.
-      </Txt>
-      {done ? <Txt style={{ color: STATE.success }} accessibilityLiveRegion="polite">{done}</Txt> : null}
-      <InlineError message={error ?? queue.error} />
-      {queue.loading && !queue.data ? <Txt v="muted">Loading reports…</Txt> : null}
+      </DsText>
+      {error ?? queue.error ? <ErrorState title={(error ?? queue.error)!} /> : null}
+      {queue.loading && !queue.data ? <LoadingState /> : null}
       {queue.data && items.length === 0 ? <EmptyState title="Nothing to review" body="No open reports." /> : null}
       {items.map((i) => {
         const who = i.targetUser ? users.find((u) => u.id === i.targetUser) : undefined;
         const href = hrefFor(i);
         const expanded = open === i.reportId;
         return (
-          <Card key={i.reportId} accent={i.reports >= 3 ? STATE.danger : STATE.warning} style={{ gap: 8 }}>
-            <Row gap={6}>
+          <Card key={i.reportId}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.xs }}>
               <Tag label={REPORT_WHAT[i.target]} tone="info" />
               {i.automatic ? <Tag label="Automatic" tone="info" /> : null}
               <Tag label={`${i.reports} report${i.reports === 1 ? '' : 's'}`} tone={i.reports >= 3 ? 'danger' : 'warning'} />
-              <Txt v="caption">{shortAgo(i.firstReported, now)}</Txt>
-            </Row>
-            <Txt v="caption">{i.reasons.map(reasonLabel).join(' · ')}</Txt>
-            <Card variant="raised">
-              <Txt selectable numberOfLines={expanded ? undefined : 4}>{i.excerpt || '(nothing to show)'}</Txt>
+              <DsText v="meta">{shortAgo(i.firstReported, now)}</DsText>
+            </View>
+            <DsText v="caption">{i.reasons.map(reasonLabel).join(' · ')}</DsText>
+            <Card raised>
+              <DsText v="body" selectable numberOfLines={expanded ? undefined : 4}>
+                {i.excerpt || '(nothing to show)'}
+              </DsText>
             </Card>
-            {i.notes.length ? <Txt v="caption">Notes: {i.notes.join(' / ')}</Txt> : null}
-            <Row gap={16}>
-              {who ? <LinkText label={`@${who.handle} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: who.id } })} /> : null}
-              {i.targetUser ? <LinkText label="View their recent posts ›" onPress={() => openModerate(i.targetUser!)} /> : null}
-              {href ? <LinkText label="Open it ›" onPress={() => router.push(href as never)} /> : null}
-              <LinkText label={expanded ? 'Fewer actions' : 'Act on it ›'} onPress={() => setOpen(expanded ? null : i.reportId)} />
-            </Row>
+            {i.notes.length ? <DsText v="caption">Notes: {i.notes.join(' / ')}</DsText> : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: SPACING.lg }}>
+              {who ? <Button label={`@${who.handle}`} tier="tertiary" size="sm" onPress={() => router.push({ pathname: '/user/[id]', params: { id: who.id } })} /> : null}
+              {i.targetUser ? <Button label="Their recent posts" tier="tertiary" size="sm" onPress={() => openModerate(i.targetUser!)} /> : null}
+              {href ? <Button label="Open it" tier="tertiary" size="sm" onPress={() => router.push(href as never)} /> : null}
+              <Button label={expanded ? 'Fewer actions' : 'Act on it'} tier="tertiary" size="sm" onPress={() => setOpen(expanded ? null : i.reportId)} />
+            </View>
             {expanded ? (
-              <View style={{ gap: 10 }}>
-                <Row style={{ flexWrap: 'nowrap' }}>
-                  <Button label="Dismiss" kind="secondary" size="sm" style={{ flex: 1 }} busy={busy === `${i.reportId}:dismiss:`} onPress={() => act(i, 'dismiss')} />
+              <View style={{ gap: SPACING.sm }}>
+                <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                  <Button label="Dismiss" tier="secondary" size="sm" block style={{ flex: 1 }} busy={busy === `${i.reportId}:dismiss:`} onPress={() => act(i, 'dismiss')} />
                   {HIDEABLE.has(i.target) ? (
                     <Button
                       label={i.target === 'event' ? 'Cancel event' : i.target === 'spot' ? 'Reject place' : 'Hide it'}
-                      kind="danger"
+                      tier="destructive"
                       size="sm"
+                      block
                       style={{ flex: 1 }}
                       busy={busy === `${i.reportId}:hide:`}
                       onPress={() => act(i, 'hide')}
                     />
                   ) : null}
-                </Row>
+                </View>
                 {i.reports >= 3 && HIDEABLE.has(i.target) && i.target !== 'event' ? (
-                  <Button label="Restore it (reports were wrong)" kind="secondary" size="sm" busy={busy === `${i.reportId}:restore:`} onPress={() => act(i, 'restore')} />
+                  <Button label="Restore it (reports were wrong)" tier="secondary" size="sm" block busy={busy === `${i.reportId}:restore:`} onPress={() => act(i, 'restore')} />
                 ) : null}
                 {i.targetUser && admin ? (
-                  <View style={{ gap: 6 }}>
-                    <Txt v="label">Suspend @{who?.handle ?? 'them'} (no posting or messages)</Txt>
-                    <Row>
+                  <View style={{ gap: SPACING.xs }}>
+                    <DsText v="label">Suspend @{who?.handle ?? 'them'} (no posting or messages)</DsText>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
                       {SUSPEND_DAYS.map((d) => (
-                        <Chip key={d.label} label={d.label} onPress={() => act(i, 'suspend', d.days)} accessibilityLabel={`Suspend for ${d.label}`} />
+                        <Button key={d.label} label={d.label} tier="secondary" size="sm" onPress={() => act(i, 'suspend', d.days)} accessibilityLabel={`Suspend for ${d.label}`} busy={busy === `${i.reportId}:suspend:${d.days ?? ''}`} />
                       ))}
-                    </Row>
+                    </View>
                   </View>
                 ) : null}
               </View>

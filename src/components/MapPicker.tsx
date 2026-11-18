@@ -23,16 +23,16 @@ import {
 import { longGap, MAX_POINT_GAP_MILES, visibleSpots } from '../lib/spots';
 import { useStore } from '../lib/store';
 import type { LatLng, SpotKind } from '../lib/types';
-import { BRAND, C, RADIUS, SPOT_COLOURS, STATE, SURFACE } from '../theme';
+import { COLOR, ELEVATION, HIT, line, outline, RADII, SPACING, SPOT_COLOURS } from '../theme';
 import type { MapPath, MapPin, MapRegion, NightMapHandle } from './mapTypes';
 import { NightMap } from './NightMap';
 import { Pin, type Glyph } from './Pin';
 import { PlaceSearch } from './PlaceSearch';
-import { Button, InlineError, Row, Txt } from './ui';
+import { Button, DsText, ErrorState, Press } from './ds';
 
 /** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, STATE.warning);
-const BAN_PINS = zonePins(BAN_ZONES, STATE.warning);
+const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
+const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 /** Wait this long after the map stops moving before naming the crosshair (the geocoder dislikes bursts). */
 const NAME_DELAY_MS = 500;
@@ -85,7 +85,7 @@ function PickerBody({
   title,
   hint,
   confirmLabel = 'Set spot here',
-  colour = BRAND,
+  colour = COLOR.action.primary,
   start,
   span = 0.3,
   initial = [],
@@ -182,30 +182,30 @@ function PickerBody({
 
   const contextPins: MapPin[] = near
     .filter((s) => s.kind !== 'drive')
-    .map((s) => ({ id: `k:${s.id}`, at: s.at, glyph: s.kind as Glyph, colour: C.fog, title: s.name, size: 24 }));
+    .map((s) => ({ id: `k:${s.id}`, at: s.at, glyph: s.kind as Glyph, colour: COLOR.text.secondary, title: s.name, size: 24 }));
   const contextPaths: MapPath[] = near
     .filter((s) => s.kind === 'drive' && s.path && s.path.length > 1)
-    .map((s) => ({ id: `k:${s.id}`, coords: s.path!, colour: `${SPOT_COLOURS.drive}55`, width: 3 }));
+    .map((s) => ({ id: `k:${s.id}`, coords: s.path!, colour: line(SPOT_COLOURS.drive), width: 3 }));
   const last = points[points.length - 1];
   const drawn: MapPin[] =
     mode === 'path'
       ? points.map((p, i) => {
           const end = i === 0 || i === points.length - 1;
-          return { id: `p${i}`, at: p, glyph: 'drive', colour: end ? colour : C.fog, title: i === 0 ? 'Start' : `Checkpoint ${i + 1}`, size: end ? 30 : 20 };
+          return { id: `p${i}`, at: p, glyph: 'drive', colour: end ? colour : COLOR.text.secondary, title: i === 0 ? 'Start' : `Checkpoint ${i + 1}`, size: end ? 30 : 20 };
         })
       : [];
   const drawnPaths: MapPath[] =
     mode === 'path'
       ? [
           ...(points.length > 1 ? [{ id: 'route', coords: points, colour }] : []),
-          ...(drawnGap ? [{ id: 'gap', coords: [points[drawnGap.index], points[drawnGap.index + 1]], colour: STATE.danger, dashed: true }] : []),
+          ...(drawnGap ? [{ id: 'gap', coords: [points[drawnGap.index], points[drawnGap.index + 1]], colour: COLOR.state.danger, dashed: true }] : []),
           // Where the next checkpoint would join: red when it's too far.
-          ...(last ? [{ id: 'next', coords: [last, region.centre], colour: gap?.tooFar ? STATE.danger : `${colour}99`, dashed: true, width: 2 }] : []),
+          ...(last ? [{ id: 'next', coords: [last, region.centre], colour: gap?.tooFar ? COLOR.state.danger : outline(colour), dashed: true, width: 2 }] : []),
         ]
       : [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.asphalt }}>
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       <NightMap
         ref={map}
         pins={[...(zones ? BAN_PINS : []), ...contextPins, ...extraPins, ...drawn]}
@@ -230,88 +230,92 @@ function PickerBody({
 
       {/* The crosshair sits on the map's centre: whatever is under it is what gets picked. */}
       <View pointerEvents="none" style={st.crossWrap}>
-        <View style={[st.ring, { borderColor: onPlace ? STATE.success : colour }]} />
-        <View style={[st.lineH, { backgroundColor: onPlace ? STATE.success : colour }]} />
-        <View style={[st.lineV, { backgroundColor: onPlace ? STATE.success : colour }]} />
+        <View style={[st.ring, { borderColor: onPlace ? COLOR.state.success : colour }]} />
+        <View style={[st.lineH, { backgroundColor: onPlace ? COLOR.state.success : colour }]} />
+        <View style={[st.lineV, { backgroundColor: onPlace ? COLOR.state.success : colour }]} />
       </View>
 
-      <View style={[st.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-          <Txt v="h3" numberOfLines={1} style={{ flex: 1 }}>{title}</Txt>
-          <Button label="Cancel" kind="secondary" size="sm" onPress={onCancel} />
-        </Row>
-        {hint ? <Txt v="caption">{hint}</Txt> : null}
+      <View style={[st.top, { paddingTop: insets.top + SPACING.sm }]} pointerEvents="box-none">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
+            {title}
+          </DsText>
+          <Button label="Cancel" tier="tertiary" size="sm" onPress={onCancel} />
+        </View>
+        {hint ? <DsText v="caption">{hint}</DsText> : null}
         <PlaceSearch onPick={(h) => jump(h.at, Math.min(region.span, mode === 'path' ? 0.12 : 0.04))} />
       </View>
 
-      <View style={[st.bottom, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
-        <Row style={{ justifyContent: 'flex-end' }}>
-          <Pressable
-            onPress={locate}
-            disabled={locating}
-            style={({ pressed }) => [st.locate, (pressed || locating) && { opacity: 0.7 }]}
-            accessibilityRole="button"
-            accessibilityLabel="Go to my location"
-            hitSlop={6}
-          >
-            <Pin glyph="you" colour={located ? C.chalk : C.fog} size={26} />
-          </Pressable>
-        </Row>
+      <View style={[st.bottom, { paddingBottom: insets.bottom + SPACING.md }]} pointerEvents="box-none">
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+          <Press onPress={locate} disabled={locating} haptic="tap" label="Go to my location" hitSlop={6} style={st.locate}>
+            <Pin glyph="you" colour={located ? COLOR.text.primary : COLOR.text.secondary} size={26} />
+          </Press>
+        </View>
         <View style={st.panel}>
-          <Txt v="label" style={{ color: onPlace ? STATE.success : C.fog }}>{onPlace ? 'On a known place' : 'Under the crosshair'}</Txt>
-          <Txt numberOfLines={1} accessibilityLiveRegion="polite">{label}</Txt>
+          <DsText v="label" style={onPlace ? { color: COLOR.state.success } : undefined}>
+            {onPlace ? 'On a known place' : 'Under the crosshair'}
+          </DsText>
+          <DsText numberOfLines={1} accessibilityLiveRegion="polite">
+            {label}
+          </DsText>
           {zone ? (
-            <Pressable onPress={() => setZoneOpen(zone.id)} accessibilityRole="button" hitSlop={6}>
-              <Txt v="mono" style={{ color: STATE.warning }} numberOfLines={2}>INSIDE A CAR-MEET ORDER AREA ({zone.name.toUpperCase()}) · DETAILS ›</Txt>
-            </Pressable>
+            <Press onPress={() => setZoneOpen(zone.id)} label={`Inside a car-meet order area: ${zone.name}. Details`} hitSlop={6}>
+              <DsText v="meta" tone="warning" numberOfLines={2}>
+                Inside a car-meet order area ({zone.name}) · Details ›
+              </DsText>
+            </Press>
           ) : null}
           {mode === 'path' ? (
             <>
-              <Txt v="mono" style={{ color: colour }}>{pathSummary(points)}</Txt>
+              <DsText v="meta" style={{ color: colour }}>
+                {pathSummary(points)}
+              </DsText>
               {drawnGap ? (
-                <Txt v="caption" style={{ color: STATE.danger }}>
+                <DsText v="caption" tone="danger">
                   Checkpoints {drawnGap.index + 1} and {drawnGap.index + 2} are {drawnGap.miles.toFixed(1)} mi apart (red line). Undo back
                   and add points in between.
-                </Txt>
+                </DsText>
               ) : null}
               {gap?.tooFar ? (
-                <Txt v="caption" style={{ color: STATE.danger }}>
+                <DsText v="caption" tone="danger">
                   The next checkpoint would be {gap.miles.toFixed(1)} mi from the last. Keep them within {MAX_POINT_GAP_MILES} mi so
                   the drive follows the road: move the map back along the road.
-                </Txt>
+                </DsText>
               ) : null}
               {!drawnGap && !gap?.tooFar ? (
-                <Txt v="caption">
+                <DsText v="caption">
                   {points.length === 0
                     ? 'Put the crosshair on the start of the road and add the first checkpoint.'
                     : `Follow the road: a checkpoint at least every ${MAX_POINT_GAP_MILES} mi. Tapping the map adds one too.`}
-                </Txt>
+                </DsText>
               ) : null}
             </>
           ) : null}
-          <InlineError message={note} />
+          {note ? <ErrorState title={note} /> : null}
           {mode === 'point' ? (
-            <Button label={confirmLabel} onPress={() => take(region.centre)} />
+            <Button label={confirmLabel} block onPress={() => take(region.centre)} />
           ) : (
             <>
-              <Button label={points.length === 0 ? 'Add start' : 'Add checkpoint'} onPress={() => take(region.centre)} />
-              <Row style={{ flexWrap: 'nowrap' }}>
-                <Button label="Undo" kind="secondary" disabled={points.length === 0} onPress={() => setPoints(undoPoint)} style={{ flex: 1 }} />
+              <Button label={points.length === 0 ? 'Add start' : 'Add checkpoint'} block onPress={() => take(region.centre)} />
+              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                <Button label="Undo" tier="secondary" block disabled={points.length === 0} onPress={() => setPoints(undoPoint)} style={{ flex: 1 }} />
                 <Button
                   label="Done"
-                  kind="secondary"
+                  tier="secondary"
+                  block
                   disabled={!canFinish(points, 'path')}
+                  hint="Add a start and an end first"
                   onPress={() => onDone(points.map((at) => ({ at })))}
                   style={{ flex: 1 }}
-                  accessibilityHint={canFinish(points, 'path') ? undefined : 'Add at least a start and an end first'}
                 />
-              </Row>
+              </View>
             </>
           )}
         </View>
       </View>
       {openZone ? (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: SURFACE.scrim, justifyContent: 'center', padding: 16 }]}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, justifyContent: 'center', padding: SPACING.screen }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setZoneOpen(null)} accessibilityLabel="Close" />
           <ZoneCard zone={openZone} onClose={() => setZoneOpen(null)} />
         </View>
@@ -323,11 +327,11 @@ function PickerBody({
 const CROSS = 44;
 const st = StyleSheet.create({
   crossWrap: { position: 'absolute', left: '50%', top: '50%', width: CROSS, height: CROSS, marginLeft: -CROSS / 2, marginTop: -CROSS / 2, alignItems: 'center', justifyContent: 'center' },
-  ring: { position: 'absolute', width: 22, height: 22, borderRadius: 11, borderWidth: 2.5, backgroundColor: 'rgba(11,15,23,0.25)' },
+  ring: { position: 'absolute', width: 22, height: 22, borderRadius: RADII.pill, borderWidth: 2.5, backgroundColor: COLOR.surface.glass },
   lineH: { position: 'absolute', width: CROSS, height: 2, opacity: 0.9 },
   lineV: { position: 'absolute', width: 2, height: CROSS, opacity: 0.9 },
-  top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 12, paddingBottom: 10, gap: 6, backgroundColor: SURFACE.glass },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, gap: 8 },
-  locate: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.kerb, backgroundColor: SURFACE.glass, alignItems: 'center', justifyContent: 'center' },
-  panel: { backgroundColor: SURFACE.glass, borderRadius: RADIUS.sheet, borderWidth: 1, borderColor: C.kerb, padding: 12, gap: 6 },
+  top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.glass },
+  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACING.md, gap: SPACING.sm },
+  locate: { width: HIT, height: HIT, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.glass, alignItems: 'center', justifyContent: 'center', ...ELEVATION.float },
+  panel: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, padding: SPACING.md, gap: SPACING.xs, ...ELEVATION.float },
 });

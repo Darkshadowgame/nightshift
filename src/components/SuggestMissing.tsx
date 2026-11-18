@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { makeSuggestion, type FeedbackScreen } from '../lib/feedbackQueue';
 import { newId, useStore } from '../lib/store';
-import { BRAND, C } from '../theme';
-import { Button, Card, InlineError, Row, Txt, s as ui } from './ui';
+import { SPACING } from '../theme';
+import { Button, Card, DsText, ErrorState, TextField } from './ds';
 
 /**
  * "Suggest a missing car/bike or mod" (or a shop edit): a link that opens a two-field form and
@@ -44,34 +44,39 @@ export function SuggestMissing({
 
   if (!open) {
     return (
-      <Pressable onPress={() => { setOpen(true); setSent(false); }} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' }}>
-        <Txt v="label" style={{ color: BRAND }}>{sent ? 'Thanks, noted. Suggest another ›' : `${label} ›`}</Txt>
-      </Pressable>
+      <Button
+        label={sent ? 'Thanks, noted. Suggest another' : label}
+        tier="tertiary"
+        size="sm"
+        onPress={() => {
+          setOpen(true);
+          setSent(false);
+        }}
+        style={{ alignSelf: 'flex-start' }}
+      />
     );
   }
 
   return (
-    <Card accent={BRAND}>
-      <Txt v="h3">{label}</Txt>
-      <TextInput value={missing} onChangeText={setMissing} placeholder={placeholder} placeholderTextColor={C.fog} style={ui.input} accessibilityLabel="What's missing" autoFocus />
-      <TextInput
-        value={notes}
-        onChangeText={setNotes}
-        placeholder={notesPlaceholder}
-        placeholderTextColor={C.fog}
-        style={[ui.input, { minHeight: 64, textAlignVertical: 'top' }]}
-        multiline
-        accessibilityLabel="Notes"
-      />
-
-      <Row style={{ flexWrap: 'nowrap' }}>
+    <Card>
+      <DsText v="title">{label}</DsText>
+      <TextField value={missing} onChangeText={setMissing} placeholder={placeholder} accessibilityLabel="What's missing" autoFocus />
+      <TextField value={notes} onChangeText={setNotes} placeholder={notesPlaceholder} multiline multilineHeight={64} accessibilityLabel="Notes" />
+      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
         <View style={{ flex: 1 }}>
-          <Button label="Send suggestion" kind="secondary" onPress={send} />
+          <Button label="Send suggestion" tier="secondary" block onPress={send}/>
         </View>
-        <Button label="Cancel" kind="secondary" onPress={() => { setOpen(false); setError(null); }} />
-      </Row>
-      <InlineError message={error} />
-      <Txt v="caption">It goes to the Nightshift team. With no signal it waits on your phone and goes later.</Txt>
+        <Button
+          label="Cancel"
+          tier="tertiary"
+          onPress={() => {
+            setOpen(false);
+            setError(null);
+          }}
+        />
+      </View>
+      {error ? <ErrorState title={error} /> : null}
+      <DsText v="caption">It goes to the Nightshift team. With no signal it waits on your phone and goes later.</DsText>
     </Card>
   );
 }

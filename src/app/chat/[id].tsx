@@ -6,7 +6,6 @@ import { INPUT } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, ErrorState, HeaderActions, IconButton, LoadingState, Press, screenHeader } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { ShareCardView, SharePicker } from '../../components/SharePicker';
-import { NotFound } from '../../components/ui';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { formatTime } from '../../lib/format';
@@ -14,6 +13,7 @@ import { conversationTitle, dayLabel, MESSAGE_MAX, messageProblem, otherMember, 
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
+import { NotFoundState } from '../../components/Detail';
 
 /** One chat: messages, photos (plate-blurred), shared cards, "Seen". Only between connected people. */
 export default function ChatScreen() {
@@ -87,7 +87,7 @@ export default function ChatScreen() {
           <LoadingState label="Loading the chat" />
         </View>
       );
-    return <NotFound what="Chat" message="You're not in this chat any more." />;
+    return <NotFoundState what="Chat" message="You're not in this chat any more." />;
   }
   const messages = (q.data?.messages ?? []).filter((m) => !(m.senderId && community.blocked.has(m.senderId)));
   const seen = seenLabel({ ...conv, readUpTo: q.data?.readUpTo }, messages, community.me);

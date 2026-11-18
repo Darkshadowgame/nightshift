@@ -22,9 +22,8 @@ import type { Mod, TuneStage, VehicleKind } from '../lib/types';
 import { isRoadIllegal, MAX_REWARDED_MODS, OFF_ROAD_TAG } from '../lib/legality';
 import type { Aspiration } from '../lib/vehicles';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, Chip, ChoiceGroup, DsText, IconButton, Press, RowDivider, Tag } from './ds';
+import { Button, Chip, ChoiceGroup, DsText, IconButton, INPUT, Press, RowDivider, Tag } from './ds';
 import { SuggestMissing } from './SuggestMissing';
-import { s as ui } from './ui';
 
 const mid = () => newId('m');
 
@@ -184,8 +183,8 @@ export function ModPicker({
           {shown.some((c) => c.roadLegal === false) ? ' Some parts here are off-road only: you can log them, but they earn no rep.' : ''} Rep counts each road-legal mod once, up to {MAX_REWARDED_MODS} per build.
         </DsText>
         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-          <TextInput value={modName} onChangeText={setModName} placeholder="Something else, e.g. Wagner intercooler" placeholderTextColor={COLOR.text.secondary} style={[ui.input, { flex: 2, minWidth: 0 }]} onSubmitEditing={addFree} maxLength={60} accessibilityLabel={`Mod name, added under ${MOD_GROUPS.find((g) => g.key === activeGroup)?.label ?? 'Other'}`} />
-          <TextInput value={modGain} onChangeText={setModGain} placeholder="+bhp" keyboardType="number-pad" placeholderTextColor={COLOR.text.secondary} style={[ui.input, { flex: 1, minWidth: 0 }]} accessibilityLabel="bhp gain (optional)" />
+          <TextInput value={modName} onChangeText={setModName} placeholder="Something else, e.g. Wagner intercooler" placeholderTextColor={COLOR.text.secondary} style={[INPUT, { flex: 2, minWidth: 0 }]} onSubmitEditing={addFree} maxLength={60} accessibilityLabel={`Mod name, added under ${MOD_GROUPS.find((g) => g.key === activeGroup)?.label ?? 'Other'}`} />
+          <TextInput value={modGain} onChangeText={setModGain} placeholder="+bhp" keyboardType="number-pad" placeholderTextColor={COLOR.text.secondary} style={[INPUT, { flex: 1, minWidth: 0 }]} accessibilityLabel="bhp gain (optional)" />
         </View>
         <Button label="Add mod" tier="secondary" size="sm" onPress={addFree} disabled={!modName.trim()} />
       </View>
@@ -210,7 +209,7 @@ export function ModPicker({
                     placeholder="0"
                     placeholderTextColor={COLOR.text.secondary}
                     keyboardType="number-pad"
-                    style={[ui.input, { width: 64, paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm, textAlign: 'right' }]}
+                    style={[INPUT, { width: 64, paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm, textAlign: 'right' }]}
                     accessibilityLabel={`bhp gain for ${m.name}`}
                   />
                   <DsText v="meta">bhp</DsText>

@@ -1,8 +1,8 @@
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../lib/store';
-import { C, F, STATE } from '../theme';
-import { Txt } from './ui';
+import { COLOR, RADII, SPACING } from '../theme';
+import { DsText } from './ds';
 
 /**
  * Signed in and the server can't be reached: a small pill at the top. The app
@@ -16,14 +16,14 @@ export function OfflinePill() {
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', top: insets.top + 4, left: 0, right: 0, alignItems: 'center' }}
+      style={{ position: 'absolute', top: insets.top + SPACING.xs, left: 0, right: 0, alignItems: 'center' }}
       accessibilityLiveRegion="polite"
       accessibilityLabel={`Offline. Showing saved data.${pendingWrites ? ` ${pendingWrites} changes waiting to send.` : ''}`}
     >
-      <View style={{ backgroundColor: C.kerb, borderColor: STATE.warning, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}>
-        <Txt v="label" scale="chrome" style={{ fontFamily: F.display, color: C.chalk }}>
-          OFFLINE{pendingWrites ? ` · ${pendingWrites} WAITING` : ''}
-        </Txt>
+      <View style={{ backgroundColor: COLOR.surface.raised, borderColor: COLOR.state.warning, borderWidth: 1, borderRadius: RADII.pill, paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs }}>
+        <DsText v="tag" tone="primary">
+          Offline{pendingWrites ? ` · ${pendingWrites} waiting` : ''}
+        </DsText>
       </View>
     </View>
   );

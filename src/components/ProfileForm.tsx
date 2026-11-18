@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { DEMO_HOME, DEMO_REGION } from '../data/seed';
 import { DEFAULT_ALERTS, DEFAULT_TRAVEL_MILES, type AlertMode } from '../lib/discover';
 import { fuzz } from '../lib/geo';
@@ -7,12 +7,12 @@ import { currentPosition } from '../lib/location';
 import { nearestRegion, REGIONS, regionCentre, type ProfileDraft } from '../lib/profile';
 import type { LatLng } from '../lib/types';
 import { useStore } from '../lib/store';
-import { C, LAYER, STATE } from '../theme';
+import { COLOR, LAYER, RADII, SPACING } from '../theme';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { PlaceSearch } from './PlaceSearch';
 import { TravelPrefs } from './TravelPrefs';
-import { Button, Chip, InlineError, Row, Section, Txt, s as ui } from './ui';
+import { Button, ChoiceGroup, DsText, ErrorState, Press, Section, TextField } from './ds';
 
 /** Handle, name, region, rough home area and how far you'd travel. Used on first run and on Me. */
 export function ProfileForm({
@@ -89,74 +89,55 @@ export function ProfileForm({
     try {
       await onSubmit({ handle, name, region, home, travelMiles, alerts });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <View style={{ gap: 20 }}>
+    <View style={{ gap: SPACING.section }}>
       <Section title="Handle">
-        <TextInput
-          value={handle}
-          onChangeText={setHandle}
-          placeholder="e.g. night_owl"
-          placeholderTextColor={C.fog}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={ui.input}
-          accessibilityLabel="Handle"
-        />
-        <Txt v="muted">Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.</Txt>
+        <TextField value={handle} onChangeText={setHandle} placeholder="e.g. night_owl" autoCapitalize="none" autoCorrect={false} accessibilityLabel="Handle" />
+        <DsText v="caption">Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.</DsText>
       </Section>
 
       <Section title="Display name">
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="First name or nickname"
-          placeholderTextColor={C.fog}
-          style={ui.input}
-          accessibilityLabel="Display name"
-        />
+        <TextField value={name} onChangeText={setName} placeholder="First name or nickname" accessibilityLabel="Display name" />
       </Section>
 
       <Section title="Rough home area">
-        <Txt v="muted">
-          Only used to find events near you. It's saved to about 1 km, never your exact address, and nobody sees it.
-        </Txt>
-        <Button label={locating ? 'Finding you…' : 'Use my current location'} kind="secondary" onPress={useMyLocation} busy={locating} />
-        <InlineError message={locError} />
+        <DsText v="secondary">Only used to find events near you. It's saved to about 1 km, never your exact address, and nobody sees it.</DsText>
+        <Button label={locating ? 'Finding you…' : 'Use my current location'} tier="secondary" block onPress={useMyLocation} busy={locating} />
+        {locError ? <ErrorState title={locError} /> : null}
         <PlaceSearch placeholder="Or search your town or postcode" onPick={(h) => setHomeNear(h.at)} />
-        <Button label={home ? 'Move it on the map' : 'Choose on the map'} kind="secondary" onPress={() => setPicking(true)} />
-        <Pressable
+        <Button label={home ? 'Move it on the map' : 'Choose on the map'} tier="secondary" block onPress={() => setPicking(true)} />
+        <Press
           onPress={() => setPicking(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open the map to set your home area"
-          style={{ height: 200, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: home ? STATE.success : C.kerbHi }}
+          label="Open the map to set your home area"
+          style={{ height: 200, borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: home ? COLOR.state.success : COLOR.surface.raisedHi }}
         >
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap key={`${centre.lat},${centre.lng}`} pins={[]} centre={centre} span={home ? 0.3 : 0.8} picked={home} />
           </View>
-        </Pressable>
-        <Txt v="mono" style={{ color: home ? STATE.success : C.fog }}>
-          {isDemoHome ? 'HOME AREA SET: THE DEMO AREA (TAMWORTH)' : home ? 'HOME AREA SET, TO ABOUT 1 KM' : 'NOT SET YET'}
-        </Txt>
-        <Txt v="caption">
+        </Press>
+        <DsText v="meta" tone={home ? 'success' : 'secondary'}>
+          {isDemoHome ? 'Home area set: the demo area (Tamworth)' : home ? 'Home area set, to about 1 km' : 'Not set yet'}
+        </DsText>
+        <DsText v="caption">
           {demo
             ? "Tap the map to fine-tune it. In the demo, sample people and events (marked Sample) are drawn round your home area so there's something to try."
             : 'Tap the map to fine-tune it.'}
-        </Txt>
+        </DsText>
       </Section>
 
       <Section title="Region">
-        <Txt v="caption">Set from your home area. Change it if it's wrong.</Txt>
-        <Row gap={6}>
-          {REGIONS.map((r) => (
-            <Chip key={r.name} label={r.name} on={region === r.name} onPress={() => pickRegion(r.name)} />
-          ))}
-        </Row>
+        <ChoiceGroup
+          label="Set from your home area. Change it if it's wrong."
+          options={REGIONS.map((r) => ({ key: r.name, label: r.name }))}
+          value={region}
+          onChange={pickRegion}
+        />
       </Section>
 
       <Section title="Events near you">
@@ -170,17 +151,15 @@ export function ProfileForm({
         />
       </Section>
 
-      {devArea && !isDemoHome ? (
-        <Button label="Developer: use the demo area (Tamworth)" kind="secondary" onPress={pickDemoArea} />
-      ) : null}
+      {devArea && !isDemoHome ? <Button label="Developer: use the demo area (Tamworth)" tier="secondary" block onPress={pickDemoArea} /> : null}
 
-      <Button label={submitLabel} onPress={submit} busy={saving} />
-      <InlineError message={error} />
+      <Button label={submitLabel} block onPress={submit} busy={saving} haptic="success" />
+      {error ? <ErrorState title={error} /> : null}
 
       <MapPicker
         visible={picking}
         mode="point"
-        title="YOUR ROUGH HOME AREA"
+        title="Your rough home area"
         hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your exact address."
         confirmLabel="Set home area here"
         colour={LAYER.event}

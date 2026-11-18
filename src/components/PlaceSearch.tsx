@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, TextInput, View } from 'react-native';
 import { searchPlaces, SearchError } from '../lib/location';
 import { searchQuery, type PlaceHit } from '../lib/placeNames';
-import { C } from '../theme';
-import { InlineError, Txt, s as ui } from './ui';
+import { COLOR, RADII, SPACING } from '../theme';
+import { DsText, ErrorState, INPUT, Press } from './ds';
 
 const DEBOUNCE_MS = 600;
 
@@ -53,35 +53,31 @@ export function PlaceSearch({ onPick, placeholder = 'Search a postcode, town or 
   }
 
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: SPACING.xs }}>
       <View>
         <TextInput
           value={text}
           onChangeText={setText}
           placeholder={placeholder}
-          placeholderTextColor={C.fog}
+          placeholderTextColor={COLOR.text.secondary}
           autoCorrect={false}
           returnKeyType="search"
-          style={[ui.input, { paddingRight: 40 }]}
+          style={[INPUT, { paddingRight: SPACING.xxxl }]}
           accessibilityLabel="Search for a place"
         />
-        {state === 'searching' ? <ActivityIndicator color={C.fog} style={{ position: 'absolute', right: 12, top: 0, bottom: 0 }} /> : null}
+        {state === 'searching' ? <ActivityIndicator color={COLOR.text.secondary} style={{ position: 'absolute', right: SPACING.md, top: 0, bottom: 0 }} /> : null}
       </View>
-      {state === 'none' ? <Txt v="muted">No UK places found. Try a postcode or a town name.</Txt> : null}
-      {state === 'error' ? <InlineError message={error} /> : null}
+      {state === 'none' ? <DsText v="secondary">No UK places found. Try a postcode or a town name.</DsText> : null}
+      {state === 'error' ? <ErrorState title={error} /> : null}
       {hits.map((h) => (
-        <Pressable
+        <Press
           key={`${h.at.lat},${h.at.lng}`}
           onPress={() => pick(h)}
-          accessibilityRole="button"
-          accessibilityLabel={`Go to ${h.label}`}
-          style={({ pressed }) => [
-            { paddingVertical: 10, paddingHorizontal: 12, minHeight: 44, borderRadius: 8, borderWidth: 1, borderColor: C.kerb, backgroundColor: C.tarmac },
-            pressed && { opacity: 0.7 },
-          ]}
+          label={`Go to ${h.label}`}
+          style={{ paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, minHeight: 44, justifyContent: 'center', borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card }}
         >
-          <Txt numberOfLines={1}>{h.label}</Txt>
-        </Pressable>
+          <DsText numberOfLines={1}>{h.label}</DsText>
+        </Press>
       ))}
     </View>
   );

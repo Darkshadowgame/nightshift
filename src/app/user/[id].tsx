@@ -6,7 +6,6 @@ import { BuildGrid, moderateOptions, openReport, OptionsSheet, personMark, type 
 import { PostList } from '../../components/CommunityFeed';
 import { Avatar, Button, DsText, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
 import { useRep } from '../../components/Rep';
-import { NotFound } from '../../components/ui';
 import { SAMPLE_PEOPLE } from '../../data/seed';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf, effectivePower } from '../../lib/classes';
@@ -19,6 +18,7 @@ import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import type { Build } from '../../lib/types';
 import { COLOR, RADII, SPACING } from '../../theme';
+import { NotFoundState } from '../../components/Detail';
 
 /** The build with the most to look at: a photo first, then the most power. */
 function coverBuild(builds: Build[]): Build | undefined {
@@ -66,7 +66,7 @@ export default function UserScreen() {
     nav.setOptions({ headerRight: p && !isMe ? () => <HeaderActions onMenu={() => setMenu(true)} /> : undefined });
   }, [nav, p?.id, isMe]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!p) return <NotFound what="Profile" message="This person isn't on Nightshift any more." />;
+  if (!p) return <NotFoundState what="Profile" message="This person isn't on Nightshift any more." />;
   const cover = coverBuild(p.builds);
   const handle = `@${p.handle}`;
 

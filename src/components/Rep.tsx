@@ -1,13 +1,10 @@
 import { useMemo } from 'react';
-import { Text, View } from 'react-native';
 import { allAwards } from '../lib/awards';
 import { levelFor, repLedger, type LevelInfo, type RepLedger } from '../lib/rep';
 import { useRoads } from '../lib/roadStore';
 import { useCommunity } from '../lib/communityStore';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
-import { BRAND, C, F, FONT_SCALE, RADIUS, TYPE } from '../theme';
-import { Card, Row, Txt } from './ui';
 
 /** Everyone's rep, worked out from the store. */
 export function useRepFor(): (userId: string) => { ledger: RepLedger; level: LevelInfo } {
@@ -32,58 +29,4 @@ export function useRepFor(): (userId: string) => { ledger: RepLedger; level: Lev
 
 export function useRep(userId: string) {
   return useRepFor()(userId);
-}
-
-/** Small "LVL 3" tag. Rep and levels are brand (sodium) everywhere (REVIEW-5 m8). */
-export function LevelTag({ level, size = 'sm' }: { level: number; size?: 'sm' | 'lg' }) {
-  const lg = size === 'lg';
-  return (
-    <View
-      accessibilityLabel={`Level ${level}`}
-      style={{ borderWidth: 1.5, borderColor: BRAND, borderRadius: RADIUS.tag, paddingHorizontal: lg ? 8 : 5, paddingVertical: lg ? 3 : 1, transform: [{ skewX: '-8deg' }] }}
-    >
-      <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ fontFamily: lg ? F.display : F.labelBold, color: BRAND, fontSize: lg ? TYPE.heading : TYPE.label, letterSpacing: 1 }}>LVL {level}</Text>
-    </View>
-  );
-}
-
-const nf = (n: number) => n.toLocaleString('en-GB');
-
-/** Total, level, progress to the next level and where the rep came from. */
-export function RepPanel({ ledger, level, title = 'Rep' }: { ledger: RepLedger; level: LevelInfo; title?: string }) {
-  const pct = Math.round(Math.max(0, Math.min(1, level.progress)) * 100);
-  return (
-    <Card accent={BRAND}>
-      <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-        <View style={{ gap: 2 }}>
-          <Txt v="eyebrow">{title}</Txt>
-          <Txt v="h1">{nf(ledger.total)}</Txt>
-        </View>
-        <LevelTag level={level.level} size="lg" />
-      </Row>
-      <View
-        style={{ height: 8, backgroundColor: C.kerb, borderRadius: 4, overflow: 'hidden' }}
-        accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: 100, now: pct }}
-      >
-        <View style={{ width: `${pct}%`, height: '100%', backgroundColor: BRAND }} />
-      </View>
-      <Txt v="mono">{nf(level.next - level.rep)} TO LEVEL {level.level + 1}</Txt>
-      <View style={{ gap: 6, marginTop: 4 }}>
-        {ledger.lines.filter((l) => l.count > 0).map((l) => (
-          <Row key={l.source} style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
-            <Txt v="muted" style={{ flex: 1 }}>
-              {l.label} <Txt v="mono">×{l.count}</Txt>
-            </Txt>
-            <Txt v="mono" style={{ color: l.rep > 0 ? BRAND : C.fog }}>+{nf(l.rep)}</Txt>
-          </Row>
-        ))}
-        {ledger.lines.some((l) => l.count === 0) ? (
-          <Txt v="caption">
-            Still to earn: {ledger.lines.filter((l) => l.count === 0).map((l) => l.label.toLowerCase()).join(', ')}.
-          </Txt>
-        ) : null}
-      </View>
-    </Card>
-  );
 }

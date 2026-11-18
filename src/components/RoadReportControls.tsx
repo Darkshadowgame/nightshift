@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { KIND_INFO, promptText, REPORT_GRID, type RoadReport, type RoadReportKind, type RoadVote } from '../lib/roadReports';
-import { C, F, FONT_SCALE, ROAD_COLOUR, STATE, SURFACE } from '../theme';
+import { COLOR, RADII, ROAD_COLOUR, SPACING } from '../theme';
+import { DsText, Press } from './ds';
 import { Pin } from './Pin';
 
 /**
@@ -17,27 +18,25 @@ export function ReportGrid({ onPick, onClose, bottom }: { onPick: (kind: RoadRep
   return (
     <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
       <Pressable style={[StyleSheet.absoluteFill, st.backdrop]} onPress={onClose} accessibilityLabel="Close without reporting" />
-      <View style={[st.sheet, { paddingBottom: bottom + 10 }]}>
-        <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.title} accessibilityRole="header">REPORT</Text>
+      <View style={[st.sheet, { paddingBottom: bottom + SPACING.sm }]}>
+        <DsText v="driveButton" accessibilityRole="header" style={{ marginLeft: SPACING.xs }}>
+          Report
+        </DsText>
         {rows.map((row) => (
           <View key={row.join()} style={st.gridRow}>
             {row.map((k) => (
-              <Pressable
-                key={k}
-                onPress={() => onPick(k)}
-                accessibilityRole="button"
-                accessibilityLabel={`Report ${KIND_INFO[k].label}`}
-                style={({ pressed }) => [st.tile, pressed && { backgroundColor: C.kerbHi }]}
-              >
+              <Press key={k} onPress={() => onPick(k)} haptic="success" label={`Report ${KIND_INFO[k].label}`} style={st.tile} pressedStyle={{ backgroundColor: COLOR.surface.raisedHi }}>
                 <Pin glyph={k} colour={ROAD_COLOUR} size={36} />
-                <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.tileText} numberOfLines={2}>{KIND_INFO[k].label}</Text>
-              </Pressable>
+                <DsText v="driveRoad" numberOfLines={2} style={{ flex: 1 }}>
+                  {KIND_INFO[k].label}
+                </DsText>
+              </Press>
             ))}
           </View>
         ))}
-        <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => [st.cancel, pressed && { opacity: 0.7 }]}>
-          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.cancelText}>CANCEL</Text>
-        </Pressable>
+        <Press onPress={onClose} label="Cancel" style={st.cancel}>
+          <DsText v="driveButton">Cancel</DsText>
+        </Press>
       </View>
     </View>
   );
@@ -48,10 +47,14 @@ export function UndoBar({ kind, secondsLeft, onUndo }: { kind: RoadReportKind; s
   return (
     <View style={st.bar} accessibilityLiveRegion="polite">
       <Pin glyph={kind} colour={ROAD_COLOUR} size={34} />
-      <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.barText} numberOfLines={2}>{KIND_INFO[kind].label.toUpperCase()} REPORTED</Text>
-      <Pressable onPress={onUndo} accessibilityRole="button" accessibilityLabel="Undo the report" style={({ pressed }) => [st.undo, pressed && { opacity: 0.7 }]}>
-        <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.undoText}>UNDO {secondsLeft}</Text>
-      </Pressable>
+      <DsText v="driveRoad" numberOfLines={2} style={{ flex: 1 }}>
+        {KIND_INFO[kind].label} reported
+      </DsText>
+      <Press onPress={onUndo} label="Undo the report" style={st.undo}>
+        <DsText v="driveButton" tone="onAction">
+          Undo {secondsLeft}
+        </DsText>
+      </Press>
     </View>
   );
 }
@@ -59,21 +62,27 @@ export function UndoBar({ kind, secondsLeft, onUndo }: { kind: RoadReportKind; s
 /** Just driven past someone's report: still there? */
 export function StillTherePrompt({ report, onAnswer, onDismiss }: { report: RoadReport; onAnswer: (vote: RoadVote) => void; onDismiss: () => void }) {
   return (
-    <View style={[st.bar, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]} accessibilityLiveRegion="polite">
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <View style={[st.bar, { flexDirection: 'column', alignItems: 'stretch', gap: SPACING.sm }]} accessibilityLiveRegion="polite">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
         <Pin glyph={report.kind} colour={ROAD_COLOUR} size={34} />
-        <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={[st.barText, { flex: 1 }]}>{promptText(report)}</Text>
-        <Pressable onPress={onDismiss} hitSlop={12} accessibilityRole="button" accessibilityLabel="Not sure. Close">
-          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.skip}>SKIP</Text>
-        </Pressable>
+        <DsText v="driveRoad" style={{ flex: 1 }}>
+          {promptText(report)}
+        </DsText>
+        <Press onPress={onDismiss} hitSlop={12} label="Not sure. Close">
+          <DsText v="driveLabel" tone="secondary">
+            Skip
+          </DsText>
+        </Press>
       </View>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
-        <Pressable onPress={() => onAnswer('still_there')} accessibilityRole="button" accessibilityLabel="Yes, still there" style={({ pressed }) => [st.answer, { backgroundColor: STATE.success }, pressed && { opacity: 0.8 }]}>
-          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={[st.answerText, { color: C.asphalt }]}>YES</Text>
-        </Pressable>
-        <Pressable onPress={() => onAnswer('gone')} accessibilityRole="button" accessibilityLabel="No, it's gone" style={({ pressed }) => [st.answer, { borderWidth: 2, borderColor: C.kerbHi }, pressed && { opacity: 0.8 }]}>
-          <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.answerText}>NO, GONE</Text>
-        </Pressable>
+      <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+        <Press onPress={() => onAnswer('still_there')} haptic="success" label="Yes, still there" style={[st.answer, { backgroundColor: COLOR.state.success }]}>
+          <DsText v="driveButton" tone="onAction">
+            Yes
+          </DsText>
+        </Press>
+        <Press onPress={() => onAnswer('gone')} haptic="success" label="No, it's gone" style={[st.answer, { borderWidth: 2, borderColor: COLOR.surface.raisedHi }]}>
+          <DsText v="driveButton">No, gone</DsText>
+        </Press>
       </View>
     </View>
   );
@@ -83,33 +92,27 @@ export function StillTherePrompt({ report, onAnswer, onDismiss }: { report: Road
 export function ReportAlert({ text }: { text: string }) {
   return (
     <View style={st.alert} accessibilityLiveRegion="assertive">
-      <Text maxFontSizeMultiplier={FONT_SCALE.drive} style={st.alertText} numberOfLines={2}>{text}</Text>
+      <DsText v="driveButton" tone="onAction" numberOfLines={2}>
+        {text}
+      </DsText>
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  backdrop: { backgroundColor: SURFACE.scrim },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.tarmac, borderTopWidth: 3, borderTopColor: ROAD_COLOUR, padding: 12, gap: 10 },
-  title: { fontFamily: F.display, fontSize: 20, color: C.chalk, letterSpacing: 2, marginLeft: 4 },
-  gridRow: { flexDirection: 'row', gap: 10 },
+  backdrop: { backgroundColor: COLOR.surface.scrim },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: COLOR.surface.card, borderTopWidth: 3, borderTopColor: ROAD_COLOUR, padding: SPACING.md, gap: SPACING.sm },
+  gridRow: { flexDirection: 'row', gap: SPACING.sm },
   tile: {
-    flex: 1, minHeight: 76, borderRadius: 12, borderWidth: 2, borderColor: C.kerbHi, backgroundColor: C.asphalt,
-    flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12,
+    flex: 1, minHeight: 76, borderRadius: RADII.card, borderWidth: 2, borderColor: COLOR.surface.raisedHi, backgroundColor: COLOR.surface.bg,
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md,
   },
-  tileText: { flex: 1, fontFamily: F.bodyBold, fontSize: 20, lineHeight: 24, color: C.chalk },
-  cancel: { height: 60, borderRadius: 12, borderWidth: 2, borderColor: C.kerbHi, alignItems: 'center', justifyContent: 'center' },
-  cancelText: { fontFamily: F.labelBold, fontSize: 20, color: C.chalk, letterSpacing: 1.5 },
+  cancel: { height: 60, borderRadius: RADII.card, borderWidth: 2, borderColor: COLOR.surface.raisedHi, alignItems: 'center', justifyContent: 'center' },
   bar: {
-    backgroundColor: C.tarmac, borderTopWidth: 3, borderTopColor: ROAD_COLOUR, paddingHorizontal: 16, paddingVertical: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLOR.surface.card, borderTopWidth: 3, borderTopColor: ROAD_COLOUR, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
   },
-  barText: { flex: 1, fontFamily: F.bodyBold, fontSize: 21, lineHeight: 26, color: C.chalk },
-  undo: { height: 60, minWidth: 120, borderRadius: 12, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
-  undoText: { fontFamily: F.display, fontSize: 20, color: C.asphalt, letterSpacing: 1 },
-  skip: { fontFamily: F.labelBold, fontSize: 16, color: C.fog, letterSpacing: 1 },
-  answer: { flex: 1, height: 64, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  answerText: { fontFamily: F.display, fontSize: 22, color: C.chalk, letterSpacing: 1.5 },
-  alert: { backgroundColor: ROAD_COLOUR, paddingHorizontal: 16, paddingVertical: 8 },
-  alertText: { fontFamily: F.labelBold, fontSize: 20, color: C.asphalt, letterSpacing: 1 },
+  undo: { height: 60, minWidth: 120, borderRadius: RADII.card, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.md },
+  answer: { flex: 1, height: 64, borderRadius: RADII.card, alignItems: 'center', justifyContent: 'center' },
+  alert: { backgroundColor: ROAD_COLOUR, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
 });
