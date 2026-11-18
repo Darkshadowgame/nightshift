@@ -62,6 +62,7 @@ import { describeFilter } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
 import { planForEvent } from '../../lib/navPlan';
 import { askPermission, notificationsSupported } from '../../lib/notify';
+import { REP } from '../../lib/rep';
 import { lastPage, PAGE as LIST_PAGE } from '../../lib/paging';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
@@ -548,6 +549,7 @@ export default function EventScreen() {
             onPress={doCheckIn}
             accessibilityHint={`Checks you are within half a mile of the ${MEET_POINT.one}`}
           />
+          <DsText v="caption">Checking in earns {REP.attended} rep and lets you vote for the best builds.</DsText>
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {checkInLine}
           {navPlan ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navPlan.stops[0].at} kind="secondary" /> : null}
@@ -647,7 +649,7 @@ export default function EventScreen() {
                       <ListRow
                         leading={{ avatar: { name: u?.name, handle: u?.handle } }}
                         title={userLabel(uid)}
-                        subtitle={b ? `${b.make} ${b.model} · Class ${classOf(b)} · ${plural(b.mods.length, 'mod')}` : 'No car or bike'}
+                        subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)} · ${plural(b.mods.length, 'mod')}` : 'No car or bike'}
                         meta={b && !fitsInvite(ev, b) ? "Doesn't match the invite" : undefined}
                         onPress={() => openUser(uid)}
                       />
@@ -729,6 +731,11 @@ export default function EventScreen() {
 
         <Section title={`Going (${ev.going.length})`}>
           {mixLine(ev, builds) ? <DsText v="secondary">{mixLine(ev, builds)}</DsText> : null}
+          {ev.going.length > 0 ? (
+            <Press onPress={() => router.push('/help')} role="link" label="What class and Legend mean, in How Nightshift works" style={{ minHeight: 32, justifyContent: 'center' }}>
+              <DsText v="caption">Class S to D is a build's power to weight. Legend is this week's best in show. More in How Nightshift works ›</DsText>
+            </Press>
+          ) : null}
           {ev.going.length === 0 ? (
             <EmptyState variant="inline" title="Nobody yet. Share it to get people along." action={{ label: 'Share', onPress: doShare }} />
           ) : (
@@ -743,7 +750,7 @@ export default function EventScreen() {
                     <ListRow
                       leading={{ avatar: { name: u?.name, handle: u?.handle } }}
                       title={userLabel(uid)}
-                      subtitle={b ? `${b.make} ${b.model} · Class ${classOf(b)}` : 'No car or bike yet'}
+                      subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
                       meta={[hostIds.includes(uid) ? 'Hosting' : null, hasLegend(awardsSoFar, uid, now) ? 'Legend this week' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
                       trailing={b ? <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={30} /> : undefined}
                       onPress={() => openUser(uid)}

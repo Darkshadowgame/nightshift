@@ -101,12 +101,12 @@ export function EntityCard({
           {title}
         </DsText>
         {meta ? (
-          <DsText v="meta" numberOfLines={1}>
+          <DsText v="meta" numberOfLines={2}>
             {meta}
           </DsText>
         ) : null}
         {detail ? (
-          <DsText v="secondary" numberOfLines={1}>
+          <DsText v="secondary" numberOfLines={2}>
             {detail}
           </DsText>
         ) : null}

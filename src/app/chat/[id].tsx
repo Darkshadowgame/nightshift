@@ -12,7 +12,7 @@ import { formatTime } from '../../lib/format';
 import { conversationTitle, dayLabel, MESSAGE_MAX, messageProblem, otherMember, seenLabel, shareHref, type Message, type ShareCard } from '../../lib/messages';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
-import { COLOR, RADII, SPACING } from '../../theme';
+import { COLOR, line, RADII, SPACING, tint } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 
 /** One chat: messages, photos (plate-blurred), shared cards, "Seen". Only between connected people. */
@@ -149,9 +149,10 @@ export default function ChatScreen() {
             {m.body ? (
               <View
                 style={{
-                  backgroundColor: mine ? COLOR.surface.raisedHi : COLOR.surface.card,
+                  // Yours in a blue-grey tint, theirs on the card: told apart by colour as well as side (REVIEW-7 inconsistency 15).
+                  backgroundColor: mine ? tint(COLOR.state.info) : COLOR.surface.card,
                   borderWidth: 1,
-                  borderColor: mine ? COLOR.surface.raisedHi : COLOR.surface.border,
+                  borderColor: mine ? line(COLOR.state.info) : COLOR.surface.border,
                   borderRadius: RADII.sheet,
                   borderBottomRightRadius: mine && lastOfRun ? RADII.tag : RADII.sheet,
                   borderBottomLeftRadius: !mine && lastOfRun ? RADII.tag : RADII.sheet,

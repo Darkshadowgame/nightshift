@@ -266,7 +266,7 @@ export function NavIconChoices({ value, onChange }: { value: Partial<NavIconChoi
             style={[st.choice, icon.shape === s.id && { borderColor: COLOR.action.selected }]}
           >
             <NavIcon shape={s.id} colour={icon.hex} size={48} />
-            <DsText v="label" tone="primary" numberOfLines={1}>
+            <DsText v="label" tone="primary" numberOfLines={2} style={{ textAlign: 'center' }}>
               {s.label}
             </DsText>
           </Press>

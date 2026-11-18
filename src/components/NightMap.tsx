@@ -163,7 +163,7 @@ export const NightMap = memo(function NightMap({
     </MapView>
     {credit ? (
       <View pointerEvents="none" style={st.credit}>
-        <DsText v="tag" tone="secondary" style={{ textTransform: 'none', letterSpacing: 0 }}>
+        <DsText v="meta" tone="secondary">
           {credit}
         </DsText>
       </View>

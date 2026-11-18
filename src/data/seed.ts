@@ -370,7 +370,7 @@ function chat(now: Date): ChatMessage[] {
     id, eventId, userId, text, at: minutesFrom(now, -minsAgo),
   });
   return [
-    m('c1', 'ev-rolling-live', 'dan', 'Moving on in 5. Check in if you have not, or you will not get the next spot.', 16),
+    m('c1', 'ev-rolling-live', 'dan', 'Moving on in 5. Check in here first if you want your vote counted.', 16),
     m('c2', 'ev-rolling-live', 'tom', 'Here, parked at the far end.', 8),
     m('c3', 'ev-rolling-live', 'em', 'Stuck at the lights, 5 mins.', 6),
     m('c4', 'ev-cruise-peak', 'mo', 'Fuel up before the start, nothing open after.', 300),

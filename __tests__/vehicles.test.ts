@@ -191,3 +191,12 @@ describe('donors', () => {
     expect(findDonor(engines, all, 'nope')).toBeUndefined();
   });
 });
+
+describe('search order matches the generation list (REVIEW-7 inconsistency 12)', () => {
+  test('equal matches come newest first', () => {
+    const { searchVariants } = require('../src/lib/vehicles');
+    const v = (id: string, gen: string, from: number) => ({ id, kind: 'car', make: 'Honda', model: 'Civic Type R', gen, engine: '2.0', from, bhp: 300, weightKg: 1400 });
+    const list = [v('ep3', 'EP3', 2001), v('fn2', 'FN2', 2007), v('fk2', 'FK2', 2015), v('fk8', 'FK8', 2017)];
+    expect(searchVariants(list, 'car', 'civic type r', 10).map((x: { id: string }) => x.id)).toEqual(['fk8', 'fk2', 'fn2', 'ep3']);
+  });
+});

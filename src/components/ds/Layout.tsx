@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NoticeBell } from '../NoticeBell';
@@ -88,24 +88,57 @@ export type Stat = { value: string; unit?: string; label: string; tone?: 'live' 
  * No sodium numbers: a stat isn't something to tap. `live` (white) for a running countdown.
  */
 export function StatBlock({ stats }: { stats: Stat[] }) {
+  // Large text (REVIEW-7 problem 7): each tile is at least as wide as its value and its longest
+  // label word, measured off-screen, so nothing is cut off ("2h 40…") or broken mid-word
+  // ("CHECKPOINT/S"). When they don't fit in one row, tiles wrap onto a second.
+  const shown = stats.slice(0, 4);
+  const [need, setNeed] = useState<Record<string, number>>({});
+  const measure = (key: string) => (e: { nativeEvent: { layout: { width: number } } }) => {
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    setNeed((n) => (Math.abs((n[key] ?? 0) - w) > 1 ? { ...n, [key]: w } : n));
+  };
+  // Padding and border, plus a little slack for sub-pixel text widths.
+  const pad = SPACING.md * 2 + 2 + SPACING.xs;
   return (
-    <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-      {stats.slice(0, 4).map((s) => (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+      <View pointerEvents="none" aria-hidden style={{ position: 'absolute', left: 0, top: 0, opacity: 0 }}>
+        {shown.map((s) => (
+          <View key={s.label} style={{ alignItems: 'flex-start' }}>
+            <View onLayout={measure(`v:${s.label}`)} style={{ flexDirection: 'row', alignItems: 'baseline', gap: SPACING.xs, alignSelf: 'flex-start' }}>
+              <DsText v="stat">{s.value}</DsText>
+              {s.unit ? <DsText v="meta">{s.unit}</DsText> : null}
+            </View>
+            <View onLayout={measure(`l:${s.label}`)} style={{ alignSelf: 'flex-start' }}>
+              <DsText v="label">{[...s.label.split(/\s+/)].sort((a, b) => b.length - a.length)[0]}</DsText>
+            </View>
+          </View>
+        ))}
+      </View>
+      {shown.map((s) => (
         <View
           key={s.label}
           accessible
           accessibilityLabel={statA11yLabel(s)}
-          style={{ flex: 1, backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.xxs }}
+          style={{
+            flexGrow: 1,
+            flexBasis: 0,
+            minWidth: Math.max(need[`v:${s.label}`] ?? 0, need[`l:${s.label}`] ?? 0) + pad,
+            backgroundColor: COLOR.surface.card,
+            borderColor: COLOR.surface.border,
+            borderWidth: 1,
+            borderRadius: RADII.card,
+            paddingHorizontal: SPACING.md,
+            paddingVertical: SPACING.sm,
+            gap: SPACING.xxs,
+          }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: SPACING.xs }}>
-            <DsText v="stat" numberOfLines={1} style={{ color: s.tone === 'live' ? COLOR.state.live : COLOR.text.primary, flexShrink: 1 }}>
+            <DsText v="stat" style={{ color: s.tone === 'live' ? COLOR.state.live : COLOR.text.primary, flexShrink: 1 }}>
               {s.value}
             </DsText>
             {s.unit ? <DsText v="meta">{s.unit}</DsText> : null}
           </View>
-          <DsText v="label" numberOfLines={2}>
-            {s.label}
-          </DsText>
+          <DsText v="label">{s.label}</DsText>
         </View>
       ))}
     </View>

@@ -120,6 +120,21 @@ Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `ini
 
 ---
 
+### Added after Review 7 (18 Nov 2026)
+
+20. **Closing words.** A Sheet closes with **Done** (nothing is lost). **Cancel** only where you'd lose
+    what you started: a form, a map picker, a crop. Both are sodium text, never a boxed button.
+21. **Create is "+ New"** on every tab header (Tonight, Community, Garage); what you can make is in the
+    sheet it opens. Detail screens have a `···` menu, yours or someone else's (Edit is in yours).
+22. **Chips and choice pills share one face:** body text as typed, outline off, tint and border on.
+    A chip adds a tick, a pill a radio dot. Never uppercase chip labels.
+23. **The italic display face is the wordmark, covers and class-up only.** Every page title is upright.
+24. **Distances say where from:** "from you" (a GPS fix) or "from home". A hidden event's distance is
+    "about N mi" (to its area), so it doesn't jump when the meet point shows.
+25. **Large text:** `StatBlock` tiles and `SegmentedControl` measure their labels and wrap to a second row
+    rather than cut a word ("MESSAGE…", "CHECKPOINT/S"). Meta lines in rows and cards get two lines.
+26. **Words** for events come from `glossary.ts`: meet point, "Location shows at 21:30", "Shown to people going".
+
 ## Do and don't
 
 | Do | Don't |

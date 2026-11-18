@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { Button } from './Button';
@@ -96,12 +97,36 @@ export function SegmentedControl<K extends string>({
   onChange: (key: K) => void;
   accessibilityLabel?: string;
 }) {
+  // Large text (REVIEW-7 problem 7): labels are measured off-screen; when they don't all fit in one
+  // row, the control becomes two rows instead of cutting a label off ("MESSAGE…").
+  const [row, setRow] = useState(0);
+  const [need, setNeed] = useState<Record<string, number>>({});
+  const padEach = SPACING.xs * 2 + 3 + SPACING.xs;
+  const total = options.reduce((sum, o) => sum + (need[o.key] ?? 0) + padEach, 0) + 6;
+  const twoRows = row > 0 && options.length > 2 && total > row;
   return (
     <View
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
-      style={{ flexDirection: 'row', backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.control, padding: 3, gap: 3 }}
+      onLayout={(e) => setRow(Math.floor(e.nativeEvent.layout.width))}
+      style={{ flexDirection: 'row', flexWrap: 'wrap', backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.control, padding: 3, gap: 3 }}
     >
+      <View pointerEvents="none" aria-hidden style={{ position: 'absolute', left: 0, top: 0, opacity: 0 }}>
+        {options.map((o) => (
+          <View
+            key={o.key}
+            style={{ alignSelf: 'flex-start' }}
+            onLayout={(e) => {
+              const w = Math.ceil(e.nativeEvent.layout.width);
+              setNeed((n) => (Math.abs((n[o.key] ?? 0) - w) > 1 ? { ...n, [o.key]: w } : n));
+            }}
+          >
+            <DsText v="buttonSm" style={{ letterSpacing: 1 }}>
+              {segmentLabel(o.label, o.count)}
+            </DsText>
+          </View>
+        ))}
+      </View>
       {options.map((o, i) => {
         const on = o.key === value;
         return (
@@ -113,7 +138,8 @@ export function SegmentedControl<K extends string>({
             state={{ selected: on }}
             label={`${segmentLabel(o.label, o.count)}, ${i + 1} of ${options.length}`}
             style={{
-              flex: 1,
+              flexGrow: 1,
+              flexBasis: twoRows ? '45%' : 0,
               minHeight: 38,
               alignItems: 'center',
               justifyContent: 'center',
@@ -122,7 +148,7 @@ export function SegmentedControl<K extends string>({
               backgroundColor: on ? COLOR.action.selected : 'transparent',
             }}
           >
-            <DsText v="buttonSm" numberOfLines={1} style={{ color: on ? COLOR.action.onPrimary : COLOR.text.primary, letterSpacing: 1 }}>
+            <DsText v="buttonSm" style={{ color: on ? COLOR.action.onPrimary : COLOR.text.primary, letterSpacing: 1, textAlign: 'center' }}>
               {segmentLabel(o.label, o.count)}
             </DsText>
           </Press>

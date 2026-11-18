@@ -985,6 +985,7 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   `queue_due_reminders()`. `invite_min_mods` defaults to 0 (column, `save_event()`, `invite_count()`).
 * **pgTAP:** 772 of 772 on the hosted database (adds `late_joiner_test.sql`, 16; `rls_test.sql` now
   expects the current meet point to be shown to G2, who never checked in).
+* **Smoke test:** 111 of 111 (the check-in refusal now reads "You can't see this meet point yet.").
 
 ### 7c. The smoke test
 

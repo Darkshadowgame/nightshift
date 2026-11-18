@@ -88,7 +88,7 @@ export function ListRow({
           </DsText>
         ) : null}
         {meta ? (
-          <DsText v="meta" numberOfLines={1}>
+          <DsText v="meta" numberOfLines={2}>
             {meta}
           </DsText>
         ) : null}

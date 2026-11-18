@@ -110,7 +110,7 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
           </View>
         ) : null}
       </View>
-      <DsText v="bodyStrong" numberOfLines={1}>
+      <DsText v="bodyStrong" numberOfLines={2}>
         {build.make} {build.model}
       </DsText>
       <DsText v="meta" numberOfLines={1}>

@@ -115,7 +115,8 @@ export function NightMap({
         </View>
       ) : null}
       {/* The stand-in can't pinch: zoom buttons, so zoom-dependent layers (cameras, circuit outlines) can be checked. */}
-      <View style={{ position: 'absolute', right: SPACING.sm, top: '42%', gap: SPACING.xs }}>
+      {/* Left, a quarter down: clear of the sheet, the picker's header and the layers, locate and fit stack on the right (REVIEW-7 bug 2). */}
+      <View style={{ position: 'absolute', left: SPACING.sm, top: '24%', gap: SPACING.xs }}>
         {[
           { label: '+', factor: 0.5 },
           { label: '−', factor: 2 },
@@ -133,7 +134,7 @@ export function NightMap({
       </View>
       {credit ? (
         <View pointerEvents="none" style={{ position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs }}>
-          <DsText v="tag" tone="secondary" style={{ textTransform: 'none', letterSpacing: 0 }}>
+          <DsText v="meta" tone="secondary">
             {credit}
           </DsText>
         </View>

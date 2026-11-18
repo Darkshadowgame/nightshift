@@ -1,5 +1,8 @@
-import { View } from 'react-native';
-import { COLOR, SPACING } from '../theme';
+import { Image, View } from 'react-native';
+import { COLOR, RADII, SPACING } from '../theme';
+
+/** The NS mark: the app icon, the same one the legal and support site uses (REVIEW-7 inconsistency 10). */
+const MARK = require('../../assets/icon.png');
 import { DsText } from './ds';
 import { FadeUp } from './motion';
 import { Pin, type Glyph } from './Pin';
@@ -20,7 +23,7 @@ export function Wordmark({ compact }: { compact?: boolean }) {
   return (
     <View style={{ gap: SPACING.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
-        <Pin glyph="rolling" colour={COLOR.action.primary} size={compact ? 32 : 44} />
+        <Image source={MARK} style={{ width: compact ? 36 : 48, height: compact ? 36 : 48, borderRadius: RADII.control }} accessibilityIgnoresInvertColors aria-hidden />
         <DsText v="display" accessibilityRole="header" accessibilityLabel="Nightshift">
           Night<DsText v="display" tone="action">shift</DsText>
         </DsText>

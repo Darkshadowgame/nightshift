@@ -258,10 +258,14 @@ export function variantsFor(list: Variant[], kind: VehicleKind, make: string, mo
     .sort((a, b) => b.from - a.from || b.bhp - a.bhp);
 }
 
-/** Free search across every variant of a kind ("golf r mk7", "r6 2017"). */
+/**
+ * Free search across every variant of a kind ("golf r mk7", "r6 2017"). Equal matches come
+ * newest first, the same order as the generation list (variantsFor) (REVIEW-7 inconsistency 12).
+ */
 export function searchVariants(list: Variant[], kind: VehicleKind, query: string, limit = 30): Variant[] {
   if (!query.trim()) return [];
-  return byScore(list.filter((v) => v.kind === kind), variantText, query, limit);
+  const newestFirst = list.filter((v) => v.kind === kind).sort((a, b) => b.from - a.from || b.bhp - a.bhp);
+  return byScore(newestFirst, variantText, query, limit);
 }
 
 export function findVariant(list: Variant[], id: string | undefined): Variant | undefined {

@@ -139,7 +139,7 @@ export default function CrewScreen() {
                 <ListRow
                   leading={{ avatar: { name: user!.name, handle: user!.handle } }}
                   title={handle(uid)}
-                  subtitle={b ? `${b.make} ${b.model} · Class ${classOf(b)}` : 'No car or bike yet'}
+                  subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
                   meta={`Level ${rep.level.level} · ${rep.ledger.total.toLocaleString('en-GB')} rep`}
                   trailing={role !== 'member' ? <Tag label={role === 'owner' ? 'Owner' : 'Host'} /> : undefined}
                   onPress={() => router.push({ pathname: '/user/[id]', params: { id: uid } })}

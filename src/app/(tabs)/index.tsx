@@ -791,7 +791,8 @@ export default function TonightScreen() {
           {/* Left, above the sheet: what to zoom in for, or the OpenStreetMap credit. */}
           {showNote && box.h ? (
             <Animated.View style={[st.note, { maxWidth: box.w - SPACING.lg - BUTTON - SPACING.xl }, noteStyle]} pointerEvents="none" onLayout={(e) => setNoteH(e.nativeEvent.layout.height)}>
-              <DsText v="caption" tone={mapNote.zoom ? 'primary' : 'secondary'} numberOfLines={2}>
+              {/* The credit uses the map credit's own face everywhere (NightMap's chip), not body text (REVIEW-7 inconsistency 11). */}
+              <DsText v={mapNote.zoom ? 'caption' : 'meta'} tone={mapNote.zoom ? 'primary' : 'secondary'} numberOfLines={2}>
                 {mapNote.text}
               </DsText>
             </Animated.View>
