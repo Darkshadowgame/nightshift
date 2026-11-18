@@ -1,0 +1,75 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { DraftStop } from './events';
+import type { EventType, InviteFilter } from './types';
+import type { DayChoice } from './when';
+
+/**
+ * The host wizard's draft (REVIEW-10 decision 2): saved on the phone as you go, so a stray back
+ * swipe never loses a meet. Opening Host again offers "Carry on with your draft". One draft per
+ * person on this phone; editing an event that already exists never makes one.
+ */
+export interface HostDraft {
+  step: number;
+  type: EventType;
+  title: string;
+  description: string;
+  areaName: string;
+  /** The day picked: a quick day ("Tonight", "Sat 21") or a date from the calendar. */
+  day: DayChoice;
+  time: string;
+  endTime: string | null;
+  reveal: number;
+  stops: DraftStop[];
+  filter: InviteFilter;
+  crewOwned: boolean;
+  coHosts: string[];
+  savedAt: string;
+}
+
+const KEY = (me: string) => `nightshift.hostDraft.${me}`;
+
+/** Worth keeping: anything typed or placed, or past the first step. */
+export function worthKeeping(d: Pick<HostDraft, 'step' | 'title' | 'description' | 'stops'>): boolean {
+  return d.step > 0 || !!d.title.trim() || !!d.description.trim() || d.stops.some((s) => s.at || s.name.trim());
+}
+
+/** "Car park meet · step 3 of 5", for the Carry on card. */
+export function draftSummary(d: HostDraft, steps: number): string {
+  return `${d.title.trim() || 'No name yet'} · step ${Math.min(d.step, steps - 1) + 1} of ${steps}`;
+}
+
+/** A draft whose picked date has gone falls back to the first quick day (Tonight). */
+export function restoredDay(d: HostDraft, quick: DayChoice[], now: Date): { picked: DayChoice | null; index: number } {
+  if (d.day.date) {
+    const at = new Date(d.day.date);
+    at.setHours(23, 59, 0, 0);
+    return at.getTime() >= now.getTime() ? { picked: d.day, index: quick.length } : { picked: null, index: 0 };
+  }
+  const i = quick.findIndex((q) => q.days === d.day.days);
+  return { picked: null, index: Math.max(0, i) };
+}
+
+export async function loadHostDraft(me: string): Promise<HostDraft | null> {
+  try {
+    const raw = await AsyncStorage.getItem(KEY(me));
+    return raw ? (JSON.parse(raw) as HostDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveHostDraft(me: string, d: HostDraft): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEY(me), JSON.stringify(d));
+  } catch {
+    // Storage full or blocked: the draft only lives in the form.
+  }
+}
+
+export async function clearHostDraft(me: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(KEY(me));
+  } catch {
+    // Nothing to clear.
+  }
+}

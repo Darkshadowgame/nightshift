@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigation, usePreventRemove } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../data/seed';
@@ -16,12 +17,13 @@ import { nearestRegion } from '../lib/profile';
 import { newId, useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
-import { calendarDays, endFrom, orderedTimes, quickDays, startFrom, timeAfter, type DayChoice } from '../lib/when';
+import { defaultStart, endFrom, EVENING_TIMES, MAX_DAYS_AHEAD, orderedTimes, pickedDayChoice, quickDays, startFrom, timeAfter, type DayChoice } from '../lib/when';
+import { clearHostDraft, restoredDay, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
 import { BrandPicker } from './BrandPicker';
 import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortName } from '../lib/zones';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Callout, Field, MediaFrame, TextField } from './Detail';
-import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, Press, RowDivider, Section, Sheet, SheetOption, StatBlock, SwitchRow } from './ds';
+import { Button, ChipGroup, ChoiceGroup, DateSheet, displayHandle, DsText, ErrorState, localDay, Press, RowDivider, Section, Sheet, StatBlock, SwitchRow } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -38,8 +40,8 @@ const TYPE_HINTS: Record<EventType, string> = {
   show: 'A public show. The venue is visible to everyone.',
   trackday: 'A circuit or sprint venue. Public, and the only place lap times count.',
 };
-/** Quick start times; "Other time" offers every 15 minutes (REVIEW-9 decision 4). */
-const TIME_CHOICES = ['10:00', '19:00', '19:30', '20:00', '21:00', '22:00', '22:30'];
+/** Quick start times; "Other time" offers every 15 minutes (REVIEW-9 decision 4). No 10:00 (REVIEW-10). */
+const TIME_CHOICES = EVENING_TIMES;
 /** Quick end times: hours after the start. */
 const LENGTH_CHOICES = [120, 180, 240];
 const REVEAL_CHOICES = [0, 30, 60, 120];
@@ -67,10 +69,13 @@ export interface EventFormSent {
 
 export function EventForm({
   initial,
+  draft,
   submitLabel,
   onSubmit,
 }: {
   initial?: NightEvent;
+  /** A new event: the saved draft to carry on with (REVIEW-10 decision 2). */
+  draft?: HostDraft | null;
   submitLabel: string;
   onSubmit: (event: NightEvent, sent: EventFormSent) => void | Promise<void>;
 }) {
@@ -85,36 +90,41 @@ export function EventForm({
   const editing = !!initial;
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
 
-  const [step, setStep] = useState<Step>(0);
+  const d0 = !initial ? draft : null;
+  const [step, setStep] = useState<Step>(() => (d0 ? (Math.min(Math.max(d0.step, 0), 4) as Step) : 0));
   const [baseDays] = useState<DayChoice[]>(() =>
     initial ? [{ label: formatWhen(initial.startsAt, now).replace(/ \d\d:\d\d$/, '') + ' (as planned)', days: 0, date: initial.startsAt }, ...quickDays(now)] : quickDays(now),
   );
+  const [startDefault] = useState(() => (d0 ? restoredDay(d0, baseDays, now) : null));
+  const [firstStart] = useState(() => defaultStart(now));
   /** A date from "Pick a date", shown as its own choice once picked. */
-  const [pickedDay, setPickedDay] = useState<DayChoice | null>(null);
-  const dayChoices = pickedDay ? [...baseDays, pickedDay] : baseDays;
+  const [pickedDay, setPickedDay] = useState<DayChoice | null>(startDefault?.picked ?? null);
+  const dayChoices = dayChoicesOf(baseDays, pickedDay);
   const [pickDateOpen, setPickDateOpen] = useState(false);
   /** Which time the hour-and-minute sheet is setting. */
   const [timeSheet, setTimeSheet] = useState<'start' | 'end' | null>(null);
-  const [endTime, setEndTime] = useState<string | null>(initial?.endsAt ? hhmm(initial.endsAt) : null);
-  const [type, setType] = useState<EventType>(initial?.type ?? 'meet');
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [areaName, setAreaName] = useState(initial?.areaName ?? '');
-  const [day, setDay] = useState(0);
-  const [time, setTime] = useState(initial ? hhmm(initial.startsAt) : '22:30');
+  const [endTime, setEndTime] = useState<string | null>(initial?.endsAt ? hhmm(initial.endsAt) : (d0?.endTime ?? null));
+  const [type, setType] = useState<EventType>(initial?.type ?? d0?.type ?? 'meet');
+  const [title, setTitle] = useState(initial?.title ?? d0?.title ?? '');
+  const [description, setDescription] = useState(initial?.description ?? d0?.description ?? '');
+  const [areaName, setAreaName] = useState(initial?.areaName ?? d0?.areaName ?? '');
+  const [day, setDay] = useState(startDefault ? startDefault.index : initial ? 0 : firstStart.day);
+  const [time, setTime] = useState(initial ? hhmm(initial.startsAt) : (d0?.time ?? firstStart.time));
   const [stops, setStops] = useState<DraftStop[]>(() =>
     initial
       ? initial.stops.map((st) => ({ key: st.id, name: st.name, at: st.at }))
-      : [
+      : d0?.stops?.length
+        ? d0.stops
+        : [
           { key: 's0', name: '' },
           { key: 's1', name: '' },
         ],
   );
   const [activeStop, setActiveStop] = useState(0);
-  const [filter, setFilter] = useState<InviteFilter>(initial ? { ...initial.filter } : { ...DEFAULT_FILTER });
-  const [reveal, setReveal] = useState(initial?.revealMinutesBefore ?? 60);
-  const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : canCrewHost);
-  const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : []);
+  const [filter, setFilter] = useState<InviteFilter>(initial ? { ...initial.filter } : d0 ? { ...DEFAULT_FILTER, ...d0.filter } : { ...DEFAULT_FILTER });
+  const [reveal, setReveal] = useState(initial?.revealMinutesBefore ?? d0?.reveal ?? 60);
+  const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : d0 ? d0.crewOwned && canCrewHost : canCrewHost);
+  const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : (d0?.coHosts ?? []));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   /** Set once Next was tapped on Where, so unnamed meet points show their own error. */
@@ -123,6 +133,40 @@ export function EventForm({
   const [askInjunction, setAskInjunction] = useState(false);
   /** PSPOs the host has said they checked (by zone id), for the Review step's lighter confirm. */
   const [pspoAck, setPspoAck] = useState<string>('');
+
+  // ---------------------------------------------------------------------------
+  // The draft (REVIEW-10 decision 2): saved as you go; leaving from step 2 on asks first.
+  // ---------------------------------------------------------------------------
+  const dayPicked = dayChoicesOf(baseDays, pickedDay)[Math.min(day, baseDays.length + (pickedDay ? 1 : 0) - 1)];
+  const draftNow: HostDraft = { step, type, title, description, areaName, day: dayPicked, time, endTime, reveal, stops, filter, crewOwned, coHosts, savedAt: '' };
+  const draftKey = JSON.stringify(draftNow);
+  /** Set once the event is sent (or the draft thrown away), so leaving never asks again. */
+  const finished = useRef(false);
+  useEffect(() => {
+    if (editing || finished.current || !worthKeeping(draftNow)) return;
+    const t = setTimeout(() => {
+      if (!finished.current) saveHostDraft(me, { ...draftNow, savedAt: new Date().toISOString() });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, editing, me]);
+  const navigation = useNavigation();
+  const [leaveAction, setLeaveAction] = useState<{ type: string } | null>(null);
+  usePreventRemove(!editing && step >= 1, ({ data }) => {
+    if (finished.current) {
+      navigation.dispatch(data.action);
+      return;
+    }
+    setLeaveAction(data.action);
+  });
+  function leave(keep: boolean) {
+    const action = leaveAction;
+    setLeaveAction(null);
+    finished.current = true;
+    if (keep) saveHostDraft(me, { ...draftNow, savedAt: new Date().toISOString() });
+    else clearHostDraft(me);
+    if (action) navigation.dispatch(action as never);
+  }
 
   const chosen = startFrom(dayChoices[Math.min(day, dayChoices.length - 1)], time, now);
   const chosenEnd = chosen.ok ? endFrom(chosen.start, endTime) : null;
@@ -309,9 +353,12 @@ export function EventForm({
     if (twin) return setError(`You already host ${twin.title} at that time. Open it from Tonight, or change the name or time.`);
     setError(null);
     setSaving(true);
+    finished.current = true;
     try {
       await onSubmit(event, { invited: peopleCount });
+      if (!editing) clearHostDraft(me);
     } catch (e) {
+      finished.current = false;
       setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
       setSaving(false);
@@ -645,19 +692,28 @@ export function EventForm({
         onCancel={() => setPicking(null)}
       />
 
-      <Sheet visible={pickDateOpen} title="Pick a date" onClose={() => setPickDateOpen(false)}>
-        {calendarDays(now).map((d) => (
-          <SheetOption
-            key={d.date}
-            label={d.label}
-            onPress={() => {
-              const base = baseDays.length;
-              setPickedDay(d);
-              setDay(base);
-              setPickDateOpen(false);
-            }}
-          />
-        ))}
+      {pickDateOpen ? (
+        <DateSheet
+          visible
+          title="Pick a date"
+          value={dayNow.date ? localDay(new Date(dayNow.date)) : chosen.ok ? localDay(chosen.start) : null}
+          min={localDay(now)}
+          max={localDay(new Date(now.getTime() + MAX_DAYS_AHEAD * 86_400_000))}
+          onClose={() => setPickDateOpen(false)}
+          onPick={(d) => {
+            setPickedDay(pickedDayChoice(d, now));
+            setDay(baseDays.length);
+            setPickDateOpen(false);
+          }}
+        />
+      ) : null}
+
+      <Sheet visible={leaveAction !== null} title="Keep this meet as a draft?" onClose={() => setLeaveAction(null)} doneLabel="Stay">
+        <View style={{ gap: SPACING.md }}>
+          <DsText v="body">{`${title.trim() || 'Your meet'} is saved on this phone. Open Host again to carry on where you left off.`}</DsText>
+          <Button label="Keep draft" block onPress={() => leave(true)} />
+          <Button label="Discard" tier="destructive" block onPress={() => leave(false)} />
+        </View>
       </Sheet>
 
       <TimeSheet
@@ -685,6 +741,10 @@ export function EventForm({
       </Sheet>
     </View>
   );
+}
+
+function dayChoicesOf(base: DayChoice[], picked: DayChoice | null): DayChoice[] {
+  return picked ? [...base, picked] : base;
 }
 
 /** Hours from the morning round to the small hours, so evening times sit together. */

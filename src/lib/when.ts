@@ -117,3 +117,32 @@ export function orderedTimes(choice: DayChoice, times: readonly string[], now: D
     .sort((a, b) => a.ms - b.ms)
     .map(({ time, label }) => ({ time, label }));
 }
+
+/** Quick start times in the evening (REVIEW-10: no stray 10:00; "Other time" covers mornings). */
+export const EVENING_TIMES = ['19:00', '19:30', '20:00', '21:00', '22:00', '22:30'];
+
+/**
+ * Where a new event's When step starts (REVIEW-10: the default was 22:30 even at lunchtime):
+ * tonight at 20:00, or the next quick evening time at least half an hour away, or tomorrow at
+ * 20:00 once tonight's are gone. `day` is the quick-day index (0 Tonight, 1 Tomorrow).
+ */
+export function defaultStart(now: Date): { day: 0 | 1; time: string } {
+  const soonest = now.getTime() + 30 * 60_000;
+  const tonight = { label: 'Tonight', days: 0 };
+  const ok = (t: string) => {
+    const r = startFrom(tonight, t, now);
+    return r.ok && r.start.getTime() >= soonest;
+  };
+  if (now.getHours() >= SMALL_HOURS_END && ok('20:00')) return { day: 0, time: '20:00' };
+  const later = now.getHours() >= SMALL_HOURS_END ? EVENING_TIMES.find(ok) : undefined;
+  return later ? { day: 0, time: later } : { day: now.getHours() < SMALL_HOURS_END ? 0 : 1, time: '20:00' };
+}
+
+/** A day from the date picker ("2026-11-27", local) as a day choice: "Fri 27 Nov". */
+export function pickedDayChoice(day: string, now: Date): DayChoice {
+  const [y, m, d] = day.split('-').map(Number);
+  const date = new Date(y, m - 1, d, 12);
+  const today = new Date(now);
+  today.setHours(12, 0, 0, 0);
+  return { label: dayName(date), days: Math.round((date.getTime() - today.getTime()) / 86_400_000), date: date.toISOString() };
+}
