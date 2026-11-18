@@ -38,12 +38,8 @@ export default function BuildScreen() {
   useLayoutEffect(() => {
     if (!b) return;
     nav.setOptions({
-      headerRight: () =>
-        mine ? (
-          <HeaderActions action={{ label: 'Edit', accessibilityLabel: 'Edit build', onPress: () => router.push({ pathname: '/build/edit', params: { id: b.id } }) }} />
-        ) : (
-          <HeaderActions onMenu={() => setMenu(true)} />
-        ),
+      // Detail screens: a ··· menu, yours or not (REVIEW-7 inconsistency 2). Edit is in it.
+      headerRight: () => <HeaderActions onMenu={() => setMenu(true)} />,
     });
   }, [nav, b, mine]);
 
@@ -190,10 +186,14 @@ export default function BuildScreen() {
       <OptionsSheet
         visible={menu}
         title="Build options"
-        options={[
-          ...(owner ? [{ label: `View ${at(owner)}`, onPress: () => openProfile(owner.id) }] : []),
-          { label: 'Report build', onPress: () => openReport('build', b.id, b.ownerId, 'build') },
-        ]}
+        options={
+          mine
+            ? [{ label: 'Edit build', onPress: () => router.push({ pathname: '/build/edit', params: { id: b.id } }) }]
+            : [
+                ...(owner ? [{ label: `View ${at(owner)}`, onPress: () => openProfile(owner.id) }] : []),
+                { label: 'Report build', onPress: () => openReport('build', b.id, b.ownerId, 'build') },
+              ]
+        }
         onClose={() => setMenu(false)}
       />
     </ScrollView>

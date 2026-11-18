@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, TextInput, View } from 'react-native';
-import { searchPlaces, SearchError } from '../lib/location';
+import { ADDRESS_SEARCH_IN_APP, geocoderAvailable, searchPlaces, SearchError } from '../lib/location';
 import { searchQuery, type PlaceHit } from '../lib/placeNames';
 import { COLOR, RADII, SPACING } from '../theme';
 import { DsText, ErrorState, INPUT, Press } from './ds';
@@ -43,6 +43,11 @@ export function PlaceSearch({ onPick, placeholder = 'Search a postcode, town or 
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [text]);
+
+  if (!geocoderAvailable) {
+    // The web preview has no geocoder: say so plainly instead of a search box that can only fail.
+    return <DsText v="caption">{ADDRESS_SEARCH_IN_APP} Here, move or tap the map.</DsText>;
+  }
 
   function pick(h: PlaceHit) {
     seq.current++;

@@ -39,8 +39,11 @@ export function EventEntityCard({
   onPress,
   tag,
   action,
+  milesFrom = '',
 }: {
   view: EventView;
+  /** " from you" or " from home": one rule for every distance (REVIEW-7 inconsistency 5). */
+  milesFrom?: string;
   now: Date;
   /** Distance to the shown meet point or the area, already worked out. */
   miles?: number | null;
@@ -63,7 +66,7 @@ export function EventEntityCard({
       title={e.title}
       sample={isSeedEvent(e.id)}
       status={tag ?? (v.phase === 'live' && !roleTag(v.role) ? { label: 'Live', tone: 'live' } : roleTag(v.role))}
-      meta={metaLine([whenLine(v, now), `${e.going.length} going`, miles != null ? formatMiles(miles) : null])}
+      meta={metaLine([whenLine(v, now), `${e.going.length} going`, miles != null ? `${locked ? `about ${Math.max(1, Math.round(miles))} mi` : formatMiles(miles)}${milesFrom}` : null])}
       detail={place}
       finished={done}
       onPress={onPress}

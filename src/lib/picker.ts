@@ -112,3 +112,32 @@ export function formatLatLng(at: LatLng): string {
   const ew = at.lng >= 0 ? 'E' : 'W';
   return `${Math.abs(at.lat).toFixed(4)}° ${ns}, ${Math.abs(at.lng).toFixed(4)}° ${ew}`;
 }
+
+/**
+ * A readable name for the crosshair when the phone's geocoder can't give one (the web preview,
+ * offline): the nearest known place within 2 mi ("Near Ventura Park"), else the region
+ * ("Somewhere in the West Midlands"). Never raw coordinates (REVIEW-7 problem 4).
+ */
+export function describePoint(at: LatLng, known: readonly { name: string; at: LatLng }[], region: string): string {
+  let best: { name: string; miles: number } | null = null;
+  for (const k of known) {
+    const miles = milesBetween(at, k.at);
+    if (miles <= 2 && (!best || miles < best.miles)) best = { name: k.name, miles };
+  }
+  if (best) return best.miles < 0.15 ? `At ${best.name}` : `Near ${best.name} (${best.miles < 1 ? best.miles.toFixed(1) : Math.round(best.miles)} mi)`;
+  return `Somewhere in ${region}`;
+}
+
+/**
+ * Where a post's place picker opens: the place already picked, else the last map view, else
+ * where you are, never on your home area (it's refused there). If nothing else, about 2 km
+ * north of home, outside the 1 km it refuses.
+ */
+export function postPickerStart(o: { picked: LatLng | null; lastView: LatLng | null; here: LatLng | null; home: LatLng | null }, clearKm = 1): LatLng {
+  const clear = (p: LatLng | null): p is LatLng => !!p && (!o.home || milesBetween(p, o.home) * 1.609344 >= clearKm * 1.2);
+  if (o.picked) return o.picked;
+  if (clear(o.lastView)) return o.lastView;
+  if (clear(o.here)) return o.here;
+  const base = o.home ?? { lat: 52.63, lng: -1.7 };
+  return { lat: base.lat + 0.02, lng: base.lng };
+}

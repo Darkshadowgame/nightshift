@@ -1,3 +1,4 @@
+import { carShape } from '../lib/buildShape';
 import { View } from 'react-native';
 import { buildTag } from '../lib/bringing';
 import { classOf } from '../lib/classes';
@@ -30,7 +31,7 @@ export function BuildOption({ build, on, fits, locked, onPress }: { build: Build
         backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
       }}
     >
-      <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} size={36} />
+      <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={36} />
       <View style={{ flex: 1, gap: SPACING.xxs }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
           <ClassBadge letter={classOf(build)} size="sm" decorative />

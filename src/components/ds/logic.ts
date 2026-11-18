@@ -14,6 +14,10 @@ export function initials(name?: string | null, handle?: string | null): string {
       .split(/[\s._-]+/)
       .map((w) => Array.from(w).find((ch) => /\p{L}|\p{N}/u.test(ch)) ?? '')
       .filter(Boolean);
+  // A name that is just the handle (the demo and sign-up set one from the other) reads like a handle:
+  // one letter, so "ek_fk8" is "E" like everyone else's, not "EF" (REVIEW-7 inconsistency 7).
+  const bare = (s: string) => s.trim().replace(/^@/, '').toLowerCase();
+  if (name && handle && bare(name) === bare(handle)) name = null;
   const fromName = name ? letters(name.trim()) : [];
   if (fromName.length >= 2) return (fromName[0] + fromName[fromName.length - 1]).toUpperCase();
   if (fromName.length === 1) return fromName[0].toUpperCase();

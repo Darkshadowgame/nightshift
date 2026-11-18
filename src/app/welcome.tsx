@@ -120,7 +120,7 @@ export default function Welcome() {
               <DsText v="eyebrow" tone="action">
                 Step 1 of 2
               </DsText>
-              <DsText v="display" accessibilityRole="header">
+              <DsText v="heading" accessibilityRole="header">
                 What do you drive?
               </DsText>
               <DsText v="secondary">It's what you bring to meets, and it decides which invites you get. Search, then tap yours.</DsText>
@@ -169,7 +169,7 @@ export default function Welcome() {
               <DsText v="eyebrow" tone="action">
                 Step 2 of 2
               </DsText>
-              <DsText v="display" accessibilityRole="header">
+              <DsText v="heading" accessibilityRole="header">
                 Where's home?
               </DsText>
               <DsText v="secondary">So Tonight shows what's on near you. It's saved to about 1 km, never your exact address, and nobody else sees it.</DsText>
@@ -234,12 +234,13 @@ export default function Welcome() {
         <MapPicker
           visible={picking}
           mode="point"
-          title="YOUR ROUGH HOME AREA"
+          title="Your rough home area"
           hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your exact address."
           confirmLabel="Set home area here"
           colour={LAYER.event}
           start={home ?? UK_MIDDLE}
           span={home ? 0.1 : 3}
+          locateOnOpen={!home}
           initial={home ? [home] : []}
           onDone={([stop]) => {
             setPicking(false);

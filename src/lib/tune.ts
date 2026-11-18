@@ -190,7 +190,8 @@ export function stageEstimate(engine: StageEngine, stage: TuneStage): StageEstim
 // The stage as a mod
 // ---------------------------------------------------------------------------
 
-const STAGE_MOD = /^(stage (1|2|2\+|3|4)|custom) tune$/i;
+/** "Stage 1 tune" (the app's own), and what people type: "Stage 1 remap", "Stage 2 map", "Stage 2+ ECU remap" (REVIEW-7 bug 4). */
+const STAGE_MOD = /^(stage ?(1|2|2\+|3|4)|custom)( ecu)? (tune|re-?map|map)$/i;
 
 export function stageModName(stage: TuneStage): string | null {
   if (stage === 'stock') return null;
@@ -207,7 +208,7 @@ export function stageFromMods(mods: Pick<Mod, 'name'>[]): TuneStage {
   if (!m) return 'stock';
   const name = m.name.trim().toLowerCase();
   if (name.startsWith('custom')) return 'custom';
-  const n = /^stage (1|2\+|2|3|4)/.exec(name)?.[1];
+  const n = /^stage ?(1|2\+|2|3|4)/.exec(name)?.[1];
   return n === '1' ? 'stage1' : n === '2' ? 'stage2' : n === '2+' ? 'stage2plus' : n === '3' ? 'stage3' : 'stage4';
 }
 

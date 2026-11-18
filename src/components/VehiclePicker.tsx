@@ -32,7 +32,10 @@ export function VehiclePicker({
   vehicleId,
   onMakeModel,
   onPickVariant,
+  editableBelow = false,
 }: {
+  /** The figures can be changed in fields below the picker (the build form); not in onboarding. */
+  editableBelow?: boolean;
   kind: VehicleKind;
   make: string;
   model: string;
@@ -119,7 +122,8 @@ export function VehiclePicker({
             </DsText>
             <DsText v="caption">
               Standard figures filled in: {variant.bhp} bhp · {variant.weightKg} kg {kind === 'car' ? 'kerb' : 'wet'}{variant.weightApprox ? ' (approx. from dry)' : ''}
-              {variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}. Change anything below if yours differs.
+              {variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}.
+              {editableBelow ? ' Change anything below if yours differs.' : ' Add your mods in the Garage later.'}
             </DsText>
           </View>
         </View>

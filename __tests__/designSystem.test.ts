@@ -24,6 +24,8 @@ describe('initials', () => {
   it('falls back to the handle without the @', () => {
     expect(initials('', '@night_owl')).toBe('N');
     expect(initials(undefined, 'tomtom_gr')).toBe('T');
+    expect(initials('ek_fk8', 'ek_fk8')).toBe('E'); // a name that is just the handle
+    expect(initials('ek_fk8', '@ek_fk8')).toBe('E');
   });
   it('skips emoji and punctuation', () => {
     expect(initials('🔥 Zed')).toBe('Z');

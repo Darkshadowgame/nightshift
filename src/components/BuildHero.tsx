@@ -1,3 +1,4 @@
+import { carShape } from '../lib/buildShape';
 import { Image, StyleSheet, View } from 'react-native';
 import { classOf } from '../lib/classes';
 import { plural } from '../lib/format';
@@ -20,7 +21,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
       {build.photos[0] ? (
         <Image source={{ uri: photoUri(build.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
       ) : (
-        <BuildArt kind={build.kind} colour={build.colour} height={height ?? 160} />
+        <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={height ?? 160} />
       )}
       {/* Top-left, on its own dark plate, so it reads on any photo and never covers the car. */}
       <View style={[st.stamp, { borderColor: outline(metal) }]}>

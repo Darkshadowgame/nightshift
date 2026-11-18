@@ -53,6 +53,7 @@ import { parseOpeningHours, openState } from '../../lib/openingHours';
 import { demoPartners, partnerBadge } from '../../lib/partners';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { milesBetween } from '../../lib/geo';
+import { rememberMapView } from '../../lib/lastView';
 import { answerProblem, confirmations, KIND_INFO, reportAge, sourceCredit, type RoadReport, type RoadVote } from '../../lib/roadReports';
 import { useRoadReports, useRoads } from '../../lib/roadStore';
 import { usePostPins } from '../../lib/communityStore';
@@ -170,6 +171,7 @@ export default function TonightScreen() {
   // Pans and zooms settle a moment before the pins are worked out again, so a burst of region updates costs one pass.
   const regionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setRegion = useCallback((r: MapRegion) => {
+    rememberMapView(r.centre);
     if (regionTimer.current) clearTimeout(regionTimer.current);
     regionTimer.current = setTimeout(() => setRegionNow(r), 120);
   }, []);
@@ -658,6 +660,8 @@ export default function TonightScreen() {
 
   /** Tonight near you: live now, the rest of the next 12 hours, then the week. */
   const origin = here ?? meUser?.home ?? region.centre;
+  /** Every distance on Tonight is from you (a GPS fix) or else from home, and says which. */
+  const milesFrom = here ? ' from you' : ' from home';
   const lists = useMemo(() => {
     const t = now.getTime();
     const start = (v: EventView) => new Date(v.event.startsAt).getTime();
@@ -711,7 +715,7 @@ export default function TonightScreen() {
         <DsText v="secondary">
           {introBuild ? `Say you're going, with your ${introBuild.make} ${introBuild.model}. Then check in when you get there.` : 'Add your car or bike, then say you’re going.'}
         </DsText>
-        <EventEntityCard view={pick} now={now} miles={milesTo(pick)} onPress={() => openEvent(pick.event.id)} />
+        <EventEntityCard view={pick} now={now} miles={milesTo(pick)} milesFrom={milesFrom} onPress={() => openEvent(pick.event.id)} />
         {introBuild ? (
           <Button label="I'm going" size="lg" block busy={joining} haptic="success" onPress={() => goWithMyCar(pick)} />
         ) : (
@@ -726,14 +730,14 @@ export default function TonightScreen() {
       {introCard}
       <Section title="Your events">
         {lists.yours.length ? (
-          lists.yours.map((v) => <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => openEvent(v.event.id)} />)
+          lists.yours.map((v) => <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} milesFrom={milesFrom} onPress={() => openEvent(v.event.id)} />)
         ) : (
           <EmptyState variant="inline" title="Nothing yet. Say you're going to something below, or host one." />
         )}
       </Section>
-      <EventSection title="Live now" list={lists.live} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
-      <EventSection title={laterLabel(now)} list={lists.tonight} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
-      <EventSection title="This week" list={lists.week} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
+      <EventSection title="Live now" list={lists.live} skip={lists.yours} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
+      <EventSection title={laterLabel(now)} list={lists.tonight} skip={lists.yours} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
+      <EventSection title="This week" list={lists.week} skip={lists.yours} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={openEvent} />
       {nothingOn ? <EmptyState variant="inline" title="Nothing on near you this week." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} /> : null}
     </ScrollView>
   );
@@ -742,7 +746,7 @@ export default function TonightScreen() {
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       {/* The header: title, + (host or suggest), the bell; then the one search and Map / List. */}
       <View style={[st.top, { paddingTop: insets.top }]}>
-        <ScreenHeader title="Tonight" bell action={{ label: '+ Host', accessibilityLabel: 'Host an event or suggest a place', onPress: () => setPlusOpen(true) }} />
+        <ScreenHeader title="Tonight" bell action={{ label: '+ New', accessibilityLabel: 'Host an event or suggest a place', onPress: () => setPlusOpen(true) }} />
         <View style={st.searchRow}>
           <View style={{ flex: 1 }}>
             <SearchField onOpen={() => router.push('/search')} placeholder="Search" accessibilityLabel="Search events, places, people and addresses" />
@@ -887,22 +891,22 @@ export default function TonightScreen() {
                       </View>
                     </View>
                   ) : null}
-                  <EventSection title="Live now" list={lists.live} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
-                  <EventSection title={laterLabel(now)} list={lists.tonight} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
+                  <EventSection title="Live now" list={lists.live} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={(id) => show(`ev:${id}`)} />
+                  <EventSection title={laterLabel(now)} list={lists.tonight} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} milesFrom={milesFrom} onOpen={(id) => show(`ev:${id}`)} />
                   <EventSection
                     title="This week"
                     list={lists.week.slice(0, 6)}
                     skip={[]}
                     now={now}
-                    milesTo={milesTo}
+                    milesTo={milesTo} milesFrom={milesFrom}
                     onOpen={(id) => show(`ev:${id}`)}
                     right={lists.week.length > 6 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setMode('list')} accessibilityLabel="See every event as a list" /> : undefined}
                   />
                   {nothingOn ? <DsText v="secondary">Nothing coming up near you. Host one for your mates with the + at the top.</DsText> : null}
                   {nearPlaces.length ? (
                     <Section title="Places on the map">
-                      {nearPlaces.map(({ s, miles }) => (
-                        <PlaceEntityCard key={s.id} spot={s} miles={miles} milesFrom=" from the map's centre" onPress={() => show(`sp:${s.id}`, false)} />
+                      {nearPlaces.map(({ s }) => (
+                        <PlaceEntityCard key={s.id} spot={s} miles={milesBetween(origin, s.at)} milesFrom={milesFrom} onPress={() => show(`sp:${s.id}`, false)} />
                       ))}
                     </Section>
                   ) : null}
@@ -914,7 +918,7 @@ export default function TonightScreen() {
       )}
 
       {/* The one + : host an event, or suggest a place. */}
-      <Sheet visible={plusOpen} title="Add" onClose={() => setPlusOpen(false)} doneLabel="Cancel">
+      <Sheet visible={plusOpen} title="New" onClose={() => setPlusOpen(false)}>
         <SheetOption
           label="Host an event"
           detail="A meet, cruise or rolling meet. You choose who's invited."
@@ -989,6 +993,7 @@ function EventSection({
   skip,
   now,
   milesTo,
+  milesFrom,
   onOpen,
   right,
 }: {
@@ -997,6 +1002,7 @@ function EventSection({
   skip: EventView[];
   now: Date;
   milesTo: (v: EventView) => number;
+  milesFrom: string;
   onOpen: (eventId: string) => void;
   right?: ReactNode;
 }) {
@@ -1005,7 +1011,7 @@ function EventSection({
   return (
     <Section title={title} right={right}>
       {shown.map((v) => (
-        <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => onOpen(v.event.id)} />
+        <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} milesFrom={milesFrom} onPress={() => onOpen(v.event.id)} />
       ))}
     </Section>
   );

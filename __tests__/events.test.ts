@@ -1,4 +1,4 @@
-import { canCheckIn, canSeeStop, checkIn, checkInOpensAt, checkInWindowOpen, isHost, missingStops, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
+import { canCheckIn, canSeeStop, duplicateHosted, checkIn, checkInOpensAt, checkInWindowOpen, isHost, missingStops, moveOn, moveOnAudience, phaseOf } from '../src/lib/events';
 import { DEFAULT_FILTER, buildMatches, invitees } from '../src/lib/invites';
 import type { Build, Crew, NightEvent, User } from '../src/lib/types';
 
@@ -174,5 +174,16 @@ describe('check-in window', () => {
     expect(checkInWindowOpen(e, new Date(NOW.getTime() + (60 * 48 - 30) * 60_000))).toBe(true);
     expect(checkInWindowOpen(e, new Date(NOW.getTime() + 60 * 50 * 60_000))).toBe(false);
     expect(checkInWindowOpen({ ...rolling(), cancelled: true }, NOW)).toBe(false);
+  });
+});
+
+describe('hosting the same event twice (REVIEW-7 bug 10)', () => {
+  test('the same name and start, hosted by you, is a duplicate; cancelled or edited ones are not', () => {
+    const e = rolling({ id: 'e1', hostIds: ['me'], title: 'Friday JDM night', startsAt: mins(120) });
+    expect(duplicateHosted([e], { id: 'new', title: ' friday jdm night ', startsAt: mins(120) }, 'me')?.id).toBe('e1');
+    expect(duplicateHosted([e], { id: 'new', title: 'Friday JDM night', startsAt: mins(180) }, 'me')).toBeUndefined();
+    expect(duplicateHosted([e], { id: 'e1', title: 'Friday JDM night', startsAt: mins(120) }, 'me')).toBeUndefined();
+    expect(duplicateHosted([{ ...e, cancelled: true }], { id: 'new', title: 'Friday JDM night', startsAt: mins(120) }, 'me')).toBeUndefined();
+    expect(duplicateHosted([e], { id: 'new', title: 'Friday JDM night', startsAt: mins(120) }, 'someone')).toBeUndefined();
   });
 });

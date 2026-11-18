@@ -1,3 +1,4 @@
+import { carShape } from '../../lib/buildShape';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
@@ -94,7 +95,7 @@ export default function UserScreen() {
         {cover?.photos[0] ? (
           <Image source={{ uri: photoUri(cover.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
         ) : cover ? (
-          <BuildArt kind={cover.kind} colour={cover.colour} height={COVER_HEIGHT} />
+          <BuildArt kind={cover.kind} shape={carShape(cover)} colour={cover.colour} height={COVER_HEIGHT} />
         ) : null}
         {cover?.photos[0] ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: COVER_HEIGHT / 2, backgroundColor: COLOR.surface.scrim }} /> : null}
       </View>

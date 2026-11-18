@@ -211,6 +211,7 @@ export default function EditBuild() {
             ]}
           />
           <VehiclePicker
+            editableBelow
             kind={kind}
             make={make}
             model={model}

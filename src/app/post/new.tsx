@@ -6,6 +6,8 @@ import { Button, DsText, ErrorState, SegmentedControl } from '../../components/d
 import { SELLING_HINT, sellingHint } from '../../lib/moderation';
 import { MapPicker } from '../../components/MapPicker';
 import { useCommunity } from '../../lib/communityStore';
+import { lastMapView } from '../../lib/lastView';
+import { postPickerStart } from '../../lib/picker';
 import { locationProblem, POST_LIMITS, postProblem, VISIBILITY, type PostVisibility } from '../../lib/posts';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
@@ -13,7 +15,7 @@ import { COLOR, POST_COLOUR, RADII, SPACING } from '../../theme';
 
 /** New post: words, photos (plate-blurred), an optional place on the map, who sees it, and a linked build. */
 export default function NewPost() {
-  const { users, me, builds } = useStore();
+  const { users, me, builds, settings, setSettings } = useStore();
   const community = useCommunity();
   const home = users.find((u) => u.id === me)?.home ?? null;
   const mine = builds.filter((b) => b.ownerId === me);
@@ -36,6 +38,8 @@ export default function NewPost() {
     setBusy(true);
     try {
       const id = await community.run((s) => s.createPost(draft));
+      // "On the map" should mean you can see it there: turn the Posts layer on (REVIEW-7 bug 8).
+      if (at && !settings.postsLayer) setSettings({ postsLayer: true });
       router.replace({ pathname: '/post/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't post that.");
@@ -114,7 +118,9 @@ export default function NewPost() {
         hint={placeError ?? 'Move the map so the crosshair is on the spot. Not near your home.'}
         confirmLabel="Use this place"
         colour={POST_COLOUR}
-        start={at ?? home ?? { lat: 52.63, lng: -1.7 }}
+        start={postPickerStart({ picked: at, lastView: lastMapView(), here: null, home })}
+        locateOnOpen
+        refuse={(p) => !!locationProblem(p, home)}
         span={0.05}
         initial={at ? [at] : []}
         showKinds={['photo', 'venue', 'track']}

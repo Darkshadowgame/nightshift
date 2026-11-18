@@ -39,7 +39,7 @@ import { viewEvent } from '../lib/eventView';
 import { formatWhen, plural } from '../lib/format';
 import { formatMiles, milesBetween } from '../lib/geo';
 import { PLACE_NAMES } from '../lib/glossary';
-import { currentPosition, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
+import { ADDRESS_SEARCH_IN_APP, currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
 import { firstPage, PAGE } from '../lib/paging';
 import { visibleSpots } from '../lib/spots';
 import { useNow } from '../lib/clock';
@@ -176,7 +176,7 @@ export default function SearchScreen() {
   const wantsAddresses = tab === 'all' || tab === 'places';
   useEffect(() => {
     const mine = ++seq.current;
-    if (!wantsAddresses || !whereQueries(query)) {
+    if (!wantsAddresses || !whereQueries(query) || (!geocoderAvailable && !liveSearchAvailable)) {
       setAddresses([]);
       setAddrState('idle');
       return;
@@ -264,6 +264,7 @@ export default function SearchScreen() {
       {addrState === 'searching' && !addresses.length ? <LoadingState variant="inline" label="Searching addresses" /> : null}
       {addrState === 'none' ? <EmptyState variant="inline" title="No address found. Try the full address, a postcode or a town." /> : null}
       {addrState === 'error' ? <ErrorState title={addrError} /> : null}
+      {!geocoderAvailable && !liveSearchAvailable ? <EmptyState variant="inline" title={`${ADDRESS_SEARCH_IN_APP} Events, places and people search here too.`} /> : null}
       {addresses.map((h) => (
         <ListRow
           key={h.key}
@@ -411,7 +412,7 @@ export default function SearchScreen() {
           </Section>
         </>
       )}
-      {wantsAddresses ? <DsText v="caption">Addresses use Apple Maps. Your recent places, Home and Work stay on this phone.</DsText> : null}
+      {wantsAddresses && geocoderAvailable ? <DsText v="caption">Addresses use Apple Maps. Your recent places, Home and Work stay on this phone.</DsText> : null}
 
       <Sheet visible={editing} title="Filters" onClose={() => setEditing(false)}>
         <ChoiceGroup

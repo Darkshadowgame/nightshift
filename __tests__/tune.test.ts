@@ -121,7 +121,8 @@ describe('stage as a mod', () => {
       if (st === 'stock') expect(name).toBeNull();
       else expect(stageFromMods([{ name: name! }])).toBe(st);
     }
-    expect(stageFromMods([{ name: 'Stage 2 remap' }])).toBe('stock'); // free-typed mods aren't the stage
+    // A typed "Stage 2 remap" is the stage too, so the build page never says Stock next to it (REVIEW-7 bug 4).
+    expect(stageFromMods([{ name: 'Stage 2 remap' }])).toBe('stage2');
     expect(isStageMod({ name: 'stage 2+ tune' })).toBe(true);
   });
   test('setting a stage replaces the old one, first in the list, with the gain', () => {
@@ -199,5 +200,15 @@ describe('quick-pick mods', () => {
     expect(out.map((m) => m.name)).toEqual(['ECU remap', 'Induction kit', 'Downpipe with sports cat', 'Uprated intercooler']);
     expect(out.slice(1).every((m) => m.bhpGain === undefined)).toBe(true);
     expect(hasQuickMod(out, quick('intercooler'))).toBe(true);
+  });
+});
+
+describe('a typed remap counts as the stage (REVIEW-7 bug 4)', () => {
+  test('"Stage 1 remap" is Stage 1, not Stock', () => {
+    expect(stageFromMods([{ name: 'Stage 1 remap' }])).toBe('stage1');
+    expect(stageFromMods([{ name: 'Stage 2 map' }])).toBe('stage2');
+    expect(stageFromMods([{ name: 'Stage 2+ ECU remap' }])).toBe('stage2plus');
+    expect(stageFromMods([{ name: 'Stage 3 tune' }])).toBe('stage3');
+    expect(stageFromMods([{ name: 'Cat-back' }, { name: 'Remap pending' }])).toBe('stock');
   });
 });

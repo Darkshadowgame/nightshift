@@ -141,7 +141,15 @@ export default function ThreadScreen() {
         {mineThread && replies.some((r) => r.authorId !== me) && !thread.solvedReplyId ? (
           <DsText v="caption">Got your answer? Open the ··· on that reply and mark it solved. Its author gets +{SOLVED_REP} rep.</DsText>
         ) : null}
-        {ordered.length === 0 ? <DsText v="secondary">No replies yet. Be the first to help.</DsText> : null}
+        {ordered.length === 0 ? (
+          <DsText v="secondary">
+            {mineThread
+              ? "No replies yet. You'll get a notice when someone replies."
+              : thread.board === 'for_sale'
+                ? 'No replies yet. Ask about it here.'
+                : 'No replies yet. Be the first to help.'}
+          </DsText>
+        ) : null}
         {ordered.map((r) => {
           const isSolved = r.id === thread.solvedReplyId;
           const rb = r.buildId ? builds.find((b) => b.id === r.buildId) : undefined;

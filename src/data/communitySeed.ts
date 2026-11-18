@@ -104,7 +104,7 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
       { at: near(-0.04, 0.07), placeName: 'Rolling road', buildId: 'b-mo-0', likeCount: 21, commentCount: 1 }),
     p('po-4', 'liv', 'Out early this morning, roads were empty and dry for once.', 30 * HOUR, { at: near(0.11, 0.09), placeName: 'Reservoir viewpoint', buildId: 'b-liv-0', likeCount: 5 }),
     p('po-5', 'dan', 'Crew only: wash day Saturday, 10am. Bring your own snow foam.', 2 * DAY, { visibility: 'connections', likeCount: 3 }),
-    p('po-6', 'tom', 'Picked her up today. GR Yaris, stock for now. Where do I start?', 3 * DAY, { buildId: 'b-tom-0', likeCount: 17, commentCount: 1 }),
+    p('po-6', 'tom', 'GR Yaris a year in: Stage 1 remap, coilovers and forged 18s so far. What would you do next?', 3 * DAY, { buildId: 'b-tom-0', likeCount: 17, commentCount: 1 }),
   ];
   const c = (id: string, postId: string, authorId: string, body: string, created: number): PostComment => ({ id, postId, authorId, body, createdAt: ago(created), sample: true });
   const comments: PostComment[] = [

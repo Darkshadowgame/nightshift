@@ -18,6 +18,8 @@ import { isStoredName, nameFromPath, newPhotoName, PHOTO_DIR } from './photoRefs
  * copied into the documents folder and only its name is stored (photoRefs.ts).
  */
 const MAX_EDGE = 2048;
+/** The web preview keeps photos inside its saved state, so smaller. */
+const WEB_MAX_EDGE = 1024;
 const native = Platform.OS !== 'web';
 
 export { plateRedactorAvailable };
@@ -33,6 +35,9 @@ export async function findPlates(uri: string): Promise<{ width: number; height: 
 
 /** Blur the given boxes, save without metadata, and keep it. Returns what to store. */
 export async function finishPhoto(uri: string, boxes: PlateBox[], width?: number, height?: number): Promise<string> {
+  // Web preview: a picked file is a blob: URL that dies on reload (REVIEW-7 bug 5). Keep a small
+  // JPEG data URI instead, so the photo is still there after a reload (and fits in browser storage).
+  if (!native) return reencode(uri, width, height, WEB_MAX_EDGE, true);
   const redacted = await redact(uri, boxes, 'pixelate', MAX_EDGE);
   const done = redacted ? redacted.uri : await reencode(uri, width, height);
   return keep(done);
@@ -133,13 +138,17 @@ export function migratePhotoRef(ref: string): string {
   }
 }
 
-async function reencode(uri: string, width?: number, height?: number): Promise<string> {
+async function reencode(uri: string, width?: number, height?: number, maxEdge = MAX_EDGE, asDataUri = false): Promise<string> {
   const ctx = ImageManipulator.manipulate(uri);
-  if (width && height && Math.max(width, height) > MAX_EDGE) {
-    if (width >= height) ctx.resize({ width: MAX_EDGE });
-    else ctx.resize({ height: MAX_EDGE });
+  if (width && height && Math.max(width, height) > maxEdge) {
+    if (width >= height) ctx.resize({ width: maxEdge });
+    else ctx.resize({ height: maxEdge });
+  } else if (asDataUri && !(width && height)) {
+    // Size unknown: cap the width so a phone-camera photo doesn't fill browser storage.
+    ctx.resize({ width: maxEdge });
   }
   const image = await ctx.renderAsync();
-  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
+  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: asDataUri ? 0.7 : 0.85, base64: asDataUri });
+  if (asDataUri && saved.base64) return saved.base64.startsWith('data:') ? saved.base64 : `data:image/jpeg;base64,${saved.base64}`;
   return saved.uri;
 }

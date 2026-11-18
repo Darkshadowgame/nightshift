@@ -1,3 +1,4 @@
+import { carShape } from '../lib/buildShape';
 import { Image, StyleSheet, View } from 'react-native';
 import { photoUri } from '../lib/photos';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -19,7 +20,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
         <Image source={{ uri: photoUri(build.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
-          <BuildArt kind={build.kind} colour={build.colour} height={h * 0.55} />
+          <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={h * 0.55} />
         </View>
       )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, opacity: 0.6 }]} />

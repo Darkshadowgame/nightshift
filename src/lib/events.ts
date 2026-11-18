@@ -231,6 +231,18 @@ export function moveOn(event: NightEvent, now: Date): NightEvent {
   return { ...event, stops, currentStop: nextIndex };
 }
 
+/**
+ * An event you already host with the same name and start time (REVIEW-7 bug 10: tapping
+ * through Host three times made three identical events). Cancelled ones don't count.
+ */
+export function duplicateHosted(events: NightEvent[], draft: Pick<NightEvent, 'id' | 'title' | 'startsAt'>, me: string): NightEvent | undefined {
+  const name = draft.title.trim().toLowerCase();
+  const at = new Date(draft.startsAt).getTime();
+  return events.find(
+    (e) => e.id !== draft.id && !e.cancelled && e.hostIds.includes(me) && e.title.trim().toLowerCase() === name && Math.abs(new Date(e.startsAt).getTime() - at) < 60_000,
+  );
+}
+
 /** Every stop needs a place before an event can be created. */
 export function missingStops(stops: Stop[]): Stop[] {
   return stops.filter((s) => !s.at);

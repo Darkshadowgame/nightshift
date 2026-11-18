@@ -156,10 +156,10 @@ function Gallery() {
 
         <Group title="Screen header">
           <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
-            <ScreenHeader title="Events" action={{ label: '+ Host', onPress: noop }} bell />
+            <ScreenHeader title="Events" action={{ label: '+ New', onPress: noop }} bell />
           </View>
           <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
-            <ScreenHeader title="Garage" action={{ label: '+ Add', onPress: noop }} />
+            <ScreenHeader title="Garage" action={{ label: '+ New', onPress: noop }} />
           </View>
           <Caption>Title, at most one text action, the bell, a ··· menu. Detail screens: no title, a menu.</Caption>
         </Group>

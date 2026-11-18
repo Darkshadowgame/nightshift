@@ -9,7 +9,7 @@ import { DsText } from './Text';
 /**
  * A filter chip: **many of many only**. Off is an outline with fog text; on is a sodium tint,
  * sodium border and a check mark (so "on" never relies on colour alone). Never a radio button:
- * one-of-many is SegmentedControl or ChoiceGroup. `raw` keeps names as typed ("BMW", "Audi").
+ * one-of-many is SegmentedControl or ChoiceGroup. Labels are as typed, in the pill's face; `raw` is kept for old callers.
  */
 export function Chip({ label, on, onPress, raw, count, accessibilityLabel }: { label: string; on: boolean; onPress: () => void; raw?: boolean; count?: number; accessibilityLabel?: string }) {
   const c = on ? COLOR.action.selected : COLOR.text.secondary;
@@ -34,7 +34,8 @@ export function Chip({ label, on, onPress, raw, count, accessibilityLabel }: { l
       }}
     >
       {on ? <Icon name="check" size={14} colour={c} /> : null}
-      <DsText v="buttonSm" style={[{ color: on ? c : COLOR.text.primary, letterSpacing: 1 }, raw && { textTransform: 'none', letterSpacing: 0.3 }]}>
+      {/* Same face, size and case as a ChoiceGroup pill, so one form never mixes two control styles (REVIEW-7 inconsistency 3). */}
+      <DsText v="body" style={{ color: on ? c : COLOR.text.primary }}>
         {count !== undefined ? `${label} ${count}` : label}
       </DsText>
     </Press>

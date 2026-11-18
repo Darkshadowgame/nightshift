@@ -16,7 +16,7 @@ export const BOARDS: readonly { key: BoardKey; label: string; short: string; hin
   { key: 'cars', label: 'Cars', short: 'Cars', hint: 'Anything on four wheels.' },
   { key: 'bikes', label: 'Bikes', short: 'Bikes', hint: 'Anything on two wheels.' },
   { key: 'detailing', label: 'Detailing', short: 'Detailing', hint: 'Washing, polishing, wraps and tints.' },
-  { key: 'meets', label: 'Meets and events chat', short: 'Events', hint: 'Talk about events. Never where police are.' },
+  { key: 'meets', label: 'Meets and events', short: 'Meets and events', hint: 'Talk about events. Never where police are.' },
   { key: 'for_sale', label: 'For sale and wanted', short: 'For sale', hint: 'Posts only: no payments through Nightshift.' },
   { key: 'local', label: 'Local', short: 'Local', hint: 'Your region.' },
 ];

@@ -10,7 +10,7 @@ import {
   addPoint,
   canFinish,
   crosshairStop,
-  formatLatLng,
+  describePoint,
   gapTo,
   nearbyPlaces,
   pathSummary,
@@ -21,6 +21,7 @@ import {
   type PickPlace,
 } from '../lib/picker';
 import { longGap, MAX_POINT_GAP_MILES, visibleSpots } from '../lib/spots';
+import { nearestRegion } from '../lib/profile';
 import { useStore } from '../lib/store';
 import type { LatLng, SpotKind } from '../lib/types';
 import { COLOR, ELEVATION, HIT, line, outline, RADII, SPACING, SPOT_COLOURS } from '../theme';
@@ -62,6 +63,12 @@ export interface MapPickerProps {
   extraPaths?: MapPath[];
   /** Hosting: draw the car-meet order areas (ban zones) and say when the crosshair is in one. */
   zones?: boolean;
+  /**
+   * With nothing placed yet, move to where you are when it opens (only if location is already
+   * allowed: it never asks). `refuse` skips a fix it wouldn't accept (a post near your home).
+   */
+  locateOnOpen?: boolean;
+  refuse?: (at: LatLng) => boolean;
   /** Point mode: the place. Path mode: every checkpoint (no names). */
   onDone: (stops: PickedStop[]) => void;
   onCancel: () => void;
@@ -94,6 +101,8 @@ function PickerBody({
   extraPins = [],
   extraPaths = [],
   zones = false,
+  locateOnOpen = false,
+  refuse,
   onDone,
   onCancel,
 }: MapPickerProps) {
@@ -140,7 +149,28 @@ function PickerBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region.centre.lat, region.centre.lng, onPlace?.id]);
 
-  const label = onPlace ? onPlace.name : (address ?? (geocoderAvailable ? 'Finding the address…' : formatLatLng(region.centre)));
+  // Never raw coordinates: the geocoder's name, else the nearest known place or the region (REVIEW-7 problem 4).
+  const allKnown = useMemo(() => visibleSpots(spots, me), [spots, me]);
+  const fallbackName = useMemo(
+    () => describePoint(region.centre, nearbyPlaces(allKnown, region.centre, Math.max(region.span, 0.1)), nearestRegion(region.centre)),
+    [allKnown, region],
+  );
+  const label = onPlace ? onPlace.name : (address ?? (geocoderAvailable ? 'Finding the address…' : fallbackName));
+
+  // Open where you are (never asking for permission here), unless something is already placed.
+  useEffect(() => {
+    if (!locateOnOpen || initial.length) return;
+    let live = true;
+    currentPosition(false).then((pos) => {
+      if (!live || !pos.ok || refuse?.(pos.at)) return;
+      setLocated(true);
+      map.current?.animateTo(pos.at, Math.min(span, 0.05));
+    });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function jump(at: LatLng, sp = region.span) {
     map.current?.animateTo(at, sp);

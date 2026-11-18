@@ -1,3 +1,4 @@
+import { carShape } from '../../lib/buildShape';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Share, View } from 'react-native';
@@ -744,7 +745,7 @@ export default function EventScreen() {
                       title={userLabel(uid)}
                       subtitle={b ? `${b.make} ${b.model} · Class ${classOf(b)}` : 'No car or bike yet'}
                       meta={[hostIds.includes(uid) ? 'Hosting' : null, hasLegend(awardsSoFar, uid, now) ? 'Legend this week' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
-                      trailing={b ? <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} size={30} /> : undefined}
+                      trailing={b ? <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={30} /> : undefined}
                       onPress={() => openUser(uid)}
                     />
                   </View>

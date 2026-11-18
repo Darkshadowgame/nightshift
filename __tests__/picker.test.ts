@@ -1,4 +1,4 @@
-import { addPoint, canFinish, crosshairStop, formatLatLng, gapTo, MIN_STEP_MILES, nearbyPlaces, pathSummary, roundAt, snapPlace, undoPoint } from '../src/lib/picker';
+import { addPoint, canFinish, crosshairStop, describePoint, formatLatLng, postPickerStart, gapTo, MIN_STEP_MILES, nearbyPlaces, pathSummary, roundAt, snapPlace, undoPoint } from '../src/lib/picker';
 import { longGap, MAX_POINT_GAP_MILES } from '../src/lib/spots';
 import { milesBetween } from '../src/lib/geo';
 
@@ -106,5 +106,25 @@ describe('context places', () => {
 
   it('labels a point with coordinates when there is no geocoder', () => {
     expect(formatLatLng({ lat: 52.63371, lng: -1.69222 })).toBe('52.6337° N, 1.6922° W');
+  });
+});
+
+describe('readable picker labels and where the post picker opens (REVIEW-7)', () => {
+  const known = [{ name: 'Ventura Park', at: { lat: 52.6205, lng: -1.7265 } }];
+  test('names the nearest known place, else the region, never coordinates', () => {
+    expect(describePoint({ lat: 52.6205, lng: -1.7265 }, known, 'West Midlands')).toBe('At Ventura Park');
+    expect(describePoint({ lat: 52.63, lng: -1.7265 }, known, 'West Midlands')).toBe('Near Ventura Park (0.7 mi)');
+    expect(describePoint({ lat: 53.5, lng: -1.7 }, known, 'Yorkshire')).toBe('Somewhere in Yorkshire');
+    expect(describePoint({ lat: 53.5, lng: -1.7 }, known, 'Yorkshire')).not.toMatch(/°/);
+  });
+  test('the post picker never opens on home', () => {
+    const home = { lat: 52.6, lng: -1.7 };
+    const near = { lat: 52.601, lng: -1.7 };
+    const away = { lat: 52.7, lng: -1.7 };
+    expect(postPickerStart({ picked: null, lastView: away, here: null, home })).toEqual(away);
+    expect(postPickerStart({ picked: null, lastView: near, here: away, home })).toEqual(away);
+    const fallback = postPickerStart({ picked: null, lastView: home, here: near, home });
+    expect(fallback).not.toEqual(home);
+    expect(Math.abs(fallback.lat - home.lat)).toBeGreaterThan(0.015);
   });
 });

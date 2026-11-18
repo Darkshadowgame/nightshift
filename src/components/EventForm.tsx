@@ -6,7 +6,7 @@ import { BAN_ZONES } from '../data/seed';
 import { eventArea } from '../lib/area';
 import { useNow } from '../lib/clock';
 import { isCrewHost } from '../lib/crews';
-import { banZoneAt, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
+import { banZoneAt, duplicateHosted, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen, plural } from '../lib/format';
 import { fitRegion } from '../lib/geo';
 import { GOING, leadText, LOCATION, MEET_POINT } from '../lib/glossary';
@@ -265,6 +265,8 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       const length = new Date(initial.endsAt).getTime() - new Date(initial.startsAt).getTime();
       event.endsAt = new Date(start.getTime() + length).toISOString();
     }
+    const twin = !initial ? duplicateHosted(store.events, event, me) : undefined;
+    if (twin) return setError(`You already host ${twin.title} at that time. Open it from Tonight, or change the name or time.`);
     setError(null);
     setSaving(true);
     try {

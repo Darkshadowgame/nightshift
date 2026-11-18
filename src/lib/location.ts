@@ -14,6 +14,9 @@ import { destinationLabel, tidyDestinations, whereQueries, type Destination } fr
 /** The phone's geocoder only exists in the iPhone (and Android) app, not the web preview. */
 export const geocoderAvailable = Platform.OS === 'ios' || Platform.OS === 'android';
 
+/** Said, not shown as an error, where the web preview has no geocoder (REVIEW-7 decision 9). */
+export const ADDRESS_SEARCH_IN_APP = 'Address search works in the iPhone app.';
+
 export type Position = { ok: true; at: LatLng } | { ok: false; reason: 'denied' | 'unavailable' };
 
 /** Ask for when-in-use location if needed, then read where the phone is. */

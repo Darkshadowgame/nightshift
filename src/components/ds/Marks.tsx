@@ -2,6 +2,7 @@ import { Image, Text, View, type ImageSourcePropType } from 'react-native';
 import type { ClassLetter, VehicleKind } from '../../lib/types';
 import { COLOR, F, RADII, SPACING, outline } from '../../theme';
 import { BuildArt } from '../BuildArt';
+import type { CarShape } from '../../lib/buildShape';
 import { initials } from './logic';
 import { DsText } from './Text';
 
@@ -85,12 +86,12 @@ export function ClassBadge({ letter, size = 'md', decorative }: { letter: ClassL
 }
 
 /** A build's thumbnail: its first photo, or its silhouette. 4:3, control radius. Separate from Avatar on purpose. */
-export function BuildThumb({ photo, kind = 'car', size = 56, label }: { photo?: Photo | null; kind?: VehicleKind; size?: number; label?: string }) {
+export function BuildThumb({ photo, kind = 'car', shape, size = 56, label }: { photo?: Photo | null; kind?: VehicleKind; shape?: CarShape; size?: number; label?: string }) {
   const frame = { width: Math.round((size * 4) / 3), height: size, borderRadius: RADII.control, overflow: 'hidden' as const, backgroundColor: COLOR.surface.media };
   if (photo) return <Image source={src(photo)} style={frame} accessibilityLabel={label} accessibilityIgnoresInvertColors />;
   return (
     <View style={frame} accessibilityLabel={label} accessible={!!label} accessibilityRole={label ? 'image' : undefined}>
-      <BuildArt kind={kind} colour={COLOR.text.secondary} height={size} />
+      <BuildArt kind={kind} shape={shape} colour={COLOR.text.secondary} height={size} />
     </View>
   );
 }
