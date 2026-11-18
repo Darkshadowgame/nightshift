@@ -212,10 +212,14 @@ export default function SettingsScreen() {
         <ListRow title="Connections and blocked people" subtitle="Only people you're connected with can message you" onPress={() => router.push('/connections')} />
         {status.data?.suspended ? (
           <DsText v="caption" tone="warning">
-            Your account is suspended{status.data.until ? ` until ${new Date(status.data.until).toLocaleDateString('en-GB')}` : ''}: you can read and report, not post or message.
+            {status.data.message ?? 'Your account is suspended: you can read and report, not post or message.'}
           </DsText>
         ) : null}
         {status.data?.isStaff ? <ListRow title="Moderation" subtitle="Reports from everyone, for the Nightshift team only" onPress={() => router.push('/moderation')} /> : null}
+        {status.data?.isStaff ? <ListRow title="Moderation team" subtitle="Staff, their roles and how much each does" onPress={() => router.push('/moderation-team')} /> : null}
+        {status.data?.role === 'admin' || status.data?.role === 'owner' ? (
+          <ListRow title="Audit log" subtitle="Every moderation action, by whom" onPress={() => router.push('/moderation-log')} />
+        ) : null}
       </Group>
 
       <Group title="Feedback">

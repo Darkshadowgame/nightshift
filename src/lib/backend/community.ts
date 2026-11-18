@@ -1,11 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Nearby } from '../carsNear';
 import type { ConnectionState } from '../connections';
-import type { CommunityChange, CommunityService, PostPin, QueueItem } from '../communityService';
+import type { CommunityChange, CommunityService, HistoryItem, MemberOverview, ModerationActionRow, PostPin, QueueItem } from '../communityService';
 import { ilikePattern, NO_FORUM_REP, replyProblem, threadProblem, type BoardKey, type ForumRep, type ForumReply, type ForumThread } from '../forum';
 import { uuid } from '../ids';
 import { groupProblem, messageProblem, type Conversation, type Message, type ShareCard } from '../messages';
-import { reportProblem, type ReportReason, type ReportTarget } from '../moderation';
+import { duplicateProblem, rememberSent, reportProblem, SPAM_PROBLEMS, type BanScope, type ReportReason, type ReportTarget, type SentText, type StaffRole } from '../moderation';
 import { photoUri } from '../photos';
 import { commentProblem, postProblem, type Post, type PostComment, type PostVisibility } from '../posts';
 import type { LatLng } from '../types';
@@ -198,6 +198,7 @@ export interface QueueRow {
   report_id: string;
   excerpt: string | null;
   notes: string[] | null;
+  automatic?: boolean | null;
 }
 
 /** Postgres arrays of enums can arrive as "{a,b}" text. */
@@ -218,7 +219,81 @@ export function queueFromRow(r: QueueRow): QueueItem {
     firstReported: r.first_reported,
     excerpt: r.excerpt ?? '',
     notes: r.notes ?? [],
+    automatic: !!r.automatic,
   };
+}
+
+export interface ActionRow {
+  id: string;
+  actor_id: string | null;
+  actor_handle: string | null;
+  actor_role: string;
+  action: string;
+  target_user?: string | null;
+  target_handle?: string | null;
+  target_kind: string | null;
+  target_id?: string | null;
+  reason: string | null;
+  note: string | null;
+  scope: string | null;
+  days: number | null;
+  until: string | null;
+  new_role?: string | null;
+  created_at: string;
+}
+
+export function actionFromRow(r: ActionRow): ModerationActionRow {
+  return {
+    id: r.id,
+    actorId: r.actor_id ?? null,
+    actorHandle: r.actor_handle ?? null,
+    actorRole: r.actor_role,
+    action: r.action,
+    targetUser: r.target_user ?? null,
+    targetHandle: r.target_handle ?? null,
+    targetKind: r.target_kind ?? null,
+    targetId: r.target_id ?? null,
+    reason: r.reason ?? null,
+    note: r.note ?? null,
+    scope: r.scope ?? null,
+    days: r.days ?? null,
+    until: r.until ?? null,
+    newRole: r.new_role ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+/** member_overview() JSON to the app's shape. */
+export function overviewFromJson(j: Record<string, any>): MemberOverview {
+  const c = j.counts ?? {};
+  const n = (v: unknown) => Number(v ?? 0) || 0;
+  return {
+    id: j.id,
+    handle: j.handle ?? null,
+    displayName: j.display_name ?? null,
+    region: j.region ?? null,
+    joined: j.joined,
+    role: j.role ?? null,
+    rep: n(j.rep),
+    counts: {
+      posts: n(c.posts), threads: n(c.threads), replies: n(c.replies), comments: n(c.comments), chat: n(c.chat), messages: n(c.messages),
+      reportsAgainst: n(c.reports_against), warnings: n(c.warnings), bans: n(c.bans), selling30d: n(c.selling_30d),
+    },
+    ban: j.ban ? { scope: j.ban.scope, until: j.ban.until ?? null, reason: j.ban.reason ?? null, since: j.ban.since } : null,
+    log: (j.log ?? []).map((a: ActionRow) => actionFromRow(a)),
+  };
+}
+
+interface HistoryRow {
+  kind: HistoryItem['kind'];
+  id: string;
+  parent_id: string | null;
+  body: string | null;
+  created_at: string;
+  hidden: boolean;
+  is_selling: boolean;
+  is_repeat: boolean;
+  board: string | null;
 }
 
 const THREAD_COLS = 'id,board,region,author_id,title,body,photos,build_id,created_at,last_activity_at,reply_count,solved_reply_id,hidden_at';
@@ -240,6 +315,31 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     return res.data as T;
   }
   const rpc = <T>(name: string, args: Record<string, unknown> = {}) => call<T>(() => client.rpc(name, args) as unknown as PromiseLike<Result<T>>);
+
+  // What this phone sent in the last day, for the duplicate rule (the server checks too).
+  let sent: SentText[] = [];
+  /**
+   * Run a write that the server's duplicate rule covers: refuse early when the
+   * phone already knows it's a third copy, remember it once sent, and when the
+   * server refuses a duplicate tell it (a refused call rolls back, so it can't
+   * record itself); the fifth in a day pauses posting for 24 hours.
+   */
+  async function guarded<T>(kind: 'post' | 'comment' | 'thread' | 'reply' | 'message', place: string | null, text: string, run: () => Promise<T>): Promise<T> {
+    const o = { message: kind === 'message', place: kind === 'message' ? place : null, now: Date.now() };
+    const early = duplicateProblem(text, sent, o);
+    try {
+      if (early) throw new Error(early);
+      const out = await run();
+      sent = rememberSent(sent, text, o);
+      return out;
+    } catch (e) {
+      if (e instanceof Error && e.message === SPAM_PROBLEMS.duplicate) {
+        const r = await Promise.resolve(client.rpc('record_blocked_duplicate', { p_kind: kind, p_place: place, p_text: text })).catch(() => null);
+        if (r && !r.error && r.data === 'cooldown') throw new Error(`${SPAM_PROBLEMS.duplicate} Posting is paused for 24 hours.`);
+      }
+      throw e;
+    }
+  }
 
   /** Signed links for paths in a bucket; paths that fail are dropped. */
   async function signer(bucket: 'photos' | 'messages', paths: string[]): Promise<Signed> {
@@ -378,17 +478,21 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async createThread(d) {
       const p = threadProblem(d);
       if (p) throw new Error(p);
-      const photos = await uploadAll('forum', d.photos);
-      return rpc<string>('create_thread', {
-        p_board: d.board, p_region: d.board === 'local' ? d.region ?? null : null, p_title: d.title.trim(), p_body: d.body.trim(), p_photos: photos,
-        p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
+      return guarded('thread', null, `${d.title.trim()} ${d.body.trim()}`, async () => {
+        const photos = await uploadAll('forum', d.photos);
+        return rpc<string>('create_thread', {
+          p_board: d.board, p_region: d.board === 'local' ? d.region ?? null : null, p_title: d.title.trim(), p_body: d.body.trim(), p_photos: photos,
+          p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
+        });
       });
     },
     async reply(threadId, body, photos, buildId) {
       const p = replyProblem(body);
       if (p) throw new Error(p);
-      const paths = await uploadAll('forum', photos);
-      await rpc('reply_thread', { p_thread_id: threadId, p_body: body.trim(), p_photos: paths, p_build_id: buildId && isUuid(buildId) ? buildId : null });
+      await guarded('reply', threadId, body.trim(), async () => {
+        const paths = await uploadAll('forum', photos);
+        await rpc('reply_thread', { p_thread_id: threadId, p_body: body.trim(), p_photos: paths, p_build_id: buildId && isUuid(buildId) ? buildId : null });
+      });
     },
     async helpful(replyId, on) {
       await rpc('mark_helpful', { p_reply_id: replyId, p_on: on });
@@ -443,10 +547,12 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async createPost(d) {
       const p = postProblem(d, null);
       if (p) throw new Error(p);
-      const photos = await uploadAll('posts', d.photos);
-      return rpc<string>('create_post', {
-        p_body: d.body.trim(), p_photos: photos, p_lat: d.at?.lat ?? null, p_lng: d.at?.lng ?? null, p_place_name: d.at ? d.placeName?.trim() || null : null,
-        p_visibility: d.visibility, p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
+      return guarded('post', null, d.body.trim(), async () => {
+        const photos = await uploadAll('posts', d.photos);
+        return rpc<string>('create_post', {
+          p_body: d.body.trim(), p_photos: photos, p_lat: d.at?.lat ?? null, p_lng: d.at?.lng ?? null, p_place_name: d.at ? d.placeName?.trim() || null : null,
+          p_visibility: d.visibility, p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
+        });
       });
     },
     async likePost(id, on) {
@@ -455,7 +561,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async comment(postId, body) {
       const p = commentProblem(body);
       if (p) throw new Error(p);
-      await rpc('comment_post', { p_post_id: postId, p_body: body.trim() });
+      await guarded('comment', postId, body.trim(), () => rpc('comment_post', { p_post_id: postId, p_body: body.trim() }));
     },
     async deletePost(id) {
       await call(() => client.from('posts').delete().eq('id', id) as unknown as PromiseLike<Result<unknown>>);
@@ -520,12 +626,14 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async send(conversationId, m) {
       const p = messageProblem(m.body, m.photo, m.share);
       if (p) throw new Error(p);
-      let path: string | null = null;
-      if (m.photo) {
-        path = `${uid}/${conversationId}/${uuid()}.jpg`;
-        await upload('messages', path, m.photo);
-      }
-      await rpc('send_message', { p_conversation_id: conversationId, p_body: m.body.trim(), p_photo_path: path, p_share: m.share ?? null });
+      await guarded('message', conversationId, m.body.trim(), async () => {
+        let path: string | null = null;
+        if (m.photo) {
+          path = `${uid}/${conversationId}/${uuid()}.jpg`;
+          await upload('messages', path, m.photo);
+        }
+        await rpc('send_message', { p_conversation_id: conversationId, p_body: m.body.trim(), p_photo_path: path, p_share: m.share ?? null });
+      });
     },
     async markRead(conversationId) {
       await rpc('mark_conversation_read', { p_conversation_id: conversationId });
@@ -537,9 +645,50 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       await rpc('report_content', { p_target: target, p_target_id: id, p_reason: reason, p_note: note.trim() || null });
     },
     async moderationStatus() {
-      const rows = await rpc<{ is_staff: boolean; suspended: boolean; suspended_until: string | null }[]>('my_moderation_status');
+      const rows = await rpc<
+        { is_staff: boolean; suspended: boolean; suspended_until: string | null; role?: StaffRole | null; scope?: BanScope | null; reason?: string | null; message?: string | null }[]
+      >('my_moderation_status');
       const r = rows?.[0];
-      return { isStaff: !!r?.is_staff, suspended: !!r?.suspended, until: r?.suspended_until ?? null };
+      return {
+        isStaff: !!r?.is_staff, suspended: !!r?.suspended, until: r?.suspended_until ?? null,
+        role: r?.role ?? null, scope: r?.scope ?? null, reason: r?.reason ?? null, message: r?.message ?? null,
+      };
+    },
+    async myWarnings() {
+      const rows = await rpc<{ id: string; reason: string; note: string | null; created_at: string }[]>('my_warnings');
+      return (rows ?? []).map((w) => ({ id: w.id, reason: w.reason, note: w.note, createdAt: w.created_at }));
+    },
+    async acknowledgeWarning(id) {
+      await rpc('acknowledge_warning', { p_id: id });
+    },
+    async memberOverview(userId) {
+      return overviewFromJson(await rpc<Record<string, any>>('member_overview', { p_user: userId }));
+    },
+    async memberHistory(userId, before) {
+      const rows = await rpc<HistoryRow[]>('member_history', { p_user: userId, p_before: before ?? null, p_limit: 30 });
+      return (rows ?? []).map((r) => ({
+        kind: r.kind, id: r.id, parentId: r.parent_id, body: r.body ?? '', createdAt: r.created_at, hidden: !!r.hidden,
+        isSelling: !!r.is_selling, isRepeat: !!r.is_repeat, board: r.board,
+      }));
+    },
+    async warn(userId, reason, note) {
+      await rpc('warn_member', { p_user: userId, p_reason: reason.trim(), p_note: note.trim() || null });
+    },
+    async ban(userId, scope, days, reason) {
+      await rpc('ban_member', { p_user: userId, p_scope: scope, p_days: days, p_reason: reason.trim() });
+    },
+    async setRole(userId, role, reason) {
+      await rpc('set_staff_role', { p_user: userId, p_role: role, p_reason: reason.trim() });
+    },
+    async team() {
+      const rows = await rpc<{ user_id: string; handle: string | null; display_name: string | null; role: StaffRole; added_at: string; actions_7d: number; actions_30d: number }[]>('moderation_team');
+      return (rows ?? []).map((t) => ({
+        userId: t.user_id, handle: t.handle, displayName: t.display_name, role: t.role, addedAt: t.added_at, actions7d: t.actions_7d, actions30d: t.actions_30d,
+      }));
+    },
+    async auditLog(f) {
+      const rows = await rpc<ActionRow[]>('moderation_log', { p_actor: f.actor ?? null, p_action: f.action ?? null, p_before: f.before ?? null, p_limit: 50 });
+      return (rows ?? []).map(actionFromRow);
     },
     async queue() {
       const rows = await call<QueueRow[]>(() => client.from('moderation_queue').select('*').order('reports', { ascending: false }).order('first_reported').limit(200) as unknown as PromiseLike<Result<QueueRow[]>>);

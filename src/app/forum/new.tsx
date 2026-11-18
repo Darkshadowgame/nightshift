@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { BuildChooser, ComposerPhotos, Field, INPUT } from '../../components/ComposerParts';
 import { Button, ChoiceGroup, DsText, ErrorState } from '../../components/ds';
+import { SELLING_HINT, sellingHint } from '../../lib/moderation';
 import { useCommunity } from '../../lib/communityStore';
 import { BOARDS, LIMITS, threadProblem, type BoardKey } from '../../lib/forum';
 import { REGIONS } from '../../lib/profile';
@@ -71,6 +72,7 @@ export default function NewThread() {
       <View style={{ gap: SPACING.sm }}>
         <Button label="Post thread" size="lg" block haptic="success" onPress={submit} busy={busy} disabled={!title.trim()} hint="Give it a title first" />
         {error ? <ErrorState title={error} /> : null}
+        {sellingHint(`${title} ${body}`, board) ? <DsText v="caption" tone="warning">{SELLING_HINT}</DsText> : null}
         <DsText v="caption">
           {board === 'for_sale' ? 'Nightshift never handles payments: meet safely and pay in person. ' : ''}
           No street racing, no timing on public roads and nothing about where police are.

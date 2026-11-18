@@ -356,3 +356,27 @@ export function ReportLink({ target, id, userId, what }: { target: string; id: s
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Staff: "Moderate" on anything someone wrote (docs/MODERATION.md)
+// ---------------------------------------------------------------------------
+
+let staffNow = false;
+/** Set by ModerationGate once the app knows (my_moderation_status). The server checks every action anyway. */
+export function setStaffNow(v: boolean) {
+  staffNow = v;
+}
+export function isStaffNow(): boolean {
+  return staffNow;
+}
+
+/** Open the Member moderation screen for this person. */
+export function openModerate(userId: string) {
+  router.push({ pathname: '/member/[id]', params: { id: userId } });
+}
+
+/** The "Moderate" option for a ··· menu: only for staff, never on yourself. */
+export function moderateOptions(userId: string | null | undefined, me?: string | null): SheetOptionSpec[] {
+  if (!staffNow || !userId || userId === me) return [];
+  return [{ label: 'Moderate', detail: 'Their history, warn, ban', onPress: () => openModerate(userId) }];
+}

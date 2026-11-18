@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { BuildChooser, ComposerPhotos, Field, INPUT } from '../../components/ComposerParts';
 import { Button, DsText, ErrorState, SegmentedControl } from '../../components/ds';
+import { SELLING_HINT, sellingHint } from '../../lib/moderation';
 import { MapPicker } from '../../components/MapPicker';
 import { useCommunity } from '../../lib/communityStore';
 import { locationProblem, POST_LIMITS, postProblem, VISIBILITY, type PostVisibility } from '../../lib/posts';
@@ -102,6 +103,7 @@ export default function NewPost() {
       <View style={{ gap: SPACING.sm }}>
         <Button label="Post" size="lg" block haptic="success" onPress={submit} busy={busy} disabled={!body.trim() && !photos.length} hint="Write something or add a photo first" />
         {error ? <ErrorState title={error} /> : null}
+        {sellingHint(body) ? <DsText v="caption" tone="warning">{SELLING_HINT}</DsText> : null}
         <DsText v="caption">No street racing, no timing on public roads and nothing about where police are. Posts can be reported.</DsText>
       </View>
 

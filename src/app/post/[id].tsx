@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { at, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
+import { at, moderateOptions, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
 import { Field, INPUT } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, EmptyState, ErrorState, IconButton, LoadingState, Press, RowDivider, Section, Tag } from '../../components/ds';
 import { NightMap } from '../../components/NightMap';
@@ -62,6 +62,7 @@ export default function PostScreen() {
       : [
           { label: 'Report post', onPress: () => openReport('post', post.id, post.authorId, 'post') },
           { label: `Block @${author?.handle ?? 'them'}`, danger: true, onPress: () => openReport('block', post.authorId, post.authorId) },
+          ...moderateOptions(post.authorId),
         ];
 
   const commentMenu = (c: PostComment): SheetOption[] => {
@@ -72,6 +73,7 @@ export default function PostScreen() {
     if (c.authorId !== community.me) {
       out.push({ label: 'Report comment', onPress: () => openReport('comment', c.id, c.authorId, 'comment') });
       out.push({ label: `Block @${handleOf(c.authorId)}`, danger: true, onPress: () => openReport('block', c.authorId, c.authorId) });
+      out.push(...moderateOptions(c.authorId));
     }
     return out;
   };

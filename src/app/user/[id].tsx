@@ -2,7 +2,7 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { BuildArt } from '../../components/BuildArt';
-import { BuildGrid, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { BuildGrid, moderateOptions, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { PostList } from '../../components/CommunityFeed';
 import { Avatar, Button, DsText, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
 import { useRep } from '../../components/Rep';
@@ -78,6 +78,7 @@ export default function UserScreen() {
     blocked
       ? { label: CONNECT.unblock, onPress: () => void act(() => community.run((s) => s.unblock(id))) }
       : { label: `Block ${handle}`, danger: true, onPress: () => openReport('block', id, id) },
+    ...moderateOptions(id),
   ];
 
   const primary =

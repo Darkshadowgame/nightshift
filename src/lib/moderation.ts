@@ -78,7 +78,9 @@ export type ReportReason =
   | 'personal_info'
   | 'scam'
   | 'underage'
-  | 'other';
+  | 'other'
+  /** Only raised by Nightshift itself: someone whose posts are nearly all selling. */
+  | 'sell_only';
 
 /** In the order the report screen lists them. */
 export const REPORT_REASONS: readonly { key: ReportReason; label: string }[] = [
@@ -94,6 +96,12 @@ export const REPORT_REASONS: readonly { key: ReportReason; label: string }[] = [
   { key: 'underage', label: 'Someone under 18' },
   { key: 'other', label: 'Something else' },
 ];
+
+/** Labels for staff, the automatic reason too. */
+export function reportReasonLabel(k: string): string {
+  if (k === 'sell_only') return 'Only here to sell (automatic)';
+  return REPORT_REASONS.find((r) => r.key === k)?.label ?? k;
+}
 
 export const REPORT_WHAT: Record<ReportTarget, string> = {
   thread: 'thread',
@@ -114,4 +122,236 @@ export function reportProblem(reason: ReportReason | null, note: string): string
   if (reason === 'other' && note.trim().length < 3) return "Say a little about what's wrong.";
   if (note.length > 500) return 'Keep the note to 500 characters or fewer.';
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Spam and selling (supabase/migrations/20261118180000_spam_selling_member_moderation.sql).
+// The server decides; these give the same answer first, for a friendly message.
+// ---------------------------------------------------------------------------
+
+export const SPAM_PROBLEMS = {
+  duplicate: "You've already posted that. Spamming the same message isn't allowed.",
+  selling: "You've posted a lot of selling lately. Put things for sale on the For sale & wanted board instead.",
+  forSaleCap: "That's 5 listings on For sale & wanted this week, the most for 7 days. Try again in a few days.",
+} as const;
+
+/** A gentle note in a composer, never a refusal: occasional selling is fine. */
+export const SELLING_HINT = 'Selling something? The For sale & wanted board is the place for it. The odd sale elsewhere is fine.';
+
+/** Same numbers as the SQL. */
+export const SPAM_LIMITS = {
+  /** Shorter (normalised) texts never count as duplicates: "nice one", "see you there". */
+  minLength: 15,
+  /** Near copies are only compared over this length; shorter ones must match exactly. */
+  nearLength: 20,
+  similarity: 0.9,
+  /** Copies allowed in 24 hours (public), or different private chats. */
+  copies: 2,
+  windowHours: 24,
+} as const;
+
+export const SELLING_LIMITS = {
+  minPosts: 5,
+  share: 0.6,
+  perWeek: 3,
+  forSalePerWeek: 5,
+  sellOnlyShare: 0.9,
+} as const;
+
+/** Lower case; only a-z, 0-9 and spaces kept; runs of space become one. Same as private.spam_normalise(). */
+export function normaliseForSpam(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9 \t\n\r]+/g, '')
+    .replace(/[ \t\n\r]+/g, ' ')
+    .trim();
+}
+
+function pairs(s: string): Set<string> {
+  const out = new Set<string>();
+  for (let i = 0; i < s.length - 1; i++) out.add(s.slice(i, i + 2));
+  return out;
+}
+
+/** Dice coefficient on the sets of 2-character pieces (0 to 1). Same as private.text_similarity(). */
+export function similarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const ga = pairs(a);
+  const gb = pairs(b);
+  if (ga.size + gb.size === 0) return 0;
+  let shared = 0;
+  ga.forEach((g) => {
+    if (gb.has(g)) shared++;
+  });
+  return (2 * shared) / (ga.size + gb.size);
+}
+
+/** Two normalised texts are the same message. Same as private.near_duplicate(). */
+export function isNearDuplicate(a: string, b: string): boolean {
+  if (a.length < SPAM_LIMITS.minLength || b.length < SPAM_LIMITS.minLength) return false;
+  if (a === b) return true;
+  if (a.length <= SPAM_LIMITS.nearLength || b.length <= SPAM_LIMITS.nearLength) return false;
+  if (Math.min(a.length, b.length) / Math.max(a.length, b.length) < 0.8) return false;
+  return similarity(a, b) >= SPAM_LIMITS.similarity;
+}
+
+/** Something this person sent: `place` is the chat for private messages. */
+export interface SentText {
+  norm: string;
+  message: boolean;
+  place: string | null;
+  at: number;
+}
+
+/**
+ * The duplicate rule, as the server counts it: each public copy in the last 24
+ * hours counts once, private copies once per different chat (not this one).
+ * Two already means this one is refused.
+ */
+export function duplicateProblem(text: string, sent: readonly SentText[], o: { message: boolean; place?: string | null; now: number }): string | null {
+  const norm = normaliseForSpam(text);
+  if (norm.length < SPAM_LIMITS.minLength) return null;
+  const since = o.now - SPAM_LIMITS.windowHours * 3600_000;
+  let publicCopies = 0;
+  const chats = new Set<string | null>();
+  for (const s of sent) {
+    if (s.at <= since) continue;
+    if (s.message && o.message && s.place === (o.place ?? null)) continue;
+    if (!isNearDuplicate(s.norm, norm)) continue;
+    if (s.message) chats.add(s.place);
+    else publicCopies++;
+  }
+  return publicCopies + chats.size >= SPAM_LIMITS.copies ? SPAM_PROBLEMS.duplicate : null;
+}
+
+/** Remember a sent text (kept for a day). Returns the new list. */
+export function rememberSent(sent: readonly SentText[], text: string, o: { message: boolean; place?: string | null; now: number }): SentText[] {
+  const norm = normaliseForSpam(text);
+  const since = o.now - SPAM_LIMITS.windowHours * 3600_000;
+  const kept = sent.filter((s) => s.at > since);
+  if (norm.length < SPAM_LIMITS.minLength) return kept;
+  return [...kept, { norm, message: o.message, place: o.place ?? null, at: o.now }].slice(-500);
+}
+
+/** The words that say it's selling. Same patterns as private.is_selling() (\b there is \y). */
+const SELLING_STRONG: readonly RegExp[] = [
+  /\b(for sale|fs|f\/s|wts|wtb|wtt|ono|ovno|selling)\b/,
+  /\b(dm|pm|message|msg|inbox)( me)? (for|4) (a )?prices?\b/,
+  /\b(collection only|price drop|price dropped|asking price|open to offers|offers welcome|no offers|no time ?wasters)\b/,
+  /(ebay\.(co\.uk|com)|gumtree\.com|facebook\.com\/marketplace|fb\.com\/marketplace|vinted\.(co\.uk|com)|depop\.com|preloved\.co\.uk)/,
+  /\b(listed|listing|up) on (ebay|gumtree|vinted|depop|marketplace|fb marketplace|facebook marketplace)\b/,
+  /\b(use|using) (my )?code\b/,
+  /\b(discount|promo|voucher|affiliate|referral) codes?\b/,
+  /\b[0-9]{1,2}% off\b/,
+];
+const SELLING_PRICE: readonly RegExp[] = [/£ ?[0-9]/, /\b[0-9]+(\.[0-9]+)?k? ?(quid|gbp|pounds|squid)\b/];
+const SELLING_CONTEXT = /\b(postage|posted|p&p|collection|collect|offers|swaps?|px|bnib|boxed|asking)\b/;
+
+/**
+ * Is this text selling something? A selling word, a marketplace link or a
+ * discount code; or a price with a selling word near it ("£250 plus postage").
+ * Talking about money ("spent £400 on coilovers") isn't.
+ */
+export function isSelling(text: string): boolean {
+  const t = text.toLowerCase().replace(/(best|top|fast|biggest)[ -]selling|selling points?/g, ' ');
+  if (SELLING_STRONG.some((r) => r.test(t))) return true;
+  return SELLING_PRICE.some((r) => r.test(t)) && SELLING_CONTEXT.test(t);
+}
+
+/** The composer's note: selling outside For sale & wanted. */
+export function sellingHint(text: string, board?: string | null): string | null {
+  if (board === 'for_sale') return null;
+  return isSelling(text) ? SELLING_HINT : null;
+}
+
+// ---------------------------------------------------------------------------
+// Bans, warnings and staff roles (docs/MODERATION.md)
+// ---------------------------------------------------------------------------
+
+export type BanScope = 'community' | 'full';
+export type StaffRole = 'owner' | 'admin' | 'moderator';
+
+const ukWhen = (iso: string) =>
+  new Date(iso)
+    .toLocaleString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+    .replace(' at ', ', ');
+
+/** The sentence a banned person sees. Same as private.ban_message(). */
+export function banMessage(scope: BanScope, until: string | null, reason: string | null): string {
+  if (scope === 'full') return "Your account is suspended, so you can't post or message right now. You can still read and report.";
+  const why = reason?.trim().replace(/\.+$/, '');
+  return `You can't post in Community until ${until ? ukWhen(until) : 'a moderator lifts it'}${why ? `: ${why}` : ''}.`;
+}
+
+/** The ban lengths staff pick from; null is until lifted. */
+export const BAN_CHOICES: readonly { label: string; days: number | null }[] = [
+  { label: '24 hours', days: 1 },
+  { label: '3 days', days: 3 },
+  { label: '7 days', days: 7 },
+  { label: '30 days', days: 30 },
+  { label: 'Until lifted', days: null },
+];
+
+/** Reasons staff warn or ban for (they can write their own). */
+export const WARN_REASONS: readonly string[] = [
+  'Spamming the same message',
+  'Only posting to sell',
+  'Bullying or harassment',
+  'Hate or slurs',
+  'Street racing or dangerous driving',
+  'Police spotting',
+  "Sharing someone's details",
+  'Sexual content',
+];
+
+export function roleRank(role: StaffRole | null | undefined): number {
+  return role === 'owner' ? 3 : role === 'admin' ? 2 : role === 'moderator' ? 1 : 0;
+}
+
+export const ROLE_LABEL: Record<StaffRole, string> = { owner: 'Owner', admin: 'Admin', moderator: 'Moderator' };
+
+/** Can someone with this role act on that person at all? (never themselves, never the same or a higher role) */
+export function canActOn(actor: StaffRole | null, target: StaffRole | null, self: boolean): boolean {
+  return roleRank(actor) > 0 && !self && roleRank(target) < roleRank(actor);
+}
+
+/** Moderators: Community bans of 1 to 7 days. Admins and the owner: any. Same as private.check_ban_power(). */
+export function canBan(actor: StaffRole | null, scope: BanScope, days: number | null): boolean {
+  const r = roleRank(actor);
+  if (r === 0) return false;
+  if (r >= 2) return true;
+  return scope === 'community' && days !== null && days >= 1 && days <= 7;
+}
+
+/** Role changes the actor may make to someone who has `current`. Same as set_staff_role(). */
+export function roleChoices(actor: StaffRole | null, current: StaffRole | null, self: boolean): (StaffRole | null)[] {
+  const mine = roleRank(actor);
+  if (mine < 2 || self || roleRank(current) >= mine) return [];
+  const out: (StaffRole | null)[] = [];
+  for (const r of ['admin', 'moderator', null] as (StaffRole | null)[]) {
+    if (roleRank(r) < mine && r !== current) out.push(r);
+  }
+  return out;
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  warn: 'Warned',
+  hide: 'Hid content',
+  unhide: 'Restored content',
+  ban: 'Community ban',
+  suspend: 'Full suspension',
+  lift: 'Lifted ban',
+  promote: 'Promoted',
+  demote: 'Demoted',
+  dismiss: 'Dismissed report',
+  auto_report: 'Automatic report',
+  cooldown: 'Automatic 24-hour cooldown',
+};
+
+/** One line of the moderation log: what, how long, by whom (and their role then). */
+export function actionLine(a: { action: string; actorHandle: string | null; actorRole: string; days: number | null; newRole: string | null }): string {
+  const who = a.actorHandle ?? (a.actorRole === 'system' ? 'Nightshift' : 'Staff');
+  const len = a.action === 'ban' || a.action === 'suspend' ? (a.days ? ` · ${a.days} day${a.days === 1 ? '' : 's'}` : ' · until lifted') : '';
+  const role = a.action === 'promote' || a.action === 'demote' ? ` · ${a.newRole ? ROLE_LABEL[a.newRole as StaffRole] ?? a.newRole : 'no role'}` : '';
+  return `${ACTION_LABEL[a.action] ?? a.action}${len}${role} · by ${who} (${a.actorRole})`;
 }

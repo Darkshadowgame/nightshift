@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { Image, ScrollView, TextInput, View } from 'react-native';
-import { at, BuildRow, openBuild, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { at, BuildRow, openBuild, moderateOptions, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { BuildChooser, ComposerPhotos, INPUT } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, ErrorState, HeaderActions, Icon, IconButton, ListRow, LoadingState, Press, Section, Tag, metaLine } from '../../components/ds';
 import { useRepFor } from '../../components/Rep';
@@ -40,6 +40,7 @@ export default function ThreadScreen() {
       : [
           { label: 'Report thread', onPress: () => openReport('thread', thread.id, thread.authorId, 'thread') },
           { label: 'Block the author', danger: true, onPress: () => openReport('block', thread.authorId, thread.authorId) },
+          ...moderateOptions(thread.authorId),
         ];
     nav.setOptions({ headerRight: () => <HeaderActions onMenu={() => setMenu(opts)} /> });
   }, [nav, thread, community]);
@@ -94,6 +95,7 @@ export default function ThreadScreen() {
     else {
       out.push({ label: 'Report reply', onPress: () => openReport('reply', r.id, r.authorId, 'reply') });
       out.push({ label: `Block @${handleOf(r.authorId)}`, danger: true, onPress: () => openReport('block', r.authorId, r.authorId) });
+      out.push(...moderateOptions(r.authorId));
     }
     return out;
   };

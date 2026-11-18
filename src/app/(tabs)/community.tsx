@@ -5,8 +5,9 @@ import { CommunityFeed } from '../../components/CommunityFeed';
 import { CommunityForum } from '../../components/CommunityForum';
 import { CommunityMessages } from '../../components/CommunityMessages';
 import { CommunityPeople } from '../../components/CommunityPeople';
+import { BanBanner } from '../../components/ModerationGate';
 import { HeaderActions, SegmentedControl, Sheet, SheetOption } from '../../components/ds';
-import { useCommunity } from '../../lib/communityStore';
+import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { SPACING } from '../../theme';
 
 type Tab = 'feed' | 'people' | 'forum' | 'messages';
@@ -23,6 +24,7 @@ export default function CommunityScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const tab: Tab = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : 'feed';
   const { unread, incoming } = useCommunity();
+  const ban = useCommunityQuery((s) => s.moderationStatus(), []);
   const [creating, setCreating] = useState(false);
   const setTab = (t: Tab) => router.setParams({ tab: t });
 
@@ -51,6 +53,7 @@ export default function CommunityScreen() {
             { key: 'messages', label: 'Messages', count: unread || undefined },
           ]}
         />
+        <BanBanner status={ban.data} />
         {tab === 'feed' ? <CommunityFeed /> : tab === 'people' ? <CommunityPeople /> : tab === 'forum' ? <CommunityForum /> : <CommunityMessages />}
       </ScrollView>
       <Sheet visible={creating} title="New" onClose={() => setCreating(false)}>

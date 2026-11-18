@@ -612,22 +612,56 @@ connection requests.
   (slurs and the strongest swearing), **no police spotting** ("police spotted…", "speed trap at
   the A15": police reports stay in the driving view only) and **no racing or timing on public
   roads**. Talking about the police is fine. Rate limits on every kind of post and message.
+  It's an 18+ app: swearing of any strength is fine; slurs and sexual insults aren't.
+* **Spam and selling (owner rule, 18 Nov 2026):** "moderate anyone spamming the same message, or if
+  all they do is try to sell things. Normal selling sometimes is fine."
+  * **Same message:** the same or nearly the same text (lower case, punctuation and emoji ignored;
+    90% alike for texts over 20 characters) more than twice in 24 hours, across posts, comments,
+    threads, replies and event chat, is refused: "You've already posted that. Spamming the same
+    message isn't allowed." In private chats only blasting counts: the same text into 3 or more
+    different chats. Short replies ("nice one", "see you there", under 15 characters) never count.
+    Five refused copies in a day: an automatic staff report (Spam) and a 24-hour Community cooldown.
+  * **Selling** (a price with a selling word, "for sale", "fs", "ono", "ovno", "wts/wtb", "dm for
+    price", "collection only", "postage" with a price, marketplace links, discount codes) is fine
+    on **For sale & wanted** and now and then elsewhere. Outside that board, a new selling post is
+    refused once more than 60% of someone's 5+ posts and threads in 30 days are selling, or after 3
+    selling posts in 7 days: "You've posted a lot of selling lately. Put things for sale on the For
+    sale & wanted board instead." For sale & wanted takes 5 new listings per person per 7 days.
+    Accounts where 90%+ of 5+ posts in 30 days are selling get an automatic staff report ("Only
+    here to sell"), never an automatic ban. "Spent £400 on coilovers", "sold my old car" and "the
+    selling point" aren't selling. Composers show a gentle note when a post looks like selling
+    outside the board. Every post and thread stores `is_selling`; repeats store `is_repeat`.
 * **Safety (App Store 1.2):** **Report** with a reason on every post, comment, thread, reply,
   message, profile, build, event chat line (long press), event, crew and suggested place.
   Three different people reporting a post, comment, thread, reply, message or chat line hides it
   until staff look. **Block** hides the person's posts, threads, replies, comments, messages and
   event chat everywhere, ends any connection and stops messages both ways (they aren't told).
-  **Staff** see Settings › Moderation: open reports with a copy of what was reported, and Dismiss,
-  Hide (cancels an event, rejects a place) or Suspend (1, 7 or 30 days, or until lifted). A
-  suspended person can read and report but not post, comment, message, connect or use event chat.
+  **Staff** see Settings › Moderation: open reports (automatic ones marked) with a copy of what was
+  reported, "View their recent posts", and Dismiss, Hide (cancels an event, rejects a place) or
+  Suspend (admins). **Moderate** (in the ··· menu of any post, comment, thread, reply or profile,
+  and a long press on an event chat line) opens **Member moderation**: who they are, their counts,
+  their whole public history with Selling and Repeat flags (private messages only when reported),
+  their moderation log, and Warn, Community ban, Lift and role changes.
+* **Warnings and bans:** a **warning** shows when the person next opens the app ("A moderator
+  warned you: …") until they tap "I understand". A **Community ban** (24 hours, 3, 7 or 30 days,
+  or until lifted) stops posts, comments, threads, replies, event chat and connection requests;
+  they can still read, use the map, events and their garage, and message their connections. A
+  **full suspension** stops messages too. Every ban sends a notice ("You can't post in Community
+  until 25 Nov 2026, 14:00: reason.") and the Community tab shows a banner with the end time.
+* **Roles** (docs/MODERATION.md): owner (one), admins and moderators. Moderators warn, hide and
+  ban from Community for up to 7 days; admins also ban longer or until lifted, suspend fully and
+  choose moderators; only the owner chooses admins. Nobody acts on themselves or on someone with
+  the same or a higher role. Every action goes in an append-only audit log (Settings › Audit log
+  for admins and the owner; Settings › Moderation team shows each person's actions in 7 and 30 days).
 * **Demo:** sample posts, threads, chats and two requests round your home area, all labelled
   Sample; sample people accept your requests and answer your messages after a few seconds.
 
 Code: `src/lib/carsNear.ts`, `connections.ts`, `forum.ts`, `posts.ts`, `messages.ts`,
-`moderation.ts` (tests in `__tests__/community.test.ts`), `communityService.ts` (the demo) and
+`moderation.ts` (tests in `__tests__/community.test.ts` and `spamModeration.test.ts`), `communityService.ts` (the demo) and
 `backend/community.ts` (the server; `__tests__/communityService.test.ts`), `communityStore.tsx`;
 screens `src/app/(tabs)/community.tsx`, `post/`, `forum/`, `chat/`, `connections.tsx`, `rate.tsx`,
-`report.tsx`, `moderation.tsx`, `user/[id].tsx`. Server: docs/BACKEND.md section 3b.
+`report.tsx`, `moderation.tsx`, `member/[id].tsx`, `moderation-team.tsx`, `moderation-log.tsx`, `user/[id].tsx`,
+`components/ModerationGate.tsx`. Server: docs/BACKEND.md section 3b; roles and the audit: docs/MODERATION.md.
 
 ## Rep and levels (built)
 

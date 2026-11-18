@@ -482,6 +482,28 @@ async function community() {
   check('suspension: C can no longer post, and the app can tell', suspended?.startsWith('Your account is suspended') && modStatus?.suspended === true, suspended ?? 'no error');
   await sql(`delete from public.suspensions where user_id = ${lit(C.id)}`);
 
+  // Spam and selling (20261118180000): a third copy is refused and the refusal can be recorded;
+  // selling is flagged; a Community ban stops posts but says when it ends; member tools are staff only.
+  const spamText = `Smoke spam check ${RUN}: follow my detailing page`;
+  await rpc(A, 'create_post', { p_body: spamText, p_photos: [], p_lat: null, p_lng: null, p_place_name: null, p_visibility: 'connections', p_build_id: null });
+  await rpc(A, 'comment_post', { p_post_id: post, p_body: spamText.toUpperCase() + '!!' });
+  const third = await rpcError(A, 'create_post', { p_body: spamText, p_photos: [], p_lat: null, p_lng: null, p_place_name: null, p_visibility: 'connections', p_build_id: null });
+  check('duplicates: a third copy across kinds is refused', third === "You've already posted that. Spamming the same message isn't allowed.", third ?? 'no error');
+  const noted = await rpc(A, 'record_blocked_duplicate', { p_kind: 'post', p_place: null, p_text: spamText });
+  const fresh = await rpc(A, 'record_blocked_duplicate', { p_kind: 'post', p_place: null, p_text: `Something new ${RUN} nobody has seen` });
+  check('record_blocked_duplicate: counted only when it really is one', noted === 'noted' && fresh === 'not_duplicate', `${noted} / ${fresh}`);
+  const sale = await rpc(B, 'create_post', { p_body: `Smoke test ${RUN}: coilovers £400 ono`, p_photos: [], p_lat: null, p_lng: null, p_place_name: null, p_visibility: 'connections', p_build_id: null });
+  const { data: saleRow } = await B.client.from('posts').select('is_selling').eq('id', sale);
+  check('selling: the post is flagged is_selling', saleRow?.[0]?.is_selling === true, JSON.stringify(saleRow));
+  await sql(`insert into public.suspensions (user_id, reason, until, scope) values (${lit(C.id)}, 'smoke test', now() + interval '1 hour', 'community')`);
+  const banned = await rpcError(C, 'create_post', { p_body: `Smoke ${RUN} banned`, p_photos: [], p_lat: null, p_lng: null, p_place_name: null, p_visibility: 'public', p_build_id: null });
+  const banStatus = (await rpc(C, 'my_moderation_status', {}))[0];
+  check('community ban: no posts, with the end time', banned?.startsWith("You can't post in Community until") && banStatus?.scope === 'community', banned ?? 'no error');
+  await sql(`delete from public.suspensions where user_id = ${lit(C.id)}`);
+  const notStaff = await rpcError(B, 'member_overview', { p_user: A.id });
+  const noLog = await rpcError(B, 'moderation_log', {});
+  check('member moderation: staff only', notStaff === 'Only staff can do that.' && noLog === 'Only admins and the owner can read the audit log.', `${notStaff} / ${noLog}`);
+
   await B.client.removeChannel(ch);
 
   const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });

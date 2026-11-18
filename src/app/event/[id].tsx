@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Share, View } from 'react-native';
 import { AwardsSection } from '../../components/AwardsSection';
 import { BringPicker, BuildOption } from '../../components/BringPicker';
-import { openReport } from '../../components/Community';
+import { isStaffNow, openModerate, openReport } from '../../components/Community';
 import { Callout, CheckInCelebration, DetailHero, MediaFrame, NotFoundState, PAGE, TextField } from '../../components/Detail';
 import {
   Avatar,
@@ -876,9 +876,9 @@ function ChatLines({ lines, earlier, onEarlier, me, label }: { lines: readonly L
         ) : (
           <Press
             key={m.id}
-            onLongPress={m.userId === me ? undefined : () => openReport('chat', m.id, m.userId, 'chat message')}
+            onLongPress={m.userId === me ? undefined : () => (isStaffNow() ? openModerate(m.userId) : openReport('chat', m.id, m.userId, 'chat message'))}
             role="text"
-            hint={m.userId === me ? undefined : 'Long press to report this message'}
+            hint={m.userId === me ? undefined : isStaffNow() ? 'Long press to moderate this person' : 'Long press to report this message'}
             feedback="none"
             style={{ gap: SPACING.xxs }}
           >

@@ -30,7 +30,7 @@ import {
 } from './forum';
 import { newId } from './ids';
 import { groupProblem, MAX_GROUP, messageProblem, otherMember, type Conversation, type Message, type ShareCard } from './messages';
-import { reportProblem, type ReportReason, type ReportTarget } from './moderation';
+import { reportProblem, type BanScope, type ReportReason, type ReportTarget, type StaffRole } from './moderation';
 import { canSee, commentProblem, feedFor, postProblem, postsInBox, snapPlace, withLike, type FeedScope, type Post, type PostComment, type PostDraft } from './posts';
 import type { LatLng, User } from './types';
 
@@ -122,6 +122,21 @@ export interface CommunityService {
   /** Staff: dismiss, hide, restore, or suspend the person (days, or null until lifted). */
   moderate(reportId: string, action: ModerationAction, days?: number | null): Promise<void>;
   liftSuspension(userId: string): Promise<void>;
+  /** Warnings I haven't acknowledged yet (shown when the app opens). */
+  myWarnings(): Promise<Warning[]>;
+  acknowledgeWarning(id: string): Promise<void>;
+  /** Staff: one person's profile, counts, ban and moderation log. */
+  memberOverview(userId: string): Promise<MemberOverview>;
+  /** Staff: their public writing, newest first, 30 at a time. */
+  memberHistory(userId: string, before?: string): Promise<HistoryItem[]>;
+  warn(userId: string, reason: string, note: string): Promise<void>;
+  /** days null: until lifted. Moderators: Community, up to 7 days. */
+  ban(userId: string, scope: BanScope, days: number | null, reason: string): Promise<void>;
+  /** Admins and the owner: make someone a moderator or admin, or remove the role (null). */
+  setRole(userId: string, role: StaffRole | null, reason: string): Promise<void>;
+  team(): Promise<TeamMember[]>;
+  /** Admins and the owner: the audit log, newest first. */
+  auditLog(filter: { actor?: string | null; action?: string | null; before?: string | null }): Promise<ModerationActionRow[]>;
   /** Something changed (a message, a request, a read receipt). Returns the unsubscribe. */
   watch(onChange: (what: CommunityChange) => void): () => void;
 }
@@ -131,6 +146,76 @@ export interface ModerationStatus {
   suspended: boolean;
   /** Null with `suspended`: until staff lift it. */
   until: string | null;
+  role?: StaffRole | null;
+  /** 'community': no public posting; 'full': no messages either. */
+  scope?: BanScope | null;
+  reason?: string | null;
+  /** The sentence to show while banned. */
+  message?: string | null;
+}
+
+export interface Warning {
+  id: string;
+  reason: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ModerationActionRow {
+  id: string;
+  actorId: string | null;
+  actorHandle: string | null;
+  actorRole: string;
+  action: string;
+  targetUser: string | null;
+  targetHandle: string | null;
+  targetKind: string | null;
+  targetId: string | null;
+  reason: string | null;
+  note: string | null;
+  scope: string | null;
+  days: number | null;
+  until: string | null;
+  newRole: string | null;
+  createdAt: string;
+}
+
+export interface MemberOverview {
+  id: string;
+  handle: string | null;
+  displayName: string | null;
+  region: string | null;
+  joined: string;
+  role: StaffRole | null;
+  rep: number;
+  counts: { posts: number; threads: number; replies: number; comments: number; chat: number; messages: number; reportsAgainst: number; warnings: number; bans: number; selling30d: number };
+  ban: { scope: BanScope; until: string | null; reason: string | null; since: string } | null;
+  log: ModerationActionRow[];
+}
+
+export type HistoryKind = 'post' | 'thread' | 'reply' | 'comment' | 'chat' | 'message';
+
+export interface HistoryItem {
+  kind: HistoryKind;
+  id: string;
+  /** The thread, post or event it was on. */
+  parentId: string | null;
+  body: string;
+  createdAt: string;
+  hidden: boolean;
+  isSelling: boolean;
+  isRepeat: boolean;
+  board: string | null;
+}
+
+export interface TeamMember {
+  userId: string;
+  handle: string | null;
+  displayName: string | null;
+  role: StaffRole;
+  addedAt: string;
+  actions7d: number;
+  actions30d: number;
 }
 
 export type ModerationAction = 'dismiss' | 'hide' | 'restore' | 'suspend';
@@ -145,6 +230,8 @@ export interface QueueItem {
   firstReported: string;
   excerpt: string;
   notes: string[];
+  /** Raised by Nightshift itself (spam cooldowns, sell-only accounts). */
+  automatic?: boolean;
 }
 
 export type CommunityChange =
@@ -616,6 +703,31 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       return { isStaff: false, suspended: false, until: null };
     },
     async queue() {
+      return [];
+    },
+    async myWarnings() {
+      return [];
+    },
+    async acknowledgeWarning() {},
+    async memberOverview() {
+      throw new Error('Moderation is for the Nightshift team, signed in.');
+    },
+    async memberHistory() {
+      return [];
+    },
+    async warn() {
+      throw new Error('Moderation is for the Nightshift team, signed in.');
+    },
+    async ban() {
+      throw new Error('Moderation is for the Nightshift team, signed in.');
+    },
+    async setRole() {
+      throw new Error('Moderation is for the Nightshift team, signed in.');
+    },
+    async team() {
+      return [];
+    },
+    async auditLog() {
       return [];
     },
     async moderate() {

@@ -5,7 +5,8 @@ import { Button, Card, Chip, EmptyState, InlineError, LinkText, Row, Tag, Txt } 
 import type { ModerationAction, QueueItem } from '../lib/communityService';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { shortAgo } from '../lib/format';
-import { REPORT_REASONS, REPORT_WHAT } from '../lib/moderation';
+import { reportReasonLabel, REPORT_WHAT } from '../lib/moderation';
+import { openModerate } from '../components/Community';
 import { useNow } from '../lib/clock';
 import { useStore } from '../lib/store';
 import { STATE } from '../theme';
@@ -80,11 +81,15 @@ export default function ModerationScreen() {
     }
   };
   const items = queue.data ?? [];
-  const reasonLabel = (k: string) => REPORT_REASONS.find((r) => r.key === k)?.label ?? k;
+  const reasonLabel = reportReasonLabel;
+  const admin = status.data?.role === 'admin' || status.data?.role === 'owner';
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 60 }}>
-      <Txt v="caption">Open reports, most reported first. Three reports hide a post, reply, comment or chat line until you decide.</Txt>
+      <Txt v="caption">
+        Open reports, most reported first. Three reports hide a post, reply, comment or chat line until you decide. Automatic reports come from the spam and
+        sell-only rules. To warn someone or ban them from Community, open their recent posts.
+      </Txt>
       {done ? <Txt style={{ color: STATE.success }} accessibilityLiveRegion="polite">{done}</Txt> : null}
       <InlineError message={error ?? queue.error} />
       {queue.loading && !queue.data ? <Txt v="muted">Loading reports…</Txt> : null}
@@ -97,6 +102,7 @@ export default function ModerationScreen() {
           <Card key={i.reportId} accent={i.reports >= 3 ? STATE.danger : STATE.warning} style={{ gap: 8 }}>
             <Row gap={6}>
               <Tag label={REPORT_WHAT[i.target]} tone="info" />
+              {i.automatic ? <Tag label="Automatic" tone="info" /> : null}
               <Tag label={`${i.reports} report${i.reports === 1 ? '' : 's'}`} tone={i.reports >= 3 ? 'danger' : 'warning'} />
               <Txt v="caption">{shortAgo(i.firstReported, now)}</Txt>
             </Row>
@@ -107,6 +113,7 @@ export default function ModerationScreen() {
             {i.notes.length ? <Txt v="caption">Notes: {i.notes.join(' / ')}</Txt> : null}
             <Row gap={16}>
               {who ? <LinkText label={`@${who.handle} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: who.id } })} /> : null}
+              {i.targetUser ? <LinkText label="View their recent posts ›" onPress={() => openModerate(i.targetUser!)} /> : null}
               {href ? <LinkText label="Open it ›" onPress={() => router.push(href as never)} /> : null}
               <LinkText label={expanded ? 'Fewer actions' : 'Act on it ›'} onPress={() => setOpen(expanded ? null : i.reportId)} />
             </Row>
@@ -128,7 +135,7 @@ export default function ModerationScreen() {
                 {i.reports >= 3 && HIDEABLE.has(i.target) && i.target !== 'event' ? (
                   <Button label="Restore it (reports were wrong)" kind="secondary" size="sm" busy={busy === `${i.reportId}:restore:`} onPress={() => act(i, 'restore')} />
                 ) : null}
-                {i.targetUser ? (
+                {i.targetUser && admin ? (
                   <View style={{ gap: 6 }}>
                     <Txt v="label">Suspend @{who?.handle ?? 'them'} (no posting or messages)</Txt>
                     <Row>

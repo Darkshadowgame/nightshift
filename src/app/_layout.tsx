@@ -14,6 +14,7 @@ import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { ModerationGate } from '../components/ModerationGate';
 import { OfflinePill } from '../components/OfflinePill';
 import { ToastProvider } from '../components/ds';
 import { AuthProvider, useAuth } from '../lib/auth';
@@ -42,7 +43,7 @@ function Gate() {
       </View>
     );
   }
-  return (
+  const stack = (
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: C.asphalt },
@@ -99,6 +100,9 @@ function Gate() {
         <Stack.Screen name="report" options={{ title: title(T.report), presentation: 'modal' }} />
         <Stack.Screen name="rate" options={{ title: title(T.rateBuilds) }} />
         <Stack.Screen name="moderation" options={{ title: title(T.moderation) }} />
+        <Stack.Screen name="member/[id]" options={{ title: title('Member moderation') }} />
+        <Stack.Screen name="moderation-team" options={{ title: title('Team') }} />
+        <Stack.Screen name="moderation-log" options={{ title: title('Audit log') }} />
         <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="credits" options={{ title: title(T.credits) }} />
       </Stack.Protected>
@@ -114,6 +118,13 @@ function Gate() {
       */}
       <Stack.Screen name="feedback" options={{ title: title(T.feedback), presentation: 'modal' }} />
     </Stack>
+  );
+  // Staff status and moderator warnings, once signed in (the Stack stays the same element).
+  return (
+    <>
+      {stack}
+      {onboarded ? <ModerationGate /> : null}
+    </>
   );
 }
 

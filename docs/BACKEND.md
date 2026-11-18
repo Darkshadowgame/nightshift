@@ -486,6 +486,47 @@ with the path (paths are random and never listed); the word list is short on pur
 (owner to extend); there's no appeal flow (people write to the support address); banning an
 account for good is done in the dashboard (Authentication › Users › Ban).
 
+## 3c. Spam, selling, member moderation and staff roles (18 Nov 2026)
+
+Migrations `20261118140000_report_reason_sell_only.sql` (the `sell_only` report reason, on its own
+because a new enum value can't be used in the transaction that adds it),
+`20261118180000_spam_selling_member_moderation.sql` and `20261118180100_private_trigger_grants.sql`.
+Rules: docs/SPEC.md "Community"; roles and the audit: docs/MODERATION.md. Mirrored in
+`src/lib/moderation.ts` (`normaliseForSpam`, `isNearDuplicate`, `duplicateProblem`, `isSelling`,
+`banMessage`, `canBan`, `roleChoices`), tested in `__tests__/spamModeration.test.ts`.
+
+| Table / column | Holds | Who can read | Who can write |
+|---|---|---|---|
+| `posts.is_selling`, `forum_threads.is_selling` | the selling detector's answer when posted | as the row | the RPCs |
+| `is_repeat` on posts, threads, replies, comments, event chat | a second copy of the same text in 24 h | as the row | the RPCs / chat trigger |
+| `private.spam_log` | each person's normalised text for 48 h (private messages too, never shown) | nobody (RPCs) | `private.spam_gate()` |
+| `reports.automatic` | raised by Nightshift (spam cooldown, sell-only) | staff | `private.auto_report()` |
+| `suspensions.scope` | `community` (no public posting, event chat, connection requests) or `full` (messages too) | own, staff | `ban_member()`, `moderate_report()`, the cooldown |
+| `staff.role` | `owner` (one, unique index), `admin`, `moderator` (existing rows) | own row, staff | `set_staff_role()`; the owner row by SQL only |
+| `moderation_warnings` | warnings and when they were acknowledged | own, staff | `warn_member()`, `acknowledge_warning()` |
+| `moderation_actions` | **append-only** audit log: actor, role then, action, target person and content, reason, scope, days, until, new role | admins and the owner | the RPCs only; a trigger refuses update, delete and truncate for everyone |
+
+* **Duplicates:** `private.spam_gate()` runs in `create_post`, `comment_post`, `create_thread`,
+  `reply_thread`, `send_message` and the `chat_messages` insert trigger, just before the insert.
+  Public copies count once each, private copies once per *other* chat; two already means refused.
+  Texts under 15 normalised characters never count. **PostgREST rolls back a call that fails** (checked
+  with a local PostgREST 12.2: even `response.status` 400 rolls back), so a refused copy can't record
+  itself: the app calls `record_blocked_duplicate(kind, place, text)`, which re-checks it is really a
+  duplicate before counting. The fifth in 24 h: an automatic `spam` report and a 24-hour Community ban
+  (a longer ban stays), logged as `cooldown` with actor `system`, and a notice.
+* **Selling:** `private.is_selling()`; `private.check_selling_allowed()` in `create_post` and
+  `create_thread` (not For sale & wanted); the For sale & wanted cap in `create_thread`;
+  `private.check_sell_only()` after each post or thread (automatic `sell_only` report, once while open).
+* **Staff RPCs** (all check `private.staff_rank()` and `private.check_can_act()`: staff only, never
+  yourself, never the same or a higher role): `warn_member`, `ban_member(user, scope, days|null,
+  reason)`, `lift_suspension` (moderators: Community bans of up to 7 days only), `set_staff_role(user,
+  'admin'|'moderator'|null, reason)`, `moderate_report` (now logged; `suspend` is a full suspension, admins
+  only), `member_overview` (JSON: profile, counts, ban, the last 50 actions about them),
+  `member_history(user, before, limit)` (posts, threads, replies, comments, event chat; private
+  messages only when reported, as the report's copy), `moderation_team()`, `moderation_log(actor,
+  action, before, limit)` (admins and the owner). `my_moderation_status()` now also returns `role`,
+  `scope`, `reason` and `message`; `my_warnings()` lists unacknowledged warnings.
+
 ## 4. RPC reference
 
 All are `supabase.rpc(name, { p_…: … })`, signed in only.
@@ -911,6 +952,24 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   feedback and Realtime reads at the same time as other work on the project; the next run passed in full.
 * Note: another branch applied `20261118140000_report_reason_sell_only` live before its file reached
   main, so `db push` refuses until that file is in the local folder (a copy of its one statement works).
+
+### 7a-9. What's live (18 Nov 2026, spam, selling, member moderation, roles)
+
+* **Migrations** `20261118140000_report_reason_sell_only.sql`, `20261118180000_spam_selling_member_moderation.sql`
+  and `20261118180100_private_trigger_grants.sql` pushed with `db push --remote --yes` (a `pg_dump` of
+  `public` and `private` taken first, kept off the repo). Checked first in rolled-back transactions
+  on the hosted database with the migration applied inside them. The `…180100` fix: `…180000` granted
+  every private function to `authenticated` again, which let a signed-in user call the trigger-only
+  `queue_nearby_notices()` (caught by `discovery_test.sql`).
+* **pgTAP:** 756 of 756 on the hosted database (the 623 above plus `spam_test.sql`, 57, and
+  `member_moderation_test.sql`, 76; `moderation_test.sql` now seeds an admin and expects the ban
+  sentence from event chat). `discovery_test.sql` check 61 ("this week leaves out the one in 8 days")
+  failed once in an earlier run that day without these migrations and passed after: it depends on the
+  time of day.
+* **Smoke test:** 111 of 111 (adds: a third copy across kinds refused, `record_blocked_duplicate`
+  counting only real duplicates, a selling post flagged, a Community ban with its end time, member
+  tools refused to non-staff).
+* **No staff rows were added.** The owner sets themselves (docs/MODERATION.md).
 
 ### 7c. The smoke test
 

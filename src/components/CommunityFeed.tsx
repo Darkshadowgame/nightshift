@@ -6,7 +6,7 @@ import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { withLike, type FeedScope, type Post } from '../lib/posts';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
-import { openReport, OptionsSheet, PostCard, type SheetOption } from './Community';
+import { moderateOptions, openReport, OptionsSheet, PostCard, type SheetOption } from './Community';
 import { EmptyState, ErrorState, LoadingState, SegmentedControl } from './ds';
 
 type Scope = Extract<FeedScope, 'local' | 'connections'>;
@@ -85,6 +85,7 @@ export function PostList({ posts, loading, error, empty }: { posts: Post[] | nul
     return [
       { label: 'Report post', onPress: () => openReport('post', p.id, p.authorId, 'post') },
       { label: `Block @${author?.handle ?? 'them'}`, danger: true, onPress: () => openReport('block', p.authorId, p.authorId) },
+      ...moderateOptions(p.authorId),
     ];
   };
 

@@ -11,6 +11,7 @@ import type { BackendExtras, Repository } from '../repository';
 import { draftProblem, driveMiles, judgeRun } from '../spots';
 import type { Build, ChatMessage, PlaceRep, Spot, User } from '../types';
 import { uuid } from '../ids';
+import { SPAM_PROBLEMS } from '../moderation';
 import type { PendingFeedback } from '../feedbackQueue';
 import {
   buildFromRow,
@@ -353,8 +354,17 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
   }
 
   async function send(item: OutboxItem): Promise<void> {
-    if (item.kind === 'chat') await call(() => client.from('chat_messages').insert({ event_id: item.eventId, body: item.text }) as unknown as PromiseLike<Result<unknown>>);
-    else if (item.kind === 'saveBuild') await writeBuild(item.build, item.drop ?? []);
+    if (item.kind === 'chat') {
+      try {
+        await call(() => client.from('chat_messages').insert({ event_id: item.eventId, body: item.text }) as unknown as PromiseLike<Result<unknown>>);
+      } catch (e) {
+        // A refused duplicate can't record itself (the call rolls back): tell the server, which checks it again.
+        if (e instanceof Error && e.message === SPAM_PROBLEMS.duplicate) {
+          await Promise.resolve(client.rpc('record_blocked_duplicate', { p_kind: 'chat', p_place: item.eventId, p_text: item.text })).catch(() => {});
+        }
+        throw e;
+      }
+    } else if (item.kind === 'saveBuild') await writeBuild(item.build, item.drop ?? []);
     else if (item.kind === 'deleteBuild') await writeDeleteBuild(item.buildId, []);
     else if (item.kind === 'markRead') await rpc('mark_notices_read');
   }
