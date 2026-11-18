@@ -14,6 +14,7 @@ const BY_ROUTE: Record<string, TabHref> = {
   'user/[id]': '/community',
   'post/[id]': '/community',
   'post/new': '/community',
+  'forum/index': '/community',
   'forum/[id]': '/community',
   'forum/new': '/community',
   'chat/[id]': '/community',

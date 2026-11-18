@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Callout } from '../components/Detail';
-import { Button, Card, ChoiceGroup, DsText, ErrorState, Section, SwitchRow, TextField } from '../components/ds';
+import { ActionBar, Button, Card, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, Section, SwitchRow, TextField } from '../components/ds';
 import { useCommunity } from '../lib/communityStore';
 import { REPORT_REASONS, reportProblem, type ReportReason, type ReportTarget } from '../lib/moderation';
 import { useStore } from '../lib/store';
@@ -58,12 +58,14 @@ export default function ReportScreen() {
 
   if (done) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen, gap: SPACING.lg }}>
+      <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+      <View style={{ flex: 1, padding: SPACING.screen, gap: SPACING.lg }}>
         <Callout tone="success" title={blocking ? 'Blocked' : 'Report sent'}>
           <DsText v="body">{done}</DsText>
-          {blocking || alsoBlock ? <DsText v="caption">Unblock any time from Community › People › Connections and blocked people.</DsText> : null}
+          {blocking || alsoBlock ? <DsText v="caption">Unblock any time from Community › People › Your connections.</DsText> : null}
         </Callout>
-        <Button label="Done" block onPress={() => router.back()} haptic="success" />
+      </View>
+      <ActionBar primary={{ label: 'Done', onPress: () => router.back() }} />
       </View>
     );
   }
@@ -84,9 +86,9 @@ export default function ReportScreen() {
   );
 
   return (
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
     <ScrollView
-      style={{ backgroundColor: COLOR.surface.bg }}
-      contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.lg, paddingBottom: SPACING.xxxl }}
+      contentContainerStyle={PAGE_WITH_BAR}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
     >
@@ -101,7 +103,6 @@ export default function ReportScreen() {
           </Card>
           <SwitchRow label="Report them too" hint="Tell the Nightshift team what happened." value={alsoReport} onValueChange={setAlsoReport} />
           {alsoReport ? <Section title="What's wrong?">{reasons}</Section> : null}
-          <Button label="Block" tier="destructive" block onPress={submit} busy={busy} />
         </>
       ) : (
         <>
@@ -110,13 +111,20 @@ export default function ReportScreen() {
           </DsText>
           <Section title="What's wrong?">{reasons}</Section>
           {userId && userId !== community.me ? (
-            <SwitchRow label={`Also block @${handle ?? 'them'}`} hint="Hides everything they post from you and stops their messages." value={alsoBlock} onValueChange={setAlsoBlock} />
+            <SwitchRow label={`Also block @${handle ?? 'them'}`} hint="Hides everything they post from you, and their messages." value={alsoBlock} onValueChange={setAlsoBlock} />
           ) : null}
-          <Button label="Send report" block onPress={submit} busy={busy} disabled={!reason} hint="Pick a reason first" haptic="success" />
           <DsText v="caption">Reports are private. If someone's in danger, call 999.</DsText>
         </>
       )}
       {error ? <ErrorState title={error} /> : null}
     </ScrollView>
+      {blocking ? (
+        <ActionBar>
+          <Button label="Block" tier="destructive" block onPress={() => void submit()} busy={busy} />
+        </ActionBar>
+      ) : (
+        <ActionBar primary={{ label: 'Send report', onPress: () => void submit(), busy, haptic: 'success' }} />
+      )}
+    </View>
   );
 }

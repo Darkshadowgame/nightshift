@@ -2,8 +2,8 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { SCREEN_TITLES, title as screenTitle } from '../../lib/glossary';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { BuildChooser, ComposerPhotos, Field, INPUT } from '../../components/ComposerParts';
-import { Button, ChoiceGroup, DsText, ErrorState, SwitchRow } from '../../components/ds';
+import { BuildChooser, ComposerPhotos, Field, INPUT, useDiscardGuard } from '../../components/ComposerParts';
+import { ActionBar, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, SwitchRow, useToast } from '../../components/ds';
 import { SELLING_HINT, sellingHint } from '../../lib/moderation';
 import { useCommunity } from '../../lib/communityStore';
 import { openCreated } from '../../lib/openCreated';
@@ -53,9 +53,12 @@ export default function NewThread() {
   const sellOnly = params.board === 'for_sale';
   const listing = board === 'for_sale';
   const pence = parsePrice(price);
+  const toast = useToast();
+  const guard = useDiscardGuard(!!title.trim() || body.trim() !== (params.body ?? '').trim() || photos.length > 0 || !!price.trim(), listing ? 'this listing' : 'this thread');
 
   async function submit() {
     setError(null);
+    if (!title.trim()) return setError('Give it a title first.');
     if (listing && Number.isNaN(pence)) return setError('Give the price in pounds, like 450 or 450.50.');
     const draft = {
       board,
@@ -74,7 +77,8 @@ export default function NewThread() {
     try {
       const id = await community.run((s) => s.createThread(draft));
       // Close the composer, then push the thread: Back from it returns to the forum list.
-      openCreated({ pathname: '/forum/[id]', params: { id } });
+      toast({ message: 'Posted' });
+      guard.leave(() => openCreated({ pathname: '/forum/[id]', params: { id } }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't post that.");
     } finally {
@@ -83,7 +87,8 @@ export default function NewThread() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+    <View style={{ flex: 1 }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       {/* "Sell or find a part" opens a listing, so the header says so (REVIEW-9). */}
       <Stack.Screen options={{ title: screenTitle(listing ? 'For sale or wanted' : SCREEN_TITLES.newThread) }} />
       {/* "Sell a part" / "Sell or find a part" open a listing: no board picker there (REVIEW-10). */}
@@ -149,7 +154,6 @@ export default function NewThread() {
       </Field>
       <BuildChooser builds={mine} value={buildId} onChange={setBuildId} />
       <View style={{ gap: SPACING.sm }}>
-        <Button label={listing ? 'Post listing' : 'Post thread'} size="lg" block haptic="success" onPress={submit} busy={busy} disabled={!title.trim()} hint="Give it a title first" />
         {error ? <ErrorState title={error} /> : null}
         {sellingHint(`${title} ${body}`, board) ? <DsText v="caption" tone="warning">{SELLING_HINT}</DsText> : null}
         <DsText v="caption">
@@ -158,5 +162,8 @@ export default function NewThread() {
         </DsText>
       </View>
     </ScrollView>
+      <ActionBar primary={{ label: listing ? 'Post listing' : 'Post thread', onPress: () => void submit(), busy, haptic: 'success' }} />
+      {guard.sheet}
+    </View>
   );
 }

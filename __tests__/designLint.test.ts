@@ -99,12 +99,9 @@ const KNOWN_SODIUM = new Set([
   'src/components/motion.tsx',
   'src/app/dev/components.tsx',
   // Still to move over (WP-B, C, D).
-  'src/app/chat/new.tsx',
   'src/app/drive.tsx',
-  'src/app/forum/[id].tsx',
   'src/components/AwardsSection.tsx',
   'src/components/BringPicker.tsx',
-  'src/components/Community.tsx',
   'src/components/DriveHud.tsx',
   'src/components/NoticeBell.tsx',
 ]);

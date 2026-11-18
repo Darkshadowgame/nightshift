@@ -79,6 +79,7 @@ const TEMPLATES: Record<string, Template> = {
   'crew/[id]': 'T3',
   'post/[id]': 'T3',
   'forum/[id]': 'T3',
+  'forum/index': 'T1',
   'event/new': 'T4',
   'event/edit': 'T4',
   'event/plan': 'T4',

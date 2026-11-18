@@ -1,58 +1,56 @@
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useNow } from '../lib/clock';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
-import { withLike, type FeedScope, type Post } from '../lib/posts';
+import { withLike, type Post } from '../lib/posts';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
 import { moderateOptions, openReport, OptionsSheet, PostCard, type SheetOption } from './Community';
-import { EmptyState, ErrorState, LoadingState, SegmentedControl } from './ds';
-
-type Scope = Extract<FeedScope, 'local' | 'connections'>;
+import { EmptyState, ErrorState, ListRow, LoadingState, RowDivider } from './ds';
 
 /**
- * Community › Feed: posts from people near you or from your connections, newest first.
- * "+ New" in the header writes one.
+ * Community › Feed (Redesign 2, 3.7): first the "Forum and for sale" row, then one feed: posts
+ * near you and from your connections, newest first, photo first. "+" in the header posts one.
  */
 export function CommunityFeed() {
-  const [scope, setScope] = useState<Scope>('local');
-  const feed = useCommunityQuery((s) => s.feed(scope), [scope]);
+  const local = useCommunityQuery((s) => s.feed('local'), []);
+  const mine = useCommunityQuery((s) => s.feed('connections'), []);
+  const posts = useMemo(() => mergeFeeds(local.data, mine.data), [local.data, mine.data]);
   return (
     <View style={{ gap: SPACING.lg }}>
-      <SegmentedControl<Scope>
-        value={scope}
-        onChange={setScope}
-        accessibilityLabel="Whose posts"
-        options={[
-          { key: 'local', label: 'Near you' },
-          { key: 'connections', label: 'Connections' },
-        ]}
-      />
+      <View>
+        <ListRow
+          leading={{ icon: 'comment' }}
+          title="Forum and for sale"
+          subtitle="Ask for advice, show your build, buy and sell parts"
+          onPress={() => router.push('/forum')}
+        />
+        <RowDivider />
+      </View>
       <PostList
-        posts={feed.data}
-        loading={feed.loading}
-        error={feed.error}
+        posts={posts}
+        loading={local.loading || mine.loading}
+        error={local.error ?? mine.error}
         empty={
-          scope === 'local' ? (
-            <EmptyState
-              glyph="post"
-              title="Nothing posted near you yet"
-              body="Share a photo of your build, a drive or a good spot. Posts with a place show on the map."
-              action={{ label: 'New post', onPress: () => router.push('/post/new') }}
-            />
-          ) : (
-            <EmptyState
-              glyph="community"
-              title="No posts from connections"
-              body="Meet people at an event, connect, and their posts show here."
-              action={{ label: 'Find people', onPress: () => router.setParams({ tab: 'people' }) }}
-            />
-          )
+          <EmptyState
+            glyph="post"
+            title="Nothing posted near you yet"
+            body="Share a photo of your build, a drive or a meet."
+            action={{ label: 'Post a photo', onPress: () => router.push('/post/new') }}
+          />
         }
       />
     </View>
   );
+}
+
+/** Near you plus your connections, each post once, newest first. Null until both have loaded once. */
+export function mergeFeeds(a: Post[] | null, b: Post[] | null): Post[] | null {
+  if (!a && !b) return null;
+  const byId = new Map<string, Post>();
+  for (const p of [...(a ?? []), ...(b ?? [])]) if (!byId.has(p.id)) byId.set(p.id, p);
+  return [...byId.values()].sort((x, y) => y.createdAt.localeCompare(x.createdAt));
 }
 
 /** A list of post cards with likes, comments and the ··· menu (report, block, delete). Used by the feed and profiles. */

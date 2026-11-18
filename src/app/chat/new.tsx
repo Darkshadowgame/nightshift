@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { at, MEET_ACTION, personMark } from '../../components/Community';
 import { Field, INPUT } from '../../components/ComposerParts';
-import { Button, DsText, EmptyState, ErrorState, Icon, ListRow, RowDivider, Section } from '../../components/ds';
+import { ActionBar, DsText, EmptyState, ErrorState, Icon, ListRow, PAGE_WITH_BAR, RowDivider, Section } from '../../components/ds';
 import { useCommunity } from '../../lib/communityStore';
 import { idsIn } from '../../lib/connections';
 import { GROUP_NAME_MAX, groupProblem, MAX_GROUP } from '../../lib/messages';
@@ -55,7 +55,8 @@ export default function NewChat() {
   const toggle = (id: string, on: boolean) => setPicked((p) => (on ? p.filter((x) => x !== id) : [...p, id].slice(0, MAX_GROUP - 1)));
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+    <View style={{ flex: 1 }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
       <Section title={`Your connections (${people.length})`}>
         <DsText v="secondary">One person for a 1-to-1 chat, or more for a group (up to {MAX_GROUP}).</DsText>
         <View>
@@ -69,7 +70,7 @@ export default function NewChat() {
                   title={at(u)}
                   subtitle={u.name}
                   chevron={false}
-                  trailing={on ? <Icon name="check" size={22} colour={COLOR.action.selected} /> : undefined}
+                  trailing={on ? <Icon name="check" size={22} colour={COLOR.state.success} /> : undefined}
                   onPress={() => toggle(u.id, on)}
                   accessibilityLabel={`${at(u)}, ${on ? 'added' : 'not added'}`}
                   accessibilityHint={on ? 'Tap to take them out' : 'Tap to add them'}
@@ -84,10 +85,9 @@ export default function NewChat() {
           <TextInput value={name} onChangeText={setName} placeholder="e.g. Sunday run" placeholderTextColor={COLOR.text.secondary} maxLength={GROUP_NAME_MAX} accessibilityLabel="Group name" style={INPUT} />
         </Field>
       ) : null}
-      <View style={{ gap: SPACING.sm }}>
-        <Button label={group ? `Start group of ${picked.length + 1}` : 'Start chat'} size="lg" block onPress={start} busy={busy} disabled={!picked.length} hint="Pick someone first" />
-        {error ? <ErrorState title={error} /> : null}
-      </View>
+      {error ? <ErrorState title={error} /> : null}
     </ScrollView>
+      <ActionBar primary={{ label: group ? `Start group of ${picked.length + 1}` : 'Start chat', onPress: () => void start(), busy }} />
+    </View>
   );
 }

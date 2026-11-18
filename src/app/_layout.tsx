@@ -109,6 +109,7 @@ function Gate() {
         <Stack.Screen name="help" options={{ title: title(T.help) }} />
         <Stack.Screen name="post/[id]" options={{ title: '' }} />
         <Stack.Screen name="post/new" options={{ title: title(T.newPost), presentation: 'modal' }} />
+        <Stack.Screen name="forum/index" options={{ title: title('Forum and for sale') }} />
         <Stack.Screen name="forum/[id]" options={{ title: '' }} />
         <Stack.Screen name="forum/new" options={{ title: title(T.newThread), presentation: 'modal' }} />
         <Stack.Screen name="chat/[id]" options={{ title: '' }} />

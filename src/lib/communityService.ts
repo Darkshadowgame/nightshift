@@ -30,6 +30,7 @@ import {
   type ThreadSort,
 } from './forum';
 import { newId } from './ids';
+import { appNow } from './appClock';
 import { groupProblem, MAX_GROUP, messageProblem, otherMember, type Conversation, type Message, type ShareCard } from './messages';
 import { reportProblem, type BanScope, type ReportReason, type ReportTarget, type StaffRole } from './moderation';
 import { canSee, commentProblem, feedFor, postProblem, postsInBox, snapPlace, withLike, type FeedScope, type Post, type PostComment, type PostDraft } from './posts';
@@ -315,10 +316,10 @@ export interface LocalCommunityContext {
 }
 
 export function createLocalCommunity(ctx: LocalCommunityContext): CommunityService {
-  const now = ctx.now ?? (() => new Date());
+  const now = ctx.now ?? appNow;
   const listeners = new Set<(c: CommunityChange) => void>();
   const emit = (c: CommunityChange) => listeners.forEach((l) => l(c));
-  const delay = ctx.replyDelay ?? 4000;
+  const delay = ctx.replyDelay ?? 3000;
   const update = (fn: (s: DemoCommunity) => DemoCommunity) => ctx.set(fn(ctx.get()));
   const me = () => ctx.users().find((u) => u.id === ME);
   const blocked = () => new Set(ctx.get().blocks);

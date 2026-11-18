@@ -224,7 +224,7 @@ export default function ChatScreen() {
               accessibilityLabel="Message"
               style={[INPUT, { flex: 1, maxHeight: 120 }]}
             />
-            <Button label="Send" size="sm" haptic="success" onPress={() => void send({ body: text })} busy={busy} disabled={!text.trim()} />
+            <Button label="Send" size="md" haptic="success" onPress={() => void send({ body: text })} busy={busy} />
           </View>
         ) : (
           <DsText v="secondary" style={{ textAlign: 'center' }}>

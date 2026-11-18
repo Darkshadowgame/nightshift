@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
-import { Image, View, type TextStyle } from 'react-native';
+import { useNavigation, usePreventRemove } from 'expo-router';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Image, TextInput, View, type TextStyle } from 'react-native';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
 import type { Build } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, ChoiceGroup, DsText, Icon, Press, typeStyle } from './ds';
+import { ActionBar, Button, ChoiceGroup, ConfirmSheet, DsText, Icon, Press, typeStyle } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 
 /** The text box style for composers (posts, threads, replies, chats): input type, strong border, control radius. */
@@ -80,4 +81,93 @@ export function BuildChooser({ builds, value, onChange, label = 'Link a build' }
       options={[{ key: 'none', label: 'None' }, ...builds.map((b) => ({ key: b.id, label: `${b.make} ${b.model}` }))]}
     />
   );
+}
+
+/**
+ * The comment or reply field of a post or thread page (Redesign 2, 3.7): it lives in the
+ * ActionBar, so it's always in reach. Send is never disabled: an empty send says what to do
+ * under the page instead.
+ */
+export function CommentBar({
+  value,
+  onChange,
+  onSend,
+  busy,
+  placeholder,
+  label,
+  maxLength,
+  extra,
+}: {
+  value: string;
+  onChange: (t: string) => void;
+  onSend: () => void;
+  busy?: boolean;
+  placeholder: string;
+  label: string;
+  maxLength: number;
+  /** Above the field: photos or a build to attach. */
+  extra?: ReactNode;
+}) {
+  return (
+    <ActionBar>
+      {extra}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm }}>
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={COLOR.text.secondary}
+          multiline
+          maxLength={maxLength}
+          accessibilityLabel={label}
+          style={[INPUT, { flex: 1, maxHeight: 120 }]}
+        />
+        <Button label="Send" size="md" haptic="success" busy={busy} onPress={onSend} />
+      </View>
+    </ActionBar>
+  );
+}
+
+/**
+ * Back from a form with changes asks first (Redesign 2, 4.2): "Discard it" / "Keep editing".
+ * Returns the sheet to render and `leave(go)`: leave on purpose (after posting), with the guard off.
+ */
+export function useDiscardGuard(dirty: boolean, what = 'this'): { sheet: ReactNode; leave: (go: () => void) => void } {
+  const navigation = useNavigation();
+  const then = useRef<(() => void) | null>(null);
+  const [pending, setPending] = useState<{ type: string } | null>(null);
+  const [exit, setExit] = useState<{ action: { type: string } | null } | null>(null);
+  // Dispatching from inside the guard would be stopped again: the guard turns off first (exit), then the effect goes.
+  usePreventRemove(dirty && !exit, ({ data }) => setPending(data.action));
+  useEffect(() => {
+    if (!exit) return;
+    if (exit.action) navigation.dispatch(exit.action as never);
+    else if (then.current) {
+      const go = then.current;
+      then.current = null;
+      go();
+    }
+  }, [exit, navigation]);
+  const sheet = (
+    <ConfirmSheet
+      visible={!!pending}
+      title={`Discard ${what}?`}
+      message="What you've written so far will be lost."
+      verb="Discard"
+      cancelLabel="Keep editing"
+      onConfirm={() => {
+        const action = pending;
+        setPending(null);
+        setExit({ action });
+      }}
+      onCancel={() => setPending(null)}
+    />
+  );
+  return {
+    sheet,
+    leave: (go) => {
+      then.current = go;
+      setExit({ action: null });
+    },
+  };
 }

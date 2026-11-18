@@ -1,7 +1,7 @@
 import { modCount } from '../lib/modGroups';
 import { carShape } from '../lib/buildShape';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Image, View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
 import { classOf } from '../lib/classes';
@@ -11,11 +11,10 @@ import { plural, shortAgo } from '../lib/format';
 import { conversationTitle, previewLine, type Conversation } from '../lib/messages';
 import { VISIBILITY, type Post } from '../lib/posts';
 import type { Build, User } from '../lib/types';
-import { COLOR, RADII, SPACING } from '../theme';
-import { Avatar, BuildThumb, Button, ClassBadge, DsText, EntityCard, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
+import { ASPECT, COLOR, RADII, SPACING } from '../theme';
+import { Avatar, BuildThumb, Button, ClassBadge, DsText, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
 import { photoSource } from '../lib/photoSource';
 import { PhotoCredit } from './PhotoCredit';
-import { levelLabel } from '../lib/rep';
 import { powerText } from '../lib/dyno';
 import { DynoBadge } from './DynoBadge';
 
@@ -96,13 +95,13 @@ export function useTileWidth(): number {
  * A build in a garage grid: thumbnail with its class badge on the corner, then "Make Model"
  * and "bhp · mods". Used by your garage and by profiles.
  */
-export function BuildTile({ build, width, trophies = 0, sample }: { build: Build; width: number; trophies?: number; sample?: boolean }) {
+export function BuildTile({ build, width, trophies = 0 }: { build: Build; width: number; trophies?: number; /** Ignored: no sample tags on cards (Redesign 2). */ sample?: boolean }) {
   const thumbHeight = Math.round((width * 3) / 4);
   return (
     <Press
       onPress={() => openBuild(build.id)}
       feedback="card"
-      label={metaLine([`${build.make} ${build.model}`, `class ${classOf(build)}`, buildMeta(build), trophies ? plural(trophies, 'trophy', 'trophies') : null, sample ? 'Sample' : null])}
+      label={metaLine([`${build.make} ${build.model}`, `class ${classOf(build)}`, buildMeta(build), trophies ? plural(trophies, 'trophy', 'trophies') : null])}
       style={{ width, gap: SPACING.xs }}
     >
       <View>
@@ -110,11 +109,6 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
         <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm }}>
           <ClassBadge letter={classOf(build)} size="sm" decorative />
         </View>
-        {sample ? (
-          <View style={{ position: 'absolute', right: SPACING.sm, top: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
-            <Tag label="Sample" />
-          </View>
-        ) : null}
         <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay />
       </View>
       <DsText v="bodyStrong" numberOfLines={2}>
@@ -147,36 +141,50 @@ export function connectWord(state: ConnectionState): string | null {
   return state === 'none' ? null : state === 'incoming' ? 'Wants to connect' : connectLabel(state);
 }
 
+/** A build's one line next to a person: "Golf R · 320 bhp" (K3: a build is its class badge, name and bhp). */
+export function buildLine(b: Build): string {
+  return metaLine([`${b.make} ${b.model}`, powerText(b)]);
+}
+
 /**
- * People › near you: one compact row per person. Avatar and handle lead; their best build
- * (thumbnail and class) sits on the right. Tapping opens their profile.
+ * People near you: one row per person (Redesign 2, 3.7): avatar, @handle, their best build with
+ * its class badge, and a rough distance. No level. Tapping opens their profile.
  */
-export function PersonNearRow({ card, level, state, sample }: { card: Card_; level: number; state: ConnectionState; sample?: boolean }) {
+export function PersonNearRow({ card, state }: { card: Card_; state: ConnectionState; /** Ignored (levels are on Me only). */ level?: number; /** Ignored (no Sample tags). */ sample?: boolean }) {
   const b = card.lead;
-  const more = card.builds.length - 1;
   return (
     <ListRow
       leading={{ avatar: personMark(card.user) }}
       title={at(card.user)}
-      subtitle={b ? `${b.make} ${b.model}${more > 0 ? ` +${more} more` : ''}` : 'No car or bike yet'}
-      meta={metaLine([levelLabel(level), distanceLabel(card.miles), connectWord(state)])}
-      trailing={
-        b ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
-            <DynoBadge build={b} />
-            <ClassBadge letter={classOf(b)} size="sm" decorative />
-            <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={36} />
-          </View>
-        ) : undefined
-      }
-      chevron={false}
+      subtitle={b ? buildLine(b) : 'No car or bike yet'}
+      meta={metaLine([distanceLabel(card.miles), connectWord(state)])}
+      trailing={b ? <ClassBadge letter={classOf(b)} size="sm" decorative /> : undefined}
       onPress={() => openProfile(card.user.id)}
-      accessibilityLabel={metaLine([at(card.user), b ? `${b.make} ${b.model}, class ${classOf(b)}` : 'no car or bike yet', `level ${level}`, distanceLabel(card.miles), connectWord(state), sample ? 'Sample' : null])}
+      accessibilityLabel={metaLine([at(card.user), b ? `${b.make} ${b.model}, class ${classOf(b)}, ${powerText(b)}` : 'no car or bike yet', distanceLabel(card.miles), connectWord(state)])}
     />
   );
 }
 
-/** A feed post: who and when, the words, photos, place, linked build, then Like and Comments. */
+/** A person's row anywhere else (connections, a chat's members): avatar, @handle, their build. */
+export function PersonRow({ user, build, meta, onPress, trailing }: { user?: User; build?: Build; meta?: string; onPress?: () => void; trailing?: ReactNode }) {
+  return (
+    <ListRow
+      leading={{ avatar: personMark(user) }}
+      title={at(user)}
+      subtitle={build ? buildLine(build) : user?.name || undefined}
+      meta={meta}
+      trailing={trailing ?? (build ? <ClassBadge letter={classOf(build)} size="sm" decorative /> : undefined)}
+      onPress={onPress}
+    />
+  );
+}
+
+/**
+ * A feed post, photo first (Redesign 2, 3.7): the photo at 4:5 (ⓘ in the corner, never credit
+ * text), then avatar, @handle and their build line, the caption (3 lines), and ♡ and comment
+ * counts. A post without a photo is the same card without the picture. Three type sizes: the
+ * handle, the caption and meta.
+ */
 export function PostCard({
   post,
   author,
@@ -194,13 +202,36 @@ export function PostCard({
   onLike: () => void;
   onOpen?: () => void;
   onMore?: () => void;
-  /** On the post's own page: no tap-through, every photo. */
+  /** On the post's own page: no tap-through, every photo, the whole caption. */
   full?: boolean;
 }) {
   const open = onOpen && !full ? onOpen : undefined;
-  const photos = full ? post.photos : post.photos.slice(0, 1);
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
-  const content = (
+  const photos = post.photos.filter((p) => !broken.has(p));
+  const shown = full ? photos : photos.slice(0, 1);
+  const place = post.placeName ? post.placeName : post.at ? 'On the map' : null;
+
+  const pictures = shown.map((p, i) => (
+    <View key={p} style={{ aspectRatio: ASPECT.post, backgroundColor: COLOR.surface.media }}>
+      {/* A photo that can't load (an old web preview link, a file that's gone) drops out instead of leaving a blank frame. */}
+      <Image
+        source={photoSource(p)}
+        onError={() => setBroken((b) => new Set(b).add(p))}
+        style={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+        accessibilityLabel={i === 0 ? `Photo by ${at(author)}` : 'Another photo in the post'}
+        accessibilityIgnoresInvertColors
+      />
+      <PhotoCredit photoRef={p} overlay corner="topRight" />
+      {i === 0 && !full && post.photos.length > 1 ? (
+        <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
+          <Tag label={`+${post.photos.length - 1} photos`} />
+        </View>
+      ) : null}
+    </View>
+  ));
+
+  const words = (
     <View style={{ gap: SPACING.sm }}>
       {post.hidden ? (
         <DsText v="caption" tone="warning">
@@ -208,113 +239,105 @@ export function PostCard({
         </DsText>
       ) : null}
       {post.body ? (
-        <DsText v="body" numberOfLines={full ? undefined : 8} selectable={full}>
+        <DsText v="body" numberOfLines={full ? undefined : 3} selectable={full}>
           {post.body}
         </DsText>
       ) : null}
-      {photos.filter((p) => !broken.has(p)).map((p, i) => (
-        <View key={p}>
-          {/* A photo that can't load (an old web preview link, a file that's gone) drops out instead of leaving a blank frame. */}
-          <Image
-            source={photoSource(p)}
-            onError={() => setBroken((b) => new Set(b).add(p))}
-            style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }}
-            resizeMode="cover"
-            accessibilityLabel="Photo in the post"
-            accessibilityIgnoresInvertColors
-          />
-          <PhotoCredit photoRef={p} overlay corner="topRight" />
-          {i === 0 && !full && post.photos.length > 1 ? (
-            <View style={{ position: 'absolute', right: SPACING.sm, bottom: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
-              <Tag label={`+${post.photos.length - 1} photos`} />
-            </View>
-          ) : null}
-        </View>
-      ))}
     </View>
   );
+
   return (
-    <View style={{ backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, padding: SPACING.md, gap: SPACING.sm }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-        <Press onPress={() => author && openProfile(author.id)} role="link" label={`${at(author)}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>
-          <Avatar {...personMark(author)} size="md" />
-          <View style={{ flex: 1, gap: SPACING.xxs }}>
-            <DsText v="bodyStrong" numberOfLines={1}>
-              {at(author)}
-            </DsText>
-            <DsText v="meta" numberOfLines={1}>
-              {metaLine([shortAgo(post.createdAt, now), post.placeName ? post.placeName : post.at ? 'On the map' : null])}
-            </DsText>
-          </View>
-        </Press>
-        {post.sample || post.visibility === 'connections' ? (
-          <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
-            {post.sample ? <Tag label="Sample" /> : null}
-            {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}
-          </View>
-        ) : null}
-        {onMore ? <IconButton icon="more" label="More options for this post" onPress={onMore} colour={COLOR.text.secondary} /> : null}
-      </View>
-      {open ? (
-        <Press onPress={open} label="Open the post" style={{ gap: SPACING.sm }}>
-          {content}
+    <View style={{ backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' }}>
+      {shown.length ? open ? (
+        <Press onPress={open} feedback="card" label="Open the post">
+          {pictures}
         </Press>
       ) : (
-        content
-      )}
-      {build ? <BuildRow build={build} onPress={() => openBuild(build.id)} /> : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.lg }}>
-        <Press
-          onPress={onLike}
-          haptic="select"
-          state={{ selected: post.likedByMe }}
-          label={`${post.likedByMe ? 'Unlike' : 'Like'}, ${plural(post.likeCount, 'like')}`}
-          hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36 }}
-        >
-          <Icon name={post.likedByMe ? 'heartOn' : 'heart'} size={20} colour={post.likedByMe ? COLOR.action.selected : COLOR.text.secondary} />
-          <DsText v="meta">{post.likeCount}</DsText>
-        </Press>
-        {open ? (
-          <Press onPress={open} label={`Comments, ${post.commentCount}`} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36 }}>
-            <Icon name="comment" size={20} colour={COLOR.text.secondary} />
-            <DsText v="meta">{post.commentCount}</DsText>
+        <View style={{ gap: SPACING.xxs }}>{pictures}</View>
+      ) : null}
+      <View style={{ paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <Press onPress={() => author && openProfile(author.id)} role="link" label={`${at(author)}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>
+            <Avatar {...personMark(author)} size="md" />
+            <View style={{ flex: 1, gap: SPACING.xxs }}>
+              <DsText v="bodyStrong" numberOfLines={1}>
+                {at(author)}
+              </DsText>
+              <DsText v="meta" numberOfLines={1}>
+                {metaLine([build ? `${build.make} ${build.model}` : null, place])}
+              </DsText>
+            </View>
           </Press>
-        ) : null}
+          {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}
+          {onMore ? <IconButton icon="more" label="More options for this post" onPress={onMore} colour={COLOR.text.secondary} /> : null}
+        </View>
+        {open ? (
+          <Press onPress={open} label="Open the post">
+            {words}
+          </Press>
+        ) : (
+          words
+        )}
+        {full && build ? <BuildRow build={build} onPress={() => openBuild(build.id)} /> : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.lg }}>
+          <Press
+            onPress={onLike}
+            haptic="select"
+            state={{ selected: post.likedByMe }}
+            label={`${post.likedByMe ? 'Unlike' : 'Like'}, ${plural(post.likeCount, 'like')}`}
+            hitSlop={8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36 }}
+          >
+            <Icon name={post.likedByMe ? 'heartOn' : 'heart'} size={20} colour={post.likedByMe ? COLOR.text.primary : COLOR.text.secondary} />
+            <DsText v="meta">{post.likeCount}</DsText>
+          </Press>
+          {open ? (
+            <Press onPress={open} label={`Comments, ${post.commentCount}`} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36 }}>
+              <Icon name="comment" size={20} colour={COLOR.text.secondary} />
+              <DsText v="meta">{post.commentCount}</DsText>
+            </Press>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          <DsText v="meta">{shortAgo(post.createdAt, now)}</DsText>
+        </View>
       </View>
     </View>
   );
 }
 
-/** A thread on the forum, as a card: board, author, title, replies and Solved. */
-export function ThreadCard({ thread, author, now, showBoard }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean }) {
-  // For sale and wanted: the price leads, then condition and collection or postage.
+/** "Sold" for a sale, "Found" for a wanted listing, "Solved" for an answered thread, "Hidden" while it's checked. */
+function threadState(thread: ForumThread): { label: string; tone: 'warning' | 'success' } | undefined {
   const l = thread.listing;
+  if (thread.hidden) return { label: 'Hidden', tone: 'warning' };
+  if (l?.soldAt) return { label: l.kind === 'wanted' ? 'Found' : 'Sold', tone: 'success' };
+  if (thread.solvedReplyId) return { label: 'Solved', tone: 'success' };
+  return undefined;
+}
+
+/**
+ * A thread in Forum and for sale, as one row: the author's avatar, the title, then the price for
+ * a listing (or the board), and who, replies and when. Sold, Found or Solved on the right.
+ */
+export function ThreadCard({ thread, author, now, showBoard }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean }) {
+  const l = thread.listing;
+  const state = threadState(thread);
+  const kind = l ? (l.kind === 'wanted' ? 'Wanted' : 'For sale') : showBoard ? boardLabel(thread.board) : null;
+  const subtitle = l ? metaLine([kind, priceLabel(l), ...listingFacts(l).slice(0, 1)]) : metaLine([kind, thread.region]);
+  const meta = metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now)]);
   return (
-    <EntityCard
-      kind="person"
-      eyebrow={l ? (l.kind === 'wanted' ? 'Wanted' : 'For sale') : showBoard ? boardLabel(thread.board) : thread.region ?? 'Thread'}
-      mark={{ avatar: personMark(author) }}
-      status={
-        thread.hidden
-          ? { label: 'Hidden', tone: 'warning' }
-          : l?.soldAt
-            ? { label: l.kind === 'wanted' ? 'Found' : 'Sold', tone: 'success' }
-            : thread.solvedReplyId
-              ? { label: 'Solved', tone: 'success' }
-              : undefined
-      }
-      sample={thread.sample}
+    <ListRow
+      leading={{ avatar: personMark(author) }}
       title={thread.title}
-      finished={!!l?.soldAt}
-      meta={l ? metaLine([priceLabel(l), ...listingFacts(l)]) : metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now), thread.photos.length ? 'Photos' : null])}
-      detail={l ? metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now)]) : undefined}
+      subtitle={subtitle || undefined}
+      meta={meta}
+      trailing={state ? <Tag label={state.label} tone={state.tone} /> : undefined}
       onPress={() => router.push({ pathname: '/forum/[id]', params: { id: thread.id } })}
+      accessibilityLabel={metaLine([thread.title, subtitle, meta, state?.label])}
     />
   );
 }
 
-/** A conversation in Messages: avatar, name, last line, time, unread. */
+/** A chat in Community › Chats: avatar, name, last line, time, and the unread dot. */
 export function ConversationRow({ c, me, users, now }: { c: Conversation; me: string; users: User[]; now: Date }) {
   const handleOf = (id: string) => users.find((u) => u.id === id)?.handle;
   const title = conversationTitle(c, me, handleOf);
@@ -331,7 +354,7 @@ export function ConversationRow({ c, me, users, now }: { c: Conversation; me: st
       trailing={
         <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
           <DsText v="meta">{shortAgo(c.lastMessageAt, now)}</DsText>
-          {unread ? <Tag label={c.unread > 99 ? '99+' : String(c.unread)} tone="selected" /> : !c.canSend ? <Tag label="Read only" /> : c.sample ? <Tag label="Sample" /> : null}
+          {!c.canSend ? <Tag label="Read only" /> : null}
         </View>
       }
       onPress={() => router.push({ pathname: '/chat/[id]', params: { id: c.id } })}

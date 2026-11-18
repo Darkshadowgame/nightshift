@@ -117,7 +117,7 @@ export default function ConnectionsScreen() {
       ) : null}
 
       <Section title={`Blocked (${blocked.length})`}>
-        {blocked.length === 0 ? <DsText v="secondary">Nobody. Blocking hides someone's posts, replies and messages from you, ends any connection and stops messages both ways.</DsText> : null}
+        {blocked.length === 0 ? <DsText v="secondary">Nobody. Blocking hides someone's posts, replies and messages from you, ends any connection, and neither of you can message the other.</DsText> : null}
         <View>
           {blocked.map((id, i) => (
             <Person key={id} id={id} first={i === 0} actions={<Button label={CONNECT.unblock} size="sm" tier="secondary" busy={busy === `u${id}`} onPress={() => act(`u${id}`, () => community.run((s) => s.unblock(id)))} />} />

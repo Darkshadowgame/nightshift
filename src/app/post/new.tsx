@@ -2,8 +2,8 @@ import { openCreated } from '../../lib/openCreated';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { BuildChooser, ComposerPhotos, Field, INPUT } from '../../components/ComposerParts';
-import { Button, DsText, ErrorState, SegmentedControl } from '../../components/ds';
+import { BuildChooser, ComposerPhotos, Field, INPUT, useDiscardGuard } from '../../components/ComposerParts';
+import { ActionBar, Button, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, useToast } from '../../components/ds';
 import { SELLING_HINT, sellingHint } from '../../lib/moderation';
 import { MapPicker } from '../../components/MapPicker';
 import { useCommunity } from '../../lib/communityStore';
@@ -30,10 +30,13 @@ export default function NewPost() {
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const guard = useDiscardGuard(!!body.trim() || photos.length > 0 || !!at, 'this post');
 
   async function submit() {
     setError(null);
     const draft = { body, photos, at, placeName, visibility, buildId };
+    if (!body.trim() && !photos.length) return setError('Write something or add a photo first.');
     const p = postProblem(draft, home);
     if (p) return setError(p);
     setBusy(true);
@@ -41,7 +44,8 @@ export default function NewPost() {
       const id = await community.run((s) => s.createPost(draft));
       // "On the map" should mean you can see it there: turn the Posts layer on (REVIEW-7 bug 8).
       if (at && !settings.postsLayer) setSettings({ postsLayer: true });
-      openCreated({ pathname: '/post/[id]', params: { id } });
+      toast({ message: 'Posted' });
+      guard.leave(() => openCreated({ pathname: '/post/[id]', params: { id } }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't post that.");
     } finally {
@@ -50,7 +54,8 @@ export default function NewPost() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+    <View style={{ flex: 1 }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <Field label="Post">
         <TextInput
           value={body}
@@ -92,10 +97,10 @@ export default function NewPost() {
       </Field>
 
       <Field label="Who sees it" hint={`${VISIBILITY[visibility].hint}.`}>
-        <SegmentedControl<PostVisibility>
+        <ChoiceGroup<PostVisibility>
+          label=""
           value={visibility}
           onChange={setVisibility}
-          accessibilityLabel="Who sees it"
           options={[
             { key: 'public', label: VISIBILITY.public.label },
             { key: 'connections', label: VISIBILITY.connections.label },
@@ -106,7 +111,6 @@ export default function NewPost() {
       <BuildChooser builds={mine} value={buildId} onChange={setBuildId} />
 
       <View style={{ gap: SPACING.sm }}>
-        <Button label="Post" size="lg" block haptic="success" onPress={submit} busy={busy} disabled={!body.trim() && !photos.length} hint="Write something or add a photo first" />
         {error ? <ErrorState title={error} /> : null}
         {sellingHint(body) ? <DsText v="caption" tone="warning">{SELLING_HINT}</DsText> : null}
         <DsText v="caption">No street racing, no timing on public roads and nothing about where police are. Posts can be reported.</DsText>
@@ -146,5 +150,8 @@ export default function NewPost() {
         onCancel={() => setPicking(false)}
       />
     </ScrollView>
+      <ActionBar primary={{ label: 'Post', onPress: () => void submit(), busy, haptic: 'success' }} />
+      {guard.sheet}
+    </View>
   );
 }

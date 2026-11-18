@@ -1,9 +1,9 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLayoutEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { at, moderateOptions, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
-import { Field, INPUT } from '../../components/ComposerParts';
-import { Avatar, Button, DsText, EmptyState, ErrorState, IconButton, LoadingState, Press, RowDivider, Section, Tag } from '../../components/ds';
+import { CommentBar } from '../../components/ComposerParts';
+import { Avatar, DsText, EmptyState, ErrorState, HeaderActions, IconButton, LoadingState, PAGE_WITH_BAR, Press, RowDivider, Section } from '../../components/ds';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { shortAgo } from '../../lib/format';
@@ -12,9 +12,10 @@ import { useStore } from '../../lib/store';
 import { COLOR, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 
-/** One post with its comments. */
+/** One post with its comments (T3): the post, comments, and the comment field in the bottom bar. ··· has report, block and delete. */
 export default function PostScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const nav = useNavigation();
   const { users, builds } = useStore();
   const community = useCommunity();
   const now = useNow();
@@ -24,6 +25,22 @@ export default function PostScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
+  const loaded = q.data?.post;
+
+  useLayoutEffect(() => {
+    nav.setOptions({ headerRight: loaded ? () => <HeaderActions onMenu={() => setMenu(postMenuFor(loaded.authorId, loaded.id))} /> : undefined });
+  }, [nav, loaded?.id, loaded?.authorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function postMenuFor(authorId: string, postId: string): SheetOption[] {
+    const author = users.find((u) => u.id === authorId);
+    return authorId === community.me
+      ? [{ label: 'Delete post', danger: true, onPress: () => community.run((s) => s.deletePost(postId)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) }]
+      : [
+          { label: 'Report post', onPress: () => openReport('post', postId, authorId, 'post') },
+          { label: `Block @${author?.handle ?? 'them'}`, danger: true, onPress: () => openReport('block', authorId, authorId) },
+          ...moderateOptions(authorId),
+        ];
+  }
 
   if (!q.data) {
     if (q.loading)
@@ -55,15 +72,6 @@ export default function PostScreen() {
     }
   }
 
-  const postMenu = (): SheetOption[] =>
-    post.authorId === community.me
-      ? [{ label: 'Delete post', danger: true, onPress: () => community.run((s) => s.deletePost(post.id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) }]
-      : [
-          { label: 'Report post', onPress: () => openReport('post', post.id, post.authorId, 'post') },
-          { label: `Block @${author?.handle ?? 'them'}`, danger: true, onPress: () => openReport('block', post.authorId, post.authorId) },
-          ...moderateOptions(post.authorId),
-        ];
-
   const commentMenu = (c: PostComment): SheetOption[] => {
     const out: SheetOption[] = [];
     if (c.authorId === community.me || post.authorId === community.me) {
@@ -78,7 +86,8 @@ export default function PostScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
       <PostCard
         post={post}
         author={author}
@@ -93,7 +102,6 @@ export default function PostScreen() {
             setError(e instanceof Error ? e.message : "Couldn't like that.");
           });
         }}
-        onMore={() => setMenu(postMenu())}
       />
 
       {/* No map of the spot (REVIEW-10: it showed where the poster parked). The place name is on the card. */}
@@ -116,7 +124,6 @@ export default function PostScreen() {
                         @{handleOf(c.authorId)}
                       </DsText>
                       <DsText v="meta">{shortAgo(c.createdAt, now)}</DsText>
-                      {c.sample ? <Tag label="Sample" /> : null}
                     </View>
                     {c.hidden ? (
                       <DsText v="caption" tone="warning">
@@ -133,22 +140,11 @@ export default function PostScreen() {
             );
           })}
         </View>
-        <Field label="Your comment">
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Add a comment"
-            placeholderTextColor={COLOR.text.secondary}
-            multiline
-            maxLength={POST_LIMITS.comment}
-            accessibilityLabel="Your comment"
-            style={INPUT}
-          />
-        </Field>
-        <Button label="Comment" block haptic="success" onPress={send} busy={busy} disabled={!text.trim()} hint="Write something first" />
         {error ? <ErrorState title={error} /> : null}
       </Section>
-      <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
     </ScrollView>
+      <CommentBar value={text} onChange={setText} onSend={send} busy={busy} placeholder="Add a comment" label="Your comment" maxLength={POST_LIMITS.comment} />
+      <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
+    </KeyboardAvoidingView>
   );
 }

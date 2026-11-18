@@ -8,7 +8,7 @@ import { shareBuild, shareEvent, sharePlace, type ShareCard } from '../lib/messa
 import { useStore } from '../lib/store';
 import { classOf } from '../lib/classes';
 import { COLOR } from '../theme';
-import { DsText, EmptyState, EntityCard, ListRow, SearchField, SegmentedControl, Sheet } from './ds';
+import { DsText, EmptyState, ListRow, PhotoCard, SearchField, SegmentedControl, Sheet } from './ds';
 
 type Kind = 'build' | 'event' | 'place';
 
@@ -87,12 +87,13 @@ export function SharePicker({ visible, onPick, onClose }: { visible: boolean; on
   );
 }
 
-/** A shared build, event or place inside a chat: a small EntityCard that opens it. */
+/** A shared build, event or place inside a chat: a small PhotoCard (its drawing, no photo) that opens it. */
 export function ShareCardView({ card, onPress }: { card: ShareCard; onPress: () => void }) {
   return (
     <View style={{ width: 260, maxWidth: '100%' }}>
-      <EntityCard
-        kind={card.kind}
+      <PhotoCard
+        kind={card.kind === 'build' ? 'build' : card.kind === 'event' ? 'event' : 'place'}
+        size="sm"
         eyebrow={card.kind === 'build' ? 'Build' : card.kind === 'event' ? 'Event' : 'Place'}
         layerColour={card.kind === 'event' ? COLOR.layer.event : undefined}
         title={card.title}

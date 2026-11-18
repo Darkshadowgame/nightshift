@@ -11,6 +11,7 @@ import { totalUnread, type Conversation } from './messages';
 import { notifyNow } from './notify';
 import { nearestRegion } from './profile';
 import { useStore } from './store';
+import { appNow } from './appClock';
 
 /**
  * The Community tab's shared state: connections, blocks, conversations and
@@ -107,6 +108,9 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       },
       users: () => usersRef.current,
       travelMiles: () => travelRef.current,
+      now: appNow,
+      // Sample people accept a connection after 3 seconds (Redesign 2, 3.1).
+      replyDelay: 3000,
     });
   }, [ready, backend, demoLoaded, me]);
 
@@ -161,8 +165,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       later();
       if (c.kind === 'accepted') {
         const who = usersRef.current.find((u) => u.id === c.userId);
-        const text = `${who?.name ?? (who ? `@${who.handle}` : 'They')} accepted your request. You can message now.`;
-        addNoticeRef.current({ eventId: '', kind: 'connection', userId: c.userId, at: new Date().toISOString(), text });
+        const text = `${who ? `@${who.handle}` : 'They'} accepted. You can message now.`;
+        addNoticeRef.current({ eventId: '', kind: 'connection', userId: c.userId, at: appNow().toISOString(), text });
         setAccepted((a) => ({ userId: c.userId, text, n: (a?.n ?? 0) + 1 }));
         return;
       }

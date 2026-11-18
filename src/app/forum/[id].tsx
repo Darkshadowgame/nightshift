@@ -1,28 +1,25 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Image, ScrollView, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { at, BuildRow, openBuild, moderateOptions, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
-import { BuildChooser, ComposerPhotos, INPUT } from '../../components/ComposerParts';
-import { Avatar, Button, DsText, ErrorState, HeaderActions, Icon, IconButton, ListRow, LoadingState, Press, Section, Tag, metaLine } from '../../components/ds';
-import { useRepFor } from '../../components/Rep';
+import { BuildChooser, CommentBar, ComposerPhotos } from '../../components/ComposerParts';
+import { Avatar, Button, DsText, ErrorState, HeaderActions, Hero, Icon, IconButton, ListRow, LoadingState, PAGE_WITH_BAR, Press, Section, Tag, metaLine } from '../../components/ds';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
-import { boardLabel, LIMITS, replyProblem, SOLVED_REP, type ForumReply } from '../../lib/forum';
+import { boardLabel, LIMITS, replyProblem, type ForumReply } from '../../lib/forum';
 import { plural, shortAgo } from '../../lib/format';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { ListingCard, soldWord } from '../../components/ListingCard';
-import { levelLabel } from '../../lib/rep';
 
-/** A thread: the question, replies (Helpful, Solved), and a reply box. */
+/** A thread (T3): the question, replies (Helpful, Solved), and the reply field in the bottom bar. ··· has report, block, sold and delete. */
 export default function ThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
   const { users, builds, me } = useStore();
   const community = useCommunity();
-  const repFor = useRepFor();
   const now = useNow();
   const q = useCommunityQuery((s) => s.thread(id), [id]);
   const [body, setBody] = useState('');
@@ -117,17 +114,17 @@ export default function ThreadScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
       <View style={{ gap: SPACING.md }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
-          <Tag label={boardLabel(thread.board)} />
-          {thread.region ? <Tag label={thread.region} raw /> : null}
-          {thread.solvedReplyId ? <Tag label="Solved" tone="success" /> : null}
-          {thread.sample ? <Tag label="Sample" /> : null}
-        </View>
-        <DsText v="titleLg" accessibilityRole="header">
-          {thread.title}
-        </DsText>
+        <Hero
+          bleed
+          photo={thread.photos[0] ? { uri: photoUri(thread.photos[0]) } : null}
+          aspect={4 / 3}
+          eyebrow={metaLine([boardLabel(thread.board), thread.region])}
+          title={thread.title}
+          tag={thread.solvedReplyId ? { label: 'Solved', tone: 'success' } : null}
+        />
         {thread.listing ? (
           <ListingCard
             listing={thread.listing}
@@ -145,7 +142,7 @@ export default function ThreadScreen() {
         <ListRow
           leading={{ avatar: personMark(author) }}
           title={at(author)}
-          meta={metaLine([levelLabel(repFor(thread.authorId).level.level), shortAgo(thread.createdAt, now)])}
+          meta={shortAgo(thread.createdAt, now)}
           onPress={() => openProfile(thread.authorId)}
           chevron={false}
         />
@@ -159,13 +156,13 @@ export default function ThreadScreen() {
             {thread.body}
           </DsText>
         ) : null}
-        {thread.photos.map((p) => photo(p, 'Photo in the thread'))}
+        {thread.photos.slice(1).map((p) => photo(p, 'Photo in the thread'))}
         {linked ? <BuildRow build={linked} onPress={() => openBuild(linked.id)} /> : null}
       </View>
 
       <Section title={plural(replies.length, 'Reply', 'Replies')}>
         {mineThread && replies.some((r) => r.authorId !== me) && !thread.solvedReplyId ? (
-          <DsText v="caption">Got your answer? Open the ··· on that reply and mark it solved. Its author gets +{SOLVED_REP} rep.</DsText>
+          <DsText v="caption">Got your answer? Open the ··· on that reply and mark it solved.</DsText>
         ) : null}
         {ordered.length === 0 ? (
           <DsText v="secondary">
@@ -194,12 +191,7 @@ export default function ThreadScreen() {
                   </DsText>
                   <DsText v="meta">{shortAgo(r.createdAt, now)}</DsText>
                 </Press>
-                {isSolved || r.sample ? (
-                  <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
-                    {isSolved ? <Tag label="Solved" tone="success" /> : null}
-                    {r.sample ? <Tag label="Sample" /> : null}
-                  </View>
-                ) : null}
+                {isSolved ? <Tag label="Solved" tone="success" /> : null}
                 <IconButton icon="more" label="More options for this reply" colour={COLOR.text.secondary} onPress={() => setMenu(replyMenu(r))} />
               </View>
               {r.hidden ? (
@@ -220,8 +212,8 @@ export default function ThreadScreen() {
                 hitSlop={8}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, minHeight: 36, alignSelf: 'flex-start' }}
               >
-                <Icon name="success" size={20} colour={r.helpfulByMe ? COLOR.action.selected : COLOR.text.secondary} />
-                <DsText v="meta" style={r.helpfulByMe ? { color: COLOR.action.selected } : undefined}>
+                <Icon name="success" size={20} colour={r.helpfulByMe ? COLOR.state.success : COLOR.text.secondary} />
+                <DsText v="meta" style={r.helpfulByMe ? { color: COLOR.text.primary } : undefined}>
                   Helpful {r.helpfulCount}
                 </DsText>
               </Press>
@@ -230,29 +222,28 @@ export default function ThreadScreen() {
         })}
       </Section>
 
-      <Section title="Your reply">
-        <TextInput
-            value={body}
-            onChangeText={setBody}
-            placeholder={thread.listing ? (mineThread ? 'Add an update' : 'Ask about it') : 'Share what you know'}
-            placeholderTextColor={COLOR.text.secondary}
-            multiline
-            maxLength={LIMITS.body}
-            accessibilityLabel="Your reply"
-            style={[INPUT, { minHeight: 90, textAlignVertical: 'top' }]}
-          />
-        {more ? (
-          <>
-            <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
-            <BuildChooser builds={builds.filter((b) => b.ownerId === me)} value={buildId} onChange={setBuildId} />
-          </>
-        ) : (
-          <Button label="Add photos or a build" tier="tertiary" size="sm" onPress={() => setMore(true)} />
-        )}
-        <Button label="Reply" block haptic="success" onPress={send} busy={busy} disabled={!body.trim()} hint="Write something first" />
-        {error ? <ErrorState title={error} /> : null}
-      </Section>
-      <OptionsSheet visible={!!menu} title="Options" options={menu ?? []} onClose={() => setMenu(null)} />
+      {error ? <ErrorState title={error} /> : null}
     </ScrollView>
+      <CommentBar
+        value={body}
+        onChange={setBody}
+        onSend={() => void send()}
+        busy={busy}
+        placeholder={thread.listing ? (mineThread ? 'Add an update' : 'Ask about it') : 'Share what you know'}
+        label="Your reply"
+        maxLength={LIMITS.body}
+        extra={
+          more ? (
+            <>
+              <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
+              <BuildChooser builds={builds.filter((b) => b.ownerId === me)} value={buildId} onChange={setBuildId} />
+            </>
+          ) : (
+            <Button label="Add photos or a build" tier="tertiary" size="sm" onPress={() => setMore(true)} style={{ alignSelf: 'flex-start' }} />
+          )
+        }
+      />
+      <OptionsSheet visible={!!menu} title="Options" options={menu ?? []} onClose={() => setMenu(null)} />
+    </KeyboardAvoidingView>
   );
 }
