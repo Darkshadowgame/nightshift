@@ -7,6 +7,7 @@ import { CAMERA_JUMP_METRES, CAMERA_FOLLOW_MS, easeAngle, easeNumber, easeShare,
 import type { LatLng } from '../lib/types';
 import { BRAND, C, RADII, ROAD_COLOUR } from '../theme';
 import { NavIcon } from './NavIcon';
+import { DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin, type Glyph } from './Pin';
 
 export interface DriveMapStop {
@@ -43,6 +44,8 @@ export interface DriveMapProps {
   /** Tapping your icon, or a long press next to it (stopped only): change the icon. */
   onPressYou?: () => void;
   onLongPress?: (at: LatLng) => void;
+  /** Demo, Busy night only: made-up drivers move along the demo routes round this home area (labelled DEMO). */
+  demoAround?: LatLng | null;
 }
 
 /** The camera loop's step (ms). */
@@ -72,8 +75,10 @@ export const DriveMap = memo(function DriveMap({
   onUserPan,
   onPressYou,
   onLongPress,
+  demoAround,
 }: DriveMapProps) {
   const map = useRef<MapView>(null);
+  const others = useDemoDrivers(demoAround);
   const line = useMemo(() => toCoords(route), [route]);
   const first = route[0] ?? focus ?? { lat: 52.5, lng: -1.5 };
   const northUp = orientation === 'north';
@@ -136,7 +141,9 @@ export const DriveMap = memo(function DriveMap({
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
-        showsTraffic={false}
+        // Apple's live traffic on the driving view (BACKLOG 3: "Live traffic from Apple's layer").
+        // Tonight's map keeps it off (REVIEW-4 m16: it competes with the pins there).
+        showsTraffic
         showsPointsOfInterests={false}
         scrollEnabled={panEnabled}
         zoomEnabled={panEnabled}
@@ -157,6 +164,12 @@ export const DriveMap = memo(function DriveMap({
         {reports.map((r) => (
           <Marker key={r.id} coordinate={{ latitude: r.at.lat, longitude: r.at.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <Pin glyph={r.glyph} colour={ROAD_COLOUR} size={r.onRoute ? 24 : 18} />
+          </Marker>
+        ))}
+        {others.map((d) => (
+          // Re-drawn when it turns (markers don't track their views).
+          <Marker key={`${d.id}:${Math.round((d.heading - mapHeading) / 30)}`} coordinate={{ latitude: d.at.lat, longitude: d.at.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <DemoDriverIcon heading={d.heading - mapHeading} />
           </Marker>
         ))}
         {stops.map((s) => (

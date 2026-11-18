@@ -1095,6 +1095,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           onUserPan={onUserPan}
           onPressYou={onPressYou}
           onLongPress={onLongPress}
+          demoAround={store.backend === 'local' && settings.busyNight ? (store.users.find((u) => u.id === store.me)?.home ?? null) : null}
         />
         <View pointerEvents="box-none" style={st.overlayTop}>
           {/* On web the map's tile credit sits top left (WP-E), so alerts start under it; the demo label is in the bottom bar. */}

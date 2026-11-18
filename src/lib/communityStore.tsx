@@ -4,7 +4,18 @@ import { AppState } from 'react-native';
 import { ME } from '../data/seed';
 import { supabase } from './backend/client';
 import { createRemoteCommunity } from './backend/community';
-import { createLocalCommunity, emptyDemoCommunity, seedDemoCommunity, withSamplePhotos, type CommunityService, type DemoCommunity } from './communityService';
+import {
+  createLocalCommunity,
+  emptyDemoCommunity,
+  hasBusyCommunity,
+  seedDemoCommunity,
+  withBusyCommunity,
+  withoutBusyCommunity,
+  withSamplePhotos,
+  type CommunityService,
+  type DemoCommunity,
+} from './communityService';
+import { busyCommunity } from '../data/busyNight';
 import { idsIn, type ConnectionState } from './connections';
 import { NO_FORUM_REP, type ForumRep } from './forum';
 import { totalUnread, type Conversation } from './messages';
@@ -100,6 +111,21 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     bump();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, demoLoaded, homeKey]);
+
+  // Settings › Demo › Busy night: its posts, threads, For sale, chats and requests go in, or come out.
+  const busy = backend === 'local' && !!settings.busyNight;
+  useEffect(() => {
+    if (backend !== 'local' || !demoLoaded || !meUser?.home) return;
+    const has = hasBusyCommunity(demo.current);
+    // A new home area lays the samples out again without it (above): it goes back in here.
+    if (busy === has) return;
+    demo.current = busy
+      ? withBusyCommunity(demo.current, busyCommunity(appNow(), meUser.home, meUser.region || nearestRegion(meUser.home), eventsRef.current, store.builds))
+      : withoutBusyCommunity(demo.current);
+    AsyncStorage.setItem(DEMO_KEY, JSON.stringify(demo.current)).catch(() => {});
+    bump();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backend, demoLoaded, homeKey, busy]);
 
   const service = useMemo<CommunityService | null>(() => {
     const base = makeService();

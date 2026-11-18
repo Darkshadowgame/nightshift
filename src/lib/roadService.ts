@@ -18,6 +18,7 @@ import {
   type RoadVote,
 } from './roadReports';
 import type { LatLng } from './types';
+import { busyRoadReports } from '../data/busyNight';
 
 /**
  * Road reports behind one interface, like the Repository: the demo keeps them
@@ -51,6 +52,9 @@ export interface DemoRoadState {
   confirmedAt: Record<string, string>;
   /** When you answered "Still there?". */
   answeredAt: string[];
+  /** Settings › Demo › Busy night: many more sample reports round the demo routes (busyNight.ts). */
+  busy?: RoadReport[];
+  busyAround?: LatLng | null;
 }
 
 export const EMPTY_DEMO_ROADS: DemoRoadState = { samples: [], mine: [], confirmedAt: {}, answeredAt: [] };
@@ -61,11 +65,19 @@ export const EMPTY_DEMO_ROADS: DemoRoadState = { samples: [], mine: [], confirme
  * area moves (e.g. set on the first-run screen). Your reports are
  * "confirmed by two sample drivers" 20 s after you send them, so the rep shows.
  */
-export function settleDemo(s: DemoRoadState, home: LatLng | null, now: Date): DemoRoadState {
+export function settleDemo(s: DemoRoadState, home: LatLng | null, now: Date, busy = false): DemoRoadState {
   let next = s;
   const moved = !!home && (!s.samplesAround || metresBetween(home, s.samplesAround) > 3 * METRES_PER_MILE);
   if (home && (moved || s.samples.filter((r) => isLive(r, now)).length < 3)) {
     next = { ...next, samples: demoReports(home, now), samplesAround: home };
+  }
+  // The busy night's reports: laid out with it, again once half have run out or home moves, gone when it's off.
+  const list = s.busy ?? [];
+  if (busy && home) {
+    const busyMoved = !s.busyAround || metresBetween(home, s.busyAround) > 3 * METRES_PER_MILE;
+    if (!list.length || busyMoved || list.filter((r) => isLive(r, now)).length < list.length / 2) next = { ...next, busy: busyRoadReports(home, now), busyAround: home };
+  } else if (list.length) {
+    next = { ...next, busy: [], busyAround: null };
   }
   const due = next.mine.filter((r) => r.status === 'active' && !next.confirmedAt[r.id] && now.getTime() - new Date(r.createdAt).getTime() >= DEMO_CONFIRM_MS);
   if (due.length) {
@@ -93,12 +105,14 @@ export interface LocalRoadsOptions {
   skipGps?: () => boolean;
   /** Let the samples' answers be seen as changes (re-read). */
   changed?: () => void;
+  /** Demo: Settings › Demo › Busy night is on. */
+  busy?: () => boolean;
 }
 
 export function createLocalRoads(o: LocalRoadsOptions): RoadsService {
   const now = () => (o.now ? o.now() : new Date());
   const settled = () => {
-    const s = settleDemo(o.get(), o.home(), now());
+    const s = settleDemo(o.get(), o.home(), now(), !!o.busy?.());
     if (s !== o.get()) o.set(s);
     return s;
   };
@@ -110,7 +124,7 @@ export function createLocalRoads(o: LocalRoadsOptions): RoadsService {
     async near(at, radiusMi, context) {
       const s = settled();
       const max = Math.min(50, Math.max(0.1, radiusMi)) * METRES_PER_MILE;
-      const all = [...s.samples, ...s.mine].filter((r) => metresBetween(at, r.at) <= max);
+      const all = [...s.samples, ...(s.busy ?? []), ...s.mine].filter((r) => metresBetween(at, r.at) <= max);
       return reportsFor(all, context, now(), at).sort((a, b) => metresBetween(at, a.at) - metresBetween(at, b.at));
     },
     async report(kind, at, heading, from) {
@@ -126,7 +140,7 @@ export function createLocalRoads(o: LocalRoadsOptions): RoadsService {
     async answer(reportId, vote, from) {
       const s = settled();
       const t = now();
-      const r = [...s.samples, ...s.mine].find((x) => x.id === reportId);
+      const r = [...s.samples, ...(s.busy ?? []), ...s.mine].find((x) => x.id === reportId);
       if (!r) throw new Error('That report has gone.');
       const position = o.skipGps?.() ? r.at : from;
       const problem = answerProblem(r, position, t);
@@ -135,6 +149,7 @@ export function createLocalRoads(o: LocalRoadsOptions): RoadsService {
       o.set({
         ...s,
         samples: s.samples.map((x) => (x.id === reportId ? updated : x)),
+        ...(s.busy ? { busy: s.busy.map((x) => (x.id === reportId ? updated : x)) } : {}),
         mine: s.mine.map((x) => (x.id === reportId ? updated : x)),
         answeredAt: [...s.answeredAt, t.toISOString()].slice(-500),
       });

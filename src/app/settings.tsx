@@ -186,7 +186,20 @@ export default function SettingsScreen() {
 
       {demo ? (
         <Group title="Demo">
-          <ListRow title="Restart the demo night" subtitle="Your profile and garage stay" onPress={() => setConfirm('restart')} />
+          <View>
+            <ListRow title="Restart the demo night" subtitle="Your profile and garage stay" onPress={() => setConfirm('restart')} />
+            <RowDivider />
+            {/* Off by default: the fixed demo night stays as the scorecard knows it. */}
+            <SwitchRow
+              label="Busy night"
+              hint="Fill the demo with about 60 more sample people, 20 more meets, posts, chats and road reports. Made up, and kept on this phone."
+              value={!!settings.busyNight}
+              onValueChange={(on) => {
+                store.setBusyNight(on);
+                toast({ message: on ? 'Busy night on' : 'Back to the normal demo night' });
+              }}
+            />
+          </View>
         </Group>
       ) : null}
 

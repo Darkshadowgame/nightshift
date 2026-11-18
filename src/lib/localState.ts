@@ -16,6 +16,7 @@ import { markLegacyShopRefs, type PendingFeedback, type SentFeedback } from './f
 import type { Notice } from './notice';
 import type { LatLng, PlaceRep } from './types';
 import type { SceneNames } from './scene';
+import { isBusyId, withBusy, withoutBusy } from '../data/busyNight';
 
 /**
  * The app's state as it's kept on the phone, and the demo's helpers for it
@@ -107,15 +108,44 @@ export function freshen(state: Persisted, now: Date): Persisted {
   if (!state.scene) return state; // older save: migrate() redraws the scene round your home
   const anchor = state.seededAt ? new Date(state.seededAt) : inferAnchor(state.events);
   if (!anchor || isNaN(anchor.getTime())) return { ...state, seededAt: state.seededAt ?? now.toISOString() };
-  if (!needsRefresh(state, anchor, now, state.scene)) return { ...state, seededAt: anchor.toISOString() };
+  // The busy night (Settings › Demo) is laid out again with the demo night, never refreshed with it:
+  // the demo night's own checks only ever see the normal scene.
+  const busy = !!state.settings?.busyNight;
+  const plain = busy ? withoutBusy(state) : state;
+  if (!needsRefresh(plain, anchor, now, state.scene)) return { ...state, seededAt: anchor.toISOString() };
   // "New near you" notices quote the event's time, which has just moved (B7: 03:18 in the notice,
   // 03:25 on the event): write them again from the moved events, as if sent then.
-  const refreshed = refreshDemo(state, anchor, now, state.scene);
-  return {
-    ...state,
+  const refreshed = refreshDemo(plain, anchor, now, state.scene);
+  const next = {
+    ...plain,
     ...refreshed,
-    notices: retimeNearbyNotices(state.notices, refreshed.events),
+    notices: retimeNearbyNotices(plain.notices, refreshed.events),
     seededAt: now.toISOString(),
+  };
+  return busy ? layBusy(next, now) : next;
+}
+
+/** Lay the busy night out round the scene's home for `now` (again), without "new near you" for each of its meets. */
+export function layBusy(s: Persisted, now: Date): Persisted {
+  const next = withBusy(s, now, s.scene?.home ?? DEMO_HOME);
+  const ids = next.events.filter((e) => isBusyId(e.id)).map((e) => e.id);
+  return { ...next, nearby: next.nearby ? { ...next.nearby, known: Array.from(new Set([...next.nearby.known, ...ids])) } : next.nearby };
+}
+
+/**
+ * Settings › Demo › Busy night. On: the fuller scene goes in (src/data/busyNight.ts). Off: all of
+ * it comes back out, with its notices, so the demo night is exactly as it was.
+ */
+export function setBusyNight(s: Persisted, on: boolean, now: Date): Persisted {
+  const settings = { ...s.settings, busyNight: on };
+  if (on) return layBusy({ ...s, settings }, now);
+  const plain = withoutBusy(s);
+  return {
+    ...plain,
+    settings,
+    notices: plain.notices.filter((n) => !isBusyId(n.eventId)),
+    unlockSeen: Object.fromEntries(Object.entries(plain.unlockSeen).filter(([id]) => !isBusyId(id))),
+    nearby: plain.nearby ? { known: plain.nearby.known.filter((id) => !isBusyId(id)), unseen: plain.nearby.unseen.filter((id) => !isBusyId(id)) } : plain.nearby,
   };
 }
 
@@ -129,7 +159,7 @@ export function redrawScene(s: Persisted, home: LatLng, now: Date): Persisted {
   const restarted = restartDemo(s, now, scene);
   const homes = sampleHomes(home);
   const region = seed(now, scene).users.find((u) => u.id !== ME)?.region;
-  return {
+  const redrawn: Persisted = {
     ...s,
     ...restarted,
     users: s.users.map((u) => (u.id !== ME && homes.has(u.id) ? { ...u, home: homes.get(u.id)!, region: region ?? u.region } : u)),
@@ -140,6 +170,7 @@ export function redrawScene(s: Persisted, home: LatLng, now: Date): Persisted {
     onboardedAt: s.onboarded ? now.toISOString() : s.onboardedAt,
     scene,
   };
+  return redrawn.settings?.busyNight ? layBusy(redrawn, now) : redrawn;
 }
 
 /** The sample events are laid out again: they count as new near you again, like their reminders. */

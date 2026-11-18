@@ -1,5 +1,6 @@
 import { communitySample, SAMPLE_REPLIES } from '../data/communitySeed';
 import { ME, SAMPLE_PEOPLE, samplePhotoRefs } from '../data/seed';
+import { isBusyId, type BusyCommunity } from '../data/busyNight';
 import { peopleNear, type Nearby } from './carsNear';
 import {
   answerConnection,
@@ -305,6 +306,50 @@ export function seedDemoCommunity(s: DemoCommunity, home: LatLng, region: string
   };
 }
 
+/** Is the busy night's Community (Settings › Demo › Busy night) in the demo's Community now? */
+export function hasBusyCommunity(s: DemoCommunity): boolean {
+  return s.posts.some((p) => isBusyId(p.id));
+}
+
+/** The demo's Community without anything from the busy night (or anyone in it). */
+export function withoutBusyCommunity(s: DemoCommunity): DemoCommunity {
+  const busyConv = new Set(s.conversations.filter((c) => isBusyId(c.id)).map((c) => c.id));
+  const busyPost = new Set(s.posts.filter((p) => isBusyId(p.id) || isBusyId(p.authorId)).map((p) => p.id));
+  const busyThread = new Set(s.threads.filter((t) => isBusyId(t.id) || isBusyId(t.authorId)).map((t) => t.id));
+  return {
+    ...s,
+    connections: s.connections.filter((r) => !isBusyId(r.from) && !isBusyId(r.to)),
+    blocks: s.blocks.filter((b) => !isBusyId(b)),
+    likes: Object.fromEntries(Object.entries(s.likes).filter(([k]) => !isBusyId(k))),
+    rated: Object.fromEntries(Object.entries(s.rated).filter(([k]) => !isBusyId(k))),
+    threads: s.threads.filter((t) => !busyThread.has(t.id)),
+    replies: s.replies.filter((r) => !busyThread.has(r.threadId) && !isBusyId(r.authorId)),
+    solved: s.solved.filter((x) => !busyThread.has(x.threadId)),
+    posts: s.posts.filter((p) => !busyPost.has(p.id)),
+    comments: s.comments.filter((c) => !busyPost.has(c.postId) && !isBusyId(c.authorId)),
+    conversations: s.conversations
+      .filter((c) => !busyConv.has(c.id) && !(c.kind === 'direct' && c.memberIds.some(isBusyId)))
+      .map((c) => (c.memberIds.some(isBusyId) ? { ...c, memberIds: c.memberIds.filter((m) => !isBusyId(m)), adminIds: c.adminIds.filter((m) => !isBusyId(m)) } : c)),
+    messages: s.messages.filter((m) => !busyConv.has(m.conversationId) && !isBusyId(m.senderId)),
+  };
+}
+
+/** The demo's Community with the busy night's added (any earlier copy taken out first). */
+export function withBusyCommunity(s: DemoCommunity, busy: BusyCommunity): DemoCommunity {
+  const base = withoutBusyCommunity(s);
+  return {
+    ...base,
+    connections: [...base.connections, ...busy.connections],
+    likes: { ...busy.likes, ...base.likes },
+    threads: [...base.threads, ...busy.threads],
+    replies: [...base.replies, ...busy.replies],
+    posts: [...base.posts, ...busy.posts],
+    comments: [...base.comments, ...busy.comments],
+    conversations: [...base.conversations, ...busy.conversations],
+    messages: [...base.messages, ...busy.messages],
+  };
+}
+
 export interface LocalCommunityContext {
   get(): DemoCommunity;
   set(s: DemoCommunity): void;
@@ -327,7 +372,7 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
     const states = connectionsOf(ctx.get().connections, ME, now());
     return new Set(Object.keys(states).filter((k) => states[k] === 'connected'));
   };
-  const isSample = (id: string) => SAMPLE_PEOPLE.includes(id);
+  const isSample = (id: string) => SAMPLE_PEOPLE.includes(id) || isBusyId(id);
   const iso = () => now().toISOString();
 
   function convView(c: Conversation, s: DemoCommunity): Conversation {

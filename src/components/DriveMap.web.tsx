@@ -8,6 +8,7 @@ import type { LatLng } from '../lib/types';
 import { ART, BRAND, C, RADII, ROAD_COLOUR } from '../theme';
 import type { DriveMapProps } from './DriveMap';
 import { NavIcon } from './NavIcon';
+import { DEMO_DRIVER_LABEL, DEMO_DRIVER_SIZE, DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin } from './Pin';
 import { Credit } from './webmap/Credit.web';
 import { loadLeaflet, longPress, makeMap, type L } from './webmap/leaflet.web';
@@ -23,7 +24,8 @@ import { altitudeToZoom } from './webmap/zoom.web';
  * No tilt: the web map is flat. If Leaflet can't load, the screen stays plain asphalt.
  */
 export function DriveMap(props: DriveMapProps) {
-  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou } = props;
+  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround } = props;
+  const others = useDemoDrivers(demoAround);
   const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
   const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
   const outer = useRef<HTMLDivElement>(null);
@@ -165,6 +167,8 @@ export function DriveMap(props: DriveMapProps) {
       const size = r.onRoute ? 24 : 18;
       out.push({ id: `rep:${r.id}`, lat: r.at.lat, lng: r.at.lng, size, z: 1, face: <Pin glyph={r.glyph} colour={ROAD_COLOUR} size={size} /> });
     }
+    for (const d of others)
+      out.push({ id: `demo:${d.id}`, lat: d.at.lat, lng: d.at.lng, size: DEMO_DRIVER_SIZE, z: 1, label: DEMO_DRIVER_LABEL, face: <DemoDriverIcon heading={d.heading - mapHeading} /> });
     for (const s of stops) out.push({ id: `stop:${s.id}`, lat: s.at.lat, lng: s.at.lng, size: 30, z: 2, face: <Pin glyph={s.glyph} colour={s.colour} size={30} /> });
     if (you && !following)
       out.push({
@@ -178,7 +182,7 @@ export function DriveMap(props: DriveMapProps) {
         face: <NavIcon shape={icon.shape} colour={icon.hex} size={50} rotation={iconRotation(heading, shownTurn)} />,
       });
     return out;
-  }, [cameras, reports, stops, you, following, icon.shape, icon.hex, heading, shownTurn]);
+  }, [cameras, reports, others, mapHeading, stops, you, following, icon.shape, icon.hex, heading, shownTurn]);
   const { portals } = useMarkers(lf, specs);
 
   return (

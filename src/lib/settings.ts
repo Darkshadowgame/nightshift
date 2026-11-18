@@ -70,6 +70,11 @@ export interface Settings {
   places?: SavedPlaces;
   /** The one-time "how the map works" hint has been dismissed. */
   mapHintSeen?: boolean;
+  /**
+   * Demo only (Settings › Demo › Busy night): a much fuller made-up scene on top of the demo night
+   * (src/data/busyNight.ts). Off by default, so the normal demo stays as it is. Never sent anywhere.
+   */
+  busyNight?: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

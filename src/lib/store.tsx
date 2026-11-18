@@ -19,7 +19,7 @@ import { appNow, appNowMs } from './appClock';
 import { isUuid, mergeStatuses, sentEntry, type FeedbackContext, type PendingFeedback, type SentFeedback } from './feedbackQueue';
 import { newId } from './ids';
 import { createLocalRepository } from './localRepository';
-import { allPhotos, EMPTY, everyLoad, forgetSeedEvents, fresh, freshen, migrate, type Persisted } from './localState';
+import { allPhotos, EMPTY, everyLoad, forgetSeedEvents, fresh, freshen, layBusy, migrate, setBusyNight, type Persisted } from './localState';
 import { geocoderAvailable, nameForPlace, townForPlace } from './location';
 import type { Notice } from './notice';
 import { notifyNow, syncReminders } from './notify';
@@ -104,6 +104,8 @@ interface Store extends Persisted {
   resetDemo: () => void;
   /** Lay the sample events, chat, votes and spot visits out fresh. Keeps your profile, builds, photos, crews and what you made. */
   restartDemoEvents: () => void;
+  /** Demo: Settings › Demo › Busy night, a much fuller made-up scene (busyNight.ts). Off restores the normal demo night. */
+  setBusyNight: (on: boolean) => void;
   /** Schedule reminders again now, e.g. once notifications have just been allowed. */
   refreshReminders: () => void;
   /** Willing to travel and how you hear about new events near you. Rejects with a readable reason. */
@@ -666,6 +668,11 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
         const nowDate = appNow();
         set((s) => restartDemoScene(s, nowDate));
       },
+      setBusyNight: (on) => {
+        if (!demo) return;
+        const nowDate = appNow();
+        set((s) => setBusyNight(s, on, nowDate));
+      },
       refreshReminders: () => setReminderTick((n) => n + 1),
       markNearbySeen: () => set((s) => (s.nearby && s.nearby.unseen.length > 0 ? { ...s, nearby: { ...s.nearby, unseen: [] } } : s)),
       deleteAccount: async () => {
@@ -690,7 +697,7 @@ function restartDemoScene(s: Persisted, nowDate: Date): Persisted {
   const unlockSeen = Object.fromEntries(Object.entries(s.unlockSeen).filter(([id]) => !isSeedEvent(id)));
   // Drives and visits on the real places start again too (their photo files with them).
   deletePhotos(Object.values(s.placeProgress).flatMap((p) => p.completions.flatMap((c) => (c.photo ? [c.photo] : []))));
-  return {
+  const next: Persisted = {
     ...s,
     ...restarted,
     placeProgress: {},
@@ -701,6 +708,8 @@ function restartDemoScene(s: Persisted, nowDate: Date): Persisted {
     // Reminders from the restarted events count as news again.
     onboardedAt: nowDate.toISOString(),
   };
+  // The busy night (if on) starts again with the demo night.
+  return next.settings.busyNight ? layBusy(next, nowDate) : next;
 }
 
 export function useStore(): Store {

@@ -37,6 +37,9 @@ export function RoadsProvider({ children }: { children: ReactNode }) {
   const skipGps = backend === 'local' && store.settings.simulateGps;
   const skipRef = useRef(skipGps);
   skipRef.current = skipGps;
+  const busy = backend === 'local' && !!store.settings.busyNight;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
   const home = users.find((u) => u.id === me)?.home ?? null;
   const homeRef = useRef<LatLng | null>(home);
   homeRef.current = home && (home.lat !== 0 || home.lng !== 0) ? home : null;
@@ -78,8 +81,11 @@ export function RoadsProvider({ children }: { children: ReactNode }) {
       home: () => homeRef.current,
       me,
       skipGps: () => skipRef.current,
+      busy: () => busyRef.current,
     });
   }, [ready, backend, demoLoaded, me]);
+  // Busy night on or off: everyone reads the reports again.
+  useEffect(() => bump(), [busy, bump]);
 
   // Live changes near anyone: re-read, at most once a second.
   useEffect(() => {
