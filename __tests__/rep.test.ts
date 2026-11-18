@@ -1,7 +1,7 @@
 import { DEFAULT_FILTER } from '../src/lib/invites';
-import { attendedEvents, authorRep, hostedEvents, levelFor, repForLevel, repLedger, REP, routeScore, validRatings, ROUTE_APPROVED_REP } from '../src/lib/rep';
+import { attendedEvents, authorRep, duplicateBuild, vehicleKey, hostedEvents, levelFor, repForLevel, repLedger, REP, routeScore, validRatings, ROUTE_APPROVED_REP } from '../src/lib/rep';
 import { publicProfile } from '../src/lib/people';
-import type { NightEvent } from '../src/lib/types';
+import type { Build, NightEvent } from '../src/lib/types';
 
 const people = (n: number, prefix = 'u') => Array.from({ length: n }, (_, i) => `${prefix}${i}`);
 
@@ -85,6 +85,29 @@ describe('rep ledger and levels', () => {
     expect(by.awards.rep).toBe(500);
     expect(by.mods).toMatchObject({ count: 2, rep: 2 * REP.mod });
     expect(ledger.total).toBe(ledger.lines.reduce((s, l) => s + l.rep, 0));
+  });
+
+  test('the same vehicle added twice earns its mods once (B3)', () => {
+    const golf = (id: string, mods: string[], extra: Partial<Build> = {}): Build => ({
+      id, ownerId: 'me', kind: 'car', make: 'Volkswagen', model: 'Golf R', year: 2019, stockBhp: 300, weightKg: 1500, photos: [],
+      mods: mods.map((name, i) => ({ id: `${id}${i}`, category: 'engine', name })), ...extra,
+    });
+    const mods = (builds: Build[]) => repLedger('me', { now: NOW, events: [], spots: [], builds, awards: [] }).lines.find((l) => l.source === 'mods')!;
+    expect(mods([golf('a', ['Intake', 'Exhaust'])]).count).toBe(2);
+    // Copies (case and spaces aside) don't add anything; a mod only one copy has still counts.
+    expect(mods([golf('a', ['Intake', 'Exhaust']), golf('b', ['Intake', 'Exhaust'], { model: ' golf  r ' }), golf('c', ['Intake', 'Exhaust'])]).count).toBe(2);
+    expect(mods([golf('a', ['Intake']), golf('b', ['Intake', 'Exhaust'])]).count).toBe(2);
+    // Another year, or a bike, is another vehicle.
+    expect(mods([golf('a', ['Intake']), golf('b', ['Intake'], { year: 2015 })]).count).toBe(2);
+  });
+
+  test('duplicate builds are found by vehicle, never the build itself or someone else\'s', () => {
+    const b = (id: string, ownerId: string, model = 'Golf R') => ({ id, ownerId, kind: 'car' as const, make: 'VW', model, year: 2019 });
+    const all = [b('a', 'me'), b('x', 'them'), b('c', 'me', 'Polo')];
+    expect(duplicateBuild(b('new', 'me'), all)?.id).toBe('a');
+    expect(duplicateBuild(b('a', 'me'), all)).toBeUndefined();
+    expect(duplicateBuild(b('new', 'me', 'Up'), all)).toBeUndefined();
+    expect(vehicleKey({ kind: 'car', make: ' VW ', model: 'GOLF  R', year: 2019 })).toBe(vehicleKey({ kind: 'car', make: 'vw', model: 'golf r', year: 2019 }));
   });
 
   test('hosting only pays once the event is over, and not for cancelled events', () => {

@@ -16,6 +16,7 @@ import { plateRedactorAvailable } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, ClassLetter, EngineSwap, Mod, TuneStage, VehicleKind } from '../../lib/types';
 import { SCREEN_TITLES, title } from '../../lib/glossary';
+import { duplicateBuild } from '../../lib/rep';
 import { BRAND, C } from '../../theme';
 
 /** Paint colours for the build's card: the owner's choice, not theme roles. */
@@ -115,8 +116,10 @@ export default function EditBuild() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engineKey]);
 
+  // One id for a new build, made once: a fresh id each render made a second save add a second copy (B10).
+  const [newBuildId] = useState(() => newId('b'));
   const draft: Build = {
-    id: existing?.id ?? newId('b'),
+    id: existing?.id ?? newBuildId,
     ownerId: store.me,
     kind,
     make: make.trim(),
@@ -135,6 +138,10 @@ export default function EditBuild() {
     engineSwap: swap,
   };
   const ready = draft.make && draft.model && draft.stockBhp > 0;
+  /** The same vehicle already in your garage (B3): saving adds a second one, so say so. */
+  const twin = draft.make && draft.model ? duplicateBuild(draft, store.builds) : undefined;
+  /** Close the form: back where you came from, or the Garage when it was opened by a link (no history). */
+  const close = () => (router.canGoBack() ? router.back() : router.replace('/garage'));
 
   function pickVariant(v: Variant) {
     const fill = specFill(v, num(year));
@@ -176,13 +183,13 @@ export default function EditBuild() {
     // An edit that lifts the class gets its moment before closing.
     const up = classUp(existing ? classOf(existing) : null, classOf(final));
     if (up) setCelebrate(up);
-    else router.back();
+    else close();
   }
 
   return (
     <>
     <Stack.Screen options={{ title: title(existing ? SCREEN_TITLES.editBuild : SCREEN_TITLES.addBuild) }} />
-    {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={() => router.back()} /> : null}
+    {celebrate ? <ClassUpMoment from={celebrate.from} to={celebrate.to} onDone={close} /> : null}
     <ScrollView
       contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 60 }}
       keyboardShouldPersistTaps="handled"
@@ -310,6 +317,11 @@ export default function EditBuild() {
         </Row>
       </Section>
 
+      {twin && !existing ? (
+        <Txt v="caption" style={{ color: C.chalk }}>
+          {`You already have this ${[twin.year, twin.make, twin.model].filter(Boolean).join(' ')} in your garage. Saving adds a second one; its mods don't earn rep twice.`}
+        </Txt>
+      ) : null}
       <Button label="Save build" onPress={save} busy={saving} />
       <InlineError message={confirmDelete ? null : error} />
       {existing ? (

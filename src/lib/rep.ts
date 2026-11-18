@@ -202,7 +202,14 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
 
   const mine = input.awards.filter((a) => a.ownerId === userId);
   // Mods: road-legal ones only, each kind once per build, at most 10 per build (legality.ts).
-  const mods = input.builds.filter((b) => b.ownerId === userId).reduce((n, b) => n + rewardedMods(b.mods).length, 0);
+  // The same vehicle added twice counts once (its mods together), so copies can't farm rep.
+  const groups = new Map<string, Build['mods']>();
+  for (const b of input.builds) {
+    if (b.ownerId !== userId) continue;
+    const k = vehicleKey(b);
+    groups.set(k, [...(groups.get(k) ?? []), ...b.mods]);
+  }
+  const mods = [...groups.values()].reduce((n, m) => n + rewardedMods(m).length, 0);
   const road = input.roadRep ?? NO_ROAD_REP;
 
   const lines: RepLine[] = [
@@ -244,4 +251,16 @@ export function levelFor(rep: number): LevelInfo {
   const floor = repForLevel(level);
   const next = repForLevel(level + 1);
   return { level, rep: r, floor, next, progress: (r - floor) / (next - floor) };
+}
+
+/** What makes two builds the same vehicle: car or bike, make, model and year (case and spacing ignored). */
+export function vehicleKey(b: Pick<Build, 'kind' | 'make' | 'model' | 'year'>): string {
+  const n = (t: string) => t.trim().toLowerCase().replace(/\s+/g, ' ');
+  return `${b.kind}|${n(b.make)}|${n(b.model)}|${b.year ?? ''}`;
+}
+
+/** Another of this person's builds that is the same vehicle (for the "already in your garage" warning), if any. */
+export function duplicateBuild<T extends Pick<Build, 'id' | 'ownerId' | 'kind' | 'make' | 'model' | 'year'>>(draft: T, builds: readonly T[]): T | undefined {
+  const k = vehicleKey(draft);
+  return builds.find((b) => b.ownerId === draft.ownerId && b.id !== draft.id && vehicleKey(b) === k);
 }
