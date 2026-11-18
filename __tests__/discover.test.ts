@@ -297,5 +297,7 @@ describe('find summary', () => {
     expect(hitNote({ miles: 12.4, canGo: true, view: { role: 'invited' } }, false)).toBe('about 12 mi from home · you can go');
     expect(hitNote({ miles: 0.5, canGo: false, view: { role: 'requested' } }, true)).toBe('under 1 mi away · requested');
     expect(hitNote({ miles: 30, canGo: false, view: { role: 'none' } }, false)).toBe('about 30 mi from home · request to go');
+    expect(hitNote({ miles: 2, canGo: true, view: { role: 'host' } }, false)).toBe("about 2 mi from home · you're hosting");
+    expect(hitNote({ miles: 2, canGo: true, view: { role: 'going' } }, false)).toBe("about 2 mi from home · you're going");
   });
 });

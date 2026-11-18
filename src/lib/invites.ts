@@ -12,6 +12,14 @@ export const DEFAULT_FILTER: InviteFilter = {
   radiusMiles: 25,
 };
 
+/**
+ * The host's own builds all fall outside this invite (B4: a bikes-only meet hosted from a Golf).
+ * False with no builds, or when it's open to everyone: there's nothing to warn about then.
+ */
+export function hostLeftOut(filter: InviteFilter, hostBuilds: readonly Build[]): boolean {
+  return !filter.everyone && hostBuilds.length > 0 && !hostBuilds.some((b) => buildMatches(b, filter));
+}
+
 export function buildMatches(build: Build, filter: InviteFilter): boolean {
   if (filter.everyone) return true;
   if (build.kind === 'car' && !filter.cars) return false;

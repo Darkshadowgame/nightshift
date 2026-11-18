@@ -183,13 +183,15 @@ export function describeFilters(filters: SearchFilters, fromHere: boolean): stri
 /** The note under a Find result: the distance, then whether you can go (glossary: Request to go, Requested). */
 export function hitNote(hit: Pick<SearchHit, 'miles' | 'canGo'> & { view: Pick<EventView, 'role'> }, fromHere: boolean): string {
   const where = `${describeDistance(hit.miles)}${fromHere ? ' away' : ' from home'}`;
-  const status = hit.canGo
-    ? 'you can go'
-    : hit.view.role === 'requested'
-      ? 'requested'
-      : hit.view.role === 'declined'
-        ? 'a host said no'
-        : 'request to go';
+  // Hosting or going already says so: "you can go" on your own event read as if the invite covered your vehicle (B4).
+  const role = hit.view.role;
+  const status =
+    role === 'host' ? "you're hosting"
+    : role === 'going' ? "you're going"
+    : hit.canGo ? 'you can go'
+    : role === 'requested' ? 'requested'
+    : role === 'declined' ? 'a host said no'
+    : 'request to go';
   return `${where} · ${status}`;
 }
 

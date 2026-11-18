@@ -14,7 +14,7 @@ import { fitRegion } from '../lib/geo';
 import { startFrom, type DayChoice } from '../lib/when';
 import { eventArea } from '../lib/area';
 import { isCrewHost } from '../lib/crews';
-import { DEFAULT_FILTER, invitees } from '../lib/invites';
+import { DEFAULT_FILTER, hostLeftOut, invitees } from '../lib/invites';
 import { nearestRegion } from '../lib/profile';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
@@ -460,6 +460,9 @@ export function EventForm({
             <Txt v="muted">{matchLine}</Txt>
           </Row>
         </Card>
+        {!isPublicType(type) && hostLeftOut(filter, builds.filter((b) => b.ownerId === me)) ? (
+          <Txt v="caption" style={{ color: STATE.warning }}>None of your own builds fits this invite. Check Cars, Bikes, classes and brands above.</Txt>
+        ) : null}
       </Section>
 
       {!isPublicType(type) ? (
