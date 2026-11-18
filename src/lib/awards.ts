@@ -83,8 +83,14 @@ export function candidates(event: NightEvent, builds: Build[]): Build[] {
   return awardBuilds(event, builds);
 }
 
-/** Which categories this event has, given who turned up. */
-export function categoriesFor(event: NightEvent, builds: Build[]): AwardCategory[] {
+/** The demo asks for at most this many trophies per meet (REVIEW-10: eight was a chore). */
+export const DEMO_TROPHIES = 4;
+
+/** Trophies only one kind can win (REVIEW-10: a Ninja 400 up for Best stance): stance is a car thing. */
+const CARS_ONLY: AwardCategory[] = ['stance'];
+
+/** Which categories this event has, given who turned up. `max` keeps the first few, in this order. */
+export function categoriesFor(event: NightEvent, builds: Build[], max?: number): AwardCategory[] {
   const cands = candidates(event, builds);
   const cats: AwardCategory[] = ['best-in-show'];
   const cars = cands.filter((b) => b.kind === 'car').length;
@@ -96,15 +102,15 @@ export function categoriesFor(event: NightEvent, builds: Build[]): AwardCategory
       if (cands.filter((b) => classOf(b) === letter).length >= 2) cats.push(`class-${letter}`);
     }
   }
-  cats.push(...STYLE.map((s) => s.key));
-  return cats;
+  cats.push(...STYLE.map((s) => s.key).filter((k) => cars > 0 || !CARS_ONLY.includes(k)));
+  return max ? cats.slice(0, max) : cats;
 }
 
 /** Builds that can win a category. */
 export function eligibleFor(category: AwardCategory, event: NightEvent, builds: Build[]): Build[] {
   const cands = candidates(event, builds);
   if (category === 'best-car') return cands.filter((b) => b.kind === 'car');
-  if (category === 'best-bike') return cands.filter((b) => b.kind === 'bike');
+  if (category === 'best-bike' || CARS_ONLY.includes(category)) return cands.filter((b) => b.kind === (category === 'best-bike' ? 'bike' : 'car'));
   if (category.startsWith('class-')) return cands.filter((b) => classOf(b) === category.slice(6));
   return cands;
 }

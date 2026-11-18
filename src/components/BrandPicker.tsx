@@ -32,10 +32,22 @@ export function BrandPicker({ vehicles, selected, onChange }: { vehicles: BrandK
       <SearchField value={query} onChangeText={setQuery} placeholder="Search every make" accessibilityLabel="Search makes" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
         {options.map((b) => (
-          <Chip key={b} label={b} raw on={false} onPress={() => toggle(b)} />
+          <Chip
+            key={b}
+            label={b}
+            raw
+            on={false}
+            onPress={() => {
+              toggle(b);
+              // Picked: the search has done its job (REVIEW-10: "No make called that" under the make you'd just picked).
+              setQuery('');
+            }}
+          />
         ))}
       </View>
-      {query && options.length === 0 ? <DsText v="caption">No make called that in the list.</DsText> : null}
+      {query.trim() && options.length === 0 && !selected.some((b) => b.toLowerCase().includes(query.trim().toLowerCase())) ? (
+        <DsText v="caption">{`No make called "${query.trim()}". Try another spelling.`}</DsText>
+      ) : null}
     </View>
   );
 }

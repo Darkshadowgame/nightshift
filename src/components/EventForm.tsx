@@ -557,6 +557,7 @@ export function EventForm({
             selected={filter.classes}
             onChange={(next) => setFilter((f) => ({ ...f, classes: next.length === CLASS_LETTERS.length ? [] : next }))}
           />
+          <DsText v="caption">Class S to D is a build's power for its weight: S the quickest, D the gentlest. Pick none for every class.</DsText>
           <ChoiceGroup
             label="Minimum mods"
             options={MOD_CHOICES.map((n) => ({ key: String(n), label: n === 0 ? 'Any' : `${n}+` }))}

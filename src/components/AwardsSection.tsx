@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { allAwards, canVote, categoriesFor, categoryInfo, eligibleFor, nominees, results, votingCloses, type AwardCategory } from '../lib/awards';
+import { allAwards, canVote, categoriesFor, DEMO_TROPHIES, categoryInfo, eligibleFor, nominees, results, votingCloses, type AwardCategory } from '../lib/awards';
 import { carShape } from '../lib/buildShape';
 import { photoSource } from '../lib/photoSource';
 import { classOf } from '../lib/classes';
@@ -23,7 +23,7 @@ import { DynoBadge } from './DynoBadge';
  * then the trophies. `expanded` opens the voting (the event's primary "Vote" does that).
  */
 export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent; expanded?: boolean; onExpand?: () => void }) {
-  const { builds, users, votes, me, vote, events } = useStore();
+  const { builds, users, votes, me, vote, events, backend } = useStore();
   /** Voted trophies fold to one line (REVIEW-8: 7 trophies of the same cards was a long scroll); tap Change to reopen. */
   const [changing, setChanging] = useState<string | null>(null);
   /** Trophies opened to every build that turned up. */
@@ -76,7 +76,8 @@ export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent
   }
 
   const check = canVote(event, me, now);
-  const cats = categoriesFor(event, builds);
+  // The demo asks for four at most (REVIEW-10); signed in, every trophy the meet has.
+  const cats = categoriesFor(event, builds, backend === 'local' ? DEMO_TROPHIES : undefined);
   // Best newcomer is for people who haven't won a trophy yet (REVIEW-8: this week's Legend was on the list).
   const winners = new Set(allAwards(votes, events.filter((e) => e.id !== event.id), builds, now).map((a) => a.ownerId));
   const optionsFor = (cat: string) =>

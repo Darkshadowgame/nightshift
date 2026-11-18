@@ -102,3 +102,22 @@ describe('nominees (REVIEW-9 decision 8)', () => {
     expect(nominees(list, 0, 3, 'g').map((b) => b.id)).toContain('g');
   });
 });
+
+describe('kind-aware trophies and the demo cap (REVIEW-10)', () => {
+  const { categoriesFor, eligibleFor, DEMO_TROPHIES } = require('../src/lib/awards');
+  const { seed } = require('../src/data/seed');
+  const s = seed(new Date(2026, 10, 18, 20, 0));
+  const meet = s.events.find((e: { id: string }) => e.id === 'ev-meet-now');
+  it('Best stance is for cars only', () => {
+    const stance = eligibleFor('stance', meet, s.builds);
+    expect(stance.length).toBeGreaterThan(0);
+    expect(stance.every((b: { kind: string }) => b.kind === 'car')).toBe(true);
+    expect(eligibleFor('best-in-show', meet, s.builds).some((b: { kind: string }) => b.kind === 'bike')).toBe(true);
+  });
+  it('the demo asks for four trophies at most, best in show first', () => {
+    const cats = categoriesFor(meet, s.builds, DEMO_TROPHIES);
+    expect(cats.length).toBeLessThanOrEqual(4);
+    expect(cats[0]).toBe('best-in-show');
+    expect(categoriesFor(meet, s.builds).length).toBeGreaterThan(4);
+  });
+});

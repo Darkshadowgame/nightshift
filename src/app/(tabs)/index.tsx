@@ -609,7 +609,10 @@ export default function TonightScreen() {
   const [headerH, setHeaderH] = useState(120);
   const sheetY = useSharedValue(screen.height);
   const sheetTop = SPACING.sm;
-  const tops = detentTops(box.h, headerH, sheetTop);
+  // Lowered, the sheet never takes more than about 40% of the screen, and never reaches the map's
+  // buttons (REVIEW-10 decision 8). 176 is the button stack's height before it has been measured.
+  const peekCap = Math.max(120, Math.round(Math.min(screen.height * 0.4, (box.h || screen.height) - 176 - SPACING.lg)));
+  const tops = detentTops(box.h, Math.min(headerH, peekCap), sheetTop);
   // A location note: open the sheet so it's read.
   useEffect(() => {
     if (locNote) setDetent((d) => (d === 'peek' ? 'half' : d));
@@ -722,18 +725,34 @@ export default function TonightScreen() {
   const showNote = (cams && (!cams.tooWide || camerasAsked)) || shopView || openDataCredit;
 
   /** The first-run card: tonight's pick and "I'm going" with the car you just added (or add one first). */
+  const introLine = introBuild ? `Say you're going, with your ${introBuild.make} ${introBuild.model}. Then check in when you get there.` : 'Open to anyone. Say you’re going, then check in when you get there.';
   const introCard =
     intro && pick ? (
       <View style={st.intro} accessibilityLiveRegion="polite">
         <DsText v="eyebrow" tone="action" accessibilityRole="header">
           Start here
         </DsText>
-        <DsText v="secondary">
-          {introBuild ? `Say you're going, with your ${introBuild.make} ${introBuild.model}. Then check in when you get there.` : 'Open to anyone. Say you’re going, then check in when you get there.'}
-        </DsText>
+        <DsText v="secondary">{introLine}</DsText>
         <EventEntityCard view={pick} now={now} miles={milesTo(pick)} milesFrom={milesFrom} onPress={() => openEvent(pick.event.id)} />
         <Button label="I'm going" size="lg" block busy={joining} haptic="success" onPress={() => goWithMyCar(pick)} />
         <Button label="Not now" tier="tertiary" size="sm" onPress={() => setIntro(null)} style={{ alignSelf: 'center' }} />
+      </View>
+    ) : null;
+  /**
+   * The same pick, compact, as the map sheet's lowered header (REVIEW-10 decision 8: on an SE the
+   * full card took three quarters of the screen and covered the map buttons).
+   */
+  const introHeader =
+    intro && pick ? (
+      <View style={st.intro} accessibilityLiveRegion="polite">
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 }}>
+          <DsText v="eyebrow" tone="action" accessibilityRole="header">
+            Start here
+          </DsText>
+          <Button label="Not now" tier="tertiary" size="sm" onPress={() => setIntro(null)} />
+        </View>
+        <LeadRow lead={pick} now={now} miles={milesTo(pick)} onPress={() => openEvent(pick.event.id)} />
+        <Button label="I'm going" block busy={joining} haptic="success" onPress={() => goWithMyCar(pick)} accessibilityHint={introLine} />
       </View>
     ) : null;
 
@@ -841,7 +860,7 @@ export default function TonightScreen() {
               y={sheetY}
               height={box.h}
               top={sheetTop}
-              peek={headerH}
+              peek={Math.min(headerH, peekCap)}
               detent={detent}
               onDetent={setDetent}
               label={sel ? sel.title : `${dayWord(now)} near you`}
@@ -878,16 +897,19 @@ export default function TonightScreen() {
                     ) : null}
                     {sel.open ? <Button label={sel.cta ?? 'Open'} onPress={sel.open} block /> : null}
                   </View>
-                ) : introCard ? (
+                ) : introHeader ? (
                   // First run: the pick and "I'm going" are the sheet's header, so they show lowered too.
-                  <View style={st.header}>{introCard}</View>
+                  <View style={st.header}>{introHeader}</View>
                 ) : (
                   <View style={st.header}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
                       <DsText v="eyebrow" tone="action" accessibilityRole="header">
                         {`${dayWord(now)} near you`}
                       </DsText>
-                      {tonightCount > 0 ? <DsText v="meta">{`${tonightCount} ${dayWord(now).toLowerCase()}`}</DsText> : null}
+                      {/* REVIEW-10 decision 8: never "2 today" over a list of one. The rest are one tap up. */}
+                      {todayLead && tonightCount > 1 ? (
+                        <Button label={`${tonightCount - 1} more ${dayWord(now).toLowerCase()}`} tier="tertiary" size="sm" onPress={() => setDetent('half')} accessibilityLabel={`Show ${tonightCount - 1} more on ${dayWord(now).toLowerCase()}`} />
+                      ) : null}
                     </View>
                     {todayLead ? (
                       <LeadRow lead={todayLead} now={now} miles={milesTo(todayLead)} onPress={() => show(`ev:${todayLead.event.id}`)} />

@@ -10,6 +10,7 @@ import {
   Avatar,
   BuildThumb,
   Button,
+  Card,
   ConfirmSheet,
   displayHandle,
   DsText,
@@ -316,7 +317,7 @@ export default function EventScreen() {
     ? ev.type === 'cruise'
       ? ev.stops[0].name
       : `At ${currentStop.name}`
-    : `${ev.areaName} · ${(going || host) && unlockAt > now ? LOCATION.showsAt(formatTime(unlockAt.toISOString())).toLowerCase() : LOCATION.hidden}`;
+    : ev.areaName;
   const checkedIn = Object.values(ev.checkIns).filter((x) => x.length > 0).length;
   const roleText = roleLabel(role, ev.filter);
   const status =
@@ -335,12 +336,55 @@ export default function EventScreen() {
     : [
         phase === 'live' ? { label: 'Ends in', value: countdown(ev.endsAt ?? new Date(new Date(ev.startsAt).getTime() + 3 * 3600_000).toISOString(), now), tone: 'live' } : { label: 'Starts in', value: countdown(ev.startsAt, now) },
         phase === 'live' ? { label: 'Checked in', value: `${checkedIn}/${ev.going.length}` } : { label: 'Going', value: String(ev.going.length) },
-        ev.type === 'rolling' || ev.type === 'cruise'
-          ? { label: ev.type === 'cruise' ? 'Points' : 'Point', value: ev.type === 'cruise' ? String(ev.stops.length) : `${ev.currentStop + 1} of ${ev.stops.length}` }
-          : !isPublicType(ev.type) && unlockAt > now
-            ? { label: 'Location in', value: countdown(unlockAt, now) }
-            : { label: 'Location', value: currentVisible ? LOCATION.shown : LOCATION.hiddenValue },
+        // The location is said once, in the Meet point card below (REVIEW-10 decision 7), not in a tile.
+        ...(ev.type === 'rolling' || ev.type === 'cruise'
+          ? [{ label: ev.type === 'cruise' ? 'Points' : 'Point', value: ev.type === 'cruise' ? String(ev.stops.length) : `${ev.currentStop + 1} of ${ev.stops.length}` }]
+          : []),
       ];
+
+  // ---------------------------------------------------------------------------
+  // The location, said once (REVIEW-10 decision 7): the place and Directions once you can see it,
+  // otherwise when it shows and who to.
+  // ---------------------------------------------------------------------------
+  const pointLabel = ev.type === 'cruise' ? 'Start' : ev.type === 'show' ? 'Venue' : ev.type === 'trackday' ? 'Circuit' : 'Meet point';
+  const showDirections = !!navTo && primary.kind !== 'navigate';
+  const locationCard = closed ? null : currentVisible && currentStop ? (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
+        <View style={{ flex: 1, gap: SPACING.xxs }}>
+          <DsText v="label">{ev.type === 'rolling' ? `${pointLabel} ${ev.currentStop + 1} of ${ev.stops.length}` : pointLabel}</DsText>
+          <DsText v="title" numberOfLines={2}>
+            {(ev.type === 'cruise' ? ev.stops[0]?.name : currentStop.name) || pointLabel}
+          </DsText>
+        </View>
+        {showDirections && navTo ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navTo.at} toName={navTo.name} otherAppsNote={navToNote} kind="secondary" label="Directions" /> : null}
+      </View>
+    </Card>
+  ) : !isPublicType(ev.type) ? (
+    <Card>
+      <View style={{ gap: SPACING.xxs }} accessibilityRole="text">
+        <DsText v="label">{pointLabel}</DsText>
+        <DsText v="bodyStrong">
+          {going || host
+            ? !currentStop?.at
+              ? 'The host is still placing it'
+              : unlockAt > now
+                ? `${LOCATION.showsAt(formatTime(unlockAt.toISOString()))}, in ${countdown(unlockAt, now)}`
+                : ev.type === 'rolling'
+                  ? 'Shows when the hosts move on'
+                  : 'Hidden for now'
+            : `${LOCATION.toGoing}. Say you're going to see it.`}
+        </DsText>
+        <DsText v="secondary">
+          {going || host
+            ? `${LOCATION.toGoing}. Until then you see the area, ${ev.areaName}.`
+            : unlockAt > now
+              ? `${LOCATION.lead(ev.revealMinutesBefore)}. Until then everyone sees the area, ${ev.areaName}.`
+              : `Until then you see the area, ${ev.areaName}.`}
+        </DsText>
+      </View>
+    </Card>
+  ) : null;
 
   const hostIds = ev.hostIds;
   const hostLine = [crew ? `${crew.name} crew` : null, hostIds.map((h) => (h === me ? 'you' : userLabel(h))).join(', ')].filter(Boolean).join(' with ');
@@ -525,12 +569,9 @@ export default function EventScreen() {
       break;
     case 'waiting':
       // Locked: a plain state line and a secondary Remind me, never a greyed-out primary (REVIEW-7 problem 5).
+      // The location card above says when it shows; here only Remind me (REVIEW-10 decision 7).
       primaryBlock = (
         <View style={{ gap: SPACING.md }}>
-          <View style={{ gap: SPACING.xxs }} accessibilityRole="text">
-            <DsText v="bodyStrong">{primary.line}</DsText>
-            <DsText v="secondary">{primary.detail}</DsText>
-          </View>
           {new Date(primary.at) > now ? (
             reminded ? (
               <DsText v="caption" accessibilityLiveRegion="polite">
@@ -567,7 +608,6 @@ export default function EventScreen() {
           <DsText v="caption">{`Checking in earns ${REP.attended} rep and lets you vote for the best builds.${skipGps ? ' Demo: location check skipped.' : ''}`}</DsText>
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {checkInLine}
-          {navTo ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navTo.at} toName={navTo.name} otherAppsNote={navToNote} kind="secondary" /> : null}
         </View>
       );
       break;
@@ -615,7 +655,7 @@ export default function EventScreen() {
           sample={isSeedEvent(ev.id)}
           status={status}
           title={ev.title}
-          lines={[`${when.relative} · ${when.absolute}`, `${where}${ev.routeMiles ? ` · ${ev.routeMiles} mi` : ''}`]}
+          lines={[stats.length ? when.absolute : `${when.relative} · ${when.absolute}`, `${where}${ev.routeMiles ? ` · ${ev.routeMiles} mi` : ''}`]}
         >
           <Press
             onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
@@ -641,6 +681,7 @@ export default function EventScreen() {
         </DetailHero>
 
         {stats.length ? <StatBlock stats={stats} /> : null}
+        {locationCard}
 
         {primaryBlock ? <View style={{ gap: SPACING.md }}>{primaryBlock}</View> : null}
         {/* Leaving is one tap away, not only in the ··· menu (REVIEW-8). */}
@@ -793,23 +834,11 @@ export default function EventScreen() {
             />
             {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
           </MediaFrame>
-          {!anyVisible && !closed ? (
-            <DsText v="secondary">
-              {going || host
-                ? unlockAt > now
-                  ? `${LOCATION.showsAt(formatTime(unlockAt.toISOString()))} (in ${countdown(unlockAt, now)}). Until then you see the area, ${ev.areaName}.`
-                  : `You see the area, ${ev.areaName}.`
-                : phase === 'live' || unlockAt <= now
-                  ? `${LOCATION.toGoing}. Say you're going to see it.`
-                  : `${LOCATION.toGoing}, ${LOCATION.lead(ev.revealMinutesBefore).replace(/^Location shows /, '')}. Until then everyone sees the area.`}
-            </DsText>
-          ) : null}
           <View>
             {visibleStops.map(({ st, i, visible }) => {
               const done = myCheckIns.includes(st.id);
               const isCurrent = ev.type === 'rolling' && i === ev.currentStop;
-              // A hidden point says why in plain words, and never in the past tense while it's still hidden.
-              const revealsLater = revealTime(ev) > now;
+              const stopName = (n: number) => (ev.type === 'rolling' ? `Meet point ${n + 1}` : ev.type === 'cruise' ? (n === 0 ? 'Start' : n === ev.stops.length - 1 ? 'Finish' : `Regroup ${n}`) : pointLabel);
               const title = visible
                 ? st.name
                 : !st.at
@@ -818,11 +847,8 @@ export default function EventScreen() {
                     ? 'Shows when the hosts move on'
                     : ev.type === 'rolling' && i < ev.currentStop
                       ? 'Already left'
-                      : (going || host) && revealsLater
-                        ? LOCATION.showsAt(formatTime(revealTime(ev).toISOString()))
-                        : going || host
-                          ? 'Location hidden'
-                          : LOCATION.toGoing;
+                      : // Said once in the card at the top (REVIEW-10 decision 7); the lock says hidden here.
+                        stopName(i);
               return (
                 <View key={st.id}>
                   {i > 0 ? <RowDivider inset /> : null}
