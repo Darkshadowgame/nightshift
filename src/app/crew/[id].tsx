@@ -1,20 +1,38 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { ReportLink } from '../../components/Community';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { EventCard } from '../../components/EventCard';
-import { LevelTag, useRepFor } from '../../components/Rep';
-import { UserLink } from '../../components/UserLink';
-import { Button, Card, ClassBadge, ConfirmBox, EmptyState, InlineError, NotFound, Row, Section, Tag, Txt } from '../../components/ui';
+import { openReport } from '../../components/Community';
+import { DetailHero, NotFoundState, PAGE } from '../../components/Detail';
+import {
+  Button,
+  ConfirmSheet,
+  displayHandle,
+  DsText,
+  EmptyState,
+  EntityCard,
+  ErrorState,
+  ListRow,
+  RowDivider,
+  screenHeader,
+  Section,
+  Sheet,
+  SheetOption,
+  StatBlock,
+  Tag,
+} from '../../components/ds';
+import { useRepFor } from '../../components/Rep';
 import { classOf } from '../../lib/classes';
-import { crewEvents, crewHostLoss, crewless, crewRole, isCrewHost } from '../../lib/crews';
-import { viewEvent } from '../../lib/eventView';
-import { levelFor } from '../../lib/rep';
-import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
-import { BRAND, C } from '../../theme';
+import { crewEvents, crewHostLoss, crewless, crewRole, isCrewHost } from '../../lib/crews';
+import { EVENT_LABELS } from '../../lib/events';
+import { viewEvent, type EventView } from '../../lib/eventView';
+import { whenLine } from '../../lib/eventAction';
+import { plural } from '../../lib/format';
+import { roleLabel } from '../../lib/glossary';
+import { useStore } from '../../lib/store';
+import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
 
-/** A crew: members, the events it hosts, combined rep, join or leave. */
+/** A crew: the same anatomy as an event or place. Hero, stats, one primary, then members and events. */
 export default function CrewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const store = useStore();
@@ -25,9 +43,9 @@ export default function CrewScreen() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmJoin, setConfirmJoin] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The header stays blank, like every detail screen: the card below carries the name and tag.
   const members = useMemo(
     () =>
       (crew?.memberIds ?? [])
@@ -37,7 +55,7 @@ export default function CrewScreen() {
     [crew, users, repFor],
   );
 
-  if (!crew) return <NotFound what="Crew" message="This crew no longer exists." />;
+  if (!crew) return <NotFoundState what="Crew" message="This crew no longer exists." />;
 
   const meUser = users.find((u) => u.id === me);
   const member = crew.memberIds.includes(me);
@@ -57,6 +75,7 @@ export default function CrewScreen() {
   const free = canAdd ? crewless({ crews, users }, [me]) : [];
   // Adding people straight in is the demo's; signed in, it needs an invite they accept (not built yet).
   const demo = store.backend === 'local';
+  const yourRole = owner ? 'Owner' : canHost ? 'Host' : 'Member';
 
   async function act(fn: () => void | Promise<void>) {
     setError(null);
@@ -65,171 +84,220 @@ export default function CrewScreen() {
       setConfirmLeave(false);
       setConfirmJoin(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'That did not work.');
+      setError(e instanceof Error ? e.message : "Couldn't do that.");
     }
   }
 
+  const buildOf = (uid: string) => builds.find((x) => x.ownerId === uid);
+  const handle = (uid: string) => (uid === me ? 'You' : displayHandle(users.find((u) => u.id === uid)?.handle ?? uid));
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 48 }}>
-      <Card accent={BRAND}>
-        <Txt v="eyebrow">Crew</Txt>
-        <Row>
-          <Txt v="h1">{crew.name}</Txt>
-          <Txt v="h2" style={{ color: C.chalk }}>[{crew.tag}]</Txt>
-        </Row>
-        <Row gap={16}>
-          <Txt v="mono">{crew.memberIds.length} MEMBER{crew.memberIds.length === 1 ? '' : 'S'}</Txt>
-          <Txt v="mono">{evs.length} EVENT{evs.length === 1 ? '' : 'S'}</Txt>
-          <Txt v="mono" style={{ color: BRAND }}>{combined.toLocaleString('en-GB')} REP COMBINED</Txt>
-          <LevelTag level={levelFor(members.length ? combined / members.length : 0).level} />
-        </Row>
-        <Txt v="caption">The level is for the average member. The owner and hosts run crew events; the owner picks the hosts.</Txt>
-        {member ? <Txt v="mono" style={{ color: C.chalk }}>YOU: {owner ? 'OWNER' : canHost ? 'HOST' : 'MEMBER'}</Txt> : null}
-      </Card>
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
+      <Stack.Screen options={screenHeader({ onMenu: () => setMenu(true) })} />
+      <DetailHero
+        kind={`Crew · ${crew.tag}`}
+        status={member ? { label: `You: ${yourRole}`, tone: 'success' } : null}
+        title={crew.name}
+        lines={[`${crew.ownerId ? `Owner ${handle(crew.ownerId)}` : 'No owner'}${crew.hostIds?.length ? ` · hosts ${crew.hostIds.map(handle).join(', ')}` : ''}`]}
+      >
+        <DsText v="secondary">The owner and hosts run crew events; the owner picks the hosts.</DsText>
+      </DetailHero>
+
+      <StatBlock
+        stats={[
+          { label: 'Members', value: String(crew.memberIds.length) },
+          { label: 'Events', value: String(evs.length) },
+          { label: 'Rep', value: combined.toLocaleString('en-GB') },
+        ]}
+      />
+
       {member ? (
-        confirmLeave ? (
-          <ConfirmBox
-            message={[
-              `Leave ${crew.name}?`,
-              owner && crew.memberIds.length > 1 ? 'A host (or the longest-standing member) takes over as owner.' : null,
-              losingText,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            verb="Leave"
-            confirmLabel="Leave crew"
-            onConfirm={() => act(store.leaveCrew)}
-            onCancel={() => setConfirmLeave(false)}
-            error={error}
-          />
-        ) : (
-          <>
-            <Button label="Leave crew" kind="secondary" onPress={() => setConfirmLeave(true)} />
-            <InlineError message={error} />
-          </>
-        )
-      ) : confirmJoin && losingText ? (
-        <ConfirmBox
-          message={`${losingText}${otherCrew ? ` You'll also leave ${otherCrew.name}.` : ''}`}
-          verb="Join"
-          confirmLabel={`Join ${crew.name}`}
-          destructive={false}
-          onConfirm={() => act(() => store.joinCrew(crew.id))}
-          onCancel={() => setConfirmJoin(false)}
-          error={error}
-        />
+        canHost ? (
+          <Button label="Host a crew event" size="lg" block onPress={() => router.push('/event/new')} />
+        ) : null
       ) : (
-        <View style={{ gap: 8 }}>
-          <Button label={`Join ${crew.name}`} onPress={() => (losingText ? setConfirmJoin(true) : act(() => store.joinCrew(crew.id)))} />
-          <InlineError message={error} />
-          <Txt v="caption">
+        <View style={{ gap: SPACING.sm }}>
+          <Button label={`Join ${crew.name}`} size="lg" block haptic="success" onPress={() => (losingText || otherCrew ? setConfirmJoin(true) : act(() => store.joinCrew(crew.id)))} />
+          {error ? <ErrorState title={error} /> : null}
+          <DsText v="caption">
             You join as a member. The owner can make you a host later.
             {otherCrew ? ` You'll leave ${otherCrew.name}: you can be in one crew at a time.` : ''}
-          </Txt>
+          </DsText>
         </View>
       )}
 
       <Section title={`Members (${members.length})`}>
-        <Card>
-          {members.length === 0 ? <Txt v="muted">No members yet.</Txt> : null}
-          {members.map(({ user, rep }) => {
+        {members.length === 0 ? <EmptyState variant="inline" title="No members yet." /> : null}
+        <View>
+          {members.map(({ user, rep }, i) => {
             const uid = user!.id;
-            const b = builds.find((x) => x.ownerId === uid);
+            const b = buildOf(uid);
             const role = crewRole(crew, uid);
             return (
-              <View key={uid} style={{ gap: 6 }}>
-                <UserLink id={uid} label={`Open @${user!.handle}`}>
-                  <Row style={{ flexWrap: 'nowrap' }} gap={10}>
-                    {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
-                    <View style={{ flex: 1 }}>
-                      <Txt numberOfLines={1}>
-                        {uid === me ? 'You' : `@${user!.handle}`}
-                      </Txt>
-                      {role !== 'member' ? <Tag label={role === 'owner' ? 'Owner' : 'Host'} tone="brand" /> : null}
-                      <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model}` : 'No build yet'}</Txt>
-                    </View>
-                    <LevelTag level={rep.level.level} />
-                  </Row>
-                </UserLink>
-                {owner && uid !== me ? (
-                  <Button
-                    label={role === 'host' ? 'Remove as host' : 'Make host'}
-                    kind="secondary"
-                    size="sm"
-                    accessibilityLabel={`${role === 'host' ? 'Remove' : 'Make'} @${user!.handle} ${role === 'host' ? 'as host' : 'a host'}`}
-                    onPress={() => act(() => store.setCrewHost(crew.id, uid, role !== 'host'))}
-                  />
-                ) : null}
+              <View key={uid}>
+                {i > 0 ? <RowDivider inset /> : null}
+                <ListRow
+                  leading={{ avatar: { name: user!.name, handle: user!.handle } }}
+                  title={handle(uid)}
+                  subtitle={b ? `${b.make} ${b.model} · Class ${classOf(b)}` : 'No car or bike yet'}
+                  meta={`Level ${rep.level.level} · ${rep.ledger.total.toLocaleString('en-GB')} rep`}
+                  trailing={role !== 'member' ? <Tag label={role === 'owner' ? 'Owner' : 'Host'} /> : undefined}
+                  onPress={() => router.push({ pathname: '/user/[id]', params: { id: uid } })}
+                />
               </View>
             );
           })}
-        </Card>
+        </View>
       </Section>
+
+      {owner && members.length > 1 ? (
+        <Section title="Crew hosts">
+          <DsText v="secondary">Hosts can host, move on and edit crew events.</DsText>
+          <View>
+            {members
+              .filter((m) => m.user!.id !== me)
+              .map(({ user }, i) => {
+                const uid = user!.id;
+                const host = crewRole(crew, uid) === 'host';
+                return (
+                  <View key={uid}>
+                    {i > 0 ? <RowDivider inset /> : null}
+                    <ListRow
+                      leading={{ avatar: { name: user!.name, handle: user!.handle } }}
+                      title={handle(uid)}
+                      subtitle={host ? 'Host' : 'Member'}
+                      trailing={
+                        <Button
+                          label={host ? 'Remove' : 'Make host'}
+                          tier={host ? 'destructive' : 'secondary'}
+                          size="sm"
+                          accessibilityLabel={`${host ? 'Remove' : 'Make'} ${handle(uid)} ${host ? 'as host' : 'a host'}`}
+                          onPress={() => act(() => store.setCrewHost(crew.id, uid, !host))}
+                        />
+                      }
+                    />
+                  </View>
+                );
+              })}
+          </View>
+        </Section>
+      ) : null}
 
       {canAdd ? (
         <Section title="Bring people in">
-          <Card>
-            <Txt v="muted">
-              {demo
-                ? 'Demo: sample people who aren’t in a crew join straight away. Signed in, this becomes an invite they accept.'
-                : 'Coming soon: invites people accept. For now, people join from this page themselves.'}
-            </Txt>
-            {demo && picking ? (
-              free.length === 0 ? (
-                <Txt v="muted">Everyone in the demo is in a crew already.</Txt>
-              ) : (
-                free.map((u) => {
-                  const b = builds.find((x) => x.ownerId === u.id);
-                  return (
-                    <Row key={u.id} style={{ flexWrap: 'nowrap' }} gap={10}>
-                      {b ? <ClassBadge letter={classOf(b)} size="sm" /> : <View style={{ width: 22 }} />}
-                      <View style={{ flex: 1 }}>
-                        <Txt numberOfLines={1}>@{u.handle}</Txt>
-                        <Txt v="muted" numberOfLines={1}>{b ? `${b.make} ${b.model}` : 'No build yet'} · {u.region}</Txt>
-                      </View>
-                      <Button
-                        label="Add"
-                        kind="secondary"
-                        size="sm"
-                        accessibilityLabel={`Add @${u.handle} to ${crew.name}`}
-                        onPress={() => act(() => store.addToCrew(crew.id, u.id))}
-                      />
-                    </Row>
-                  );
-                })
-              )
-            ) : null}
-            {demo ? (
-              <Button label={picking ? 'Done' : 'Invite members'} kind="secondary" onPress={() => setPicking((x) => !x)} />
+          <DsText v="secondary">
+            {demo ? 'Demo: sample people who aren’t in a crew join straight away. Signed in, this becomes an invite they accept.' : 'Coming soon: invites people accept. For now, people join from this page themselves.'}
+          </DsText>
+          {demo && picking ? (
+            free.length === 0 ? (
+              <EmptyState variant="inline" title="Everyone in the demo is in a crew already." />
             ) : (
-              <Button label="Invite members · coming soon" kind="secondary" disabled onPress={() => undefined} />
-            )}
-          </Card>
+              <View>
+                {free.map((u, i) => {
+                  const b = buildOf(u.id);
+                  return (
+                    <View key={u.id}>
+                      {i > 0 ? <RowDivider inset /> : null}
+                      <ListRow
+                        leading={{ avatar: { name: u.name, handle: u.handle } }}
+                        title={displayHandle(u.handle)}
+                        subtitle={`${b ? `${b.make} ${b.model}` : 'No car or bike yet'} · ${u.region}`}
+                        trailing={<Button label="Add" tier="secondary" size="sm" accessibilityLabel={`Add ${displayHandle(u.handle)} to ${crew.name}`} onPress={() => act(() => store.addToCrew(crew.id, u.id))} />}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            )
+          ) : null}
+          {demo ? (
+            <Button label={picking ? 'Done' : 'Invite members'} tier="secondary" block onPress={() => setPicking((x) => !x)} />
+          ) : (
+            <Button label="Invite members" tier="secondary" block disabled hint="Coming soon" onPress={() => undefined} />
+          )}
         </Section>
       ) : null}
 
       <Section title={`Crew events (${upcoming.length})`}>
         {upcoming.length === 0 ? (
           <EmptyState
-            title="Nothing coming up"
-            body={canHost ? 'Host one and make it a crew event.' : 'Crew events show here when the owner or a host posts one.'}
-            {...(canHost ? { action: { label: 'Host an event', onPress: () => router.push('/event/new') } } : {})}
+            variant="inline"
+            title={canHost ? 'Nothing coming up. Host one and make it a crew event.' : 'Nothing coming up. Crew events show here when the owner or a host posts one.'}
           />
         ) : null}
         {upcoming.map((v) => (
-          <EventCard key={v.event.id} view={v} now={now} />
+          <EventEntity key={v.event.id} view={v} now={now} />
         ))}
-        {canHost && upcoming.length ? <Button label="Host an event" kind="secondary" onPress={() => router.push('/event/new')} /> : null}
       </Section>
 
       {past.length > 0 ? (
         <Section title={`Past (${past.length})`}>
           {past.map((v) => (
-            <EventCard key={v.event.id} view={v} now={now} />
+            <EventEntity key={v.event.id} view={v} now={now} />
           ))}
         </Section>
       ) : null}
-      {!member ? <ReportLink target="crew" id={crew.id} what="crew" /> : null}
+
+      <Sheet visible={menu} title="Crew options" onClose={() => setMenu(false)}>
+        <View>
+          {member ? (
+            <SheetOption
+              label="Leave crew"
+              destructive
+              onPress={() => {
+                setMenu(false);
+                setConfirmLeave(true);
+              }}
+            />
+          ) : (
+            <SheetOption
+              label="Report this crew"
+              onPress={() => {
+                setMenu(false);
+                openReport('crew', crew.id, undefined, 'crew');
+              }}
+            />
+          )}
+        </View>
+      </Sheet>
+      <ConfirmSheet
+        visible={confirmLeave}
+        title="Leave crew"
+        message={[`Leave ${crew.name}?`, owner && crew.memberIds.length > 1 ? 'A host (or the longest-standing member) takes over as owner.' : null, losingText, error].filter(Boolean).join(' ')}
+        verb="Leave"
+        onConfirm={() => act(store.leaveCrew)}
+        onCancel={() => setConfirmLeave(false)}
+      />
+      <ConfirmSheet
+        visible={confirmJoin}
+        title={`Join ${crew.name}`}
+        message={[losingText, otherCrew ? `You'll leave ${otherCrew.name}: you can be in one crew at a time.` : null, error].filter(Boolean).join(' ')}
+        verb="Join"
+        destructive={false}
+        onConfirm={() => act(() => store.joinCrew(crew.id))}
+        onCancel={() => setConfirmJoin(false)}
+      />
     </ScrollView>
+  );
+}
+
+/** A crew event on the browse anatomy: kind, title, when, area, your role. */
+function EventEntity({ view, now }: { view: EventView; now: Date }) {
+  const e = view.event;
+  const when = whenLine(e, now);
+  const role = roleLabel(view.role);
+  return (
+    <EntityCard
+      kind="event"
+      eyebrow={EVENT_LABELS[e.type]}
+      layerColour={EVENT_COLOURS[e.type]}
+      mark={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
+      title={e.title}
+      status={view.phase === 'live' ? { label: 'Live', tone: 'live' } : role && view.phase !== 'over' ? { label: role, tone: view.role === 'going' ? 'success' : 'neutral' } : undefined}
+      meta={[when.absolute, plural(e.going.length, 'going')].join(' · ')}
+      detail={e.areaName}
+      finished={view.phase === 'over' || view.phase === 'cancelled'}
+      onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
+    />
   );
 }
