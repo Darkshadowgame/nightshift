@@ -48,8 +48,9 @@ describe('moderation (mirrors private.text_problem)', () => {
     expect(normaliseForWords('Sh1t')).toBe('shit');
   });
   it('catches listed words on whole words only', () => {
-    expect(textProblem('what a cunt')).toBe(TEXT_PROBLEMS.words);
-    expect(textProblem('C.U.N.T')).toBe(TEXT_PROBLEMS.words);
+    expect(textProblem('what a slut')).toBe(TEXT_PROBLEMS.words);
+    expect(textProblem('this is shit, it is fucked, a bit wanky, what a cunt')).toBeNull();
+    expect(textProblem('S.L.U.T')).toBe(TEXT_PROBLEMS.words);
     expect(textProblem("My turbo's fucked")).toBeNull();
     expect(textProblem('Scunthorpe meet was good')).toBeNull();
     expect(textProblem('Small niggle with the gearbox')).toBeNull();
