@@ -5,7 +5,10 @@ import MapKit
 
 /// Driving directions and spoken instructions for the in-app driving view.
 /// - `route` asks Apple MapKit for driving directions leg by leg through the points, in order.
-///   Only coordinates are sent: no names, addresses, account or event details.
+///   Only coordinates are sent: no names, addresses, account or event details. Times are for
+///   leaving now, so they include Apple's live traffic.
+/// - `routeAlternatives` (build 15): up to three routes from one point to another, each with its
+///   name, advisory notices and whether it has tolls or motorways, for the route preview.
 /// - `speak` / `stopSpeaking` read instructions out, ducking other audio: the voice picked in
 ///   Settings, or the best installed en-GB voice (premium > enhanced > default).
 /// - `voices` lists the installed English voices for that picker.
@@ -49,6 +52,33 @@ public class NavDirectionsModule: Module {
       }
     }
 
+    // Build 15: route options for the preview (two points only), leaving now.
+    AsyncFunction("routeAlternatives") { (points: [[String: Double]], maxAttempts: Int, promise: Promise) in
+      let coords: [NavCoord] = points.compactMap { p in
+        guard let lat = p["lat"], let lng = p["lng"] else { return nil }
+        return NavCoord(lat: lat, lng: lng)
+      }
+      if coords.count != 2 {
+        promise.reject("ERR_NAV_POINTS", "Route options need exactly two points.")
+        return
+      }
+      let a = coords[0]
+      let b = coords[1]
+      let attempts = max(1, min(maxAttempts, 8))
+      Task {
+        do {
+          let routes = try await NavRouter.retrying(maxAttempts: attempts) {
+            try await NavRouter.calculateAll(from: a, to: b)
+          }
+          promise.resolve(NavRouter.options(routes))
+        } catch let e as NavRouteError {
+          promise.reject(e.code, e.message)
+        } catch {
+          promise.reject("ERR_NAV_ROUTE", error.localizedDescription)
+        }
+      }
+    }
+
     AsyncFunction("speak") { (text: String, language: String, rate: Double, respectSilentSwitch: Bool, voice: String?) -> Bool in
       self.speaker.speak(text, language: language, rate: Float(rate), respectSilentSwitch: respectSilentSwitch, voiceId: voice)
       return true
@@ -61,6 +91,7 @@ public class NavDirectionsModule: Module {
           "name": v.name,
           "language": v.language,
           "quality": NavSpeaker.qualityName(v.quality),
+          "gender": NavSpeaker.genderName(v.gender),
         ]
       }
     }.runOnQueue(.main)
@@ -122,6 +153,15 @@ struct NavLegOut: Sendable {
   let steps: [NavStepOut]
 }
 
+/// One of Apple's route options, with what the preview shows about it.
+struct NavRouteOut: Sendable {
+  let leg: NavLegOut
+  let name: String
+  let advisories: [String]
+  let hasTolls: Bool
+  let hasHighways: Bool
+}
+
 struct NavRouteError: Error {
   let code: String
   let message: String
@@ -167,12 +207,19 @@ enum NavRouter {
 
   /// One leg, retried with backoff when Apple throttles requests or the network blips.
   static func leg(from a: NavCoord, to b: NavCoord, maxAttempts: Int) async throws -> NavLegOut {
+    return try await retrying(maxAttempts: maxAttempts) {
+      try await NavRouter.calculate(from: a, to: b)
+    }
+  }
+
+  /// Runs a directions request, retrying with backoff when Apple throttles or the network blips.
+  static func retrying<T: Sendable>(maxAttempts: Int, _ op: @escaping @Sendable () async throws -> T) async throws -> T {
     var attempt = 0
     var delayNs: UInt64 = 1_500_000_000
     while true {
       attempt += 1
       do {
-        return try await NavRouter.calculate(from: a, to: b)
+        return try await op()
       } catch let e as NavRouteError {
         throw e
       } catch {
@@ -199,25 +246,74 @@ enum NavRouter {
     }
   }
 
+  /// A driving request between two points, leaving now (so Apple's times include live traffic).
   @MainActor
-  static func calculate(from a: NavCoord, to b: NavCoord) async throws -> NavLegOut {
+  static func request(from a: NavCoord, to b: NavCoord) -> MKDirections.Request {
     let request = MKDirections.Request()
     // Coordinates only: no names or addresses go to Apple.
     request.source = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: a.lat, longitude: a.lng)))
     request.destination = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: b.lat, longitude: b.lng)))
     request.transportType = .automobile
     request.requestsAlternateRoutes = false
-    let directions = MKDirections(request: request)
+    request.departureDate = Date()
+    return request
+  }
+
+  @MainActor
+  static func calculate(from a: NavCoord, to b: NavCoord) async throws -> NavLegOut {
+    let directions = MKDirections(request: request(from: a, to: b))
     let response = try await directions.calculate()
     guard let route = response.routes.first else {
       throw NavRouteError(code: "ERR_NAV_NO_ROUTE", message: "Apple Maps couldn't find a driving route between two of the points.")
     }
+    return legOut(route, start: a)
+  }
+
+  /// Up to three of Apple's routes from a to b, best first.
+  @MainActor
+  static func calculateAll(from a: NavCoord, to b: NavCoord) async throws -> [NavRouteOut] {
+    let req = request(from: a, to: b)
+    req.requestsAlternateRoutes = true
+    let response = try await MKDirections(request: req).calculate()
+    if response.routes.isEmpty {
+      throw NavRouteError(code: "ERR_NAV_NO_ROUTE", message: "Apple Maps couldn't find a driving route between the two points.")
+    }
+    return response.routes.prefix(3).map { r in
+      var tolls = false
+      var highways = false
+      if #available(iOS 16.0, *) {
+        tolls = r.hasTolls
+        highways = r.hasHighways
+      }
+      return NavRouteOut(leg: legOut(r, start: a), name: r.name, advisories: r.advisoryNotices, hasTolls: tolls, hasHighways: highways)
+    }
+  }
+
+  /// A route as one leg: its line, steps (each at its first point), length and time.
+  @MainActor
+  static func legOut(_ route: MKRoute, start a: NavCoord) -> NavLegOut {
     let coords = coordinates(of: route.polyline)
     let steps: [NavStepOut] = route.steps.map { s in
       let first = s.polyline.pointCount > 0 ? s.polyline.points()[0].coordinate : CLLocationCoordinate2D(latitude: a.lat, longitude: a.lng)
       return NavStepOut(text: s.instructions, notice: s.notice ?? "", distance: s.distance, lat: first.latitude, lng: first.longitude)
     }
     return NavLegOut(coords: coords, distance: route.distance, time: route.expectedTravelTime, steps: steps)
+  }
+
+  /// The answer for routeAlternatives: the first route in the old shape, plus `routes`, all of them.
+  static func options(_ routes: [NavRouteOut]) -> [String: Any] {
+    var list: [[String: Any]] = []
+    for r in routes {
+      var one = combine([r.leg])
+      one["name"] = r.name
+      one["advisoryNotices"] = r.advisories
+      one["hasTolls"] = r.hasTolls
+      one["hasHighways"] = r.hasHighways
+      list.append(one)
+    }
+    var out: [String: Any] = list.first ?? combine([])
+    out["routes"] = list
+    return out
   }
 
   static func coordinates(of polyline: MKPolyline) -> [NavCoord] {
@@ -326,6 +422,14 @@ final class NavSpeaker: NSObject, AVSpeechSynthesizerDelegate {
     }
   }
 
+  static func genderName(_ g: AVSpeechSynthesisVoiceGender) -> String {
+    switch g {
+    case .male: return "male"
+    case .female: return "female"
+    default: return "unspecified"
+    }
+  }
+
   static func qualityRank(_ q: AVSpeechSynthesisVoiceQuality) -> Int {
     switch q {
     case .premium: return 2
@@ -372,7 +476,14 @@ final class NavSpeaker: NSObject, AVSpeechSynthesizerDelegate {
       chosen = AVSpeechSynthesisVoice(identifier: id)
     }
     utterance.voice = chosen ?? NavSpeaker.bestVoice(language: language) ?? AVSpeechSynthesisVoice(language: language) ?? AVSpeechSynthesisVoice(language: "en-GB")
-    utterance.rate = max(AVSpeechUtteranceMinimumSpeechRate, min(AVSpeechUtteranceMaximumSpeechRate, rate))
+    // The normal speed is Apple's own default rate; Slower and Faster are a little either side.
+    let natural = abs(rate - 0.5) < 0.001 ? AVSpeechUtteranceDefaultSpeechRate : rate
+    utterance.rate = max(AVSpeechUtteranceMinimumSpeechRate, min(AVSpeechUtteranceMaximumSpeechRate, natural))
+    utterance.pitchMultiplier = 1.0
+    // A breath before speaking, so the first word isn't clipped while other audio ducks.
+    utterance.preUtteranceDelay = 0.08
+    // With VoiceOver on, its voice and speed win (what someone using it is used to hearing).
+    utterance.prefersAssistiveTechnologySettings = true
     synth.speak(utterance)
   }
 
