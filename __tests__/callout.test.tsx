@@ -185,8 +185,9 @@ describe('Hero', () => {
     expect(texts(root.container)).toEqual(['Crew', 'Midlands Night Crew', '12 members', 'Around Birmingham']);
   });
   it('DetailHero is a Hero and no longer draws a Sample tag', () => {
+    // The status tag has one place (K3, Review 13): top left of the picture, or first on the kind line.
     const root = render(<DetailHero kind="Meet" sample title="Car park meet-up" lines={['Tonight 22:00']} status={{ label: 'Going', tone: 'success' }} />);
-    expect(texts(root.container)).toEqual(['Meet', 'Going', 'Car park meet-up', 'Tonight 22:00']);
+    expect(texts(root.container)).toEqual(['Going', 'Meet', 'Car park meet-up', 'Tonight 22:00']);
   });
 });
 

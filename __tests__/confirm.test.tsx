@@ -74,10 +74,7 @@ describe('ConfirmSheet is the one confirm', () => {
  * PENDING lists confirms in files another work package owns, until they move to ConfirmSheet.
  * Delete an entry once it's fixed.
  */
-const PENDING: Record<string, string> = {
-  // X (event page): "Can't make it" closes with Cancel and has its own Leave it button.
-  'src/app/event/[id].tsx': "Can't make it",
-};
+const PENDING: Record<string, string> = {};
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
