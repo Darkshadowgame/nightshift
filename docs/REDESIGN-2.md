@@ -946,14 +946,21 @@ Concrete and checkable. Review 11 passes when every line below is true.
 
 ---
 
-## 9. What the owner may need to decide
+## 9. Owner decisions (settled 18 Nov 2026; these win over anything above)
 
-These follow from the plan; each has a default the build uses unless the owner says otherwise.
+The plan's first defaults were checked against what the owner has already asked for. Where they
+clashed, the owner's earlier decisions stand:
 
-1. **Rep and levels hidden** (default: hidden, ledger kept). Bring back later as one "Meets" count if
-   wanted.
-2. **Five style trophies and class trophies hidden** (default: hidden; data kept).
-3. **Court-injunction areas block hosting** (default: block; other orders warn).
-4. **Show and Track day not creatable** (default: hidden in the host form).
-5. **People near you opt-in** (default: off until the user says yes).
-6. **Speed camera alerts hidden** (default: off, no UI).
+1. **Rep and levels:** kept as **one line on Me** ("Level 3 · Regular", tap for the ladder sheet), and
+   the "+150 rep" moment after check-in stays. Hidden everywhere else (cards, profiles, lists).
+2. **Trophies:** Best in show, Best car, Best bike only (as planned). Other trophy data kept, hidden.
+3. **Court-injunction areas warn with a confirm, never block** (owner: ban zones warn, not block). The
+   existing "Publish anyway?" sheet with "Change location" as the main button stays.
+4. **Show and Track day:** not creatable in the host form (as planned).
+5. **People near you:** opt-in (as planned).
+6. **Speed cameras and road reports:** stay in the **driving view only**, off the Tonight map, with
+   their switches in the drive view's `···` menu (owner asked for Waze-style driving). Not in Settings.
+7. **Posts on the map:** the Posts layer stays available in Layers, off by default (owner asked for
+   posts with locations people can see on the map).
+8. **Forum and For sale:** reachable from one row at the top of the Feed (as planned); the owner asked
+   for a forum, so it must stay one tap from Community.
