@@ -11,7 +11,7 @@ import { useStore } from '../lib/store';
 import { CLASS_LETTERS, type ClassLetter, type VehicleKind } from '../lib/types';
 import { SPACING } from '../theme';
 import { at, MEET_ACTION, openProfile, personMark, PersonNearRow } from './Community';
-import { Button, ChipGroup, DsText, EmptyState, ErrorState, ListRow, LoadingState, RowDivider, SegmentedControl, Sheet, Tag, metaLine, selectionSummary } from './ds';
+import { Button, Card, ChipGroup, DsText, EmptyState, ErrorState, ListRow, LoadingState, RowDivider, SegmentedControl, Sheet, SwitchRow, Tag, metaLine, selectionSummary } from './ds';
 import { useRepFor } from './Rep';
 import { levelLabel } from '../lib/rep';
 
@@ -36,6 +36,7 @@ export function CommunityPeople() {
   const [classes, setClasses] = useState<ClassLetter[]>([]);
   const [makes, setMakes] = useState<string[]>([]);
   const [filtering, setFiltering] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
   const near = useCommunityQuery((s) => s.peopleNear(miles), [miles]);
   const list = near.data ?? [];
   const filter: NearFilter = { ...ANY_NEAR, kind: kinds.length === 1 ? kinds[0] : 'all', classes, makes };
@@ -110,6 +111,23 @@ export function CommunityPeople() {
         <EmptyState glyph="community" title="Set your home area first" body="People near you is worked out from your rough home area." action={{ label: 'Edit profile', onPress: () => router.push('/profile') }} />
       ) : (
         <View style={{ gap: SPACING.sm }}>
+          {/* Opt-in (REVIEW-10 #6): off for new people; the switch lives here, where the list is. */}
+          <Card>
+            <SwitchRow
+              label="Show me to drivers near me (rough distance only)"
+              hint={
+                community.showInNearby
+                  ? 'Drivers near you see your builds and "Under 5 mi" or "About 12 mi". Never where you live.'
+                  : "You're hidden. Turn this on to appear here for drivers near you, with a rough distance only."
+              }
+              value={community.showInNearby}
+              onValueChange={(v) => {
+                setSwitchError(null);
+                community.run((s) => s.setShowInNearby(v)).catch((e: unknown) => setSwitchError(e instanceof Error ? e.message : String(e)));
+              }}
+            />
+            {switchError ? <ErrorState title={`Couldn't change that. ${switchError}`} /> : null}
+          </Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
             <DsText v="meta" style={{ flex: 1 }} numberOfLines={2}>
               {metaLine([near.data ? plural(cards.length, 'person', 'people') : null, `within ${miles} mi`, summary])}
@@ -136,7 +154,7 @@ export function CommunityPeople() {
               ))}
             </View>
           )}
-          <DsText v="caption">Distances are rough, from home areas. Nobody sees where anyone lives. You can leave this list in Settings.</DsText>
+          <DsText v="caption">Distances are rough, from home areas. Nobody sees where anyone lives.</DsText>
         </View>
       )}
 

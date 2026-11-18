@@ -38,6 +38,7 @@ in `src/app` or `src/components` outside `ds/` (theme.ts is the only other place
 | `classMetal` | `S A B C D` | Only on `ClassBadge`. |
 | `layer` | `event, show, trackday, photo, drive, track, venue, shop, partner, camera, road, post` | Map and place identity: pins, the layers panel, an entity's kind eyebrow and accent bar. Never on chips, section titles or buttons. |
 | `avatar` | `bg, fg, border` | Chalk on kerb. A person isn't an action. |
+| `chat` | `own, ownBorder, theirs, theirsBorder` | Chat bubbles: yours solid blue, theirs raised grey. |
 | `paint` | 8 swatches | Build card colours. Not layer hexes. |
 
 **Text size.** Body tokens scale fully with the iOS text size. Chrome tokens (`heading`, `meta`,

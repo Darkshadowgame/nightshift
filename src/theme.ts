@@ -232,6 +232,8 @@ export const COLOR = {
   classMetal: CLASS,
   layer: LAYER,
   avatar: { bg: C.kerb, fg: C.chalk, border: C.kerbHi },
+  /** Chat bubbles: yours a solid blue, theirs the raised grey (REVIEW-10: yours read as grey too). */
+  chat: { own: '#24426e', ownBorder: outline(STATE.info), theirs: SURFACE.raised, theirsBorder: SURFACE.borderStrong },
   paint: ['#e9edf4', '#1b1f27', '#c8102e', '#1f4fa8', '#f2c14e', '#2f7d4f', '#7a7f8a', '#e86a1c'],
 } as const;
 

@@ -317,6 +317,13 @@ export default function SearchScreen() {
         />
       ) : typed ? (
         <>
+          {/* REVIEW-10: say when nothing on the phone matches, with something to try. */}
+          {tab === 'all' && !found.events.length && !found.places.length && !found.people.length && !found.builds.length && !addresses.length && addrState !== 'searching' ? (
+            <EmptyState
+              variant="inline"
+              title={`No results for “${query.trim()}”. Try a town, a car (like “Golf”), a handle or an event type (like “cars and coffee”).`}
+            />
+          ) : null}
           {tab === 'all' || tab === 'events' ? (
             found.events.length ? (
               <Section title={plural(found.events.length, 'event')} right={tab === 'all' && found.events.length > 4 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setTab('events')} /> : undefined}>

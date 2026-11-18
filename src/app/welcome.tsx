@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, DsText, ErrorState, SegmentedControl, Tag, typeStyle, useToast } from '../components/ds';
 import { MapPicker } from '../components/MapPicker';
@@ -54,7 +54,11 @@ export default function Welcome() {
   const [handle, setHandle] = useState('');
   /** The demo needs no handle typed: one is made up, changeable on your profile (REVIEW-9). */
   const [handleSeed] = useState(() => 1000 + Math.floor(Math.random() * 9000));
-  const [home, setHome] = useState<LatLng | null>(null);
+  // The demo starts on the sample area, so step 2 needs nothing (REVIEW-10 #9); "Change" moves it.
+  const [home, setHome] = useState<LatLng | null>(demo ? DEMO_HOME : null);
+  const sampleHome = demo && !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
+  const { height: screenH } = useWindowDimensions();
+  const small = screenH < 740;
   const [picking, setPicking] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
@@ -174,22 +178,21 @@ export default function Welcome() {
               onPress={() => setPicking(true)}
               accessibilityRole="button"
               accessibilityLabel={home ? 'Home area set. Move it on the map' : 'Choose your home area on the map'}
-              style={[st.map, home && { borderColor: COLOR.action.selected }]}
+              style={[st.map, { height: small ? 120 : 180 }, home && { borderColor: COLOR.action.selected }]}
             >
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <NightMap key={home ? `${home.lat},${home.lng}` : 'none'} pins={[]} centre={home ?? UK_MIDDLE} span={home ? 0.3 : 4} picked={home} />
               </View>
             </Pressable>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-              {home ? <Tag label="Home area set" tone="success" /> : <Tag label="Not set yet" />}
-              {home ? <DsText v="caption">{nearestRegion(home)}, to about 1 km</DsText> : null}
-            </View>
-            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-              <Button label={home ? 'Move it' : 'Choose on map'} tier="secondary" onPress={() => setPicking(true)} style={{ flex: 1 }} block />
-              <Button label="Use my location" tier="secondary" busy={locating} onPress={useMyLocation} style={{ flex: 1 }} block />
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm }}>
+              {sampleHome ? <Tag label="Sample area" tone="info" /> : home ? <Tag label="Home area set" tone="success" /> : <Tag label="Not set yet" />}
+              <DsText v="caption" style={{ flexShrink: 1 }}>
+                {sampleHome ? 'Near Tamworth, where the demo events are. Optional to change.' : home ? `${nearestRegion(home)}, to about 1 km` : 'Choose on the map or use your location, below.'}
+              </DsText>
+              {home ? <Button label="Change" tier="tertiary" size="sm" accessibilityLabel="Change your home area" onPress={() => setPicking(true)} /> : null}
             </View>
             {locError ? <ErrorState title={locError} /> : null}
-            {devArea ? <Button label="Developer: use the demo area (Tamworth)" tier="tertiary" size="sm" onPress={() => setHome(DEMO_HOME)} /> : null}
+            {devArea && !sampleHome ? <Button label="Developer: use the demo area (Tamworth)" tier="tertiary" size="sm" onPress={() => setHome(DEMO_HOME)} /> : null}
 
             <View style={{ gap: SPACING.xs }}>
               <DsText v="label">Your handle</DsText>
@@ -257,6 +260,13 @@ export default function Welcome() {
         ) : (
           <>
             {error ? <ErrorState title={error} /> : null}
+            {/* Setting home is in the pinned footer until it's done, so an SE never hides it (REVIEW-10 #9). */}
+            {!home ? (
+              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                <Button label="Choose on map" tier="secondary" onPress={() => setPicking(true)} style={{ flex: 1 }} block />
+                <Button label="Use my location" tier="secondary" busy={locating} onPress={useMyLocation} style={{ flex: 1 }} block />
+              </View>
+            ) : null}
             <Button
               label="Show me tonight"
               size="lg"
@@ -277,7 +287,7 @@ export default function Welcome() {
 const st = StyleSheet.create({
   page: { paddingHorizontal: SPACING.screen, gap: SPACING.xl },
   who: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm },
-  map: { height: 200, borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.borderStrong },
+  map: { borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.borderStrong },
   footer: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, gap: SPACING.xs, borderTopWidth: 1, borderTopColor: COLOR.surface.border, backgroundColor: COLOR.surface.bg },
   input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
 });

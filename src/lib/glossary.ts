@@ -176,6 +176,7 @@ export const SCREEN_TITLES = {
   help: 'How Nightshift works',
   credits: 'Credits',
   feedback: 'Send feedback',
+  post: 'Post',
   newPost: 'New post',
   newThread: 'New thread',
   newChat: 'New chat',

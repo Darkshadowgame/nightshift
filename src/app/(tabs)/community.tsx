@@ -6,7 +6,7 @@ import { CommunityForum } from '../../components/CommunityForum';
 import { CommunityMessages } from '../../components/CommunityMessages';
 import { CommunityPeople } from '../../components/CommunityPeople';
 import { BanBanner } from '../../components/ModerationGate';
-import { HeaderActions, SegmentedControl, Sheet, SheetOption } from '../../components/ds';
+import { HeaderActions, Sheet, SheetOption, Tabs } from '../../components/ds';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { SPACING } from '../../theme';
 
@@ -41,8 +41,10 @@ export default function CommunityScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled">
-        <SegmentedControl<Tab>
+      {/* One tab bar (REVIEW-10 #12): the sections are underlined Tabs pinned under the header; a
+          section's own second level (People: Near you / Connections) is a SegmentedControl. */}
+      <View style={{ paddingHorizontal: SPACING.screen }}>
+        <Tabs<Tab>
           value={tab}
           onChange={setTab}
           accessibilityLabel="Community sections"
@@ -53,6 +55,8 @@ export default function CommunityScreen() {
             { key: 'messages', label: 'Messages', count: unread || undefined },
           ]}
         />
+      </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.lg, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled">
         <BanBanner status={ban.data} />
         {tab === 'feed' ? <CommunityFeed /> : tab === 'people' ? <CommunityPeople /> : tab === 'forum' ? <CommunityForum /> : <CommunityMessages />}
       </ScrollView>

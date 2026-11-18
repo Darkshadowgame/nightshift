@@ -50,6 +50,7 @@ export default function NewThread() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const info = BOARDS.find((b) => b.key === board)!;
+  const sellOnly = params.board === 'for_sale';
   const listing = board === 'for_sale';
   const pence = parsePrice(price);
 
@@ -85,10 +86,13 @@ export default function NewThread() {
     <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       {/* "Sell or find a part" opens a listing, so the header says so (REVIEW-9). */}
       <Stack.Screen options={{ title: screenTitle(listing ? 'For sale or wanted' : SCREEN_TITLES.newThread) }} />
-      <View style={{ gap: SPACING.xs }}>
-        <ChoiceGroup<BoardKey> label="Board" value={board} onChange={setBoard} options={BOARDS.map((b) => ({ key: b.key, label: b.label }))} />
-        <DsText v="caption">{info.hint}</DsText>
-      </View>
+      {/* "Sell a part" / "Sell or find a part" open a listing: no board picker there (REVIEW-10). */}
+      {sellOnly ? null : (
+        <View style={{ gap: SPACING.xs }}>
+          <ChoiceGroup<BoardKey> label="Board" value={board} onChange={setBoard} options={BOARDS.map((b) => ({ key: b.key, label: b.label }))} />
+          <DsText v="caption">{info.hint}</DsText>
+        </View>
+      )}
       {board === 'local' ? <ChoiceGroup<string> label="Region" value={region} onChange={setRegion} options={REGIONS.map((r) => ({ key: r.name, label: r.name }))} /> : null}
       {listing ? <ChoiceGroup<ListingKind> label="Listing" value={kind} onChange={setKind} options={LISTING_KINDS.map((k) => ({ key: k.key, label: k.label }))} /> : null}
       <Field label="Title" hint={listing ? (kind === 'sale' ? 'What it is, and what it fits.' : "What you're after, and what it's for.") : 'One line that says what you need. People pick threads by the title.'}>
@@ -113,7 +117,7 @@ export default function NewThread() {
                   // "250 ono" turns ONO on (REVIEW-9).
                   if (typedOno(t)) setOno(true);
                 }}
-                placeholder="£ e.g. 450 or 450 ono"
+                placeholder="£ e.g. 450"
                 placeholderTextColor={COLOR.text.secondary}
                 keyboardType="default"
                 autoCapitalize="none"

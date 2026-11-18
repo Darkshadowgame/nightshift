@@ -4,13 +4,12 @@ import { ScrollView, TextInput, View } from 'react-native';
 import { at, moderateOptions, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
 import { Field, INPUT } from '../../components/ComposerParts';
 import { Avatar, Button, DsText, EmptyState, ErrorState, IconButton, LoadingState, Press, RowDivider, Section, Tag } from '../../components/ds';
-import { NightMap } from '../../components/NightMap';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { shortAgo } from '../../lib/format';
 import { commentProblem, POST_LIMITS, withLike, type PostComment } from '../../lib/posts';
 import { useStore } from '../../lib/store';
-import { COLOR, POST_COLOUR, RADII, SPACING } from '../../theme';
+import { COLOR, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 
 /** One post with its comments. */
@@ -97,11 +96,7 @@ export default function PostScreen() {
         onMore={() => setMenu(postMenu())}
       />
 
-      {post.at ? (
-        <View style={{ height: 180, borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.border }}>
-          <NightMap pins={[{ id: 'post', at: post.at, glyph: 'post', colour: POST_COLOUR, title: post.placeName ?? 'Post', size: 34 }]} centre={post.at} span={0.03} />
-        </View>
-      ) : null}
+      {/* No map of the spot (REVIEW-10: it showed where the poster parked). The place name is on the card. */}
 
       <Section title={`Comments (${shown.length})`}>
         {shown.length === 0 ? <EmptyState variant="inline" title="No comments yet." /> : null}

@@ -52,6 +52,7 @@ export default function SettingsScreen() {
   const [confirm, setConfirm] = useState<null | 'reset' | 'delete'>(null);
   const [busy, setBusy] = useState<null | 'out' | 'delete'>(null);
   const [developer, setDeveloper] = useState(__DEV__);
+  const [driving, setDriving] = useState(false);
   const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
   const groupY = useRef<Record<string, number>>({});
   useEffect(() => {
@@ -83,7 +84,6 @@ export default function SettingsScreen() {
   const jumps: [string, string][] = [
     ['Notifications', 'Notifications'],
     ['Privacy', 'Privacy'],
-    ['Driving', 'Driving'],
     ['Feedback', 'Feedback'],
     ['About and legal', 'Legal'],
     ...(demo ? ([['Demo', 'Demo']] as [string, string][]) : []),
@@ -169,8 +169,8 @@ export default function SettingsScreen() {
           and only used to find events near you.
         </DsText>
         <SwitchRow
-          label="Show me in People near you"
-          hint="People near you see your builds and a rough distance, never where you live."
+          label="Show me to drivers near me (rough distance only)"
+          hint="Off unless you turn it on. Drivers near you then see your builds and a rough distance, never where you live."
           value={community.showInNearby}
           onValueChange={(v) => {
             setError(null);
@@ -189,35 +189,6 @@ export default function SettingsScreen() {
         {status.data?.role === 'admin' || status.data?.role === 'owner' ? (
           <ListRow title="Audit log" subtitle="Every moderation action, by whom" onPress={() => router.push('/moderation-log')} />
         ) : null}
-      </Group>
-
-      <Group title="Driving">
-        <ChoiceGroup
-          label="Navigate opens"
-          value={settings.directionsApp ?? 'nightshift'}
-          onChange={(id) => setSettings({ directionsApp: id })}
-          options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
-        />
-        <DsText v="caption">For the drive view, when you head to a meet or a drive with your car: Nightshift guides you there with a voice and camera alerts, or opens another app.</DsText>
-        <ChoiceGroup
-          label="The driving map"
-          value={settings.navMap === 'north' ? 'north' : 'heading'}
-          onChange={(k) => setSettings({ navMap: k })}
-          options={[
-            { key: 'heading', label: 'Turns with you' },
-            { key: 'north', label: 'North up' },
-          ]}
-        />
-        <DsText v="label">Your icon on the map</DsText>
-        <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
-        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onValueChange={(v) => setSettings({ navVoice: v })} />
-        {settings.navVoice !== false ? <VoicePicker /> : null}
-        <SwitchRow
-          label="Speed camera alerts"
-          hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."
-          value={settings.navCameraAlerts !== false}
-          onValueChange={(v) => setSettings({ navCameraAlerts: v })}
-        />
       </Group>
 
       <Group title="Feedback">
@@ -250,6 +221,46 @@ export default function SettingsScreen() {
           <DsText v="meta">{versionLine()}</DsText>
         </Pressable>
         <AppUpdates />
+      </Group>
+
+      {/* Sat-nav settings (REVIEW-10): one collapsed group, lower down. Most people never need them. */}
+      <Group title="Driving">
+        <ListRow
+          title={driving ? 'Hide driving settings' : 'Driving settings'}
+          subtitle="Which app Navigate opens, the driving map, voice and camera alerts"
+          onPress={() => setDriving((d) => !d)}
+          accessibilityHint={driving ? "Hides the driving settings" : "Shows the driving settings"}
+        />
+        {driving ? (
+          <>
+        <ChoiceGroup
+          label="Navigate opens"
+          value={settings.directionsApp ?? 'nightshift'}
+          onChange={(id) => setSettings({ directionsApp: id })}
+          options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
+        />
+        <DsText v="caption">For the drive view, when you head to a meet or a drive with your car: Nightshift guides you there with a voice and camera alerts, or opens another app.</DsText>
+        <ChoiceGroup
+          label="The driving map"
+          value={settings.navMap === 'north' ? 'north' : 'heading'}
+          onChange={(k) => setSettings({ navMap: k })}
+          options={[
+            { key: 'heading', label: 'Turns with you' },
+            { key: 'north', label: 'North up' },
+          ]}
+        />
+        <DsText v="label">Your icon on the map</DsText>
+        <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
+        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onValueChange={(v) => setSettings({ navVoice: v })} />
+        {settings.navVoice !== false ? <VoicePicker /> : null}
+        <SwitchRow
+          label="Speed camera alerts"
+          hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."
+          value={settings.navCameraAlerts !== false}
+          onValueChange={(v) => setSettings({ navCameraAlerts: v })}
+        />
+          </>
+        ) : null}
       </Group>
 
       {demo ? (
