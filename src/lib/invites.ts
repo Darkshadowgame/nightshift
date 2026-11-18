@@ -64,7 +64,7 @@ export function describeFilter(filter: InviteFilter): string {
   if (filter.cars && !filter.bikes) parts.push('Cars');
   else if (filter.bikes && !filter.cars) parts.push('Bikes');
   else parts.push('Cars and bikes');
-  if (filter.classes.length > 0) parts.push(`Class ${[...filter.classes].sort(classSort).join('/')}`);
+  if (filter.classes.length > 0) parts.push(`Class ${classRange(filter.classes)}`);
   if (filter.minMods > 0) parts.push(`${filter.minMods}+ mods`);
   if (filter.brands.length > 0) parts.push(filter.brands.join(', '));
   parts.push(`within ${filter.radiusMiles} mi`);
@@ -75,3 +75,34 @@ const ORDER = 'SABCD';
 function classSort(a: string, b: string) {
   return ORDER.indexOf(a) - ORDER.indexOf(b);
 }
+
+/**
+ * Classes in words, lowest first: a run reads as a range ("A–S", "C–A"), a gap as a list
+ * ("B, S"), one on its own as itself ("S").
+ */
+export function classRange(classes: readonly string[]): string {
+  const sorted = [...new Set(classes)].sort(classSort).reverse();
+  if (sorted.length <= 1) return sorted.join('');
+  const idx = sorted.map((c) => ORDER.indexOf(c));
+  const run = idx.every((v, i) => i === 0 || idx[i - 1] - v === 1);
+  return run ? `${sorted[0]}–${sorted[sorted.length - 1]}` : sorted.join(', ');
+}
+
+export type VehicleKey = 'car' | 'bike';
+
+/**
+ * The invite's Cars and Bikes as a filter-chip selection (DESIGN-SYSTEM.md: nothing selected =
+ * everyone in that dimension). Both on is [], so tapping "Cars" means cars only, never "cars off".
+ */
+export function vehicleSelection(filter: Pick<InviteFilter, 'cars' | 'bikes'>): VehicleKey[] {
+  if (filter.cars && !filter.bikes) return ['car'];
+  if (filter.bikes && !filter.cars) return ['bike'];
+  return [];
+}
+
+/** Back from the chips: [] (or both) is cars and bikes. */
+export function fromVehicleSelection(selected: readonly VehicleKey[]): Pick<InviteFilter, 'cars' | 'bikes'> {
+  const one = selected.length === 1 ? selected[0] : null;
+  return { cars: one !== 'bike', bikes: one !== 'car' };
+}
+

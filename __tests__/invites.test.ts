@@ -7,7 +7,7 @@ describe('describeFilter', () => {
   });
   it('lists the build filters in plain words, with "and"', () => {
     expect(describeFilter({ ...DEFAULT_FILTER, everyone: false, cars: true, bikes: true, classes: ['A', 'S'], minMods: 3, brands: [], radiusMiles: 25 })).toBe(
-      'Cars and bikes · Class S/A · 3+ mods · within 25 mi',
+      'Cars and bikes · Class A–S · 3+ mods · within 25 mi',
     );
     expect(describeFilter({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 })).toBe('Bikes · within 10 mi');
   });

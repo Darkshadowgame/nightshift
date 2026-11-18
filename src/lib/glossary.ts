@@ -17,6 +17,9 @@ import type { SpotKind } from './types';
  * | drive (a road to enjoy)               | route (only a cruise's line)          |
  * | meet spot                             | venue, coffee & meet spot             |
  * | check in                              | visit (in buttons)                    |
+ * | meet ban                              | ban zone, car-meet order, order area  |
+ * | Navigate                              | Start navigation, Navigate the drive  |
+ * | Couldn't                              | Could not                             |
  */
 
 /** The one label for how you relate to an event: card, hero, HUD, Find and the map card. */
@@ -111,6 +114,12 @@ export const WHERE = {
 } as const;
 
 /** Marks for things that aren't shared with anyone. */
+/** A car-meet order area (PSPO, injunction or dispersal order). The kind goes in the detail. */
+export const MEET_BAN = 'Meet ban';
+
+/** One label for directions, events and places alike. */
+export const NAVIGATE = 'Navigate';
+
 export const ONLY_ON_PHONE = 'Only on this phone';
 export const SAMPLE = 'Sample';
 
