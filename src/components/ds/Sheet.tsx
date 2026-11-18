@@ -129,6 +129,8 @@ export function SheetOption({ label, detail, onPress, destructive }: { label: st
  * header Done or Cancel. Every confirm in the app is this sheet:
  *
  * - Something destructive: "{Verb} it" (red) and "Keep it". `verb="Leave"` gives Leave it / Keep it.
+ * - An ambiguous verb: both outcomes in plain words, `confirmLabel` and `cancelLabel` (leaving a
+ *   meet: "Yes, I can't go" / "I'm still going", glossary `LEAVE_MEET`).
  * - Leaving a form with changes: `verb="Discard"`, `cancelLabel="Keep editing"`.
  * - A non-destructive switch: `destructive={false}` draws "{Verb} it" as the primary.
  * - The meet-ban warning (owner decision 9.3): `safeFirst` puts the way back ("Change location")
@@ -156,9 +158,9 @@ export function ConfirmSheet({
   message: string;
   /** "Leave" gives "Leave it / Keep it" (glossary.confirmLabels). */
   verb: string;
-  /** Instead of "{Verb} it": only for the owner's meet-ban warning ("Post anyway"). */
+  /** Instead of "{Verb} it": when the verb is ambiguous ("Yes, I can't go"), or the meet-ban warning ("Post anyway"). */
   confirmLabel?: string;
-  /** Instead of "Keep it": "Keep editing" when leaving a form with changes (4.2), "Change location" on the ban warning. */
+  /** Instead of "Keep it": "Keep editing" when leaving a form with changes (4.2), "I'm still going", "Change location" on the ban warning. */
   cancelLabel?: string;
   destructive?: boolean;
   /** The way back is the primary, on top (the meet-ban warning). */
@@ -205,7 +207,7 @@ export function ConfirmBody({
   onCancel: () => void;
   children?: ReactNode;
 }) {
-  const labels = { ...confirmLabels(verb), ...(confirmLabel ? { confirm: confirmLabel } : null), ...(cancelLabel ? { cancel: cancelLabel } : null) };
+  const labels = confirmLabels(verb, { confirm: confirmLabel, cancel: cancelLabel });
   const confirm = <Button key="confirm" label={labels.confirm} tier={destructive ? 'destructive' : 'primary'} block busy={busy} onPress={onConfirm} />;
   const cancel = <Button key="cancel" label={labels.cancel} tier={safeFirst ? 'primary' : 'secondary'} block onPress={onCancel} />;
   return (

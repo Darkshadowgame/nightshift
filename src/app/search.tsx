@@ -17,6 +17,7 @@ import {
   Tag,
   metaLine,
 } from '../components/ds';
+import { EventRow } from '../components/EventRow';
 import { NavLaunch } from '../components/NavLaunch';
 import { NightMap } from '../components/NightMap';
 import { classOf } from '../lib/classes';
@@ -25,19 +26,18 @@ import { useCommunity } from '../lib/communityStore';
 import { powerText } from '../lib/dyno';
 import { idsIn } from '../lib/connections';
 import { ALL_TYPES, defaultFilters, describeFilters, searchEvents, travelOf, TRAVEL_CHOICES, VEHICLE_LABELS, WHEN_LABELS, type SearchFilters, type SearchHit, type Vehicles, type When } from '../lib/discover';
-import { endTime, EVENT_LABELS } from '../lib/events';
+import { EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
-import { distanceOrigin, distanceText, meetDistance, plural } from '../lib/format';
+import { distanceOrigin, distanceText, plural } from '../lib/format';
 import { milesBetween } from '../lib/geo';
-import { NOT_OPEN, PLACE_NAMES, roleLabel } from '../lib/glossary';
+import { PLACE_NAMES } from '../lib/glossary';
 import { currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
 import { firstPage, PAGE } from '../lib/paging';
 import { visibleSpots } from '../lib/spots';
 import { useStore } from '../lib/store';
 import type { Build, EventType, LatLng, SpotKind, User } from '../lib/types';
-import { eventTimeLabel } from '../lib/when';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
-import { COLOR, EVENT_COLOURS, RADII, SPACING, SPOT_COLOURS } from '../theme';
+import { COLOR, RADII, SPACING, SPOT_COLOURS } from '../theme';
 import { TOWNS } from '../data/towns';
 
 type Tab = 'all' | 'meets' | 'places' | 'people';
@@ -55,8 +55,6 @@ const DEBOUNCE_MS = liveSearchAvailable ? 300 : 600;
 /** The one line when nothing matches (Redesign 2, 3.12; Review 15): what was typed, then one suggestion. */
 const nothingFor = (q: string) => `Nothing for ‘${q.trim()}’`;
 const TRY_INSTEAD = 'Try a town, or a car like ‘Golf’.';
-/** No geocoder (the web preview): secondary text under the empty state, never the only line (Review 15). */
-const NO_ADDRESS_SEARCH = 'Full address search works in the iPhone app.';
 
 /**
  * The bundled towns that match what's typed (whole words from the start of the name), so
@@ -277,22 +275,10 @@ export default function SearchScreen() {
 
   // ---- Rows: an event, a place, a person look the same everywhere (K3). ----
   const meetRow = (h: SearchHit) => {
-    const e = h.view.event;
     const role = h.view.role;
     const mine = role === 'host' || role === 'going';
-    const hidden = h.view.shownStop < 0;
-    return (
-      <ListRow
-        key={e.id}
-        leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
-        title={e.title}
-        subtitle={metaLine([EVENT_LABELS[e.type], eventTimeLabel(e.startsAt, endTime(e), now)])}
-        // One distance on every screen (format.ts meetDistance): from home to the meet's area.
-        meta={metaLine([meetDistance(e, distanceOrigin(null, origin), hidden), !mine && !h.canGo ? NOT_OPEN : null])}
-        trailing={mine ? <Tag label={roleLabel(role)} tone={role === 'going' ? 'success' : 'neutral'} /> : undefined}
-        onPress={() => openEvent(e.id)}
-      />
-    );
+    // The one event row (K3): the same as Tonight's list and Me.
+    return <EventRow key={h.view.event.id} view={h.view} now={now} origin={distanceOrigin(null, origin)} notOpen={!mine && !h.canGo} onPress={() => openEvent(h.view.event.id)} />;
   };
   const placeRow = ({ s, miles }: (typeof allPlaces)[number]) => (
     <ListRow
@@ -378,7 +364,6 @@ export default function SearchScreen() {
               title={nothingFor(query)}
               body={tab === 'all' ? TRY_INSTEAD : undefined}
               action={tab === 'all' ? undefined : { label: 'Search everything', onPress: () => setTab('all') }}
-              note={!canAddress && tab !== 'people' && tab !== 'meets' ? NO_ADDRESS_SEARCH : undefined}
             />
           ) : null}
           {(tab === 'all' || tab === 'meets') && found.meets.length ? (

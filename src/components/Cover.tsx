@@ -1,7 +1,7 @@
 import { carShape } from '../lib/buildShape';
 import { Image, StyleSheet, View } from 'react-native';
 import { photoSource } from '../lib/photoSource';
-import Svg, { Path, Rect, TSpan, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Rect, Text as SvgText } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
 import { classOf } from '../lib/classes';
 import { coverTitle, plural } from '../lib/format';
@@ -31,14 +31,8 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
       )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, opacity: 0.6 }]} />
       <View style={st.top}>
-        {/* The masthead is a drawing (SVG text): it scales with the cover, never with the text size, so it's never cut. */}
-        <Svg width={width - 2 * SPACING.md} height={width * 0.17} accessibilityLabel="Nightshift">
-          {/* textLength pins its width (Review 15): at any text size it fills the same box, never "NIGHTSHIF". */}
-          <SvgText x={0} y={width * 0.135} fontFamily={F.displayItalic} fontSize={width * 0.14} letterSpacing={-1} textLength={width * MASTHEAD_SHARE} lengthAdjust="spacingAndGlyphs" fill={COLOR.text.primary}>
-            NIGHT
-            <TSpan fill={COLOR.action.primary}>SHIFT</TSpan>
-          </SvgText>
-        </Svg>
+        {/* The masthead is a drawing (SVG text): it scales with the cover, never with the text size. */}
+        <Masthead width={width - 2 * SPACING.md} cover={width} />
         <DsText v="tag" tone="primary">
           {issue} · {event?.areaName ?? 'UK'}
         </DsText>
@@ -66,6 +60,42 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
         ) : null}
       </View>
     </View>
+  );
+}
+
+/**
+ * The masthead's drawing box, as shares of the cover's width (Review 16): two runs, NIGHT then
+ * SHIFT, each one text with its own pinned width (`textLength`), never a run nested in another, so
+ * nothing scales a run twice. The box is tall enough for the letters at up to `MASTHEAD_MAX_SCALE`
+ * times their size, so the top of "SHIFT" is never cut at 1.3x text, even where a browser scales
+ * SVG text with the page's.
+ */
+export function mastheadLayout(cover: number) {
+  const fontSize = cover * 0.14;
+  // The letters' height above the baseline at the largest size we allow, plus a hair.
+  const baseline = Math.ceil(fontSize * MASTHEAD_CAP * MASTHEAD_MAX_SCALE + cover * 0.01);
+  const night = cover * MASTHEAD_SHARE * NIGHT_SHARE;
+  return { fontSize, baseline, height: baseline + Math.ceil(cover * 0.02), night, shift: cover * MASTHEAD_SHARE - night };
+}
+/** Chakra Petch Bold Italic's capital height, in ems. */
+export const MASTHEAD_CAP = 0.7;
+/** The largest text size the masthead's box has room for (1.3x text, with room to spare). */
+export const MASTHEAD_MAX_SCALE = 1.5;
+/** NIGHT's share of NIGHTSHIFT's natural width in Chakra Petch Bold Italic (294 of 570). */
+const NIGHT_SHARE = 0.516;
+
+export function Masthead({ width, cover }: { width: number; cover: number }) {
+  const m = mastheadLayout(cover);
+  const run = { y: m.baseline, fontFamily: F.displayItalic, fontSize: m.fontSize, letterSpacing: -1, lengthAdjust: 'spacingAndGlyphs' as const };
+  return (
+    <Svg width={width} height={m.height} accessibilityLabel="Nightshift" style={{ overflow: 'visible' }}>
+      <SvgText x={0} textLength={m.night} fill={COLOR.text.primary} {...run}>
+        NIGHT
+      </SvgText>
+      <SvgText x={m.night} textLength={m.shift} fill={COLOR.action.primary} {...run}>
+        SHIFT
+      </SvgText>
+    </Svg>
   );
 }
 

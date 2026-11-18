@@ -1,16 +1,13 @@
 import { router } from 'expo-router';
 
-/** The people screens a chat is started from: a profile, and the going list it was picked from. */
-const PEOPLE = new Set(['user/[id]', 'event/going']);
-
 type StackState = { index: number; routes: readonly { name: string; params?: object }[] };
 
 /**
- * Open a 1-to-1 chat started from a profile (Review 15 decision 3). The profile, and the going list
- * it was opened from, are closed first, so the chat sits on the screen the journey started from (an
- * event page, Community, Search, Connections): one back returns there, and the tab is at most two
- * backs away, never four (event, going list, profile, chat). If that screen is already this chat
- * (its "View @handle" opened the profile), it just goes back to it.
+ * Open a 1-to-1 chat started from a profile (Reviews 15 and 16). Only the profile closes first, so
+ * the chat sits on the screen you picked the person from (the going list, Community, Search,
+ * Connections): back from the chat goes there, never past it. The deepest path, event › going list
+ * › chat, is three backs from its tab. If the screen under the profile is already this chat (its
+ * "View @handle" opened the profile), it just goes back to it.
  *
  * `state` is the root stack's state (`useNavigation().getState()` on a root screen).
  */
@@ -24,9 +21,7 @@ export function openChat(chatId: string, state: StackState | undefined): void {
   if (!sameChat) router.push(href);
 }
 
-/** How many screens `openChat` closes before opening the chat (for tests). */
+/** How many screens `openChat` closes before opening the chat (for tests): the profile, if it's on top. */
 export function screensClosed(state: StackState): number {
-  let n = 0;
-  while (state.index - n > 0 && PEOPLE.has(state.routes[state.index - n].name)) n++;
-  return n;
+  return state.index > 0 && state.routes[state.index].name === 'user/[id]' ? 1 : 0;
 }

@@ -280,7 +280,13 @@ export const SCREEN_TITLES = {
   moderation: 'Moderation',
 } as const;
 
-/** Confirm-in-place: "{Verb} it / Keep it". */
-export function confirmLabels(verb: string): { confirm: string; cancel: string } {
-  return { confirm: `${verb} it`, cancel: 'Keep it' };
+/**
+ * Confirm-in-place (4.5): "{Verb} it / Keep it", unless the verb is ambiguous; then pass both
+ * outcomes in plain words (`explicit`), as leaving a meet does (`LEAVE_MEET`).
+ */
+export function confirmLabels(verb: string, explicit?: { confirm?: string; cancel?: string }): { confirm: string; cancel: string } {
+  return { confirm: explicit?.confirm || `${verb} it`, cancel: explicit?.cancel || 'Keep it' };
 }
+
+/** Leaving a meet: "Leave it" also reads as "leave it alone" (Review 16), so both outcomes are said. */
+export const LEAVE_MEET = { confirm: "Yes, I can't go", cancel: "I'm still going" } as const;

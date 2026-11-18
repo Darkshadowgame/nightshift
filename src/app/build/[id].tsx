@@ -85,10 +85,10 @@ export default function BuildScreen() {
         />
 
         <View style={{ gap: SPACING.sm }}>
+          {/* The class is said once (C5, Review 16): the badge by the name, not a tile as well. */}
           <StatBlock
             stats={[
               { value: `${power.bhp}`, unit: power.est ? 'bhp est.' : 'bhp', label: 'Power' },
-              { value: letter, label: 'Class' },
               { value: `${modCount(b.mods)}`, label: modCount(b.mods) === 1 ? 'Mod' : 'Mods' },
             ]}
           />

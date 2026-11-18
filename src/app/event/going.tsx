@@ -39,10 +39,11 @@ export default function GoingScreen() {
                 {i > 0 ? <RowDivider inset /> : null}
                 <ListRow
                   leading={{ avatar: { name: u?.name, handle: u?.handle } }}
-                  title={uid === me ? 'You' : displayHandle(u?.handle ?? 'unknown')}
+                  // A person is always avatar + @handle (K3), you included: "You" is said beside it.
+                  title={displayHandle(u?.handle ?? 'unknown')}
                   subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'Passenger'}
                   trailing={b ? <ClassBadge letter={classOf(b)} size="sm" /> : undefined}
-                  meta={[ev.hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null].filter(Boolean).join(' · ') || undefined}
+                  meta={[uid === me ? 'You' : null, ev.hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null].filter(Boolean).join(' · ') || undefined}
                   onPress={uid === me ? undefined : () => router.push({ pathname: '/user/[id]', params: { id: uid } })}
                 />
               </View>

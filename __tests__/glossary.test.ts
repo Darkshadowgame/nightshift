@@ -45,6 +45,9 @@ describe('glossary', () => {
   it('makes header titles capitals and confirm labels "{Verb} it / Keep it"', () => {
     expect(title('Add a car or bike')).toBe('ADD A CAR OR BIKE');
     expect(confirmLabels('Delete')).toEqual({ confirm: 'Delete it', cancel: 'Keep it' });
+    // An ambiguous verb takes both outcomes in plain words (4.5, Review 16).
+    expect(confirmLabels('Leave', { confirm: "Yes, I can't go", cancel: "I'm still going" })).toEqual({ confirm: "Yes, I can't go", cancel: "I'm still going" });
+    expect(confirmLabels('Leave', { confirm: undefined })).toEqual({ confirm: 'Leave it', cancel: 'Keep it' });
   });
   it('says when the location shows in plain words, never "unlocks" or "stop"', () => {
     expect(leadText(60)).toBe('1 h');

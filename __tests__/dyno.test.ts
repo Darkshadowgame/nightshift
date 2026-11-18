@@ -1,5 +1,6 @@
 import { changeText, crankBhp, latestRun, runChange, runProblem, runSummary, withoutRun, withRun } from '../src/lib/dyno';
 import { effectivePower } from '../src/lib/classes';
+import { bhpText } from '../src/lib/format';
 import type { Build, DynoRun } from '../src/lib/types';
 
 const build: Build = { id: 'b1', ownerId: 'me', kind: 'car', make: 'Honda', model: 'Civic Type R', stockBhp: 316, weightKg: 1380, mods: [], photos: [] };
@@ -62,10 +63,10 @@ describe('the Dyno proven badge (owner rules)', () => {
     const b = withSheet(run('a', '2026-03-12', 312, 'wheels', 295));
     expect(dynoBadge(b, NOW)).toMatchObject({ state: 'proven', figure: 312, unit: 'whp' });
     // One power figure (REVIEW-10 #5): crank bhp, est. from wheels; whp as the secondary line.
-    expect(powerText(b)).toBe('367 bhp est.');
+    expect(powerText(b)).toBe('367\u00a0bhp\u00a0est.');
     expect(whpText(b)).toBe('312 whp at the wheels on the dyno');
     expect(whpText(withRun(build, run('t', '2026-03-12', 300, 'wheels')))).toBe('300 whp at the wheels on the dyno (typed, no sheet)');
-    expect(powerText(withSheet(run('c', '2026-03-12', 330, 'crank')))).toBe('330 bhp');
+    expect(powerText(withSheet(run('c', '2026-03-12', 330, 'crank')))).toBe('330\u00a0bhp');
     expect(dynoBadge(withSheet(run('c', '2026-03-12', 330, 'crank')), NOW)).toMatchObject({ state: 'proven', unit: 'bhp' });
   });
 
@@ -92,6 +93,12 @@ describe('the Dyno proven badge (owner rules)', () => {
   });
 
   test('a claimed figure: the bhp Class uses', () => {
-    expect(powerText(build)).toBe('316 bhp');
+    expect(powerText(build)).toBe('316\u00a0bhp');
+  });
+
+  test('power never splits from its unit (Review 16: "583 / bhp" at 1.3x)', () => {
+    // A no-break space between the number and "bhp", from the one power function, everywhere.
+    expect(bhpText(583)).toBe('583\u00a0bhp');
+    expect(powerText(build)).not.toMatch(/\d bhp/);
   });
 });

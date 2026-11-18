@@ -5,9 +5,9 @@ import { milesBetween } from '../lib/geo';
 import { NOT_OPEN, PLACE_NAMES } from '../lib/glossary';
 import { photoSource, sampleRef } from '../lib/photoSource';
 import type { Build, NightEvent, Spot } from '../lib/types';
-import { clock, endedLabel, whenLabel } from '../lib/when';
+import { eventTimeLabel } from '../lib/when';
 import { EVENT_COLOURS, SPOT_COLOURS, COLOR } from '../theme';
-import { ListRow, PhotoCard, Tag, metaLine, type CardAction, type EntityTag, type Photo, type TagTone } from './ds';
+import { PhotoCard, metaLine, type CardAction, type EntityTag, type Photo, type TagTone } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
 const STATUS_TONES: Record<MyEventStatus, TagTone> = {
@@ -46,14 +46,12 @@ export function eventPhoto(e: NightEvent, builds: Build[]): Photo | null {
   return ref ? photoSource(ref) : null;
 }
 
-/** An event's one time phrase on a card: "Until 23:00" (live), "Tonight 22:00", "Sat 10:00", "Ended Fri". Never a countdown. */
+/**
+ * An event's one time phrase on a card or row (4.10, when.ts `eventTimeLabel`): "Live · until 23:00",
+ * "Tonight 22:00", "Sat 10:00", "Ended Fri". Never a countdown.
+ */
 export function cardTime(e: NightEvent, now: Date): string {
-  const start = new Date(e.startsAt);
-  const end = endTime(e);
-  if (e.cancelled) return 'Cancelled';
-  if (end.getTime() <= now.getTime()) return endedLabel(end, now);
-  if (start.getTime() <= now.getTime()) return `Until ${clock(end)}`;
-  return whenLabel(start, now);
+  return e.cancelled ? 'Cancelled' : eventTimeLabel(e.startsAt, endTime(e), now);
 }
 
 /** The one distance to a meet (format.ts `meetDistance`): the same number before and after you go. */
@@ -68,7 +66,7 @@ export function notOpenLine(v: EventView): string | undefined {
 
 /**
  * An event on a browse surface (Tonight's sheet and list, Search): the one PhotoCard anatomy.
- * Photo (the host's build) → kind line (● Live · Meet) → title → "Until 23:00 · 2 mi · 9 going".
+ * Photo (the host's build) → kind line (● Meet) → title → "Live · until 23:00 · 2 mi · 9 going".
  */
 export function EventEntityCard({
   view: v,
@@ -111,22 +109,6 @@ export function EventEntityCard({
       onPress={onPress}
       action={action}
       titleOnPhoto={titleOnPhoto}
-    />
-  );
-}
-
-/** An event as a row (This week, Later, notifications): pin, title, "Tomorrow 20:00 · about 9 mi", tag. */
-export function EventRow({ view: v, now, origin, onPress }: { view: EventView; now: Date; origin?: DistanceOrigin | null; onPress: () => void }) {
-  const e = v.event;
-  const tag = statusTag(v.status);
-  return (
-    <ListRow
-      leading={{ pin: e.type, colour: v.phase === 'over' ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
-      title={e.title}
-      subtitle={metaLine([cardTime(e, now), cardDistance(v, origin)])}
-      meta={notOpenLine(v)}
-      trailing={tag ? <Tag label={tag.label} tone={tag.tone as TagTone} /> : undefined}
-      onPress={onPress}
     />
   );
 }

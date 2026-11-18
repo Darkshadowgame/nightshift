@@ -16,6 +16,7 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('../src/lib/feel', () => ({ feel: new Proxy({}, { get: () => () => {} }) }));
 
 import { ConfirmSheet } from '../src/components/ds/Sheet';
+import { LEAVE_MEET } from '../src/lib/glossary';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -47,6 +48,16 @@ describe('ConfirmSheet is the one confirm', () => {
     expect(w).toEqual(expect.arrayContaining(['leave it', 'keep it']));
     expect(w).not.toContain('done');
     expect(w).not.toContain('cancel');
+  });
+
+  it('an ambiguous verb says both outcomes in plain words (leaving a meet, Review 16)', () => {
+    const root = render(
+      <ConfirmSheet visible title="Can't make it" message="Take yourself off Sunday coffee and cars?" verb="Leave" confirmLabel={LEAVE_MEET.confirm} cancelLabel={LEAVE_MEET.cancel} onConfirm={noop} onCancel={noop} />,
+    );
+    const w = words(root.container);
+    expect(w).toEqual(expect.arrayContaining(["Yes, I can't go", "I'm still going"]));
+    expect(w).not.toContain('Leave it');
+    expect(w).not.toContain('Keep it');
   });
 
   it('leaving a form with changes says "Discard it" / "Keep editing"', () => {

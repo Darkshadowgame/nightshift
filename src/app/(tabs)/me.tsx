@@ -4,17 +4,18 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { BuildCard } from '../../components/BuildBits';
 import { Cover } from '../../components/Cover';
-import { Avatar, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
+import { Avatar, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, StatBlock, metaLine } from '../../components/ds';
 import { LadderSheet } from '../../components/LadderSheet';
 import { NoticeBell } from '../../components/NoticeBell';
 import { useRep } from '../../components/Rep';
-import { statusTag } from '../../components/TonightCards';
+import { EventRow } from '../../components/EventRow';
 import { allAwards, categoryInfo, votingCloses } from '../../lib/awards';
 import { lastBrought } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
-import { EVENT_LABELS, endTime, isHost, phaseOf } from '../../lib/events';
-import { myEventStatus } from '../../lib/eventView';
+import { endTime, isHost, phaseOf } from '../../lib/events';
+import { viewEvent } from '../../lib/eventView';
+import { distanceOrigin } from '../../lib/format';
 import { SCREEN_TITLES } from '../../lib/glossary';
 import { attendedEvents, levelLabel } from '../../lib/rep';
 import { useStore } from '../../lib/store';
@@ -93,6 +94,9 @@ export default function Me() {
       ? 'Winners show here when the voting at your meets ends.'
       : 'Check in at a meet, and the people there vote for the best builds.';
   const timeOf = (e: (typeof events)[number]) => eventTimeLabel(e.startsAt, endTime(e), now);
+  const view = (e: (typeof events)[number]) => viewEvent(e, me, crews, users, builds, now);
+  // Distances from home, the same as Search (format.ts meetDistance).
+  const origin = distanceOrigin(null, user?.home);
 
   return (
     <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
@@ -139,22 +143,13 @@ export default function Me() {
         ) : null}
         {next.length ? (
           <View>
-            {next.map((e, i) => {
-              // K3: the one status (myEventStatus), the same tag as Tonight's card and the event page.
-              const tag = statusTag(myEventStatus(e, me, crews, now)) ?? { label: 'Going', tone: 'success' as const };
-              return (
-                <View key={e.id}>
-                  {i ? <RowDivider /> : null}
-                  <ListRow
-                    leading={{ pin: e.type, colour: COLOR.text.primary }}
-                    title={e.title}
-                    subtitle={metaLine([EVENT_LABELS[e.type], timeOf(e)])}
-                    trailing={<Tag label={tag.label} tone={tag.tone} />}
-                    onPress={() => openEvent(e.id)}
-                  />
-                </View>
-              );
-            })}
+            {next.map((e, i) => (
+              // K3: the one event row (Tonight's list and Search), with the one status tag.
+              <View key={e.id}>
+                {i ? <RowDivider /> : null}
+                <EventRow view={view(e)} now={now} origin={origin} onPress={() => openEvent(e.id)} />
+              </View>
+            ))}
           </View>
         ) : null}
         {pastShown.length ? (
@@ -168,11 +163,11 @@ export default function Me() {
                 return (
                   <View key={e.id}>
                     {i ? <RowDivider /> : null}
-                    <ListRow
-                      leading={{ pin: e.type, colour: COLOR.text.secondary }}
-                      title={e.title}
-                      subtitle={metaLine([EVENT_LABELS[e.type], timeOf(e)])}
-                      trailing={<Tag label={label} tone="neutral" />}
+                    <EventRow
+                      view={view(e)}
+                      now={now}
+                      origin={origin}
+                      tag={{ label, tone: 'neutral' }}
                       onPress={() => openEvent(e.id)}
                       accessibilityHint={e === results ? 'Opens the results and trophies' : undefined}
                     />

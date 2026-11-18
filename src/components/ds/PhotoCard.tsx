@@ -40,7 +40,7 @@ const src = (p: Photo) => (typeof p === 'string' ? { uri: p } : p);
  *   ├───────────────────────────┤
  *   │ ● LIVE · MEET             │  kind line: layer colour (events, places), live dot
  *   │ Car park meet-up          │  title, as typed, 2 lines
- *   │ Until 23:00 · 2 mi · 9 go │  meta, one line of facts (2 lines at large text)
+ *   │ Live · until 23:00 · 2 mi │  meta, one line of facts (2 lines at large text)
  *   │ [       I'M GOING       ] │  one action (secondary; primary only on the map's pick)
  *   └───────────────────────────┘
  *

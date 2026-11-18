@@ -80,8 +80,10 @@ Screens B, C and D build on these. Every one is shown in every state at `/dev/co
 every T3 detail screen, T4 form and the sign-in screen. Holds the screen's one primary.
 - `primary`, `secondary`: `{ label, onPress, busy?, icon?, haptic?, accessibilityLabel?, accessibilityHint? }`.
   Both: stacked full width, primary on top. Secondary alone: one outline button.
-- `status`: a pill in place of a primary that isn't possible yet ("Location at 21:30"), next to the
-  `secondary` that helps ("Remind me"). **Never a disabled primary.** Ignored when `primary` is set.
+- `status`: a pill in place of a primary that isn't possible yet, saying where you stand ("Going";
+  a time is said once, in the status line), next to the `secondary` that helps ("Can't make it").
+  `statusIcon` picks its glyph (`success` for "Going"). **Never a disabled primary.** Ignored when
+  `primary` is set.
 - `children`: replaces the buttons (a comment field on a post or thread).
 - `inset={false}` inside a tab screen (the tab bar already clears the home indicator).
 - Not absolute: put it **after** the ScrollView in a `flex: 1` column, and give the ScrollView
@@ -92,7 +94,7 @@ every T3 detail screen, T4 form and the sign-in screen. Holds the screen's one p
 ```tsx
 <View style={{ flex: 1 }}>
   <ScrollView contentContainerStyle={PAGE_WITH_BAR}>…</ScrollView>
-  <ActionBar status="Location at 21:30" secondary={{ label: 'Remind me', onPress: remind }} />
+  <ActionBar status="Going" statusIcon="success" secondary={{ label: "Can't make it", onPress: confirmLeave }} />
 </View>
 ```
 
@@ -172,10 +174,11 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 * **Web scroll bars are hidden** (`ds/webScrollbars.web.ts`, loaded by the ds index), so nothing
   draws over hero photos, maps or cards on the web preview. Pages still scroll.
 * **Field errors** sit in the field's one message slot (`Field error`), in place of its hint.
-* **ActionBar status** ("Location at 21:30") is a quiet line: a fog icon and fog text, no fill, so
-  it never reads as a button.
-* **Not found** (`NotFoundState`, `+not-found`): the header back only, plus one primary "See
-  tonight's meets". Never a "Go back" button in the body (4.2).
+* **ActionBar status** ("Going") is a quiet line: a fog icon and fog text, no fill, so it never
+  reads as a button. "Remind me at 21:30" is a `SwitchRow` under the status line, not a button.
+* **Not found** (`NotFoundState`, `+not-found` uses it too): one `EmptyState` block with its glyph,
+  at the top content position, the header back only, plus one primary "See tonight's meets". Never
+  a "Go back" button in the body (4.2).
 * **Area names** default to the nearest town (`areaNameNear`, src/lib/profile.ts, from
   `src/data/towns.ts` when there's no geocoder), never the region when a town is near.
 
@@ -216,6 +219,7 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `Button` | Actions | Tiers `primary` (one per screen, in the ActionBar on T3/T4), `secondary`, `tertiary` (text link, chalk), `destructive` (removes, leaves, declines). Sizes `sm 44`, `md 48`, `lg 56`. `busy` keeps the label. Destructive buzzes `warning`; pass `haptic="success"` on save and send. `disabled` + `hint` stays for form fields that need input first, never for a screen's primary. |
 | `IconButton` | Header icons, map chrome | Always has a label. `glass` floats over the map and buzzes `tap`. |
 | `Section` | Titled blocks | Fog eyebrow and hairline. `right` is a tertiary Button or a Tag, never a value. No colour prop. |
+| `EventRow` (components/EventRow.tsx, Review 16) | An event as a row on Tonight's list, Search and Me | The one row: layer pin, title, "Meet · Sun 10:00 · about 1 mi from home" (kind, `cardTime`, `cardDistance`), "Not open to your car" when it isn't, the status tag. Never a hand-made event ListRow. |
 | `ListRow` | Any list of people, builds, events, places, settings | `leading` is `{avatar}`, `{pin}`, `{classBadge}` or `{icon}`; title as typed; `subtitle` (or `build`: a person's `BuildLine`); `meta`; `trailing` (Tag, value or small Button); chevron when it opens something; `unread` dot. 56 tall with a mark, 44 without. |
 | `Avatar` | A person | Photo, or initials in chalk on kerb. `sm 28`, `md 40`, `lg 76`. Never a class badge, never sodium. |
 | `ClassBadge` | A build's class | Skewed tile in its metal. Never stands in for a person. A tap opens one line (`CLASS_EXPLAINER`) in a Sheet. |
@@ -228,7 +232,7 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `LoadingState` | Waiting | `rows` for lists, `inline` spinner. Buttons use `busy`. |
 | `ErrorState` | It failed | Under the thing that failed. Copy starts "Couldn't". Never a toast. |
 | `Sheet` / `SheetOption` | Pick, the `···` menu, vote, filters | Closes with **Done** (or its action). Never **Cancel**, and never a confirm: that's `ConfirmSheet`. Never on top of another sheet. A sheet's primary goes **last**: an `<ActionBar primary=… />` or a block primary `Button`. The Sheet pins it under the scroll so it is always fully visible at 375x667 (an ActionBar inside a Sheet draws flat, no inset). |
-| `ConfirmSheet` | Every confirm: before something that can't be undone; leaving a form with changes; the meet-ban warning | The only confirm (4.5). No header Done or Cancel: two buttons in the body. Leaving a form with changes: "Discard it" / "Keep editing". Every other destructive confirm: "{Verb} it" / "Keep it". The meet-ban warning (owner 9.3) alone puts the way back first: "Change location" (primary) / "Post anyway". |
+| `ConfirmSheet` | Every confirm: before something that can't be undone; leaving a form with changes; the meet-ban warning | The only confirm (4.5). No header Done or Cancel: two buttons in the body. Leaving a form with changes: "Discard it" / "Keep editing". Every other destructive confirm: "{Verb} it" / "Keep it", unless the verb is ambiguous (then both outcomes in plain words: "Yes, I can't go" / "I'm still going"). The meet-ban warning (owner 9.3) alone puts the way back first: "Change location" (primary) / "Post anyway". |
 | `SearchField` | Search | One per surface. `onOpen` makes it the read-only map pill. The magnifier says "search", so the words never do: a leading "Search " is dropped from the placeholder ("Meets, places…"). No browser focus ring on web: the pill's border shows focus. |
 | `SwitchRow` | A setting that's on or off | Label, hint, switch; sodium track when on. |
 | `Field` / `TextField` / `INPUT` | Form fields | Caps label above, then one message slot: `error` (red) in place of the `hint`, never both. 48 tall. `DateTimeField` takes `error` too. |
@@ -295,15 +299,17 @@ old "One way to do X" and "Added after Review N" lists.
 * Never a sheet on a sheet, never a modal on a modal. A Sheet closes with Done (or its action).
 * **One confirm pattern (Review 13):** `ConfirmSheet` is the only confirm, with no header Cancel or
   Done. Leaving a form with changes: "Discard it" / "Keep editing". Every other destructive confirm:
-  "{Verb} it" / "Keep it" ("Leave it" / "Keep it", "Remove it" / "Keep it"). The one exception is
-  the owner's meet-ban warning (9.3): "Change location" (primary, first) / "Post anyway".
+  "{Verb} it" / "Keep it" ("Remove it" / "Keep it"), unless the verb is ambiguous; then say both
+  outcomes in plain words (leaving a meet: "Yes, I can't go" / "I'm still going", glossary
+  `LEAVE_MEET`, through `confirmLabels(verb, explicit)`). The one exception is the owner's meet-ban
+  warning (9.3): "Change location" (primary, first) / "Post anyway".
 
 ### 4.6 Empty states
 * Whole screen empty: `EmptyState block` (glyph, one line, one primary).
 * A section empty: `EmptyState inline` (one line, optional link). Never "Nothing yet" alone, never a
   developer or demo note.
-* No search results: `EmptyState inline` with `icon="search"`: "Nothing for ‘x’", one suggestion, and
-  any platform note as the small `note` under it (Review 15).
+* No search results: `EmptyState inline` with `icon="search"`: "Nothing for ‘x’" and one
+  suggestion. No platform note (Review 16).
 
 ### 4.7 Toasts
 * Every done action gets one: going, checked in, voted, posted, saved, sent, request sent.
@@ -328,7 +334,8 @@ old "One way to do X" and "Added after Review N" lists.
   you go and on every screen. "2 mi" / "2 mi from home"; while the meet point is hidden to you,
   "about 2 mi" / "about 2 mi from home". Places use the same origin and rounding.
 * Power: "197 bhp" plus the "✓ Dyno" tag when proven. whp, bhp per tonne and "claimed" only on the
-  Power and dyno page.
+  Power and dyno page. Always from `bhpText()` (format.ts, via `powerText` and `bhpLine`): a
+  no-break space keeps the number and "bhp" on one line at any text size (Review 16).
 * Counts: always `plural()`: "9 going", "1 person", "3 mods". Going mix: `goingSummary()` →
   "9 going · 7 cars, 2 bikes". No class codes.
 * Money: "£450". Numbers in stats and meta lines use tabular figures. No sodium numbers.
@@ -340,7 +347,9 @@ old "One way to do X" and "Added after Review N" lists.
 * An **end** next to its start: in the small hours after it, "01:00 (after midnight)"
   (`afterMidnightLabel`, ds/logic.ts; `DateTimeField after={start}`).
 * `liveLabel(end)` → "Live · until 23:00". `endedLabel(end, now)` → "Ended 23:00" / "Ended Fri".
-  `eventTimeLabel(start, end, now)` picks one of the three. `timeRange()` → "Tonight 22:00–00:30".
+  `eventTimeLabel(start, end, now)` picks one of the three, and is the one time on every card and
+  row (`cardTime`) and the event page: a live event is "Live · until 23:00" everywhere (Review 16).
+  `timeRange()` → "Tonight 22:00–00:30".
 * Relative only under 60 minutes, in brackets after a clock time: `clockWithCountdown()` →
   "21:30 (in 20 min)". One countdown per screen (the `LocationLine`). Never "In 2 days", "Next week",
   "2h 40m", or a countdown on a card.
@@ -410,7 +419,7 @@ what it needs. Each package replaces `new Date()` with `appNow()` in its own fil
 
 | Do | Don't |
 |---|---|
-| `<ActionBar status="Location at 21:30" secondary={{ label: 'Remind me', onPress }} />` | `<Button label="Navigate" disabled hint="Location shows at 21:30" />` |
+| `<ActionBar status="Going" statusIcon="success" secondary={{ label: "Can't make it", onPress }} />` | `<Button label="Navigate" disabled hint="Location shows at 21:30" />` |
 | `<PhotoCard kind="event" photo={p} eyebrow="Meet" layerColour={COLOR.layer.event} title=… meta=… />` | An `EntityCard` with a grey silhouette on a browse surface |
 | `<LocationLine state="hidden" time="21:30" minutesTo={20} />` | "Stop unlocks in 20 min", or a countdown on a card |
 | `whenLabel(start, appNow())` | `new Date()`, "In 2 days", "2h 40m" |

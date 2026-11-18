@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { classOf, effectivePower } from '../lib/classes';
+import { bhpText } from '../lib/format';
 import { NOT_OPEN } from '../lib/glossary';
 import type { Build } from '../lib/types';
 import { SPACING } from '../theme';
@@ -12,7 +13,7 @@ export function shortBuildName(b: Build): string {
 
 /** "197 bhp": the one power number (Redesign 2, 4.9). */
 export function bhpLine(b: Build): string {
-  return `${Math.round(effectivePower(b))} bhp`;
+  return bhpText(effectivePower(b));
 }
 
 /**

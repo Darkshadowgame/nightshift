@@ -135,7 +135,8 @@ export function statusLine(
   const shownSentence = () =>
     event.type === 'rolling' && current > 0
       ? locationSentence({ state: 'rolling', point: stop?.name })
-      : locationSentence({ state: 'shown', point: event.type === 'cruise' ? event.stops[0]?.name : stop?.name, town: stop?.name?.includes(town ?? '\u0000') ? undefined : town });
+      : // 4.11 exactly: "{Meet point name}, {Town}." even when the name has the town in it (Review 16).
+        locationSentence({ state: 'shown', point: event.type === 'cruise' ? event.stops[0]?.name : stop?.name, town });
   const minsTo = (d: Date) => (d.getTime() - now.getTime()) / 60_000;
   const host = isHost(event, ctx.me, ctx.crews);
   switch (state.kind) {
@@ -156,6 +157,8 @@ export function statusLine(
       if (state.placing) return { text: event.type === 'rolling' && current > 0 ? 'Next location when the host moves on.' : 'The host is still placing the meet point.' };
       return { text: locationSentence({ state: 'hidden', time: clock(reveal), minutesTo: minsTo(reveal) }) };
     case 'navigate':
+      // The host, before people going can see it: when they will (4.11 host view), not check-in yet.
+      if (host && now < reveal) return { text: shownSentence(), note: locationSentence({ state: 'host', time: clock(reveal), leadMinutes: event.revealMinutesBefore }) };
       return { text: shownSentence(), note: `Check-in opens at ${clockWithCountdown(new Date(state.opensAt), now)}.` };
     case 'checkin':
       // "Check-in is open" is the ActionBar's Check in; only the distance is new.

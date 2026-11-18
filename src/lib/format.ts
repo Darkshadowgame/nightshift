@@ -2,6 +2,14 @@ import { milesBetween } from './geo';
 import type { LatLng } from './types';
 import { whenLabel } from './when';
 
+/**
+ * Power in the one form (4.9): "197 bhp", with a no-break space so the number and its unit never
+ * split across lines at large text ("197 / bhp", Review 16). Every build power on screen comes here.
+ */
+export function bhpText(bhp: number): string {
+  return `${Math.round(bhp)}\u00a0bhp`;
+}
+
 function hhmm(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
@@ -69,8 +77,9 @@ export function sentToast(invited: string, isPublic: boolean, openToAll = false)
  */
 export function distanceText(miles: number, from: 'you' | 'home' | 'about' = 'you'): string {
   const n = Math.round(miles);
-  const base = miles < 1 || n < 1 ? 'under 1 mi' : `${n} mi`;
-  if (from === 'about') return miles < 1 ? 'about 1 mi' : `about ${base}`;
+  // A no-break space keeps the number with "mi" at large text, as with bhp (Review 16).
+  const base = miles < 1 || n < 1 ? 'under 1\u00a0mi' : `${n}\u00a0mi`;
+  if (from === 'about') return miles < 1 ? 'about 1\u00a0mi' : `about ${base}`;
   return from === 'home' ? `${base} from home` : base;
 }
 

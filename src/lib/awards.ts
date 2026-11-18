@@ -90,18 +90,21 @@ export const DEMO_TROPHIES = 3;
 const CARS_ONLY: AwardCategory[] = ['stance'];
 
 /**
- * Which trophies this event has, given who turned up (Redesign 2: three only). Best in show always;
- * Best car and Best bike only when both cars and bikes turned up. The other categories (per class,
+ * Which trophies this event has, given who turned up (Redesign 2: three only), in the one order:
+ * Best car, Best bike, Best in show. Best in show always; Best car and Best bike only when both cars
+ * and bikes turned up. The other categories (per class,
  * stance, sound, paint, cleanest, newcomer) stay in the data but are never asked for or shown.
  * `max` keeps the first few, in this order.
  */
 export function categoriesFor(event: NightEvent, builds: Build[], max?: number): AwardCategory[] {
   const cands = candidates(event, builds);
-  const cats: AwardCategory[] = ['best-in-show'];
   const cars = cands.filter((b) => b.kind === 'car').length;
   const bikes = cands.filter((b) => b.kind === 'bike').length;
+  // Best car, Best bike, then Best in show, everywhere (Review 16): the vote, the progress and the results.
+  const cats: AwardCategory[] = [];
   if (cars >= 2 && bikes >= 1) cats.push('best-car');
   if (bikes >= 2 && cars >= 1) cats.push('best-bike');
+  cats.push('best-in-show');
   return max ? cats.slice(0, max) : cats;
 }
 

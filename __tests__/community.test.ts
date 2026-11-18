@@ -266,7 +266,7 @@ describe('messages', () => {
     const card = shareEvent(e, NOW);
     expect(card.subtitle).toContain('Lincoln area');
     expect(JSON.stringify(card)).not.toContain('Secret');
-    expect(shareBuild(build('b1', 'a')).subtitle).toMatch(/^Class [SABCD] · \d+ bhp · 0 mods$/);
+    expect(shareBuild(build('b1', 'a')).subtitle).toMatch(/^Class [SABCD] · \d+\u00a0bhp · 0 mods$/);
   });
 });
 

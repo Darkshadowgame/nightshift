@@ -27,6 +27,7 @@ import {
   Section,
   Sheet,
   SheetOption,
+  SwitchRow,
   useToast,
   type ActionBarButton,
 } from '../../components/ds';
@@ -46,9 +47,9 @@ import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
 import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
-import { myEventStatus, newlyUnlocked, roleOf } from '../../lib/eventView';
+import { myEventStatus, newlyUnlocked, roleOf, STATUS_LABELS } from '../../lib/eventView';
 import { formatTime, goingSummary, plural } from '../../lib/format';
-import { aroundArea, GOING, MEET_POINT } from '../../lib/glossary';
+import { aroundArea, GOING, LEAVE_MEET, MEET_POINT } from '../../lib/glossary';
 import { inviteRows } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
 import { planForEvent } from '../../lib/navPlan';
@@ -60,7 +61,7 @@ import { REP } from '../../lib/rep';
 import { eventSharePayload } from '../../lib/share';
 import { useStore } from '../../lib/store';
 import type { Build, LatLng, User } from '../../lib/types';
-import { clock, endedLabel, timeRange } from '../../lib/when';
+import { endedLabel, liveLabel, timeRange } from '../../lib/when';
 import { COLOR, EVENT_COLOURS, MOTION, RADII, SPACING } from '../../theme';
 
 /** How long the "+150 rep" moment stays after check-in before it folds away. */
@@ -103,7 +104,6 @@ export default function EventScreen() {
     const t = setTimeout(() => setJustCheckedIn(false), REP_MOMENT_MS);
     return () => clearTimeout(t);
   }, [justCheckedIn]);
-  const [reminded, setReminded] = useState(false);
   const [unlock, setUnlock] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [changesOpen, setChangesOpen] = useState(false);
@@ -286,12 +286,17 @@ export default function EventScreen() {
     }
   }
 
-  async function remindMe(at: string) {
+  /** The "Remind me at 21:30" switch in the location block: the event reminders setting, said where it matters. */
+  async function setRemind(on: boolean, at: string) {
     const time = formatTime(at);
-    if (!settings.reminders) store.setSettings({ reminders: true });
+    if (!on) {
+      store.setSettings({ reminders: false });
+      toast({ message: 'Event reminders off' });
+      return;
+    }
+    store.setSettings({ reminders: true });
     const allowed = notificationsSupported ? await askPermission().catch(() => false) : false;
     store.refreshReminders();
-    setReminded(true);
     toast({ message: allowed || !notificationsSupported ? `We'll remind you at ${time}` : `Allow notifications in Settings to get it at ${time}` });
   }
 
@@ -356,17 +361,20 @@ export default function EventScreen() {
   const addPhoto: ActionBarButton = { label: 'Add a photo', onPress: () => flow.pick(), busy: flow.busy };
   let primary: ActionBarButton | null = null;
   let secondary: ActionBarButton | null = null;
-  // Going, location hidden (3.5, 4.3; Review 15 decision 4): no primary yet, so the bar shows a
-  // status pill ("Going · location at 21:30") and Remind me. "Can't make it" is never a button: it's in ···.
+  // Going, location hidden (3.5, 4.3; Review 16 problem 1): no primary yet, so the bar shows a status
+  // pill that just says "Going" (the time is said once, in the status line) and Can't make it, the
+  // way out. Remind me is a switch in the location block.
   let pill: string | null = null;
-  const canRemind = state.kind === 'waiting' && !state.placing && new Date(state.at) > now && !reminded;
+  const canRemind = state.kind === 'waiting' && !state.placing && going && !host && new Date(state.at) > now;
   switch (state.kind) {
     case 'join':
       primary = { label: state.request ? 'Ask to go' : "I'm going", onPress: state.request ? () => (mine.length > 1 ? setBring('go') : commitGoing(defaultPick?.id)) : imGoing, busy, haptic: 'success' };
       break;
     case 'waiting':
-      if (canRemind) secondary = { label: 'Remind me', onPress: () => remindMe(state.at) };
-      if (going && !host) pill = state.placing ? 'Going · location soon' : reminded ? `Going · reminder at ${formatTime(state.at)}` : `Going · location at ${formatTime(state.at)}`;
+      if (going && !host) {
+        pill = STATUS_LABELS.going;
+        secondary = { label: GOING.leave, onPress: () => setConfirmLeave(true) };
+      }
       break;
     case 'navigate':
       if (navTo) primary = { label: nav.label, onPress: nav.open };
@@ -411,7 +419,7 @@ export default function EventScreen() {
       : phase === 'over'
         ? endedLabel(endTime(ev), now)
         : phase === 'live'
-          ? `Until ${clock(endTime(ev))}`
+          ? liveLabel(endTime(ev))
           : timeRange(ev.startsAt, ev.endsAt, now);
   const meta = [time, where, ev.routeMiles ? `${ev.routeMiles} mi route` : null].filter(Boolean).join(' · ');
   // Your status, once (K3, C5): the same tag as Tonight's card and Me (myEventStatus).
@@ -518,6 +526,11 @@ export default function EventScreen() {
               <DsText v="secondary" style={{ paddingLeft: 18 + SPACING.sm }} accessibilityLiveRegion="polite">
                 {status.note}
               </DsText>
+            ) : null}
+            {canRemind && state.kind === 'waiting' ? (
+              <View style={{ paddingLeft: 18 + SPACING.sm }}>
+                <SwitchRow label={`Remind me at ${formatTime(state.at)}`} value={settings.reminders} onValueChange={(v) => setRemind(v, state.at)} />
+              </View>
             ) : null}
           </View>
           {justCheckedIn ? (
@@ -700,7 +713,7 @@ export default function EventScreen() {
           {secondary ? <Button tier="secondary" size="md" block label={secondary.label} onPress={secondary.onPress} busy={secondary.busy} haptic={secondary.haptic} /> : null}
         </ActionBar>
       ) : (
-        <ActionBar primary={primary} secondary={secondary} status={primary ? null : pill} />
+        <ActionBar primary={primary} secondary={secondary} status={primary ? null : pill} statusIcon={pill ? 'success' : undefined} />
       )}
 
       {nav.sheet}
@@ -773,12 +786,14 @@ export default function EventScreen() {
           });
         }}
       />
-      {/* One confirm pattern (4.5): "Leave it" / "Keep it", no header Cancel. */}
+      {/* One confirm pattern (4.5): "Leave it" is ambiguous here, so both outcomes in plain words. */}
       <ConfirmSheet
         visible={confirmLeave}
         title={GOING.leave}
         message={`Take yourself off ${ev.title}? You won't get its reminders. You can undo it straight after.`}
         verb="Leave"
+        confirmLabel={LEAVE_MEET.confirm}
+        cancelLabel={LEAVE_MEET.cancel}
         onCancel={() => setConfirmLeave(false)}
         onConfirm={leave}
       />

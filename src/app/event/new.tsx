@@ -8,6 +8,7 @@ import { useNow } from '../../lib/clock';
 import { EVENT_LABELS, isPublicType } from '../../lib/events';
 import { eventSharePayload } from '../../lib/share';
 import { useShareLink } from '../../components/ShareLink';
+import { statusTag } from '../../components/TonightCards';
 import { sentToast } from '../../lib/format';
 import { aroundArea } from '../../lib/glossary';
 import { clearHostDraft, draftSummary, loadHostDraft, type HostDraft } from '../../lib/hostDraft';
@@ -111,7 +112,7 @@ function Posted({ event }: { event: NightEvent }) {
           layerColour={colour}
           title={event.title}
           meta={`${timeRange(event.startsAt, event.endsAt, now)} · ${aroundArea(event.areaName)}`}
-          tag={{ label: 'Hosting', tone: 'success' }}
+          tag={statusTag('hosting')}
         />
         <View style={{ gap: SPACING.xs }}>
           <DsText v="title">It's up. Share it so people come.</DsText>

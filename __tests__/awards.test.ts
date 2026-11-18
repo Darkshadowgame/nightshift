@@ -47,8 +47,8 @@ describe('voting', () => {
     expect(v[0].buildId).toBe('b3');
   });
 
-  test('three trophies only: best in show, best car, best bike (Redesign 2)', () => {
-    expect(categoriesFor(event, builds)).toEqual(['best-in-show', 'best-car', 'best-bike']);
+  test('three trophies only, in one order: best car, best bike, best in show (Review 16)', () => {
+    expect(categoriesFor(event, builds)).toEqual(['best-car', 'best-bike', 'best-in-show']);
   });
 
   test('best car and best bike only when both turn up, the same rule for each', () => {
@@ -112,9 +112,9 @@ describe('kind-aware trophies and the demo cap (REVIEW-10)', () => {
     expect(stance.every((b: { kind: string }) => b.kind === 'car')).toBe(true);
     expect(eligibleFor('best-in-show', meet, s.builds).some((b: { kind: string }) => b.kind === 'bike')).toBe(true);
   });
-  it('the demo meet asks for the three trophies, best in show first', () => {
+  it('the demo meet asks for the three trophies, best car first (Review 16)', () => {
     const cats = categoriesFor(meet, s.builds, DEMO_TROPHIES);
-    expect(cats).toEqual(['best-in-show', 'best-car', 'best-bike']);
+    expect(cats).toEqual(['best-car', 'best-bike', 'best-in-show']);
     expect(categoriesFor(meet, s.builds)).toEqual(cats);
   });
 });

@@ -1,4 +1,5 @@
 import { appNow } from './appClock';
+import { bhpText } from './format';
 import { DYNO_MATCH, effectivePower, powerIsEstimate, sheetCrank, WHEEL_LOSS as LOSS } from './classes';
 import type { Build, DynoRun, VehicleKind } from './types';
 
@@ -151,7 +152,7 @@ export function headlinePower(build: Build): { bhp: number; est: boolean; whp: n
 /** "583 bhp", or "260 bhp est." from a wheels run. */
 export function powerText(build: Build): string {
   const p = headlinePower(build);
-  return `${p.bhp} bhp${p.est ? ' est.' : ''}`;
+  return `${bhpText(p.bhp)}${p.est ? '\u00a0est.' : ''}`;
 }
 
 /** The secondary wheels line, or null: "221 whp on the dyno". */

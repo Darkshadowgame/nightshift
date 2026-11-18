@@ -19,8 +19,8 @@ import { PhotoCredit } from './PhotoCredit';
 
 /**
  * Trophies once voting has closed (Redesign 2, 3.5): the covers flip in the first time you see
- * them (the fourth motion moment), then one row per trophy. Three trophies only: Best in show,
- * Best car, Best bike.
+ * them (the fourth motion moment), then one row per trophy. Three trophies only, in one order: Best car,
+ * Best bike, Best in show.
  *
  * `preview` (the demo only, Review 12 L4; Review 14): once you've voted and closed the vote sheet,
  * voting is closed for you and the results show as they'd look if voting closed now, with the same
@@ -93,7 +93,7 @@ export function VoteProgress({ cats, voted, onVote }: { cats: readonly AwardCate
   );
 }
 
-/** The trophies you can vote on at this event, in order (Best in show first). Empty when you can't vote. */
+/** The trophies you can vote on at this event, in order (Best car, Best bike, then Best in show). Empty when you can't vote. */
 export function voteCategories(event: NightEvent, builds: Parameters<typeof categoriesFor>[1], me: string, now: Date): AwardCategory[] {
   if (!canVote(event, me, now).ok) return [];
   return categoriesFor(event, builds).filter((c) => eligibleFor(c, event, builds).some((b) => b.ownerId !== me));

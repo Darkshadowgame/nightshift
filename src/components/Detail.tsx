@@ -154,12 +154,17 @@ export { Field, INPUT, TextField } from './ds';
 export const PAGE = { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl } as const;
 export { PAGE_WITH_BAR } from './ds';
 
-/** A detail route whose thing is gone: what, why, and Go back. */
-export function NotFoundState({ what, message }: { what: string; message?: string }) {
+/**
+ * A route whose thing is gone, or a link the app doesn't know (4.6, Review 16): every not-found
+ * screen is this one EmptyState block, with its glyph, at the top content position like every other
+ * whole-screen empty state. What, why, and one way on.
+ */
+export function NotFoundState({ what, title, message }: { what?: string; title?: string; message?: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, padding: SPACING.screen }}>
       <EmptyState
-        title={`${what} not found`}
+        glyph="area"
+        title={title ?? `${what ?? 'Page'} not found`}
         body={message ?? 'It may have been deleted, or the link is old.'}
         // Back is the header's (4.2): never a second back in the body. One way on instead.
         action={{ label: "See tonight's meets", onPress: () => router.replace('/') }}

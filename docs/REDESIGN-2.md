@@ -230,7 +230,7 @@ accepted". The real-user (signed-in) app uses the real clock.
 │ ░░░░░ host build photo ░░░░░░ │  PhotoCard
 │ ● LIVE · MEET                 │
 │ Car park meet-up              │
-│ Until 23:00 · 2 mi · 9 going  │
+│ Live · until 23:00 · 2 mi · 9 │
 │ [       I'M GOING        ]    │
 └───────────────────────────────┘
 │ Tonight  Community Garage  Me │
@@ -256,7 +256,7 @@ accepted". The real-user (signed-in) app uses the real clock.
 │ ░░░░░░ photo ░░░░░░░░░░░░░░░░ │
 │ ● LIVE · MEET       [GOING]   │
 │ Car park meet-up              │
-│ Until 23:00 · 2 mi · 9 going  │
+│ Live · until 23:00 · 2 mi · 9 │
 │ TONIGHT ───────────────────── │
 │ ░░░░░░ photo ░░░░░░░░░░░░░░░░ │
 │ ROLLING MEET                  │
@@ -294,7 +294,7 @@ accepted". The real-user (signed-in) app uses the real clock.
 |---|---|---|---|
 | Not going, location hidden | "Location shows at 21:30 to people going." | **I'm going** | — |
 | Not open to your car | "Open to Class A and up. Ask a host to let you in." | **Ask to go** | — |
-| Going, location hidden | "Location shows at 21:30 (in 20 min)." | (none: a status pill "Location at 21:30") | **Remind me** |
+| Going, location hidden | "Location shows at 21:30 (in 20 min)." and, under it, the switch "Remind me at 21:30" | (none: a status pill that just says "Going") | **Can't make it** |
 | Going, location shown, before check-in opens | "Leisure park car park, Tamworth. Check-in opens at 21:30." | **Navigate** | — |
 | Going, check-in open (live or 30 min before) | "Leisure park car park, Tamworth. You're 2 mi away." | **Check in** | **Navigate** |
 | Checked in | "You're checked in. Voting is open until 23:00 tomorrow." | **Vote for best in show** | **Add a photo** |
@@ -304,7 +304,9 @@ accepted". The real-user (signed-in) app uses the real clock.
 
 * **Must NOT show:** "See as a guest", the plan-change log (`···` › Plan changes, hosts only), the
   class explainer paragraph, mix codes, rep, "Stop", "unlocks", a disabled primary, "Can't make it"
-  as a button (it's in `···` and in the going sheet), the countdown twice.
+  as a button except on a going meet whose location is still hidden (there it's the ActionBar's
+  secondary, next to the "Going" pill; Review 16), the countdown twice, the location time twice (it's
+  in the status line only, never in the pill).
 
 ```
  GOING, LOCATION HIDDEN                CHECKED IN (LIVE)
@@ -313,7 +315,7 @@ accepted". The real-user (signed-in) app uses the real clock.
 │ ░░░░░░░ host photo ░░░░░░░░░░ │    │ ░░░░░░░ host photo ░░░░░░░░░░ │
 │ ROLLING MEET                  │    │ ● LIVE · MEET                 │
 │ Late rolling meet             │    │ Car park meet-up              │
-│ Tonight 22:00–00:30 ·         │    │ Until 23:00 · Tamworth        │
+│ Tonight 22:00–00:30 ·         │    │ Live · until 23:00 · Tamworth │
 │ Around Tamworth               │    │ ✓ You're checked in. Voting   │
 │ Location shows at 21:30       │    │   is open until 23:00 tmrw.   │
 │ (in 20 min).                  │    │ ◯◯◯◯◯◯ 9 going · 7 cars › │
@@ -324,12 +326,14 @@ accepted". The real-user (signed-in) app uses the real clock.
 │ CHAT ───────────────────────  │    │ CHAT ─────────────────────── │
 │ @dan_r: far end by the lights │    │ @em_i30n: by the lights      │
 ├───────────────────────────────┤    ├───────────────────────────────┤
-│ (Location at 21:30) [REMIND]  │    │ [ VOTE FOR BEST IN SHOW ]     │
+│ (✓ Going)  [CAN'T MAKE IT]    │    │ [ VOTE FOR BEST IN SHOW ]     │
 │                               │    │ [      ADD A PHOTO      ]     │
 └───────────────────────────────┘    └───────────────────────────────┘
 ```
 
-**Vote** opens a Sheet, not a long section: one trophy per page (Best in show first; Best car and
+**Vote** opens a Sheet, not a long section: one trophy per page, always in the order Best car, Best
+bike, Best in show (the sheet, the progress row and the results; Review 16). It opens on the trophy
+you tapped; the ActionBar's Vote opens the first you haven't voted in, Best car first (Best car and
 Best bike only when both turned up), cards are `PhotoCard` builds in a 2-column grid, tap to vote,
 toast "Voted". Never your own build.
 
@@ -521,7 +525,8 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
   so it is always visible at 375x667.
 * At most one secondary next to it. Everything else goes in `···`.
 * Never a disabled primary. If the action isn't possible yet, the ActionBar shows a status pill
-  ("Location at 21:30") and a secondary that helps (Remind me).
+  that says where you stand ("Going"; the time is in the status line, said once) and a secondary
+  that helps (Can't make it).
 * Destructive actions live only in `···` or a `ConfirmSheet`.
 * Cards never carry a primary; at most one secondary.
 
@@ -539,8 +544,10 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 * A Sheet closes with **Done** (or the action it exists for). **Cancel** only on forms that lose work.
 * **One confirm pattern (Review 13 decision):** `ConfirmSheet` is the only confirm, with no header
   Cancel (or Done): its two buttons are in the body. Leaving a form with changes: **"Discard it" /
-  "Keep editing"**. Every other destructive confirm: **"{Verb} it" / "Keep it"** ("Leave it" /
-  "Keep it"). Only the meet-ban warning (9.3) differs: "Change location" first, then "Post anyway".
+  "Keep editing"**. Every other destructive confirm: **"{Verb} it" / "Keep it", unless the verb is
+  ambiguous; then say both outcomes in plain words** (leaving a meet: "Yes, I can't go" / "I'm
+  still going", since "Leave it" also means "leave it alone"). Only the meet-ban warning (9.3)
+  differs: "Change location" first, then "Post anyway".
 
 ### 4.6 Empty states
 * Whole screen empty: `EmptyState block`: glyph, one line, one primary.
