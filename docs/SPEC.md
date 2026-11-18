@@ -1,5 +1,63 @@
 # Nightshift: Phase 1 spec
 
+## Purpose
+
+**"What's on tonight near me, and go with my car."**
+
+The core loop (owner's decision, 18 Nov 2026, after Review 6):
+
+1. **See what's on** near you tonight (the Tonight tab: map or list).
+2. **"I'm going"** with your build (the car or bike you add in the first 30 seconds).
+3. **Check in** when you get there (stops unlock for the people going).
+4. **Vote and trophies** after the meet.
+5. **Come back next week.**
+
+Everything else (drives, photo spots, tracks, shops, cameras, road reports, the forum,
+messages, crews, rep) supports that loop and lives at the second level: under Layers, in
+Search, in Community or behind Me.
+
+## Information architecture (18 Nov 2026)
+
+**Four tabs:** Tonight, Community, Garage, Me. The bell (notifications) is in the header
+of Tonight and Community only.
+
+| Tab | What it's for | Header |
+|---|---|---|
+| **Tonight** | What's on near you: a **Map / List** switch. The map keeps the bottom sheet from MAP-REDESIGN.md (peek: what's live or next; half and full: Live now, Tonight, This week and places near the map, as cards). The list shows **Your events** (going, hosting, requested), **Live now**, **Tonight** and **This week**. Events and places are `EntityCard`s in both. | "TONIGHT", **+ Host** (one sheet: Host an event, Suggest a place), the bell; under it the one search pill and Map / List |
+| **Community** | Feed, People, Forum, Messages | "COMMUNITY", **+ New**, the bell |
+| **Garage** | Your builds | "GARAGE", **+ Add** |
+| **Me** | Profile (avatar, handle, level as a plain fact, crew), trophies, your places, then Settings, Send feedback and How Nightshift works | "ME" |
+
+* **One search** (`src/app/search.tsx`): the pill on Tonight opens it. All / Events /
+  Places / People in one field; addresses are place results (All and Places) and
+  picking one shows it there with **Go here**, so there's no second screen. Apple's
+  live suggestions on builds that have them, the geocoder otherwise. With nothing
+  typed: saved and recent places (All), events near you with their filters (Events),
+  the nearest places with kind chips (Places). A result opens its own page.
+* **Old routes redirect:** `/events` → Tonight's list, `/find` → Search › Events,
+  `/where` → Search (addresses).
+* **Layers** (the button on Tonight's map) holds the map key and every layer. Speed
+  cameras, shops and road reports start **off**; they're also in Settings › Map layers.
+* **Settings** is one screen of groups: Account, Navigation and voice, Map layers,
+  Notifications (reminders, willing to travel, new events near you), Privacy,
+  Feedback, About and legal (How Nightshift works in the app; the legal pages on the
+  hosted site; credits; version and app updates), and Demo in the demo. Developer
+  switches (reset the demo, a test reminder, runtime and data versions) only show in
+  development builds or after a long press on the version line.
+* **First 30 seconds** (`src/app/welcome.tsx`): sign-in has the 18+ and terms box. Then
+  **1. What do you drive?** (the vehicle quick search; one tap fills in the stock specs;
+  **Skip for now**), **2. Where's home?** (map pick or your location, saved to about
+  1 km, with why) and a handle. The region comes from home; travel distance (25 mi) and
+  new-event alerts (Notify me) start at defaults and change in Settings. Then Tonight
+  opens with **Start here**: tonight's pick and **I'm going** with the car you just added.
+* **The demo starts you fresh:** sample people and events (marked Sample) are round
+  your home area, but you're not going to anything, not hosting, not in a crew, with
+  no car, rep or trophies until you act. The live rolling meet is open to any car or
+  bike so you can say you're going and check in.
+* Every route is declared inside a guard in `src/app/_layout.tsx` (the component
+  gallery only in development builds); `__tests__/routes.test.ts` checks it. The root
+  layout has the `ToastProvider`.
+
 Working name. A live map of the UK modified car and bike scene that plays like an
 open-world racing game.
 
@@ -131,7 +189,7 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
   invite covers), never after checking in. Changing to a build the invite doesn't
   cover puts you back to asking a host. The Going list, requests, class counts on
   event cards, votes and trophies use the build each person brought (all their
-  builds only for old data with no pick). Invites, alerts and Find events still
+  builds only for old data with no pick). Invites, alerts and Search › Events still
   count any of your builds.
 * **Chat** is for hosts and people going (it can carry "far end of the car park").
 * **Rolling meets:** every stop is placed when the event is created, and nothing is
@@ -177,26 +235,25 @@ Owner's decisions, 17 Nov 2026:
   only you see it.
 * **New events near you:** each person picks **Notify me** (default: a notice under the
   bell and, if notifications are allowed, a phone notification), **I'll search** (no
-  notification; new ones get a NEW tag in Find events) or **Off** (nothing). You hear
+  notification; new ones get a NEW tag in Search › Events) or **Off** (nothing). You hear
   about an event once, when it appears, if:
   * you can go: it's a show or track day, or you match the invite (a build fits the
     filter and you live inside the host's radius; "everyone welcome" skips the build
-    check). This is the same "invited" rule as the Events tab;
+    check). This is the same "invited" rule as Tonight;
   * its rough area is within your travel distance of your home area;
   * you aren't already hosting, going, waiting on a request or turned down;
   * it hasn't started and isn't cancelled.
   The message has the title, the time and the area name only: never a stop, a street
   or how far it is from home. Several at once make one phone notification ("3 new
-  events near you") that opens Find events.
-* **Find events** (Events tab header and the map): every upcoming or live event you can
+  events near you") that opens Search › Events.
+* **Search › Events** (the search pill on Tonight): every upcoming or live event you can
   see, nearest first (then soonest), measured from your home area or, if you choose,
   where you are (rounded to about 1 km). Filters: distance (starts at your travel
   distance; 5–100 mi or any), type (cruise, rolling meet, meet, show, track day), when
   (tonight to 5am, the next 7 days, or the weekend from Friday 5pm to Monday 5am), "I can
   go" or everything, and cars, bikes or both. Distances are to the rough area, so locked
   events only ever show that area. Tapping a result opens the event.
-* Settings: on the profile form (first run and Edit profile) and on Me under
-  **Events near you**.
+* Settings: **Settings › Notifications** (and Edit profile). First run uses the defaults.
 
 Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
 `search_events()`, `save_travel_prefs()` and the new-event trigger (docs/BACKEND.md).
@@ -411,16 +468,16 @@ Code: `src/lib/nav.ts` (engine, tests in `__tests__/nav.test.ts` with a fixture 
 `NavLaunch.tsx`, and the native module `modules/nav-directions` (Swift: MapKit directions,
 AVSpeechSynthesizer, system chime). Needs a new IPA (the fingerprint changes).
 
-## Where to? (owner request, 17 Nov 2026)
+## Where to? (owner request, 17 Nov 2026; part of Search since 18 Nov)
 
-Nightshift as an everyday sat nav: **Find › Where to?** searches any address, postcode or
-place (UK first, then anywhere), shows it on the map, and **Go here** starts the driving view
+Nightshift as an everyday sat nav: **Search** finds any address, postcode or
+place (UK first, then anywhere) among its place results, shows it on a small map, and **Go here** starts the driving view
 (or the app picked with **Always use this**). Recent places (10, with **Clear**), **Home** and
 **Work** are kept in the phone's settings only. Lookups go to Apple's geocoder alone
 (expo-location), and from build 11 Apple's MapKit autocomplete (`MKLocalSearchCompleter`,
 then `MKLocalSearch` for the chosen one) so shops and businesses are found too; searches are
 never logged or sent to our server. Code: `src/lib/whereTo.ts`, `src/lib/location.ts`,
-`src/app/where.tsx`, `modules/nav-directions`.
+`src/app/search.tsx`, `modules/nav-directions`.
 
 ## Road reports (built, 17 Nov 2026)
 
@@ -748,41 +805,30 @@ Owner's request: "Obviously you need to use real maps and location."
 
 ## Screens
 
-1. **Map:** a dark map, game-style hexagon pins (events filled, places outlined; a
-   number on a pin is a group of places when zoomed out, tap to zoom in). Top row: the
-   wordmark, a white **N live** pill, **Find** (with a new-events badge) and the bell. Under
-   it the four core layer pills (Events, Photos, Drives, Tracks; ▾ or long-press on Tracks
-   for options), which share the row and go icon-only on narrow screens or larger text, so
-   nothing scrolls sideways (`src/lib/mapLayers.ts`). Right column: locate, the layers button
-   (Meet spots, Shops with its kinds, Speed cameras, Road reports, **Suggest a place** and the
-   map key) and **Near me**. All layer choices are saved. Bottom: Next up, or "Nothing on near
-   you tonight" with Find events, Host one and Suggest a place; a one-time hint explains
-   the pins and buttons. A slot bottom right for a small widget, and a peek card that opens
-   the event, drive, photo spot, track or meet spot. Only what's in view is drawn, at most
-   40 of a kind (`src/lib/mapPlaces.ts`).
-2. **Events:** a segmented control: Mine (hosting, going, requested), Invited, Public (shows
-   and track days), Past (finished, cancelled, declined); header actions **Find** and **+ Host**.
+1. **Tonight** (tab): the header (title, **+ Host**, the bell), the search pill and **Map / List**.
+   *Map:* a dark map with game-style hexagon pins (events filled, places outlined; a number
+   on a pin is a group of places when zoomed out, tap to zoom in), the right stack (Layers,
+   Locate me, Near me) and the bottom sheet (MAP-REDESIGN.md). *List:* Your events, Live
+   now, Tonight, This week. First run: **Start here** with tonight's pick and I'm going.
+2. **Search:** one field; All, Events (with filters), Places (nearest, with kind chips),
+   People; addresses with Go here.
 3. **Event detail:** hero, hosts, invite filter summary, the stops timeline
    (locked or revealed), RSVP, check-in, Move on (hosts), attendees and chat.
 4. **New event:** type, name, time, area, stops, filters with a live count of
    matching builds, hosts and the reveal time.
-5. **Community:** Feed, People (Cars near you), Forum and Messages (see "Community").
-6. **Garage:** your builds as cards showing the class letter.
+5. **Community** (tab): Feed, People, Forum and Messages (see "Community").
+6. **Garage** (tab): your builds as cards showing the class letter.
 7. **Build:** a game-style stats screen with specs, mods by category and photos.
 8. **Edit build:** car or bike, vehicle picker (make, model, generation) that fills
    stock specs, year, nickname, engine swap, stock bhp, weight, dyno figure, tune
    stage, quick-pick mod chips and the mods list with bhp gains.
-9. **Me:** profile, rep and level with a breakdown, crew and your places (Suggest a place).
-   **Settings** (header button): map layers, events near you (willing to travel, new-event
-   alerts), reminders, navigation, privacy, account, about and legal (the site/ pages and a
-   credits screen), demo controls (demo only: skip the GPS
-   check, restart the demo events, reset data) and app updates.
-
-10. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
-11. **Suggest a place:** draw a drive or drop a photo spot on the map.
-12. **Crews:** browse crews, crew page, start a crew.
-13. **Find:** a **Where to?** box (any address or place, then Go here), then events: filters
-    and results nearest first; opens the event.
+9. **Me** (tab): profile, level, crew, trophies, your places; rows for Settings, Send
+   feedback and How Nightshift works.
+10. **Settings:** one screen of groups (see "Information architecture").
+11. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
+12. **Suggest a place:** draw a drive or drop a photo spot on the map.
+13. **Crews:** browse crews, crew page, start a crew.
+14. **Notifications** (the bell), **How Nightshift works**, **Credits**, **Send feedback**.
 
 ## Words and design system (REVIEW-5, 17 Nov 2026)
 

@@ -1,8 +1,14 @@
 # Nightshift (working name)
 
-A live map of the UK modified car and bike scene that plays like an open-world
-racing game: garages for cars and bikes with S–D classes, game-style map pins,
-and cruises, rolling meets, meets, shows and track days with filtered invites.
+**What's on tonight near me, and go with my car.** A UK car and bike meet app: see
+what's on near you tonight, say you're going with your build, check in, vote for
+trophies, and come back next week.
+
+Four tabs: **Tonight** (map or list of what's on, with one search and one + to host),
+**Community**, **Garage** and **Me** (with the one Settings screen). Everything else
+(drives, photo spots, tracks, shops, cameras, road reports, forum, crews) sits one level
+down. The structure and the first 30 seconds are in [docs/SPEC.md](docs/SPEC.md),
+"Purpose" and "Information architecture".
 
 * Phase 1 spec: [docs/SPEC.md](docs/SPEC.md)
 * App Store submission: [docs/APP-STORE.md](docs/APP-STORE.md) (checklist, listing copy, privacy label, review notes). Legal and support pages: https://darkshadowgame.github.io/nightshift/ (source in `site/`)
@@ -42,7 +48,7 @@ the driving screen.
 
 Every push to `main` publishes an over-the-air update, but an install only takes updates
 built for the same **runtime** (a fingerprint of the native side: native modules, config
-plugins, app config, icons). Me › Settings › App updates shows the install's runtime (first 8
+plugins, app config, icons). Me › Settings › Developer (long-press the version line) shows the install's runtime (first 8
 characters) and channel, e.g. `Runtime bceac1ba · production channel`. The OTA job prints
 the update's runtime in its summary, and the **Build iPhone app** job prints the IPA's.
 
@@ -105,33 +111,23 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
       unlocks, and a **moved on** notice lands under the bell (and as a phone notification
       while the app is open; real push is Phase 2).
 
-### 2b. First run
+### 2b. First run (the first 30 seconds)
 
-- [ ] The app opens on the welcome screen, not the map.
-- [ ] Pick a handle and display name. Try a handle that's taken (e.g. `dan_r`): you get a
-      clear message.
-- [ ] Rough home area: tap **Use my current location**. iOS asks for location ("While
-      using the app"): allow it. The map jumps near you and says **HOME AREA SET, TO ABOUT
-      1 KM**: the saved point is snapped to a ~1 km grid, never your address. The region
-      chip picks itself (change it if it's wrong).
-- [ ] Also try the search box: type a postcode (e.g. `SW1A 1AA`) or a town (e.g. `Leeds`),
-      wait a moment, tap a result: the map and home area move there. Nonsense text says
-      no places were found; with flight mode on it says it couldn't search.
-- [ ] Demo only: **Testing: use the demo area (Tamworth)** and the sample-people sentence.
-      Signed in, neither shows; the home area hint says it's only used to find events near you.
-      The handle hint says it's shown on your profile, in chat and on trophies (nobody is on the map).
-- [ ] **Events near you**: Willing to travel shows 25 mi picked and New events near you
-      shows **Notify me**. Leave them for now (step 4b changes them).
-- [ ] Tap **Let's go**: you land on the map. The bell (top right) shows a count: the only
-      notices waiting are **New … near you** ones for sample events you can go to within
-      25 mi (e.g. **Coffee and cars, late edition**, and the show or track day if the
-      nearest venue is that close), never one you host or are already going to. No
-      reminders from before you joined. Me shows your new handle in your own case.
-- [ ] The map centres on you with the blue dot. The **you** button (top right, under the
-      pills) brings it back after you pan away.
-- [ ] First open: a **How the map works** card explains pins and buttons; **Got it** hides it
-      for good. Nothing on near you? The bottom card says so, with **Find events**, **Host one**
-      and **Suggest a place ›**.
+- [ ] After sign-in (or **Try the demo without an account**) the app opens on **Step 1 of 2:
+      What do you drive?**, not the map and not Credits.
+- [ ] Type `Civic Type R` in the quick search, tap **FK8**: "Stock specs filled in". **Next**.
+      (**Skip for now** also works: you can add it later in the Garage.)
+- [ ] **Step 2 of 2: Where's home?** **Use my location** (allow it) or **Choose on map**: the tag
+      says **Home area set** with the region, to about 1 km. There's no region, travel or
+      notification question (defaults: 25 mi, Notify me; change them in Me › Settings ›
+      Notifications) and no Tamworth button (development builds only).
+- [ ] Type a handle. A taken one (e.g. `dan_r`) says so. **Show me tonight**.
+- [ ] Tonight opens with **Start here**: tonight's pick (the live **Late rolling meet** in the
+      demo) and **I'm going**. Tap it: a toast says you're going in your Civic, and the event
+      opens with your car as what you're bringing.
+- [ ] In the demo you start fresh: Tonight › List › **Your events** only has what you just
+      said yes to. You're not hosting anything, not in a crew, and Me shows Level 1, 0 rep and
+      no trophies.
 - [ ] The sample people and events (marked **Sample**) are around your own area now, not
       the Midlands. Within a few seconds the sample stops get real street names near you
       (e.g. "Ventura Park Rd, Tamworth" style); with no signal they keep neutral names
@@ -142,8 +138,8 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 
 ### 3. Garage and photos (plate blur)
 
-- [ ] Garage: the Golf R card has its class stamped on the picture, a trophy count
-      and bhp, bhp per tonne and mods. Open it > **Edit**. Change it to your own car or bike.
+- [ ] Garage: the car from the first run has its class stamped on the picture and bhp,
+      bhp per tonne and mods. Open it > **Edit**.
 - [ ] Add mods with bhp gains. Save. If the class goes up (e.g. remove the dyno
       figure, then add a big remap), the badge flips to the new class with a buzz.
 - [ ] Bike > **Stage 2** > **Add typical parts**: only road-legal parts go on. The de-cat
@@ -164,16 +160,15 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 
 ### 4. Events
 
-- [ ] Map: the **Late rolling meet** pin pulses (it's live) and sits on top of
-      the locked pins near it. The card at the bottom says what's live and what's next,
-      with a countdown; tap it to open the event. **1 live now** (top right) jumps the
-      map to the live meet. Tap a pin, then **Open event**.
-- [ ] Events tab: Mine / Invited / Public / Past. Live events sit at the top
-      with a pulsing pin.
-- [ ] Invited tab > **Coffee and cars, late edition** (about 3 hours away) > **I'm
+- [ ] Tonight › Map: the **Late rolling meet** pin pulses (it's live) and sits on top of
+      the locked pins near it. The sheet's first row says what's live or next, with a
+      countdown; tap it to show it on the map. Tap a pin, then **Open event**.
+- [ ] Tonight › **List**: Your events, Live now, Tonight and This week, as cards. The old
+      Events tab is gone; an old `/events` link opens this list.
+- [ ] **Coffee and cars, late edition** (about 3 hours away) > **I'm
       going**. The first time, iOS asks to allow notifications: allow it. Its reminders
       are scheduled straight away (step 9). Stay going for step 9.
-- [ ] **+ Host**: make a meet for later tonight. Tap **Choose on the map**: a full-screen map
+- [ ] Tonight › **+ Host** > **Host an event** (the same sheet has **Suggest a place**): make a meet for later tonight. Tap **Choose on the map**: a full-screen map
       opens with a crosshair. Search a town or postcode (the map jumps there) or tap the
       location button, pan and zoom until the crosshair is on the spot (the bar names the
       street live; on a grey known place it snaps and turns green), then **Set spot here**.
@@ -188,11 +183,11 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
       stop opens the same card. Save, open it and turn on **See as a guest**:
       the map shows the locked pin and circle invited people see, a mile or two off
       your spot, never on it, and the stops show locked.
-- [ ] **Night cruise: …** (you host it, on the nearest real drive to you): **Requests (2)** from people who
-      don't match the invite. Approve one (they move to Going), decline the other.
+- [ ] Host requests: the event you just hosted gets requests from people who don't match the
+      invite once real people (or the smoke test) ask. Approve one (they move to Going), decline the other.
 - [ ] Open **Sunrise ride: …** (bikes only, on the second-nearest drive; Me › All crews > Peak Chasers):
       you get **Request to go** with the reason, not "going". Chat stays closed until
-      you're in. Request it: Events > Mine now lists it as **Requested**, and the map
+      you're in. Request it: Tonight › List › Your events now lists it as **Requested**, and the map
       shows it locked ("you asked to go"). Open it to **Withdraw request**.
 - [ ] **What you're bringing:** Garage > **+ Add a car or bike** so you have two (say a
       bike). Open an invite: **I'm going** / **Request to go** now asks which one, each
@@ -204,9 +199,9 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 - [ ] Open your event > **Edit**, change the time, save. **Share** opens the share
       sheet with a `nightshift://event/...` link. **Cancel event** asks first.
 
-### 4b. Find events and new events near you
+### 4b. Search and new events near you
 
-- [ ] Events tab > **Find** (top right), or the green **Find events** chip on the map: every
+- [ ] Tonight › the search pill › **Events** (the one search; Find and Where to? are now part of it): every
       upcoming event within 25 mi of your home area, nearest first, each saying "about N mi
       from home" and "you can go" or "ask to go". Locked ones show only the area name and
       "location locked", never a stop. Live ones are included.
@@ -217,29 +212,27 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 - [ ] **Where I am**: asks for location if needed and measures from your position, rounded
       to about 1 km. With location off it says so and stays on your home area.
 - [ ] Tap a result: the event opens, with **I'm going** or **Request to go** as usual.
-- [ ] Me › Settings › **Events near you**: tap **Custom** and type 40: the chip reads 40 mi, and Find
-      events now starts at 40 mi. Type 0 or 500: it says 1 to 300 miles and keeps the old one.
+- [ ] Me › Settings › Notifications › **Willing to travel**: tap **Custom** and type 40: it reads 40 mi, and Search ›
+      Events now starts at 40 mi. Type 0 or 500: it says 1 to 300 miles and keeps the old one.
 - [ ] The bell's **New … near you** notices (step 2) say the event's title, time and area
       name only: no stop, street or distance. Tapping one opens the event.
-- [ ] Phone notification: with notifications allowed (step 4 or Me › Settings › Reminders), set **Notify
+- [ ] Phone notification: with notifications allowed (step 4 or Me › Settings › Notifications), set **Notify
       me**, then Me › Settings › **Restart the demo events** and lock the phone: one notification,
-      "N new events near you", which opens Find events (or the event, if there's just one).
+      "N new events near you", which opens Search › Events (or the event, if there's just one).
 - [ ] Set **I'll search** and restart the demo events again: no notification and nothing new
-      under the bell, but Events shows **Find · N new** and the map chip says **N new**; the
-      new ones carry a green **NEW** tag in Find events until you leave it.
-- [ ] Set **Off** and restart: nothing at all, and Find events still lists everything.
+      under the bell; the new ones carry a **NEW** tag in Search › Events until you leave it.
+- [ ] Set **Off** and restart: nothing at all, and Search › Events still lists everything.
 
 ### 5. Rolling meet: check in, move on, change the plan
 
 - [ ] Late rolling meet: the map dims and the stop **unlocks** (once per stop).
       The strip under the title shows the time left, the stop number and how many have
       checked in. **Check in** uses your real location now: unless you're at the stop it
-      says how close you need to be. To try the rest from the sofa, turn on Me › Settings › **Demo:
-      skip the GPS check** first, then tap **Check in** (above **Drop out** and **Share**): a
+      says how close you need to be. To try the rest from the sofa, turn on Me › Settings › Demo › **Skip
+      the GPS check** first, then tap **Check in** (above **Drop out** and **Share**): a
       tick bursts and the phone buzzes.
-- [ ] **NightRunners late one** is your crew's meet and you're a NightRunners host,
-      so you host it. Check in
-      at the first stop now (check-in opens 30 min before the start).
+- [ ] Hosting a rolling meet: join a crew (Me › Crew › **Find a crew**) or host your own from
+      Tonight › **+ Host**, then check in at the first stop (check-in opens 30 min before the start).
 - [ ] **Change the plan**: rename, move or add a stop. The change log (hosts only)
       updates and the chat says "Hosts changed the plan" without saying where.
 - [ ] Once it's live (30 min after install or **Restart the demo events**), tap **Move
@@ -250,7 +243,7 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 
 - [ ] On the Late rolling meet after checking in, **Vote** shows award categories.
       Vote, change your vote; you can't vote for yourself.
-- [ ] Events > Past > **Sunday night meet** (last Sunday): trophies straight under the map, with the cover
+- [ ] Search › Events (or a link) > **Sunday night meet** (last Sunday): trophies straight under the map, with the cover
       rising in with sparks the first time, and no "Unlocked" moment. Chat is read-only.
       Tap a winner to open their profile.
 
@@ -434,7 +427,7 @@ and everything stays on the phone; signed in they're shared through the server.
 
 ### 9. Reminders
 
-- [ ] Me › Settings › Reminders > **Send a test reminder**, then lock the phone: it appears
+- [ ] Me › Settings › Notifications > **Send a test reminder**, then lock the phone: it appears
       in about 5 seconds. Tapping it opens the notifications list.
 - [ ] Going to **Coffee and cars, late edition** (step 4): you'll get one notification
       when its location unlocks (about 2 hours after install or restart) and one 30 min
@@ -486,7 +479,7 @@ app updates.
   yet, so finishing or rating one is kept on the phone (places people suggest are on the
   server and checked there). "Demo: skip the GPS check" doesn't exist signed in: the server
   always checks you're there. Adding someone to your crew needs an invite (not built): they
-  tap Join. "I'll search" NEW tags in Find events are demo only.
+  tap Join. "I'll search" NEW tags in Search › Events are demo only.
 - Signed in, the app reads every profile, build and recent event (fine for a test group;
   see docs/BACKEND.md section 9 for what changes at scale).
 - Road reports: the server checks your distance, rate and answers, but positions are what
@@ -499,7 +492,7 @@ app updates.
   ever come from sample events (or after **Restart the demo events**). On the backend the
   server works them out and they reach you by push once that's set up (Phase 2). An app
   updated from an older version treats the events it already had as not new.
-- Find events searches what's on this phone in the demo, and on the server
+- Search › Events searches what's on this phone in the demo, and on the server
   (`search_events()`) when signed in. Distances are straight lines to the event's rough
   area, not driving distances.
 - Ban zones (car-meet order areas) are drawn round real orders (`src/data/banZones.ts`):
@@ -559,7 +552,7 @@ app updates.
 | `src/lib/profile.ts` | First-run profile checks; home saved fuzzed to about 1 km |
 | `src/lib/people.ts` | What other people can see about someone (never a location) |
 | `src/lib/invites.ts` | Invite filters and who matches |
-| `src/lib/discover.ts` | Willing to travel, new events near you (who hears about what, once) and the Find events search |
+| `src/lib/discover.ts` | Willing to travel, new events near you (who hears about what, once) and Search › Events |
 | `src/lib/rep.ts` | Rep ledger (attendance, hosting, drives, spots, authored places, trophies, mods), levels, author rep |
 | `src/lib/spots.ts` | Drives and photo spots: checkpoint runs (pass or fail only), visits, ratings, suggestions and demo approval |
 | `src/lib/crews.ts` | Join, leave and start crews; owner and host roles; crew events |
@@ -601,7 +594,10 @@ app updates.
 | `src/theme.ts`, `src/components/ui.tsx` | Colour roles (brand, layers, states, class ladder, surfaces), the type scale and text-size caps; shared components (Txt, Button, Card, Tag, ConfirmBox, InlineError, Notice, EmptyState, NotFound, ToggleRow, ListRow, Segmented, LinkText, HeaderAction) |
 | `src/lib/glossary.ts` | The app's words: role labels (Hosting, Going, Requested, Invited, Public), place names, menu paths, header titles, confirm labels |
 | `src/lib/mapLayers.ts`, `components/LayerBar.tsx` | How the map's layer pills fit the width and text size (labels or icon-only, never scrolling) |
-| `src/app/settings.tsx` | Settings (from Me): map layers, events near you, reminders, navigation, privacy, account, demo, app updates |
+| `src/app/settings.tsx` | Settings (from Me), one screen: account, navigation and voice, map layers, notifications, privacy, feedback, about and legal, demo; developer switches behind a long press on the version |
+| `src/app/(tabs)/index.tsx`, `components/TonightCards.tsx` | Tonight: map or list, the sheet, the + (host, suggest), first-run "Start here" (`lib/firstRun.ts`) |
+| `src/app/search.tsx` | The one search: events, places, people and addresses with Go here (`find` and `where` redirect here) |
+| `src/app/welcome.tsx` | First run: what do you drive, where's home, then Tonight |
 | `scripts/seed-bundled-places.mjs`, `src/lib/backend/bundledSeed.ts` | Generates the server rows for the bundled drives and photo spots from `src/data/places.ts` (docs/BACKEND.md) |
 | `src/app/` | Screens (Expo Router) |
 
