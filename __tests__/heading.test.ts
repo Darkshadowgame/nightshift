@@ -88,3 +88,47 @@ describe('camera focus', () => {
     expect(driveFocus(null, snap)).toBeNull();
   });
 });
+
+import { easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../src/lib/heading';
+
+describe('camera smoothing', () => {
+  it('eases by time, the same over one long tick as many short ones', () => {
+    let a = 0;
+    for (let i = 0; i < 10; i++) a = easeNumber(a, 100, 50, 300);
+    const b = easeNumber(0, 100, 500, 300);
+    expect(a).toBeCloseTo(b, 6);
+    expect(easeShare(0, 300)).toBe(0);
+    expect(easeShare(100, 0)).toBe(1);
+  });
+
+  it('turns the short way round through north', () => {
+    const h = easeAngle(350, 10, 450, 450);
+    expect(h > 350 || h < 10).toBe(true);
+    expect(easeAngle(null, 90, 100)).toBe(90);
+    expect(easeAngle(89.9, 90, 100)).toBe(90);
+  });
+
+  it('turns smoothly: no single 100 ms step jumps more than a third of a 90° turn', () => {
+    let h = 0;
+    let biggest = 0;
+    for (let i = 0; i < 30; i++) {
+      const next = easeAngle(h, 90, 100);
+      biggest = Math.max(biggest, next - h);
+      h = next;
+    }
+    expect(biggest).toBeLessThan(30);
+    expect(h).toBeGreaterThan(89);
+  });
+
+  it('guesses ahead between fixes only while moving, and not for long', () => {
+    const at = { lat: 52, lng: -1 };
+    expect(predictAhead(at, 0, 0, 800)).toEqual(at);
+    expect(predictAhead(at, 20, null, 800)).toEqual(at);
+    const north = predictAhead(at, 20, 0, 1000);
+    expect(roughMetres(at, north)).toBeCloseTo(20, 0);
+    expect(north.lat).toBeGreaterThan(at.lat);
+    const east = predictAhead(at, 20, 90, 1000);
+    expect(east.lng).toBeGreaterThan(at.lng);
+    expect(roughMetres(at, predictAhead(at, 20, 0, 60_000))).toBeCloseTo(30, 0);
+  });
+});

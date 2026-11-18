@@ -114,3 +114,61 @@ export function driveFocus(
   const sameWay = fix.course == null || fix.course < 0 || Math.abs(shortestTurn(fix.course, snap.bearing)) < 60;
   return moving && !poor && sameWay && snap.off <= FOCUS_SNAP_METRES ? snap.at : fix.at;
 }
+
+/**
+ * The driving camera's smoothing (DriveMap's camera loop). GPS gives a fix a second and the heading
+ * loop a step every 400 ms; firing a fresh camera animation at each one made the map turn in jerks.
+ * Instead the camera runs its own steady loop and eases towards the latest target with these.
+ */
+
+/** How quickly the camera turns to the target heading (ms; about two-thirds of the way in this time). */
+export const CAMERA_TURN_MS = 450;
+/** How quickly the camera's centre catches up with where you are (ms). */
+export const CAMERA_FOLLOW_MS = 300;
+/** Further than this (m) from the target, the camera jumps rather than glides (a reroute, a GPS jump). */
+export const CAMERA_JUMP_METRES = 250;
+
+/** The share of the way to move this tick for a smoothing time `tauMs` (frame-rate independent). */
+export function easeShare(dtMs: number, tauMs: number): number {
+  if (!(dtMs > 0)) return 0;
+  if (!(tauMs > 0)) return 1;
+  return 1 - Math.exp(-dtMs / tauMs);
+}
+
+/** Turn the shown angle towards the target the short way round, by time. Tiny turns snap. */
+export function easeAngle(shown: number | null, target: number, dtMs: number, tauMs: number = CAMERA_TURN_MS): number {
+  if (!Number.isFinite(target)) return shown ?? 0;
+  if (shown == null || !Number.isFinite(shown)) return normaliseDegrees(target);
+  const turn = shortestTurn(shown, target);
+  if (Math.abs(turn) < 0.2) return normaliseDegrees(target);
+  return normaliseDegrees(shown + turn * easeShare(dtMs, tauMs));
+}
+
+/** Ease a number towards a target by time. */
+export function easeNumber(shown: number | null, target: number, dtMs: number, tauMs: number): number {
+  if (shown == null || !Number.isFinite(shown)) return target;
+  return shown + (target - shown) * easeShare(dtMs, tauMs);
+}
+
+const M_PER_DEG_LAT = 111_320;
+
+/**
+ * Where you are probably now, between GPS fixes: carry on from the last one at your speed and
+ * heading, for at most `maxMs` (so a lost signal doesn't drive you off into a field). Stopped or
+ * slow: stay put.
+ */
+export function predictAhead(at: LatLng, speed: number | null | undefined, heading: number | null | undefined, ageMs: number, maxMs = 1500): LatLng {
+  if (speed == null || !(speed > COURSE_MIN_SPEED) || heading == null || !Number.isFinite(heading) || !(ageMs > 0)) return at;
+  const d = speed * (Math.min(ageMs, maxMs) / 1000);
+  const r = (heading * Math.PI) / 180;
+  const dLat = (d * Math.cos(r)) / M_PER_DEG_LAT;
+  const dLng = (d * Math.sin(r)) / (M_PER_DEG_LAT * Math.cos((at.lat * Math.PI) / 180));
+  return { lat: at.lat + dLat, lng: at.lng + dLng };
+}
+
+/** Rough metres between two nearby points (fine for the camera's jump check). */
+export function roughMetres(a: LatLng, b: LatLng): number {
+  const dy = (b.lat - a.lat) * M_PER_DEG_LAT;
+  const dx = (b.lng - a.lng) * M_PER_DEG_LAT * Math.cos((a.lat * Math.PI) / 180);
+  return Math.hypot(dx, dy);
+}
