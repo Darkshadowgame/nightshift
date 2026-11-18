@@ -1,3 +1,4 @@
+import { modCount } from '../lib/modGroups';
 import { carShape } from '../lib/buildShape';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -30,8 +31,8 @@ export function at(u?: Pick<User, 'handle'> | null): string {
 
 /** A build's facts, the same everywhere: "583 bhp · 4 mods". */
 export function buildMeta(b: Build): string {
-  // Wheel dyno figures stay whp (never inflated); otherwise the bhp Class uses.
-  return metaLine([powerText(b), plural(b.mods.length, 'mod')]);
+  // One power figure (crank bhp, "est." from a wheels run); mods in one group count once (REVIEW-10).
+  return metaLine([powerText(b), plural(modCount(b.mods), 'mod')]);
 }
 
 /** "Connect with people at a meet": the one way into connections, from every empty list of people or chats. */
