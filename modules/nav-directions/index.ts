@@ -111,6 +111,8 @@ interface Native {
   searchPlaces?(query: string, near: RoutePoint | null): Promise<PlaceSuggestion[]>;
   resolvePlace?(id: string): Promise<ResolvedPlace>;
   stopSpeaking(): Promise<boolean>;
+  /** Build 12 on: the text in a photo, lines top to bottom (Apple Vision, on the phone). */
+  recognizeText?(uri: string): Promise<string>;
   chime(): boolean;
   addListener?(event: 'onRouteProgress', fn: (e: { done: number; total: number }) => void): Subscription;
 }
@@ -202,3 +204,6 @@ export async function resolvePlace(id: string): Promise<ResolvedPlace | null> {
   if (!native?.resolvePlace) return null;
   return native.resolvePlace(id);
 }
+
+/** Text recognition needs build 12 or later (src/lib/ocr.ts uses it for dyno sheets). */
+export const textRecognitionAvailable = typeof native?.recognizeText === 'function';
