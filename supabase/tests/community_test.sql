@@ -281,7 +281,7 @@ select set_config('t.thread', public.create_thread('advice', null, 'Clutch slipp
 select isnt(current_setting('t.thread'), null, 'create_thread: C asks for advice');
 select throws_ok($$ select public.create_thread('advice', null, 'Hi', '') $$, 'P0001', 'Give it a title of at least 4 characters.', 'create_thread: a real title');
 select throws_ok($$ select public.create_thread('local', null, 'Meet up?', '') $$, 'P0001', 'Pick a region for the Local board.', 'create_thread: Local needs a region');
-select throws_ok($$ select public.create_thread('cars', null, 'You absolute c.u.n.t', '') $$, 'P0001',
+select throws_ok($$ select public.create_thread('cars', null, 'You absolute s.l.u.t', '') $$, 'P0001',
   'Keep it friendly: that has a word Nightshift doesn''t allow.', 'filter: words Nightshift doesn''t allow, dotted out too');
 select throws_ok($$ select public.create_thread('meets', null, 'Heads up', 'Police spotted on the ring road') $$, 'P0001',
   'Posts about where police or speed checks are aren''t allowed on Nightshift.', 'filter: no police spotting');
