@@ -29,7 +29,8 @@ export type AspectKey = 'free' | '1:1' | '4:5' | '4:3' | '16:9' | 'cover';
 
 export const ASPECTS: { key: AspectKey; label: string; ratio: number | null }[] = [
   { key: 'free', label: 'Free', ratio: null },
-  { key: 'cover', label: 'Cover', ratio: COVER_ASPECT },
+  // "Cover" alone was unclear (REVIEW-8): it's the garage card's wide shape.
+  { key: 'cover', label: 'Garage card', ratio: COVER_ASPECT },
   { key: '1:1', label: '1:1', ratio: 1 },
   { key: '4:5', label: '4:5', ratio: 4 / 5 },
   { key: '4:3', label: '4:3', ratio: 4 / 3 },

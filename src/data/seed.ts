@@ -6,6 +6,7 @@ import { isPublicType } from '../lib/events';
 import { nearestRegion } from '../lib/profile';
 import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
 import { PLACES, type PlaceSeed } from './places';
+import { SAMPLE_PHOTOS } from './samplePhotos';
 
 /**
  * Demo scene for Phase 1: made-up sample people and events, drawn round the
@@ -188,6 +189,11 @@ function makeMods(buildId: string, specs: ModSpec[]): Mod[] {
 }
 
 export { BAN_ZONES } from './banZones';
+
+/** A sample build's or post's real photo from Wikimedia Commons (samplePhotos.ts), as a `sample:` ref. */
+export function samplePhotoRefs(id: string): string[] {
+  return SAMPLE_PHOTOS[id] ? [`sample:${id}`] : [];
+}
 
 function at(now: Date, dayOffset: number, hour: number, minute = 0): string {
   const d = new Date(now);
@@ -422,7 +428,7 @@ export function seed(now: Date = new Date(), scene: SceneOptions = {}): SeedStat
       return {
         id, ownerId: p.id, kind: b.kind, make: b.make, model: b.model, year: b.year, nickname: b.nickname,
         stockBhp: b.stockBhp, weightKg: b.weightKg, torqueLbFt: b.torque, dynoBhp: b.dyno,
-        mods: makeMods(id, b.mods), tuneStage: seedStage(b.mods), photos: [], colour: b.colour,
+        mods: makeMods(id, b.mods), tuneStage: seedStage(b.mods), photos: samplePhotoRefs(id), colour: b.colour,
       };
     }),
   );

@@ -13,12 +13,12 @@ import { useNow } from '../../lib/clock';
 import { useCommunityQuery } from '../../lib/communityStore';
 import { plural } from '../../lib/format';
 import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
-import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
 import { stageFromMods, stageLabel } from '../../lib/tune';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
+import { photoSource } from '../../lib/photoSource';
 
 /**
  * A build: kind, name, owner, tags, the photo, then a stat block (power, weight, class, tune),
@@ -122,7 +122,7 @@ export default function BuildScreen() {
       ) : b.photos.length > 1 ? (
         <ScrollView horizontal contentContainerStyle={{ gap: SPACING.sm }} showsHorizontalScrollIndicator={false}>
           {b.photos.slice(1).map((p) => (
-            <Image key={p} source={{ uri: photoUri(p) }} style={{ width: 120, height: 90, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" accessibilityIgnoresInvertColors />
+            <Image key={p} source={photoSource(p)} style={{ width: 120, height: 90, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" accessibilityIgnoresInvertColors />
           ))}
         </ScrollView>
       ) : null}

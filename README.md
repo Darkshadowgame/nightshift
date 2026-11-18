@@ -227,10 +227,9 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
 
 - [ ] Late rolling meet: the map dims and the stop **unlocks** (once per stop).
       The strip under the title shows the time left, the stop number and how many have
-      checked in. **Check in** uses your real location now: unless you're at the stop it
-      says how close you need to be. To try the rest from the sofa, turn on Me › Settings › Demo › **Skip
-      the GPS check** first, then tap **Check in** (above **Drop out** and **Share**): a
-      tick bursts and the phone buzzes.
+      checked in. In the demo **Check in** never checks the distance ("Demo: location check
+      skipped" under it): tap it and a tick bursts and the phone buzzes. Signed in, it uses
+      your real location and says how close you need to be.
 - [ ] Hosting a rolling meet: join a crew (Me › Crew › **Find a crew**) or host your own from
       Tonight › **+ Host**, then check in at the first stop (check-in opens 30 min before the start).
 - [ ] **Change the plan**: rename, move or add a stop. The change log (hosts only)
@@ -265,17 +264,17 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
       drive's line should sit on the real road when you zoom in. Drives show **Before you
       go** warnings where they matter (single-track, snow gates, cameras), and "Added by
       Nightshift".
-- [ ] A drive has one primary button, **Navigate the drive**: the driving view counts the
-      drive when you pass every checkpoint in order (pass or fail, never timed). With **Demo:
-      skip the GPS check** on, tap **Simulate the drive** instead: it finishes with a pass,
-      never a time. Rate it 1–5 stars. On the web (or with another directions app chosen),
-      **Count without directions** only counts checkpoints you really pass.
+- [ ] A drive has one primary button, **Start the drive**: on the iPhone it opens the driving
+      view, which counts the drive when you pass every checkpoint in order (pass or fail, never
+      timed). In the demo the app drives it for you at a legal pace and it finishes with a pass
+      and its rep. Rate it 1–5 stars. On the web (or with another directions app chosen), it
+      counts only the checkpoints you really pass; **Directions to the start** opens other apps.
 - [ ] Signed in, finishing, checking in at or rating one of Nightshift's own drives or photo
       spots is saved on the server: **Driven by**, the stars and your rep match on a mate's
       phone. Anything done on that phone before this update shows **Only on this phone** and
       doesn't count.
-- [ ] Open a photo spot > **Check in here**: with the GPS check on it says how close you
-      need to be; with it skipped you can add a photo (plates blurred) or skip it.
+- [ ] Open a photo spot > **Check in here**: signed in it says how close you need to be; in the
+      demo the check is skipped and you can add a photo (plates blurred) or skip it.
 - [ ] Map > **+ Suggest a place** > **Draw the drive on the map** (or **Choose on the map** for a photo
       spot): put the crosshair on the road and tap **Add start**, then **Add checkpoint** along the road
       (tapping the map adds one too; **Undo** takes one off), then **Done**. Drive points must be at

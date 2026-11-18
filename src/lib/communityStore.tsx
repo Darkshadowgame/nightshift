@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 import { ME } from '../data/seed';
 import { supabase } from './backend/client';
 import { createRemoteCommunity } from './backend/community';
-import { createLocalCommunity, emptyDemoCommunity, seedDemoCommunity, type CommunityService, type DemoCommunity } from './communityService';
+import { createLocalCommunity, emptyDemoCommunity, seedDemoCommunity, withSamplePhotos, type CommunityService, type DemoCommunity } from './communityService';
 import { idsIn, type ConnectionState } from './connections';
 import { NO_FORUM_REP, type ForumRep } from './forum';
 import { totalUnread, type Conversation } from './messages';
@@ -71,7 +71,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     let live = true;
     AsyncStorage.getItem(DEMO_KEY)
       .then((raw) => {
-        if (live && raw) demo.current = { ...emptyDemoCommunity(), ...(JSON.parse(raw) as DemoCommunity) };
+        if (live && raw) demo.current = withSamplePhotos({ ...emptyDemoCommunity(), ...(JSON.parse(raw) as DemoCommunity) });
       })
       .catch(() => {})
       .finally(() => {

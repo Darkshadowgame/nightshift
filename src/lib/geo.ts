@@ -10,8 +10,9 @@ export function milesBetween(a: LatLng, b: LatLng): number {
   return 2 * EARTH_MILES * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** "2.3 mi", "14 mi". Under 0.1 mi says so, because callers add "from you" or "from home" (REVIEW-8: "here from you"). */
 export function formatMiles(miles: number): string {
-  if (miles < 0.1) return 'here';
+  if (miles < 0.1) return 'under 0.1 mi';
   if (miles < 10) return `${miles.toFixed(1)} mi`;
   return `${Math.round(miles)} mi`;
 }

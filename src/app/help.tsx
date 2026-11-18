@@ -11,7 +11,7 @@ const TOPICS: { title: string; lines: string[] }[] = [
     title: 'Tonight',
     lines: [
       "Tonight shows what's on near your home area: live now, later tonight and this week, on the map or as a list.",
-      'Tap the + to host your own meet, cruise or rolling meet, or to suggest a place.',
+      'Tap + New to host your own meet, cruise, rolling meet, show or track day, or to suggest a place.',
     ],
   },
   {
@@ -37,7 +37,7 @@ const TOPICS: { title: string; lines: string[] }[] = [
   {
     title: 'Trophies and votes',
     lines: [
-      'After a meet, the people who checked in vote for the best builds for a day. Winners get trophies, and the best get a cover shoot.',
+      'The people who checked in vote for the best builds, from the start until 24 hours after it ends. Winners get trophies, and the best get a cover shoot.',
       'Best in show also makes you a Legend for a week: a badge on your profile and next to your name.',
     ],
   },

@@ -1,5 +1,5 @@
 import { communitySample, SAMPLE_REPLIES } from '../data/communitySeed';
-import { ME, SAMPLE_PEOPLE } from '../data/seed';
+import { ME, SAMPLE_PEOPLE, samplePhotoRefs } from '../data/seed';
 import { peopleNear, type Nearby } from './carsNear';
 import {
   answerConnection,
@@ -273,6 +273,11 @@ export function emptyDemoCommunity(): DemoCommunity {
     version: 1, around: null, connections: [], sent: [], blocks: [], hidden: false, rated: {}, likes: {}, threads: [], replies: [], solved: [], posts: [],
     comments: [], conversations: [], messages: [], reports: [],
   };
+}
+
+/** Sample posts saved before they had photos get their Commons photo (REVIEW-8). */
+export function withSamplePhotos(s: DemoCommunity): DemoCommunity {
+  return { ...s, posts: s.posts.map((p) => (p.sample && p.photos.length === 0 ? { ...p, photos: samplePhotoRefs(p.id) } : p)) };
 }
 
 /** Lay the samples out round this home (first run, or a new home area), keeping what you made. */

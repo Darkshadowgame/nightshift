@@ -1,4 +1,4 @@
-import { DEMO_HOME, ME, sampleHomes, seed, SEED_EVENT_IDS, type SeedState } from '../data/seed';
+import { DEMO_HOME, ME, sampleHomes, samplePhotoRefs, seed, SEED_EVENT_IDS, type SeedState } from '../data/seed';
 import { splitSavedSpots, type ProgressMap } from './placeStore';
 import { SCHEMA_VERSION } from './persist';
 import { tidyModel } from './vehicles';
@@ -193,7 +193,8 @@ export function migrate(parsed: Persisted): Persisted {
   // Photos saved as full paths: keep only the file name when it's in our photos folder.
   next = {
     ...next,
-    builds: next.builds.map((b) => ({ ...b, photos: b.photos.map(migratePhotoRef) })),
+    // Sample builds saved before they had photos get their Commons photo (REVIEW-8).
+    builds: next.builds.map((b) => ({ ...b, photos: b.photos.length ? b.photos.map(migratePhotoRef) : b.ownerId !== ME ? samplePhotoRefs(b.id) : [] })),
     spots: next.spots.map((x) => ({
       ...x,
       completions: x.completions.map((c) => (c.photo ? { ...c, photo: migratePhotoRef(c.photo) } : c)),

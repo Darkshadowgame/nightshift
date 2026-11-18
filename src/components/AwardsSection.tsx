@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { buildTag } from '../lib/bringing';
-import { canVote, categoriesFor, categoryInfo, eligibleFor, results, votingCloses } from '../lib/awards';
+import { allAwards, canVote, categoriesFor, categoryInfo, eligibleFor, results, votingCloses, type AwardCategory } from '../lib/awards';
+import { carShape } from '../lib/buildShape';
+import { photoSource } from '../lib/photoSource';
 import { classOf } from '../lib/classes';
 import { formatRelative } from '../lib/format';
 import { useStore } from '../lib/store';
@@ -11,7 +12,9 @@ import type { NightEvent } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Cover, Trophy } from './Cover';
 import { Callout } from './Detail';
-import { Button, ClassBadge, DsText, EmptyState, ErrorState, ListRow, Press, RowDivider, Section, Tag, displayHandle } from './ds';
+import { buildMeta } from './Community';
+import { Button, BuildThumb, ClassBadge, DsText, EmptyState, ErrorState, ListRow, Press, RowDivider, Section, Tag, displayHandle } from './ds';
+import { PhotoCredit } from './PhotoCredit';
 import { RevealIn } from './motion';
 
 /**
@@ -19,7 +22,9 @@ import { RevealIn } from './motion';
  * then the trophies. `expanded` opens the voting (the event's primary "Vote" does that).
  */
 export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent; expanded?: boolean; onExpand?: () => void }) {
-  const { builds, users, votes, me, vote } = useStore();
+  const { builds, users, votes, me, vote, events } = useStore();
+  /** Voted trophies fold to one line (REVIEW-8: 7 trophies of the same cards was a long scroll); tap Change to reopen. */
+  const [changing, setChanging] = useState<string | null>(null);
   const now = useNow();
   /** A refused vote, shown under its award. */
   const [error, setError] = useState<{ cat: string; text: string } | null>(null);
@@ -69,6 +74,10 @@ export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent
 
   const check = canVote(event, me, now);
   const cats = categoriesFor(event, builds);
+  // Best newcomer is for people who haven't won a trophy yet (REVIEW-8: this week's Legend was on the list).
+  const winners = new Set(allAwards(votes, events.filter((e) => e.id !== event.id), builds, now).map((a) => a.ownerId));
+  const optionsFor = (cat: string) =>
+    eligibleFor(cat as AwardCategory, event, builds).filter((b) => b.ownerId !== me && !(cat === 'newcomer' && winners.has(b.ownerId)));
   const myVote = (cat: string) => votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === cat)?.buildId;
   const done = cats.filter((c) => myVote(c)).length;
 
@@ -105,10 +114,23 @@ export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent
       )}
       {check.ok
         ? cats.map((cat) => {
-            const options = eligibleFor(cat, event, builds).filter((b) => b.ownerId !== me);
+            const options = optionsFor(cat);
             if (options.length === 0) return null;
             const chosen = myVote(cat);
             const label = categoryInfo(cat).label;
+            const picked = chosen ? builds.find((b) => b.id === chosen) : undefined;
+            if (picked && changing !== cat) {
+              const owner = users.find((u) => u.id === picked.ownerId);
+              return (
+                <ListRow
+                  key={cat}
+                  leading={{ icon: 'success', colour: COLOR.state.success }}
+                  title={label}
+                  subtitle={`${displayHandle(owner?.handle ?? 'unknown')} · ${picked.make} ${picked.model}`}
+                  trailing={<Button tier="tertiary" size="sm" label="Change" accessibilityLabel={`Change your vote for ${label}`} onPress={() => setChanging(cat)} />}
+                />
+              );
+            }
             return (
               <View key={cat} style={{ gap: SPACING.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
@@ -132,11 +154,13 @@ export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent
                         label={`Vote ${b.make} ${b.model} by ${displayHandle(owner?.handle ?? 'unknown')} for ${label}`}
                         onPress={() => {
                           setError(null);
-                          vote(event.id, cat, b.id).catch((e) => setError({ cat, text: e instanceof Error ? e.message : "Couldn't count that vote." }));
+                          vote(event.id, cat, b.id)
+                            .then(() => setChanging(null))
+                            .catch((e) => setError({ cat, text: e instanceof Error ? e.message : "Couldn't count that vote." }));
                         }}
                         style={{
-                          width: 152,
-                          padding: SPACING.md,
+                          width: 168,
+                          padding: SPACING.sm,
                           gap: SPACING.xs,
                           borderRadius: RADII.card,
                           borderWidth: 1,
@@ -144,6 +168,11 @@ export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent
                           backgroundColor: on ? COLOR.action.selectedTint : COLOR.surface.card,
                         }}
                       >
+                        {/* The photo first: it's what people vote on (REVIEW-8). */}
+                        <View>
+                          <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={114} />
+                          <PhotoCredit photoRef={b.photos[0]} kind={b.kind} overlay link={false} />
+                        </View>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
                           <ClassBadge letter={classOf(b)} size="sm" decorative />
                           <DsText v="meta" numberOfLines={1} style={{ flex: 1 }}>
@@ -153,11 +182,9 @@ export function AwardsSection({ event, expanded, onExpand }: { event: NightEvent
                         <DsText v="body" numberOfLines={2}>
                           {b.make} {b.model}
                         </DsText>
-                        {buildTag(b) ? (
-                          <DsText v="caption" numberOfLines={1}>
-                            {buildTag(b)}
-                          </DsText>
-                        ) : null}
+                        <DsText v="meta" numberOfLines={1}>
+                          {buildMeta(b)}
+                        </DsText>
                       </Press>
                     );
                   })}

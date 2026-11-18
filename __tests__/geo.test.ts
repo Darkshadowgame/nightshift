@@ -13,3 +13,12 @@ describe('fitting the map to everything', () => {
     expect(fitRegion([])).toBeNull();
   });
 });
+
+describe('formatMiles', () => {
+  const { formatMiles } = require('../src/lib/geo');
+  it('never says "here" (it gets "from you" added)', () => {
+    expect(`${formatMiles(0)} from you`).toBe('under 0.1 mi from you');
+    expect(formatMiles(2.34)).toBe('2.3 mi');
+    expect(formatMiles(14.4)).toBe('14 mi');
+  });
+});

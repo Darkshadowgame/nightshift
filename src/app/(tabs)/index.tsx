@@ -827,7 +827,7 @@ export default function TonightScreen() {
               peek={headerH}
               detent={detent}
               onDetent={setDetent}
-              label={sel ? sel.title : 'Tonight near you'}
+              label={sel ? sel.title : `${dayWord(now)} near you`}
               onHeaderLayout={setHeaderH}
               header={
                 sel ? (
@@ -868,7 +868,7 @@ export default function TonightScreen() {
                   <View style={st.header}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
                       <DsText v="eyebrow" tone="action" accessibilityRole="header">
-                        Tonight near you
+                        {`${dayWord(now)} near you`}
                       </DsText>
                       {hud.tonight > 0 ? <DsText v="meta">{hud.tonight} in the next 12 h</DsText> : null}
                     </View>
@@ -994,6 +994,12 @@ function MapButton({ onPress, label, lit, children }: { onPress: () => void; lab
 function laterLabel(now: Date): string {
   const h = now.getHours();
   return h >= 5 && h < 17 ? 'Later today' : 'Tonight';
+}
+
+/** "Today" in the day, "Tonight" from 5 pm (REVIEW-8: "Tonight near you" over a 09:35 meet). The tab keeps its name. */
+function dayWord(now: Date): string {
+  const h = now.getHours();
+  return h >= 5 && h < 17 ? 'Today' : 'Tonight';
 }
 
 function EventSection({

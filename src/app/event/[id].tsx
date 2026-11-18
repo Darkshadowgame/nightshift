@@ -64,10 +64,10 @@ import { planForEvent } from '../../lib/navPlan';
 import { askPermission, notificationsSupported } from '../../lib/notify';
 import { REP } from '../../lib/rep';
 import { lastPage, PAGE as LIST_PAGE } from '../../lib/paging';
-import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import type { Build, LatLng } from '../../lib/types';
 import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
+import { photoSource } from '../../lib/photoSource';
 
 /** Where an error shows: under the control that caused it (REVIEW-5 M10). */
 type ErrorAt = 'checkin' | 'going' | 'request' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'change';
@@ -269,6 +269,8 @@ export default function EventScreen() {
       // First Going is the moment reminders make sense, so ask then (iOS only asks once).
       // Once they answer, schedule again: the first sync ran while the prompt was still up.
       if (result === 'going' && !wasGoing && settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
+      // Say it worked (REVIEW-8: the button just changed, with no confirmation).
+      if (result === 'going' && !wasGoing) toast({ message: "You're going. Check in when you get there." });
     } catch (err) {
       setError(picking === 'change' ? 'change' : 'going', err instanceof Error ? err.message : "Couldn't change that.");
     } finally {
@@ -638,6 +640,10 @@ export default function EventScreen() {
         {stats.length ? <StatBlock stats={stats} /> : null}
 
         {primaryBlock ? <View style={{ gap: SPACING.md }}>{primaryBlock}</View> : null}
+        {/* Leaving is one tap away, not only in the ··· menu (REVIEW-8). */}
+        {going && !host && !closed && (primary.kind === 'navigate' || primary.kind === 'checkin' || primary.kind === 'waiting') ? (
+          <Button label={GOING.leave} tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => setConfirmLeave(true)} />
+        ) : null}
         {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
 
         {closed ? awards : null}
@@ -762,7 +768,7 @@ export default function EventScreen() {
                       title={userLabel(uid)}
                       subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
                       meta={[hostIds.includes(uid) ? 'Hosting' : null, hasLegend(awardsSoFar, uid, now) ? 'Legend this week' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
-                      trailing={b ? <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={30} /> : undefined}
+                      trailing={b ? <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={30} /> : undefined}
                       onPress={() => openUser(uid)}
                     />
                   </View>

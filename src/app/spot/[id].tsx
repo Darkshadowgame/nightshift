@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Platform, ScrollView, View } from 'react-native';
+import { Image, Platform, ScrollView, View, type ImageSourcePropType } from 'react-native';
 import { navDirectionsAvailable } from '../../../modules/nav-directions';
 import { openReport } from '../../components/Community';
 import { CommonsStrip } from '../../components/CommonsStrip';
@@ -42,6 +42,8 @@ import { useStore } from '../../lib/store';
 import { trackOutline } from '../../lib/tracks';
 import type { LatLng, Spot } from '../../lib/types';
 import { COLOR, LAYER, RADII, SPACING, SPOT_COLOURS } from '../../theme';
+import { samplePhoto } from '../../lib/photoSource';
+import { PhotoCredit } from '../../components/PhotoCredit';
 
 /** A drive, photo spot or track: details, start a drive or check in, then rate it. */
 export default function SpotScreen() {
@@ -80,9 +82,12 @@ function SpotDetail({ spot }: { spot: Spot }) {
   ];
   const framed = spot.kind === 'drive' && checkpoints.length ? checkpoints : outline ? outline.path : [];
 
+  // A drive: the line, with the start and finish pinned (and the next checkpoint while driving), not a
+  // pin on every checkpoint (REVIEW-8: 18 hexes in a row read as a caterpillar).
+  const placePhoto = samplePhoto(spot.id);
   const pins: MapPin[] =
     spot.kind === 'drive'
-      ? checkpoints.map((p, i) => ({
+      ? checkpoints.flatMap((p, i) => (i === 0 || i === checkpoints.length - 1 || (run && i === run.passed) ? [{ p, i }] : [])).map(({ p, i }) => ({
           id: `cp${i}`,
           at: p,
           glyph: 'drive' as const,
@@ -219,6 +224,20 @@ function SpotDetail({ spot }: { spot: Spot }) {
         />
       ) : null}
       {!pending && isInfoOnly(spot.kind) ? <NavLaunch target={navTarget} to={spot.at} kind="primary" /> : null}
+
+      {/* A photo of the place itself, from Wikimedia Commons, credited (REVIEW-8: "a photo spot with no photo"). */}
+      {placePhoto ? (
+        <View>
+          <Image
+            source={placePhoto.image as ImageSourcePropType}
+            style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }}
+            resizeMode="cover"
+            accessibilityLabel={`Photo: ${placePhoto.title}`}
+            accessibilityIgnoresInvertColors
+          />
+          <PhotoCredit photoRef={spot.id} kind="place" overlay />
+        </View>
+      ) : null}
 
       <MediaFrame height={220}>
         <NightMap

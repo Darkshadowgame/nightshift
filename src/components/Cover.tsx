@@ -1,6 +1,6 @@
 import { carShape } from '../lib/buildShape';
 import { Image, StyleSheet, View } from 'react-native';
-import { photoUri } from '../lib/photos';
+import { photoSource } from '../lib/photoSource';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
 import { classOf, effectivePower } from '../lib/classes';
@@ -17,7 +17,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
   return (
     <View style={[st.cover, { width, height: h }]} accessibilityLabel={`Cover: ${categoryInfo(award.category).label}, ${build.make} ${build.model}`}>
       {build.photos[0] ? (
-        <Image source={{ uri: photoUri(build.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={photoSource(build.photos[0])} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
           <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={h * 0.55} />

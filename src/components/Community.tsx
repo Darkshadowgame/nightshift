@@ -8,11 +8,12 @@ import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
 import { plural, shortAgo } from '../lib/format';
 import { conversationTitle, previewLine, type Conversation } from '../lib/messages';
-import { photoUri } from '../lib/photos';
 import { VISIBILITY, type Post } from '../lib/posts';
 import type { Build, User } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Avatar, BuildThumb, Button, ClassBadge, DsText, EntityCard, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
+import { photoSource } from '../lib/photoSource';
+import { PhotoCredit } from './PhotoCredit';
 
 /** A person's mark data for the DS Avatar: initials from their name, else their handle. */
 export function personMark(u?: Pick<User, 'name' | 'handle'> | null): { name?: string | null; handle?: string | null } {
@@ -49,7 +50,7 @@ export function openBuild(id: string) {
 export function BuildRow({ build, onPress }: { build: Build; onPress?: () => void }) {
   const body = (
     <>
-      <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={36} />
+      <BuildThumb photo={build.photos[0] ? photoSource(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={36} />
       <ClassBadge letter={classOf(build)} size="sm" decorative />
       <View style={{ flex: 1, gap: SPACING.xxs }}>
         <DsText v="body" numberOfLines={1}>
@@ -100,7 +101,7 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
       style={{ width, gap: SPACING.xs }}
     >
       <View>
-        <BuildThumb photo={build.photos[0] ? photoUri(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={thumbHeight} />
+        <BuildThumb photo={build.photos[0] ? photoSource(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={thumbHeight} />
         <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm }}>
           <ClassBadge letter={classOf(build)} size="sm" decorative />
         </View>
@@ -109,6 +110,7 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
             <Tag label="Sample" />
           </View>
         ) : null}
+        <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay link={false} />
       </View>
       <DsText v="bodyStrong" numberOfLines={2}>
         {build.make} {build.model}
@@ -120,9 +122,10 @@ export function BuildTile({ build, width, trophies = 0, sample }: { build: Build
   );
 }
 
-/** A two-column grid of build tiles. */
+/** A two-column grid of build tiles; one build gets the full width (REVIEW-8: a half-width card with an empty half). */
 export function BuildGrid({ builds, trophiesOf, sampleId }: { builds: Build[]; trophiesOf?: (id: string) => number; sampleId?: (b: Build) => boolean }) {
-  const w = useTileWidth();
+  const half = useTileWidth();
+  const w = builds.length === 1 ? half * 2 + SPACING.md : half;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md }}>
       {builds.map((b) => (
@@ -154,7 +157,7 @@ export function PersonNearRow({ card, level, state, sample }: { card: Card_; lev
         b ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
             <ClassBadge letter={classOf(b)} size="sm" decorative />
-            <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={36} />
+            <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={36} />
           </View>
         ) : undefined
       }
@@ -205,13 +208,14 @@ export function PostCard({
         <View key={p}>
           {/* A photo that can't load (an old web preview link, a file that's gone) drops out instead of leaving a blank frame. */}
           <Image
-            source={{ uri: photoUri(p) }}
+            source={photoSource(p)}
             onError={() => setBroken((b) => new Set(b).add(p))}
             style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }}
             resizeMode="cover"
             accessibilityLabel="Photo in the post"
             accessibilityIgnoresInvertColors
           />
+          <PhotoCredit photoRef={p} overlay link={!!full} />
           {i === 0 && !full && post.photos.length > 1 ? (
             <View style={{ position: 'absolute', right: SPACING.sm, bottom: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
               <Tag label={`+${post.photos.length - 1} photos`} />

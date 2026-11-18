@@ -15,11 +15,11 @@ import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { CONNECT, connectHint } from '../../lib/connections';
 import { plural } from '../../lib/format';
 import { publicProfile } from '../../lib/people';
-import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import type { Build } from '../../lib/types';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
+import { photoSource } from '../../lib/photoSource';
 
 /** The build with the most to look at: a photo first, then the most power. */
 function coverBuild(builds: Build[]): Build | undefined {
@@ -93,7 +93,7 @@ export default function UserScreen() {
     <ScrollView contentContainerStyle={{ paddingBottom: SPACING.xxxl }}>
       <View style={{ height: COVER_HEIGHT, backgroundColor: COLOR.surface.media, overflow: 'hidden' }} aria-hidden>
         {cover?.photos[0] ? (
-          <Image source={{ uri: photoUri(cover.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+          <Image source={photoSource(cover.photos[0])} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
         ) : cover ? (
           <BuildArt kind={cover.kind} shape={carShape(cover)} colour={cover.colour} height={COVER_HEIGHT} />
         ) : null}

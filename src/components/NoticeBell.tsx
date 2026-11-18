@@ -35,11 +35,13 @@ export function NoticeBell({ boxed, size = 44 }: { boxed?: boolean; size?: numbe
       {unread > 0 ? (
         <View
           style={{
-            position: 'absolute', top: boxed ? -5 : 2, right: boxed ? -6 : 0, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
+            // Inside the bell's own box, so it never touches the screen edge (REVIEW-8, large text).
+            position: 'absolute', top: boxed ? -5 : 2, right: boxed ? -6 : 2, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
             backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <DsText v="tag" tone="onAction" style={{ letterSpacing: 0 }}>
+          {/* A fixed mark, like an avatar: it doesn't grow with the text size. */}
+          <DsText v="tag" tone="onAction" style={{ letterSpacing: 0 }} allowFontScaling={false}>
             {unread > 9 ? '9+' : unread}
           </DsText>
         </View>

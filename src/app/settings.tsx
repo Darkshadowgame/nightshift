@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LEGAL_ROWS, openLegal } from '../components/AboutSection';
 import { AppUpdates, updateDetails, versionLine } from '../components/AppUpdates';
@@ -26,11 +26,17 @@ const EXTRA_LAYERS: { key: Layer; label: string; hint: string }[] = [
   { key: 'roads', label: 'Road reports', hint: "Drivers' reports and road closures." },
 ];
 
+/** Where each group starts, for the jump links at the top (REVIEW-8: a long wall of options). */
+const GroupY = createContext<((title: string, y: number) => void) | null>(null);
+
 function Group({ title, children }: { title: string; children: ReactNode }) {
+  const report = useContext(GroupY);
   return (
-    <Section title={title} gap="sm">
-      {children}
-    </Section>
+    <View onLayout={(e) => report?.(title, e.nativeEvent.layout.y)}>
+      <Section title={title} gap="sm">
+        {children}
+      </Section>
+    </View>
   );
 }
 
@@ -52,6 +58,8 @@ export default function SettingsScreen() {
   const [confirm, setConfirm] = useState<null | 'reset' | 'delete'>(null);
   const [busy, setBusy] = useState<null | 'out' | 'delete'>(null);
   const [developer, setDeveloper] = useState(__DEV__);
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  const groupY = useRef<Record<string, number>>({});
   useEffect(() => {
     permissionGranted().then(setAllowed);
   }, []);
@@ -78,8 +86,31 @@ export default function SettingsScreen() {
     }
   }
 
+  const jumps: [string, string][] = [
+    ['Navigation and voice', 'Navigation'],
+    ['Map layers', 'Map'],
+    ['Notifications', 'Notifications'],
+    ['Privacy', 'Privacy'],
+    ['Feedback', 'Feedback'],
+    ['About and legal', 'Legal'],
+    ...(demo ? ([['Demo', 'Demo']] as [string, string][]) : []),
+  ];
+
   return (
-    <ScrollView contentContainerStyle={st.page}>
+    <GroupY.Provider value={(title, y) => (groupY.current[title] = y)}>
+    <ScrollView ref={scroller} contentContainerStyle={st.page}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: SPACING.xs, marginBottom: -SPACING.md }} accessibilityLabel="Jump to a group">
+        {jumps.map(([title, label]) => (
+          <Button
+            key={title}
+            label={label}
+            tier="tertiary"
+            size="sm"
+            accessibilityLabel={`Jump to ${title}`}
+            onPress={() => scroller.current?.scrollTo({ y: Math.max(0, (groupY.current[title] ?? 0) - SPACING.sm), animated: true })}
+          />
+        ))}
+      </View>
       <Group title="Account">
         {demo ? (
           <>
@@ -298,6 +329,7 @@ export default function SettingsScreen() {
         onCancel={() => setConfirm(null)}
       />
     </ScrollView>
+    </GroupY.Provider>
   );
 }
 

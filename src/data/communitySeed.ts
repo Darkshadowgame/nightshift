@@ -3,7 +3,7 @@ import type { ForumReply, ForumThread, SolvedRecord } from '../lib/forum';
 import type { Conversation, Message } from '../lib/messages';
 import type { Post, PostComment } from '../lib/posts';
 import type { LatLng } from '../lib/types';
-import { ME } from './seed';
+import { ME, samplePhotoRefs } from './seed';
 
 /**
  * The demo's Community: made-up threads, posts and chats between the sample
@@ -98,7 +98,7 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
   const solved: SolvedRecord[] = [{ threadId: 'ft-clutch', userId: 'dan', markedBy: 'kez', rep: 25, day: ago(2 * DAY).slice(0, 10), at: ago(2 * DAY) }];
 
   const p = (id: string, authorId: string, body: string, created: number, extra: Partial<Post> = {}): Post => ({
-    id, authorId, body, photos: [], visibility: 'public', createdAt: ago(created), likeCount: 0, commentCount: 0, likedByMe: false, sample: true, ...extra,
+    id, authorId, body, photos: samplePhotoRefs(id), visibility: 'public', createdAt: ago(created), likeCount: 0, commentCount: 0, likedByMe: false, sample: true, ...extra,
   });
   const posts: Post[] = [
     p('po-1', 'dan', 'Golden hour at the old airfield car park. Quiet, plenty of space, nobody about.', 3 * HOUR,

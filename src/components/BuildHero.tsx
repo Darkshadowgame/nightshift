@@ -2,11 +2,12 @@ import { carShape } from '../lib/buildShape';
 import { Image, StyleSheet, View } from 'react-native';
 import { classOf } from '../lib/classes';
 import { plural } from '../lib/format';
-import { photoUri } from '../lib/photos';
+import { photoSource } from '../lib/photoSource';
 import type { Build } from '../lib/types';
 import { COLOR, RADII, SPACING, outline } from '../theme';
 import { BuildArt } from './BuildArt';
 import { ClassBadge, DsText, Tag } from './ds';
+import { PhotoCredit } from './PhotoCredit';
 
 /**
  * The build's photo (or silhouette) with its class stamped on the corner, like a car select
@@ -19,7 +20,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
   return (
     <View style={[st.wrap, aspect ? { aspectRatio: aspect } : { height }]}>
       {build.photos[0] ? (
-        <Image source={{ uri: photoUri(build.photos[0]) }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+        <Image source={photoSource(build.photos[0])} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
       ) : (
         <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={height ?? 160} />
       )}
@@ -50,6 +51,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
           ) : null}
         </View>
       ) : null}
+      <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay />
     </View>
   );
 }

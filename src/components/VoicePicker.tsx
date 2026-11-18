@@ -40,7 +40,7 @@ export function VoicePicker() {
   }, []);
 
   if (!voicePickerAvailable) {
-    return <DsText v="caption">Choosing a voice needs the latest iPhone app (build 11 or later).</DsText>;
+    return <DsText v="caption">Choosing a voice needs the latest version of the iPhone app.</DsText>;
   }
 
   const sorted = sortVoices(list ?? []);

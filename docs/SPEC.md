@@ -217,8 +217,8 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
   see details", opening the same card.
 * **Drives** (formerly "sprints"): rated roads, never timed or ranked.
 * **Check-in:** you must be within 0.5 mi of the current stop, from 30 minutes
-  before the start until the end. Before then the event shows when check-in opens. Check-ins use a real GPS fix (never stored). For testing, Me › Settings › **Demo: skip the GPS
-  check** skips the distance check; it is off by default.
+  before the start until the end. Before then the event shows when check-in opens. Check-ins use a real GPS fix (never stored). In the demo (no account) the distance is never
+  checked, and the check-in says "Demo: location check skipped" (REVIEW-8); signed in, it always is.
 * **Invites:** someone is invited when any of their builds matches the filter and
   they live within the radius of the area. "Everyone welcome" skips the build
   filter but keeps the radius.
@@ -267,16 +267,16 @@ Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
   approved), completions and 1–5 star ratings. Tap a pin on the map to open one.
 * **Navigate the drive** (the drive page's one primary button) opens the driving view, and
   passing every checkpoint in order counts the drive. Each point of the drive's line is a
-  checkpoint (within 0.2 mi). Where Nightshift's own directions aren't available (web, an
-  older install, or another directions app chosen in Settings) a secondary **Count without
-  directions** runs the same checkpoint check with GPS (`watchPositionAsync`); with **Demo: skip
-  the GPS check** on, **Simulate the drive** walks the checkpoints at a legal pace.
+  checkpoint (within 0.2 mi). The drive's one primary is **Start the drive**: Nightshift's own
+  directions where they're available; elsewhere (web, an older install, or another directions app
+  chosen in Settings) it runs the same checkpoint check with GPS (`watchPositionAsync`); in the
+  demo it walks the checkpoints for you at a legal pace.
   A run that would average over 45 mph along the drawn route (or the stated road
   length, if longer; or the road's own limit on national-limit A-roads, 60 mph), or takes far longer than
   the drive allows, doesn't count, and says only "This run looks too quick to count" (never
   that anyone broke a limit). **The app only ever says pass or fail**: no
   time or speed is shown or stored, and a completion keeps the day only.
-* **Photo spot visit:** check in within 0.2 mi by real GPS (or skip the check in the demo), then an optional
+* **Photo spot visit:** check in within 0.2 mi by real GPS (the demo skips the check), then an optional
   photo that goes through the plate review and is saved pixelated with no metadata.
 * After a drive or visit, a 1–5 star prompt. One rating each, the latest counts.
 * **Suggest a place:** on a full-screen map with a fixed crosshair, add checkpoints
@@ -770,9 +770,9 @@ Owner's request: "Obviously you need to use real maps and location."
 * **Map:** Apple Maps (react-native-maps) on iPhone. The Map tab asks for
   when-in-use location the first time, centres on you with the blue dot and has a
   locate-me button. If location is denied it shows your home area and says so once.
-* **Real GPS by default:** check-ins, drives and photo spot visits use the phone's
-  position. "Demo: skip the GPS check" (Me) is for testing only and is off by
-  default; old saves were switched off once.
+* **Real GPS when signed in:** check-ins, drives and photo spot visits use the phone's
+  position. The demo never blocks them on distance. "Demo: skip the GPS check" (Me) now
+  only covers road reports and the turn-by-turn view, for testing; it is off by default.
 * **Home area:** first run offers "Use my current location" and a postcode or town
   search. Either way the point is snapped to a ~1 km grid (`fuzz`) before it is
   saved, so the exact place is never stored. "Use the demo area" stays as a testing
