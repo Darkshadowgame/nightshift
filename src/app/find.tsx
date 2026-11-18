@@ -21,6 +21,7 @@ import {
 import { EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
 import { plural } from '../lib/format';
+import { firstPage, PAGE } from '../lib/paging';
 import { formatMiles, fuzz, milesBetween } from '../lib/geo';
 import { PLACE_NAMES } from '../lib/glossary';
 import { visibleSpots } from '../lib/spots';
@@ -154,6 +155,9 @@ export default function FindEvents() {
     return { events: eventHits, places: placeHits, people };
   }, [typed, query, hits, spots, me, users, origin]);
   const cap = (n: number) => (tab === 'all' ? n : 50);
+  /** Every upcoming event you can see, a page at a time (hundreds of cards at once stall the screen). */
+  const [shownHits, setShownHits] = useState(PAGE);
+  const hitPage = firstPage(hits, shownHits);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
@@ -331,7 +335,7 @@ export default function FindEvents() {
             secondary={{ label: 'Host one', onPress: () => router.push('/event/new') }}
           />
         ) : (
-          hits.map((h) => (
+          hitPage.items.map((h) => (
             <EventCard
               key={h.view.event.id}
               view={h.view}
@@ -341,6 +345,7 @@ export default function FindEvents() {
             />
           ))
         )}
+        {hitPage.more > 0 ? <LinkText label={`Show ${hitPage.more} more ›`} onPress={() => setShownHits((n) => n + PAGE)} /> : null}
       </Section>
       </>
       )}

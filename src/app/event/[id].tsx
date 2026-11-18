@@ -23,6 +23,7 @@ import { isSeedEvent } from '../../lib/demoTime';
 import { countdown, eventClock, unlocksIn } from '../../lib/hud';
 import { feel } from '../../lib/feel';
 import { formatRelative, formatTime, formatWhen } from '../../lib/format';
+import { lastPage, PAGE } from '../../lib/paging';
 import { describeFilter } from '../../lib/invites';
 import { askPermission } from '../../lib/notify';
 import { preciseFix } from '../../lib/location';
@@ -73,6 +74,10 @@ export default function EventScreen() {
   const { blocked } = useCommunity();
   // Lines from people you blocked are hidden (the server leaves them out too).
   const messages = useMemo(() => chat.filter((m) => m.eventId === id && !blocked.has(m.userId)), [chat, id, blocked]);
+  // The newest messages, more on request: a long meet chat would otherwise redraw every line on each keystroke here.
+  const [chatShown, setChatShown] = useState(PAGE * 2);
+  const chatPage = lastPage(messages, chatShown);
+  const earlierLink = chatPage.earlier > 0 ? <LinkText label={`Show ${chatPage.earlier} earlier ›`} onPress={() => setChatShown((n) => n + PAGE)} /> : null;
 
   // Signed in: live chat, who's going, check-ins and the meet moving on, while this screen is open.
   const remote = store.remote;
@@ -636,7 +641,8 @@ export default function EventScreen() {
           {closed && (host || going) ? (
             <Card>
               {messages.length === 0 ? <Txt v="muted">No messages.</Txt> : null}
-              {messages.map((m) => (
+              {earlierLink}
+              {chatPage.items.map((m) => (
                 <View key={m.id} style={{ gap: 2 }}>
                   <Txt v="label" style={{ color: m.system ? C.chalk : C.fog }}>
                     {m.system ? m.text : <Txt v="label" style={{ textTransform: 'none', color: C.fog }}>{userLabel(m.userId)}</Txt>} · {formatTime(m.at)}
@@ -655,7 +661,8 @@ export default function EventScreen() {
           ) : (
           <Card>
             {messages.length === 0 ? <Txt v="muted">No messages yet.</Txt> : null}
-            {messages.map((m) =>
+            {earlierLink}
+            {chatPage.items.map((m) =>
               m.system ? (
                 <View key={m.id} style={{ borderLeftWidth: 2, borderLeftColor: C.kerbHi, paddingLeft: 8 }}>
                   <Txt v="label" style={{ color: C.chalk }}>

@@ -3,10 +3,11 @@ import { useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
 import { NoticeBell } from '../../components/NoticeBell';
-import { EmptyState, HeaderAction, Row, Section, Segmented } from '../../components/ui';
+import { EmptyState, HeaderAction, LinkText, Row, Section, Segmented } from '../../components/ui';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
+import { firstPage, PAGE } from '../../lib/paging';
 import { STATE } from '../../theme';
 
 type Tab = 'mine' | 'invited' | 'public' | 'past';
@@ -45,12 +46,18 @@ export default function EventsScreen() {
   };
   const live = lists.mine.filter((v) => v.phase === 'live');
   const rest = tab === 'mine' ? lists.mine.filter((v) => v.phase !== 'live') : lists[tab];
+  // A page at a time: Past only grows, and a busy weekend can fill Public (hundreds of cards at once stall the tab).
+  const [shown, setShown] = useState(PAGE);
+  const page = firstPage(rest, shown);
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
       <Segmented<Tab>
         value={tab}
-        onChange={setTab}
+        onChange={(t) => {
+          setTab(t);
+          setShown(PAGE);
+        }}
         options={[
           { key: 'mine', label: `Mine ${lists.mine.length}` },
           { key: 'invited', label: `Invited ${lists.invited.length}` },
@@ -89,8 +96,9 @@ export default function EventsScreen() {
             <EmptyState title="Nothing here yet" body={tab === 'public' ? 'Shows and track days near you show here.' : 'Finished, cancelled and declined events show here.'} />
           )
         ) : (
-          rest.map((v) => <EventCard key={v.event.id} view={v} now={now} />)
+          page.items.map((v) => <EventCard key={v.event.id} view={v} now={now} />)
         )}
+        {page.more > 0 ? <LinkText label={`Show ${page.more} more ›`} onPress={() => setShown((n) => n + PAGE)} /> : null}
       </Section>
       <View style={{ height: 8 }} />
     </ScrollView>
