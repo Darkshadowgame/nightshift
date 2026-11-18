@@ -254,6 +254,10 @@ export const ART = {
   body: C.kerb,
   /** The web preview's map: background and grid. */
   mapBg: '#080c13',
+  /** The same for the day (light) map. */
+  mapBgLight: '#e9ebee',
+  /** The route preview's other options, under the chosen one (grey on either map). */
+  routeOther: '#8a93a3',
   mapGrid: '#141c2a',
   /** A speed camera with no known limit: the camera layer, dimmed. */
   cameraDim: '#c45a5a',

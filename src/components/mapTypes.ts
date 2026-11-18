@@ -55,6 +55,8 @@ export interface NightMapHandle {
 
 export interface NightMapProps {
   ref?: Ref<NightMapHandle>;
+  /** Day (light) or night (dark, the default) map: Tonight's map follows the Auto / Day / Night choice. */
+  appearance?: 'light' | 'dark';
   pins: MapPin[];
   paths?: MapPath[];
   circles?: MapCircle[];

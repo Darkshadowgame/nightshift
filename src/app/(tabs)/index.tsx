@@ -53,6 +53,7 @@ import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
 import { currentPosition, locationHelp } from '../../lib/location';
+import { useMapAppearance } from '../../lib/mapAppearance';
 import { layerOn, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
 import { clusterEventPins, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
@@ -131,6 +132,8 @@ export default function TonightScreen() {
   const screen = useWindowDimensions();
   const demo = store.backend === 'local';
   const meUser = users.find((u) => u.id === me);
+  /** Day or night map (Auto by the sun at home, Day or Night from the Layers sheet). */
+  const mapLook = useMapAppearance(meUser?.home ?? null);
   const myBuilds = builds.filter((b) => b.ownerId === me);
 
   // ---------------------------------------------------------------------------
@@ -729,6 +732,7 @@ export default function TonightScreen() {
         <View style={{ flex: 1, overflow: 'hidden' }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
           <NightMap
             ref={map}
+            appearance={mapLook}
             pins={pins}
             paths={paths}
             circles={circles}
@@ -791,7 +795,14 @@ export default function TonightScreen() {
         </View>
       )}
 
-      <LayersPanel visible={showLayers} onClose={() => setShowLayers(false)} on={layers} onToggle={(k) => setSettings(toggledLayer(settings, k))} />
+      <LayersPanel
+        visible={showLayers}
+        onClose={() => setShowLayers(false)}
+        on={layers}
+        onToggle={(k) => setSettings(toggledLayer(settings, k))}
+        mapStyle={settings.mapStyle ?? 'auto'}
+        onMapStyle={(v) => setSettings({ mapStyle: v })}
+      />
 
       <BringSheet
         visible={!!bringFor}

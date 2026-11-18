@@ -41,6 +41,21 @@ export interface RawRoute {
   legs: RawLeg[];
 }
 
+/** One of Apple's routes when alternatives were asked for (build 15 on). */
+export interface RawRouteOption extends RawRoute {
+  /** Apple's name for it, usually the main road ("A5"). */
+  name: string;
+  /** Apple's notices for the route (tolls, restrictions). */
+  advisoryNotices: string[];
+  hasTolls: boolean;
+  hasHighways: boolean;
+}
+
+/** A route with its alternatives: the old shape (the first route) plus `routes`, all of them. */
+export interface RawRouteWithOptions extends RawRoute {
+  routes: RawRouteOption[];
+}
+
 export interface RouteOptions {
   /** Legs asked for at once (1–4, default 2). Apple throttles bursts. */
   concurrency?: number;
@@ -48,6 +63,11 @@ export interface RouteOptions {
   maxAttempts?: number;
   /** Called as legs come back: done of total. */
   onProgress?: (done: number, total: number) => void;
+  /**
+   * Ask Apple for up to three routes (two points only, build 15 on: check supportsAlternatives()).
+   * The answer then has `routes`. Ignored on older builds and for more than two points.
+   */
+  alternatives?: boolean;
 }
 
 export interface SpeakOptions {
@@ -71,6 +91,8 @@ export interface Voice {
   /** BCP 47, e.g. "en-GB". */
   language: string;
   quality: VoiceQuality;
+  /** Build 15 on. */
+  gender?: 'male' | 'female' | 'unspecified';
 }
 
 /** A "Where to?" suggestion from Apple's autocomplete. Resolve it to get its position. */
@@ -108,6 +130,8 @@ interface Native {
   speak(text: string, language: string, rate: number, respectSilentSwitch: boolean, voice?: string | null): Promise<boolean>;
   /** Build 11 on. */
   voices?(): Promise<Voice[]>;
+  /** Build 15 on: up to three routes from a to b, leaving now. */
+  routeAlternatives?(points: RoutePoint[], maxAttempts: number): Promise<RawRouteWithOptions>;
   searchPlaces?(query: string, near: RoutePoint | null): Promise<PlaceSuggestion[]>;
   resolvePlace?(id: string): Promise<ResolvedPlace>;
   stopSpeaking(): Promise<boolean>;
@@ -128,10 +152,23 @@ export const voicePickerAvailable = typeof native?.voices === 'function';
 /** Apple's place autocomplete needs build 11 or later; before that "Where to?" uses the geocoder. */
 export const placeSearchAvailable = typeof native?.searchPlaces === 'function' && typeof native?.resolvePlace === 'function';
 
-/** Driving directions through the points in order. Null when the module isn't in this build. */
-export async function route(points: RoutePoint[], options: RouteOptions = {}): Promise<RawRoute | null> {
+/** Route alternatives and traffic-aware times (build 15 on). OTA JavaScript on older builds falls back to one route. */
+export function supportsAlternatives(): boolean {
+  return typeof native?.routeAlternatives === 'function';
+}
+
+/**
+ * Driving directions through the points in order. Null when the module isn't in this build.
+ * With `alternatives` (two points, build 15 on) the answer also has `routes`.
+ */
+export async function route(points: RoutePoint[], options: RouteOptions = {}): Promise<RawRoute | RawRouteWithOptions | null> {
   if (!native) return null;
   const clean = points.map((p) => ({ lat: p.lat, lng: p.lng }));
+  if (options.alternatives && clean.length === 2 && native.routeAlternatives) {
+    const out = await native.routeAlternatives(clean, options.maxAttempts ?? 5);
+    options.onProgress?.(1, 1);
+    return out;
+  }
   let sub: Subscription | undefined;
   if (options.onProgress && typeof native.addListener === 'function') {
     const fn = options.onProgress;

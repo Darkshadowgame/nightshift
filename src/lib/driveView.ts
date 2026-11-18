@@ -170,14 +170,16 @@ export function recentreDue(pannedAt: number | null, now: number, speed: number 
   return pannedAt != null && (now - pannedAt >= RECENTRE_MS || isMoving(speed));
 }
 
-export type NavIconShape = 'arrow' | 'hatch' | 'saloon' | 'coupe' | 'estate' | 'bike';
+/** 'photo' is your own picture (NavIcon.photo), drawn round with a notch for the way you face. */
+export type NavIconShape = 'arrow' | 'hatch' | 'saloon' | 'coupe' | 'estate' | 'van' | 'bike' | 'photo';
 
 export const NAV_ICON_SHAPES: { id: NavIconShape; label: string }[] = [
   { id: 'arrow', label: 'Arrow' },
   { id: 'hatch', label: 'Hatchback' },
   { id: 'saloon', label: 'Saloon' },
   { id: 'coupe', label: 'Coupé' },
-  { id: 'estate', label: 'Estate or van' },
+  { id: 'estate', label: 'Estate' },
+  { id: 'van', label: 'Van' },
   { id: 'bike', label: 'Bike' },
 ];
 
@@ -194,15 +196,22 @@ export const NAV_ICON_COLOURS: { id: string; label: string; hex: string }[] = [
 export interface NavIcon {
   shape: NavIconShape;
   colour: string;
+  /** Your own image (shape 'photo'): a stored photo name (photos.ts), on this phone only. */
+  photo?: string | null;
 }
 
 export const DEFAULT_NAV_ICON: NavIcon = { shape: 'arrow', colour: 'white' };
 
 /** The saved icon, with anything unknown replaced by the default. */
 export function navIconOf(saved: Partial<NavIcon> | null | undefined): NavIcon & { hex: string } {
-  const shape = NAV_ICON_SHAPES.some((s) => s.id === saved?.shape) ? saved!.shape! : DEFAULT_NAV_ICON.shape;
   const colour = NAV_ICON_COLOURS.find((c) => c.id === saved?.colour) ?? NAV_ICON_COLOURS[0];
-  return { shape, colour: colour.id, hex: colour.hex };
+  // Your own image needs its photo; without one it's the default arrow.
+  if (saved?.shape === 'photo' && typeof saved.photo === 'string' && saved.photo) {
+    return { shape: 'photo', colour: colour.id, hex: colour.hex, photo: saved.photo };
+  }
+  const shape = NAV_ICON_SHAPES.some((s) => s.id === saved?.shape) ? saved!.shape! : DEFAULT_NAV_ICON.shape;
+  // The photo is kept when you switch back to a drawn icon, so "Your own image" can come back to it.
+  return { shape, colour: colour.id, hex: colour.hex, ...(saved?.photo ? { photo: saved.photo } : {}) };
 }
 
 // ---------------------------------------------------------------------------

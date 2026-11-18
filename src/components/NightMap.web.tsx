@@ -35,7 +35,8 @@ export function NightMap(props: NightMapProps) {
   /** A tall map is a full-screen one with a sheet over its bottom: its credit goes top left so it stays visible. */
   const [tall, setTall] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const { ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, picked, follow, recentreKey, credit } = props;
+  const { ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, picked, follow, recentreKey, credit, appearance = 'dark' } = props;
+  const setAppearanceRef = useRef<((a: 'light' | 'dark') => void) | null>(null);
 
   // Callbacks change every render on most screens: read them through a ref so Leaflet's handlers stay put.
   const latest = useRef(props);
@@ -73,7 +74,8 @@ export function NightMap(props: NightMapProps) {
       (L) => {
         const el = box.current;
         if (gone || !el) return;
-        made = makeMap(L, el, { onTiles: setTiles });
+        made = makeMap(L, el, { onTiles: setTiles, appearance: latest.current.appearance ?? 'dark' });
+        setAppearanceRef.current = made.setAppearance;
         const map = made.map;
         let sized = el.clientWidth > 0 && el.clientHeight > 0;
         let touched = false;
@@ -114,6 +116,11 @@ export function NightMap(props: NightMapProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Day or night tiles.
+  useEffect(() => {
+    setAppearanceRef.current?.(appearance);
+  }, [lf, appearance]);
 
   useImperativeHandle(
     ref,

@@ -2,7 +2,8 @@ import { View } from 'react-native';
 import { LAYER_INFO, type Layer } from '../lib/mapLayers';
 import { PLACE_NAMES } from '../lib/glossary';
 import { SPACING } from '../theme';
-import { DsText, RowDivider, Sheet, SwitchRow } from './ds';
+import { MAP_STYLE_LABELS, type MapStyleChoice } from '../lib/sun';
+import { DsText, RowDivider, SegmentedControl, Sheet, SwitchRow } from './ds';
 
 /**
  * What Tonight's map can add to the events (Redesign 2, 2 "Map layers"; owner decision 7 keeps Posts;
@@ -22,17 +23,34 @@ export interface LayersPanelProps {
   onClose: () => void;
   on: Partial<Record<Layer, boolean>>;
   onToggle: (key: Layer) => void;
+  /** The map's look: Auto (by sunrise and sunset), Day or Night. */
+  mapStyle?: MapStyleChoice;
+  onMapStyle?: (v: MapStyleChoice) => void;
 }
+
+const STYLES: MapStyleChoice[] = ['auto', 'day', 'night'];
 
 /**
  * The map's Layers sheet: the map always shows events; these add Drives, Photo spots, Tracks, Posts,
  * Shops and Speed cameras (all off by default, saved in Settings through mapLayers.ts). The only place
  * layers are set.
  */
-export function LayersPanel({ visible, onClose, on, onToggle }: LayersPanelProps) {
+export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapStyle }: LayersPanelProps) {
   return (
     <Sheet visible={visible} title="Map layers" onClose={onClose}>
       <View style={{ gap: SPACING.sm }}>
+        {onMapStyle ? (
+          <View style={{ gap: SPACING.xs, marginBottom: SPACING.md }}>
+            <DsText v="label">Map style</DsText>
+            <SegmentedControl
+              accessibilityLabel="Map style"
+              value={mapStyle ?? 'auto'}
+              onChange={onMapStyle}
+              options={STYLES.map((k) => ({ key: k, label: MAP_STYLE_LABELS[k] }))}
+            />
+            <DsText v="caption">Auto goes light by day and dark after sunset where you are.</DsText>
+          </View>
+        ) : null}
         <DsText v="secondary">The map always shows meets. Add more:</DsText>
         <View>
           {ROWS.map((r, i) => (

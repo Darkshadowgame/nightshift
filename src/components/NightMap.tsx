@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { BRAND, C, RADII, SPACING, SURFACE } from '../theme';
 import { DsText } from './ds/Text';
 import { pinLayer } from '../lib/hud';
+import { MAP_POIS, MAP_TYPE } from '../lib/mapAppearance';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import { paddedRegion, type MapCircle, type MapPath, type MapPin, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
@@ -87,7 +88,7 @@ const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export const NightMap = memo(function NightMap({
   ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
-  onRegion, credit, compass, padding,
+  onRegion, credit, compass, padding, appearance = 'dark',
 }: NightMapProps) {
   const map = useRef<MapView>(null);
   /** The map's height, for fitting regions above whatever covers its bottom (`padding`). */
@@ -133,7 +134,9 @@ export const NightMap = memo(function NightMap({
         // iOS also reports taps on markers here; only a tap on the map itself counts.
         if (e.nativeEvent.action !== 'marker-press') onPressMap({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude });
       } : undefined}
-      userInterfaceStyle="dark"
+      userInterfaceStyle={appearance}
+      // Apple's muted style: the meet pins stay the brightest thing on the map.
+      mapType={MAP_TYPE}
       // Apple's legal label and compass stay in the uncovered part too.
       mapPadding={padding ? { top: padding.top ?? 0, bottom: padding.bottom ?? 0, left: 0, right: 0 } : undefined}
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
@@ -146,7 +149,8 @@ export const NightMap = memo(function NightMap({
       }}
       // Traffic lines (red and amber) compete with cameras and events on a night map.
       showsTraffic={false}
-      showsPointsOfInterests={false}
+      // Only what a driver needs: fuel, chargers and parking.
+      pointsOfInterestFilter={MAP_POIS}
       showsCompass={!!compass}
       compassOffset={compass}
       pitchEnabled={false}

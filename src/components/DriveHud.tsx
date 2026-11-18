@@ -1,11 +1,15 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import type { BannerInfo, MapOrientation, NavIcon as NavIconChoice, ShownLimit } from '../lib/driveView';
 import { NAV_ICON_COLOURS, NAV_ICON_SHAPES, navIconOf } from '../lib/driveView';
 import { ARROWS, formatDistance } from '../lib/nav';
 import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, tint } from '../theme';
-import { ChoiceGroup, DsText, Press, Sheet } from './ds';
+import { photoUri } from '../lib/photos';
+import { Button, ChoiceGroup, DsText, Press, Sheet } from './ds';
+import { usePhotoFlow } from './PhotoFlow';
+import { LaneStrip } from './LaneStrip';
+import type { LaneStrip as LaneStripData } from '../lib/lanes';
 import { NavIcon } from './NavIcon';
 
 /**
@@ -24,8 +28,11 @@ export function DriveBanner({
   banner,
   status,
   danger,
+  lanes,
 }: {
   top: number;
+  /** Lane guidance for the next manoeuvre (OpenStreetMap), when it's close and known. */
+  lanes?: LaneStripData | null;
   /** The next turn, or null while planning, arrived or without a route. */
   banner: BannerInfo | null;
   /** Shown instead of a turn: "Planning the route…", "You've arrived at…". */
@@ -49,6 +56,7 @@ export function DriveBanner({
           </DsText>
         </View>
       </View>
+      {banner && lanes ? <LaneStrip strip={lanes} /> : null}
       {banner?.then ? (
         <View style={st.then}>
           <DsText v="driveLabel">Then</DsText>
@@ -252,23 +260,47 @@ export function ReportButton({ onPress }: { onPress: () => void }) {
 
 export function NavIconChoices({ value, onChange }: { value: Partial<NavIconChoice> | null | undefined; onChange: (v: NavIconChoice) => void }) {
   const icon = navIconOf(value);
+  const [error, setError] = useState<string | null>(null);
+  // Your own image: pick → square crop → plate check when one is found → stored on this phone only.
+  const flow = usePhotoFlow({
+    aspect: '1:1',
+    plates: 'ifFound',
+    onError: setError,
+    onPhoto: (ref) => onChange({ shape: 'photo', colour: icon.colour, photo: ref }),
+  });
+  const shapes = [...NAV_ICON_SHAPES.map((x) => ({ key: x.id, label: x.label })), { key: 'photo' as const, label: 'Your own image' }];
   return (
     <View style={{ gap: SPACING.md }}>
       <View style={st.preview} aria-hidden>
-        <NavIcon shape={icon.shape} colour={icon.hex} size={56} />
+        <NavIcon shape={icon.shape} colour={icon.hex} photo={icon.photo ? photoUri(icon.photo) : null} size={56} />
       </View>
       <ChoiceGroup
         label="Shape"
         value={icon.shape}
-        onChange={(shape) => onChange({ shape, colour: icon.colour })}
-        options={NAV_ICON_SHAPES.map((x) => ({ key: x.id, label: x.label }))}
+        onChange={(shape) => {
+          if (shape === 'photo' && !icon.photo) flow.pick();
+          else onChange({ shape, colour: icon.colour, ...(icon.photo ? { photo: icon.photo } : {}) });
+        }}
+        options={shapes}
       />
+      {icon.shape === 'photo' ? (
+        <View style={{ gap: SPACING.xs }}>
+          <Button label="Choose another image" tier="secondary" size="sm" busy={flow.busy} onPress={() => flow.pick()} />
+          <DsText v="caption">Kept on this phone only. Nobody else sees your icon.</DsText>
+        </View>
+      ) : null}
+      {error ? (
+        <DsText v="caption" tone="danger">
+          {error}
+        </DsText>
+      ) : null}
       <ChoiceGroup
-        label="Colour"
+        label={icon.shape === 'photo' ? 'Ring colour' : 'Colour'}
         value={icon.colour}
-        onChange={(colour) => onChange({ shape: icon.shape, colour })}
+        onChange={(colour) => onChange({ shape: icon.shape, colour, ...(icon.photo ? { photo: icon.photo } : {}) })}
         options={NAV_ICON_COLOURS.map((c) => ({ key: c.id, label: c.label }))}
       />
+      {flow.view}
     </View>
   );
 }

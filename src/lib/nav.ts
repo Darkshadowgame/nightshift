@@ -1,5 +1,6 @@
 import type { Camera } from './cameraCodec';
 import type { AverageZone } from './cameras';
+import { spokenAfter, spokenInstruction } from './speech';
 import type { LatLng } from './types';
 
 /**
@@ -375,10 +376,6 @@ export function nowDistance(speedMps: number | null | undefined): number {
   return Math.max(25, Math.min(70, v * 4));
 }
 
-function lowerFirst(s: string): string {
-  return s ? s[0].toLowerCase() + s.slice(1) : s;
-}
-
 export interface Announcement {
   /** Said once: `${route id}:${step}:${band}`. */
   key: string;
@@ -400,18 +397,18 @@ export function dueAnnouncement(route: NavRoute, progress: Progress, speedMps: n
   const gap = step.along - prevAlong;
   const d = progress.toStep;
   const next = route.steps[i + 1];
-  const then = next && next.along - step.along < 150 && next.kind !== 'arrive' ? `, then ${lowerFirst(next.text)}` : '';
+  const then = next && next.along - step.along < 150 && next.kind !== 'arrive' ? `, then ${spokenAfter(next.text)}` : '';
   const key = (band: Band) => `${routeKey}:${i}:${band}`;
 
   if (d <= nowDistance(speedMps)) {
     // Arriving is said by the arrival check, with the stop's name.
     if (step.kind === 'arrive' || said.has(key('now'))) return null;
-    return { key: key('now'), band: 'now', text: `${step.text}${then}` };
+    return { key: key('now'), band: 'now', text: `${spokenInstruction(step.text)}${then}` };
   }
   for (const b of BANDS) {
     if (d <= b.max && d > b.min && gap > b.gap) {
       if (said.has(key(b.band))) return null;
-      return { key: key(b.band), band: b.band, text: `${b.say}, ${lowerFirst(step.text)}${b.band === 'yards' ? then : ''}` };
+      return { key: key(b.band), band: b.band, text: `${b.say}, ${spokenAfter(step.text)}${b.band === 'yards' ? then : ''}` };
     }
   }
   return null;

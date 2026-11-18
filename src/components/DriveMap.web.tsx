@@ -6,7 +6,7 @@ import { iconRotation } from '../lib/driveView';
 import { CAMERA_FOLLOW_MS, CAMERA_JUMP_METRES, easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../lib/heading';
 import type { LatLng } from '../lib/types';
 import { ART, BRAND, C, RADII, ROAD_COLOUR } from '../theme';
-import type { DriveMapProps } from './DriveMap';
+import { OTHER_ROUTE, type DriveMapProps } from './DriveMap';
 import { NavIcon } from './NavIcon';
 import { DEMO_DRIVER_LABEL, DEMO_DRIVER_SIZE, DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin } from './Pin';
@@ -24,7 +24,7 @@ import { altitudeToZoom } from './webmap/zoom.web';
  * No tilt: the web map is flat. If Leaflet can't load, the screen stays plain asphalt.
  */
 export function DriveMap(props: DriveMapProps) {
-  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround } = props;
+  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, appearance = 'dark', overview } = props;
   const others = useDemoDrivers(demoAround);
   const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
   const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
@@ -53,7 +53,8 @@ export function DriveMap(props: DriveMapProps) {
       const out = outer.current;
       if (gone || !el || !out) return;
       // Quarter zoom steps: each zoom change redraws the tiles, so it only changes when the speed does.
-      made = makeMap(L, el, { zoomSnap: 0.25, onTiles: setTiles });
+      made = makeMap(L, el, { zoomSnap: 0.25, onTiles: setTiles, appearance: latest.current.appearance ?? 'dark' });
+      setAppearanceRef.current = made.setAppearance;
       const map = made.map;
       const p = latest.current;
       const first = p.route[0] ?? p.focus ?? { lat: 52.5, lng: -1.5 };
@@ -128,6 +129,48 @@ export function DriveMap(props: DriveMapProps) {
     };
   }, []);
 
+  // Day or night tiles.
+  const setAppearanceRef = useRef<((a: 'light' | 'dark') => void) | null>(null);
+  useEffect(() => {
+    setAppearanceRef.current?.(appearance);
+  }, [lf, appearance]);
+
+  // The preview: the options you didn't pick in grey (tap to pick), and every option fitted on screen.
+  const altLines = useRef<Leaflet.Polyline[]>([]);
+  useEffect(() => {
+    for (const l of altLines.current) l.remove();
+    altLines.current = [];
+    if (!lf || !overview) return;
+    overview.routes.forEach((r, i) => {
+      if (i === overview.selected || r.length < 2) return;
+      const l = lf.L.polyline(
+        r.map((p) => [p.lat, p.lng] as [number, number]),
+        { color: OTHER_ROUTE, weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: !!overview.onSelect },
+      ).addTo(lf.map);
+      l.on('click', () => overview.onSelect?.(i));
+      l.bringToBack();
+      altLines.current.push(l);
+    });
+    return () => {
+      for (const l of altLines.current) l.remove();
+      altLines.current = [];
+    };
+  }, [lf, overview]);
+  const fitKey = overview ? `${overview.routes.length}:${overview.routes.map((r) => r.length).join(',')}` : '';
+  useEffect(() => {
+    if (!lf || !overview) return;
+    const all = overview.routes.flat();
+    if (all.length < 2) return;
+    // The map is a square as big as the screen's diagonal (so it can turn): fit the routes into
+    // the part that shows, by padding out the rest.
+    const square = box.current;
+    const view = outer.current;
+    const padX = square && view ? Math.max(0, (square.clientWidth - view.clientWidth) / 2) : 0;
+    const padY = square && view ? Math.max(0, (square.clientHeight - view.clientHeight) / 2) : 0;
+    lf.map.fitBounds(lf.L.latLngBounds(all.map((p) => [p.lat, p.lng] as [number, number])), { padding: [padX + 36, padY + 36], animate: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lf, fitKey]);
+
   // When the latest fix arrived, for guessing ahead between fixes.
   const since = useRef(realNowMs());
   const lastFocus = useRef<LatLng | null>(null);
@@ -179,10 +222,10 @@ export function DriveMap(props: DriveMapProps) {
         z: 9,
         label: 'You. Stopped, tap to change your icon',
         onClick: () => latest.current.onPressYou?.(),
-        face: <NavIcon shape={icon.shape} colour={icon.hex} size={50} rotation={iconRotation(heading, shownTurn)} />,
+        face: <NavIcon shape={icon.shape} colour={icon.hex} photo={icon.photo} size={50} rotation={iconRotation(heading, shownTurn)} />,
       });
     return out;
-  }, [cameras, reports, others, mapHeading, stops, you, following, icon.shape, icon.hex, heading, shownTurn]);
+  }, [cameras, reports, others, mapHeading, stops, you, following, icon.shape, icon.hex, icon.photo, heading, shownTurn]);
   const { portals } = useMarkers(lf, specs);
 
   return (
@@ -191,7 +234,7 @@ export function DriveMap(props: DriveMapProps) {
         {/* A square as big as the screen's diagonal, so turning it never shows a corner. */}
         <div
           ref={turn}
-          style={{ position: 'absolute', left: '50%', top: '50%', width: '142vmax', height: '142vmax', transform: 'translate(-50%, -50%)', background: ART.mapBg }}
+          style={{ position: 'absolute', left: '50%', top: '50%', width: '142vmax', height: '142vmax', transform: 'translate(-50%, -50%)', background: appearance === 'light' ? ART.mapBgLight : ART.mapBg }}
         >
           <div ref={box} style={{ position: 'absolute', inset: 0 }} />
         </div>
@@ -201,7 +244,7 @@ export function DriveMap(props: DriveMapProps) {
         // Following, you're always where the camera centres: drawn fixed on screen, like the iPhone.
         <View pointerEvents="box-none" style={st.centre}>
           <Pressable onPress={onPressYou} hitSlop={12} accessibilityRole="button" accessibilityLabel="You. Tap to change your icon">
-            <NavIcon shape={icon.shape} colour={icon.hex} size={50} rotation={iconRotation(heading, mapHeading)} />
+            <NavIcon shape={icon.shape} colour={icon.hex} photo={icon.photo} size={50} rotation={iconRotation(heading, mapHeading)} />
           </Pressable>
         </View>
       ) : null}

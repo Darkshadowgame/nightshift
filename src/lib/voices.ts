@@ -11,13 +11,15 @@ export interface VoiceInfo {
   name: string;
   language: string;
   quality: VoiceQuality;
+  /** Build 15 on: the voice's gender as iOS reports it. */
+  gender?: 'male' | 'female' | 'unspecified';
 }
 
 export const NAV_LANGUAGE = 'en-GB';
 
 const QUALITY_RANK: Record<VoiceQuality, number> = { premium: 2, enhanced: 1, default: 0 };
 
-export const QUALITY_LABELS: Record<VoiceQuality, string> = { premium: 'Premium', enhanced: 'Enhanced', default: 'Standard' };
+export const QUALITY_LABELS: Record<VoiceQuality, string> = { premium: 'Premium', enhanced: 'Enhanced', default: 'Basic' };
 
 const sameLanguage = (a: string, b: string) => a.replace('_', '-').toLowerCase() === b.replace('_', '-').toLowerCase();
 
@@ -36,9 +38,21 @@ function byQuality(a: VoiceInfo, b: VoiceInfo): number {
   return QUALITY_RANK[b.quality] - QUALITY_RANK[a.quality] || a.name.localeCompare(b.name, 'en-GB');
 }
 
-/** For the picker: British first, then other English; best quality first within each. */
+/** For the picker: British first, then other English; best quality first within each (Premium, Enhanced, Basic), then by name. */
 export function sortVoices<V extends VoiceInfo>(voices: V[], language = NAV_LANGUAGE): V[] {
-  return [...voices].sort((a, b) => Number(sameLanguage(b.language, language)) - Number(sameLanguage(a.language, language)) || a.language.localeCompare(b.language) || byQuality(a, b));
+  return [...voices].sort((a, b) => Number(sameLanguage(b.language, language)) - Number(sameLanguage(a.language, language)) || byQuality(a, b) || a.language.localeCompare(b.language));
+}
+
+/**
+ * The voice id to ask the phone for. Picked and still installed: that one. Not picked: the best
+ * installed British voice when it's Enhanced or Premium (a downloaded voice beats the built-in
+ * one); otherwise null, so the phone uses its own default British voice.
+ */
+export function autoVoiceId(voices: VoiceInfo[], picked: string | null | undefined, language = NAV_LANGUAGE): string | null {
+  // Before the list has loaded (or on builds that can't list voices) the pick is trusted as it is.
+  if (picked && (voices.length === 0 || voices.some((v) => v.identifier === picked))) return picked;
+  const best = bestVoice(voices, language);
+  return best && best.quality !== 'default' ? best.identifier : null;
 }
 
 /** The voice to use: the one picked, if it's still installed, else the best one. */
@@ -65,10 +79,17 @@ export function languageLabel(language: string): string {
   return region ? `English (${REGIONS[region] ?? region})` : 'English';
 }
 
-/** "English (UK) · Enhanced". */
+const GENDERS = { male: 'Male', female: 'Female' } as const;
+
+/** "English (UK) · Enhanced", with "· Female" when the phone says. */
 export function voiceDetail(v: VoiceInfo): string {
-  return `${languageLabel(v.language)} · ${QUALITY_LABELS[v.quality]}`;
+  const g = v.gender === 'male' || v.gender === 'female' ? ` · ${GENDERS[v.gender]}` : '';
+  return `${languageLabel(v.language)} · ${QUALITY_LABELS[v.quality]}${g}`;
 }
+
+/** How to get a better voice, for the picker (iOS 26 renamed Spoken Content to Read & Speak). */
+export const VOICE_HOW_TO =
+  'For a more natural voice: iPhone Settings › Accessibility › Read & Speak › Voices › English › English (UK), and download a Premium voice (e.g. Jamie or Serena). Then pick it here. Before iOS 26, Read & Speak is called Spoken Content.';
 
 /** Speech rates (AVSpeechUtterance, 0–1; 0.5 is the system's normal). */
 export type SpeechRate = 'slower' | 'normal' | 'faster';
@@ -80,4 +101,4 @@ export function speechRate(choice: SpeechRate | null | undefined): number {
 }
 
 /** What "Play sample" says. */
-export const VOICE_SAMPLE = 'In a quarter of a mile, turn left onto the High Street. Speed camera ahead, 30 miles per hour.';
+export const VOICE_SAMPLE = 'In a quarter of a mile, take the second exit at the roundabout, onto the A5.';

@@ -44,6 +44,35 @@ export const TILE_SOURCES: TileSource[] = [
     filter: 'sepia(1) hue-rotate(180deg) saturate(0.9) brightness(1.2) contrast(1.05)',
   },
 ];
+/**
+ * The day map: Stadia "Alidade Smooth" (the light twin of the night map, same key rules), then
+ * Esri "Light Gray Canvas". No tint: they're already soft and grey, so pins and routes stand out.
+ */
+export const LIGHT_TILE_SOURCES: TileSource[] = [
+  {
+    name: 'stadia-light',
+    urls: ['https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'],
+    credit: '© Stadia Maps © OpenMapTiles © OpenStreetMap',
+    maxNativeZoom: 20,
+    filter: 'saturate(0.85) contrast(1.02)',
+  },
+  {
+    name: 'esri-light',
+    urls: [
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    ],
+    credit: '© Esri, HERE, Garmin © OpenStreetMap',
+    maxNativeZoom: 16,
+    filter: 'none',
+  },
+];
+
+/** The sources for a look: night (dark) or day (light). */
+export function tileSources(appearance: 'light' | 'dark' = 'dark'): TileSource[] {
+  return appearance === 'light' ? LIGHT_TILE_SOURCES : TILE_SOURCES;
+}
+
 /** What the credit says before any tiles have loaded. */
 export const TILE_CREDIT = TILE_SOURCES[0].credit;
 /** Highest zoom the map goes to. */

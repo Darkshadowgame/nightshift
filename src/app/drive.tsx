@@ -4,9 +4,27 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { chime, navDirectionsAvailable, route as fetchRoute, speak, stopSpeaking } from '../../modules/nav-directions';
+import {
+  chime,
+  navDirectionsAvailable,
+  route as fetchRoute,
+  speak,
+  stopSpeaking,
+  supportsAlternatives,
+  voices as installedVoices,
+  type RawRouteOption,
+  type Voice,
+} from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
 import { DEMO_ROAD_CREDIT, demoRoadTo } from '../data/demoRoads';
+import { demoJunctionAt, withDemoJunctions } from '../data/demoLanes';
+import { RoutePreview } from '../components/RoutePreview';
+import { LANES_FROM_M, LANES_LOOKUP_M, lanesAtJunction, matchLanes, parseTurnLanes, type LaneStrip } from '../lib/lanes';
+import { useMapAppearance } from '../lib/mapAppearance';
+import { photoUri } from '../lib/photos';
+import { defaultChoice, routeCards, troubleLines, type RouteOption } from '../lib/routeChoice';
+import { spokenAfter, spokenInstruction } from '../lib/speech';
+import { MAP_STYLE_LABELS, type MapStyleChoice } from '../lib/sun';
 import { compactCredit } from '../lib/mapCredit';
 import {
   AlertPill,
@@ -50,7 +68,7 @@ import {
 } from '../lib/driveView';
 import { compassHeading, driveFocus, pickHeading, smoothHeading } from '../lib/heading';
 import { fetchRoads } from '../lib/roadLookup';
-import { cellOf, lookupDue, OSM_CREDIT, pickWay, remember, roadInfo, type OsmWay, type RoadInfo } from '../lib/speedLimit';
+import { cellOf, LOOKUP_MIN_MS, lookupDue, OSM_CREDIT, pickWay, remember, roadInfo, type OsmWay, type RoadInfo } from '../lib/speedLimit';
 import { currentPosition, streetAt } from '../lib/location';
 import {
   activeLimit,
@@ -63,6 +81,7 @@ import {
   dueAnnouncement,
   etaClock,
   formatDistance,
+  formatDuration,
   isOver,
   metresBetween,
   mphOf,
@@ -115,7 +134,7 @@ import {
 import { useRoadReports, useRoads } from '../lib/roadStore';
 import { advanceRun, NEW_RUN, runExpired, driveMiles, simulatedRun, type DriveRun } from '../lib/spots';
 import { useStore } from '../lib/store';
-import { speechRate } from '../lib/voices';
+import { autoVoiceId, speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
 
@@ -257,7 +276,15 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const reportsOn = settings.roadReports !== false;
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const [phase, setPhase] = useState<'locating' | 'routing' | 'driving' | 'arrived' | 'error'>('locating');
+  const [phase, setPhase] = useState<'locating' | 'routing' | 'preview' | 'driving' | 'arrived' | 'error'>('locating');
+  /**
+   * The route preview before you start: Apple's options (up to three on build 15, else one), and
+   * the one you picked (null: the default, the quickest without a closure).
+   */
+  const [preview, setPreview] = useState<{ options: RouteOption[]; legStops: number[] } | null>(null);
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
+  const [chosen, setChosen] = useState<number | null>(null);
   const [legsDone, setLegsDone] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -272,7 +299,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   /** Ticks every second: the ETA, "stopped" once fixes dry up, and recentring after a look round. */
   const [nowMs, setNowMs] = useState(() => realNowMs());
   const orientation: MapOrientation = settings.navMap === 'north' ? 'north' : 'heading';
-  const icon = useMemo(() => navIconOf(settings.navIcon), [settings.navIcon]);
+  const icon = useMemo(() => {
+    const i = navIconOf(settings.navIcon);
+    return { ...i, photo: i.shape === 'photo' && i.photo ? photoUri(i.photo) : null };
+  }, [settings.navIcon]);
   /** When you last panned the map (stopped only); null while it follows you. */
   const [pannedAt, setPannedAt] = useState<number | null>(null);
   const [iconOpen, setIconOpen] = useState(false);
@@ -329,11 +359,48 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const [alert, setAlert] = useState<string | null>(null);
 
   // The voice and speed picked in Settings (read when speaking, so a change applies straight away).
-  const voiceRef = useRef({ voice: settings.navVoiceId ?? null, rate: speechRate(settings.navVoiceRate) });
-  voiceRef.current = { voice: settings.navVoiceId ?? null, rate: speechRate(settings.navVoiceRate) };
+  // Not picked: the best British voice installed when it's Enhanced or Premium (voices.ts).
+  const [installed, setInstalled] = useState<Voice[]>([]);
+  useEffect(() => {
+    installedVoices().then(setInstalled).catch(() => undefined);
+  }, []);
+  const voiceRef = useRef({ voice: autoVoiceId(installed, settings.navVoiceId), rate: speechRate(settings.navVoiceRate) });
+  voiceRef.current = { voice: autoVoiceId(installed, settings.navVoiceId), rate: speechRate(settings.navVoiceRate) };
   const say = useCallback((text: string) => {
     if (!mutedRef.current) speak(text, voiceRef.current).catch(() => undefined);
   }, []);
+
+  /** Drive this route: cameras and zones on it, where each stop is, and the first instruction said. */
+  const activate = useCallback(
+    (r: NavRoute, legStops: number[], reason: 'start' | 'reroute' | 'detour') => {
+      const box = routeBox(r);
+      const idx = cameraAlerts ? cameraIndex() : null;
+      const fresh: Active = {
+        route: r,
+        legStops,
+        gen: (activeRef.current?.gen ?? 0) + 1,
+        cameras: idx ? camerasOnRoute(r, idx.inBox(box)) : [],
+        zones: idx ? zonesOnRoute(r, idx.zonesIn(box)) : [],
+        stopAlong: stopAlongs(r, stops, nextRef.current),
+      };
+      activeRef.current = fresh;
+      hint.current = undefined;
+      offState.current = ON_ROUTE;
+      zoneRun.current = null;
+      setActive(fresh);
+      setNotice(null);
+      setPhase((p) => (p === 'arrived' ? p : 'driving'));
+      const first = r.steps[0];
+      if (reason === 'start') {
+        const target = stops[nextRef.current];
+        const firstSaid = !first ? '' : first.along < 40 ? ` ${spokenInstruction(first.text)}.` : ` In ${spokenDistance(first.along)}, ${spokenAfter(first.text)}.`;
+        say(`Starting route to ${target.name}.${firstSaid}`);
+      } else {
+        say(reason === 'detour' ? 'Road closed ahead. Taking a way round.' : 'Route updated.');
+      }
+    },
+    [stops, say, cameraAlerts],
+  );
 
   const doRoute = useCallback(
     async (from: LatLng, reason: 'start' | 'reroute' | 'detour') => {
@@ -348,35 +415,37 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       else setNotice('Off the route. Finding a new way…');
       setLegsDone({ done: 0, total: points.length - 1 });
       try {
-        const raw = noDirections
-          ? straightRoute(points, legStops.map((i) => (i >= 0 ? stops[i].name : '')), 60, (_from, to) => demoRoadTo(to))
-          : await fetchRoute(points, { onProgress: (done, total) => setLegsDone({ done, total }) });
-        if (!raw || closed.current) return;
-        const r = dropViaArrivals(buildRoute(raw, legStops.map((i) => (i >= 0 ? stops[i].name : ''))), legStops);
-        const box = routeBox(r);
-        const idx = cameraAlerts ? cameraIndex() : null;
-        const fresh: Active = {
-          route: r,
-          legStops,
-          gen: (activeRef.current?.gen ?? 0) + 1,
-          cameras: idx ? camerasOnRoute(r, idx.inBox(box)) : [],
-          zones: idx ? zonesOnRoute(r, idx.zonesIn(box)) : [],
-          stopAlong: stopAlongs(r, stops, nextRef.current),
-        };
-        activeRef.current = fresh;
-        hint.current = undefined;
-        offState.current = ON_ROUTE;
-        zoneRun.current = null;
-        setActive(fresh);
-        setNotice(null);
-        setPhase((p) => (p === 'arrived' ? p : 'driving'));
-        const first = r.steps[0];
-        if (reason === 'start') {
-          const target = stops[nextRef.current];
-          say(`Starting route to ${target.name}.${first ? ` ${first.text}, in ${spokenDistance(first.along)}.` : ''}`);
+        const names = legStops.map((i) => (i >= 0 ? stops[i].name : ''));
+        let options: RouteOption[];
+        if (noDirections) {
+          // The demo's baked roads, with their junctions' real lane markings (demoLanes.ts).
+          const raw = withDemoJunctions(straightRoute(points, names, 60, (_from, to) => demoRoadTo(to)));
+          options = [{ route: dropViaArrivals(buildRoute(raw, names), legStops), name: '', time: raw.time, distance: raw.distance, advisories: [] }];
         } else {
-          say(reason === 'detour' ? 'Road closed ahead. Taking a way round.' : 'Route updated.');
+          // Alternatives (build 15 on) for the preview of a one-stop route; older builds get one route.
+          const wantOptions = reason === 'start' && points.length === 2 && supportsAlternatives();
+          const raw = await fetchRoute(points, { onProgress: (done, total) => setLegsDone({ done, total }), alternatives: wantOptions });
+          if (!raw || closed.current) return;
+          const list: (typeof raw & Partial<RawRouteOption>)[] = 'routes' in raw && Array.isArray(raw.routes) && raw.routes.length > 0 ? raw.routes : [raw];
+          options = list.slice(0, 3).map((o) => ({
+            route: dropViaArrivals(buildRoute(o, names), legStops),
+            name: typeof o.name === 'string' ? o.name : '',
+            time: o.time,
+            distance: o.distance,
+            advisories: Array.isArray(o.advisoryNotices) ? o.advisoryNotices.filter((x) => typeof x === 'string' && x.trim()) : [],
+            ...(typeof o.hasTolls === 'boolean' ? { hasTolls: o.hasTolls } : {}),
+            ...(typeof o.hasHighways === 'boolean' ? { hasHighways: o.hasHighways } : {}),
+          }));
         }
+        if (closed.current || options.length === 0) return;
+        if (reason === 'start') {
+          // Show the whole route (and any others) first; Start drives it.
+          setChosen(null);
+          setPreview({ options, legStops });
+          setPhase('preview');
+          return;
+        }
+        activate(options[0].route, legStops, reason);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Couldn't plan the route.";
         if (reason === 'start' && !activeRef.current) {
@@ -391,7 +460,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         setLegsDone(null);
       }
     },
-    [stops, say, cameraAlerts, noDirections],
+    [stops, activate, noDirections],
   );
 
   /**
@@ -524,6 +593,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       const a = activeRef.current;
       if (!a) {
+        // Looking at the preview: nothing to follow or say until Start.
+        if (previewRef.current) return;
         if (!routing.current && realNowMs() - lastRoute.current > 15_000) doRoute(f.at, 'start');
         return;
       }
@@ -936,6 +1007,70 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   const route = active?.route;
   const progress = hud?.progress;
+
+  // Day or night map (Auto: by the sun where you are; the demo's Friday night stays dark).
+  const look = useMapAppearance(fix?.at ?? stops[0]?.at ?? null);
+
+  // The preview: the cards, the one picked, and what's on it.
+  const previewCards = useMemo(() => (preview ? routeCards(preview.options, roadReports, appNow()) : []), [preview, roadReports]);
+  const picked = preview ? (chosen ?? defaultChoice(previewCards, preview.options)) : 0;
+  const pickedOption = preview?.options[picked] ?? null;
+  const overview = useMemo(
+    () => (preview ? { routes: preview.options.map((o) => o.route.coords), selected: picked, onSelect: (i: number) => setChosen(i) } : null),
+    [preview, picked],
+  );
+  const startDriving = () => {
+    const p = previewRef.current;
+    if (!p) return;
+    const option = p.options[picked] ?? p.options[0];
+    previewRef.current = null;
+    setPreview(null);
+    lastRoute.current = realNowMs();
+    activate(option.route, p.legStops, 'start');
+  };
+
+  // Lane guidance for the next manoeuvre: OpenStreetMap's lane tags at its junction, looked up
+  // once per junction as it comes within a mile (lanes.ts); the demo uses its baked junctions.
+  const laneCache = useRef(new Map<string, LaneStrip | null>());
+  const laneFails = useRef(new Map<string, number>());
+  const laneLookupAt = useRef(0);
+  const laneLoading = useRef(false);
+  const [, setLaneTick] = useState(0);
+  const stepIdx = phase === 'driving' && progress ? progress.stepIndex : -1;
+  const nextStep = route && stepIdx >= 0 ? route.steps[stepIdx] : null;
+  const laneKey = nextStep ? `${active?.gen}:${stepIdx}` : '';
+  const laneNear = !!progress && progress.toStep <= LANES_LOOKUP_M;
+  useEffect(() => {
+    if (!route || !nextStep || !laneNear || nextStep.kind === 'arrive' || laneCache.current.has(laneKey)) return;
+    if (noDirections) {
+      const j = demoJunctionAt(nextStep.at);
+      laneCache.current.set(laneKey, j ? matchLanes(parseTurnLanes(j.turnLanes), nextStep.kind, nextStep.text) : null);
+      setLaneTick((t) => t + 1);
+      return;
+    }
+    if (laneLoading.current || realNowMs() - laneLookupAt.current < LOOKUP_MIN_MS) return;
+    laneLoading.current = true;
+    laneLookupAt.current = realNowMs();
+    const key = laneKey;
+    const step = nextStep;
+    const approach = pointAlong(route, Math.max(0, step.along - 35));
+    fetchRoads(step.at, 80)
+      .then((ways) => {
+        if (ways) laneCache.current.set(key, lanesAtJunction(ways, step.at, approach, step.kind, step.text));
+        else {
+          // Overpass busy or offline: try again on a later fix, twice at most.
+          const n = (laneFails.current.get(key) ?? 0) + 1;
+          laneFails.current.set(key, n);
+          if (n >= 2) laneCache.current.set(key, null);
+        }
+        setLaneTick((t) => t + 1);
+      })
+      .finally(() => {
+        laneLoading.current = false;
+      });
+    // A new fix re-checks (the nowMs tick), so a lookup held back by the rate limit runs soon after.
+  }, [route, nextStep, laneKey, laneNear, noDirections, nowMs]);
+  const laneStrip = nextStep && progress && progress.toStep <= LANES_FROM_M ? laneCache.current.get(laneKey) ?? null : null;
   const routeRoad = route && progress ? roadOnRoute(route, progress) : null;
 
   // Off the route with no name from OpenStreetMap: the phone's geocoder, every 15 s or 150 m at most.
@@ -1015,6 +1150,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     status = { arrow: '…', title: legsDone && legsDone.total > 1 ? `Planning the route… ${legsDone.done} of ${legsDone.total} legs` : 'Planning the route…' };
   else if (phase === 'error') status = { arrow: '!', title: "Couldn't start navigation" };
   else if (phase === 'locating') status = { arrow: '…', title: 'Finding you…' };
+  else if (phase === 'preview') status = { arrow: ARROWS.arrive, title: finish, distance: pickedOption ? formatDistance(pickedOption.route.length) : undefined };
   else if (!banner && route && progress) status = { arrow: ARROWS.straight, title: 'Follow the route', distance: formatDistance(progress.toEnd) };
 
   const roadName = routeRoad ?? osmRoad?.name ?? geoStreet;
@@ -1074,12 +1210,14 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   return (
     <View style={st.screen}>
-      <DriveBanner top={insets.top} banner={banner} status={status} danger={over} />
+      <DriveBanner top={insets.top} banner={banner} status={status} danger={over} lanes={laneStrip} />
       {alert ? <ReportAlert text={alert} /> : null}
 
       <View style={{ flex: 1 }}>
         <DriveMap
-          route={routeLine}
+          route={pickedOption ? pickedOption.route.coords : routeLine}
+          overview={overview}
+          appearance={look}
           stops={mapStops}
           cameras={cameraAlerts ? mapCameras : []}
           reports={mapReports}
@@ -1090,7 +1228,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           speed={speedNow}
           you={fix ? focus ?? fix.at : null}
           icon={icon}
-          following={pannedAt == null}
+          following={pannedAt == null && !preview}
           panEnabled={panOk}
           onUserPan={onUserPan}
           onPressYou={onPressYou}
@@ -1125,7 +1263,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           </View>
         </View>
         <View pointerEvents="box-none" style={st.overlayBottom}>
-          {reportsOn ? <ReportButton onPress={openReport} /> : <View />}
+          {reportsOn && !preview ? <ReportButton onPress={openReport} /> : <View />}
           {credits ? (
             <View pointerEvents="none" style={st.credit} accessible accessibilityLabel={credits}>
               {/* One short line, every holder once ("© OSM, OSRM"), so it never grows into a block at 1.3x (Review 15). */}
@@ -1177,7 +1315,29 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         </View>
       ) : null}
 
-      <DriveBar bottom={insets.bottom} road={roadName} speedMph={speedMph} over={over} limit={limit} trip={trip} sub={subLines} onEnd={end} />
+      {preview && pickedOption ? (
+        <RoutePreview
+          time={formatDuration(pickedOption.time)}
+          distance={formatDistance(pickedOption.distance || pickedOption.route.length)}
+          eta={etaClock(clockNowMs, pickedOption.time)}
+          trafficNote={
+            noDirections
+              ? 'Demo: a sample route with real lane markings. Live traffic is on the iPhone app.'
+              : supportsAlternatives()
+                ? 'Times include live traffic. Traffic is shown on the map.'
+                : 'Traffic is shown on the map in red and amber.'
+          }
+          cards={previewCards}
+          chosen={picked}
+          onChoose={(i) => setChosen(i)}
+          troubles={troubleLines(pickedOption.route, roadReports, appNow())}
+          advisories={pickedOption.advisories}
+          onStart={startDriving}
+          onCancel={end}
+        />
+      ) : (
+        <DriveBar bottom={insets.bottom} road={roadName} speedMph={speedMph} over={over} limit={limit} trip={trip} sub={subLines} onEnd={end} />
+      )}
       {gridOpen ? <ReportGrid onPick={pickReport} onClose={() => setGridOpen(false)} bottom={insets.bottom} /> : null}
       <Sheet visible={menuOpen} title="Driving options" onClose={() => setMenuOpen(false)}>
         <View style={{ gap: SPACING.lg }}>
@@ -1189,6 +1349,12 @@ function DriveSession({ plan }: { plan: NavPlan }) {
               { key: 'heading', label: 'Heading up' },
               { key: 'north', label: 'North up' },
             ]}
+          />
+          <ChoiceGroup
+            label="Map style"
+            value={settings.mapStyle ?? 'auto'}
+            onChange={(v: MapStyleChoice) => setSettings({ mapStyle: v })}
+            options={(['auto', 'day', 'night'] as MapStyleChoice[]).map((k) => ({ key: k, label: MAP_STYLE_LABELS[k] }))}
           />
           <View style={{ gap: SPACING.sm }}>
             <DsText v="label">Your icon on the map</DsText>

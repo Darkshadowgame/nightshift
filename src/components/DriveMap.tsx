@@ -3,9 +3,14 @@ import { realNowMs } from '../lib/appClock';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { iconRotation, type MapOrientation, type NavIconShape } from '../lib/driveView';
+import { MAP_POIS, MAP_TYPE } from '../lib/mapAppearance';
+import type { MapAppearance } from '../lib/sun';
 import { CAMERA_JUMP_METRES, CAMERA_FOLLOW_MS, easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../lib/heading';
 import type { LatLng } from '../lib/types';
-import { BRAND, C, RADII, ROAD_COLOUR } from '../theme';
+import { ART, BRAND, C, RADII, ROAD_COLOUR } from '../theme';
+
+/** The route options you didn't pick, in the preview: grey under the chosen one. */
+export const OTHER_ROUTE = ART.routeOther;
 import { NavIcon } from './NavIcon';
 import { DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin, type Glyph } from './Pin';
@@ -35,7 +40,14 @@ export interface DriveMapProps {
   speed: number | null;
   /** Where to draw you (null before the first fix). */
   you: LatLng | null;
-  icon: { shape: NavIconShape; hex: string };
+  icon: { shape: NavIconShape; hex: string; photo?: string | null };
+  /** Light (day) or dark (night) map. Dark by default. */
+  appearance?: MapAppearance;
+  /**
+   * The route preview before you start: every option (the chosen one drawn in the brand colour,
+   * the others grey, tap one to pick it), and the map fitted to show them all.
+   */
+  overview?: { routes: LatLng[][]; selected: number; onSelect?: (i: number) => void } | null;
   /** Following you; false while you look round the map (stopped only). */
   following: boolean;
   /** Panning and zooming allowed (only while stopped). */
@@ -76,6 +88,8 @@ export const DriveMap = memo(function DriveMap({
   onPressYou,
   onLongPress,
   demoAround,
+  appearance = 'dark',
+  overview,
 }: DriveMapProps) {
   const map = useRef<MapView>(null);
   const others = useDemoDrivers(demoAround);
@@ -109,7 +123,8 @@ export const DriveMap = memo(function DriveMap({
       const v = t.speed != null && t.speed > 0 ? t.speed : 0;
       const want = predictAhead(t.focus, t.speed, t.heading, now - t.since);
       const altitude = Math.min(1400, 450 + v * 25);
-      const pitch = t.northUp ? 0 : 45;
+      // Heading-up tilts the map so Apple's 3D buildings stand up ahead of you.
+      const pitch = t.northUp ? 0 : 50;
       if (!cam || roughMetres(cam.at, want) > CAMERA_JUMP_METRES) {
         cam = { at: want, heading: t.mapHeading, altitude, pitch };
         map.current?.setCamera({ center: { latitude: want.lat, longitude: want.lng }, heading: cam.heading, pitch, altitude });
@@ -131,20 +146,35 @@ export const DriveMap = memo(function DriveMap({
     return () => clearInterval(id);
   }, []);
 
+  // The preview: fit every option on screen (once per new set of routes, and when the pick changes).
+  const fitKey = overview ? `${overview.routes.length}:${overview.routes.map((r) => r.length).join(',')}` : '';
+  useEffect(() => {
+    if (!overview) return;
+    const all = overview.routes.flat();
+    if (all.length < 2) return;
+    // Every 8th point is plenty to fit the view.
+    const pts = all.filter((_, i) => i % 8 === 0 || i === all.length - 1).map((p) => ({ latitude: p.lat, longitude: p.lng }));
+    const t = setTimeout(() => map.current?.fitToCoordinates(pts, { edgePadding: { top: 60, right: 40, bottom: 60, left: 40 }, animated: true }), 50);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
+
   return (
     <View style={StyleSheet.absoluteFill}>
       <MapView
         ref={map}
         style={StyleSheet.absoluteFill}
-        userInterfaceStyle="dark"
-        initialCamera={{ center: { latitude: first.lat, longitude: first.lng }, heading: 0, pitch: 45, altitude: 900 }}
+        userInterfaceStyle={appearance}
+        mapType={MAP_TYPE}
+        showsBuildings
+        initialCamera={{ center: { latitude: first.lat, longitude: first.lng }, heading: 0, pitch: 50, altitude: 900 }}
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
         // Apple's live traffic on the driving view (BACKLOG 3: "Live traffic from Apple's layer").
         // Tonight's map keeps it off (REVIEW-4 m16: it competes with the pins there).
         showsTraffic
-        showsPointsOfInterests={false}
+        pointsOfInterestFilter={MAP_POIS}
         scrollEnabled={panEnabled}
         zoomEnabled={panEnabled}
         rotateEnabled={false}
@@ -155,7 +185,21 @@ export const DriveMap = memo(function DriveMap({
         }}
         onLongPress={panEnabled && onLongPress ? (e) => onLongPress({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude }) : undefined}
       >
-        {line.length > 1 ? <Polyline coordinates={line} strokeColor={BRAND} strokeWidth={8} /> : null}
+        {overview
+          ? overview.routes.map((r, i) =>
+              i === overview.selected || r.length < 2 ? null : (
+                <Polyline
+                  key={`alt${i}`}
+                  coordinates={toCoords(r)}
+                  strokeColor={OTHER_ROUTE}
+                  strokeWidth={7}
+                  tappable={!!overview.onSelect}
+                  onPress={() => overview.onSelect?.(i)}
+                />
+              ),
+            )
+          : null}
+        {line.length > 1 ? <Polyline key={overview ? `sel${overview.selected}` : 'route'} coordinates={line} strokeColor={BRAND} strokeWidth={8} zIndex={2} /> : null}
         {cameras.map((c) => (
           <Marker key={c.id} coordinate={{ latitude: c.at.lat, longitude: c.at.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <View style={st.camera} />
@@ -185,7 +229,7 @@ export const DriveMap = memo(function DriveMap({
             onPress={onPressYou}
             accessibilityLabel="You. Stopped, tap to change your icon"
           >
-            <NavIcon shape={icon.shape} colour={icon.hex} size={50} rotation={iconRotation(heading, mapHeading)} />
+            <NavIcon shape={icon.shape} colour={icon.hex} photo={icon.photo} size={50} rotation={iconRotation(heading, mapHeading)} />
           </Marker>
         ) : null}
       </MapView>
@@ -194,7 +238,7 @@ export const DriveMap = memo(function DriveMap({
         // so the icon glides with the map instead of hopping once a second as a map marker.
         <View pointerEvents="box-none" style={st.centre}>
           <Pressable onPress={onPressYou} hitSlop={12} accessibilityRole="button" accessibilityLabel="You. Tap to change your icon">
-            <NavIcon shape={icon.shape} colour={icon.hex} size={50} rotation={iconRotation(heading, mapHeading)} />
+            <NavIcon shape={icon.shape} colour={icon.hex} photo={icon.photo} size={50} rotation={iconRotation(heading, mapHeading)} />
           </Pressable>
         </View>
       ) : null}

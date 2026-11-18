@@ -1,4 +1,4 @@
-import { bestVoice, languageLabel, sortVoices, speechRate, voiceDetail, voiceToUse, type VoiceInfo } from '../src/lib/voices';
+import { autoVoiceId, bestVoice, VOICE_HOW_TO, languageLabel, sortVoices, speechRate, voiceDetail, voiceToUse, type VoiceInfo } from '../src/lib/voices';
 
 const v = (identifier: string, language: string, quality: VoiceInfo['quality'], name = identifier): VoiceInfo => ({ identifier, name, language, quality });
 const daniel = v('daniel', 'en-GB', 'default', 'Daniel');
@@ -33,12 +33,12 @@ describe('voice to use', () => {
 });
 
 describe('labels and order', () => {
-  test('British first, then by language, best first', () => {
-    expect(sortVoices([ava, moira, daniel, serena]).map((x) => x.identifier)).toEqual(['serena', 'daniel', 'moira', 'ava']);
+  test('British first, then best quality first', () => {
+    expect(sortVoices([ava, moira, daniel, serena]).map((x) => x.identifier)).toEqual(['serena', 'daniel', 'ava', 'moira']);
   });
   test('readable detail', () => {
     expect(voiceDetail(danielPlus)).toBe('English (UK) · Enhanced');
-    expect(voiceDetail(daniel)).toBe('English (UK) · Standard');
+    expect(voiceDetail(daniel)).toBe('English (UK) · Basic');
     expect(languageLabel('en-ZA')).toBe('English (South Africa)');
     expect(languageLabel('en')).toBe('English');
   });
@@ -46,5 +46,29 @@ describe('labels and order', () => {
     expect(speechRate(undefined)).toBe(0.5);
     expect(speechRate('slower')).toBeLessThan(0.5);
     expect(speechRate('faster')).toBeGreaterThan(0.5);
+  });
+});
+
+describe('automatic voice', () => {
+  test('premium beats enhanced beats basic, British first', () => {
+    expect(autoVoiceId([daniel, danielPlus, serena, ava], null)).toBe('serena');
+    expect(autoVoiceId([daniel, danielPlus], undefined)).toBe('daniel-enh');
+  });
+  test('only basic voices: the phone picks its own default British voice', () => {
+    expect(autoVoiceId([daniel, ava], null)).toBeNull();
+  });
+  test('your pick wins while it is installed, and before the list has loaded', () => {
+    expect(autoVoiceId([daniel, serena], 'daniel')).toBe('daniel');
+    expect(autoVoiceId([daniel, serena], 'gone')).toBe('serena');
+    expect(autoVoiceId([], 'daniel')).toBe('daniel');
+  });
+  test('labels say Premium, Enhanced or Basic, and gender when known', () => {
+    expect(voiceDetail(serena)).toBe('English (UK) · Premium');
+    expect(voiceDetail({ ...serena, gender: 'female' })).toBe('English (UK) · Premium · Female');
+    expect(voiceDetail({ ...daniel, gender: 'unspecified' })).toBe('English (UK) · Basic');
+  });
+  test('the how-to names the iOS 26 path and the older one', () => {
+    expect(VOICE_HOW_TO).toMatch(/Accessibility › Read & Speak › Voices › English › English \(UK\)/);
+    expect(VOICE_HOW_TO).toMatch(/Spoken Content/);
   });
 });

@@ -2,6 +2,7 @@ import type { DirectionsApp } from './directions';
 import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
 import type { MapOrientation, NavIcon } from './driveView';
+import type { MapStyleChoice } from './sun';
 import type { SpeechRate } from './voices';
 import type { SavedPlaces } from './whereTo';
 
@@ -51,6 +52,11 @@ export interface Settings {
   navVoiceId?: string | null;
   /** Driving view: how fast the voice talks. Normal by default. */
   navVoiceRate?: SpeechRate;
+  /**
+   * Maps (Tonight and the driving view): light or dark. Auto (the default) goes by sunrise and
+   * sunset where you are (sun.ts). Set in Tonight's Layers and the driving view's ··· menu.
+   */
+  mapStyle?: MapStyleChoice;
   /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
   navCameraAlerts: boolean;
   /**
