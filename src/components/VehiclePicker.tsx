@@ -95,6 +95,7 @@ export function VehiclePicker({
     ) : null;
 
   if (stage === 'search') {
+    const sameName = hits.filter((v) => v.make === hits[0]?.make && v.model === hits[0]?.model).length;
     const freeTyped = !variant && make.trim() && model.trim();
     return (
       <View style={{ gap: SPACING.sm }}>
@@ -104,9 +105,9 @@ export function VehiclePicker({
           placeholder={kind === 'car' ? 'Type a make or model, e.g. Fiesta ST' : 'Type a make or model, e.g. Street Triple'}
           accessibilityLabel={`Search every ${noun}`}
         />
-        {typed && hits.length >= 3 && new Set(hits.map((v) => `${v.make} ${v.model}`)).size === 1 ? (
-          // Six Fiesta STs (Review 13): say how to tell them apart.
-          <DsText v="caption">{`${hits.length} versions. Pick yours by its years and power.`}</DsText>
+        {typed && sameName >= 3 ? (
+          // Five Fiesta STs (Review 13): say how to tell them apart.
+          <DsText v="caption">{`${sameName} versions of the ${hits[0].model}. Pick yours by its years and power.`}</DsText>
         ) : null}
         {typed ? (
           <View>

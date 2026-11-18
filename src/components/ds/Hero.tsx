@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Image, View } from 'react-native';
 import type { ClassLetter } from '../../lib/types';
-import { ASPECT, COLOR, SPACING } from '../../theme';
+import { ASPECT, COLOR, RADII, SPACING } from '../../theme';
 import { Pin, type Glyph } from '../Pin';
 import type { EntityTag } from './EntityCard';
 import { Gradient } from './Gradient';
@@ -64,9 +64,14 @@ export function Hero({
   const onPhoto = !!photo && titleOnPhoto;
   const kindColour = contentColour(layerColour, COLOR.text.secondary);
 
+  // One place for the status tag, as on PhotoCard (K3, Review 13): top left of the picture; with
+  // no picture, first on the kind line.
+  const tagOnPicture = !!tag && !!(photo || media);
+  const statusTag = tag ? <Tag label={tag.label} tone={tag.tone} raw={tag.raw} /> : null;
   const kindRow =
-    eyebrow || live || glyph || tag ? (
+    eyebrow || live || glyph || (tag && !tagOnPicture) ? (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
+        {tagOnPicture ? null : statusTag}
         {glyph ? (
           <View aria-hidden>
             <Pin glyph={glyph} colour={kindColour} size={24} />
@@ -78,8 +83,6 @@ export function Hero({
             {[live ? 'Live' : null, eyebrow].filter(Boolean).join(' · ')}
           </DsText>
         ) : null}
-        <View style={{ flex: 1 }} />
-        {tag ? <Tag label={tag.label} tone={tag.tone} raw={tag.raw} /> : null}
       </View>
     ) : null;
 
@@ -120,6 +123,9 @@ export function Hero({
                 {titleRow}
               </View>
             </>
+          ) : null}
+          {tagOnPicture ? (
+            <View style={{ position: 'absolute', top: SPACING.sm, left: edge ? SPACING.screen : SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>{statusTag}</View>
           ) : null}
           {overlay}
         </View>

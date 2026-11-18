@@ -100,7 +100,8 @@ function Posted({ event }: { event: NightEvent }) {
       <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
         <Hero
           media={
-            <MediaFrame height={190}>
+            // Short enough that the "Invites sent" toast, above the ActionBar, doesn't sit on the words (Review 13, L2).
+            <MediaFrame height={150}>
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <NightMap pins={[]} circles={[{ id: 'area', centre: event.area, radiusMiles: radius, colour: COLOR.text.secondary }]} centre={event.area} span={Math.max(0.08, radius / 15)} />
               </View>
@@ -113,7 +114,7 @@ function Posted({ event }: { event: NightEvent }) {
           tag={{ label: 'Hosting', tone: 'success' }}
         />
         <View style={{ gap: SPACING.xs }}>
-          <DsText v="titleLg">It's up. Share it so people come.</DsText>
+          <DsText v="title">It's up. Share it so people come.</DsText>
           {isPublicType(event.type) ? null : <LocationLine state="host" time={clock(revealAt)} leadMinutes={event.revealMinutesBefore} />}
         </View>
       </ScrollView>
