@@ -515,7 +515,7 @@ export function EventForm({
                 <DsText v="bodyStrong">{`Tap to place the ${cardLabel}`}</DsText>
               </View>
             ) : (
-              <View pointerEvents="none" style={{ position: 'absolute', left: SPACING.sm, bottom: SPACING.sm, flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, borderRadius: RADII.pill, backgroundColor: COLOR.surface.glass }}>
+              <View pointerEvents="none" style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm, flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, borderRadius: RADII.pill, backgroundColor: COLOR.surface.glass }}>
                 <Icon name="pin" size={14} colour={COLOR.text.primary} />
                 <DsText v="meta" style={{ color: COLOR.text.primary }}>
                   {visibleStops[cardTarget]?.at ? `Tap to move the ${cardLabel}` : `Tap to place the ${cardLabel}`}

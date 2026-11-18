@@ -315,7 +315,7 @@ export default function SearchScreen() {
             setQuery(t);
             setPicked(null);
           }}
-          placeholder="Meets, places, people or an address"
+          placeholder="Meets, places, people"
           loading={addrState === 'searching'}
           autoFocus={!params.q}
           accessibilityLabel="Search meets, places, people or an address"
