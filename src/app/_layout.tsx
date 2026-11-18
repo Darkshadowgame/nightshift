@@ -168,7 +168,7 @@ export default function RootLayout() {
         <RoadsProvider>
           <CommunityProvider>
             {/* Toasts sit above the tab bar. */}
-            <ToastProvider bottomOffset={56}>
+            <ToastProvider>
               <StatusBar style="light" />
               <Gate />
               <OfflinePill />

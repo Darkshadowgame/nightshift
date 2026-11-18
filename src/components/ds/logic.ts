@@ -102,3 +102,32 @@ export function toastDuration(message: string, hasAction: boolean, base = 3200):
   const extra = Math.max(0, message.length - 60) * 30;
   return Math.min(base + extra + (hasAction ? 2000 : 0), 8000);
 }
+
+/** "2026-11-18" for a date in local time (the date picker's value). */
+export function localDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** A local "YYYY-MM-DD" back to a Date at local noon, or null if it isn't one. */
+export function parseLocalDay(s: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s ?? '');
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
+  return d.getMonth() === Number(m[2]) - 1 ? d : null;
+}
+
+/**
+ * A month for the date picker: rows of seven local days, Monday first, with null for the
+ * blanks before the 1st and after the last day.
+ */
+export function monthGrid(year: number, month: number): (string | null)[][] {
+  const first = new Date(year, month, 1, 12);
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(year, month + 1, 0, 12).getDate();
+  const cells: (string | null)[] = [...Array(lead).fill(null)];
+  for (let d = 1; d <= days; d++) cells.push(localDay(new Date(year, month, d, 12)));
+  while (cells.length % 7) cells.push(null);
+  const rows: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
+}

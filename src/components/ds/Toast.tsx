@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLOR, ELEVATION, MOTION, RADII, SPACING } from '../../theme';
 import { Button } from './Button';
@@ -14,7 +14,8 @@ export type ToastInput = { message: string; tone?: ToastTone; action?: { label: 
 
 /**
  * A short confirmation after something happened ("Saved", "Request sent", "Left the group · Undo").
- * Bottom of the screen, above the tab bar, one at a time. Read out by screen readers, buzzes
+ * At the top of the screen, just under the header, one at a time, so it never sits on a screen's
+ * main buttons (REVIEW-10: "You're going" covered the going list and Navigate). Read out by screen readers, buzzes
  * `success` (or `warning` for danger). Not for errors the user must act on: those are ErrorState.
  */
 export function ToastView({ message, tone = 'success', action, onDismiss }: ToastInput & { onDismiss?: () => void }) {
@@ -55,7 +56,7 @@ export function useToast() {
 }
 
 /** Hosts toasts for everything inside it. Goes once at the root (or around a screen, like the gallery). */
-export function ToastProvider({ children, bottomOffset = 0 }: { children: ReactNode; bottomOffset?: number }) {
+export function ToastProvider({ children, topOffset = 56 }: { children: ReactNode; topOffset?: number }) {
   const [toast, setToast] = useState<(ToastInput & { id: number }) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = useReducedMotion();
@@ -77,9 +78,9 @@ export function ToastProvider({ children, bottomOffset = 0 }: { children: ReactN
       {toast ? (
         <Animated.View
           key={toast.id}
-          entering={reduced ? FadeIn.duration(MOTION.fast) : FadeInDown.duration(MOTION.base)}
+          entering={reduced ? FadeIn.duration(MOTION.fast) : FadeInUp.duration(MOTION.base)}
           exiting={FadeOut.duration(MOTION.fast)}
-          style={{ position: 'absolute', left: SPACING.lg, right: SPACING.lg, bottom: insets.bottom + SPACING.lg + bottomOffset }}
+          style={{ position: 'absolute', left: SPACING.lg, right: SPACING.lg, top: insets.top + topOffset }}
         >
           <ToastView {...toast} onDismiss={() => setToast(null)} />
         </Animated.View>

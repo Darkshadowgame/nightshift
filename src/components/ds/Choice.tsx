@@ -1,24 +1,23 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { Button } from './Button';
-import { Icon } from './Icon';
 import { segmentLabel, selectionSummary, toggleSelection } from './logic';
 import { Press } from './Press';
 import { DsText } from './Text';
 
 /**
- * A filter chip: **many of many only**. Off is an outline with fog text; on is a sodium tint,
- * sodium border and a check mark (so "on" never relies on colour alone). Never a radio button:
- * one-of-many is SegmentedControl or ChoiceGroup. Labels are as typed, in the pill's face; `raw` is kept for old callers.
+ * A chip: the one pill face in the app (REVIEW-10 #11). Off is an outline; on is a sodium tint,
+ * a sodium border and bold sodium text (so "on" never relies on colour alone). No tick, no radio
+ * dot. Many-of-many filters use ChipGroup; a one-of-many row of 5+ options (ChoiceGroup) uses the
+ * same face with `role="radio"`. Labels are as typed; `raw` is kept for old callers.
  */
-export function Chip({ label, on, onPress, raw, count, accessibilityLabel }: { label: string; on: boolean; onPress: () => void; raw?: boolean; count?: number; accessibilityLabel?: string }) {
-  const c = on ? COLOR.action.selected : COLOR.text.secondary;
+export function Chip({ label, on, onPress, raw, count, accessibilityLabel, role = 'checkbox', hint }: { label: string; on: boolean; onPress: () => void; raw?: boolean; count?: number; accessibilityLabel?: string; role?: 'checkbox' | 'radio'; hint?: string }) {
   return (
     <Press
       onPress={onPress}
       haptic="select"
-      role="checkbox"
+      role={role}
       state={{ checked: on }}
       label={accessibilityLabel ?? (count !== undefined ? `${label}, ${count}` : label)}
       hitSlop={{ top: 6, bottom: 6 }}
@@ -32,13 +31,15 @@ export function Chip({ label, on, onPress, raw, count, accessibilityLabel }: { l
         borderWidth: 1,
         borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
         backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
+        ...(hint ? { paddingVertical: SPACING.sm, alignItems: 'flex-start' as const } : null),
       }}
     >
-      {on ? <Icon name="check" size={14} colour={c} /> : null}
-      {/* Same face, size and case as a ChoiceGroup pill, so one form never mixes two control styles (REVIEW-7 inconsistency 3). */}
-      <DsText v="body" style={{ color: on ? c : COLOR.text.primary }}>
-        {count !== undefined ? `${label} ${count}` : label}
-      </DsText>
+      <View style={{ flexShrink: 1 }}>
+        <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: on ? COLOR.action.selected : COLOR.text.primary }}>
+          {count !== undefined ? `${label} ${count}` : label}
+        </DsText>
+        {hint ? <DsText v="caption">{hint}</DsText> : null}
+      </View>
     </Press>
   );
 }
@@ -158,9 +159,14 @@ export function SegmentedControl<K extends string>({
   );
 }
 
+/** Short enough for a SegmentedControl tile (caps, four across on an SE). */
+const SEGMENT_MAX = 14;
+
 /**
  * One of many for settings and forms (travel distance, alerts, report reason, event type).
- * `pills` wrap and show a filled dot when on; `list` is a radio list with a hint per option.
+ * REVIEW-10 #11, one set of selectors: 2–4 short options render as a SegmentedControl; more (or
+ * longer) options wrap as chips in the one Chip face (`role="radio"`), and `list` stacks the same
+ * chips full width with a hint under each. No radio dots.
  */
 export function ChoiceGroup<K extends string>({
   label,
@@ -175,37 +181,64 @@ export function ChoiceGroup<K extends string>({
   onChange: (key: K) => void;
   layout?: 'pills' | 'list';
 }) {
+  const segmented = layout === 'pills' && value !== null && options.length >= 2 && options.length <= 4 && options.every((o) => !o.hint && o.label.length <= SEGMENT_MAX);
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ gap: SPACING.sm }}>
-      <DsText v="label">{label}</DsText>
-      <View style={layout === 'pills' ? { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm } : { gap: SPACING.xs }}>
-        {options.map((o) => {
+      {label ? <DsText v="label">{label}</DsText> : null}
+      {segmented ? (
+        <SegmentedControl options={options} value={value as K} onChange={onChange} accessibilityLabel={label} />
+      ) : (
+        <View style={layout === 'pills' ? { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm } : { gap: SPACING.xs }}>
+          {options.map((o) => (
+            <Chip key={o.key} role="radio" label={o.label} hint={layout === 'list' ? o.hint : undefined} accessibilityLabel={o.hint ? `${o.label}, ${o.hint}` : o.label} on={o.key === value} onPress={() => onChange(o.key)} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Tabs: the top level of a screen (Community: Feed, People, Forum, Messages; a picker's categories).
+ * Text labels on the page background with a sodium underline under the one you're on and a
+ * hairline under the row, so they never look like the SegmentedControl or chips below them.
+ * Scrolls sideways when the labels don't fit.
+ */
+export function Tabs<K extends string>({
+  options,
+  value,
+  onChange,
+  accessibilityLabel,
+}: {
+  options: { key: K; label: string; count?: number; dot?: boolean }[];
+  value: K;
+  onChange: (key: K) => void;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: COLOR.surface.border }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="tablist" accessibilityLabel={accessibilityLabel} contentContainerStyle={{ gap: SPACING.lg, flexGrow: 1 }}>
+        {options.map((o, i) => {
           const on = o.key === value;
+          const text = o.count ? `${o.label} ${o.count}` : o.label;
           return (
             <Press
               key={o.key}
-              onPress={() => onChange(o.key)}
+              onPress={on ? undefined : () => onChange(o.key)}
               haptic="select"
-              role="radio"
-              state={{ checked: on }}
-              label={o.hint ? `${o.label}, ${o.hint}` : o.label}
-              style={[
-                { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: layout === 'list' ? 44 : 34, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1 },
-                { borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong, backgroundColor: on ? COLOR.action.selectedTint : 'transparent' },
-                layout === 'list' && { paddingVertical: SPACING.sm },
-              ]}
+              role="tab"
+              state={{ selected: on }}
+              label={`${text}, tab ${i + 1} of ${options.length}`}
+              style={{ minHeight: 44, justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: on ? COLOR.action.selected : 'transparent', marginBottom: -1, flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}
             >
-              <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong, alignItems: 'center', justifyContent: 'center' }}>
-                {on ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.action.selected }} /> : null}
-              </View>
-              <View style={{ flexShrink: 1 }}>
-                <DsText v="body">{o.label}</DsText>
-                {layout === 'list' && o.hint ? <DsText v="caption">{o.hint}</DsText> : null}
-              </View>
+              <DsText v="buttonSm" style={{ color: on ? COLOR.action.selected : COLOR.text.secondary }}>
+                {text}
+              </DsText>
+              {o.dot ? <View aria-hidden style={{ width: 8, height: 8, borderRadius: RADII.pill, backgroundColor: COLOR.action.selected }} /> : null}
             </Press>
           );
         })}
-      </View>
+      </ScrollView>
     </View>
   );
 }

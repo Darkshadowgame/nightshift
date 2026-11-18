@@ -75,9 +75,11 @@ Every pressable goes through `Press`: one pressed state and haptics by rule, so 
 | `ClassBadge` | A build's class | Skewed tile in its metal. Never stands in for a person. |
 | `BuildThumb` | A build's picture | Photo or silhouette, 4:3. Separate from `Avatar`. |
 | `Tag` | A state | `neutral, success, warning, danger, info, live, selected`. Caps, outline. `raw` for names. |
-| `Chip` / `ChipGroup` | Filters: many of many | Off: outline. On: tint, border and a tick. **Nothing on = no filter**, and all on collapses to nothing on (`normaliseSelection`). `Clear` appears once anything is on. Buzzes `select`. |
-| `SegmentedControl` | Switching the view below: 2–4 options | Counts allowed ("Mine 3"). Buzzes `select`. |
-| `ChoiceGroup` | One of many in settings and forms | `pills` (wrapping, radio dot) or `list` (radio list with hints). |
+| `Chip` / `ChipGroup` | Filters: many of many | The one pill face. Off: outline. On: tint, sodium border, bold sodium text. No tick, no radio dot. **Nothing on = no filter**, and all on collapses to nothing on (`normaliseSelection`). `Clear` appears once anything is on. Buzzes `select`. |
+| `SegmentedControl` | 2–4 exclusive options: a view switch or a short setting | Counts allowed ("Mine 3"). Buzzes `select`. A second level under `Tabs` (Community › People: Near you / Connections). |
+| `ChoiceGroup` | One of many in settings and forms | 2–4 short options (≤14 characters, no hints) render as a `SegmentedControl`; more become chips in the one `Chip` face (`role="radio"`); `list` stacks those chips full width with a hint under each. No radio dots. |
+| `Tabs` | The top level of a screen (Community; a picker's categories) | Caps labels on the page with a sodium underline under the current tab and a hairline under the row; scrolls sideways. Never stacked on another `Tabs`. |
+| `DateField` / `DateSheet` | Picking a day | The one date picker: a month calendar in a Sheet (Monday first, `min`/`max` grey out the rest). The host flow (today to 60 days ahead) and the dyno form (a past day) both use it. Never a typed `YYYY-MM-DD`, never a long list of days. |
 | `EmptyState` | Nothing here | `inline`: one muted line and a link, inside a Section. `block`: glyph, title, line, one primary. |
 | `LoadingState` | Waiting | `rows`: 3 skeleton rows (lists). `inline`: spinner and a short line. Buttons use `busy`, not this. |
 | `ErrorState` | It failed | `inline`: red caption and Retry under the thing that failed. `block`: icon, title, line, Try again. Copy starts "Couldn't". |
@@ -88,7 +90,7 @@ Every pressable goes through `Press`: one pressed state and haptics by rule, so 
 | `Field` / `TextField` / `INPUT` | Form fields | Caps label above, hint below; the input look (input type, strong border, control radius, 48 tall). `multilineHeight` for notes. |
 | `Card` | A plain block on the page (a form, a group of facts) | Card surface, hairline, card radius, no shadow, no accent bar. `raised` inside another card. Browse items are `EntityCard`, not this. |
 | `StatBlock` | 2–4 numbers | Fixed sets: build = bhp, bhp/tonne, mods; event = starts/ends in, going, stop n of m; person = builds, events, rep. No sodium numbers. |
-| `ToastProvider` / `useToast` | "Saved", "Request sent", "Left · Undo" | Bottom, one at a time, read out, buzzes `success` (or `warning`). Not for errors. Needs a `ToastProvider` at the root when screens migrate (the gallery has its own). |
+| `ToastProvider` / `useToast` | "Saved", "Request sent", "Left · Undo" | Top, just under the header (never over a screen's main buttons), one at a time, read out, buzzes `success` (or `warning`). Not for errors. Needs a `ToastProvider` at the root when screens migrate (the gallery has its own). |
 
 Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `initials`, `displayHandle`,
 `toggleSelection`, `normaliseSelection`, `passesFilter`, `selectionSummary`, `segmentLabel`, `metaLine`,
@@ -105,7 +107,7 @@ Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `ini
 5. **Content is never uppercased.** Capitals are for chrome.
 6. **One primary per screen** (or per sheet). At most two full-width buttons in a block; the rest go in the `···` Sheet. Cards never carry a primary.
 7. **Places: Navigate is primary. Events: going or check-in is primary,** Navigate secondary.
-8. **Many of many is `Chip`. One of many is `SegmentedControl` (switches a view) or `ChoiceGroup` (a setting).** Never chips as radios.
+8. **Many of many is `Chip`. One of 2–4 is `SegmentedControl`; one of more is `ChoiceGroup` (the same chip face). A screen's top level is `Tabs`. A day is `DateField`.**
 9. **Filters start empty and empty means everything.** Never pre-select every chip.
 10. **Status is a `Tag`; an error is `ErrorState`; a done thing is a toast.** Accent bars are layer identity only.
 11. **Sodium means "tap this" or "on".** Not info lines, not people, not levels, not stats.
@@ -127,7 +129,7 @@ Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `ini
 21. **Create is "+ New"** on every tab header (Tonight, Community, Garage); what you can make is in the
     sheet it opens. Detail screens have a `···` menu, yours or someone else's (Edit is in yours).
 22. **Chips and choice pills share one face:** body text as typed, outline off, tint and border on.
-    A chip adds a tick, a pill a radio dot. Never uppercase chip labels.
+    (Review 10: no tick and no radio dot either; on is bold sodium text.) Never uppercase chip labels.
 23. **The italic display face is the wordmark, covers and class-up only.** Every page title is upright.
 24. **Distances say where from:** "from you" (a GPS fix) or "from home". A hidden event's distance is
     "about N mi" (to its area), so it doesn't jump when the meet point shows.
@@ -155,6 +157,18 @@ Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `ini
     build page only.
 32. **Tonight's map starts with Events only.** Other layers stay in the layers sheet, off until
     turned on; speed cameras and road reports are the drive view's only.
+
+### Added after Review 10 (18 Nov 2026)
+
+34. **One set of selectors.** `Chip`/`ChipGroup` for many-of-many filters; `SegmentedControl` for 2–4
+    exclusive options; `ChoiceGroup` (chip face) for more; `Tabs` for a screen's top level, which look
+    like tabs (underline), never like the controls under them. Two `Tabs` rows never stack: the second
+    level is a `SegmentedControl`. The radio-dot pill and the tick chip are gone.
+35. **One date picker**, `DateField` (or `DateSheet` behind a "Pick a date" button): host flow and dyno form.
+36. **Toasts sit at the top**, under the header, so they never cover a screen's primary or Navigate.
+37. **One power figure.** A build's headline power is bhp at the crank ("est." when worked out from a
+    wheels run), with whp as a secondary line when there's a wheels run. bhp/tonne comes from the
+    same figure and says so.
 
 ## Do and don't
 

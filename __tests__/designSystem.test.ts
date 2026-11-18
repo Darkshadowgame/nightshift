@@ -127,3 +127,19 @@ describe('tokens', () => {
     for (const t of Object.values(TYPE_SCALE)) expect(t.fontSize).toBeGreaterThanOrEqual(11);
   });
 });
+
+describe('date picker helpers (REVIEW-10 #11)', () => {
+  const { localDay, parseLocalDay, monthGrid } = require('../src/components/ds/logic');
+  it('round-trips a local day', () => {
+    expect(localDay(new Date(2026, 10, 27, 23, 30))).toBe('2026-11-27');
+    expect(localDay(parseLocalDay('2026-02-28'))).toBe('2026-02-28');
+    expect(parseLocalDay('2026-02-30')).toBeNull();
+    expect(parseLocalDay('27/11/2026')).toBeNull();
+  });
+  it('lays a month out Monday first', () => {
+    const nov = monthGrid(2026, 10); // 1 Nov 2026 is a Sunday
+    expect(nov[0]).toEqual([null, null, null, null, null, null, '2026-11-01']);
+    expect(nov.every((r: unknown[]) => r.length === 7)).toBe(true);
+    expect(nov.flat().filter(Boolean)).toHaveLength(30);
+  });
+});
