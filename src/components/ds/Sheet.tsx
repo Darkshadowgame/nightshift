@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { confirmLabels } from '../../lib/glossary';
@@ -25,7 +25,9 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', children, botto
           borderColor: COLOR.surface.raisedHi,
           paddingHorizontal: SPACING.lg,
           paddingBottom: Math.max(bottomInset, SPACING.lg),
-          maxHeight: '90%',
+          // Shrinks to fit the cap on Sheet's wrapper; the ScrollView takes the cut, not the buttons.
+          flexShrink: 1,
+          minHeight: 0,
         },
         ELEVATION.sheet,
       ]}
@@ -43,7 +45,7 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', children, botto
           </DsText>
         </Press>
       </View>
-      <ScrollView bounces={false} contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}>
+      <ScrollView bounces={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}>
         {children}
       </ScrollView>
     </View>
@@ -59,18 +61,27 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', children, botto
 export function Sheet({ visible, title, onClose, doneLabel, children }: { visible: boolean; title: string; onClose: () => void; doneLabel?: string; children: ReactNode }) {
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
+  // The height cap is layout, not a percentage: the wrapper is a shrinkable flex item of a
+  // full-screen column (which KeyboardAvoidingView shortens above the keyboard on iOS), kept
+  // clear of the status bar by a top margin, and the panel and its ScrollView shrink inside it.
+  // (A `maxHeight: '90%'` on the panel resolved against this wrapper on web, so every sheet lost
+  // its last 10% and showed the tab bar below; on iOS it resolved against nothing, so no cap.)
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View entering={FadeIn.duration(MOTION.fast)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: COLOR.surface.scrim }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityRole="button" accessibilityLabel={`Close ${title}`} />
         </Animated.View>
-        <Animated.View entering={reduced ? FadeIn.duration(MOTION.fast) : SlideInDown.duration(MOTION.sheet)} accessibilityViewIsModal>
+        <Animated.View
+          entering={reduced ? FadeIn.duration(MOTION.fast) : SlideInDown.duration(MOTION.sheet)}
+          accessibilityViewIsModal
+          style={{ marginTop: insets.top + SPACING.xl, flexShrink: 1, minHeight: 0 }}
+        >
           <SheetPanel title={title} onClose={onClose} doneLabel={doneLabel} bottomInset={insets.bottom}>
             {children}
           </SheetPanel>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -22,6 +22,7 @@ import {
   Sheet,
   SheetOption,
   StatBlock,
+  SwitchRow,
   Tag,
   type Stat,
 } from '../../components/ds';
@@ -29,7 +30,6 @@ import type { MapPath, MapPin } from '../../components/mapTypes';
 import { UnlockReveal } from '../../components/motion';
 import { NavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
-import { ToggleRow } from '../../components/ui';
 import { allAwards, hasLegend } from '../../lib/awards';
 import { areaRadius } from '../../lib/area';
 import { broughtBuild, buildLine, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
@@ -664,7 +664,7 @@ export default function EventScreen() {
             <DsText v="secondary">Invite: {describeFilter(ev.filter)}</DsText>
             {canPreview ? (
               <View style={{ gap: SPACING.xs }}>
-                <ToggleRow label="See as a guest" hint="The map as invited people see it before the stop unlocks" value={asGuest} onValueChange={setAsGuest} />
+                <SwitchRow label="See as a guest" hint="The map as invited people see it before the stop unlocks" value={asGuest} onValueChange={setAsGuest} />
                 {guestView ? (
                   <DsText v="caption" accessibilityLiveRegion="polite">
                     Invited people see a locked circle about {Math.round(areaMiles * 2)} mi across, never centred on your stop. For people going, the stop unlocks{' '}

@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LEGAL_ROWS, openLegal } from '../components/AboutSection';
 import { AppUpdates, updateDetails, versionLine } from '../components/AppUpdates';
 import { NavIconChoices } from '../components/DriveHud';
-import { Button, ChoiceGroup, ConfirmSheet, DsText, ErrorState, ListRow, RowDivider, Section, useToast } from '../components/ds';
+import { Button, ChoiceGroup, ConfirmSheet, DsText, ErrorState, ListRow, RowDivider, Section, SwitchRow, useToast } from '../components/ds';
 import { TravelPrefs } from '../components/TravelPrefs';
 import { VoicePicker } from '../components/VoicePicker';
 import { useAuth } from '../lib/auth';
@@ -25,27 +25,6 @@ const EXTRA_LAYERS: { key: Layer; label: string; hint: string }[] = [
   { key: 'shops', label: 'Shops', hint: 'Car and bike businesses from OpenStreetMap, and partners (always marked).' },
   { key: 'roads', label: 'Road reports', hint: "Drivers' reports and road closures." },
 ];
-
-/** A setting that's on or off: the label, a short hint and a switch. */
-function SwitchRow({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <View style={st.switchRow}>
-      <View style={{ flex: 1, gap: SPACING.xxs }}>
-        <DsText v="body">{label}</DsText>
-        {hint ? <DsText v="caption">{hint}</DsText> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        accessibilityLabel={label}
-        accessibilityHint={hint}
-        trackColor={{ true: COLOR.action.primary, false: COLOR.surface.raisedHi }}
-        thumbColor={COLOR.text.primary}
-        ios_backgroundColor={COLOR.surface.raisedHi}
-      />
-    </View>
-  );
-}
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -147,19 +126,19 @@ export default function SettingsScreen() {
         />
         <DsText v="label">Your icon on the map</DsText>
         <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
-        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onChange={(v) => setSettings({ navVoice: v })} />
+        <SwitchRow label="Spoken directions" hint="A British voice reads each turn and turns music down while it speaks." value={settings.navVoice !== false} onValueChange={(v) => setSettings({ navVoice: v })} />
         {settings.navVoice !== false ? <VoicePicker /> : null}
         <SwitchRow
           label="Speed camera alerts"
           hint="Says when a camera or average-speed zone is about half a mile ahead, with its limit. Speed limits only, never police."
           value={settings.navCameraAlerts !== false}
-          onChange={(v) => setSettings({ navCameraAlerts: v })}
+          onValueChange={(v) => setSettings({ navCameraAlerts: v })}
         />
       </Group>
 
       <Group title="Map layers">
         {EXTRA_LAYERS.map((l) => (
-          <SwitchRow key={l.key} label={l.label} hint={l.hint} value={layerOn(settings, l.key)} onChange={(v) => setSettings(setLayer(settings, l.key, v))} />
+          <SwitchRow key={l.key} label={l.label} hint={l.hint} value={layerOn(settings, l.key)} onValueChange={(v) => setSettings(setLayer(settings, l.key, v))} />
         ))}
         <DsText v="caption">These start off. Events, drives, photo spots, tracks and meet spots are under Layers on the Tonight map.</DsText>
       </Group>
@@ -169,7 +148,7 @@ export default function SettingsScreen() {
           label="Event reminders"
           hint="When the stop unlocks and 30 minutes before the start, for events you're going to or hosting."
           value={settings.reminders}
-          onChange={(v) => {
+          onValueChange={(v) => {
             setSettings({ reminders: v });
             if (v) allow();
           }}
@@ -203,7 +182,7 @@ export default function SettingsScreen() {
           label="Show me in People near you"
           hint="People near you see your builds and a rough distance, never where you live."
           value={community.showInNearby}
-          onChange={(v) => {
+          onValueChange={(v) => {
             setError(null);
             community.run((s) => s.setShowInNearby(v)).catch(failed('community'));
           }}
@@ -260,7 +239,7 @@ export default function SettingsScreen() {
             label="Skip the GPS check"
             hint="Try check-ins, photo spots and drives without being there. Off, you have to be there, as in the real app."
             value={!!settings.simulateGps}
-            onChange={(v) => setSettings({ simulateGps: v })}
+            onValueChange={(v) => setSettings({ simulateGps: v })}
           />
           <ListRow
             title="Restart the demo events"
@@ -324,5 +303,4 @@ export default function SettingsScreen() {
 
 const st = StyleSheet.create({
   page: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 56, paddingVertical: SPACING.sm },
 });

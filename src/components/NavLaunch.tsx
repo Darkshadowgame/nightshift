@@ -7,8 +7,7 @@ import { targetParams, type NavTarget } from '../lib/navPlan';
 import { useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { SPACING } from '../theme';
-import { Button, DsText, ErrorState, Sheet, SheetOption } from './ds';
-import { ToggleRow } from './ui';
+import { Button, DsText, ErrorState, Sheet, SheetOption, SwitchRow } from './ds';
 
 async function openFirst(urls: string[]): Promise<boolean> {
   for (const u of urls) {
@@ -120,7 +119,7 @@ export function NavLaunch({
             <SheetOption key={c.id} label={c.id === preferred ? `${c.label} · now` : c.label} detail={c.note} onPress={() => choose(c.id)} />
           ))}
         </View>
-        <ToggleRow label="Always use this" value={always} onValueChange={setAlways} />
+        <SwitchRow label="Always use this" value={always} onValueChange={setAlways} />
         <DsText v="caption">Other apps get the first stop's position only. Change it any time in {menuPath('Me', 'Settings', 'Navigation')}.</DsText>
       </Sheet>
     </View>

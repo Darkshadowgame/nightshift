@@ -21,10 +21,9 @@ import { startFrom, type DayChoice } from '../lib/when';
 import { zonePins, zoneShapes } from '../lib/zones';
 import { COLOR, SPACING } from '../theme';
 import { Callout, Field, MediaFrame, TextField } from './Detail';
-import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, ListRow, Press, RowDivider, Section, StatBlock } from './ds';
+import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, ListRow, Press, RowDivider, Section, StatBlock, SwitchRow } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
-import { ToggleRow } from './ui';
 import { ZoneNotice } from './ZoneCard';
 
 /** Meet bans drawn on the map: circles, and council outlines for borough-wide orders. */
@@ -428,7 +427,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   const vehicles = vehicleSelection(filter);
   const whoStep = (
     <>
-      <ToggleRow
+      <SwitchRow
         label={`${GOING.public}: any car or bike`}
         hint="Skip the build filters. The radius still applies."
         value={filter.everyone}
@@ -477,7 +476,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         </Callout>
       ) : null}
       {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
-        <ToggleRow label={`Crew event: ${myCrew.name}`} hint="The crew owner and hosts can host, move on and edit." value={crewOwned} onValueChange={setCrewOwned} />
+        <SwitchRow label={`Crew event: ${myCrew.name}`} hint="The crew owner and hosts can host, move on and edit." value={crewOwned} onValueChange={setCrewOwned} />
       ) : null}
       {friends.length ? (
         <ChipGroup<string>

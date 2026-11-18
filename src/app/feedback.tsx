@@ -1,8 +1,8 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { usePhotoFlow } from '../components/PhotoFlow';
-import { Button, ChoiceGroup, DsText, EmptyState, ErrorState, ListRow, Section, Tag, typeStyle } from '../components/ds';
+import { Button, ChoiceGroup, DsText, EmptyState, ErrorState, ListRow, Section, SwitchRow, Tag, typeStyle } from '../components/ds';
 import { FEEDBACK_KINDS, FEEDBACK_MAX, FEEDBACK_PHOTOS_MAX, kindLabel, makeReport, statusLabel, type FeedbackKind } from '../lib/feedbackQueue';
 import { currentPosition } from '../lib/location';
 import { deletePhotos, photoUri } from '../lib/photos';
@@ -143,20 +143,12 @@ export default function FeedbackScreen() {
             )}
           </View>
 
-          <View style={st.switchRow}>
-            <View style={{ flex: 1, gap: SPACING.xxs }}>
-              <DsText v="body">Include my location</DsText>
-              <DsText v="caption">Off unless you turn it on. Useful when a place is wrong where you are. It goes with this report only.</DsText>
-            </View>
-            <Switch
-              value={withLocation}
-              onValueChange={setWithLocation}
-              accessibilityLabel="Include my location"
-              trackColor={{ true: COLOR.action.primary, false: COLOR.surface.raisedHi }}
-              thumbColor={COLOR.text.primary}
-              ios_backgroundColor={COLOR.surface.raisedHi}
-            />
-          </View>
+          <SwitchRow
+            label="Include my location"
+            hint="Off unless you turn it on. Useful when a place is wrong where you are. It goes with this report only."
+            value={withLocation}
+            onValueChange={setWithLocation}
+          />
 
           <Button label="Send feedback" size="lg" block onPress={send} busy={busy} disabled={!message.trim()} hint="Write something first" haptic="success" />
           {error ? <ErrorState title={error} /> : null}
@@ -202,5 +194,4 @@ const st = StyleSheet.create({
   done: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
   input: { minHeight: 120, textAlignVertical: 'top', padding: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   thumb: { width: 72, height: 72, borderRadius: RADII.control, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.raisedHi },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 56 },
 });
