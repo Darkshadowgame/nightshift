@@ -41,10 +41,10 @@ jobs:
           NH="${NH1:-$NH2}"
           args=("CRON_SECRET=$CRON_SECRET")
           if [ -n "$NH" ]; then args+=("NATIONAL_HIGHWAYS_KEY=$NH"); else echo "::warning::No National Highways key: TfL only."; fi
-          npx -y supabase@3.2.0 secrets set "${args[@]}" --project-ref "$PROJECT_REF"
+          npx -y supabase@3.2.0 secrets set "${args[@]}" --project-ref "$PROJECT_REF" --yes
 
       - name: Deploy import-closures
-        run: npx -y supabase@3.2.0 functions deploy import-closures --use-api --project-ref "$PROJECT_REF"
+        run: npx -y supabase@3.2.0 functions deploy import-closures --use-api --project-ref "$PROJECT_REF" --yes
 
       - name: Schedule it every 15 minutes
         run: |
