@@ -59,7 +59,7 @@ export function ToastView({ message, tone = 'success', action, onDismiss }: Toas
 const ToastContext = createContext<(t: ToastInput) => void>(() => {});
 
 /** The tab bar's height above the home indicator: where a toast sits when no ActionBar is showing. */
-export const TAB_BAR_HEIGHT = 49;
+export const TAB_BAR_HEIGHT = 54;
 
 type Anchor = (id: string, height: number | null) => void;
 const AnchorContext = createContext<Anchor>(() => {});

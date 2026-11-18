@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { screenHeader, typeStyle } from '../../components/ds';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { screenHeader, TAB_BAR_HEIGHT, typeStyle } from '../../components/ds';
 import { Pin, type Glyph } from '../../components/Pin';
 import { useCommunity } from '../../lib/communityStore';
 import { COLOR, TYPE_SCALE } from '../../theme';
@@ -21,6 +22,7 @@ function icon(glyph: Glyph) {
 export default function TabsLayout() {
   // Unread messages and connection requests waiting for you.
   const { badge } = useCommunity();
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -30,13 +32,12 @@ export default function TabsLayout() {
         headerTitleStyle: { fontFamily: TYPE_SCALE.heading.fontFamily, fontSize: TYPE_SCALE.heading.fontSize, textTransform: 'uppercase' },
         headerTitleAllowFontScaling: false,
         headerShadowVisible: false,
-        tabBarStyle: { backgroundColor: COLOR.surface.bg, borderTopColor: COLOR.surface.border },
+        tabBarStyle: { backgroundColor: COLOR.surface.bg, borderTopColor: COLOR.surface.border, height: TAB_BAR_HEIGHT + insets.bottom },
         tabBarActiveTintColor: COLOR.action.selected,
         tabBarInactiveTintColor: COLOR.text.secondary,
-        // Like the iOS tab bar, the labels keep their size at large text (the screens above them grow);
-        // and the item's padding is trimmed to 3 so the label has 16 pt, room for even 1.3x (Review 14).
+        // Like the iOS tab bar, the labels keep their size at large text (the screens above them grow),
+        // and the bar is TAB_BAR_HEIGHT (54) so the label line has room even at 1.3x (Review 14).
         tabBarAllowFontScaling: false,
-        tabBarItemStyle: { paddingTop: 3, paddingBottom: 3 },
         // The bar gives the label 10 pt under a 28 pt icon box; capitals at 11 pt need 12. The icons are 26 pt,
         // so the box shrinks to fit them and the line is set to 12 (no descenders in capitals): nothing clipped (B6).
         tabBarLabelStyle: { ...typeStyle('tag'), lineHeight: 12, color: undefined },
