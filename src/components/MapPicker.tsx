@@ -28,7 +28,7 @@ import type { MapPath, MapPin, MapRegion, NightMapHandle } from './mapTypes';
 import { NightMap } from './NightMap';
 import { Pin, type Glyph } from './Pin';
 import { PlaceSearch } from './PlaceSearch';
-import { Button, DsText, ErrorState, IconButton, Press } from './ds';
+import { ActionBar, DsText, ErrorState, IconButton, Press } from './ds';
 
 /**
  * Ban zones drawn on the map: circles, and council outlines for borough-wide orders. Outlines
@@ -46,7 +46,7 @@ export interface MapPickerProps {
   mode: PickMode;
   /** Header, e.g. "PLACE THE PHOTO SPOT". */
   title: string;
-  /** One line under the header saying what to do. */
+  /** One short line under the header saying what to do (it must fit one line at 375 pt and 1.3x text). */
   hint?: string;
   /** The main button in point mode. */
   confirmLabel?: string;
@@ -251,6 +251,7 @@ function PickerBody({
             {title}
           </DsText>
         </View>
+        {/* One line (Review 15): what to do. The rest (zones, known places) shows on the map and in the card. */}
         {hint ? <DsText v="caption">{hint}</DsText> : null}
         <PlaceSearch onPick={(h) => jump(h.at, Math.min(region.span, mode === 'path' ? 0.12 : 0.04))} />
       </View>
@@ -284,7 +285,8 @@ function PickerBody({
         <View style={[st.lineV, { backgroundColor: onPlace ? COLOR.state.success : colour }]} />
       </View>
 
-      <View style={[st.bottom, { paddingBottom: insets.bottom + SPACING.md }]} pointerEvents="box-none">
+      {/* What's under the crosshair: a read-only card over the map. The primary is in the ActionBar below (4.3). */}
+      <View style={st.bottom} pointerEvents="box-none">
         <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
           <Press onPress={locate} disabled={locating} haptic="tap" label="Go to my location" hitSlop={6} style={st.locate}>
             <Pin glyph="you" colour={located ? COLOR.text.primary : COLOR.text.secondary} size={26} />
@@ -331,31 +333,27 @@ function PickerBody({
                     : `Follow the road: a checkpoint at least every ${MAX_POINT_GAP_MILES} mi. Tapping the map adds one too.`}
                 </DsText>
               ) : null}
+              {points.length > 0 ? (
+                <Press onPress={() => setPoints(undoPoint)} haptic="tap" label="Undo the last checkpoint" hitSlop={8}>
+                  <DsText v="secondary" tone="action">
+                    Undo the last checkpoint
+                  </DsText>
+                </Press>
+              ) : null}
             </>
           ) : null}
           {note ? <ErrorState title={note} /> : null}
-          {mode === 'point' ? (
-            <Button label={confirmLabel} block onPress={() => take(region.centre)} />
-          ) : (
-            <>
-              <Button label={points.length === 0 ? 'Add start' : 'Add checkpoint'} block onPress={() => take(region.centre)} />
-              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                <Button label="Undo" tier="secondary" block disabled={points.length === 0} onPress={() => setPoints(undoPoint)} style={{ flex: 1 }} />
-                <Button
-                  label="Done"
-                  tier="secondary"
-                  block
-                  disabled={!canFinish(points, 'path')}
-                  hint="Add a start and an end first"
-                  onPress={() => onDone(points.map((at) => ({ at })))}
-                  style={{ flex: 1 }}
-                />
-              </View>
-            </>
-          )}
         </View>
       </View>
       </View>
+      <ActionBar
+        primary={
+          mode === 'point'
+            ? { label: confirmLabel, onPress: () => take(region.centre), haptic: 'success' }
+            : { label: points.length === 0 ? 'Add start' : 'Add checkpoint', onPress: () => take(region.centre) }
+        }
+        secondary={mode === 'path' && canFinish(points, 'path') ? { label: 'Done', onPress: () => onDone(points.map((at) => ({ at }))) } : null}
+      />
       {openZone ? (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, justifyContent: 'center', padding: SPACING.screen }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setZoneOpen(null)} accessibilityLabel="Close" />
@@ -373,7 +371,7 @@ const st = StyleSheet.create({
   lineH: { position: 'absolute', width: CROSS, height: 2, opacity: 0.9 },
   lineV: { position: 'absolute', width: 2, height: CROSS, opacity: 0.9 },
   top: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACING.md, gap: SPACING.sm },
+  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, gap: SPACING.sm },
   locate: { width: HIT, height: HIT, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.glass, alignItems: 'center', justifyContent: 'center', ...ELEVATION.float },
   panel: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, padding: SPACING.md, gap: SPACING.xs, ...ELEVATION.float },
 });

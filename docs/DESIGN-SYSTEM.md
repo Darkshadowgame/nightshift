@@ -195,7 +195,12 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `ConfirmSheet` / `ConfirmBody` | New `cancelLabel` ("Keep editing" for the discard confirm). Review 13: the only confirm in the app; `safeFirst` + `confirmLabel` for the owner's meet-ban warning ("Change location" / "Post anyway"); `onDismiss` for the scrim; `children` for a quiet line under the message. | Every confirm. A `Sheet` with a destructive button or `doneLabel="Cancel"` fails `__tests__/confirm.test.tsx`. |
 | `ToastProvider` (Review 13) | 3.2 s for every toast (with or without Undo); one at a time; dismissed when the screen changes (`screenKey`, the root passes the route path; a toast raised within 400 ms of the change belongs to the new screen); never takes a tap: the pill is `pointerEvents="box-none"`, only its action (Undo, Change) is tappable. | The driving view has no ActionBar: to keep a toast clear of End, its bottom panel can report its height with `useToastAnchor()`. |
 | `ToastProvider` + `ActionBar` (Review 14) | While a toast shows over an ActionBar (or a composer that is one), the bar keeps the toast's measured height free above itself (`useToastClearance()`), so the page above shrinks for 3.2 s and the toast never covers its last line (the message you just sent, the attendee row) at any text size. | None. |
-| `SegmentedControl` (Review 14) | Each segment has `SPACING.sm` either side of its label and a clear gap to the next; with 3–4 options that don't fit, it goes to two rows; with 2, a long label wraps inside its segment. | None. |
+| `SegmentedControl` (Review 15; replaces Review 14's two rows) | Always one row, like iOS: never a 2x2 block. Segments are as wide as their labels (SUSPENSION gets more room than LOOKS) with 6 pt either side. Labels grow with larger text only to 1.15x (`SEGMENT_MAX_TEXT`, as iOS caps its segmented controls; DsText now takes `maxFontSizeMultiplier`), and when they still don't fit, every label shrinks by the same factor (`segmentFit()`, down to 0.72) and never wraps or cuts off. | None. |
+| `EmptyState inline` with `icon` (Review 15) | A search with no results: the glyph, "Nothing for ‘x’", one suggestion (`body`, or the link), then `note` as small secondary text. A platform note ("Full address search works in the iPhone app.") is only ever the `note`, never the only line. | Search. |
+| `ScreenHeader` (Review 15) | Its row is `HEADER_ROW` tall (44 on iPhone, 64 on the web), the navigator's own header height, so Tonight's title, "+" and bell sit exactly where every other tab's do. | None. |
+| `BuildLine` (Review 15) | The power keeps its number and unit together ("· 197 bhp" never breaks as "197 / bhp"). | None. |
+| `MapPicker` (Review 15) | A T4 step (registered in `headerLint`): back, a caps title and **one** line of instruction; what's under the crosshair in a read-only card over the map; the one primary ("Set meet point here", "Add checkpoint") in the pinned `ActionBar`, with Done as its secondary on a drive. Undo is a link in the card. | None. |
+| Driving view credit (Review 15) | `compactCredit()` (src/lib/mapCredit.ts): one short line, every holder once ("© OSM, OSRM"), the full line as its accessibility label. | None. |
 | Web map credit (Review 14) | `webmap/Credit.web.tsx` shows the short form on one line ("© Stadia · OSM") in the corner of every web map, small or full screen, and the full credit on tap. It never wraps over the meet circle or a card. | None. |
 | Tab bar labels (Review 14) | Keep their size at large text, as on iOS (`tabBarAllowFontScaling: false`), with 16 pt of room. | None. |
 | `PhotoCard` (Review 13) | A narrow card (`narrowCard`: under 220 pt of room at the current text size, e.g. the vote grid) puts the ClassBadge on the kind line and the title in `titleSm` over three lines, so a name wraps by words at 1.3x, never cut mid-word. `titleOnPhoto` only puts words on a real photo (or a `fallback` snapshot): on the drawn silhouette they go under it. | X's vote cards and Z's Me get it for free. |
@@ -297,6 +302,8 @@ old "One way to do X" and "Added after Review N" lists.
 * Whole screen empty: `EmptyState block` (glyph, one line, one primary).
 * A section empty: `EmptyState inline` (one line, optional link). Never "Nothing yet" alone, never a
   developer or demo note.
+* No search results: `EmptyState inline` with `icon="search"`: "Nothing for ‘x’", one suggestion, and
+  any platform note as the small `note` under it (Review 15).
 
 ### 4.7 Toasts
 * Every done action gets one: going, checked in, voted, posted, saved, sent, request sent.

@@ -47,6 +47,7 @@ export function DsText({
   children,
   style,
   numberOfLines,
+  maxFontSizeMultiplier,
   ...rest
 }: {
   v?: TypeToken;
@@ -59,10 +60,12 @@ export function DsText({
   /** Layout only (margins, flex, alignment). */
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
-} & Pick<TextProps, 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityLiveRegion' | 'selectable' | 'aria-hidden' | 'nativeID' | 'adjustsFontSizeToFit' | 'allowFontScaling'>) {
+  /** Overrides the token's larger-text cap (segment labels cap at 1.15, like iOS). */
+  maxFontSizeMultiplier?: number;
+} & Pick<TextProps, 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityLiveRegion' | 'selectable' | 'aria-hidden' | 'nativeID' | 'adjustsFontSizeToFit' | 'minimumFontScale' | 'allowFontScaling'>) {
   const colour = tone ? TONE[tone] : undefined;
   return (
-    <Text style={[typeStyle(v, colour), style]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxScale(v)} {...rest}>
+    <Text style={[typeStyle(v, colour), style]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier ?? maxScale(v)} {...rest}>
       {children}
     </Text>
   );

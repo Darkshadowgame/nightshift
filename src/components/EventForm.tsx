@@ -761,7 +761,7 @@ export function EventForm({
         visible={picking !== null}
         mode="point"
         title={picking !== null ? `Place the ${pointLabel(picking, visibleStops.length).toLowerCase()}` : ''}
-        hint={`Move the map so the crosshair is on the ${picking !== null ? pointLabel(picking, visibleStops.length).toLowerCase() : MEET_POINT.one}, or tap a grey pin to use a known place. Orange outlines are meet bans.`}
+        hint="Move the map to put the crosshair on it."
         confirmLabel={picking !== null ? `${visibleStops[picking]?.at ? 'Move' : 'Set'} ${pointLabel(picking, visibleStops.length).toLowerCase()} here` : ''}
         start={(picking !== null && (visibleStops[picking]?.at ?? [...visibleStops.slice(0, picking)].reverse().find((x) => x.at)?.at)) || placed[0]?.at || meUser.home}
         span={0.08}

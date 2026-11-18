@@ -106,7 +106,7 @@ function Posted({ event }: { event: NightEvent }) {
             </View>
           }
           // A wide, short box so the location line stays in view above the toast at 1.3x text.
-          aspect={3}
+          aspect={4}
           eyebrow={EVENT_LABELS[event.type]}
           layerColour={colour}
           title={event.title}

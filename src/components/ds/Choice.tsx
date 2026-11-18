@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { COLOR, RADII, SPACING } from '../../theme';
+import { COLOR, RADII, SPACING, TYPE_SCALE } from '../../theme';
 import { Button } from './Button';
 import { segmentLabel, selectionSummary, toggleSelection } from './logic';
 import { Press } from './Press';
@@ -114,21 +114,19 @@ export function SegmentedControl<K extends string>({
   onChange: (key: K) => void;
   accessibilityLabel?: string;
 }) {
-  // Large text (REVIEW-7 problem 7): labels are measured off-screen; when they don't all fit in one
-  // row, the control becomes two rows instead of cutting a label off ("MESSAGE…").
+  // Always one row, like iOS (Review 15: a 2x2 block no longer reads as one control). Each label is
+  // measured off-screen at its natural size; when they don't all fit, every label shrinks by the
+  // same factor (to SEGMENT_MIN_SCALE at most) rather than wrapping or cutting one off. The labels
+  // also cap their growth with larger text at SEGMENT_MAX_TEXT, as iOS segmented controls do.
   const [row, setRow] = useState(0);
   const [need, setNeed] = useState<Record<string, number>>({});
-  // Each segment keeps SPACING.sm either side of its label plus a clear gap to the next, so labels
-  // never nearly touch at 1.3x text (Review 14); short of that, it goes to two rows.
-  const padEach = SPACING.sm * 2 + 3 + SPACING.md;
-  const total = options.reduce((sum, o) => sum + (need[o.key] ?? 0) + padEach, 0) + 6;
-  const twoRows = row > 0 && options.length > 2 && total > row;
+  const k = segmentFit(row, options.map((o) => need[o.key] ?? 0));
   return (
     <View
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
       onLayout={(e) => setRow(Math.floor(e.nativeEvent.layout.width))}
-      style={{ flexDirection: 'row', flexWrap: 'wrap', backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.control, padding: 3, gap: 3 }}
+      style={{ flexDirection: 'row', backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.control, padding: SEGMENT_GAP, gap: SEGMENT_GAP }}
     >
       <View pointerEvents="none" aria-hidden style={{ position: 'absolute', left: 0, top: 0, opacity: 0 }}>
         {options.map((o) => (
@@ -140,7 +138,7 @@ export function SegmentedControl<K extends string>({
               setNeed((n) => (Math.abs((n[o.key] ?? 0) - w) > 1 ? { ...n, [o.key]: w } : n));
             }}
           >
-            <DsText v="buttonSm" style={{ letterSpacing: 1 }}>
+            <DsText v="buttonSm" numberOfLines={1} maxFontSizeMultiplier={SEGMENT_MAX_TEXT} style={{ letterSpacing: 1 }}>
               {segmentLabel(o.label, o.count)}
             </DsText>
           </View>
@@ -157,18 +155,31 @@ export function SegmentedControl<K extends string>({
             state={{ selected: on }}
             label={`${segmentLabel(o.label, o.count)}, ${i + 1} of ${options.length}`}
             style={{
+              // Wider labels get wider segments (SUSPENSION next to LOOKS), all on one row.
               flexGrow: 1,
-              flexBasis: twoRows ? '45%' : 0,
+              flexShrink: 1,
+              flexBasis: need[o.key] ? need[o.key] * k + SEGMENT_PAD * 2 : 0,
+              minWidth: 0,
               minHeight: 38,
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: RADII.control - 2,
-              paddingHorizontal: SPACING.sm,
+              paddingHorizontal: SEGMENT_PAD,
               paddingVertical: SPACING.xs,
               backgroundColor: on ? COLOR.action.selected : 'transparent',
             }}
           >
-            <DsText v="buttonSm" style={{ color: on ? COLOR.action.onPrimary : COLOR.text.primary, letterSpacing: 1, textAlign: 'center' }}>
+            <DsText
+              v="buttonSm"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={SEGMENT_MIN_SCALE}
+              maxFontSizeMultiplier={SEGMENT_MAX_TEXT}
+              style={[
+                { color: on ? COLOR.action.onPrimary : COLOR.text.primary, letterSpacing: 1, textAlign: 'center' },
+                k < 1 ? { fontSize: TYPE_SCALE.buttonSm.fontSize * k, letterSpacing: k } : null,
+              ]}
+            >
               {segmentLabel(o.label, o.count)}
             </DsText>
           </Press>
@@ -176,6 +187,26 @@ export function SegmentedControl<K extends string>({
       })}
     </View>
   );
+}
+
+/** Room either side of a segment's label, and between segments. */
+const SEGMENT_PAD = SPACING.xs + 2;
+const SEGMENT_GAP = 3;
+/** How small a segment label may get to stay on one row. */
+export const SEGMENT_MIN_SCALE = 0.72;
+/** Segment labels grow with larger text only this far (iOS segmented controls cap theirs too). */
+export const SEGMENT_MAX_TEXT = 1.15;
+
+/**
+ * The factor every label shrinks by so all of them fit one row of `row` px: 1 when they already
+ * fit (or nothing is measured yet), never below SEGMENT_MIN_SCALE.
+ */
+export function segmentFit(row: number, widths: number[]): number {
+  const text = widths.reduce((a, b) => a + b, 0);
+  if (row <= 0 || text <= 0 || widths.some((w) => w <= 0)) return 1;
+  const room = row - 2 - SEGMENT_GAP * (widths.length + 1) - SEGMENT_PAD * 2 * widths.length;
+  if (text <= room) return 1;
+  return Math.max(SEGMENT_MIN_SCALE, Math.floor((room / text) * 100) / 100);
 }
 
 /**

@@ -52,10 +52,11 @@ const WHENS: When[] = ['any', 'tonight', 'week', 'weekend'];
 const VEHICLES: Vehicles[] = ['any', 'cars', 'bikes'];
 /** Wait for typing to stop: Apple's suggestions are quick, the geocoder slower. */
 const DEBOUNCE_MS = liveSearchAvailable ? 300 : 600;
-/** The one line when nothing matches (Redesign 2, 3.12). */
-const NOTHING = 'Nothing called that near you. Try a town, a meet or a handle.';
-/** No geocoder (the web preview): say what works here instead of "nothing" (Review 14, C6). */
-const NO_ADDRESS_SEARCH = 'Full address search works in the iPhone app; towns work here.';
+/** The one line when nothing matches (Redesign 2, 3.12; Review 15): what was typed, then one suggestion. */
+const nothingFor = (q: string) => `Nothing for ‘${q.trim()}’`;
+const TRY_INSTEAD = 'Try a town, or a car like ‘Golf’.';
+/** No geocoder (the web preview): secondary text under the empty state, never the only line (Review 15). */
+const NO_ADDRESS_SEARCH = 'Full address search works in the iPhone app.';
 
 /**
  * The bundled towns that match what's typed (whole words from the start of the name), so
@@ -169,16 +170,28 @@ export default function SearchScreen() {
   const carOf = useCallback((userId: string) => builds.find((b) => b.ownerId === userId), [builds]);
   const found = useMemo(() => {
     if (!typed) return { meets: [], places: [], people: [] };
-    // People by their cars too (REVIEW-9 decision 10): "golf" finds the Golf GTI's owner.
-    const carMatch = (userId: string) => builds.find((b) => b.ownerId === userId && matches(query, ...buildText(b)));
+    // People by their cars too (REVIEW-9 decision 10): "golf" finds the Golf GTI's owner. Every
+    // matching build gets its own row with its owner, yours included (Review 15: "fiesta" finds
+    // every Fiesta, sample people's and the one in your Garage).
+    const visible = (u: User) => !community.blocked.has(u.id);
+    const byCar = builds
+      .filter((b) => matches(query, ...buildText(b)))
+      .flatMap((b) => {
+        const u = users.find((x) => x.id === b.ownerId);
+        return u && visible(u) ? [{ u, car: b as Build | undefined }] : [];
+      })
+      // Yours first, then the rest by handle.
+      .sort((a, b) => Number(b.u.id === me) - Number(a.u.id === me) || a.u.handle.localeCompare(b.u.handle));
+    const owners = new Set(byCar.map((r) => r.u.id));
     return {
       meets: hits.filter((h) =>
         matches(query, h.view.event.title, h.view.event.areaName, EVENT_LABELS[h.view.event.type], h.view.shownStop >= 0 ? h.view.event.stops[h.view.shownStop].name : undefined),
       ),
       places: allPlaces.filter(({ s }) => matches(query, s.name, s.region, PLACE_NAMES[s.kind].one)),
-      people: users
-        .filter((u) => u.id !== me && !community.blocked.has(u.id) && (matches(query, u.name, u.handle) || !!carMatch(u.id)))
-        .map((u) => ({ u, car: carMatch(u.id) ?? carOf(u.id) })),
+      people: [
+        ...byCar,
+        ...users.filter((u) => u.id !== me && visible(u) && !owners.has(u.id) && matches(query, u.name, u.handle)).map((u) => ({ u, car: carOf(u.id) })),
+      ],
     };
   }, [typed, query, hits, allPlaces, users, builds, me, community.blocked, carOf]);
 
@@ -294,12 +307,14 @@ export default function SearchScreen() {
   );
   const personRow = (u: User, car: Build | undefined) => (
     <ListRow
-      key={u.id}
+      key={car ? `${u.id}:${car.id}` : u.id}
       leading={{ avatar: { name: u.name, handle: u.handle } }}
       title={`@${u.handle}`}
       build={car ? { letter: classOf(car), name: `${car.make} ${car.model}`, power: powerText(car) } : undefined}
       subtitle={car ? undefined : u.name}
-      onPress={() => openPerson(u.id)}
+      trailing={u.id === me ? <Tag label="You" /> : undefined}
+      // Your own build opens its page; anyone else opens their profile.
+      onPress={() => (u.id === me && car ? router.push({ pathname: '/build/[id]', params: { id: car.id } }) : openPerson(u.id))}
     />
   );
   const suggestRow = (
@@ -356,7 +371,16 @@ export default function SearchScreen() {
         <Picked place={picked} note={distanceNote(here, picked.at)} onClear={() => setPicked(null)} />
       ) : typed ? (
         <>
-          {nothing ? <EmptyState variant="inline" title={!canAddress && tab !== 'people' && tab !== 'meets' ? NO_ADDRESS_SEARCH : NOTHING} /> : null}
+          {nothing ? (
+            <EmptyState
+              variant="inline"
+              icon="search"
+              title={nothingFor(query)}
+              body={tab === 'all' ? TRY_INSTEAD : undefined}
+              action={tab === 'all' ? undefined : { label: 'Search everything', onPress: () => setTab('all') }}
+              note={!canAddress && tab !== 'people' && tab !== 'meets' ? NO_ADDRESS_SEARCH : undefined}
+            />
+          ) : null}
           {(tab === 'all' || tab === 'meets') && found.meets.length ? (
             <Section title={plural(found.meets.length, 'meet')} right={tab === 'all' && found.meets.length > 4 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('meets')} /> : undefined}>
               {found.meets.slice(0, cap(4)).map(meetRow)}
@@ -369,7 +393,7 @@ export default function SearchScreen() {
             </Section>
           ) : null}
           {(tab === 'all' || tab === 'people') && found.people.length ? (
-            <Section title={plural(found.people.length, 'person', 'people')}>{found.people.slice(0, cap(4)).map(({ u, car }) => personRow(u, car))}</Section>
+            <Section title={plural(new Set(found.people.map((p) => p.u.id)).size, 'person', 'people')}>{found.people.slice(0, cap(4)).map(({ u, car }) => personRow(u, car))}</Section>
           ) : null}
           {tab === 'places' ? suggestRow : null}
         </>

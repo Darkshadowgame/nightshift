@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chime, navDirectionsAvailable, route as fetchRoute, speak, stopSpeaking } from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
 import { DEMO_ROAD_CREDIT, demoRoadTo } from '../data/demoRoads';
+import { compactCredit } from '../lib/mapCredit';
 import {
   AlertPill,
   CompassGlyph,
@@ -1111,9 +1112,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         <View pointerEvents="box-none" style={st.overlayBottom}>
           {reportsOn ? <ReportButton onPress={openReport} /> : <View />}
           {credits ? (
-            <View pointerEvents="none" style={st.credit}>
-              <DsText v="tag" tone="secondary" numberOfLines={2} style={{ textAlign: 'right', textTransform: 'none' }}>
-                {credits}
+            <View pointerEvents="none" style={st.credit} accessible accessibilityLabel={credits}>
+              {/* One short line, every holder once ("© OSM, OSRM"), so it never grows into a block at 1.3x (Review 15). */}
+              <DsText v="tag" tone="secondary" numberOfLines={1} style={{ textAlign: 'right', textTransform: 'none' }}>
+                {compactCredit(credits)}
               </DsText>
             </View>
           ) : null}

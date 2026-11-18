@@ -95,9 +95,10 @@ export function BuildLine({ letter, name, power }: { letter: ClassLetter; name: 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
       <ClassBadge letter={letter} size="sm" decorative />
-      {/* Two lines at large text: a name wraps by words rather than being cut (Review 13). */}
+      {/* Two lines at large text: a name wraps by words rather than being cut (Review 13). The power
+          keeps its number and unit together ("· 197 bhp" never splits as "197 / bhp", Review 15). */}
       <DsText v="secondary" numberOfLines={2} style={{ flexShrink: 1 }}>
-        {`${name} · ${power}`}
+        {`${name} ·\u00A0${power.replace(/ /g, '\u00A0')}`}
       </DsText>
     </View>
   );

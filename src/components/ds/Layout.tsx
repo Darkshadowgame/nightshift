@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NoticeBell } from '../NoticeBell';
 import { IconButton } from './Button';
@@ -90,12 +90,19 @@ export function screenHeader({ title, action, add, bell, onMenu, content }: Head
 }
 
 /**
+ * The navigator's own header row height (React Navigation's default: 44 on iPhone, 64 elsewhere,
+ * the web included), so Tonight's in-page header puts its title, "+" and bell exactly where every
+ * other tab's are and the header never jumps when you switch tab (Review 15 problem 14).
+ */
+export const HEADER_ROW = Platform.OS === 'ios' ? 44 : 64;
+
+/**
  * An in-page header, for screens without a native header (the Tonight map, the gallery's preview).
  * Same anatomy as `screenHeader`: caps title, an optional `tag` after it (DEMO NIGHT), then the actions.
  */
 export function ScreenHeader({ title, tag, action, add, bell, onMenu }: { title: string; tag?: ReactNode } & Omit<HeaderProps, 'title' | 'content'>) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 52, gap: SPACING.sm }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: HEADER_ROW, gap: SPACING.sm }}>
       <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flexShrink: 1 }}>
         {title}
       </DsText>

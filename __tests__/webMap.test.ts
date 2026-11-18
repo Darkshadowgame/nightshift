@@ -89,3 +89,13 @@ describe('shortCredit (Review 14: one short line on small maps, full on tap)', (
     expect(shortCredit('Data: DVSA')).toBe('Data: DVSA');
   });
 });
+
+import { compactCredit } from '../src/lib/mapCredit';
+
+describe('compactCredit (Review 15: the drive view credit stays one short line at 1.3x)', () => {
+  test('every holder once, OpenStreetMap as OSM', () => {
+    expect(compactCredit('Route © OpenStreetMap contributors, OSRM')).toBe('© OSM, OSRM');
+    expect(compactCredit('Route © OpenStreetMap contributors, OSRM · Speed cameras © OpenStreetMap contributors (ODbL)')).toBe('© OSM, OSRM');
+    expect(compactCredit('Road names and limits © OpenStreetMap')).toBe('© OSM');
+  });
+});

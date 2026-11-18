@@ -4,7 +4,7 @@ import Animated, { cancelAnimation, Easing, useAnimatedStyle, useReducedMotion, 
 import { COLOR, RADII, SPACING } from '../../theme';
 import { Pin, type Glyph } from '../Pin';
 import { Button } from './Button';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { DsText } from './Text';
 
 type Action = { label: string; onPress: () => void };
@@ -12,6 +12,9 @@ type Action = { label: string; onPress: () => void };
 /**
  * Nothing here yet.
  * - `inline` (inside a Section): one muted line and an optional tertiary link. "No comments yet."
+ *   With an `icon` (a search with no results): the glyph, the line, then the one suggestion (the
+ *   link, or `body`), and `note` as small secondary text under it (a platform note is never the
+ *   only thing shown, Review 15).
  * - `block` (a whole tab or list): glyph, title, one line, one primary action.
  */
 export function EmptyState({
@@ -21,14 +24,41 @@ export function EmptyState({
   title,
   body,
   action,
+  icon,
+  note,
 }: {
   variant?: 'inline' | 'block';
   glyph?: Glyph;
+  /** Inline only: a small glyph before the line. */
+  icon?: IconName;
+  /** Inline only: a secondary note under everything else. */
+  note?: string;
   colour?: string;
   title: string;
   body?: string;
   action?: Action;
 }) {
+  if (variant === 'inline' && (icon || body || note)) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, minHeight: 44, paddingVertical: SPACING.xs }}>
+        {icon ? (
+          <View aria-hidden style={{ paddingTop: 1 }}>
+            <Icon name={icon} size={20} colour={colour} />
+          </View>
+        ) : null}
+        <View style={{ flex: 1, gap: SPACING.xxs, alignItems: 'flex-start' }}>
+          <DsText v="body">{title}</DsText>
+          {body ? <DsText v="secondary">{body}</DsText> : null}
+          {action ? <Button label={action.label} onPress={action.onPress} tier="tertiary" size="sm" /> : null}
+          {note ? (
+            <DsText v="caption" style={{ marginTop: SPACING.xs }}>
+              {note}
+            </DsText>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
   if (variant === 'inline') {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm, minHeight: 44 }}>

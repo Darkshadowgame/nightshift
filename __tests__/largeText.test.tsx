@@ -122,7 +122,8 @@ describe('a title never runs over drawn art (Me at 1.3x)', () => {
 describe('rows and sheets wrap names to two lines', () => {
   it('BuildLine, ListRow and a Sheet title allow two lines', () => {
     const line = render(<BuildLine letter="B" name="Volkswagen Golf GTI Clubsport S" power="306 bhp" />);
-    expect(textNode(line.container, 'Volkswagen Golf GTI Clubsport S · 306 bhp').props?.numberOfLines).toBe(2);
+    // The power never splits from its unit (Review 15): non-breaking spaces in "· 306 bhp".
+    expect(textNode(line.container, 'Volkswagen Golf GTI Clubsport S ·\u00A0306\u00A0bhp').props?.numberOfLines).toBe(2);
     const row = render(<ListRow title="Mercedes-AMG A45 S 4MATIC+" subtitle="2.0 turbo · 2019–" onPress={() => {}} />);
     expect(textNode(row.container, 'Mercedes-AMG A45 S 4MATIC+').props?.numberOfLines).toBe(2);
     const sheet = render(
@@ -131,5 +132,26 @@ describe('rows and sheets wrap names to two lines', () => {
       </SheetPanel>,
     );
     expect(textNode(sheet.container, 'Vote: Best in show').props?.numberOfLines).toBe(2);
+  });
+});
+
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { SEGMENT_MIN_SCALE, segmentFit } from '../src/components/ds/Choice';
+
+describe('SegmentedControl stays one row at 1.3x (Review 15: never a 2x2 block)', () => {
+  it('fits labels as they are when there is room, else shrinks them all, never below the minimum', () => {
+    expect(segmentFit(343, [60, 90, 70, 50])).toBe(1);
+    expect(segmentFit(0, [60, 100, 70, 60])).toBe(1);
+    const k = segmentFit(320, [80, 120, 90, 80]);
+    expect(k).toBeLessThan(1);
+    expect(k).toBeGreaterThanOrEqual(SEGMENT_MIN_SCALE);
+    expect(segmentFit(150, [100, 100, 100, 100])).toBe(SEGMENT_MIN_SCALE);
+  });
+  it('has no wrapping row and one-line labels', () => {
+    const src = readFileSync(join(__dirname, '..', 'src', 'components', 'ds', 'Choice.tsx'), 'utf8');
+    const seg = src.slice(src.indexOf('export function SegmentedControl'), src.indexOf('export function segmentFit'));
+    expect(seg).not.toMatch(/flexWrap: 'wrap'|twoRows/);
+    expect(seg).toMatch(/numberOfLines=\{1\}/);
   });
 });

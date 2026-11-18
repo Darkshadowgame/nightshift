@@ -123,7 +123,7 @@ export function ProfileForm({
         <DsText v="secondary">Only used to find events near you. It's saved to about half a mile, never your exact address, and nobody sees it.</DsText>
         <Button label={locating ? 'Finding you…' : 'Use my current location'} tier="secondary" block onPress={useMyLocation} busy={locating} />
         {locError ? <ErrorState title={locError} /> : null}
-        <PlaceSearch placeholder="Or search your town or postcode" onPick={(h) => setHomeNear(h.at)} />
+        <PlaceSearch placeholder="Town or postcode" onPick={(h) => setHomeNear(h.at)} />
         <Button label={home ? 'Move it on the map' : 'Choose on the map'} tier="secondary" block onPress={() => setPicking(true)} />
         <Press
           onPress={() => setPicking(true)}
@@ -172,7 +172,7 @@ export function ProfileForm({
         visible={picking}
         mode="point"
         title="Your home area"
-        hint="Put the crosshair roughly where you live. It's saved to about half a mile, never your exact address."
+        hint="Roughly where you live, not your address."
         confirmLabel="Set home area here"
         colour={LAYER.event}
         start={centre}

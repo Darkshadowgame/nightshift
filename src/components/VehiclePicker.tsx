@@ -106,7 +106,8 @@ export function VehiclePicker({
         <SearchField
           value={query}
           onChangeText={setQuery}
-          placeholder={kind === 'car' ? 'Type a make or model, e.g. Fiesta ST' : 'Type a make or model, e.g. Street Triple'}
+          // Short enough to show whole at 1.3x text in a 375 pt field (Review 15: it was cut to "e.g. Fies").
+          placeholder={kind === 'car' ? 'Make or model, e.g. Fiesta ST' : 'Make or model, e.g. R1'}
           accessibilityLabel={`Search every ${noun}`}
         />
         {typed && headed ? <DsText v="caption">Pick yours by its years and power.</DsText> : null}
@@ -155,7 +156,7 @@ export function VehiclePicker({
     <SuggestMissing
       screen="vehicle-picker"
       label={`Suggest a missing ${noun}`}
-      placeholder={kind === 'car' ? 'e.g. Vauxhall Astra VXR Arctic Edition' : 'e.g. Honda CBR400RR NC29'}
+      placeholder={kind === 'car' ? 'e.g. Astra VXR Arctic' : 'e.g. Honda CBR400RR'}
       context={[kind, make, model].filter(Boolean).join(' · ')}
     />
   );

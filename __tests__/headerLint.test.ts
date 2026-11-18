@@ -162,3 +162,23 @@ describe('every screen is a template (K4)', () => {
     expect(me).not.toMatch(/\badd=\{|add: \{|label: '\+/);
   });
 });
+
+/**
+ * Full-screen modals that aren't routes still match a template (Review 15, K4). The map picker is a
+ * T4 step: back at the top left, a caps title and one line of instruction, and its one primary
+ * ("Set meet point here") in the pinned ActionBar, never in a card floating over the map.
+ */
+const MODAL_TEMPLATES: Record<string, Template> = {
+  'components/MapPicker': 'T4',
+};
+
+describe('full-screen modals are templates too (K4)', () => {
+  test.each(Object.entries(MODAL_TEMPLATES))('%s is a %s with its primary in the ActionBar', (file) => {
+    const src = readFileSync(join(ROOT, 'src', `${file}.tsx`), 'utf8');
+    expect(src).toMatch(/<IconButton icon="back"/);
+    expect(src).toMatch(/<DsText v="heading"/);
+    expect(src).toMatch(/<ActionBar\b/);
+    // No full-width button of its own outside the ActionBar.
+    expect(src).not.toMatch(/<Button\b[^>]*\bblock\b/);
+  });
+});

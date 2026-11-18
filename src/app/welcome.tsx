@@ -213,7 +213,7 @@ export default function Welcome() {
           visible={picking}
           mode="point"
           title="Your home area"
-          hint="Put the crosshair roughly where you live. It's saved to about half a mile, never your address."
+          hint="Roughly where you live, not your address."
           confirmLabel="Set home area here"
           colour={LAYER.event}
           start={home ?? UK_MIDDLE}
