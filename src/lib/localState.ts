@@ -35,6 +35,11 @@ export interface Persisted extends SeedState {
   onboarded: boolean;
   /** When they finished first run (ISO). Reminders from before then don't land in the list. */
   onboardedAt?: string;
+  /**
+   * Reminder keys that were already past when you said you're going (REVIEW-10 #13: "Location
+   * shown" for the meet you'd just joined). They never land under the bell.
+   */
+  quietReminders?: string[];
   /** eventId -> stop ids this person has already seen the "unlocked" moment for. */
   unlockSeen: Record<string, string[]>;
   /** When the demo scene's times were last laid out (ISO). Used to keep the demo fresh. */

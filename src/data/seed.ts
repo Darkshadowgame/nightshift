@@ -243,17 +243,21 @@ function eveningSlot(now: Date, from: [number, number], to: [number, number]): {
   return { start: tonightAt(now, from[0], from[1], 1), end: tonightAt(now, to[0], to[1], 1) };
 }
 
+/** Daytime by the demo's clock: 07:00 to 17:59. Otherwise the always-on meet is a night one. */
+export function isDaytime(now: Date): boolean {
+  return now.getHours() >= 7 && now.getHours() < 18;
+}
+
 /**
- * When the sample events run (REVIEW-9 decision 3): real evening times, whenever the demo starts.
- * Tonight 19:00 to 23:00; "live" only once a meet has truly started. Late at night, the car park
- * meet is tonight's live one and the rest move to tomorrow evening. Coffee and cars is a weekend morning.
+ * When the sample events run (REVIEW-9 decision 3, REVIEW-10 decision 1): the always-on demo meet
+ * is live whatever the time, started half an hour ago (to the 5 minutes) and on for four hours, so
+ * going, check-in and voting can be tried at lunchtime too. The other meets keep real evening
+ * times (tonight 19:00 to 23:00, or tomorrow once tonight's has ended); coffee and cars is a
+ * weekend morning.
  */
 export function demoTimes(now: Date): Record<'meetNow' | 'rollingLive' | 'rollingHost' | 'coffee', { start: Date; end: Date }> {
-  let meetNow = eveningSlot(now, [19, 0], [22, 0]);
-  // After 22:00 (or in the small hours): keep one meet on now, started a little while ago.
-  if (now.getHours() >= 22 || now.getHours() < 5) {
-    meetNow = { start: new Date(now.getTime() - 20 * MIN), end: new Date(now.getTime() + 120 * MIN) };
-  }
+  const start = new Date(Math.floor((now.getTime() - 30 * MIN) / (5 * MIN)) * 5 * MIN);
+  const meetNow = { start, end: new Date(start.getTime() + 240 * MIN) };
   const coffee = weekendMorning(now);
   return {
     meetNow,
@@ -303,7 +307,6 @@ const isSprint = (p: PlaceSeed) => p.kind === 'track' && (p.trackType === 'sprin
 function events(now: Date, home: LatLng): NightEvent[] {
   const t = demoTimes(now);
   const iso = (d: Date, plusMin = 0) => new Date(d.getTime() + plusMin * MIN).toISOString();
-  const meetLive = t.meetNow.start.getTime() <= now.getTime();
   const roll = rollingProgress(now, t.rollingLive.start);
   const here = (lat: number, lng: number) => translate({ lat, lng }, DEMO_HOME, home);
   const [d1, d2] = nearest(PLACES.filter((p) => p.kind === 'drive'), home, 2);
@@ -311,9 +314,10 @@ function events(now: Date, home: LatLng): NightEvent[] {
   const [sprint] = nearest(PLACES.filter(isSprint), home, 1);
   return withAreas([
     {
-      // The first thing a new demo user is pointed at ("Start here"): one meet point, tonight.
-      id: 'ev-meet-now', type: 'meet', title: 'Car park meet-up',
-      description: 'Open to any car or bike. Say you\'re going, head over, check in, then vote for the best builds.',
+      // The first thing a new demo user is pointed at ("Start here"): the demo meet that is always
+      // on now (REVIEW-10 decision 1). A Sunday-style daytime meet by day, a car park meet by night.
+      id: 'ev-meet-now', type: 'meet', title: isDaytime(now) ? 'Demo: Sunday-style daytime meet' : 'Demo: car park meet-up',
+      description: `Demo meet, always on now so you can try it any time: say you're going, check in, then vote for the best builds. Open to any car or bike.`,
       startsAt: iso(t.meetNow.start), endsAt: iso(t.meetNow.end),
       area: home, areaName: NEAR_YOU,
       stops: [{ id: 'mn-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
@@ -321,7 +325,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
       // Enough builds that each trophy shows a different few (REVIEW-9 decision 8).
       going: ['em', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash'],
-      checkIns: meetLive ? Object.fromEntries(['em', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash'].map((u) => [u, ['mn-1']])) : {},
+      checkIns: Object.fromEntries(['em', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash'].map((u) => [u, ['mn-1']])),
     },
     {
       id: 'ev-rolling-live', type: 'rolling', title: 'Rolling meet',

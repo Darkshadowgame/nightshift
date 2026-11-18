@@ -26,7 +26,7 @@ import { changedSlices, joinSlices, LEGACY_KEY, needsMigration, SLICE_KEYS, slic
 import { deletePhotos, photoUri } from './photos';
 import { bundledSpots, joinServerSpots, joinSpots } from './placeStore';
 import type { ProfileDraft } from './profile';
-import { dueReminders, upcomingReminders } from './reminders';
+import { dueReminders, isSignedUp, remindersFor, upcomingReminders } from './reminders';
 import type { BackendExtras, Repository } from './repository';
 import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { DEFAULT_SETTINGS, type Settings } from './settings';
@@ -472,18 +472,35 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
 
   // ...and put reminders that have come due into the in-app list.
   const onboarded = state.onboarded;
+  /** Events you were going to (or hosting) last time this ran; null until the first run after loading. */
+  const signedUpBefore = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (!ready || !onboarded) return;
+    const nowDate = new Date();
+    const signedUp = new Set(allEvents.filter((e) => isSignedUp(e, me, allCrews)).map((e) => e.id));
+    const before = signedUpBefore.current;
+    signedUpBefore.current = signedUp;
+    // REVIEW-10 #13: you just said you're going, so a reminder already past for that event
+    // ("location shown", "starts in 15 min") isn't news. Keep it quiet for good.
+    const joinedNow = new Set(before ? [...signedUp].filter((id) => !before.has(id)) : []);
+    const justPast = allEvents
+      .filter((e) => joinedNow.has(e.id))
+      .flatMap((e) => remindersFor(e, me, allCrews))
+      .filter((r) => r.at.getTime() <= nowDate.getTime())
+      .map((r) => r.key);
     set((s) => {
-      const seen = new Set(s.notices.map((n) => n.key).filter((k): k is string => !!k));
-      const due = dueReminders(s.events, me, s.crews, new Date(), seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
-      if (due.length === 0) return s;
+      const quiet = new Set(s.quietReminders ?? []);
+      const newlyQuiet = justPast.filter((k) => !quiet.has(k));
+      for (const k of newlyQuiet) quiet.add(k);
+      const seen = new Set([...s.notices.map((n) => n.key).filter((k): k is string => !!k), ...quiet]);
+      const due = dueReminders(s.events, me, s.crews, nowDate, seen, s.onboardedAt ? new Date(s.onboardedAt) : undefined);
+      if (due.length === 0) return newlyQuiet.length ? { ...s, quietReminders: [...quiet].slice(-200) } : s;
       const added: Notice[] = due.map((r) => ({
         id: newId('n'), eventId: r.eventId, at: r.at.toISOString(), read: false, kind: r.kind, key: r.key, text: `${r.title}. ${r.body}`,
       }));
-      return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100) };
+      return { ...s, notices: [...added.reverse(), ...s.notices].slice(0, 100), ...(newlyQuiet.length ? { quietReminders: [...quiet].slice(-200) } : {}) };
     });
-  }, [ready, onboarded, tick, allEvents, me, set]);
+  }, [ready, onboarded, tick, allEvents, allCrews, me, set]);
 
   // Demo: new events near you: an in-app notice (and a phone notification) for "Notify me",
   // a NEW tag in Find events for "I'll search", nothing for "Off". Each event only once.
@@ -494,7 +511,10 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
     if (!demo || !ready || !onboarded || !nearby) return;
     const nowDate = new Date();
     const who = { me: ME, crews: allCrews, users: allUsers, builds: allBuilds };
-    const { arrived, matches } = nearbyArrivals(allEvents, nearby.known, who, nowDate);
+    // REVIEW-10 #13: the sample events are already on Tonight, so they never arrive as "new near
+    // you" (five notices copying the list on a first open), and nothing you're going to is news.
+    const news = allEvents.filter((e) => !isSeedEvent(e.id) && !e.going.includes(ME) && !e.hostIds.includes(ME));
+    const { arrived, matches } = nearbyArrivals(news, nearby.known, who, nowDate);
     if (arrived.length === 0) return;
     const alerts = travelOf(allUsers.find((u) => u.id === ME)).alerts;
     set((s) => {

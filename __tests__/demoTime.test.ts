@@ -100,10 +100,38 @@ describe('restarting the demo events', () => {
 });
 
 describe('the sample scene', () => {
-  test('meets run at real evening times; live only once started (REVIEW-9 decision 3)', () => {
+  test('the demo meet is live whatever the time, labelled as the demo (REVIEW-10 decision 1)', () => {
+    for (let h = 0; h < 24; h++) {
+      const now = new Date(2026, 10, 18, h, 20);
+      const e = byId(seed(now).events, 'ev-meet-now');
+      expect(phaseOf(e, now)).toBe('live');
+      expect(e.title).toMatch(/^Demo: /);
+      expect(e.title).toMatch(h >= 7 && h < 18 ? /daytime/ : /car park/);
+      expect(Object.keys(e.checkIns).length).toBeGreaterThan(2);
+      expect(new Date(e.endsAt!).getTime() - now.getTime()).toBeGreaterThanOrEqual(3 * 3_600_000);
+    }
+  });
+
+  test('a used demo re-anchors once the demo meet is over, and Restart lays it out live now', () => {
+    const s = slice(ANCHOR);
+    const used = { ...s, chat: [...s.chat, { id: 'x', eventId: 'ev-rolling-live', userId: 'me', text: 'hi', at: ANCHOR.toISOString() }] };
+    const fourHoursOn = new Date(ANCHOR.getTime() + 4 * 3_600_000);
+    expect(needsRefresh(used, ANCHOR, new Date(ANCHOR.getTime() + 60 * 60_000))).toBe(false);
+    expect(needsRefresh(used, ANCHOR, fourHoursOn)).toBe(true);
+    const going = { ...used, events: used.events.map((e) => (e.id === 'ev-meet-now' ? { ...e, going: [...e.going, 'me'], checkIns: { ...e.checkIns, me: ['mn-1'] } } : e)) };
+    const out = refreshDemo(going, ANCHOR, fourHoursOn);
+    const meet = byId(out.events, 'ev-meet-now');
+    expect(phaseOf(meet, fourHoursOn)).toBe('live');
+    expect(meet.checkIns.me).toEqual(['mn-1']);
+    const lunch = new Date(2026, 10, 19, 13, 20);
+    const restarted = restartDemo({ ...going, spots: [] }, lunch);
+    expect(phaseOf(byId(restarted.events, 'ev-meet-now'), lunch)).toBe('live');
+  });
+
+  test('the other meets run at real evening times; live only once started (REVIEW-9 decision 3)', () => {
     const midday = new Date(2026, 10, 18, 12, 0); // a Wednesday
     const s = seed(midday);
-    for (const id of ['ev-meet-now', 'ev-rolling-live', 'ev-rolling-host']) {
+    for (const id of ['ev-rolling-live', 'ev-rolling-host']) {
       const e = byId(s.events, id);
       const start = new Date(e.startsAt);
       expect(start.getDate()).toBe(18);

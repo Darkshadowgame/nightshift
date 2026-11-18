@@ -13,8 +13,9 @@ const users: User[] = [
   { id: 'tom', handle: 'tomtom_gr', name: 'Tom', region: 'Midlands', home: { lat: 52.64, lng: -1.68 } },
 ];
 
-function demo() {
+function demo(withRequest = false) {
   let state: DemoCommunity = seedDemoCommunity(emptyDemoCommunity(), HOME, 'Midlands', NOW);
+  if (withRequest) state = { ...state, connections: [...state.connections, { from: 'kez', to: ME, status: 'pending', createdAt: NOW.toISOString() }] };
   const svc = createLocalCommunity({ get: () => state, set: (s) => (state = s), users: () => users, travelMiles: () => 25, now: () => NOW, replyDelay: 10 });
   return { svc, get: () => state };
 }
@@ -27,10 +28,11 @@ describe('the demo Community (LocalCommunity)', () => {
     expect(threads.every((t) => t.sample)).toBe(true);
     const conns = await svc.connections();
     expect(conns.dan).toBe('connected');
-    expect(conns.kez).toBe('incoming');
+    // Nothing waiting on a first open (REVIEW-10 #13): no requests, nothing unread.
+    expect(Object.values(conns)).not.toContain('incoming');
     const convs = await svc.conversations();
     expect(convs.map((c) => c.id)).toEqual(expect.arrayContaining(['cv-dan', 'cv-nr']));
-    expect(convs.find((c) => c.id === 'cv-dan')!.unread).toBe(1);
+    expect(convs.every((c) => c.unread === 0)).toBe(true);
   });
   it('messages only between connected people, and a block stops them', async () => {
     const { svc } = demo();
@@ -43,7 +45,7 @@ describe('the demo Community (LocalCommunity)', () => {
     expect((await svc.threads({ board: 'all', sort: 'new' })).some((t) => t.authorId === 'dan')).toBe(false);
   });
   it('accepting a request connects you; groups only take connections', async () => {
-    const { svc } = demo();
+    const { svc } = demo(true);
     await svc.answerConnection('kez', true);
     expect((await svc.connections()).kez).toBe('connected');
     await expect(svc.createGroup('Sunday', ['tom'])).rejects.toThrow("You can only message people you're connected with.");

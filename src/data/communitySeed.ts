@@ -36,8 +36,8 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     { from: 'dan', to: ME, status: 'accepted', createdAt: ago(40 * DAY), answeredAt: ago(39 * DAY) },
     { from: ME, to: 'mo', status: 'accepted', createdAt: ago(30 * DAY), answeredAt: ago(30 * DAY) },
     { from: 'aimee', to: ME, status: 'accepted', createdAt: ago(20 * DAY), answeredAt: ago(19 * DAY) },
-    { from: 'kez', to: ME, status: 'pending', createdAt: ago(3 * HOUR) },
-    { from: 'em', to: ME, status: 'pending', createdAt: ago(1 * DAY) },
+    // No waiting requests and nothing unread on a first open (REVIEW-10 #13): badges only come from
+    // something that happens (a sample person answering, a reply in a chat).
   ];
 
   const t = (
@@ -122,11 +122,11 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
   const conversations: Conversation[] = [
     {
       id: 'cv-dan', kind: 'direct', memberIds: [ME, 'dan'], adminIds: [], lastMessageAt: ago(20 * MIN), unread: 0, canSend: true, sample: true,
-      readUpTo: { [ME]: ago(100 * MIN), dan: ago(20 * MIN) },
+      readUpTo: { [ME]: ago(20 * MIN), dan: ago(20 * MIN) },
     },
     {
       id: 'cv-nr', kind: 'group', name: 'NightRunners', memberIds: ['dan', ME, 'mo', 'aimee'], adminIds: ['dan'], lastMessageAt: ago(35 * MIN), unread: 0, canSend: true, sample: true,
-      readUpTo: { [ME]: ago(3 * HOUR), dan: ago(35 * MIN), mo: ago(40 * MIN), aimee: ago(35 * MIN) },
+      readUpTo: { [ME]: ago(35 * MIN), dan: ago(35 * MIN), mo: ago(40 * MIN), aimee: ago(35 * MIN) },
     },
   ];
   const m = (id: string, conversationId: string, senderId: string | null, body: string, created: number, extra: Partial<Message> = {}): Message => ({

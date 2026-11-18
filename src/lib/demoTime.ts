@@ -1,5 +1,6 @@
 import { seed, SEED_EVENT_IDS, type SceneOptions } from '../data/seed';
 import type { Vote } from './awards';
+import { endTime } from './events';
 import type { ChatMessage, NightEvent, Spot } from './types';
 
 /**
@@ -42,7 +43,14 @@ export function inferAnchor(events: NightEvent[]): Date | null {
 export function needsRefresh(slice: DemoSlice, anchor: Date, now: Date, scene: SceneOptions = {}): boolean {
   const age = now.getTime() - anchor.getTime();
   if (age <= 60_000) return false;
-  return age >= REFRESH_AFTER_MS || isUntouchedDemo(slice, anchor, scene);
+  return age >= REFRESH_AFTER_MS || isUntouchedDemo(slice, anchor, scene) || !demoMeetLive(slice.events, now);
+}
+
+/** The always-on demo meet (REVIEW-10 decision 1) is on now. False once it has ended, so the demo re-anchors. */
+export function demoMeetLive(events: NightEvent[], now: Date): boolean {
+  const e = events.find((x) => x.id === 'ev-meet-now');
+  if (!e || e.cancelled) return true; // removed or cancelled by hand: leave it
+  return new Date(e.startsAt).getTime() <= now.getTime() && endTime(e).getTime() > now.getTime();
 }
 
 /**
