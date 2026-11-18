@@ -54,7 +54,7 @@ and photos → connect.
 |---|---|
 | `rate.tsx` (Rate builds, swipe) | **Hidden.** No link from People or anywhere. |
 | `crews.tsx`, `crew/new.tsx` | **Hidden.** No Crew section on Me, no "Find a crew". A crew page (`crew/[id]`) still opens from an event's "Hosted by" line. |
-| `shop/[id].tsx` | **Hidden.** Shops layer removed from the map. Page stays for old links. |
+| `shop/[id].tsx` | ~~**Hidden.** Shops layer removed from the map. Page stays for old links.~~ **Owner decision, 18 Nov 2026:** back. Opens from a shop or partner pin on Tonight's Shops layer (Layers, off by default). |
 | `zone/[id].tsx` | **Moved:** only reachable from the host flow's meet-ban warning. |
 | `spot/new.tsx` (Suggest a place) | **Moved:** one row at the bottom of Search › Places. Not in any "+ New" sheet, not on Me. |
 | `find.tsx`, `where.tsx`, `events.tsx` | Stay as redirects (already). |
@@ -76,7 +76,7 @@ and photos → connect.
 | The driving map (heading up / north up) | **Moved** into the driving view's own `···` sheet. |
 | Your icon on the map (hatchback, saloon…) | **Moved** into the driving view's `···` sheet. |
 | Spoken directions / voice | **Moved** into the driving view's `···` sheet. |
-| Speed camera alerts | **Hidden.** Off, no UI. Cameras never show on the Tonight map. |
+| Speed camera alerts | **Hidden** from Settings. The driving view keeps its own alerts switch in its `···` sheet. ~~Cameras never show on the Tonight map.~~ **Owner decision, 18 Nov 2026:** Speed cameras are an optional Tonight layer (Layers, off by default, only when zoomed in). |
 | Map layers in Settings | **Cut** (the map's Layers sheet is the only place). |
 | Skip the GPS check (demo) | **Cut.** The demo never checks distance. |
 | Send a test reminder, reset demo data, runtime and data versions | Developer group: dev builds or a long press on the version line only (as now). |
@@ -86,9 +86,17 @@ and photos → connect.
 
 ### Map layers
 
-The Tonight map shows **events only**. The Layers sheet keeps three switches: **Drives**, **Photo
-spots**, **Tracks** (all off by default). **Hidden:** shops, partners, venues, speed cameras, road
-reports, posts, meet-spot clusters. Cameras and road reports stay inside the driving view only.
+The Tonight map shows **events only** by default. The Layers sheet keeps three switches: **Drives**, **Photo
+spots**, **Tracks** (all off by default). **Hidden:** ~~shops, partners,~~ venues, ~~speed cameras,~~ road
+reports, ~~posts,~~ meet-spot clusters. ~~Cameras and~~ Road reports stay inside the driving view only.
+
+> **Owner decision, 18 Nov 2026 (supersedes the cut above):** the owner had asked for Shops and Speed
+> cameras behind the small layers button on the right edge, off by default (BACKLOG queue item 1), and
+> the redesign took them away. They are back as optional layers in the Layers sheet, next to Drives,
+> Photo spots, Tracks and Posts (section 9, point 7): **Shops** (OpenStreetMap listings and labelled
+> partners) and **Speed cameras** (fixed and average-speed, only when zoomed in), **both off by
+> default**. Road reports stay drive-view only, and the driving view keeps its own camera alerts.
+> **Reviewers: these layers are not breaks of the redesign. Do not count them as such.**
 
 ### Event types
 
@@ -981,6 +989,9 @@ clashed, the owner's earlier decisions stand:
 5. **People near you:** opt-in (as planned).
 6. **Speed cameras and road reports:** stay in the **driving view only**, off the Tonight map, with
    their switches in the drive view's `···` menu (owner asked for Waze-style driving). Not in Settings.
+   **Owner decision, 18 Nov 2026:** Shops and Speed cameras are back on Tonight as optional layers in
+   the Layers sheet, both **off by default** (cameras only show zoomed in). Road reports stay drive-view
+   only; the driving view keeps its own camera alerts. Reviewers must not count these layers as breaks.
 7. **Posts on the map:** the Posts layer stays available in Layers, off by default (owner asked for
    posts with locations people can see on the map).
 8. **Forum and For sale:** reachable from one row at the top of the Feed (as planned); the owner asked

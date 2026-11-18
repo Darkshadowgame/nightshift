@@ -33,6 +33,12 @@ import { PhotoCredit } from '../../components/PhotoCredit';
 import { EventRow } from '../../components/EventRow';
 import { cardDistance, cardTime, driveLength, EventEntityCard, eventPhotoRef, notOpenLine, placeDistance, statusTag } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
+import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
+import { cameraIndex } from '../../lib/cameraData';
+import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCamera, describeZone } from '../../lib/cameras';
+import { demoPartners, partnerBadge } from '../../lib/partners';
+import { useShopIndex } from '../../lib/shopData';
+import { DEFAULT_SHOP_FILTER, describeCategories, SHOP_CREDIT, shopPinSize, shopsForView } from '../../lib/shops';
 import { areaRadius } from '../../lib/area';
 import { useNow } from '../../lib/clock';
 import { usePostPins } from '../../lib/communityStore';
@@ -41,7 +47,7 @@ import { canJoinDirectly, viewEvents, type EventView } from '../../lib/eventView
 import { EVENT_LABELS } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
-import { distanceOrigin } from '../../lib/format';
+import { distanceOrigin, distanceText } from '../../lib/format';
 import { milesBetween } from '../../lib/geo';
 import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
@@ -55,10 +61,13 @@ import { visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import { isSpectatorVenue } from '../../lib/tracks';
 import type { LatLng, SpotKind } from '../../lib/types';
-import { COLOR, ELEVATION, EVENT_COLOURS, POST_COLOUR, RADII, SPACING, SPOT_COLOURS } from '../../theme';
+import { ART, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
 
-/** The layers Tonight's map can add to the events (owner decision 7: Posts stays, off by default). */
-const MAP_LAYERS: Layer[] = ['drive', 'photo', 'track', 'posts'];
+/**
+ * The layers Tonight's map can add to the events (owner decision 7: Posts stays, off by default;
+ * owner decision 18 Nov 2026: Shops and Speed cameras are back, off by default, cameras only when zoomed in).
+ */
+const MAP_LAYERS: Layer[] = ['drive', 'photo', 'track', 'posts', 'shops', 'cameras'];
 const START = { lat: 52.7, lng: -1.7 };
 const START_SPAN = 0.5;
 /** The first view takes in tonight's meets this close to home (Review 13: framed above the sheet). */
@@ -130,7 +139,7 @@ export default function TonightScreen() {
   const layers = useMemo(
     () => Object.fromEntries(MAP_LAYERS.map((k) => [k, layerOn(settings, k)])) as Record<Layer, boolean>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.mapLayers, settings.postsLayer],
+    [settings.mapLayers, settings.postsLayer, settings.shops, settings.cameras],
   );
   const [showLayers, setShowLayers] = useState(false);
   const layersOn = MAP_LAYERS.filter((k) => layers[k]).length;
@@ -235,11 +244,37 @@ export default function TonightScreen() {
   }, [places, layers, snapped.key, selected]);
   const postPins = usePostPins(region.centre, region.span, layers.posts);
 
+  /** Speed cameras (Layers, off by default): fixed cameras and average-speed zones, only once zoomed in to driving distance. */
+  const cams = useMemo(() => (layers.cameras ? camerasForView(cameraIndex(), region.centre, region.span) : null), [layers.cameras, region]);
+  /** Shops (Layers, off by default): OpenStreetMap listings and, in the demo, the labelled made-up partners near home. */
+  const partners = useMemo(() => [...PARTNERS, ...(demo ? demoPartners(DEMO_PARTNERS, meUser?.home) : [])], [demo, meUser?.home]);
+  // The shop dataset is an asset read the first time the layer is turned on (shopData.ts).
+  const { index: shopIdx, failed: shopsFailed } = useShopIndex(layers.shops);
+  const shopView = useMemo(() => {
+    if (!layers.shops) return null;
+    if (!shopIdx) return { shops: [], partners: [], tooWide: false, more: false, loading: true };
+    return { ...shopsForView(shopIdx, region.centre, region.span, DEFAULT_SHOP_FILTER, partners), loading: false };
+  }, [layers.shops, region, partners, shopIdx]);
+
   const eventClusters = useRef<EventCluster<MapPin>[]>([]);
   const { pins, paths, circles } = useMemo(() => {
     const pins: MapPin[] = [];
     const paths: MapPath[] = [];
     const circles: MapCircle[] = [];
+    // Speed cameras first: they draw under everything else. Small, and dimmer with no recorded limit.
+    if (cams) {
+      for (const z of cams.zones) {
+        paths.push({ id: `az:${z.id}`, coords: z.path, colour: LAYER.camera, dashed: true, width: 1.5 });
+        const ends = [z.path[0], z.path[z.path.length - 1]];
+        ends.forEach((at, i) => pins.push({ id: `avg:${z.id}:${i}`, at, glyph: 'average', colour: LAYER.camera, title: describeZone(z), size: cameraPinSize(region.span) + 3 }));
+      }
+      for (const c of cams.cameras)
+        pins.push({ id: `cam:${c.id}`, at: c.at, glyph: 'camera', colour: c.mph ? LAYER.camera : ART.cameraDim, title: describeCamera(c), size: cameraPinSize(region.span) - (c.mph ? 0 : 2) });
+    }
+    if (shopView) {
+      for (const x of shopView.shops) pins.push({ id: `shop:${x.id}`, at: x.at, glyph: x.categories[0] ?? 'shop', colour: SHOP_COLOUR, title: x.name, size: shopPinSize(region.span) });
+      for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30, badge: 'P' });
+    }
     for (const p of postPins) pins.push({ id: `post:${p.id}`, at: p.at, glyph: 'post', colour: POST_COLOUR, title: postPlace(p, { events })?.text ?? 'Post', size: 30 });
     for (const s of placeView.places) pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind], title: s.name, size: 32 });
     for (const c of placeView.clusters)
@@ -281,7 +316,7 @@ export default function TonightScreen() {
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
-  }, [views, events, placeView, postPins, snapped.key, selected, snapped.centre, snapped.span]);
+  }, [views, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span]);
 
   function zoomCluster(id: string) {
     const c = placeView.clusters.find((x) => x.id === id) ?? eventClusters.current.find((x) => x.id === id);
@@ -504,10 +539,60 @@ export default function TonightScreen() {
         />
       );
     }
+    const pointDistance = (at: LatLng) => (origin ? distanceText(milesBetween(origin.at, at), origin.from) : null);
+    // Shops, partners and speed cameras (Layers): no photo, the pin's own glyph instead.
+    const closeBtn = (
+      <View style={st.closeOnPhoto}>
+        <IconButton icon="close" label="Close" variant="glass" onPress={close} />
+      </View>
+    );
+    const glyphArt = (glyph: MapPin['glyph'], colour: string) => (
+      <View style={st.glyphArt}>
+        <Pin glyph={glyph} colour={colour} size={44} />
+      </View>
+    );
+    if (id.startsWith('shop:')) {
+      const x = shopIdx?.find(key);
+      if (!x) return null;
+      const open = () => router.push({ pathname: '/shop/[id]', params: { id: x.id } });
+      return (
+        <PhotoCard kind="place" aspect={PEEK_ASPECT} photo={null} fallback={glyphArt(x.categories[0] ?? 'shop', SHOP_COLOUR)} eyebrow="Shop" layerColour={SHOP_COLOUR}
+          title={x.name} meta={metaLine([describeCategories(x.categories), pointDistance(x.at)])} detail="From OpenStreetMap, not a Nightshift partner."
+          overlay={closeBtn} onPress={open} action={{ label: 'Open', onPress: open }} />
+      );
+    }
+    if (id.startsWith('ptn:')) {
+      const p = partners.find((x) => x.id === key);
+      if (!p) return null;
+      const open = () => router.push({ pathname: '/shop/[id]', params: { id: `partner:${p.id}` } });
+      return (
+        <PhotoCard kind="place" aspect={PEEK_ASPECT} photo={null} fallback={glyphArt('partner', PARTNER_COLOUR)} eyebrow={partnerBadge(p)} layerColour={PARTNER_COLOUR}
+          title={p.name} meta={metaLine([describeCategories(p.categories), pointDistance(p.at)])} detail={p.demo ? 'Made-up business for the demo.' : p.offer}
+          overlay={closeBtn} onPress={open} action={{ label: 'Open', onPress: open }} />
+      );
+    }
+    if (id.startsWith('cam:') || id.startsWith('avg:')) {
+      const pin = pins.find((p) => p.id === id);
+      if (!pin) return null;
+      // "Speed camera · 30 mph · faces north-west": the kind as the eyebrow, the limit as the title.
+      const [what, limit, ...rest] = pin.title.split(' · ');
+      return (
+        <PhotoCard kind="place" aspect={PEEK_ASPECT} photo={null} fallback={glyphArt(pin.glyph, LAYER.camera)} eyebrow={what} layerColour={LAYER.camera}
+          title={limit ?? what} meta={rest.join(' · ') || undefined} detail={`${CAMERA_CAVEAT} ${CAMERA_CREDIT}.`} overlay={closeBtn} />
+      );
+    }
     return null;
   }
 
   const selCard = selected ? selectionCard(selected) : null;
+  /** One short line on the map for the shop and camera layers: what to zoom in for, or the credit. */
+  const mapCredit = (() => {
+    if (!cams && !shopView) return undefined;
+    if (shopView?.loading) return shopsFailed ? "Couldn't load shops" : 'Loading shops…';
+    const zoom = [cams?.tooWide ? 'speed cameras' : null, shopView?.tooWide ? 'shops' : null].filter(Boolean);
+    if (zoom.length) return `Zoom in to see ${zoom.join(' and ')}`;
+    return [shopView ? SHOP_CREDIT : null, cams ? 'Cameras © OpenStreetMap, may be incomplete' : null].filter(Boolean).join(' · ');
+  })();
   const noCar = ready && myBuilds.length === 0;
   const nothingOn = ready && views.length === 0;
 
@@ -647,6 +732,7 @@ export default function TonightScreen() {
             onPressMap={onMapPress}
             showsUser={located}
             compass={COMPASS}
+            credit={mapCredit}
           />
 
           {box.h ? (
@@ -734,6 +820,7 @@ const st = StyleSheet.create({
   mapButton: { width: BUTTON, height: BUTTON, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: SPACING.screen, paddingBottom: SPACING.md },
   closeOnPhoto: { position: 'absolute', top: SPACING.xs, right: SPACING.xs },
+  glyphArt: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.raised },
   locNote: [
     { position: 'absolute', top: SPACING.sm, left: SPACING.screen, right: SPACING.screen, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingLeft: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.raisedHi, backgroundColor: COLOR.surface.raised },
     ELEVATION.float,

@@ -36,7 +36,7 @@ function open(url: string) {
 }
 
 /**
- * A shop or partner (T3 detail; the Shops layer is gone from the map, the page stays for old links):
+ * A shop or partner (T3 detail; opened from a shop or partner pin on Tonight's Shops layer, off by default):
  * Hero with the map → hours → offer → ActionBar (Navigate, and Website or Call).
  */
 export default function ShopScreen() {

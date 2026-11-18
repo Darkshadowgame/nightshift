@@ -31,10 +31,18 @@ describe('the layers panel', () => {
   });
 });
 
-describe('Tonight focus (REVIEW-9 decision 13)', () => {
-  test('speed cameras and road reports are drive view only', () => {
-    expect(TONIGHT_LAYERS).not.toContain('cameras');
+describe('Tonight focus (REVIEW-9 decision 13; owner decision 18 Nov 2026)', () => {
+  test('road reports are drive view only; shops and speed cameras are optional Tonight layers', () => {
     expect(TONIGHT_LAYERS).not.toContain('roads');
     expect(TONIGHT_LAYERS).toContain('posts');
+    expect(TONIGHT_LAYERS).toContain('shops');
+    expect(TONIGHT_LAYERS).toContain('cameras');
+  });
+
+  test('shops and speed cameras start off', () => {
+    expect(layerOn({}, 'shops')).toBe(false);
+    expect(layerOn({}, 'cameras')).toBe(false);
+    expect(setLayer({}, 'shops', true)).toEqual({ shops: true });
+    expect(setLayer({}, 'cameras', true)).toEqual({ cameras: true });
   });
 });

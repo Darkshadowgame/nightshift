@@ -3,8 +3,10 @@
  *
  * Every layer is a tile in the layers panel (the layers button on the map).
  * Only Events starts on (REVIEW-9 decision 13: Tonight is about tonight's meets);
- * the rest start off and stay in the panel. Speed cameras and road reports are
- * for the drive view only. Every choice is saved in Settings, the same way for all of them.
+ * the rest start off and stay in the panel. Shops and Speed cameras are optional
+ * layers on Tonight, off by default (owner decision 18 Nov 2026; cameras only show
+ * zoomed in). Road reports are for the drive view only. Every choice is saved in
+ * Settings, the same way for all of them.
  */
 
 import type { Glyph } from '../components/Pin';
@@ -22,8 +24,8 @@ export const MORE_LAYERS: readonly MoreLayer[] = ['venue', 'shops', 'cameras', '
 /** Every layer, in the order the layers panel shows them. */
 export const ALL_LAYERS: readonly Layer[] = [...CORE_LAYERS, ...MORE_LAYERS];
 
-/** Layers that only belong in the drive view, never on Tonight's map. */
-export const DRIVE_ONLY_LAYERS: readonly Layer[] = ['cameras', 'roads'];
+/** Layers that only belong in the drive view, never on Tonight's map (the drive view keeps its own camera alerts too). */
+export const DRIVE_ONLY_LAYERS: readonly Layer[] = ['roads'];
 
 /** The layers Tonight's map and its layers panel offer. */
 export const TONIGHT_LAYERS: readonly Layer[] = ALL_LAYERS.filter((k) => !DRIVE_ONLY_LAYERS.includes(k));
