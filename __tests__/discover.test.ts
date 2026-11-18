@@ -262,15 +262,29 @@ describe('new events near you', () => {
 describe('the demo scene', () => {
   const now = new Date();
   const s = seed(now);
-  const meWho: Who = { me: 'me', crews: s.crews, users: s.users, builds: s.builds };
+  // You start fresh (no car, no events): add a stock car, as the first-run step does.
+  const stock = { id: 'b-new', ownerId: 'me', kind: 'car' as const, make: 'Ford', model: 'Fiesta ST', stockBhp: 197, weightKg: 1262, mods: [], photos: [] };
+  const meWho: Who = { me: 'me', crews: s.crews, users: s.users, builds: [...s.builds, stock] };
+
+  test('you start fresh: not going to, hosting or in a crew for anything', () => {
+    expect(s.builds.filter((b) => b.ownerId === 'me')).toHaveLength(0);
+    expect(s.users.find((u) => u.id === 'me')!.crewId).toBeUndefined();
+    for (const e of s.events) {
+      expect(e.going).not.toContain('me');
+      expect(e.hostIds).not.toContain('me');
+      expect(Object.keys(e.checkIns)).not.toContain('me');
+    }
+    expect(s.crews.some((c) => c.memberIds.includes('me') || (c.hostIds ?? []).includes('me'))).toBe(false);
+    expect(s.votes.some((v) => v.voterId === 'me')).toBe(false);
+  });
 
   test('on first run, the invite a few hours away is new near you; your own and finished ones are not', () => {
     const { arrived, matches } = nearbyArrivals(s.events, [], meWho, now);
     const ids = matches.map((e) => e.id);
     expect(arrived).toHaveLength(s.events.length);
     expect(ids).toContain('ev-meet-soon');
-    expect(ids).not.toContain('ev-rolling-live'); // already going, and live
-    expect(ids).not.toContain('ev-cruise-peak'); // you host it
+    expect(ids).not.toContain('ev-rolling-live'); // live already
+    expect(ids).not.toContain('ev-cruise-peak'); // S and A class only
     expect(ids).not.toContain('ev-past-snowdome'); // finished
     expect(ids).not.toContain('ev-bike-cat'); // bikes only, and you have a car
   });

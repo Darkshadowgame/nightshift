@@ -108,7 +108,11 @@ describe('the sample scene', () => {
     expect(phaseOf(e, ANCHOR)).toBe('upcoming');
     const s = seed(ANCHOR);
     const users = s.users.map((u) => (u.id === 'me' ? { ...u, home: DEMO_HOME } : u));
-    expect(roleOf(e, 'me', s.crews, users, s.builds)).toBe('invited');
+    // You start with no car: invites match once you add one (a stock car is enough here).
+    expect(s.builds.some((b) => b.ownerId === 'me')).toBe(false);
+    expect(roleOf(e, 'me', s.crews, users, s.builds)).toBe('none');
+    const stock = { id: 'b-new', ownerId: 'me', kind: 'car' as const, make: 'Ford', model: 'Fiesta ST', stockBhp: 197, weightKg: 1262, mods: [], photos: [] };
+    expect(roleOf(e, 'me', s.crews, users, [...s.builds, stock])).toBe('invited');
   });
 
   test('the Sunday meet is on a Sunday, at least two days back', () => {

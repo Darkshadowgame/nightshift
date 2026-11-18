@@ -57,15 +57,8 @@ interface Person {
 }
 
 const PEOPLE: Person[] = [
-  {
-    id: ME, handle: 'you', name: 'You', home: [52.63, -1.69], crew: 'nr',
-    builds: [{
-      kind: 'car', make: 'Volkswagen', model: 'Golf R Mk7.5', year: 2019, stockBhp: 296, weightKg: 1500, torque: 370,
-      dyno: 388, nickname: 'Example build (edit me)', colour: '#3fd6ff',
-      mods: [['engine', 'Stage 2 remap', 60], ['exhaust', 'Turbo-back exhaust', 10], ['intake', 'Cold air intake', 8],
-        ['suspension', 'Coilovers, -40 mm'], ['wheels', '19" forged wheels'], ['lighting', 'Smoked rear lights']],
-    }],
-  },
+  // You start fresh: no car, no crew, no events. The sample people and events are there to try things on.
+  { id: ME, handle: 'you', name: 'You', home: [52.63, -1.69], builds: [] },
   {
     id: 'dan', handle: 'dan_r', name: 'Dan', home: [52.63, -1.70], crew: 'nr',
     builds: [{ kind: 'car', make: 'BMW', model: 'M4 Competition', year: 2021, stockBhp: 503, weightKg: 1725, torque: 479, colour: '#ff9a2e',
@@ -169,9 +162,9 @@ const PEOPLE: Person[] = [
 ];
 
 const crewOf = (id: string) => PEOPLE.filter((p) => p.crew === id).map((p) => p.id);
-/** Each crew has an owner and a couple of hosts. You're a host in NightRunners, so you can run its events. */
+/** Each crew has an owner and a couple of hosts. You aren't in one until you join or start one. */
 const CREWS: Crew[] = [
-  { id: 'nr', name: 'NightRunners', tag: 'NR', memberIds: crewOf('nr'), ownerId: 'dan', hostIds: ['mo', ME] },
+  { id: 'nr', name: 'NightRunners', tag: 'NR', memberIds: crewOf('nr'), ownerId: 'dan', hostIds: ['mo'] },
   { id: 'pk', name: 'Peak Chasers', tag: 'PKC', memberIds: crewOf('pk'), ownerId: 'sully', hostIds: ['liv'] },
   { id: 'ts', name: 'Torque Street', tag: 'TQS', memberIds: crewOf('ts'), ownerId: 'kez', hostIds: ['cal'] },
 ];
@@ -247,11 +240,10 @@ function events(now: Date, home: LatLng): NightEvent[] {
         { id: 'rl-2', name: 'Shopping park car park', at: here(52.6205, -1.7265), revealedAt: minutesFrom(now, -10) },
         { id: 'rl-3', name: 'Business park car park', at: here(52.5156, -1.7072), note: 'Planned, hidden until you move on' },
       ],
-      currentStop: 1, revealMinutesBefore: 60, hostIds: ['dan'], filter: { ...DEFAULT_FILTER, minMods: 3, radiusMiles: 30 },
-      going: [ME, 'dan', 'kez', 'tom', 'em', 'aimee', 'jord'],
-      checkIns: { [ME]: ['rl-1'], dan: ['rl-1', 'rl-2'], tom: ['rl-1', 'rl-2'], em: ['rl-1'], aimee: ['rl-1'] },
-      // What you brought, on record: you've checked in, so it's set (a check-in with none on record used to fail).
-      vehicles: { [ME]: 'b-me-0' },
+      // Open to any car or bike: the live one a brand-new demo user can say they're going to and check in at.
+      currentStop: 1, revealMinutesBefore: 60, hostIds: ['dan'], filter: { ...DEFAULT_FILTER, minMods: 0, radiusMiles: 30 },
+      going: ['dan', 'kez', 'tom', 'em', 'aimee', 'jord'],
+      checkIns: { dan: ['rl-1', 'rl-2'], tom: ['rl-1', 'rl-2'], em: ['rl-1'], aimee: ['rl-1'] },
     },
     {
       id: 'ev-rolling-host', type: 'rolling', title: 'NightRunners late one',
@@ -275,7 +267,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       area: home, areaName: NEAR_YOU,
       stops: [{ id: 'ms-1', name: 'Town centre car park', at: here(52.6333, -1.6951) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
-      // No mod minimum, so it still matches after you change the example build to your own.
+      // No mod minimum, so a stock car or bike matches.
       filter: { ...DEFAULT_FILTER, minMods: 0, radiusMiles: 30 },
       going: ['tom', 'em', 'jord', 'bex'], checkIns: {},
     },
@@ -284,9 +276,9 @@ function events(now: Date, home: LatLng): NightEvent[] {
       description: `${d1.name}, start to finish with a regroup halfway. Speed limits all the way.`,
       startsAt: at(now, 2, 22, 30), area: d1.at, areaName: d1.region, routeMiles: Math.round(d1.miles ?? 20),
       stops: driveStops('pc', d1),
-      currentStop: 0, revealMinutesBefore: 60, hostIds: [ME], crewId: 'nr',
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['dan'], crewId: 'nr',
       filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 100 },
-      going: [ME, 'dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
+      going: ['dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
       requests: ['jord', 'nina'],
     },
     {
@@ -314,9 +306,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
       stops: [{ id: 'ps-1', name: 'Leisure centre car park', at: here(52.6302, -1.6962) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
       filter: { ...DEFAULT_FILTER, minMods: 2, radiusMiles: 30 },
-      going: [ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'],
-      checkIns: Object.fromEntries([ME, 'tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'].map((u) => [u, ['ps-1']])),
-      vehicles: { [ME]: 'b-me-0' },
+      going: ['tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'],
+      checkIns: Object.fromEntries(['tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'].map((u) => [u, ['ps-1']])),
     },
     {
       id: 'ev-show-don', type: 'show', title: 'Modified show day',
@@ -363,11 +354,11 @@ function votes(now: Date): Vote[] {
   const when = lastSunday(now, 2, 21, 30);
   const v = (voterId: string, category: Vote['category'], buildId: string): Vote => ({ eventId: 'ev-past-snowdome', voterId, category, buildId, at: when });
   return [
-    v('tom', 'best-in-show', 'b-dan-0'), v('kez', 'best-in-show', 'b-dan-0'), v('em', 'best-in-show', 'b-dan-0'), v(ME, 'best-in-show', 'b-dan-0'), v('jord', 'best-in-show', 'b-aimee-0'),
-    v('tom', 'best-car', 'b-me-0'), v('aimee', 'best-car', 'b-me-0'), v('sully', 'best-car', 'b-me-0'), v('priya', 'best-car', 'b-mo-0'),
+    v('tom', 'best-in-show', 'b-dan-0'), v('kez', 'best-in-show', 'b-dan-0'), v('em', 'best-in-show', 'b-dan-0'), v('priya', 'best-in-show', 'b-dan-0'), v('jord', 'best-in-show', 'b-aimee-0'),
+    v('tom', 'best-car', 'b-mo-0'), v('aimee', 'best-car', 'b-mo-0'), v('sully', 'best-car', 'b-mo-0'), v('priya', 'best-car', 'b-kez-0'),
     v('tom', 'best-bike', 'b-aimee-0'), v('dan', 'best-bike', 'b-aimee-0'), v('mo', 'best-bike', 'b-aimee-0'),
-    v('dan', 'cleanest', 'b-me-0'), v('kez', 'cleanest', 'b-me-0'), v('mo', 'cleanest', 'b-me-0'),
-    v(ME, 'sound', 'b-kez-0'), v('em', 'sound', 'b-kez-0'), v('jord', 'sound', 'b-kez-0'),
+    v('dan', 'cleanest', 'b-em-0'), v('kez', 'cleanest', 'b-em-0'), v('mo', 'cleanest', 'b-em-0'),
+    v('tom', 'sound', 'b-kez-0'), v('em', 'sound', 'b-kez-0'), v('jord', 'sound', 'b-kez-0'),
   ];
 }
 
