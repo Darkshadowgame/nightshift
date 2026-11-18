@@ -1,4 +1,4 @@
-import type { Build, ChatMessage, Crew, LatLng, Mod, ModCategory, NightEvent, Spot, User } from '../lib/types';
+import type { Build, ChatMessage, Crew, LatLng, Mod, ModCategory, NightEvent, Spot, TuneStage, User } from '../lib/types';
 import { DEFAULT_FILTER } from '../lib/invites';
 import type { Vote } from '../lib/awards';
 import { eventArea } from '../lib/area';
@@ -169,6 +169,20 @@ const CREWS: Crew[] = [
   { id: 'ts', name: 'Torque Street', tag: 'TQS', memberIds: crewOf('ts'), ownerId: 'kez', hostIds: ['cal'] },
 ];
 
+/**
+ * The tune stage a sample build's engine mod names ("Stage 2 remap", "Stage 1 map"), so the build
+ * page shows Stage 2 rather than Stock. The seed names its remaps as people would; the app's own
+ * stage mod is "Stage N tune" (tune.ts), which stageFromMods reads.
+ */
+export function seedStage(specs: ModSpec[]): TuneStage | undefined {
+  for (const [category, name] of specs) {
+    if (category !== 'engine') continue;
+    const n = /^stage (1|2\+|2|3|4)\s.*\b(re)?map\b/i.exec(name.trim())?.[1];
+    if (n) return n === '1' ? 'stage1' : n === '2' ? 'stage2' : n === '2+' ? 'stage2plus' : n === '3' ? 'stage3' : 'stage4';
+  }
+  return undefined;
+}
+
 function makeMods(buildId: string, specs: ModSpec[]): Mod[] {
   return specs.map(([category, name, bhpGain], i) => ({ id: `${buildId}-m${i}`, category, name, bhpGain }));
 }
@@ -282,13 +296,15 @@ function events(now: Date, home: LatLng): NightEvent[] {
       requests: ['jord', 'nina'],
     },
     {
-      id: 'ev-meet-tam', type: 'meet', title: 'Late S/A meet',
-      description: 'S and A class only. Arranged with the site. Park up, no revving, leave it clean.',
+      // This week's open one: A and B class, no mod minimum, so a typical hot hatch (a stock Civic
+      // Type R, a Golf GTI, an i30 N) is invited from the first run.
+      id: 'ev-meet-tam', type: 'meet', title: 'Late hot hatch meet',
+      description: 'Hot hatches, A and B class, stock or modified. Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: at(now, 5, 23, 0), area: home, areaName: NEAR_YOU,
       stops: [{ id: 'mt-1', name: 'Shopping park car park', at: here(52.6205, -1.7265) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'], crewId: 'ts',
-      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 25 },
-      going: ['kez', 'cal', 'priya'], checkIns: {},
+      filter: { ...DEFAULT_FILTER, cars: true, bikes: false, classes: ['A', 'B'], minMods: 0, radiusMiles: 25 },
+      going: ['kez', 'cal', 'priya', 'em', 'bex'], checkIns: {},
     },
     {
       id: 'ev-bike-cat', type: 'cruise', title: `Sunrise ride: ${d2.name}`,
@@ -394,7 +410,7 @@ export function seed(now: Date = new Date(), scene: SceneOptions = {}): SeedStat
       return {
         id, ownerId: p.id, kind: b.kind, make: b.make, model: b.model, year: b.year, nickname: b.nickname,
         stockBhp: b.stockBhp, weightKg: b.weightKg, torqueLbFt: b.torque, dynoBhp: b.dyno,
-        mods: makeMods(id, b.mods), photos: [], colour: b.colour,
+        mods: makeMods(id, b.mods), tuneStage: seedStage(b.mods), photos: [], colour: b.colour,
       };
     }),
   );
