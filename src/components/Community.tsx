@@ -247,7 +247,13 @@ export function PostCard({
   );
 
   return (
-    <View style={{ backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' }}>
+    <View
+      style={
+        full
+          ? { marginHorizontal: -SPACING.screen, marginTop: -SPACING.screen }
+          : { backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' }
+      }
+    >
       {shown.length ? open ? (
         <Press onPress={open} feedback="card" label="Open the post">
           {pictures}
@@ -255,7 +261,7 @@ export function PostCard({
       ) : (
         <View style={{ gap: SPACING.xxs }}>{pictures}</View>
       ) : null}
-      <View style={{ paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.sm }}>
+      <View style={{ paddingHorizontal: full ? SPACING.screen : SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
           <Press onPress={() => author && openProfile(author.id)} role="link" label={`${at(author)}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>
             <Avatar {...personMark(author)} size="md" />

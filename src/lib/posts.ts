@@ -138,3 +138,11 @@ export function withLike(p: Post, on: boolean): Post {
   if (p.likedByMe === on) return p;
   return { ...p, likedByMe: on, likeCount: Math.max(0, p.likeCount + (on ? 1 : -1)) };
 }
+
+/** Community's one feed (Redesign 2, 3.7): near you plus your connections, each post once, newest first. Null until either has loaded. */
+export function mergeFeeds(a: Post[] | null, b: Post[] | null): Post[] | null {
+  if (!a && !b) return null;
+  const byId = new Map<string, Post>();
+  for (const p of [...(a ?? []), ...(b ?? [])]) if (!byId.has(p.id)) byId.set(p.id, p);
+  return [...byId.values()].sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+}

@@ -121,7 +121,7 @@ export default function ThreadScreen() {
           bleed
           photo={thread.photos[0] ? { uri: photoUri(thread.photos[0]) } : null}
           aspect={4 / 3}
-          eyebrow={metaLine([boardLabel(thread.board), thread.region])}
+          eyebrow={thread.listing ? thread.region : metaLine([boardLabel(thread.board), thread.region])}
           title={thread.title}
           tag={thread.solvedReplyId ? { label: 'Solved', tone: 'success' } : null}
         />

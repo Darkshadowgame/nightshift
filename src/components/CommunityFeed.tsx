@@ -3,7 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useNow } from '../lib/clock';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
-import { withLike, type Post } from '../lib/posts';
+import { mergeFeeds, withLike, type Post } from '../lib/posts';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
 import { moderateOptions, openReport, OptionsSheet, PostCard, type SheetOption } from './Community';
@@ -23,7 +23,7 @@ export function CommunityFeed() {
         <ListRow
           leading={{ icon: 'comment' }}
           title="Forum and for sale"
-          subtitle="Ask for advice, show your build, buy and sell parts"
+          subtitle="Advice, builds and parts for sale"
           onPress={() => router.push('/forum')}
         />
         <RowDivider />
@@ -43,14 +43,6 @@ export function CommunityFeed() {
       />
     </View>
   );
-}
-
-/** Near you plus your connections, each post once, newest first. Null until both have loaded once. */
-export function mergeFeeds(a: Post[] | null, b: Post[] | null): Post[] | null {
-  if (!a && !b) return null;
-  const byId = new Map<string, Post>();
-  for (const p of [...(a ?? []), ...(b ?? [])]) if (!byId.has(p.id)) byId.set(p.id, p);
-  return [...byId.values()].sort((x, y) => y.createdAt.localeCompare(x.createdAt));
 }
 
 /** A list of post cards with likes, comments and the ··· menu (report, block, delete). Used by the feed and profiles. */

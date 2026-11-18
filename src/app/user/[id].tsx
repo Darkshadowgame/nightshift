@@ -2,7 +2,7 @@ import { carShape } from '../../lib/buildShape';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { buildMeta, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { BuildRow, buildMeta, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { PostList } from '../../components/CommunityFeed';
 import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PaintArt, PhotoCard, RowDivider, Section, metaLine, useToast, type ActionBarButton } from '../../components/ds';
 import { PhotoCredit } from '../../components/PhotoCredit';
@@ -11,7 +11,6 @@ import { classOf, effectivePower } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { CONNECT } from '../../lib/connections';
-import { powerText } from '../../lib/dyno';
 import { publicProfile } from '../../lib/people';
 import { useStore } from '../../lib/store';
 import type { Build } from '../../lib/types';
@@ -98,7 +97,8 @@ export default function UserScreen() {
   else if (state === 'outgoing') status = `Request sent. Waiting for ${handle}.`;
   else primary = { label: CONNECT.connect, busy, haptic: 'success', accessibilityHint: `Once ${handle} accepts, you can message each other`, onPress: () => void connect() };
 
-  const others = p.builds;
+  // The cover build is under the Hero; the garage shows the rest.
+  const others = p.builds.filter((b) => b.id !== cover?.id);
 
   return (
     <View style={{ flex: 1 }}>
@@ -110,7 +110,7 @@ export default function UserScreen() {
           aspect={ASPECT.build}
           title={handle}
           classLetter={cover ? classOf(cover) : undefined}
-          meta={cover ? metaLine([`${cover.make} ${cover.model}`, powerText(cover)]) : 'No car or bike yet'}
+          meta={cover ? undefined : 'No car or bike yet'}
           tag={!isMe && state === 'connected' ? { label: CONNECT.connected, tone: 'success' } : null}
           overlay={coverPhoto ? <PhotoCredit photoRef={coverPhoto} kind={cover?.kind} overlay corner="topRight" /> : null}
         >
@@ -120,12 +120,14 @@ export default function UserScreen() {
               {isMe ? `${p.name} (you)` : p.name}
             </DsText>
           </View>
+          {cover ? <BuildRow build={cover} onPress={() => openBuild(cover.id)} /> : null}
           {blocked ? <DsText v="secondary">You blocked {handle}. Their posts and messages are hidden from you.</DsText> : null}
           {error ? <ErrorState title={error} /> : null}
         </Hero>
 
-        <Section title={`Garage (${others.length})`}>
-          {others.length ? (
+        {others.length ? (
+        <Section title={`Also in the garage (${others.length})`}>
+          {
             <View style={{ gap: SPACING.md }}>
               {others.map((b) => (
                 <PhotoCard
@@ -144,10 +146,9 @@ export default function UserScreen() {
                 />
               ))}
             </View>
-          ) : (
-            <EmptyState variant="inline" title="No car or bike yet." />
-          )}
+          }
         </Section>
+        ) : null}
 
         <Section title="Posts">
           <PostList

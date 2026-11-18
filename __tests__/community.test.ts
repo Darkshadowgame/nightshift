@@ -15,7 +15,7 @@ import {
 import { forumRepOf, ilikePattern, replyProblem, searchThreads, solvedRecord, sortThreads, threadProblem, type ForumThread, type SolvedRecord } from '../src/lib/forum';
 import { conversationTitle, groupProblem, messageProblem, previewLine, seenLabel, shareBuild, shareEvent, totalUnread, type Conversation, type Message } from '../src/lib/messages';
 import { BANNED_TERMS, normaliseForWords, reportProblem, textProblem, TEXT_PROBLEMS } from '../src/lib/moderation';
-import { canSee, commentProblem, feedFor, locationProblem, postProblem, postsInBox, snapPlace, withLike, type Post } from '../src/lib/posts';
+import { canSee, commentProblem, feedFor, locationProblem, mergeFeeds, postProblem, postsInBox, snapPlace, withLike, type Post } from '../src/lib/posts';
 import { repLedger } from '../src/lib/rep';
 import type { Build, NightEvent, User } from '../src/lib/types';
 
@@ -267,5 +267,17 @@ describe('messages', () => {
     expect(card.subtitle).toContain('Lincoln area');
     expect(JSON.stringify(card)).not.toContain('Secret');
     expect(shareBuild(build('b1', 'a')).subtitle).toMatch(/^Class [SABCD] · \d+ bhp · 0 mods$/);
+  });
+});
+
+describe('Community feed: near you plus connections (Redesign 2, 3.7)', () => {
+  const p = (id: string, createdAt: string) => ({ id, createdAt }) as Post;
+  test('each post once, newest first', () => {
+    const merged = mergeFeeds([p('a', '2026-11-18T10:00:00Z'), p('b', '2026-11-18T09:00:00Z')], [p('b', '2026-11-18T09:00:00Z'), p('c', '2026-11-18T11:00:00Z')]);
+    expect(merged!.map((x) => x.id)).toEqual(['c', 'a', 'b']);
+  });
+  test('null until either has loaded; one half is enough', () => {
+    expect(mergeFeeds(null, null)).toBeNull();
+    expect(mergeFeeds(null, [p('x', '2026-11-18T09:00:00Z')])!.map((x) => x.id)).toEqual(['x']);
   });
 });
