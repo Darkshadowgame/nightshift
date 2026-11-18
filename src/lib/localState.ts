@@ -3,6 +3,8 @@ import { splitSavedSpots, type ProgressMap } from './placeStore';
 import { SCHEMA_VERSION } from './persist';
 import { tidyModel } from './vehicles';
 import { isPublicType } from './events';
+import { nearbyNotice } from './discover';
+import type { NightEvent } from './types';
 import { areaGivesAway, eventArea } from './area';
 import { inferAnchor, isSeedEvent, needsRefresh, refreshDemo, restartDemo } from './demoTime';
 import { migratePhotoRef } from './photos';
@@ -83,13 +85,32 @@ export const EMPTY: Persisted = {
   settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, schemaVersion: SCHEMA_VERSION,
 };
 
+/** Sample "new near you" notices, written again from the (moved) events they're about. Others are left alone. */
+export function retimeNearbyNotices(notices: readonly Notice[], events: readonly NightEvent[]): Notice[] {
+  const byId = new Map(events.map((e) => [e.id, e]));
+  return notices.map((n) => {
+    const e = n.kind === 'nearby' && isSeedEvent(n.eventId) ? byId.get(n.eventId) : undefined;
+    if (!e) return n;
+    const r = nearbyNotice(e, new Date(n.at));
+    return { ...n, text: `${r.title}. ${r.body}` };
+  });
+}
+
 /** Keep the demo scene's times current (see demoTime.ts). Events made on the phone are left alone. */
 export function freshen(state: Persisted, now: Date): Persisted {
   if (!state.scene) return state; // older save: migrate() redraws the scene round your home
   const anchor = state.seededAt ? new Date(state.seededAt) : inferAnchor(state.events);
   if (!anchor || isNaN(anchor.getTime())) return { ...state, seededAt: state.seededAt ?? now.toISOString() };
   if (!needsRefresh(state, anchor, now, state.scene)) return { ...state, seededAt: anchor.toISOString() };
-  return { ...state, ...refreshDemo(state, anchor, now, state.scene), seededAt: now.toISOString() };
+  // "New near you" notices quote the event's time, which has just moved (B7: 03:18 in the notice,
+  // 03:25 on the event): write them again from the moved events, as if sent then.
+  const refreshed = refreshDemo(state, anchor, now, state.scene);
+  return {
+    ...state,
+    ...refreshed,
+    notices: retimeNearbyNotices(state.notices, refreshed.events),
+    seededAt: now.toISOString(),
+  };
 }
 
 /**
