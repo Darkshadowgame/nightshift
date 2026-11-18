@@ -31,12 +31,21 @@ export function Gradient({
       <Svg width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={a} />
-            <Stop offset="1" stopColor={b} />
+            {/* iOS react-native-svg ignores the alpha in an rgba stopColor and draws it solid (the
+                fade covered 3/4 of every photo on iPhone): pass the colour and its opacity apart. */}
+            <Stop offset="0" stopColor={splitAlpha(a).colour} stopOpacity={splitAlpha(a).opacity} />
+            <Stop offset="1" stopColor={splitAlpha(b).colour} stopOpacity={splitAlpha(b).opacity} />
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
       </Svg>
     </View>
   );
+}
+
+/** "rgba(11,15,23,0.9)" → { colour: "rgb(11,15,23)", opacity: 0.9 }; anything else → opacity 1. */
+export function splitAlpha(c: string): { colour: string; opacity: number } {
+  const m = c.match(/^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/i);
+  if (!m) return { colour: c, opacity: 1 };
+  return { colour: `rgb(${m[1]},${m[2]},${m[3]})`, opacity: Math.max(0, Math.min(1, Number(m[4]))) };
 }
