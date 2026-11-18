@@ -1,145 +1,198 @@
-import { useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, Line, Polygon, Polyline } from 'react-native-svg';
-import { ART, BRAND, C, RADII, SPACING, SURFACE } from '../theme';
-import { DsText } from './ds/Text';
-import { PulseRing } from './motion';
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import type * as Leaflet from 'leaflet';
+import { pinLayer } from '../lib/hud';
+import type { LatLng } from '../lib/types';
+import { ART, BRAND } from '../theme';
 import { Pin } from './Pin';
-import type { NightMapProps } from './mapTypes';
+import type { MapCircle, MapPath, MapPolygon, MapRegion, NightMapProps } from './mapTypes';
+import { Credit } from './webmap/Credit.web';
+import { GridMap } from './webmap/GridMap.web';
+import { loadLeaflet, longPress, makeMap, type L } from './webmap/leaflet.web';
+import { PinFace, pinBox, pinLabel, useMarkers, type MarkerSpec } from './webmap/PinMarker.web';
+import { TILE_CREDIT } from './webmap/tiles.web';
+import { fitZoom } from './webmap/zoom.web';
+
+const MILE_M = 1609.34;
+const ll = (p: LatLng): [number, number] => [p.lat, p.lng];
+
+/** What a Leaflet map shows now, in the app's terms. */
+function regionOf(map: Leaflet.Map): MapRegion {
+  const c = map.getCenter();
+  const b = map.getBounds();
+  return { centre: { lat: c.lat, lng: c.lng }, span: b.getNorth() - b.getSouth() };
+}
 
 /**
- * Web preview stand-in for the map (react-native-maps has no web version).
- * A flat projection on a dark grid: good enough to check layouts in a browser.
+ * Web map: a real dark map (Leaflet + CARTO Dark Matter, tinted like Apple's dark map), with
+ * the iPhone's pins, clusters, routes and outlines drawn the same. Honours the whole
+ * NightMapProps contract. Falls back to the grid when Leaflet or the tiles can't load.
  */
-export function NightMap({
-  ref, pins, paths = [], circles = [], polygons = [], centre: centreProp, span: spanProp = 0.6, onSelect, onLongPress, picked, onPressMap, recentreKey, onRegion, credit,
-}: NightMapProps) {
-  const [size, setSize] = useState({ w: 400, h: 700 });
-  /** Set by the handle (e.g. locate me, search); cleared when the props move the map. */
-  const [moved, setMoved] = useState<{ centre: NightMapProps['centre']; span: number } | null>(null);
-  useEffect(() => setMoved(null), [centreProp.lat, centreProp.lng, spanProp, recentreKey]);
-  const centre = moved?.centre ?? centreProp;
-  const span = moved?.span ?? spanProp;
-  useImperativeHandle(
-    ref,
-    () => ({ animateTo: (c, sp = spanProp) => setMoved({ centre: c, span: sp }), region: () => ({ centre, span }) }),
-    [spanProp, centre, span],
-  );
-  // The stand-in map doesn't pan: it reports a new region whenever it's moved.
-  useEffect(() => {
-    onRegion?.({ centre, span });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centre.lat, centre.lng, span]);
-  const onLayout = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    if (width > 0 && height > 0) setSize({ w: width, h: height });
-  };
-  const latSpan = span;
-  const lngSpan = (span * 1.6 * size.w) / Math.max(1, size.h);
-  const x = (lng: number) => ((lng - (centre.lng - lngSpan / 2)) / lngSpan) * size.w;
-  const y = (lat: number) => ((centre.lat + latSpan / 2 - lat) / latSpan) * size.h;
-  const pxPerMile = size.h / (latSpan * 69);
-  const box = useRef<unknown>(null);
-  /** Screen point to map point. A browser click has no locationX, so measure it from the map's box. */
-  const at = (e: { locationX?: number; locationY?: number; clientX?: number; clientY?: number }) => {
-    let lx = e.locationX;
-    let ly = e.locationY;
-    const el = box.current as unknown as { getBoundingClientRect?: () => { left: number; top: number } } | null;
-    if ((typeof lx !== 'number' || typeof ly !== 'number') && el?.getBoundingClientRect && e.clientX !== undefined && e.clientY !== undefined) {
-      const r = el.getBoundingClientRect();
-      lx = e.clientX - r.left;
-      ly = e.clientY - r.top;
-    }
-    return {
-      lat: centre.lat + latSpan / 2 - ((ly ?? size.h / 2) / size.h) * latSpan,
-      lng: centre.lng - lngSpan / 2 + ((lx ?? size.w / 2) / size.w) * lngSpan,
-    };
+export function NightMap(props: NightMapProps) {
+  const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
+  const [broken, setBroken] = useState(false);
+  const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
+  /** A tall map is a full-screen one with a sheet over its bottom: its credit goes top left so it stays visible. */
+  const [tall, setTall] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const { ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, picked, follow, recentreKey, credit } = props;
+
+  // Callbacks change every render on most screens: read them through a ref so Leaflet's handlers stay put.
+  const latest = useRef(props);
+  latest.current = props;
+  const shown = useRef<MapRegion>({ centre, span });
+
+  const goTo = (map: Leaflet.Map, c: LatLng, sp: number, animate: boolean) => {
+    const s = map.getSize();
+    const z = fitZoom({ centre: c, span: sp }, { w: s.x, h: s.y }, { min: map.getMinZoom(), max: map.getMaxZoom() });
+    if (animate) map.flyTo(ll(c), z, { duration: 0.45 });
+    else map.setView(ll(c), z, { animate: false });
   };
 
+  // Make the map once.
+  useEffect(() => {
+    let gone = false;
+    let made: ReturnType<typeof makeMap> | null = null;
+    let hold: ReturnType<typeof longPress> | null = null;
+    let resize: ResizeObserver | null = null;
+    // Tell the screen where the map starts, before the first pan or zoom (as the iPhone map does).
+    latest.current.onRegion?.({ centre, span });
+    loadLeaflet().then(
+      (L) => {
+        const el = box.current;
+        if (gone || !el) return;
+        made = makeMap(L, el, { onTiles: setTiles });
+        const map = made.map;
+        let sized = el.clientWidth > 0 && el.clientHeight > 0;
+        let touched = false;
+        map.on('moveend', () => {
+          shown.current = regionOf(map);
+          latest.current.onMoved?.(shown.current.centre);
+          latest.current.onRegion?.(shown.current);
+        });
+        map.on('dragstart zoomstart', () => {
+          touched = true;
+        });
+        map.on('click', (e: Leaflet.LeafletMouseEvent) => {
+          if (hold?.justHeld()) return;
+          latest.current.onPressMap?.({ lat: e.latlng.lat, lng: e.latlng.lng });
+        });
+        hold = longPress(map, (at) => latest.current.onLongPress?.({ lat: at.lat, lng: at.lng }));
+        // Where the screen wants it now (the props may have moved while Leaflet loaded).
+        goTo(map, latest.current.centre, latest.current.span ?? 0.6, false);
+        lastMove.current = moveKeyRef.current;
+        resize = new ResizeObserver(() => {
+          map.invalidateSize({ pan: false });
+          // Laid out after the map was made (a tab that opened hidden): fit the region now.
+          if (!sized && el.clientWidth > 0 && el.clientHeight > 0) {
+            sized = true;
+            if (!touched) goTo(map, latest.current.centre, latest.current.span ?? 0.6, false);
+          }
+        });
+        resize.observe(el);
+        setLf({ L, map });
+      },
+      () => !gone && setBroken(true),
+    );
+    return () => {
+      gone = true;
+      resize?.disconnect();
+      hold?.remove();
+      made?.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      animateTo: (c, sp = span) => {
+        if (lf) goTo(lf.map, c, sp, true);
+      },
+      region: () => (lf ? regionOf(lf.map) : shown.current),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lf, span],
+  );
+
+  // Like the iPhone map: the props only set where it opens, unless `follow` is on or `recentreKey` changes.
+  const followKey = follow ? `${centre.lat},${centre.lng},${span}` : '';
+  const moveKey = `${followKey}|${recentreKey ?? ''}`;
+  const lastMove = useRef(moveKey);
+  const moveKeyRef = useRef(moveKey);
+  moveKeyRef.current = moveKey;
+  useEffect(() => {
+    if (!lf || lastMove.current === moveKey) return;
+    lastMove.current = moveKey;
+    goTo(lf.map, centre, span, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moveKey, lf]);
+
+  useShapes(lf, paths, circles, polygons);
+
+  const specs = useMemo<MarkerSpec[]>(() => {
+    const out: MarkerSpec[] = pins.map((p) => ({
+      id: p.id,
+      lat: p.at.lat,
+      lng: p.at.lng,
+      size: pinBox(p),
+      z: pinLayer(p),
+      label: pinLabel(p),
+      onClick: () => latest.current.onSelect?.(p.id),
+      face: <PinFace pin={p} />,
+    }));
+    if (picked) out.push({ id: '__picked', lat: picked.lat, lng: picked.lng, size: 40, z: 9, face: <Pin glyph="you" colour={BRAND} size={40} /> });
+    return out;
+    // onSelect is read through `latest`; a new handler needn't redraw the pins.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pins, picked?.lat, picked?.lng, !!onSelect]);
+  const { portals } = useMarkers(lf, specs);
+
+  if (broken) return <GridMap {...props} />;
   return (
-    <View ref={box as never} style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={onLayout}>
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        onPress={onPressMap ? (e) => onPressMap(at(e.nativeEvent as never)) : undefined}
-        onLongPress={onLongPress ? (e) => onLongPress(at(e.nativeEvent as never)) : undefined}
-      >
-        <Svg width={size.w} height={size.h}>
-          {Array.from({ length: 12 }, (_, i) => (
-            <Line key={`h${i}`} x1={0} x2={size.w} y1={(i * size.h) / 12} y2={(i * size.h) / 12} stroke={ART.mapGrid} strokeWidth={1} />
-          ))}
-          {Array.from({ length: 8 }, (_, i) => (
-            <Line key={`v${i}`} y1={0} y2={size.h} x1={(i * size.w) / 8} x2={(i * size.w) / 8} stroke={ART.mapGrid} strokeWidth={1} />
-          ))}
-          {polygons.map((p) => (
-            <Polygon key={p.id} points={p.coords.map((q) => `${x(q.lng)},${y(q.lat)}`).join(' ')} fill={`${p.colour}1f`} stroke={`${p.colour}99`} />
-          ))}
-          {circles.map((c) => (
-            <Circle key={c.id} cx={x(c.centre.lng)} cy={y(c.centre.lat)} r={c.radiusMiles * pxPerMile} fill={`${c.colour}1f`} stroke={`${c.colour}99`} />
-          ))}
-          {paths.map((p) => (
-            <Polyline
-              key={p.id}
-              points={p.coords.map((q) => `${x(q.lng)},${y(q.lat)}`).join(' ')}
-              stroke={p.colour}
-              strokeWidth={p.width ?? 4}
-              fill="none"
-              strokeDasharray={p.dashed ? '8 6' : undefined}
-            />
-          ))}
-        </Svg>
-      </Pressable>
-      {pins.map((p) => {
-        const sz = p.size ?? 36;
-        const box = p.live ? sz * 2.2 : sz;
-        return (
-          <Pressable
-            key={p.id}
-            onPress={() => onSelect?.(p.id)}
-            accessibilityRole="button"
-            accessibilityLabel={p.live ? `${p.title}, live now` : p.count ? `${p.count} ${p.title}. Zoom in` : p.title}
-            style={{ position: 'absolute', left: x(p.at.lng) - box / 2, top: y(p.at.lat) - box / 2 }}
-          >
-            {p.live ? (
-              <PulseRing live colour={p.colour} size={sz} pad>
-                <Pin glyph={p.glyph} colour={p.colour} size={sz} />
-              </PulseRing>
-            ) : (
-              <Pin glyph={p.glyph} colour={p.colour} size={sz} count={p.count} badge={p.badge} />
-            )}
-          </Pressable>
-        );
-      })}
-      {picked ? (
-        <View pointerEvents="none" style={{ position: 'absolute', left: x(picked.lng) - 20, top: y(picked.lat) - 20 }}>
-          <Pin glyph="you" colour={BRAND} size={40} />
-        </View>
-      ) : null}
-      {/* The stand-in can't pinch: zoom buttons, so zoom-dependent layers (cameras, circuit outlines) can be checked. */}
-      {/* Top left: clear of the layers, locate and fit stack on the right (REVIEW-7 bug 2), and of the sheet even
-          when the first-run card makes it tall on a 375x667 phone (REVIEW-8 bug 12). */}
-      <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm, gap: SPACING.xs }}>
-        {[
-          { label: '+', factor: 0.5 },
-          { label: '−', factor: 2 },
-        ].map((z) => (
-          <Pressable
-            key={z.label}
-            onPress={() => setMoved({ centre, span: Math.min(12, Math.max(0.005, span * z.factor)) })}
-            accessibilityRole="button"
-            accessibilityLabel={z.factor < 1 ? 'Zoom in' : 'Zoom out'}
-            style={{ width: 44, height: 44, borderRadius: RADII.control, borderWidth: 1, borderColor: C.kerb, backgroundColor: SURFACE.glass, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <DsText v="stat">{z.label}</DsText>
-          </Pressable>
-        ))}
-      </View>
-      {credit ? (
-        <View pointerEvents="none" style={{ position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs }}>
-          <DsText v="meta" tone="secondary">
-            {credit}
-          </DsText>
-        </View>
-      ) : null}
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={(e) => setTall(e.nativeEvent.layout.height > 420)}>
+      <div ref={box} style={{ position: 'absolute', inset: 0 }} />
+      {portals}
+      <Credit credit={credit} tiles={tiles} top={tall} />
     </View>
   );
+}
+
+/** Paths, circles and outlines, redrawn only when one of them changes (the same tests as the iPhone map). */
+function useShapes(lf: { L: L; map: Leaflet.Map } | null, paths: MapPath[], circles: MapCircle[], polygons: MapPolygon[]) {
+  const drawn = useRef(new Map<string, { key: unknown[]; layer: Leaflet.Layer }>());
+  useEffect(() => {
+    if (!lf) return;
+    const { L, map } = lf;
+    const want = new Map<string, { key: unknown[]; make: () => Leaflet.Layer }>();
+    for (const p of polygons)
+      want.set(`g:${p.id}`, {
+        key: [p.coords, p.colour],
+        make: () => L.polygon(p.coords.map(ll), { color: p.colour, opacity: 0.6, weight: 1.5, fillColor: p.colour, fillOpacity: 0.12, interactive: false }),
+      });
+    for (const c of circles)
+      want.set(`c:${c.id}`, {
+        key: [c.centre.lat, c.centre.lng, c.radiusMiles, c.colour],
+        make: () => L.circle(ll(c.centre), { radius: c.radiusMiles * MILE_M, color: c.colour, opacity: 0.6, weight: 1.5, fillColor: c.colour, fillOpacity: 0.12, interactive: false }),
+      });
+    for (const p of paths)
+      want.set(`p:${p.id}`, {
+        key: [p.coords, p.colour, p.width, p.dashed],
+        make: () =>
+          L.polyline(p.coords.map(ll), { color: p.colour, weight: p.width ?? 4, dashArray: p.dashed ? '8 6' : undefined, lineCap: 'round', lineJoin: 'round', interactive: false }),
+      });
+    for (const [id, d] of drawn.current) {
+      const w = want.get(id);
+      if (!w || w.key.some((k, i) => k !== d.key[i])) {
+        d.layer.remove();
+        drawn.current.delete(id);
+      }
+    }
+    // Outlines under circles under paths, in the order given (as on the iPhone).
+    for (const [id, w] of want) {
+      if (drawn.current.has(id)) continue;
+      const layer = w.make().addTo(map);
+      drawn.current.set(id, { key: w.key, layer });
+    }
+  }, [lf, paths, circles, polygons]);
 }

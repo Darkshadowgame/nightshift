@@ -535,7 +535,11 @@ app updates.
   retried with a wait. It needs a signal to plan or re-plan a route, works only while the
   app is open, and has no lane guidance, traffic or road speed limits: the limit shown is
   a camera's or an average-speed zone's, from OpenStreetMap, and only near them.
-- The web preview uses a flat stand-in map and has no notifications or haptics.
+- The web preview draws a real dark map (Leaflet, see Data and credits) with the iPhone's pins,
+  clusters, routes and outlines; pan with a finger or the mouse, pinch or scroll to zoom (no
+  zoom buttons, like the iPhone). The driving map (once the web driving screen uses it)
+  turns heading-up but its labels turn with it, and it doesn't tilt. Offline the map falls
+  back to the old grid. The web preview has no notifications or haptics.
 
 ## Code map
 
@@ -611,6 +615,7 @@ app updates.
 | Road reports | Nightshift drivers | Kept on the server only while they're live (plus two days); never merged with the camera data |
 | Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
 | Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
+| Web preview base map (web only, `src/components/webmap/tiles.web.ts`) | Stadia Maps "Alidade Smooth Dark" raster tiles; if they won't load, Esri "Dark Gray Canvas"; offline, the grid | © Stadia Maps © OpenMapTiles © OpenStreetMap (or © Esri, HERE, Garmin © OpenStreetMap), always shown on the map. **Licence note:** both are free for development and light use only. Stadia needs no key on `localhost`, but any other web address must be registered (free tier) at stadiamaps.com, or the map drops to Esri. Revisit both (paid plan or own tiles) before a public web launch. CARTO's keyless Dark Matter tiles now return an "API key required" picture, so they aren't used. |
 
 The bundled data (17 Nov 2026): 3,470 cameras (2,025 with a speed limit, 987 with a
 direction) and 67 average-speed zones across the UK in 31 KB; 49 circuit outlines in 9 KB.
