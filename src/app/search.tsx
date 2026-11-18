@@ -5,6 +5,7 @@ import {
   Button,
   ChipGroup,
   ChoiceGroup,
+  ClassBadge,
   DsText,
   EmptyState,
   ErrorState,
@@ -19,51 +20,39 @@ import {
 } from '../components/ds';
 import { NavLaunch } from '../components/NavLaunch';
 import { NightMap } from '../components/NightMap';
-import { EventEntityCard, PlaceEntityCard, roleTag } from '../components/TonightCards';
-import {
-  ALL_TYPES,
-  defaultFilters,
-  describeFilters,
-  hitNote,
-  searchEvents,
-  travelOf,
-  TRAVEL_CHOICES,
-  VEHICLE_LABELS,
-  WHEN_LABELS,
-  type SearchFilters,
-  type Vehicles,
-  type When,
-} from '../lib/discover';
 import { classOf } from '../lib/classes';
-import { EVENT_LABELS } from '../lib/events';
+import { useNow } from '../lib/clock';
+import { useCommunity } from '../lib/communityStore';
+import { idsIn } from '../lib/connections';
+import { ALL_TYPES, defaultFilters, describeFilters, searchEvents, travelOf, TRAVEL_CHOICES, VEHICLE_LABELS, WHEN_LABELS, type SearchFilters, type SearchHit, type Vehicles, type When } from '../lib/discover';
+import { endTime, EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
-import { formatWhen, plural } from '../lib/format';
-import { formatMiles, milesBetween } from '../lib/geo';
-import { PLACE_NAMES } from '../lib/glossary';
-import { ADDRESS_SEARCH_IN_APP, currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
+import { distanceText, plural } from '../lib/format';
+import { milesBetween } from '../lib/geo';
+import { NOT_OPEN, PLACE_NAMES, roleLabel } from '../lib/glossary';
+import { currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
 import { firstPage, PAGE } from '../lib/paging';
 import { visibleSpots } from '../lib/spots';
-import { useNow } from '../lib/clock';
 import { useStore } from '../lib/store';
-import type { EventType, LatLng, SpotKind } from '../lib/types';
-import { clearRecent, distanceNote, rememberRecent, samePlace, savedPlaces, setSlot, SLOT_LABELS, whereQueries, type Destination, type SavedSlot } from '../lib/whereTo';
+import type { Build, EventType, LatLng, SpotKind, User } from '../lib/types';
+import { eventTimeLabel } from '../lib/when';
+import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
 import { COLOR, EVENT_COLOURS, RADII, SPACING, SPOT_COLOURS } from '../theme';
-import { DynoBadge } from '../components/DynoBadge';
-import { buildMeta } from '../components/Community';
 
-type Tab = 'all' | 'events' | 'places' | 'people';
+type Tab = 'all' | 'meets' | 'places' | 'people';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'events', label: 'Events' },
+  { key: 'meets', label: 'Meets' },
   { key: 'places', label: 'Places' },
   { key: 'people', label: 'People' },
 ];
 const PLACE_KINDS: SpotKind[] = ['drive', 'photo', 'track', 'venue'];
 const WHENS: When[] = ['any', 'tonight', 'week', 'weekend'];
 const VEHICLES: Vehicles[] = ['any', 'cars', 'bikes'];
-const SLOTS: SavedSlot[] = ['home', 'work'];
 /** Wait for typing to stop: Apple's suggestions are quick, the geocoder slower. */
 const DEBOUNCE_MS = liveSearchAvailable ? 300 : 600;
+/** The one line when nothing matches (Redesign 2, 3.12). */
+const NOTHING = 'Nothing called that near you.';
 
 /** Lower case, no accents or punctuation, for matching what's typed. */
 function norm(t: string): string {
@@ -74,6 +63,7 @@ function matches(q: string, ...fields: (string | undefined)[]): boolean {
   const hay = norm(fields.filter(Boolean).join(' '));
   return words.every((w) => hay.includes(w.replace(/^@/, '')));
 }
+const buildText = (b: Build) => [b.make, b.model, b.nickname, b.year ? String(b.year) : undefined];
 
 /** One address result: a place from the geocoder, or one of Apple's suggestions (resolved on tap). */
 interface AddressHit {
@@ -85,19 +75,19 @@ interface AddressHit {
 }
 
 /**
- * Search: the one search in the app (it replaced Find and Where to?). One field
- * for events, places, people and addresses, with All / Events / Places / People.
- * Addresses are places too: they show under Places (and in All), and picking one
- * shows it here with Go here, no third screen. Apple's live suggestions (MapKit)
- * on builds that have them, the geocoder otherwise; only Apple sees what's typed.
- * With nothing typed: saved and recent places (All), events near you with their
- * filters (Events), the nearest places (Places). Results open their own page.
- * Locked events only ever show their rough area; the distance is to that area.
+ * Search (Redesign 2, 3.12): find a meet, a place, a person or an address from one box, with
+ * All / Meets / Places / People. Results are grouped in that order; addresses are place results
+ * and open here with Go here. With nothing typed: meets near you (All, Meets), the nearest places
+ * by kind (Places), your connections (People). People match on their handle and on their car
+ * ("golf" finds the Golf GTI's owner). Apple's live suggestions (MapKit) on builds that have
+ * them, the geocoder otherwise; only Apple sees what's typed. A meet whose location is hidden
+ * only ever shows its area; the distance is "about" to that area.
  */
 export default function SearchScreen() {
-  const { events, me, crews, users, builds, nearby, markNearbySeen, remote, spots, settings, updatePlaces } = useStore();
+  const { events, me, crews, users, builds, markNearbySeen, remote, spots } = useStore();
+  const community = useCommunity();
   const params = useLocalSearchParams<{ q?: string; tab?: string }>();
-  const startTab: Tab = params.tab === 'addresses' ? 'places' : TABS.some((t) => t.key === params.tab) ? (params.tab as Tab) : 'all';
+  const startTab: Tab = params.tab === 'addresses' ? 'places' : params.tab === 'events' ? 'meets' : TABS.some((t) => t.key === params.tab) ? (params.tab as Tab) : 'all';
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
   const [tab, setTab] = useState<Tab>(startTab);
   const typed = norm(query).length >= 2;
@@ -108,8 +98,7 @@ export default function SearchScreen() {
   const [editing, setEditing] = useState(false);
   const [kinds, setKinds] = useState<SpotKind[]>([]);
   const [here, setHere] = useState<LatLng | null>(null);
-  // "New near you" tags stay for this visit; leaving the screen marks them seen.
-  const [fresh] = useState(() => new Set(nearby?.unseen ?? []));
+  // Opening Search marks "new near you" as seen.
   useFocusEffect(useCallback(() => () => markNearbySeen(), [markNearbySeen]));
   useEffect(() => {
     let live = true;
@@ -119,10 +108,8 @@ export default function SearchScreen() {
     };
   }, []);
   const origin = meUser.home;
-  const homeArea: Destination | null =
-    origin.lat === 0 && origin.lng === 0 ? null : { at: origin, name: 'Home area', address: meUser.region ? `${meUser.region}, to about 1 km` : 'To about 1 km' };
 
-  // ---- Events: the server's search when signed in, the same search on the phone otherwise. ----
+  // ---- Meets: the server's search when signed in, the same search on the phone otherwise. ----
   const localHits = useMemo(() => searchEvents(events, { me, crews, users, builds }, origin, filters, now), [events, me, crews, users, builds, origin, filters, now]);
   const [server, setServer] = useState<{ eventId: string; miles: number; canGo: boolean }[] | null>(null);
   useEffect(() => {
@@ -159,35 +146,34 @@ export default function SearchScreen() {
         .sort((a, b) => a.miles - b.miles),
     [spots, me, origin],
   );
+  const carOf = useCallback((userId: string) => builds.find((b) => b.ownerId === userId), [builds]);
   const found = useMemo(() => {
-    if (!typed) return { events: [], places: [], people: [], builds: [] };
+    if (!typed) return { meets: [], places: [], people: [] };
     // People by their cars too (REVIEW-9 decision 10): "golf" finds the Golf GTI's owner.
-    const buildText = (b: (typeof builds)[number]) => [b.make, b.model, b.nickname, b.year ? String(b.year) : undefined];
     const carMatch = (userId: string) => builds.find((b) => b.ownerId === userId && matches(query, ...buildText(b)));
     return {
-      events: hits.filter((h) =>
+      meets: hits.filter((h) =>
         matches(query, h.view.event.title, h.view.event.areaName, EVENT_LABELS[h.view.event.type], h.view.shownStop >= 0 ? h.view.event.stops[h.view.shownStop].name : undefined),
       ),
       places: allPlaces.filter(({ s }) => matches(query, s.name, s.region, PLACE_NAMES[s.kind].one)),
       people: users
-        .filter((u) => u.id !== me && (matches(query, u.name, u.handle) || !!carMatch(u.id)))
-        .map((u) => ({ u, car: matches(query, u.name, u.handle) ? undefined : carMatch(u.id) })),
-      builds: builds.filter((b) => matches(query, ...buildText(b))),
+        .filter((u) => u.id !== me && !community.blocked.has(u.id) && (matches(query, u.name, u.handle) || !!carMatch(u.id)))
+        .map((u) => ({ u, car: carMatch(u.id) ?? carOf(u.id) })),
     };
-  }, [typed, query, hits, allPlaces, users, builds, me]);
+  }, [typed, query, hits, allPlaces, users, builds, me, community.blocked, carOf]);
 
   // ---- Addresses: Apple's live suggestions, or the geocoder. ----
-  const saved = savedPlaces(settings.places);
   const [addresses, setAddresses] = useState<AddressHit[]>([]);
   const [addrState, setAddrState] = useState<'idle' | 'searching' | 'none' | 'error'>('idle');
   const [addrError, setAddrError] = useState('');
   const [opening, setOpening] = useState<string | null>(null);
   const [picked, setPicked] = useState<Destination | null>(null);
   const seq = useRef(0);
-  const wantsAddresses = tab === 'all' || tab === 'places';
+  const canAddress = geocoderAvailable || liveSearchAvailable;
+  const wantsAddresses = (tab === 'all' || tab === 'places') && canAddress;
   useEffect(() => {
     const mine = ++seq.current;
-    if (!wantsAddresses || !whereQueries(query) || (!geocoderAvailable && !liveSearchAvailable)) {
+    if (!wantsAddresses || !whereQueries(query)) {
       setAddresses([]);
       setAddrState('idle');
       return;
@@ -209,7 +195,7 @@ export default function SearchScreen() {
       } catch (e) {
         if (mine !== seq.current) return;
         setAddresses([]);
-        setAddrError(e instanceof SearchError ? e.message : "Couldn't search addresses just now.");
+        setAddrError(e instanceof SearchError ? e.message : "Couldn't search addresses just now. Try again in a moment.");
         setAddrState('error');
       }
     }, DEBOUNCE_MS);
@@ -221,7 +207,6 @@ export default function SearchScreen() {
   function pick(d: Destination) {
     Keyboard.dismiss();
     setPicked(d);
-    updatePlaces((p) => rememberRecent(p, d));
   }
   async function openAddress(h: AddressHit) {
     if (h.dest) return pick(h.dest);
@@ -245,37 +230,61 @@ export default function SearchScreen() {
   const distances = Array.from(new Set<number>([...TRAVEL_CHOICES, travel.miles])).sort((a, b) => a - b);
   const changed = filters.maxMiles !== travel.miles || filters.types.length > 0 || filters.when !== 'any' || filters.canGoOnly || filters.vehicles !== 'any';
   const shownPlaces = allPlaces.filter(({ s }) => !kinds.length || kinds.includes(s.kind));
+  const connected = idsIn(community.connections, 'connected')
+    .map((id) => users.find((u) => u.id === id))
+    .filter((u): u is User => !!u && !community.blocked.has(u.id));
 
-  // ---- Sections ----
-  const eventRows = (list: typeof found.events, n: number) =>
-    list.slice(0, n).map((h) => (
+  // ---- Rows: an event, a place, a person look the same everywhere (K3). ----
+  const meetRow = (h: SearchHit) => {
+    const e = h.view.event;
+    const role = h.view.role;
+    const mine = role === 'host' || role === 'going';
+    const hidden = h.view.shownStop < 0;
+    return (
       <ListRow
-        key={h.view.event.id}
-        leading={{ pin: h.view.shownStop >= 0 ? h.view.event.type : 'locked', colour: EVENT_COLOURS[h.view.event.type] }}
-        title={h.view.event.title}
-        subtitle={metaLine([EVENT_LABELS[h.view.event.type], formatWhen(h.view.event.startsAt, now)])}
-        meta={hitNote(h, false)}
-        trailing={roleTag(h.view.role, h.view.event.filter) ? <Tag label={roleTag(h.view.role, h.view.event.filter)!.label} tone={roleTag(h.view.role, h.view.event.filter)!.tone} /> : undefined}
-        onPress={() => openEvent(h.view.event.id)}
+        key={e.id}
+        leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
+        title={e.title}
+        subtitle={metaLine([EVENT_LABELS[e.type], eventTimeLabel(e.startsAt, endTime(e), now)])}
+        meta={metaLine([hidden ? distanceText(h.miles, 'about') : distanceText(h.miles, 'home'), !mine && !h.canGo ? NOT_OPEN : null])}
+        trailing={mine ? <Tag label={roleLabel(role)} tone={role === 'going' ? 'success' : 'neutral'} /> : undefined}
+        onPress={() => openEvent(e.id)}
       />
-    ));
-  const placeRows = (list: typeof allPlaces, n: number) =>
-    list.slice(0, n).map(({ s, miles }) => (
-      <ListRow
-        key={s.id}
-        leading={{ pin: s.kind, colour: SPOT_COLOURS[s.kind] }}
-        title={s.name}
-        subtitle={metaLine([PLACE_NAMES[s.kind].one, s.region])}
-        meta={`${formatMiles(miles)} from home`}
-        onPress={() => openPlace(s.id)}
-      />
-    ));
-  const addressSection = (
-    <Section title="Addresses" right={addrState === 'searching' ? <Tag label="Searching" /> : undefined}>
+    );
+  };
+  const placeRow = ({ s, miles }: (typeof allPlaces)[number]) => (
+    <ListRow
+      key={s.id}
+      leading={{ pin: s.kind, colour: SPOT_COLOURS[s.kind] }}
+      title={s.name}
+      subtitle={metaLine([PLACE_NAMES[s.kind].one, s.region])}
+      meta={distanceText(miles, 'home')}
+      trailing={s.authorId === me ? <Tag label="Yours" /> : undefined}
+      onPress={() => openPlace(s.id)}
+    />
+  );
+  const personRow = (u: User, car: Build | undefined) => (
+    <ListRow
+      key={u.id}
+      leading={{ avatar: { name: u.name, handle: u.handle } }}
+      title={`@${u.handle}`}
+      subtitle={car ? `${car.make} ${car.model}` : u.name}
+      trailing={car ? <ClassBadge letter={classOf(car)} size="sm" /> : undefined}
+      onPress={() => openPerson(u.id)}
+    />
+  );
+  const suggestRow = (
+    <ListRow
+      key="suggest"
+      leading={{ icon: 'plus' }}
+      title="Know a great road or photo spot? Suggest it"
+      onPress={() => router.push('/spot/new')}
+    />
+  );
+  const addressRows = (
+    <>
       {addrState === 'searching' && !addresses.length ? <LoadingState variant="inline" label="Searching addresses" /> : null}
-      {addrState === 'none' ? <EmptyState variant="inline" title="No address found. Try the full address, a postcode or a town." /> : null}
       {addrState === 'error' ? <ErrorState title={addrError} /> : null}
-      {!geocoderAvailable && !liveSearchAvailable ? <EmptyState variant="inline" title={`${ADDRESS_SEARCH_IN_APP} Events, places and people search here too.`} /> : null}
       {addresses.map((h) => (
         <ListRow
           key={h.key}
@@ -287,8 +296,14 @@ export default function SearchScreen() {
           accessibilityHint="Shows it here, with Go here"
         />
       ))}
-    </Section>
+    </>
   );
+
+  const nothing =
+    typed &&
+    addrState !== 'searching' &&
+    !addresses.length &&
+    (tab === 'all' ? !found.meets.length && !found.places.length && !found.people.length : tab === 'meets' ? !found.meets.length : tab === 'places' ? !found.places.length : !found.people.length);
 
   return (
     <ScrollView contentContainerStyle={st.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
@@ -299,171 +314,69 @@ export default function SearchScreen() {
             setQuery(t);
             setPicked(null);
           }}
-          placeholder="Events, places, people or an address"
+          placeholder="Meets, places, people or an address"
           loading={addrState === 'searching'}
           autoFocus={!params.q}
-          accessibilityLabel="Search events, places, people or an address"
+          accessibilityLabel="Search meets, places, people or an address"
         />
         <SegmentedControl options={TABS} value={tab} onChange={setTab} accessibilityLabel="Search in" />
       </View>
 
       {picked ? (
-        <Picked
-          place={picked}
-          note={distanceNote(here, picked.at)}
-          slot={SLOTS.find((k) => saved[k] && samePlace(saved[k]!, picked))}
-          onSave={(slot) => updatePlaces((p) => setSlot(p, slot, picked))}
-          onBack={() => setPicked(null)}
-        />
+        <Picked place={picked} note={distanceNote(here, picked.at)} onClear={() => setPicked(null)} />
       ) : typed ? (
         <>
-          {/* REVIEW-10: say when nothing on the phone matches, with something to try. */}
-          {tab === 'all' && !found.events.length && !found.places.length && !found.people.length && !found.builds.length && !addresses.length && addrState !== 'searching' ? (
-            <EmptyState
-              variant="inline"
-              title={`No results for “${query.trim()}”. Try a town, a car (like “Golf”), a handle or an event type (like “cars and coffee”).`}
-            />
-          ) : null}
-          {tab === 'all' || tab === 'events' ? (
-            found.events.length ? (
-              <Section title={plural(found.events.length, 'event')} right={tab === 'all' && found.events.length > 4 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setTab('events')} /> : undefined}>
-                {eventRows(found.events, cap(4))}
-              </Section>
-            ) : tab === 'events' ? (
-              <EmptyState variant="inline" title="No upcoming events match, within your filters." action={{ label: 'Change filters', onPress: () => setEditing(true) }} />
-            ) : null
-          ) : null}
-          {tab === 'all' || tab === 'places' ? (
-            found.places.length ? (
-              <Section title={plural(found.places.length, 'place')} right={tab === 'all' && found.places.length > 4 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setTab('places')} /> : undefined}>
-                {placeRows(found.places, cap(4))}
-              </Section>
-            ) : tab === 'places' ? (
-              <EmptyState variant="inline" title="No drives, photo spots, tracks or meet spots by that name." />
-            ) : null
-          ) : null}
-          {tab === 'all' || tab === 'people' ? (
-            found.people.length ? (
-              <Section title={plural(found.people.length, 'person', 'people')}>
-                {found.people.slice(0, cap(4)).map(({ u, car }) => (
-                  <ListRow
-                    key={u.id}
-                    leading={{ avatar: { name: u.name, handle: u.handle } }}
-                    title={`@${u.handle}`}
-                    subtitle={car ? `${car.make} ${car.model}` : u.name}
-                    onPress={() => openPerson(u.id)}
-                  />
-                ))}
-              </Section>
-            ) : tab === 'people' ? (
-              <EmptyState variant="inline" title="Nobody by that name, handle or car." />
-            ) : null
-          ) : null}
-          {(tab === 'all' || tab === 'people') && found.builds.length ? (
-            <Section title={plural(found.builds.length, 'build')}>
-              {found.builds.slice(0, cap(4)).map((b) => {
-                const owner = users.find((u) => u.id === b.ownerId);
-                return (
-                  <ListRow
-                    key={b.id}
-                    leading={{ classBadge: classOf(b) }}
-                    title={`${b.make} ${b.model}`}
-                    subtitle={b.ownerId === me ? 'Yours' : owner ? `@${owner.handle}` : undefined}
-                    meta={buildMeta(b)}
-                    trailing={<DynoBadge build={b} />}
-                    onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
-                  />
-                );
-              })}
+          {nothing ? <EmptyState variant="inline" title={NOTHING} /> : null}
+          {(tab === 'all' || tab === 'meets') && found.meets.length ? (
+            <Section title={plural(found.meets.length, 'meet')} right={tab === 'all' && found.meets.length > 4 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('meets')} /> : undefined}>
+              {found.meets.slice(0, cap(4)).map(meetRow)}
             </Section>
           ) : null}
-          {wantsAddresses ? addressSection : null}
-        </>
-      ) : tab === 'events' ? (
-        <>
-          <View style={st.filters}>
-            <DsText v="secondary" style={{ flex: 1 }} accessibilityLabel={`Searching ${describeFilters(filters, false)}`}>
-              {describeFilters(filters, false)}
-            </DsText>
-            <Button label="Filters" tier="tertiary" size="sm" onPress={() => setEditing(true)} accessibilityLabel="Change the filters" />
-          </View>
-          <Section title={plural(hits.length, 'event')}>
-            {hits.length === 0 ? (
-              <EmptyState variant="inline" title="Nothing matches. Try a wider distance or any time." action={{ label: 'Change filters', onPress: () => setEditing(true) }} />
-            ) : (
-              hitPage.items.map((h) => (
-                <EventEntityCard
-                  key={h.view.event.id}
-                  view={h.view}
-                  now={now}
-                  miles={h.miles}
-                  tag={fresh.has(h.view.event.id) && !roleTag(h.view.role, h.view.event.filter) ? { label: 'New', tone: 'info' } : undefined}
-                  onPress={() => openEvent(h.view.event.id)}
-                />
-              ))
-            )}
-            {hitPage.more > 0 ? <Button label={`Show ${hitPage.more} more`} tier="tertiary" onPress={() => setShownHits((n) => n + PAGE)} /> : null}
-          </Section>
+          {(tab === 'all' || tab === 'places') && (found.places.length || addresses.length || addrState === 'searching' || addrState === 'error') ? (
+            <Section title="Places" right={tab === 'all' && found.places.length > 4 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('places')} /> : undefined}>
+              {found.places.slice(0, cap(4)).map(placeRow)}
+              {addressRows}
+            </Section>
+          ) : null}
+          {(tab === 'all' || tab === 'people') && found.people.length ? (
+            <Section title={plural(found.people.length, 'person', 'people')}>{found.people.slice(0, cap(4)).map(({ u, car }) => personRow(u, car))}</Section>
+          ) : null}
+          {tab === 'places' ? suggestRow : null}
         </>
       ) : tab === 'places' ? (
         <>
           <ChipGroup label="Show" options={PLACE_KINDS.map((k) => ({ key: k, label: PLACE_NAMES[k].many }))} selected={kinds} onChange={setKinds} allLabel="Every kind of place" />
           <Section title="Nearest to home">
-            {shownPlaces.slice(0, 20).map(({ s, miles }) => (
-              <PlaceEntityCard key={s.id} spot={s} miles={miles} milesFrom=" from home" onPress={() => openPlace(s.id)} />
-            ))}
-            {shownPlaces.length === 0 ? <EmptyState variant="inline" title="No places like that near you yet." /> : null}
+            {shownPlaces.length === 0 ? <EmptyState variant="inline" title="No places like that near you yet." /> : shownPlaces.slice(0, 20).map(placeRow)}
           </Section>
+          {suggestRow}
         </>
       ) : tab === 'people' ? (
-        <EmptyState
-          variant="inline"
-          title="Type a name or @handle."
-          action={{ label: 'People near you', onPress: () => router.push({ pathname: '/community', params: { tab: 'people' } }) }}
-        />
+        <Section title={connected.length ? `Your connections (${connected.length})` : 'Your connections'}>
+          {connected.length ? (
+            connected.map((u) => personRow(u, carOf(u.id)))
+          ) : (
+            <EmptyState
+              variant="inline"
+              title="Type a handle or a car to find someone."
+              action={{ label: 'People near you', onPress: () => router.push({ pathname: '/community', params: { tab: 'people' } }) }}
+            />
+          )}
+        </Section>
       ) : (
-        <>
-          <Section title="Saved for directions">
-            {SLOTS.map((k) => {
-              // Home falls back to the home area from your profile (set in onboarding), so it's never
-              // "Not set" once you have one (REVIEW-8): a saved address only makes it exact.
-              const d = saved[k] ?? (k === 'home' && homeArea ? homeArea : undefined);
-              const fromProfile = k === 'home' && !saved.home && !!homeArea;
-              return (
-                <ListRow
-                  key={k}
-                  leading={{ pin: 'destination', colour: d ? COLOR.text.primary : COLOR.text.secondary }}
-                  title={SLOT_LABELS[k]}
-                  subtitle={
-                    fromProfile
-                      ? `Your home area${meUser.region ? `, ${meUser.region}` : ''}, to about 1 km. For directions you can save an exact address as Home: saved on this phone only, never shared.`
-                      : d
-                        ? [d.name, d.address].filter(Boolean).join(', ')
-                        : `Not set. Search for it, then save it as ${SLOT_LABELS[k]}. Saved on this phone only, for directions.`
-                  }
-                  onPress={d ? () => pick(d) : undefined}
-                />
-              );
-            })}
-          </Section>
-          <Section title="Recent" right={saved.recent.length ? <Button label="Clear" tier="tertiary" size="sm" onPress={() => updatePlaces(clearRecent)} accessibilityLabel="Clear recent places" /> : undefined}>
-            {saved.recent.length === 0 ? (
-              <EmptyState variant="inline" title="Addresses you search for show here." />
-            ) : (
-              saved.recent.map((d) => (
-                <ListRow
-                  key={`${d.at.lat},${d.at.lng}`}
-                  leading={{ pin: 'destination', colour: COLOR.text.secondary }}
-                  title={d.name}
-                  subtitle={[d.address, distanceNote(here, d.at)].filter(Boolean).join(' · ')}
-                  onPress={() => pick(d)}
-                />
-              ))
-            )}
-          </Section>
-        </>
+        <Section
+          title="Meets near you"
+          right={tab === 'meets' ? <Button label="Filters" tier="tertiary" size="sm" onPress={() => setEditing(true)} accessibilityLabel={`Filters: ${describeFilters(filters, false)}`} /> : undefined}
+        >
+          {hits.length === 0 ? (
+            <EmptyState variant="inline" title="Nothing on near you. Try a wider distance." action={{ label: 'Filters', onPress: () => setEditing(true) }} />
+          ) : (
+            hitPage.items.slice(0, tab === 'all' ? 8 : undefined).map(meetRow)
+          )}
+          {tab === 'meets' && hitPage.more > 0 ? <Button label={`Show ${hitPage.more} more`} tier="tertiary" onPress={() => setShownHits((n) => n + PAGE)} /> : null}
+          {tab === 'all' && hits.length > 8 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('meets')} /> : null}
+        </Section>
       )}
-      {wantsAddresses && geocoderAvailable ? <DsText v="caption">Addresses use Apple Maps. Your recent places, Home and Work stay on this phone.</DsText> : null}
 
       <Sheet visible={editing} title="Filters" onClose={() => setEditing(false)}>
         <ChoiceGroup
@@ -481,7 +394,7 @@ export default function SearchScreen() {
           onChange={(k) => set({ canGoOnly: k === 'cango' })}
           options={[
             { key: 'all', label: 'Everything' },
-            { key: 'cango', label: 'Only ones I can go to' },
+            { key: 'cango', label: 'Only ones open to my car' },
           ]}
         />
         {changed ? <Button label="Back to my usual search" tier="tertiary" onPress={() => setFilters(defaultFilters(travel.miles))} /> : null}
@@ -491,7 +404,7 @@ export default function SearchScreen() {
 }
 
 /** The chosen address on a small map, with the one primary action: Go here. */
-function Picked({ place, note, slot, onSave, onBack }: { place: Destination; note: string | null; slot: SavedSlot | undefined; onSave: (slot: SavedSlot) => void; onBack: () => void }) {
+function Picked({ place, note, onClear }: { place: Destination; note: string | null; onClear: () => void }) {
   return (
     <View style={st.picked}>
       <View style={st.pickedMap}>
@@ -504,27 +417,18 @@ function Picked({ place, note, slot, onSave, onBack }: { place: Destination; not
         />
       </View>
       <View style={{ gap: SPACING.xxs }}>
-        <DsText v="titleLg">{place.name}</DsText>
+        <DsText v="title">{place.name}</DsText>
         {place.address ? <DsText v="secondary">{place.address}</DsText> : null}
         {note ? <DsText v="meta">{note}</DsText> : null}
       </View>
       <NavLaunch target={{ kind: 'place', name: place.name, lat: place.at.lat, lng: place.at.lng }} to={place.at} label="Go here" kind="primary" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SPACING.sm }}>
-        {slot ? <Tag label={`Saved as ${SLOT_LABELS[slot]}`} tone="success" /> : null}
-        {SLOTS.filter((k) => k !== slot).map((k) => (
-          <Button key={k} label={`Save as ${SLOT_LABELS[k]}`} tier="tertiary" size="sm" onPress={() => onSave(k)} />
-        ))}
-        <Button label="Back to results" tier="tertiary" size="sm" onPress={onBack} />
-      </View>
-      {/* Not your profile's home area, which stays rough (REVIEW-9): this one never leaves the phone. */}
-      <DsText v="caption">Saved on this phone only, for directions.</DsText>
+      <Button label="Other results" tier="tertiary" size="sm" style={{ alignSelf: 'flex-start' }} onPress={onClear} />
     </View>
   );
 }
 
 const st = StyleSheet.create({
   page: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
-  filters: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
   picked: { gap: SPACING.md, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
   pickedMap: { height: 220, borderRadius: RADII.card, overflow: 'hidden' },
 });

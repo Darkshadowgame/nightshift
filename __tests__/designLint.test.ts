@@ -101,18 +101,12 @@ const KNOWN_SODIUM = new Set([
   // Still to move over (WP-B, C, D).
   'src/app/chat/new.tsx',
   'src/app/drive.tsx',
-  'src/app/event/plan.tsx',
   'src/app/forum/[id].tsx',
-  'src/app/signin.tsx',
-  'src/app/welcome.tsx',
   'src/components/AwardsSection.tsx',
   'src/components/BringPicker.tsx',
   'src/components/Community.tsx',
   'src/components/DriveHud.tsx',
-  'src/components/EventForm.tsx',
   'src/components/NoticeBell.tsx',
-  'src/components/SearchSelect.tsx',
-  'src/components/VehiclePicker.tsx',
 ]);
 
 /** A typed date: the one picker is DateTimeSheet (4.4). */
@@ -126,7 +120,6 @@ const KNOWN_RADIO = new Set([
   'src/components/AwardsSection.tsx',
   'src/components/BringPicker.tsx',
   'src/components/DriveHud.tsx',
-  'src/components/VehiclePicker.tsx',
 ]);
 
 describe('Redesign 2 lint', () => {

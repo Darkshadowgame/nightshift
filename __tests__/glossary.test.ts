@@ -85,18 +85,15 @@ const KNOWN: Record<string, string[]> = {
   'src/app/connections.tsx': ['stop'],
   'src/app/drive.tsx': ['stop'],
   'src/app/event/[id].tsx': ['stop', 'invited', 'you can go'],
-  'src/app/event/plan.tsx': ['stop', 'locked'],
   'src/app/forum/[id].tsx': ['Sample (tag)'],
   'src/app/post/[id].tsx': ['Sample (tag)'],
   'src/app/report.tsx': ['stop'],
   'src/app/shop/[id].tsx': ['Find'],
   'src/app/spot/[id].tsx': ['stop', 'rep'],
   'src/app/user/[id].tsx': ['Sample (tag)', 'rep'],
-  'src/app/welcome.tsx': ['Sample area'],
   'src/components/AwardsSection.tsx': ['rep'],
   'src/components/Community.tsx': ['Sample (tag)', 'level'],
   'src/components/CommunityFeed.tsx': ['Find'],
-  'src/components/EventForm.tsx': ['stop', 'invited'],
   'src/components/TonightCards.tsx': ['unlock', 'locked'],
 };
 

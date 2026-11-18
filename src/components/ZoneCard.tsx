@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { Linking, View } from 'react-native';
 import { MEET_BAN } from '../lib/glossary';
-import { zoneInfo } from '../lib/zones';
+import { zoneInfo, zoneKind, zoneLine, zoneShortName } from '../lib/zones';
 import type { BanZone } from '../lib/types';
 import { COLOR, RADII, SPACING, line, tint } from '../theme';
-import { Button, DsText, Icon } from './ds';
+import { Button, DsText, Icon, Press } from './ds';
 
 const openUrl = (url: string) => Linking.openURL(url).catch(() => {});
 
@@ -66,9 +66,23 @@ function Fact({ label, text }: { label: string; text: string }) {
  * Inline, where a stop or place is inside a meet ban: the warning, what it bans, the official
  * source link and the full card one tap away. Shown on host steps, plan changes and place pages.
  */
-export function ZoneNotice({ zone, subject, onOpen }: { zone: BanZone; subject?: string; onOpen?: () => void }) {
+export function ZoneNotice({ zone, subject, onOpen, compact }: { zone: BanZone; subject?: string; onOpen?: () => void; compact?: boolean }) {
   const z = zoneInfo(zone);
   const open = onOpen ?? (() => router.push({ pathname: '/zone/[id]', params: { id: zone.id } }));
+  // The host flow's one line (Redesign 2, 3.6): what it is, and the order one tap away. Warn only.
+  if (compact) {
+    return (
+      <Press onPress={open} label={`${zoneLine(zone)}. See the order`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: 44 }}>
+        <Icon name="alert" size={18} colour={COLOR.state.warning} />
+        <DsText v="secondary" style={{ flex: 1 }}>
+          {`${subject ? `${subject}: inside` : 'Inside'} ${zoneShortName(zone)}'s ${zoneKind(zone) === 'injunction' ? 'court injunction' : zoneKind(zone) === 'pspo' ? 'PSPO' : 'dispersal-order area'}.`}
+        </DsText>
+        <DsText v="buttonSm" tone="action">
+          See the order ›
+        </DsText>
+      </Press>
+    );
+  }
   return (
     <View
       style={{ gap: SPACING.xs, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: line(COLOR.state.warning), backgroundColor: tint(COLOR.state.warning) }}

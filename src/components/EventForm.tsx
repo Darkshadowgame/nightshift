@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation, usePreventRemove } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../data/seed';
+import { appNow } from '../lib/appClock';
 import { eventArea } from '../lib/area';
 import { useNow } from '../lib/clock';
 import { isCrewHost } from '../lib/crews';
 import { banZoneAt, duplicateHosted, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
-import { formatWhen, plural } from '../lib/format';
+import { plural } from '../lib/format';
 import { fitRegion } from '../lib/geo';
 import { leadText, LOCATION, MEET_POINT } from '../lib/glossary';
-import { classRange, DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
+import { clearHostDraft, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
+import { DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
 import { nearestRegion } from '../lib/profile';
 import { newId, useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
-import { defaultStart, endFrom, EVENING_TIMES, MAX_DAYS_AHEAD, orderedTimes, pickedDayChoice, quickDays, startFrom, timeAfter, type DayChoice } from '../lib/when';
-import { clearHostDraft, restoredDay, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
-import { BrandPicker } from './BrandPicker';
+import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
 import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortName } from '../lib/zones';
-import { COLOR, RADII, SPACING } from '../theme';
-import { Callout, Field, MediaFrame, TextField } from './Detail';
-import { Button, ChipGroup, ChoiceGroup, DateSheet, displayHandle, DsText, ErrorState, localDay, Press, RowDivider, Section, Sheet, StatBlock, SwitchRow } from './ds';
+import { COLOR, EVENT_COLOURS, SPACING } from '../theme';
+import { BrandPicker } from './BrandPicker';
+import { Callout, MediaFrame } from './Detail';
+import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, PAGE_WITH_BAR, Press, RowDivider, Section, Sheet, SwitchRow, TextField } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -32,41 +32,60 @@ import { ZoneNotice } from './ZoneCard';
 const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
 const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
-const TYPES: EventType[] = ['meet', 'cruise', 'rolling', 'show', 'trackday'];
+/** What a host can make (Redesign 2, 3.6): Show and Track day still display, but aren't made here. */
+const TYPES: EventType[] = ['meet', 'cruise', 'rolling'];
 const TYPE_HINTS: Record<EventType, string> = {
-  cruise: 'A planned route with regroup points. The whole route is shown to everyone going at the time you pick.',
-  rolling: 'A meet in several parts. Every meet point is placed now. People going see the one it is at; a host moves it on to the next.',
   meet: 'One meet point. Pick somewhere with permission, or a meet spot that welcomes meets.',
+  cruise: 'A planned route with regroup points. People going see the whole route when the location shows.',
+  rolling: 'A meet in several parts. People going see the one it is at; you move it on to the next.',
   show: 'A public show. The venue is visible to everyone.',
   trackday: 'A circuit or sprint venue. Public, and the only place lap times count.',
 };
-/** Quick start times; "Other time" offers every 15 minutes (REVIEW-9 decision 4). No 10:00 (REVIEW-10). */
-const TIME_CHOICES = EVENING_TIMES;
-/** Quick end times: hours after the start. */
-const LENGTH_CHOICES = [120, 180, 240];
 const REVEAL_CHOICES = [0, 30, 60, 120];
-const MOD_CHOICES = [0, 1, 3, 5, 8];
 const RADIUS_CHOICES = [10, 25, 50, 100];
+const HOUR = 3_600_000;
+/** A new meet ends 3 hours after it starts unless the host says otherwise. */
+const DEFAULT_LENGTH = 3 * HOUR;
 
-const STEPS = ['What', 'When', 'Where', "Who's invited", 'Review'] as const;
-type Step = 0 | 1 | 2 | 3 | 4;
+const STEPS = ['What and when', 'Where', 'Who can come', 'Check and post'] as const;
+type Step = 0 | 1 | 2 | 3;
+const LAST: Step = 3;
 
-function hhmm(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-/**
- * The host flow, in five steps: What → When → Where (and stops) → Who's invited → Review.
- * Used to create an event and to edit one before it starts. `onSubmit` gets the finished event
- * and may throw with a readable reason. Invite filters follow the chip rule: nothing selected
- * means everyone in that dimension.
- */
 /** What the form showed when it was sent: the invite count ("12", "fewer than 3", "…" while counting). */
 export interface EventFormSent {
   invited: string;
 }
 
+/** The first start for a new meet: tonight at 20:00, or the next sensible evening time. */
+function firstStart(now: Date): Date {
+  const d = defaultStart(now);
+  const r = startFrom(quickDays(now)[d.day], d.time, now);
+  if (r.ok) return r.start;
+  const t = new Date(now.getTime() + 2 * HOUR);
+  t.setMinutes(0, 0, 0);
+  return t;
+}
+
+/** A saved draft's start, if it's still to come (older drafts saved a day choice and a time). */
+function draftStart(d: HostDraft, now: Date): Date | null {
+  if (!d.day || !d.time) return null;
+  const r = startFrom(d.day, d.time, now);
+  return r.ok ? r.start : null;
+}
+
+/**
+ * The host flow (Redesign 2, 3.6), four steps: What and when → Where → Who can come → Check and
+ * post. Used to create an event and to edit one before it starts. `onSubmit` gets the finished
+ * event and may throw with a readable reason.
+ *
+ * - The header's back goes to the step before. On the first step, leaving a new meet with
+ *   anything in it asks "Keep this meet as a draft?" (the draft is saved as you go); leaving an
+ *   edit with changes asks "Discard your changes?".
+ * - Next and Post live in the ActionBar and are never disabled: what's missing shows above them.
+ * - Meet bans warn, never block (owner): a court injunction or a PSPO asks before posting, with
+ *   "Change location" as the main button.
+ * - Invites follow the chip rule: nothing picked in a row means everyone in it.
+ */
 export function EventForm({
   initial,
   draft,
@@ -76,13 +95,12 @@ export function EventForm({
   initial?: NightEvent;
   /** A new event: the saved draft to carry on with (REVIEW-10 decision 2). */
   draft?: HostDraft | null;
-  submitLabel: string;
+  submitLabel?: string;
   onSubmit: (event: NightEvent, sent: EventFormSent) => void | Promise<void>;
 }) {
   const store = useStore();
   const { users, builds, me, crews } = store;
   const now = useNow();
-  const insets = useSafeAreaInsets();
   const meUser = users.find((u) => u.id === me)!;
   const myCrew = crews.find((c) => c.id === meUser.crewId);
   /** Only crew owners and hosts can put an event under the crew. */
@@ -91,25 +109,18 @@ export function EventForm({
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
 
   const d0 = !initial ? draft : null;
-  const [step, setStep] = useState<Step>(() => (d0 ? (Math.min(Math.max(d0.step, 0), 4) as Step) : 0));
-  const [baseDays] = useState<DayChoice[]>(() =>
-    initial ? [{ label: formatWhen(initial.startsAt, now).replace(/ \d\d:\d\d$/, '') + ' (as planned)', days: 0, date: initial.startsAt }, ...quickDays(now)] : quickDays(now),
-  );
-  const [startDefault] = useState(() => (d0 ? restoredDay(d0, baseDays, now) : null));
-  const [firstStart] = useState(() => defaultStart(now));
-  /** A date from "Pick a date", shown as its own choice once picked. */
-  const [pickedDay, setPickedDay] = useState<DayChoice | null>(startDefault?.picked ?? null);
-  const dayChoices = dayChoicesOf(baseDays, pickedDay);
-  const [pickDateOpen, setPickDateOpen] = useState(false);
-  /** Which time the hour-and-minute sheet is setting. */
-  const [timeSheet, setTimeSheet] = useState<'start' | 'end' | null>(null);
-  const [endTime, setEndTime] = useState<string | null>(initial?.endsAt ? hhmm(initial.endsAt) : (d0?.endTime ?? null));
-  const [type, setType] = useState<EventType>(initial?.type ?? d0?.type ?? 'meet');
+  const [step, setStep] = useState<Step>(() => (d0 ? (Math.min(Math.max(d0.step, 0), LAST) as Step) : 0));
+  const [type, setType] = useState<EventType>(initial?.type ?? (d0 && TYPES.includes(d0.type) ? d0.type : 'meet'));
   const [title, setTitle] = useState(initial?.title ?? d0?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? d0?.description ?? '');
   const [areaName, setAreaName] = useState(initial?.areaName ?? d0?.areaName ?? '');
-  const [day, setDay] = useState(startDefault ? startDefault.index : initial ? 0 : firstStart.day);
-  const [time, setTime] = useState(initial ? hhmm(initial.startsAt) : (d0?.time ?? firstStart.time));
+  const [start, setStartRaw] = useState<Date>(() => (initial ? new Date(initial.startsAt) : (d0 && draftStart(d0, now)) || firstStart(now)));
+  const [end, setEnd] = useState<Date | null>(() => {
+    if (initial) return initial.endsAt ? new Date(initial.endsAt) : null;
+    const s = (d0 && draftStart(d0, now)) || firstStart(now);
+    if (d0 && draftStart(d0, now)) return endFrom(s, d0.endTime) ?? new Date(s.getTime() + DEFAULT_LENGTH);
+    return new Date(s.getTime() + DEFAULT_LENGTH);
+  });
   const [stops, setStops] = useState<DraftStop[]>(() =>
     initial
       ? initial.stops.map((st) => ({ key: st.id, name: st.name, at: st.at }))
@@ -125,27 +136,50 @@ export function EventForm({
   const [reveal, setReveal] = useState(initial?.revealMinutesBefore ?? d0?.reveal ?? 60);
   const [crewOwned, setCrewOwned] = useState(initial ? !!initial.crewId : d0 ? d0.crewOwned && canCrewHost : canCrewHost);
   const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : (d0?.coHosts ?? []));
+  /** "Limit who can come" and "More options" are open. */
+  const [limiting, setLimiting] = useState(() => !normaliseFilter(filter).everyone);
+  const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   /** Set once Next was tapped on Where, so unnamed meet points show their own error. */
   const [checkNames, setCheckNames] = useState(false);
-  /** The court-injunction confirm is open. */
-  const [askInjunction, setAskInjunction] = useState(false);
-  /** PSPOs the host has said they checked (by zone id), for the Review step's lighter confirm. */
-  const [pspoAck, setPspoAck] = useState<string>('');
+  /** The meet-ban confirm before posting is open. */
+  const [askBan, setAskBan] = useState(false);
+
+  /** A new start keeps the length the meet had (3 h to begin with). */
+  function setStart(d: Date) {
+    const length = end ? Math.max(15 * 60_000, end.getTime() - start.getTime()) : editing ? 0 : DEFAULT_LENGTH;
+    setStartRaw(d);
+    if (length) setEnd(new Date(d.getTime() + length));
+  }
 
   // ---------------------------------------------------------------------------
-  // The draft (REVIEW-10 decision 2): saved as you go; leaving from step 2 on asks first.
+  // The draft (REVIEW-10 decision 2): saved as you go; leaving asks "Keep this meet as a draft?".
   // ---------------------------------------------------------------------------
-  const dayPicked = dayChoicesOf(baseDays, pickedDay)[Math.min(day, baseDays.length + (pickedDay ? 1 : 0) - 1)];
-  const draftNow: HostDraft = { step, type, title, description, areaName, day: dayPicked, time, endTime, reveal, stops, filter, crewOwned, coHosts, savedAt: '' };
+  const draftNow: HostDraft = {
+    step,
+    type,
+    title,
+    description,
+    areaName,
+    day: { label: whenLabel(start, now), days: 0, date: start.toISOString() },
+    time: clock(start),
+    endTime: end ? clock(end) : null,
+    reveal,
+    stops,
+    filter,
+    crewOwned,
+    coHosts,
+    savedAt: '',
+  };
   const draftKey = JSON.stringify(draftNow);
-  /** Set once the event is sent (or the draft thrown away), so leaving never asks again. */
+  const [startKey] = useState(draftKey);
+  /** Set once the event is sent (or the draft kept or thrown away), so leaving never asks again. */
   const finished = useRef(false);
   useEffect(() => {
     if (editing || finished.current || !worthKeeping(draftNow)) return;
     const t = setTimeout(() => {
-      if (!finished.current) saveHostDraft(me, { ...draftNow, savedAt: new Date().toISOString() });
+      if (!finished.current) saveHostDraft(me, { ...draftNow, savedAt: appNow().toISOString() });
     }, 400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -154,10 +188,14 @@ export function EventForm({
   const [leaveAction, setLeaveAction] = useState<{ type: string } | null>(null);
   /** Leaving is allowed (sent, kept or discarded); `action` is the navigation to finish once the guard is off. */
   const [exit, setExit] = useState<{ action: { type: string } | null } | null>(null);
-  usePreventRemove(!editing && step >= 1 && !exit, ({ data }) => {
+  const changed = editing ? draftKey !== startKey : worthKeeping(draftNow);
+  // Back (the header's, a swipe) goes to the step before; on the first step, a meet with anything
+  // in it asks first.
+  usePreventRemove(!exit && (step > 0 || changed), ({ data }) => {
     // Dispatching from inside the guard would be stopped again (and loop): turn it off first.
-    if (finished.current) setExit({ action: data.action });
-    else setLeaveAction(data.action);
+    if (finished.current) return setExit({ action: data.action });
+    if (step > 0) return go((step - 1) as Step);
+    setLeaveAction(data.action);
   });
   useEffect(() => {
     if (exit?.action) navigation.dispatch(exit.action as never);
@@ -167,13 +205,12 @@ export function EventForm({
     const action = leaveAction;
     setLeaveAction(null);
     finished.current = true;
-    if (keep) saveHostDraft(me, { ...draftNow, savedAt: new Date().toISOString() });
-    else clearHostDraft(me);
+    if (!editing) {
+      if (keep) saveHostDraft(me, { ...draftNow, savedAt: appNow().toISOString() });
+      else clearHostDraft(me);
+    }
     setExit({ action });
   }
-
-  const chosen = startFrom(dayChoices[Math.min(day, dayChoices.length - 1)], time, now);
-  const chosenEnd = chosen.ok ? endFrom(chosen.start, endTime) : null;
 
   const singlePlace = type === 'meet' || type === 'show' || type === 'trackday';
   const visibleStops = singlePlace ? stops.slice(0, 1) : stops;
@@ -199,6 +236,7 @@ export function EventForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area.lat, area.lng]);
   const suggestedAreaName = placed.length ? (town ?? nearestRegion(area)) : meUser.region;
+  const shownArea = areaName.trim() || suggestedAreaName;
   const localMatches = useMemo(() => invitees(users.filter((u) => u.id !== me), builds, filter, area), [users, builds, filter, area, me]);
   // Signed in, other people's homes never reach the phone: the server counts (invite_count(), "fewer than 3" as null).
   const remote = store.remote;
@@ -219,30 +257,27 @@ export function EventForm({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remote, filterKey, area.lat, area.lng]);
-  const countText = (n: number | null) => (n === null ? 'fewer than 3' : String(n));
-  const peopleCount = !remote ? String(localMatches.userIds.length) : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : countText(serverCount.people);
-  const buildCount = !remote ? String(localMatches.buildIds.length) : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : countText(serverCount.builds);
-  const bans = placed.map((st) => ({ st, zone: banZoneAt(st.at!, BAN_ZONES) })).filter((x) => x.zone);
-  // Warn only (owner), but a court injunction needs "Publish anyway" and a PSPO a tick on Review.
+  const peopleCount = !remote ? String(localMatches.userIds.length) : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : serverCount.people === null ? 'fewer than 3' : String(serverCount.people);
+  const peopleText = /^\d+$/.test(peopleCount) ? plural(Number(peopleCount), 'person', 'people') : `${peopleCount} people`;
+  // Warn only (owner): a court injunction or a PSPO asks before posting.
   const check = publishCheck(placed, BAN_ZONES);
-  const psposKey = check.pspos.map((z) => z.id).join(',');
-  const pspoOk = !psposKey || pspoAck === psposKey;
-  const verb = editing ? 'Save' : 'Publish';
+  const verb = editing ? 'Save' : 'Post';
   const friends = meUser.crewId ? users.filter((u) => u.id !== me && u.crewId === meUser.crewId) : [];
   const myBuilds = builds.filter((b) => b.ownerId === me);
   const leftOut = !isPublicType(type) && hostLeftOut(filter, myBuilds);
   const leftOutWhy = leftOut ? leftOutMessage(filter, myBuilds) : null;
+  const postLabel = submitLabel ?? `Post ${EVENT_LABELS[type].toLowerCase()}`;
 
   function setStop(i: number, patch: Partial<DraftStop>) {
     setStops((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   }
 
-  /** Which stop the full-screen map picker is placing, if it's open. */
+  /** Which meet point the full-screen map picker is placing, if it's open. */
   const [picking, setPicking] = useState<number | null>(null);
-  /** The last name the geocoder gave each stop, so a name the host typed is never overwritten. */
+  /** The last name the geocoder gave each meet point, so a name the host typed is never overwritten. */
   const autoNames = useRef<Record<string, string>>({});
 
-  /** Drop a stop, then name it after the street and town (the host can edit it). */
+  /** Drop a meet point, then name it after the street and town (the host can edit it). */
   function placeStop(i: number, at: LatLng, knownName?: string) {
     const key = stops[i]?.key;
     if (!key) return;
@@ -264,7 +299,7 @@ export function EventForm({
     });
   }
 
-  function stopLabel(i: number, n: number) {
+  function pointLabel(i: number, n: number) {
     if (type === 'cruise') return i === 0 ? 'Start' : i === n - 1 ? 'Finish' : `Regroup ${i}`;
     if (type === 'rolling') return `Meet point ${i + 1}`;
     if (type === 'show') return 'Venue';
@@ -272,16 +307,20 @@ export function EventForm({
     return 'Meet point';
   }
 
-  /** What's missing on a step, if anything (shown under Next, which stays tappable). */
+  /** What's missing on a step, if anything (shown above Next, which is never disabled). */
   function problem(s: Step): string | null {
-    if (s === 0 && !title.trim()) return 'Give the event a name.';
-    if (s === 1 && !chosen.ok) return chosen.reason;
-    if (s === 2) {
-      if (!visibleStops[0]?.at) return `Choose the ${stopLabel(0, visibleStops.length).toLowerCase()} on the map.`;
+    if (s === 0) {
+      if (!title.trim()) return 'Give the meet a name.';
+      if (start.getTime() <= appNow().getTime()) return 'Pick a start time in the future.';
+      if (start.getTime() - appNow().getTime() > (MAX_DAYS_AHEAD + 1) * 86_400_000) return `Pick a date in the next ${MAX_DAYS_AHEAD} days.`;
+      if (end && end.getTime() <= start.getTime()) return 'Pick an end after the start.';
+    }
+    if (s === 1) {
+      if (!visibleStops[0]?.at) return `Choose the ${pointLabel(0, visibleStops.length).toLowerCase()} on the map.`;
       if (type === 'cruise' && placed.length < 2) return 'A cruise needs at least a start and a finish.';
-      if (type === 'rolling' && visibleStops.some((x) => !x.at)) return 'Place every meet point on the map. Rolling meets are planned in full before they start.';
+      if (type === 'rolling' && visibleStops.some((x) => !x.at)) return 'Place every meet point on the map, or remove the empty one.';
       const unnamed = visibleStops.findIndex((x) => x.at && !x.name.trim());
-      if (unnamed >= 0) return `Give the ${stopLabel(unnamed, visibleStops.length).toLowerCase()} a name people will recognise.`;
+      if (unnamed >= 0) return `Give the ${pointLabel(unnamed, visibleStops.length).toLowerCase()} a name people will recognise.`;
     }
     return null;
   }
@@ -293,39 +332,35 @@ export function EventForm({
   }
 
   function nextStep() {
-    if (step === 2) setCheckNames(true);
+    if (step === 1) setCheckNames(true);
     const p = problem(step);
     if (p) return setError(p);
     go((step + 1) as Step);
   }
 
-  /** Publish: checks every step, then asks before a court injunction (warn only, never blocked). */
+  /** Post: checks every step, then asks before a meet ban (warn only, never blocked). */
   function save() {
     if (saving) return;
-    for (const s of [0, 1, 2] as Step[]) {
+    for (const s of [0, 1] as Step[]) {
       const p = problem(s);
       if (p) {
-        if (s === 2) setCheckNames(true);
-        setStep(s);
+        if (s === 1) setCheckNames(true);
+        go(s);
         return setError(p);
       }
     }
-    if (!pspoOk) return setError(`Tick that you've checked the PSPO first.`);
-    if (check.injunction) return setAskInjunction(true);
+    if (check.injunction || check.pspos.length) return setAskBan(true);
     return publish();
   }
 
   async function publish() {
-    setAskInjunction(false);
+    setAskBan(false);
     if (saving) return;
     const used = visibleStops;
     const id = initial?.id ?? newId('ev');
-    const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], stopLabel);
-    // The rough area is fuzzed from the stops with the event's own id, so it never sits on a stop.
+    const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], pointLabel);
+    // The area is fuzzed from the meet points with the event's own id, so it never sits on one.
     const where = eventArea(finalStops.map((st) => st.at!), id, isPublicType(type));
-    const when = startFrom(dayChoices[Math.min(day, dayChoices.length - 1)], time, new Date());
-    if (!when.ok) return setError(when.reason);
-    const start = when.start;
     // Editing as a crew member who isn't a named host keeps the named hosts as they were.
     let hostIds = initial ? Array.from(new Set([...(initial.hostIds.includes(me) ? [me] : []), ...coHosts])) : [me, ...coHosts];
     if (hostIds.length === 0) hostIds = [me];
@@ -338,7 +373,7 @@ export function EventForm({
       startsAt: start.toISOString(),
       area: where.area,
       areaRadiusMiles: where.areaRadiusMiles,
-      areaName: areaName.trim() || suggestedAreaName,
+      areaName: shownArea,
       stops: finalStops,
       currentStop: initial?.currentStop ?? 0,
       revealMinutesBefore: isPublicType(type) ? 0 : reveal,
@@ -349,12 +384,10 @@ export function EventForm({
       going: initial?.going ?? [me],
       checkIns: initial?.checkIns ?? {},
     };
-    // The optional end time: the same evening, or the small hours after (REVIEW-9 decision 4).
-    const end = endFrom(start, endTime);
     if (end) event.endsAt = end.toISOString();
     else delete event.endsAt;
     const twin = !initial ? duplicateHosted(store.events, event, me) : undefined;
-    if (twin) return setError(`You already host ${twin.title} at that time. Open it from Tonight, or change the name or time.`);
+    if (twin) return setError(`You already host ${twin.title} at that time. Change the name or the time.`);
     setError(null);
     setSaving(true);
     finished.current = true;
@@ -371,13 +404,14 @@ export function EventForm({
     }
   }
 
-  const stopPins = (active: number | null) =>
+  const typeColour = EVENT_COLOURS[type];
+  const pointPins = (active: number | null) =>
     visibleStops.flatMap((st, i) =>
       st.at && i !== (active === null ? -1 : active)
-        ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? COLOR.action.primary : COLOR.text.primary, title: st.name || stopLabel(i, visibleStops.length), size: active === null ? 36 : 28 }]
+        ? [{ id: `st:${i}`, at: st.at, glyph: type, colour: i === activeStop ? typeColour : COLOR.text.primary, title: st.name || pointLabel(i, visibleStops.length), size: active === null ? 36 : 28 }]
         : [],
     );
-  const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: COLOR.action.primary, dashed: true }] : [];
+  const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: typeColour, dashed: true }] : [];
   // The preview frames the meet points placed so far, or opens on home.
   const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.9 };
   function openPicker(i: number) {
@@ -385,24 +419,17 @@ export function EventForm({
     setPicking(i);
   }
 
-  const startText = chosen.ok ? `${formatWhen(chosen.start.toISOString(), now)}${chosenEnd ? ` to ${hhmm(chosenEnd.toISOString())}` : ''}` : '';
-  const dayNow = dayChoices[Math.min(day, dayChoices.length - 1)];
-  // The quick times that are still to come on this day, plus the one picked.
-  const quickTimes = orderedTimes(dayNow, Array.from(new Set([...TIME_CHOICES, time])), now).filter((t) => t.time === time || startFrom(dayNow, t.time, now).ok);
-  const endOptions = chosen.ok
-    ? [
-        { key: 'none', label: 'No set end' },
-        ...Array.from(new Set([...LENGTH_CHOICES.map((m) => timeAfter(chosen.start, m)), ...(endTime ? [endTime] : [])])).map((t) => ({ key: t, label: `Until ${t}` })),
-      ]
-    : [{ key: 'none', label: 'No set end' }];
-  const revealText = isPublicType(type) ? 'Visible to everyone' : `${LOCATION.lead(reveal)}, to people going`;
+  const whenText = timeRange(start, end, now);
+  const revealText = isPublicType(type) ? 'Everyone sees where it is' : `${LOCATION.lead(reveal)}, to people going`;
   const coHostNames = coHosts.map((h) => displayHandle(users.find((u) => u.id === h)?.handle ?? h));
+  const vehicles = vehicleSelection(filter);
+  const summary = `${describeFilter(normaliseFilter(filter))} · ${peopleText}`;
 
   // ---------------------------------------------------------------------------
   // Steps
   // ---------------------------------------------------------------------------
 
-  const what = (
+  const whatWhen = (
     <>
       <ChoiceGroup
         label="Type"
@@ -412,83 +439,59 @@ export function EventForm({
       />
       <DsText v="secondary">{TYPE_HINTS[type]}</DsText>
       <Field label="Name">
-        <TextField value={title} onChangeText={setTitle} placeholder="e.g. Peak District night cruise" maxLength={60} accessibilityLabel="Name" />
+        <TextField value={title} onChangeText={setTitle} placeholder="e.g. Sunday coffee and cars" maxLength={60} accessibilityLabel="Name" />
       </Field>
+      <DateTimeField
+        label="Starts"
+        value={start}
+        onChange={setStart}
+        minDate={now}
+        maxDate={new Date(now.getTime() + MAX_DAYS_AHEAD * 86_400_000)}
+        days={14}
+        stepMinutes={15}
+      />
+      <DateTimeField label="Ends" value={end} onChange={setEnd} placeholder="No set end" minDate={new Date(start.getTime() + 15 * 60_000)} maxDate={new Date(start.getTime() + 24 * HOUR)} stepMinutes={15} />
       <Field label="Details (optional)">
         <TextField value={description} onChangeText={setDescription} placeholder="Anything people should know" multiline multilineHeight={88} accessibilityLabel="Details" />
       </Field>
     </>
   );
 
-  const whenStep = (
-    <>
-      <ChoiceGroup chips label="Day" options={dayChoices.map((d, i) => ({ key: String(i), label: d.label }))} value={String(Math.min(day, dayChoices.length - 1))} onChange={(k) => setDay(Number(k))} />
-      <Button label="Pick a date" icon="plus" tier="tertiary" size="sm" onPress={() => setPickDateOpen(true)} accessibilityLabel="Pick any date in the next 60 days" style={{ alignSelf: 'flex-start' }} />
-      <ChoiceGroup label="Start time" options={quickTimes.map((t) => ({ key: t.time, label: t.label }))} value={time} onChange={setTime} />
-      <Button label="Other time" icon="plus" tier="tertiary" size="sm" onPress={() => setTimeSheet('start')} accessibilityLabel="Pick any start time, in 15-minute steps" style={{ alignSelf: 'flex-start' }} />
-      <ChoiceGroup chips label="End time (optional)" options={endOptions} value={endTime ?? 'none'} onChange={(k) => setEndTime(k === 'none' ? null : k)} />
-      <Button label="Other end time" icon="plus" tier="tertiary" size="sm" onPress={() => setTimeSheet('end')} style={{ alignSelf: 'flex-start' }} />
-      {chosen.ok ? <DsText v="bodyStrong">Starts {startText}</DsText> : <ErrorState title={chosen.reason} />}
-      {!isPublicType(type) ? (
-        <>
-          <ChoiceGroup
-            label={LOCATION.setting}
-            options={REVEAL_CHOICES.map((m) => ({ key: String(m), label: m === 0 ? 'At the start' : `${leadText(m)} before` }))}
-            value={String(reveal)}
-            onChange={(k) => setReveal(Number(k))}
-          />
-          <DsText v="secondary">{LOCATION.toGoing}. Until then they only see the area.</DsText>
-        </>
-      ) : null}
-    </>
-  );
-
   const whereStep = (
     <>
-      <DsText v="secondary">
-        Choose {singlePlace ? `the ${MEET_POINT.one}` : `each ${MEET_POINT.one}`} on the map: move it until the crosshair is on it. It's named after the street or the known place it's on; edit the name if you like. Each one is checked against meet bans.
-      </DsText>
-      <Press onPress={() => openPicker(activeStop)} label={`Open the map to place the ${stopLabel(activeStop, visibleStops.length).toLowerCase()}`} feedback="card">
+      <Press onPress={() => openPicker(activeStop)} label={`Open the map to place the ${pointLabel(activeStop, visibleStops.length).toLowerCase()}`} feedback="card">
         <MediaFrame height={180}>
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <NightMap pins={[...BAN_PINS, ...stopPins(null)]} paths={routePaths} circles={BAN_SHAPES.circles} polygons={BAN_SHAPES.polygons} centre={preview.centre} span={preview.span} follow />
+            <NightMap pins={[...BAN_PINS, ...pointPins(null)]} paths={routePaths} circles={BAN_SHAPES.circles} polygons={BAN_SHAPES.polygons} centre={preview.centre} span={preview.span} follow />
           </View>
           {placed.length === 0 ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.scrim }]}>
-              <DsText v="buttonSm">Tap to open the map</DsText>
+              <DsText v="buttonSm">Tap to choose on the map</DsText>
             </View>
           ) : null}
         </MediaFrame>
       </Press>
       {visibleStops.map((st, i) => {
         const zone = st.at ? banZoneAt(st.at, BAN_ZONES) : undefined;
-        const label = stopLabel(i, visibleStops.length);
+        const label = pointLabel(i, visibleStops.length);
         return (
           <View key={st.key} style={{ gap: SPACING.sm }}>
             {i > 0 ? <RowDivider /> : null}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-              <DsText v="label" style={{ flex: 1 }}>
-                {label}
-              </DsText>
-              <DsText v="meta" tone={st.at ? 'success' : 'secondary'}>
-                {st.at ? 'Placed' : 'Not placed'}
-              </DsText>
-            </View>
-            <TextField
-              value={st.name}
-              onChangeText={(name) => setStop(i, { name })}
-              onFocus={() => setActiveStop(i)}
-              placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : `Name this ${MEET_POINT.one}`}
-              accessibilityLabel={`${label} name`}
-            />
+            <Field label={label}>
+              <TextField
+                value={st.name}
+                onChangeText={(name) => setStop(i, { name })}
+                onFocus={() => setActiveStop(i)}
+                placeholder={st.at ? (geocoderAvailable ? 'Naming it from the map…' : `Name this ${MEET_POINT.one}`) : 'Choose it on the map first'}
+                accessibilityLabel={`${label} name`}
+              />
+            </Field>
             {checkNames && st.at && !st.name.trim() ? (
               <DsText v="caption" tone="danger">
                 Name it, e.g. the car park or venue people know it by.
               </DsText>
-            ) : st.at && autoNames.current[st.key] && st.name === autoNames.current[st.key] ? (
-              <DsText v="caption">Named from the map. Edit it if people know it by another name.</DsText>
             ) : null}
-            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+            <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' }}>
               <Button
                 label={st.at ? 'Move on the map' : 'Choose on the map'}
                 tier="secondary"
@@ -501,7 +504,7 @@ export function EventForm({
               {!singlePlace && visibleStops.length > 2 ? (
                 <Button
                   label="Remove"
-                  tier="destructive"
+                  tier="tertiary"
                   size="sm"
                   accessibilityLabel={`Remove the ${label.toLowerCase()}`}
                   onPress={() => {
@@ -511,15 +514,16 @@ export function EventForm({
                 />
               ) : null}
             </View>
-            {zone ? <ZoneNotice zone={zone} subject={st.name || label} /> : null}
+            {zone ? <ZoneNotice zone={zone} subject={st.name || label} compact /> : null}
           </View>
         );
       })}
       {!singlePlace ? (
         <Button
-          label={type === 'cruise' ? 'Add a regroup point' : `Add a ${MEET_POINT.one}`}
+          label={type === 'cruise' ? 'Add a regroup point' : `Add another ${MEET_POINT.one}`}
           icon="plus"
           tier="tertiary"
+          style={{ alignSelf: 'flex-start' }}
           onPress={() => {
             const insertAt = type === 'cruise' ? stops.length - 1 : stops.length;
             const next = [...stops];
@@ -529,23 +533,23 @@ export function EventForm({
           }}
         />
       ) : null}
-      {bans.length ? <DsText v="caption">Nightshift only warns. As the host, you're responsible for checking the order.</DsText> : null}
-      <Field
-        label="Area name"
-        hint={isPublicType(type) ? 'Shown with the event.' : `Until the location shows, people only see this name and ${areaCircle(areaRadiusMiles)} that doesn't centre on any ${MEET_POINT.one}.`}
-      >
-        <TextField value={areaName} onChangeText={setAreaName} placeholder={`e.g. ${suggestedAreaName}`} maxLength={30} accessibilityLabel="Area name" />
+      <Field label="Area name" hint={isPublicType(type) ? 'Shown with the event.' : `Before the location shows, people see “Around ${shownArea}” and ${areaCircle(areaRadiusMiles)}.`}>
+        <TextField value={areaName} onChangeText={setAreaName} placeholder={suggestedAreaName} maxLength={30} accessibilityLabel="Area name" />
       </Field>
     </>
   );
 
-  const vehicles = vehicleSelection(filter);
-  // No Public switch (REVIEW-9 decision 5): nothing picked in a row means everyone in it.
   const whoStep = (
     <>
-      {(
+      <View style={{ gap: SPACING.xxs }}>
+        <DsText v="title" accessibilityLiveRegion="polite">
+          {summary}
+        </DsText>
+        {remote && serverCount === 'offline' ? <DsText v="caption">Can't count while offline.</DsText> : null}
+      </View>
+      {leftOut && leftOutWhy ? <DsText v="secondary" tone="warning">{leftOutWhy}</DsText> : null}
+      {limiting ? (
         <>
-          <DsText v="secondary">Pick nothing in a row to invite everyone in it. Nothing picked at all: anyone within the radius.</DsText>
           <ChipGroup<VehicleKey>
             label="Vehicles"
             allLabel="Cars and bikes"
@@ -563,43 +567,56 @@ export function EventForm({
             selected={filter.classes}
             onChange={(next) => setFilter((f) => ({ ...f, classes: next.length === CLASS_LETTERS.length ? [] : next }))}
           />
-          <DsText v="caption">Class S to D is a build's power for its weight: S the quickest, D the gentlest. Pick none for every class.</DsText>
-          <ChoiceGroup
-            label="Minimum mods"
-            options={MOD_CHOICES.map((n) => ({ key: String(n), label: n === 0 ? 'Any' : `${n}+` }))}
-            value={String(filter.minMods)}
-            onChange={(k) => setFilter((f) => ({ ...f, minMods: Number(k) }))}
-          />
           <BrandPicker vehicles={vehicles} selected={filter.brands} onChange={(brands) => setFilter((f) => ({ ...f, brands }))} />
+          <ChoiceGroup label="Within" options={RADIUS_CHOICES.map((r) => ({ key: String(r), label: `${r} mi` }))} value={String(filter.radiusMiles)} onChange={(k) => setFilter((f) => ({ ...f, radiusMiles: Number(k) }))} />
+          <Button
+            label="Open to anyone again"
+            tier="tertiary"
+            size="sm"
+            style={{ alignSelf: 'flex-start' }}
+            onPress={() => {
+              setFilter((f) => ({ ...DEFAULT_FILTER, radiusMiles: f.radiusMiles }));
+              setLimiting(false);
+            }}
+          />
         </>
-      )}
-      <ChoiceGroup label="Radius from the area" options={RADIUS_CHOICES.map((r) => ({ key: String(r), label: `${r} mi` }))} value={String(filter.radiusMiles)} onChange={(k) => setFilter((f) => ({ ...f, radiusMiles: Number(k) }))} />
-      <StatBlock
-        stats={[
-          { label: peopleCount === '1' ? 'Person matches' : 'People match', value: peopleCount },
-          { label: buildCount === '1' ? 'Build matches' : 'Builds match', value: buildCount },
-        ]}
-      />
-      {remote && serverCount === 'offline' ? <DsText v="caption">Can't count while offline.</DsText> : null}
-      {leftOut ? (
-        <Callout tone="warning" title="None of your own builds fits this invite">
-          {`${leftOutWhy} Change it, or you'll be hosting something you can't bring a car or bike to.`}
-        </Callout>
-      ) : null}
-      {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
-        <SwitchRow label={`Crew event: ${myCrew.name}`} hint="The crew owner and hosts can host, move on and edit." value={crewOwned} onValueChange={setCrewOwned} />
-      ) : null}
-      {friends.length ? (
-        <ChipGroup<string>
-          label="Co-hosts"
-          allLabel="Just you"
-          raw
-          options={friends.map((u) => ({ key: u.id, label: displayHandle(u.handle) }))}
-          selected={coHosts}
-          onChange={setCoHosts}
-        />
       ) : (
-        <DsText v="caption">Co-hosts come from your crew. Join or start one from Me.</DsText>
+        <Button label="Limit who can come" tier="tertiary" size="sm" style={{ alignSelf: 'flex-start' }} onPress={() => setLimiting(true)} />
+      )}
+      <RowDivider />
+      {more ? (
+        <Section title="More options">
+          {!isPublicType(type) ? (
+            <ChoiceGroup
+              label="Location shows"
+              options={REVEAL_CHOICES.map((m) => ({ key: String(m), label: m === 0 ? 'At the start' : `${leadText(m)} before` }))}
+              value={String(reveal)}
+              onChange={(k) => setReveal(Number(k))}
+            />
+          ) : null}
+          {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
+            <SwitchRow label={`Crew event: ${myCrew.name}`} hint="The crew owner and hosts can host, move on and edit." value={crewOwned} onValueChange={setCrewOwned} />
+          ) : null}
+          {friends.length ? (
+            <ChipGroup<string>
+              label="Co-hosts"
+              allLabel="Just you"
+              raw
+              options={friends.map((u) => ({ key: u.id, label: displayHandle(u.handle) }))}
+              selected={coHosts}
+              onChange={setCoHosts}
+            />
+          ) : null}
+        </Section>
+      ) : (
+        <Button
+          label="More options"
+          tier="tertiary"
+          size="sm"
+          style={{ alignSelf: 'flex-start' }}
+          accessibilityHint={isPublicType(type) ? 'Co-hosts' : `When the location shows (now ${leadText(reveal)} before) and co-hosts`}
+          onPress={() => setMore(true)}
+        />
       )}
     </>
   );
@@ -609,138 +626,120 @@ export function EventForm({
       <View>
         <ReviewRow label="What" value={`${EVENT_LABELS[type]} · ${title.trim() || 'No name yet'}`} onEdit={() => go(0)} />
         <RowDivider />
-        <ReviewRow label="When" value={chosen.ok ? `${startText}${isPublicType(type) ? '' : ` · ${revealText.toLowerCase()}`}` : chosen.reason} onEdit={() => go(1)} />
+        <ReviewRow label="When" value={whenText} onEdit={() => go(0)} />
         <RowDivider />
         <ReviewRow
           label="Where"
-          value={`${placed.length ? placed.map((p, i) => p.name || stopLabel(i, visibleStops.length)).join(' → ') : 'Nothing placed'} · shown as ${areaName.trim() || suggestedAreaName}`}
-          onEdit={() => go(2)}
+          value={`${placed.length ? placed.map((p, i) => p.name || pointLabel(i, visibleStops.length)).join(' → ') : 'Nothing placed'} · shown as “Around ${shownArea}”`}
+          onEdit={() => go(1)}
         />
         <RowDivider />
-        <ReviewRow label="Who's invited" value={describeFilter(normaliseFilter(filter))} onEdit={() => go(3)} />
+        <ReviewRow label="Who can come" value={summary} onEdit={() => go(2)} />
         <RowDivider />
-        <ReviewRow
-          label="Hosts"
-          value={crewOwned && myCrew ? `${myCrew.name} crew with ${['you', ...coHostNames].join(', ')}` : ['You', ...coHostNames].join(', ')}
-          onEdit={() => go(3)}
-        />
+        <ReviewRow label="Location" value={revealText} onEdit={() => { setMore(true); go(2); }} />
+        {coHosts.length || crewOwned ? (
+          <>
+            <RowDivider />
+            <ReviewRow
+              label="Hosts"
+              value={crewOwned && myCrew ? `${myCrew.name} crew with ${['you', ...coHostNames].join(', ')}` : ['You', ...coHostNames].join(', ')}
+              onEdit={() => { setMore(true); go(2); }}
+            />
+          </>
+        ) : null}
       </View>
-      <Callout tone="info" title={inviteSentence(normaliseFilter(filter), peopleCount)}>
-        {isPublicType(type) ? 'Anyone can see it and where it is.' : `${revealText}. Until then, people see the area name and ${areaCircle(areaRadiusMiles)}.`}
-      </Callout>
       {leftOut ? (
-        <Callout tone="warning" title="None of your own builds fits this invite" right={<Button tier="tertiary" size="sm" label="Change" onPress={() => go(3)} />}>
-          {`${leftOutWhy} You'd be hosting something you can't bring your own car or bike to.`}
+        <Callout tone="warning" title="Your own car or bike can't come" right={<Button tier="tertiary" size="sm" label="Change" onPress={() => go(2)} />}>
+          {leftOutWhy ?? undefined}
         </Callout>
       ) : null}
-      {bans.map(({ st, zone }) => (
-        <ZoneNotice key={st.key} zone={zone!} subject={st.name || `A ${MEET_POINT.one}`} />
-      ))}
-      {check.pspos.length ? (
-        <SwitchRow
-          label={`I've checked the PSPO rules for ${check.pspos.map(zoneShortName).join(' and ')}`}
-          hint="A PSPO can make meets and gathering to watch an offence, with a fine. Nightshift only warns."
-          value={pspoOk}
-          onValueChange={(v) => setPspoAck(v ? psposKey : '')}
-        />
-      ) : null}
+      {placed.map((st, i) => {
+        const zone = banZoneAt(st.at!, BAN_ZONES);
+        return zone ? <ZoneNotice key={st.key} zone={zone} subject={st.name || pointLabel(i, visibleStops.length)} compact /> : null;
+      })}
     </>
   );
 
-  const body = [what, whenStep, whereStep, whoStep, review][step];
-  const last = step === 4;
+  const body = [whatWhen, whereStep, whoStep, review][step];
+  const banWords = check.injunction
+    ? injunctionConfirmText(check.injunction.zone, verb)
+    : check.pspos.length
+      ? `This spot is inside ${check.pspos.map(zoneShortName).join(' and ')}'s PSPO, which can fine car meets and people gathering to watch. Check the order first. ${verb} anyway?`
+      : '';
 
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       <ScrollView
         ref={scroll as never}
-        contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.lg, paddingBottom: SPACING.xxxl }}
+        contentContainerStyle={PAGE_WITH_BAR}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
       >
-        <StepBar step={step} onGo={(s) => (s < step ? go(s) : undefined)} />
-        <Section title={STEPS[step]}>
-          <View style={{ gap: SPACING.lg }}>{body}</View>
-        </Section>
-      </ScrollView>
-      <View style={{ paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, paddingBottom: Math.max(insets.bottom, SPACING.lg), gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border, backgroundColor: COLOR.surface.bg }}>
-        {error ? <ErrorState title={error} /> : null}
-        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-          {step > 0 ? <Button label="Back" tier="secondary" onPress={() => go((step - 1) as Step)} /> : null}
-          <View style={{ flex: 1 }}>
-            {last ? (
-              <Button label={submitLabel} block busy={saving} haptic="success" onPress={save} disabled={!pspoOk} hint={pspoOk ? undefined : "Tick that you've checked the PSPO first"} />
-            ) : (
-              <Button label="Next" block onPress={nextStep} />
-            )}
-          </View>
+        <View style={{ gap: SPACING.xxs }} accessibilityRole="header" accessibilityLabel={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`}>
+          <DsText v="meta">{`Step ${step + 1} of ${STEPS.length}`}</DsText>
+          <DsText v="titleLg">{STEPS[step]}</DsText>
         </View>
-      </View>
+        <View style={{ gap: SPACING.lg }}>{body}</View>
+        {error ? <ErrorState title={error} /> : null}
+      </ScrollView>
+      <ActionBar
+        primary={step === LAST ? { label: editing ? (submitLabel ?? 'Save changes') : postLabel, onPress: save, busy: saving, haptic: 'success' } : { label: 'Next', onPress: nextStep }}
+      />
 
       <MapPicker
         visible={picking !== null}
         mode="point"
-        title={picking !== null ? `Place the ${stopLabel(picking, visibleStops.length).toLowerCase()}` : ''}
-        hint={`Move the map so the crosshair is on the ${picking !== null ? stopLabel(picking, visibleStops.length).toLowerCase() : MEET_POINT.one}, or tap a grey pin to use a known place. Orange outlines and pins are meet bans.`}
-        confirmLabel={picking !== null ? `${visibleStops[picking]?.at ? 'Move' : 'Set'} ${stopLabel(picking, visibleStops.length).toLowerCase()} here` : ''}
+        title={picking !== null ? `Place the ${pointLabel(picking, visibleStops.length).toLowerCase()}` : ''}
+        hint={`Move the map so the crosshair is on the ${picking !== null ? pointLabel(picking, visibleStops.length).toLowerCase() : MEET_POINT.one}, or tap a grey pin to use a known place. Orange outlines are meet bans.`}
+        confirmLabel={picking !== null ? `${visibleStops[picking]?.at ? 'Move' : 'Set'} ${pointLabel(picking, visibleStops.length).toLowerCase()} here` : ''}
         start={(picking !== null && (visibleStops[picking]?.at ?? [...visibleStops.slice(0, picking)].reverse().find((x) => x.at)?.at)) || placed[0]?.at || meUser.home}
         span={0.08}
         initial={picking !== null && visibleStops[picking]?.at ? [visibleStops[picking].at!] : []}
         showKinds={['venue', 'track', 'photo']}
         snap
         zones
-        extraPins={stopPins(picking)}
+        extraPins={pointPins(picking)}
         extraPaths={routePaths}
-        onDone={([stop]) => {
-          if (picking !== null && stop) placeStop(picking, stop.at, stop.name);
+        colour={typeColour}
+        onDone={([spot]) => {
+          if (picking !== null && spot) placeStop(picking, spot.at, spot.name);
           setPicking(null);
         }}
         onCancel={() => setPicking(null)}
       />
 
-      {pickDateOpen ? (
-        <DateSheet
-          visible
-          title="Pick a date"
-          value={dayNow.date ? localDay(new Date(dayNow.date)) : chosen.ok ? localDay(chosen.start) : null}
-          min={localDay(now)}
-          max={localDay(new Date(now.getTime() + MAX_DAYS_AHEAD * 86_400_000))}
-          onClose={() => setPickDateOpen(false)}
-          onPick={(d) => {
-            setPickedDay(pickedDayChoice(d, now));
-            setDay(baseDays.length);
-            setPickDateOpen(false);
-          }}
+      {editing ? (
+        <ConfirmSheet
+          visible={leaveAction !== null}
+          title="Discard your changes?"
+          message={`Your changes to ${initial?.title ?? 'this event'} aren't saved yet.`}
+          verb="Discard"
+          cancelLabel="Keep editing"
+          onConfirm={() => leave(false)}
+          onCancel={() => setLeaveAction(null)}
         />
-      ) : null}
+      ) : (
+        <Sheet visible={leaveAction !== null} title="Keep this meet as a draft?" onClose={() => setLeaveAction(null)} doneLabel="Stay">
+          <View style={{ gap: SPACING.md }}>
+            <DsText v="body">{`${title.trim() || 'Your meet'} stays on this phone. Tap + on Tonight to carry on where you left off.`}</DsText>
+            <Button label="Keep draft" tier="secondary" block onPress={() => leave(true)} />
+            <Button label="Discard it" tier="destructive" block onPress={() => leave(false)} />
+          </View>
+        </Sheet>
+      )}
 
-      <Sheet visible={leaveAction !== null} title="Keep this meet as a draft?" onClose={() => setLeaveAction(null)} doneLabel="Stay">
+      <Sheet visible={askBan} title={check.injunction ? 'Court injunction' : 'Meet ban'} onClose={() => setAskBan(false)} doneLabel="Cancel">
         <View style={{ gap: SPACING.md }}>
-          <DsText v="body">{`${title.trim() || 'Your meet'} is saved on this phone. Open Host again to carry on where you left off.`}</DsText>
-          <Button label="Keep draft" block onPress={() => leave(true)} />
-          <Button label="Discard" tier="destructive" block onPress={() => leave(false)} />
-        </View>
-      </Sheet>
-
-      <TimeSheet
-        visible={timeSheet !== null}
-        title={timeSheet === 'end' ? 'End time' : 'Start time'}
-        value={timeSheet === 'end' ? (endTime ?? (chosen.ok ? timeAfter(chosen.start, 180) : '23:00')) : time}
-        onPick={(t) => (timeSheet === 'end' ? setEndTime(t) : setTime(t))}
-        onClose={() => setTimeSheet(null)}
-      />
-
-      <Sheet visible={askInjunction} title="Court injunction" onClose={() => setAskInjunction(false)} doneLabel="Cancel">
-        <View style={{ gap: SPACING.md }}>
-          {check.injunction ? <DsText v="body">{injunctionConfirmText(check.injunction.zone, verb)}</DsText> : null}
-          {check.injunction ? <DsText v="caption">{`${check.injunction.stop || stopLabel(0, visibleStops.length)} is inside it. Nightshift only warns: you're responsible for where you send people.`}</DsText> : null}
+          <DsText v="body">{banWords}</DsText>
+          <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>
           <Button
             label="Change location"
+            tier="primary"
             block
             onPress={() => {
-              setAskInjunction(false);
-              go(2);
+              setAskBan(false);
+              go(1);
             }}
           />
           <Button label={`${verb} anyway`} tier="destructive" block busy={saving} onPress={publish} />
@@ -750,47 +749,12 @@ export function EventForm({
   );
 }
 
-function dayChoicesOf(base: DayChoice[], picked: DayChoice | null): DayChoice[] {
-  return picked ? [...base, picked] : base;
-}
-
-/** Hours from the morning round to the small hours, so evening times sit together. */
-const HOURS = [...Array.from({ length: 18 }, (_, i) => i + 6), 0, 1, 2, 3, 4, 5].map((h) => String(h).padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
-
-/** Any time in 15-minute steps: an hour, then the minutes (REVIEW-9 decision 4). */
-function TimeSheet({ visible, title, value, onPick, onClose }: { visible: boolean; title: string; value: string; onPick: (t: string) => void; onClose: () => void }) {
-  const [h, m] = value.split(':');
-  const minute = MINUTES.includes(m) ? m : '00';
-  return (
-    <Sheet visible={visible} title={title} onClose={onClose}>
-      <View style={{ gap: SPACING.lg }}>
-        <DsText v="title">{`${h}:${minute}`}</DsText>
-        <ChoiceGroup label="Hour" options={HOURS.map((x) => ({ key: x, label: x }))} value={h} onChange={(x) => onPick(`${x}:${minute}`)} />
-        <ChoiceGroup label="Minutes" options={MINUTES.map((x) => ({ key: x, label: `:${x}` }))} value={minute} onChange={(x) => onPick(`${h}:${x}`)} />
-      </View>
-    </Sheet>
-  );
-}
-
-/** One wording for the rough area on Where and Review: its size across, as people see it on the map. */
+/** One wording for the area on Where and Check: its size across, as people see it on the map. */
 function areaCircle(radiusMiles: number): string {
   return `a circle about ${radiusMiles * 2} mi across`;
 }
 
-/** "Cars and bikes · Class A–S · 3+ mods · within 25 mi" as a sentence about who gets the invite. */
-function inviteSentence(filter: InviteFilter, people: string): string {
-  const n = Number(people);
-  const who = people === '1' ? '1 person' : `${people} people`;
-  if (filter.everyone) return `Anyone within ${filter.radiusMiles} mi can go (${who} near here).`;
-  const kinds = filter.cars && !filter.bikes ? 'cars' : filter.bikes && !filter.cars ? 'bikes' : 'cars and bikes';
-  const cls = filter.classes.length ? `, class ${classRange(filter.classes)}` : '';
-  const mods = filter.minMods > 0 ? ` with ${plural(filter.minMods, 'mod')} or more` : '';
-  const brands = filter.brands.length ? ` (${filter.brands.join(', ')})` : '';
-  return `Invites ${kinds}${cls}${mods}${brands} within ${filter.radiusMiles} mi: ${who} ${n === 1 ? 'matches' : 'match'}.`;
-}
-
-/** Label above the value, as in every other form (REVIEW-7 inconsistency 13). */
+/** Label above the value, with Edit (REVIEW-7 inconsistency 13). */
 function ReviewRow({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.sm, minHeight: 56 }}>
@@ -799,24 +763,6 @@ function ReviewRow({ label, value, onEdit }: { label: string; value: string; onE
         <DsText v="body">{value}</DsText>
       </View>
       <Button tier="tertiary" size="sm" label="Edit" accessibilityLabel={`Edit ${label}`} onPress={onEdit} />
-    </View>
-  );
-}
-
-/** Where you are in the five steps. Earlier steps can be tapped to go back. */
-function StepBar({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
-  return (
-    <View accessibilityRole="progressbar" accessibilityLabel={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`} style={{ gap: SPACING.sm }}>
-      <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
-        {STEPS.map((s, i) => (
-          <Press key={s} onPress={i < step ? () => onGo(i as Step) : undefined} disabled={i >= step} label={`Back to ${s}`} style={{ flex: 1, paddingVertical: SPACING.sm }}>
-            <View style={{ height: 4, borderRadius: RADII.pill, backgroundColor: i <= step ? COLOR.action.primary : COLOR.surface.raisedHi }} />
-          </Press>
-        ))}
-      </View>
-      <DsText v="meta">
-        Step {step + 1} of {STEPS.length}
-      </DsText>
     </View>
   );
 }

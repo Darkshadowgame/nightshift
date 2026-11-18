@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, DsText, ErrorState, SegmentedControl, Tag, typeStyle, useToast } from '../components/ds';
+import { ActionBar, Button, DsText, ErrorState, Field, IconButton, SegmentedControl, TextField, useToast } from '../components/ds';
 import { MapPicker } from '../components/MapPicker';
 import { NightMap } from '../components/NightMap';
 import { VehiclePicker } from '../components/VehiclePicker';
-import { Wordmark } from '../components/Wordmark';
 import { DEMO_HOME } from '../data/seed';
 import { allVariants } from '../data/vehicles';
 import { useAuth } from '../lib/auth';
@@ -17,21 +16,25 @@ import { nearestRegion, regionCentre, suggestHandle } from '../lib/profile';
 import { useStore } from '../lib/store';
 import type { Build, LatLng, VehicleKind } from '../lib/types';
 import { findVariant, specFill, type Variant } from '../lib/vehicles';
-import { COLOR, FONT_SCALE, LAYER, RADII, SPACING } from '../theme';
+import { COLOR, LAYER, RADII, SPACING } from '../theme';
 
 /** Where the map starts before a home is set: the middle of England, zoomed out. */
 const UK_MIDDLE = regionCentre('Midlands');
+/** The home circle on the map: saved to about 1 km. */
+const HOME_RADIUS_MILES = 0.6;
 
 /**
- * The first 30 seconds (docs/SPEC.md). Two questions, then Tonight:
- * 1. What do you drive? The vehicle quick search; one tap fills in the stock specs. Skip for now.
- * 2. Where's home, and what should people call you? Home is saved to about 1 km and sets the region.
- * Then Tonight opens with tonight's pick and "I'm going" with the car you just added.
- * Travel distance and notifications start at sensible defaults (25 mi, notify) and live in Settings.
- * The 18+ and terms box is at sign-in. The guard in _layout moves on once the profile is saved.
+ * Onboarding (Redesign 2, 3.2): two steps, under a minute, then Tonight.
+ * 1. What do you drive? Car or bike, one search, tap yours: the picked card (class badge and bhp)
+ *    replaces the results. "Can't find it? Enter it yourself" opens make and model. Skip for now.
+ * 2. Where's home? A real map with the area circle (the demo starts on the sample area), and a
+ *    handle, pre-filled with a suggestion. Home is saved to about 1 km and sets the region.
+ * Travel distance and notifications start at sensible defaults (25 mi, notify) and live in
+ * Settings. The 18+ and terms box is at sign-in. The guard in _layout moves on once the profile
+ * is saved. Onboarding draws its own header: back (step 2) and the step, never a button at the bottom.
  */
 export default function Welcome() {
-  const { saveProfile, saveBuild, backend, me, settings } = useStore();
+  const { saveProfile, saveBuild, backend, me } = useStore();
   const auth = useAuth();
   const toast = useToast();
   const insets = useSafeAreaInsets();
@@ -49,14 +52,13 @@ export default function Welcome() {
   const [model, setModel] = useState('');
   const [vehicleId, setVehicleId] = useState<string | undefined>();
   const variant = findVariant(allVariants(), vehicleId);
+  const [pickError, setPickError] = useState<string | null>(null);
 
   // Step 2: home and handle (also the display name to start with; change it on your profile).
-  const [handle, setHandle] = useState('');
-  /** The demo needs no handle typed: one is made up, changeable on your profile (REVIEW-9). */
   const [handleSeed] = useState(() => 1000 + Math.floor(Math.random() * 9000));
-  // The demo starts on the sample area, so step 2 needs nothing (REVIEW-10 #9); "Change" moves it.
+  const [handle, setHandle] = useState('');
+  // The demo starts on the sample area, so step 2 needs nothing; tapping the map moves it.
   const [home, setHome] = useState<LatLng | null>(demo ? DEMO_HOME : null);
-  const sampleHome = demo && !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
   const { height: screenH } = useWindowDimensions();
   const small = screenH < 740;
   const [picking, setPicking] = useState(false);
@@ -69,6 +71,14 @@ export default function Welcome() {
     setVehicleId(v.id);
     setMake(v.make);
     setModel(v.model);
+    setPickError(null);
+  }
+
+  function toStep2(keepCar: boolean) {
+    if (!keepCar) setVehicleId(undefined);
+    // The handle starts as a suggestion from the car (change it here or on your profile later).
+    if (!handle.trim()) setHandle(suggestHandle(keepCar ? variant?.model : undefined, handleSeed));
+    setStep(2);
   }
 
   async function useMyLocation() {
@@ -77,11 +87,14 @@ export default function Welcome() {
     const pos = await currentPosition(true);
     setLocating(false);
     if (pos.ok) setHome(fuzz(pos.at));
-    else setLocError(pos.reason === 'denied' ? 'Location is off for Nightshift. Choose home on the map instead.' : "Couldn't find where you are. Choose home on the map instead.");
+    else setLocError(pos.reason === 'denied' ? 'Location is off for Nightshift. Tap the map to choose home instead.' : "Couldn't find where you are. Tap the map to choose home instead.");
   }
 
   async function finish() {
-    if (saving || !home) return;
+    if (saving) return;
+    if (!home) return setError('Choose home on the map, or use your location.');
+    const h = handle.trim().replace(/^@+/, '');
+    if (h.length < 3) return setError('Your handle needs at least 3 letters or numbers.');
     setError(null);
     setSaving(true);
     const build: Build | null = variant
@@ -90,7 +103,6 @@ export default function Welcome() {
     try {
       // Tonight reads this as it opens (the profile saving is what opens it).
       markJustOnboarded(build?.id);
-      const h = handle.trim().replace(/^@+/, '') || (demo ? suggested : '');
       await saveProfile({ handle: h, name: h, region: nearestRegion(home), home });
       if (build) await saveBuild(build).catch((e) => toast({ message: e instanceof Error ? e.message : "Couldn't save your car. Add it in the Garage.", tone: 'danger' }));
     } catch (e) {
@@ -99,38 +111,21 @@ export default function Welcome() {
     }
   }
 
-  const suggested = suggestHandle(variant?.model, handleSeed);
-  // The fixed demo area is for testing only: development builds, or with the demo's GPS skip on.
-  const devArea = demo && (__DEV__ || settings.simulateGps);
-
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        ref={scroller}
-        contentContainerStyle={[st.page, { paddingTop: insets.top + SPACING.xl, paddingBottom: SPACING.xl }]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-      >
-        <View style={{ gap: SPACING.sm }}>
-          <Wordmark compact />
-          <View style={st.who}>
-            <DsText v="caption" style={{ flexShrink: 1 }}>
-              {demo ? 'Demo: sample people and events, nothing leaves this phone.' : `Signed in${auth.email ? ` as ${auth.email}` : ''}.`}
-            </DsText>
-            <Button label={demo ? 'Sign in instead' : 'Not you? Sign out'} tier="tertiary" size="sm" onPress={() => (demo ? auth.leaveDemo() : auth.signOut())} />
-          </View>
-        </View>
-
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[st.header, { paddingTop: insets.top + SPACING.xs }]}>
+        {step === 2 ? <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={() => setStep(1)} /> : <View style={{ width: SPACING.sm }} />}
+        <DsText v="heading" accessibilityRole="header" style={{ flex: 1 }}>
+          {`STEP ${step} OF 2`}
+        </DsText>
+        <Button label={demo ? 'Sign in instead' : 'Sign out'} tier="tertiary" size="sm" onPress={() => (demo ? auth.leaveDemo() : auth.signOut())} />
+      </View>
+      <ScrollView ref={scroller} contentContainerStyle={st.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
         {step === 1 ? (
-          <View style={{ gap: SPACING.lg }}>
+          <>
             <View style={{ gap: SPACING.xs }}>
-              <DsText v="eyebrow" tone="action">
-                Step 1 of 2
-              </DsText>
-              <DsText v="heading" accessibilityRole="header">
-                What do you drive?
-              </DsText>
-              <DsText v="secondary">It's what you bring to meets, and it decides which invites you get. Search, then tap yours.</DsText>
+              <DsText v="titleLg">What do you drive?</DsText>
+              <DsText v="secondary">It's what you bring to meets.</DsText>
             </View>
             <SegmentedControl
               accessibilityLabel="Car or bike"
@@ -159,135 +154,104 @@ export default function Welcome() {
               }}
               onPickVariant={pickVariant}
             />
-          </View>
+            {pickError ? <ErrorState title={pickError} /> : null}
+          </>
         ) : (
-          <View style={{ gap: SPACING.lg }}>
+          <>
             <View style={{ gap: SPACING.xs }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <DsText v="eyebrow" tone="action">
-                  Step 2 of 2
-                </DsText>
-                <Button label="Back" icon="back" tier="tertiary" size="sm" accessibilityLabel="Back to step 1" onPress={() => setStep(1)} />
-              </View>
-              <DsText v="heading" accessibilityRole="header">
-                Where's home?
-              </DsText>
-              <DsText v="secondary">So Tonight shows what's on near you. It's saved to about 1 km, never your exact address, and nobody else sees it.</DsText>
+              <DsText v="titleLg">Where's home?</DsText>
+              <DsText v="secondary">So Tonight shows what's on near you.</DsText>
             </View>
             <Pressable
               onPress={() => setPicking(true)}
               accessibilityRole="button"
               accessibilityLabel={home ? 'Home area set. Move it on the map' : 'Choose your home area on the map'}
-              style={[st.map, { height: small ? 120 : 180 }, home && { borderColor: COLOR.action.selected }]}
+              style={[st.map, { height: small ? 170 : 220 }]}
             >
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <NightMap key={home ? `${home.lat},${home.lng}` : 'none'} pins={[]} centre={home ?? UK_MIDDLE} span={home ? 0.3 : 4} picked={home} />
+                <NightMap
+                  key={home ? `${home.lat},${home.lng}` : 'none'}
+                  pins={[]}
+                  circles={home ? [{ id: 'home', centre: home, radiusMiles: HOME_RADIUS_MILES, colour: LAYER.event }] : []}
+                  centre={home ?? UK_MIDDLE}
+                  span={home ? 0.12 : 4}
+                />
               </View>
+              {!home ? (
+                <View pointerEvents="none" style={[StyleSheet.absoluteFill, st.mapPrompt]}>
+                  <DsText v="buttonSm">Tap to choose on the map</DsText>
+                </View>
+              ) : null}
             </Pressable>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm }}>
-              {sampleHome ? <Tag label="Sample area" tone="info" /> : home ? <Tag label="Home area set" tone="success" /> : <Tag label="Not set yet" />}
-              <DsText v="caption" style={{ flexShrink: 1 }}>
-                {sampleHome ? 'Near Tamworth, where the demo events are. Optional to change.' : home ? `${nearestRegion(home)}, to about 1 km` : 'Choose on the map or use your location, below.'}
-              </DsText>
-              {home ? <Button label="Change" tier="tertiary" size="sm" accessibilityLabel="Change your home area" onPress={() => setPicking(true)} /> : null}
+            <View style={{ gap: SPACING.xxs }}>
+              {home ? <DsText v="bodyStrong">{`Around ${nearestRegion(home)}`}</DsText> : null}
+              <DsText v="secondary">Saved to about 1 km. Never your address.</DsText>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+              {home ? <Button label="Move it" tier="tertiary" size="sm" accessibilityLabel="Move your home area on the map" onPress={() => setPicking(true)} /> : null}
+              <Button label={home ? 'Use my location instead' : 'Use my location'} tier="tertiary" size="sm" busy={locating} onPress={useMyLocation} />
             </View>
             {locError ? <ErrorState title={locError} /> : null}
-            {devArea && !sampleHome ? <Button label="Developer: use the demo area (Tamworth)" tier="tertiary" size="sm" onPress={() => setHome(DEMO_HOME)} /> : null}
+            {__DEV__ && demo && home !== DEMO_HOME ? <Button label="Developer: use the demo area" tier="tertiary" size="sm" onPress={() => setHome(DEMO_HOME)} /> : null}
 
-            <View style={{ gap: SPACING.xs }}>
-              <DsText v="label">Your handle</DsText>
-              <TextInput
+            <Field label="Your handle" hint="Shown on your profile, in chat and on trophies. Change it any time.">
+              <TextField
                 value={handle}
                 onChangeText={setHandle}
-                placeholder={demo ? suggested : 'e.g. night_owl'}
-                placeholderTextColor={COLOR.text.secondary}
+                placeholder="e.g. night_owl"
                 autoCapitalize="none"
                 autoCorrect={false}
-                maxFontSizeMultiplier={FONT_SCALE.chrome}
-                style={[typeStyle('input'), st.input]}
                 accessibilityLabel="Your handle"
               />
-              <DsText v="caption">
-                {demo
-                  ? `Shown on your profile, in chat and on trophies. Leave it empty in the demo to be @${suggested}; change it any time on your profile.`
-                  : 'Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.'}
-              </DsText>
-            </View>
-
-            {variant ? <DsText v="caption">{`Bringing: ${variant.make} ${variant.model} ${variant.gen}. Add mods later in the Garage.`}</DsText> : null}
-          </View>
+            </Field>
+          </>
         )}
 
         <MapPicker
           visible={picking}
           mode="point"
-          title="Your rough home area"
-          hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your exact address."
+          title="Your home area"
+          hint="Put the crosshair roughly where you live. It's saved to about 1 km, never your address."
           confirmLabel="Set home area here"
           colour={LAYER.event}
           start={home ?? UK_MIDDLE}
           span={home ? 0.1 : 3}
           locateOnOpen={!home}
           initial={home ? [home] : []}
-          onDone={([stop]) => {
+          onDone={([spot]) => {
             setPicking(false);
-            if (stop) {
-              setHome(fuzz(stop.at));
-              // The "Location is off" line is answered once home is set on the map (REVIEW-9).
+            if (spot) {
+              setHome(fuzz(spot.at));
               setLocError(null);
+              setError(null);
             }
           }}
           onCancel={() => setPicking(false)}
         />
       </ScrollView>
-      {/* The step's main button stays on screen (as in the host form), so picking a car never hides Next. */}
-      <View style={[st.footer, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
-        {step === 1 ? (
-          <>
-            <Button label="Next" size="lg" block disabled={!variant} hint="Pick yours from the list, or skip for now" onPress={() => setStep(2)} />
-            <Button
-              label="Skip for now"
-              tier="tertiary"
-              size="sm"
-              onPress={() => {
-                setVehicleId(undefined);
-                setStep(2);
-              }}
-              style={{ alignSelf: 'center' }}
-              accessibilityHint="You can add it later in the Garage"
-            />
-          </>
-        ) : (
-          <>
-            {error ? <ErrorState title={error} /> : null}
-            {/* Setting home is in the pinned footer until it's done, so an SE never hides it (REVIEW-10 #9). */}
-            {!home ? (
-              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                <Button label="Choose on map" tier="secondary" onPress={() => setPicking(true)} style={{ flex: 1 }} block />
-                <Button label="Use my location" tier="secondary" busy={locating} onPress={useMyLocation} style={{ flex: 1 }} block />
-              </View>
-            ) : null}
-            <Button
-              label="Show me tonight"
-              size="lg"
-              block
-              busy={saving}
-              haptic="success"
-              disabled={!home || (handle.trim().length < 3 && !(demo && handle.trim().length === 0))}
-              hint={!home ? 'Set your home area first' : 'Add a handle first'}
-              onPress={finish}
-            />
-          </>
-        )}
-      </View>
+      {step === 2 && error ? (
+        <View style={{ paddingHorizontal: SPACING.screen, paddingBottom: SPACING.sm }}>
+          <ErrorState title={error} />
+        </View>
+      ) : null}
+      {step === 1 ? (
+        <ActionBar
+          primary={{
+            label: 'Next',
+            onPress: () => (variant ? toStep2(true) : setPickError('Pick yours from the list, or skip for now.')),
+          }}
+          secondary={{ label: 'Skip for now', onPress: () => toStep2(false), accessibilityHint: 'You can add it later in the Garage' }}
+        />
+      ) : (
+        <ActionBar primary={{ label: 'Show me tonight', onPress: finish, busy: saving, haptic: 'success' }} />
+      )}
     </KeyboardAvoidingView>
   );
 }
 
 const st = StyleSheet.create({
-  page: { paddingHorizontal: SPACING.screen, gap: SPACING.xl },
-  who: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm },
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, paddingBottom: SPACING.xs },
+  page: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.sm, paddingBottom: SPACING.xl, gap: SPACING.lg },
   map: { borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.borderStrong },
-  footer: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, gap: SPACING.xs, borderTopWidth: 1, borderTopColor: COLOR.surface.border, backgroundColor: COLOR.surface.bg },
-  input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
+  mapPrompt: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.scrim },
 });

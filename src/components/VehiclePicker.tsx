@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { allVariants } from '../data/vehicles';
+import { classOf } from '../lib/classes';
 import type { VehicleKind } from '../lib/types';
 import {
   canonicalMake,
@@ -15,8 +16,9 @@ import {
   yearsLabel,
   type Variant,
 } from '../lib/vehicles';
-import { COLOR, RADII, SPACING } from '../theme';
-import { Button, DsText, Icon, INPUT, Press, SearchField } from './ds';
+import { COLOR, SPACING } from '../theme';
+import { Button, DsText, Icon, INPUT, ListRow, PhotoCard, SearchField } from './ds';
+import { FadeUp } from './motion';
 import { SearchSelect } from './SearchSelect';
 import { SuggestMissing } from './SuggestMissing';
 
@@ -65,24 +67,24 @@ export function VehiclePicker({
       <SearchField
         value={query}
         onChangeText={setQuery}
-        placeholder={kind === 'car' ? 'Search, e.g. Golf R Mk7 or Type R FK8' : 'Search, e.g. R6 2017 or Street Triple'}
+        placeholder={kind === 'car' ? 'Type a make or model, e.g. Fiesta ST' : 'Type a make or model, e.g. Street Triple'}
         accessibilityLabel={`Search every ${noun}`}
       />
       {query.trim() ? (
-        <View style={{ gap: SPACING.xs }}>
+        <View>
           {hits.map((v) => (
             <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
           ))}
-          {hits.length === 0 ? <DsText v="secondary">No match. Pick the make below or type your own.</DsText> : null}
+          {hits.length === 0 ? <DsText v="secondary">{searchFirst ? 'No match. Try fewer words, or enter it yourself below.' : 'No match. Pick the make below or type your own.'}</DsText> : null}
         </View>
       ) : null}
 
-      {searchFirst && variant && !browsing ? <Picked variant={variant} kind={kind} editableBelow={editableBelow} /> : null}
+      {searchFirst && variant && !browsing && !query.trim() ? <PickedCard variant={variant} /> : null}
       {searchFirst && !browsing ? (
         <Button
           tier="tertiary"
           size="sm"
-          label={variant ? 'Not quite right? Pick the make and model' : "Can't find it? Pick the make and model"}
+          label={variant ? 'Not quite right? Enter it yourself' : "Can't find it? Enter it yourself"}
           style={{ alignSelf: 'flex-start' }}
           onPress={() => setBrowsing(true)}
         />
@@ -109,7 +111,7 @@ export function VehiclePicker({
       />
 
       {family && variants.length ? (
-        <View style={{ gap: SPACING.xs }}>
+        <View>
           <DsText v="label">Generation and engine</DsText>
           {variants.map((v) => (
             <VariantRow key={v.id} v={v} on={v.id === vehicleId} onPress={() => onPickVariant(v)} />
@@ -134,7 +136,7 @@ export function VehiclePicker({
         />
       ) : null}
 
-      {variant ? <Picked variant={variant} kind={kind} editableBelow={editableBelow} /> : null}
+      {variant ? (searchFirst ? <PickedCard variant={variant} /> : <Picked variant={variant} kind={kind} editableBelow={editableBelow} />) : null}
 
       <SuggestMissing
         screen="vehicle-picker"
@@ -170,37 +172,42 @@ function rangeOf(vs: Variant[]): string | undefined {
   return `${vs.length} version${vs.length === 1 ? '' : 's'} · ${yearsLabel({ from, to })}`;
 }
 
+/** A variant's class, from its stock figures. */
+function variantClass(v: Variant) {
+  return classOf({ kind: v.kind, stockBhp: v.bhp, weightKg: v.weightKg, mods: [] });
+}
+
+/** Onboarding's picked card (Redesign 2, 3.2): the build as it will look, its class badge animating in. */
+function PickedCard({ variant }: { variant: Variant }) {
+  return (
+    <FadeUp key={variant.id}>
+      <View accessibilityLiveRegion="polite">
+        <PhotoCard
+          kind="build"
+          size="sm"
+          vehicle={variant.kind}
+          paint={COLOR.paint[3]}
+          title={`${variant.make} ${modelLabel(variant)}`}
+          meta={`${variant.bhp} bhp · ${yearsLabel(variant)}`}
+          classLetter={variantClass(variant)}
+        />
+      </View>
+    </FadeUp>
+  );
+}
+
+/** One result: the class badge, the name and the engine line, a tick when it's the one picked. */
 function VariantRow({ v, on, withName, onPress }: { v: Variant; on?: boolean; withName?: boolean; onPress: () => void }) {
   const line = variantLine(v);
   return (
-    <Press
+    <ListRow
+      leading={{ classBadge: variantClass(v) }}
+      title={withName ? `${v.make} ${v.model}` : line}
+      subtitle={withName ? line : undefined}
+      trailing={on ? <Icon name="check" size={18} colour={COLOR.text.primary} /> : undefined}
+      chevron={false}
       onPress={onPress}
-      haptic="select"
-      role="radio"
-      state={{ checked: !!on }}
-      label={`${withName ? `${v.make} ${v.model}, ` : ''}${line}`}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.sm,
-        paddingVertical: SPACING.sm,
-        paddingHorizontal: SPACING.md,
-        minHeight: 44,
-        borderRadius: RADII.control,
-        borderWidth: 1,
-        borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong,
-        backgroundColor: on ? COLOR.action.selectedTint : 'transparent',
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        {withName ? (
-          <DsText v="bodyStrong">
-            {v.make} {v.model}
-          </DsText>
-        ) : null}
-        <DsText v={withName ? 'caption' : 'body'}>{line}</DsText>
-      </View>
-      {on ? <Icon name="check" size={18} colour={COLOR.action.selected} /> : null}
-    </Press>
+      accessibilityLabel={`${withName ? `${v.make} ${v.model}, ` : ''}${line}${on ? ', picked' : ''}`}
+    />
   );
 }

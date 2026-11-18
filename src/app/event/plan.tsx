@@ -16,7 +16,7 @@ import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
 import { zonePins, zoneShapes } from '../../lib/zones';
-import { COLOR, SPACING } from '../../theme';
+import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
 
 /** Meet bans drawn on the map: circles, and council outlines for borough-wide orders. */
 const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
@@ -24,7 +24,7 @@ const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 type Selected = number | 'new';
 
-/** Rolling meets: hosts rename, move, remove or add stops on the night. */
+/** Rolling meets: hosts rename, move, remove or add meet points on the night. */
 export default function ChangePlan() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { events, me, crews, users, changePlan } = useStore();
@@ -56,11 +56,11 @@ export default function ChangePlan() {
   }
 
   const index = selected === 'new' ? -1 : Math.min(selected, ev.stops.length - 1);
-  const stop = index >= 0 ? ev.stops[index] : undefined;
-  const move = stop ? canMoveStop(ev, index) : null;
-  const remove = stop ? canRemoveStop(ev, index) : null;
+  const point = index >= 0 ? ev.stops[index] : undefined;
+  const move = point ? canMoveStop(ev, index) : null;
+  const remove = point ? canRemoveStop(ev, index) : null;
   const pendingZone = pending ? banZoneAt(pending, BAN_ZONES) : undefined;
-  const checkedIn = stop ? Object.values(ev.checkIns).filter((ids) => ids.includes(stop.id)).length : 0;
+  const checkedIn = point ? Object.values(ev.checkIns).filter((ids) => ids.includes(point.id)).length : 0;
 
   function select(s: Selected) {
     setSelected(s);
@@ -90,24 +90,24 @@ export default function ChangePlan() {
   function status(i: number): string {
     if (i < ev!.currentStop) return 'Left';
     if (i === ev!.currentStop) return 'Here now';
-    return 'Locked';
+    return 'Not shown yet';
   }
 
   const pins: MapPin[] = ev.stops.flatMap((st, i) =>
     st.at
-      ? [{ id: st.id, at: st.at, glyph: 'rolling' as const, colour: i === index ? COLOR.action.primary : i < ev.currentStop ? COLOR.surface.raisedHi : COLOR.text.primary, title: st.name, size: i === index ? 40 : 30 }]
+      ? [{ id: st.id, at: st.at, glyph: 'rolling' as const, colour: i === index ? EVENT_COLOURS.rolling : i < ev.currentStop ? COLOR.surface.raisedHi : COLOR.text.primary, title: st.name, size: i === index ? 40 : 30 }]
       : [],
   );
   const line = ev.stops.flatMap((s) => (s.at ? [s.at] : []));
-  const centre = stop?.at ?? ev.stops[ev.currentStop]?.at ?? ev.area;
+  const centre = point?.at ?? ev.stops[ev.currentStop]?.at ?? ev.area;
   const canPlace = selected === 'new' || !!move?.ok;
 
-  /** Back from the full-screen picker: the new place waits for "Move here" / "Add stop". */
+  /** Back from the full-screen picker: the new place waits for "Move here" / "Add meet point". */
   function picked(at: LatLng, knownName?: string) {
     setPicking(false);
     setPending(at);
     setDone(null);
-    // A new stop is named after the known place or the street and town; edit it if you like.
+    // A new point is named after the known place or the street and town; edit it if you like.
     if (selected !== 'new') return;
     const takeName = (found: string | null) => {
       if (!found) return;
@@ -124,7 +124,7 @@ export default function ChangePlan() {
   return (
     <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       <DsText v="secondary">
-        Every change is logged for the hosts. Everyone going gets a chat line saying the plan changed, never where. Stops after the current one stay hidden until you move on.
+        Every change is logged for the hosts. Everyone going gets a chat line saying the plan changed, never where. Meet points after the current one stay hidden until you move on.
       </DsText>
 
       <ChoiceGroup
@@ -135,7 +135,7 @@ export default function ChangePlan() {
       />
 
       <Press onPress={canPlace ? () => setPicking(true) : undefined} disabled={!canPlace} feedback="card" label={canPlace ? 'Open the map to choose the place' : 'Map of the meet points'}>
-        <MediaFrame height={200} style={canPlace ? { borderColor: COLOR.action.primary } : undefined}>
+        <MediaFrame height={200}>
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
               key={`${selected}`}
@@ -158,12 +158,12 @@ export default function ChangePlan() {
         </Callout>
       ) : null}
 
-      {stop ? (
+      {point ? (
         <Section title={`Meet point ${index + 1}`} right={<Tag label={`${status(index)}${checkedIn ? ` · ${checkedIn} checked in` : ''}`} tone={index === ev.currentStop ? 'live' : 'neutral'} />}>
           <Field label="Rename">
             <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-              <TextField value={name} onChangeText={setName} placeholder={stop.name} style={{ flex: 1 }} accessibilityLabel="New name" />
-              <Button label="Rename" tier="secondary" disabled={!name.trim()} onPress={() => apply({ kind: 'rename', stopId: stop.id, name }, `Renamed to ${name.trim()}.`)} />
+              <TextField value={name} onChangeText={setName} placeholder={point.name} style={{ flex: 1 }} accessibilityLabel="New name" />
+              <Button label="Rename" tier="secondary" disabled={!name.trim()} onPress={() => apply({ kind: 'rename', stopId: point.id, name }, `Renamed to ${name.trim()}.`)} />
             </View>
           </Field>
           <Field label="Move">
@@ -171,7 +171,7 @@ export default function ChangePlan() {
               pending ? (
                 <View style={{ gap: SPACING.sm }}>
                   {pendingZone ? <ZoneNotice zone={pendingZone} subject="The new meet point" /> : <DsText v="secondary">Not in a known meet ban.</DsText>}
-                  <Button label={pendingZone ? 'Move here anyway' : 'Move here'} block onPress={() => apply({ kind: 'move', stopId: stop.id, at: pending }, `Moved ${stop.name}.`)} />
+                  <Button label={pendingZone ? 'Move here anyway' : 'Move here'} block onPress={() => apply({ kind: 'move', stopId: point.id, at: pending }, `Moved ${point.name}.`)} />
                   <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                     <Button label="Pick again" tier="secondary" style={{ flex: 1 }} block onPress={() => setPicking(true)} />
                     <Button label="Not now" tier="secondary" style={{ flex: 1 }} block onPress={() => setPending(null)} />
@@ -195,9 +195,9 @@ export default function ChangePlan() {
           <ConfirmSheet
             visible={confirmRemove}
             title="Remove meet point"
-            message={`Remove ${stop.name}? Everyone going gets a chat line that the plan changed.`}
+            message={`Remove ${point.name}? Everyone going gets a chat line that the plan changed.`}
             verb="Remove"
-            onConfirm={() => apply({ kind: 'remove', stopId: stop.id }, `Removed ${stop.name}.`)}
+            onConfirm={() => apply({ kind: 'remove', stopId: point.id }, `Removed ${point.name}.`)}
             onCancel={() => setConfirmRemove(false)}
           />
         </Section>
@@ -217,9 +217,7 @@ export default function ChangePlan() {
           <Button
             label={pendingZone ? 'Add meet point anyway' : 'Add meet point'}
             block
-            disabled={!pending}
-            hint="Choose it on the map first"
-            onPress={() => pending && apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new meet point'}.`)}
+            onPress={() => (pending ? apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new meet point'}.`) : setError('Choose the new meet point on the map first.'))}
           />
           {error ? <ErrorState title={error} /> : null}
         </Section>
@@ -228,16 +226,16 @@ export default function ChangePlan() {
       <MapPicker
         visible={picking}
         mode="point"
-        title={stop ? `Move ${stop.name}` : 'Place the new meet point'}
+        title={point ? `Move ${point.name}` : 'Place the new meet point'}
         hint="Move the map so the crosshair is on the new meet point, or tap a grey pin to use a known place. Orange outlines and pins are meet bans."
-        confirmLabel={stop ? 'Move meet point here' : 'Set meet point here'}
+        confirmLabel={point ? 'Move meet point here' : 'Set meet point here'}
         start={pending ?? centre}
         span={0.06}
-        initial={pending ? [pending] : stop?.at ? [stop.at] : []}
+        initial={pending ? [pending] : point?.at ? [point.at] : []}
         showKinds={['venue', 'track', 'photo']}
         snap
         zones
-        extraPins={pins.filter((p) => p.id !== stop?.id)}
+        extraPins={pins.filter((p) => p.id !== point?.id)}
         extraPaths={[{ id: 'line', coords: line, colour: COLOR.surface.raisedHi, dashed: true }]}
         onDone={([s]) => (s ? picked(s.at, s.name) : setPicking(false))}
         onCancel={() => setPicking(false)}

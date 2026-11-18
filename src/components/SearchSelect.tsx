@@ -72,7 +72,7 @@ export function SearchSelect({
   }
 
   return (
-    <View style={{ gap: SPACING.xs, borderWidth: 1, borderColor: COLOR.action.selected, borderRadius: RADII.card, padding: SPACING.sm, backgroundColor: COLOR.surface.bg }}>
+    <View style={{ gap: SPACING.xs, borderWidth: 1, borderColor: COLOR.surface.borderStrong, borderRadius: RADII.card, padding: SPACING.sm, backgroundColor: COLOR.surface.bg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
         <TextInput
           value={query}
@@ -127,7 +127,7 @@ function Row({ title, detail, on, accent, onPress }: { title: string; detail?: s
         borderRadius: RADII.control,
         backgroundColor: on ? COLOR.action.selectedTint : COLOR.surface.card,
         borderWidth: 1,
-        borderColor: on ? COLOR.action.selected : COLOR.surface.border,
+        borderColor: on ? COLOR.text.primary : COLOR.surface.border,
       }}
     >
       <DsText v="bodyStrong" tone={accent || on ? 'action' : 'primary'}>
