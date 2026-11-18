@@ -2,9 +2,11 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { LAYER_INFO, type Layer } from '../lib/mapLayers';
 import { PLACE_NAMES } from '../lib/glossary';
+import { VEHICLE_CHIPS } from '../lib/photoVehicles';
+import type { VehicleKind } from '../lib/types';
 import { SPACING } from '../theme';
 import { MAP_STYLE_LABELS, type MapStyleChoice } from '../lib/sun';
-import { DsText, RowDivider, SegmentedControl, Sheet, SwitchRow } from './ds';
+import { ChipGroup, DsText, RowDivider, SegmentedControl, Sheet, SwitchRow } from './ds';
 
 /**
  * What Tonight's map can add to the events (Redesign 2, 2 "Map layers"; owner decision 7 keeps Posts;
@@ -29,6 +31,9 @@ export interface LayersPanelProps {
   onMapStyle?: (v: MapStyleChoice) => void;
   /** The Events section at the top (EventFilters.tsx). */
   events?: ReactNode;
+  /** Photo spots' Cars / Bikes filter (nothing selected = all), shown under Photo spots while it's on. */
+  photoVehicles?: VehicleKind[];
+  onPhotoVehicles?: (next: VehicleKind[]) => void;
 }
 
 const STYLES: MapStyleChoice[] = ['auto', 'day', 'night'];
@@ -38,7 +43,7 @@ const STYLES: MapStyleChoice[] = ['auto', 'day', 'night'];
  * Shops and Speed cameras (all off by default, saved in Settings through mapLayers.ts). The only place
  * layers are set.
  */
-export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapStyle, events }: LayersPanelProps) {
+export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapStyle, events, photoVehicles, onPhotoVehicles }: LayersPanelProps) {
   return (
     <Sheet visible={visible} title="Map layers" onClose={onClose}>
       <View style={{ gap: SPACING.sm }}>
@@ -61,6 +66,11 @@ export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapSty
             <View key={r.key}>
               {i > 0 ? <RowDivider /> : null}
               <SwitchRow label={r.label} hint={r.hint} value={!!on[r.key]} onValueChange={() => onToggle(r.key)} />
+              {r.key === 'photo' && on.photo && onPhotoVehicles ? (
+                <View style={{ paddingBottom: SPACING.sm }}>
+                  <ChipGroup<VehicleKind> label="For" allLabel="Cars and bikes" options={VEHICLE_CHIPS} selected={photoVehicles ?? []} onChange={onPhotoVehicles} />
+                </View>
+              ) : null}
             </View>
           ))}
         </View>

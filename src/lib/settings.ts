@@ -73,6 +73,11 @@ export interface Settings {
    */
   mapLayers: SavedLayers;
   /**
+   * Photo spots: the Cars / Bikes filter (photoVehicles.ts), on the map's Layers and in Search. Not
+   * set until the person picks: until then it follows the garage (only bikes → Bikes, else all).
+   */
+  photoVehicles?: ('car' | 'bike')[];
+  /**
    * "Where to?": recent searches (at most 10) and Home and Work. Only on this phone: never
    * sent to the server (settings aren't) and never logged (whereTo.ts).
    */

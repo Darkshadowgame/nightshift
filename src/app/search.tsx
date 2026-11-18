@@ -33,9 +33,10 @@ import { milesBetween } from '../lib/geo';
 import { PLACE_NAMES } from '../lib/glossary';
 import { currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
 import { firstPage, PAGE } from '../lib/paging';
+import { BIKE_ONLY_LABEL, isBikeOnly, passesVehicleFilter, VEHICLE_CHIPS, vehicleFilter } from '../lib/photoVehicles';
 import { visibleSpots } from '../lib/spots';
 import { useStore } from '../lib/store';
-import type { Build, EventType, LatLng, SpotKind, User } from '../lib/types';
+import type { Build, EventType, LatLng, SpotKind, User, VehicleKind } from '../lib/types';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
 import { COLOR, RADII, SPACING, SPOT_COLOURS } from '../theme';
 import { TOWNS } from '../data/towns';
@@ -103,7 +104,7 @@ interface AddressHit {
  * only ever shows its area; the distance is "about" to that area.
  */
 export default function SearchScreen() {
-  const { events, me, crews, users, builds, markNearbySeen, remote, spots } = useStore();
+  const { events, me, crews, users, builds, markNearbySeen, remote, spots, settings, setSettings } = useStore();
   const community = useCommunity();
   const params = useLocalSearchParams<{ q?: string; tab?: string }>();
   const startTab: Tab = params.tab === 'addresses' ? 'places' : params.tab === 'events' ? 'meets' : TABS.some((t) => t.key === params.tab) ? (params.tab as Tab) : 'all';
@@ -268,7 +269,11 @@ export default function SearchScreen() {
   const set = (patch: Partial<SearchFilters>) => setFilters((f) => ({ ...f, ...patch }));
   const distances = Array.from(new Set<number>([...TRAVEL_CHOICES, travel.miles])).sort((a, b) => a - b);
   const changed = filters.maxMiles !== travel.miles || filters.types.length > 0 || filters.when !== 'any' || filters.canGoOnly || filters.vehicles !== 'any';
-  const shownPlaces = allPlaces.filter(({ s }) => !kinds.length || kinds.includes(s.kind));
+  // Photo spots' Cars / Bikes filter, shared with the map's Layers (saved choice, else from the garage).
+  const photoFor = vehicleFilter(settings.photoVehicles, builds.filter((b) => b.ownerId === me));
+  const setPhotoFor = (next: VehicleKind[]) => setSettings({ photoVehicles: next });
+  const showsPhotos = !kinds.length || kinds.includes('photo');
+  const shownPlaces = allPlaces.filter(({ s }) => (!kinds.length || kinds.includes(s.kind)) && passesVehicleFilter(s, photoFor));
   const connected = idsIn(community.connections, 'connected')
     .map((id) => users.find((u) => u.id === id))
     .filter((u): u is User => !!u && !community.blocked.has(u.id));
@@ -287,7 +292,7 @@ export default function SearchScreen() {
       title={s.name}
       subtitle={metaLine([PLACE_NAMES[s.kind].one, s.region])}
       meta={distanceText(miles, 'home')}
-      trailing={s.authorId === me ? <Tag label="Yours" /> : undefined}
+      trailing={s.authorId === me ? <Tag label="Yours" /> : isBikeOnly(s) ? <Tag label={BIKE_ONLY_LABEL} /> : undefined}
       onPress={() => openPlace(s.id)}
     />
   );
@@ -385,6 +390,9 @@ export default function SearchScreen() {
       ) : tab === 'places' ? (
         <>
           <ChipGroup label="Show" options={PLACE_KINDS.map((k) => ({ key: k, label: PLACE_NAMES[k].many }))} selected={kinds} onChange={setKinds} allLabel="Every kind of place" />
+          {showsPhotos ? (
+            <ChipGroup<VehicleKind> label={`${PLACE_NAMES.photo.many} for`} allLabel="Cars and bikes" options={VEHICLE_CHIPS} selected={photoFor} onChange={setPhotoFor} />
+          ) : null}
           <Section title="Nearest to home">
             {shownPlaces.length === 0 ? <EmptyState variant="inline" title="No places like that near you yet." /> : shownPlaces.slice(0, 20).map(placeRow)}
           </Section>

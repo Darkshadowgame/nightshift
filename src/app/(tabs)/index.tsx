@@ -35,6 +35,7 @@ import { PhotoCredit } from '../../components/PhotoCredit';
 import { EventRow } from '../../components/EventRow';
 import { cardDistance, cardTime, driveLength, EventEntityCard, eventPhotoRef, notOpenLine, placeDistance, statusTag } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
+import { BIKE_ONLY_BADGE, BIKE_ONLY_LABEL, isBikeOnly, passesVehicleFilter, vehicleFilter } from '../../lib/photoVehicles';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { cameraIndex } from '../../lib/cameraData';
 import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCamera, describeZone } from '../../lib/cameras';
@@ -249,9 +250,24 @@ export default function TonightScreen() {
   // ---------------------------------------------------------------------------
   // Places and posts on the map (Layers).
   // ---------------------------------------------------------------------------
+  /** Photo spots' Cars / Bikes filter: the saved choice, else from the garage (photoVehicles.ts). */
+  const garageKinds = myBuilds.map((b) => b.kind).join(',');
+  const photoFor = useMemo(
+    () => vehicleFilter(settings.photoVehicles, myBuilds),
+    // The garage matters only by its kinds: a new array each render mustn't redo the places.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.photoVehicles, garageKinds],
+  );
   const places = useMemo(
-    () => visibleSpots(spots, me).filter((s) => s.kind !== 'venue' && !(s.kind === 'track' && isSpectatorVenue(s.id)) && !(s.kind === 'photo' && UNVETTED_PHOTO_SPOTS.has(s.id))),
-    [spots, me],
+    () =>
+      visibleSpots(spots, me).filter(
+        (s) =>
+          s.kind !== 'venue' &&
+          !(s.kind === 'track' && isSpectatorVenue(s.id)) &&
+          !(s.kind === 'photo' && UNVETTED_PHOTO_SPOTS.has(s.id)) &&
+          passesVehicleFilter(s, photoFor),
+      ),
+    [spots, me, photoFor],
   );
   const [selected, setSelected] = useState<string | null>(null);
   const selectedRef = useRef(selected);
@@ -296,7 +312,13 @@ export default function TonightScreen() {
       for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30, badge: 'P' });
     }
     for (const p of postPins) pins.push({ id: `post:${p.id}`, at: p.at, glyph: 'post', colour: POST_COLOUR, title: postPlace(p, { events })?.text ?? 'Post', size: 30 });
-    for (const s of placeView.places) pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind], title: s.name, size: 32 });
+    for (const s of placeView.places) {
+      const bikeOnly = isBikeOnly(s);
+      pins.push({
+        id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind],
+        title: bikeOnly ? `${s.name} (${BIKE_ONLY_LABEL.toLowerCase()})` : s.name, size: 32, ...(bikeOnly ? { badge: BIKE_ONLY_BADGE } : {}),
+      });
+    }
     for (const c of placeView.clusters)
       pins.push(
         c.mixed
@@ -835,6 +857,8 @@ export default function TonightScreen() {
         mapStyle={settings.mapStyle ?? 'auto'}
         onMapStyle={(v) => setSettings({ mapStyle: v })}
         events={<EventFilters eventsOn={eventsOn} onToggleEvents={() => setSettings(toggledLayer(settings, 'events'))} filter={eventFilter} onChange={(f) => setSettings({ eventFilter: f })} />}
+        photoVehicles={photoFor}
+        onPhotoVehicles={(next) => setSettings({ photoVehicles: next })}
       />
 
       <BringSheet

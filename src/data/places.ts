@@ -1,4 +1,4 @@
-import type { LatLng, Spot, SpotKind } from '../lib/types';
+import type { LatLng, Spot, SpotKind, VehicleKind } from '../lib/types';
 import { places as NORTH_ENGLAND } from './regions/northEngland';
 import { places as SOUTH_WEST_SOUTH } from './regions/southWestSouth';
 import { places as MIDLANDS_WALES } from './regions/midlandsWales';
@@ -31,6 +31,13 @@ import { places as SCOTLAND_NI } from './regions/scotlandNI';
 
 export const SYSTEM_AUTHOR = 'nightshift';
 
+/** The twelve UK nations and English regions (ITL1), for photo-spot coverage. */
+export const UK_AREAS = [
+  'North East', 'North West', 'Yorkshire and the Humber', 'East Midlands', 'West Midlands', 'East of England',
+  'London', 'South East', 'South West', 'Wales', 'Scotland', 'Northern Ireland',
+] as const;
+export type UkArea = (typeof UK_AREAS)[number];
+
 export type TrackType = 'circuit' | 'sprint' | 'hillclimb';
 
 export interface PlaceSeed {
@@ -49,6 +56,10 @@ export interface PlaceSeed {
   /** Drives: length along the road. */
   miles?: number;
   trackType?: TrackType;
+  /** Photo spots: which vehicles it suits. ['car', 'bike'] almost always; ['bike'] where a bike can be pushed (engine off) to a backdrop a car can't reach. */
+  vehicles?: VehicleKind[];
+  /** Photo spots: the UK nation or English region (ITL1), for coverage checks. */
+  area?: UkArea;
   /** Where the position or line came from (names or links). */
   sources: string[];
 }
@@ -1073,6 +1084,7 @@ export function placeSpots(createdAt: string): Spot[] {
     description: placeDescription(p.description),
     ...(p.path ? { path: p.path } : {}),
     ...(p.miles ? { miles: p.miles } : {}),
+    ...(p.vehicles ? { vehicles: p.vehicles } : {}),
     ...(ROAD_LIMIT_MPH[p.id] ? { limitMph: ROAD_LIMIT_MPH[p.id] } : {}),
     ...splitWarnings(p.warnings),
     region: p.region,
