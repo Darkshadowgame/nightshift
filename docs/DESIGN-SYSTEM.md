@@ -1,9 +1,10 @@
 # Design system v2
 
 The foundation proposed in `docs/REVIEW-6-design.md` §8. Tokens live in `src/theme.ts`, components in
-`src/components/ds/` (import from `src/components/ds`, the barrel). The old kit (`ui.tsx`, `SPACE`,
-`RADIUS`, `TYPE`, `Txt`) still works and screens still use it; they move over in a later pass, one
-screen at a time.
+`src/components/ds/` (import from `src/components/ds`, the barrel). The old kit (`ui.tsx`, `Txt`,
+`Card`, `ToggleRow`, `NotFound`, `EventCard`, `CrewCard`) is gone: every screen and shared component uses
+the design system. `__tests__/designLint.test.ts` fails on a quoted hex colour or a literal `fontSize`
+in `src/app` or `src/components` outside `ds/` (theme.ts is the only other place raw values live).
 
 **Gallery:** `/dev/components` shows every component in every state. Development builds only
 (`__DEV__`); release builds redirect home, and nothing links to it. On the web preview, open
@@ -21,6 +22,7 @@ screen at a time.
 | `ELEVATION` | `flat`, `float`, `sheet` | Only floating chrome (map buttons, toasts, a card over the map) and sheets cast a shadow. Cards on the page are flat with a border. |
 | `COLOR` | roles below | Pick by role, never by hue. |
 | `tint / line / outline` | `1f`, `40`, `99` alpha | The only three alphas. |
+| `ART` | sign white/red/black, ink, shadow, body, mapBg, mapGrid, cameraDim, black | Fixed colours for drawings only (the UK speed sign, ink inside pins and icons, build art, the web map). Never text, surfaces or controls. |
 | `PRESS` | `control` opacity 0.8; `card` 0.9 + scale 0.98 | Via `Press`, never by hand. |
 | `MOTION` | `fast 150, base 220, sheet 280, toast 3200` ms | Reduced motion: movement becomes a `fast` fade. |
 | `HIT` | 44 | Minimum tap target. |
@@ -41,7 +43,8 @@ screen at a time.
 **Text size.** Body tokens scale fully with the iOS text size. Chrome tokens (`heading`, `meta`,
 `label`, `eyebrow`, `button*`, `tag`, `stat`, `display`) cap at `FONT_SCALE.chrome` (1.3x) so pills,
 tags and tiles don't clip. Avatars and class badges are fixed-size marks with labels. The driving view
-keeps `DRIVE_TYPE` and `FONT_SCALE.drive`.
+uses the `drive*` tokens (`driveArrow, driveSpeed, driveDistance, driveTitle, driveRoad, driveReadout,
+driveBody, driveButton, driveLabel`), built on `DRIVE_TYPE` and capped at `FONT_SCALE.drive`.
 
 **Case.** Capitals are for chrome: headers, eyebrows, labels, buttons, tags, segments. Content (titles,
 names, handles, places, messages, meta lines) appears as typed. `title`, `titleLg`, `body`, `meta` never
@@ -50,7 +53,7 @@ uppercase.
 **Old names.** `C`, `BRAND`, `LAYER`, `STATE`, `CLASS`, `SURFACE`, `TEXT`, `TYPE`, `F`, `FONT_SCALE`
 are unchanged (`COLOR` reads from them). `RADIUS` and `SPACE` are marked deprecated:
 `RADIUS.card` (8) is `RADII.control`, `RADIUS.sheet` (12) is `RADII.card`; `SPACE.section` (20) is off
-the scale (v2 uses 24).
+the scale (v2 uses 24). No screen uses `RADIUS` or `SPACE` any more.
 
 ---
 
@@ -78,9 +81,12 @@ Every pressable goes through `Press`: one pressed state and haptics by rule, so 
 | `EmptyState` | Nothing here | `inline`: one muted line and a link, inside a Section. `block`: glyph, title, line, one primary. |
 | `LoadingState` | Waiting | `rows`: 3 skeleton rows (lists). `inline`: spinner and a short line. Buttons use `busy`, not this. |
 | `ErrorState` | It failed | `inline`: red caption and Retry under the thing that failed. `block`: icon, title, line, Try again. Copy starts "Couldn't". |
-| `Sheet` / `SheetOption` | Pick from options, the `···` menu | Bottom, grabber, title, Done. Slides; fades with reduced motion. Tap the scrim to close. |
+| `Sheet` / `SheetOption` | Pick from options, the `···` menu, map layers, your nav icon | Bottom, grabber, title, Done. Slides; fades with reduced motion. Tap the scrim to close. Reaches the screen bottom (the panel pads the home-indicator inset), stays under the status bar, rides above the keyboard on iOS; a tall one scrolls inside, never off screen. |
 | `ConfirmSheet` | Before something that can't be undone | "{Verb} it" (red if destructive) and "Keep it", in a Sheet. |
 | `SearchField` | Search | Icon left, spinner or clear right, 48 tall, pill. `onOpen` makes it a read-only button (the map pill). |
+| `SwitchRow` | A setting that's on or off | Label as typed, a hint under it, the switch on the right; 56 tall; sodium track when on; buzzes `select`. Replaces `ToggleRow` and the hand-rolled rows. |
+| `Field` / `TextField` / `INPUT` | Form fields | Caps label above, hint below; the input look (input type, strong border, control radius, 48 tall). `multilineHeight` for notes. |
+| `Card` | A plain block on the page (a form, a group of facts) | Card surface, hairline, card radius, no shadow, no accent bar. `raised` inside another card. Browse items are `EntityCard`, not this. |
 | `StatBlock` | 2–4 numbers | Fixed sets: build = bhp, bhp/tonne, mods; event = starts/ends in, going, stop n of m; person = builds, events, rep. No sodium numbers. |
 | `ToastProvider` / `useToast` | "Saved", "Request sent", "Left · Undo" | Bottom, one at a time, read out, buzzes `success` (or `warning`). Not for errors. Needs a `ToastProvider` at the root when screens migrate (the gallery has its own). |
 
