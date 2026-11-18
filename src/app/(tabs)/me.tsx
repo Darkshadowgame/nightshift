@@ -44,7 +44,7 @@ export default function Me() {
         <Button label="Public view" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => router.push({ pathname: '/user/[id]', params: { id: me } })} />
       </View>
 
-      <Section title="Crew" right={<Button label="All crews" tier="tertiary" size="sm" onPress={() => router.push('/crews')} />}>
+      <Section title="Crew" right={crew ? <Button label="All crews" tier="tertiary" size="sm" onPress={() => router.push('/crews')} /> : undefined}>
         {crew ? (
           <ListRow
             title={crew.name}

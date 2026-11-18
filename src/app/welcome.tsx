@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, DsText, ErrorState, SegmentedControl, Tag, typeStyle, useToast } from '../components/ds';
@@ -37,6 +37,11 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
   const demo = backend === 'local';
   const [step, setStep] = useState<1 | 2>(1);
+  // Each step starts at the top.
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  useEffect(() => {
+    scroller.current?.scrollTo({ y: 0, animated: false });
+  }, [step]);
 
   // Step 1: the car or bike.
   const [kind, setKind] = useState<VehicleKind>('car');
@@ -94,6 +99,7 @@ export default function Welcome() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
+        ref={scroller}
         contentContainerStyle={[st.page, { paddingTop: insets.top + SPACING.xl, paddingBottom: insets.bottom + SPACING.xxxl }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
