@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, type AccessibilityRole, type AccessibilityState, type Insets, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type AccessibilityRole, type LayoutChangeEvent, type AccessibilityState, type Insets, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { feel } from '../../lib/feel';
 import { PRESS } from '../../theme';
@@ -35,6 +35,7 @@ export function Press({
   pressedStyle,
   children,
   testID,
+  onLayout,
 }: {
   onPress?: () => void;
   onLongPress?: () => void;
@@ -51,6 +52,7 @@ export function Press({
   pressedStyle?: StyleProp<ViewStyle>;
   children: ReactNode;
   testID?: string;
+  onLayout?: (e: LayoutChangeEvent) => void;
 }) {
   const reduced = useReducedMotion();
   return (
@@ -71,6 +73,7 @@ export function Press({
       accessibilityHint={hint}
       hitSlop={hitSlop}
       testID={testID}
+      onLayout={onLayout}
       style={({ pressed }) => [
         style,
         pressed && !disabled && feedback === 'control' && { opacity: PRESS.control.opacity },

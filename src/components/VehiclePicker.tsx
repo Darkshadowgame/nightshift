@@ -199,15 +199,19 @@ function PickedCard({ variant }: { variant: Variant }) {
 /** One result: the class badge, the name and the engine line, a tick when it's the one picked. */
 function VariantRow({ v, on, withName, onPress }: { v: Variant; on?: boolean; withName?: boolean; onPress: () => void }) {
   const line = variantLine(v);
+  // In search results the generation goes in the name ("Ford Fiesta ST Mk8 facelift"), so five
+  // Fiesta STs don't read as five identical rows (REVIEW-11 task 1); the line under it is the rest.
+  const rest = [v.engine, yearsLabel(v), `${v.bhp} bhp`].filter(Boolean).join(' · ');
+  const name = `${v.make} ${modelLabel(v)}`;
   return (
     <ListRow
       leading={{ classBadge: variantClass(v) }}
-      title={withName ? `${v.make} ${v.model}` : line}
-      subtitle={withName ? line : undefined}
+      title={withName ? name : line}
+      subtitle={withName ? rest : undefined}
       trailing={on ? <Icon name="check" size={18} colour={COLOR.text.primary} /> : undefined}
       chevron={false}
       onPress={onPress}
-      accessibilityLabel={`${withName ? `${v.make} ${v.model}, ` : ''}${line}${on ? ', picked' : ''}`}
+      accessibilityLabel={`${withName ? `${name}, ${rest}` : line}${on ? ', picked' : ''}`}
     />
   );
 }

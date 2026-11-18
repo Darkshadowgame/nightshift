@@ -86,13 +86,15 @@ export function ToastProvider({ children, placement = 'bottom', topOffset = 56 }
     });
   }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Each toast's key, so the same message twice still animates in again. */
+  const count = useRef(0);
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   const show = useCallback((t: ToastInput) => {
     if (timer.current) clearTimeout(timer.current);
     buzz(t.tone === 'danger' ? 'warning' : t.tone === 'info' ? 'none' : 'success');
     AccessibilityInfo.announceForAccessibility(t.message);
-    setToast({ ...t, id: Date.now() });
+    setToast({ ...t, id: ++count.current });
     timer.current = setTimeout(() => setToast(null), toastDuration(t.message, !!t.action, MOTION.toast));
   }, []);
   useEffect(() => () => {

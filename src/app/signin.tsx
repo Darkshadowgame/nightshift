@@ -83,10 +83,11 @@ export default function SignIn() {
   }, []);
   const setAgreed = (v: boolean) => {
     setAgreedState(v);
+    if (v) setError(null);
     (v ? AsyncStorage.setItem(AGREED_KEY, TERMS_VERSION) : AsyncStorage.removeItem(AGREED_KEY)).catch(() => {});
   };
   const mustAgree = () => {
-    if (!agreed) throw new Error('Tick "I\'m 18+ and agree to the Terms" first.');
+    if (!agreed) throw new Error('Tick the box to say you\'re 18 or over first.');
   };
 
   async function run(kind: NonNullable<typeof busy>, fn: () => Promise<void>) {
@@ -127,7 +128,12 @@ export default function SignIn() {
       const ok = await auth.openLink(link);
       if (!ok) throw new Error("That isn't a Nightshift sign-in link. Copy the whole link from the email.");
     });
-  const demo = () => run('demo', () => auth.startDemo());
+  // The 18+ box is on the first screen only, and both ways in need it: the demo too.
+  const demo = () =>
+    run('demo', async () => {
+      mustAgree();
+      await auth.startDemo();
+    });
 
   const input = [typeStyle('input'), st.input];
   const err = (at: NonNullable<typeof busy>) => (error?.at === at ? <ErrorState title={error.text} /> : null);
@@ -175,6 +181,7 @@ export default function SignIn() {
             label: 'Sign in',
             onPress: () => {
               setError(null);
+              if (!agreed) return setError({ at: 'demo', text: "Tick the box to say you're 18 or over first." });
               setStep('email');
             },
           }}
@@ -249,7 +256,6 @@ export default function SignIn() {
               />
             ) : null}
             <DsText v="caption">No password: we email you a 6-digit code. New here? The same code makes your account.</DsText>
-            {!agreed ? <AgreeRow on={agreed} onChange={setAgreed} /> : null}
             {err('send')}
           </Section>
         ) : (

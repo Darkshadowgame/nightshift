@@ -7,11 +7,10 @@ import { eventArea } from '../lib/area';
 import { useNow } from '../lib/clock';
 import { isCrewHost } from '../lib/crews';
 import { banZoneAt, duplicateHosted, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
-import { plural } from '../lib/format';
 import { fitRegion } from '../lib/geo';
 import { leadText, LOCATION, MEET_POINT } from '../lib/glossary';
 import { clearHostDraft, saveHostDraft, worthKeeping, type HostDraft } from '../lib/hostDraft';
-import { DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
+import { DEFAULT_FILTER, fromVehicleSelection, hostLeftOut, inviteSummary, invitees, leftOutMessage, normaliseFilter, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
 import { nearestRegion } from '../lib/profile';
@@ -23,7 +22,7 @@ import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortNam
 import { COLOR, EVENT_COLOURS, SPACING } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
-import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, PAGE_WITH_BAR, Press, RowDivider, Section, Sheet, SwitchRow, TextField } from './ds';
+import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, PAGE_WITH_BAR, Press, RowDivider, Section, Sheet, StepHeading, SwitchRow, TextField } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -258,7 +257,6 @@ export function EventForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remote, filterKey, area.lat, area.lng]);
   const peopleCount = !remote ? String(localMatches.userIds.length) : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : serverCount.people === null ? 'fewer than 3' : String(serverCount.people);
-  const peopleText = /^\d+$/.test(peopleCount) ? plural(Number(peopleCount), 'person', 'people') : `${peopleCount} people`;
   // Warn only (owner): a court injunction or a PSPO asks before posting.
   const check = publishCheck(placed, BAN_ZONES);
   const verb = editing ? 'Save' : 'Post';
@@ -379,7 +377,7 @@ export function EventForm({
       revealMinutesBefore: isPublicType(type) ? 0 : reveal,
       hostIds,
       crewId: crewOwned ? (initial?.crewId ?? (canCrewHost ? myCrew?.id : undefined)) : undefined,
-      // Nothing narrowed is "everyone" (the DB's invite_everyone), so the summary says "Anyone within X mi".
+      // Nothing narrowed is "everyone" (the DB's invite_everyone): "Open to anyone within X mi".
       filter: normaliseFilter(filter),
       going: initial?.going ?? [me],
       checkIns: initial?.checkIns ?? {},
@@ -423,7 +421,7 @@ export function EventForm({
   const revealText = isPublicType(type) ? 'Everyone sees where it is' : `${LOCATION.lead(reveal)}, to people going`;
   const coHostNames = coHosts.map((h) => displayHandle(users.find((u) => u.id === h)?.handle ?? h));
   const vehicles = vehicleSelection(filter);
-  const summary = `${describeFilter(normaliseFilter(filter))} · ${peopleText}`;
+  const summary = inviteSummary(normaliseFilter(filter), peopleCount);
 
   // ---------------------------------------------------------------------------
   // Steps
@@ -450,7 +448,7 @@ export function EventForm({
         days={14}
         stepMinutes={15}
       />
-      <DateTimeField label="Ends" value={end} onChange={setEnd} placeholder="No set end" minDate={new Date(start.getTime() + 15 * 60_000)} maxDate={new Date(start.getTime() + 24 * HOUR)} stepMinutes={15} />
+      <DateTimeField label="Ends" value={end} onChange={setEnd} after={start} placeholder="No set end" minDate={new Date(start.getTime() + 15 * 60_000)} maxDate={new Date(start.getTime() + 24 * HOUR)} stepMinutes={15} />
       <Field label="Details (optional)">
         <TextField value={description} onChangeText={setDescription} placeholder="Anything people should know" multiline multilineHeight={88} accessibilityLabel="Details" />
       </Field>
@@ -486,7 +484,7 @@ export function EventForm({
                 accessibilityLabel={`${label} name`}
               />
             </Field>
-            {checkNames && st.at && !st.name.trim() ? (
+            {checkNames && st.at && !st.name.trim() && !error ? (
               <DsText v="caption" tone="danger">
                 Name it, e.g. the car park or venue people know it by.
               </DsText>
@@ -527,7 +525,7 @@ export function EventForm({
           onPress={() => {
             const insertAt = type === 'cruise' ? stops.length - 1 : stops.length;
             const next = [...stops];
-            next.splice(insertAt, 0, { key: `s${Date.now()}`, name: '' });
+            next.splice(insertAt, 0, { key: newId('s'), name: '' });
             setStops(next);
             setActiveStop(insertAt);
           }}
@@ -676,13 +674,15 @@ export function EventForm({
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
       >
-        <View style={{ gap: SPACING.xxs }} accessibilityRole="header" accessibilityLabel={`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`}>
-          <DsText v="meta">{`Step ${step + 1} of ${STEPS.length}`}</DsText>
-          <DsText v="titleLg">{STEPS[step]}</DsText>
-        </View>
+        <StepHeading step={step + 1} of={STEPS.length} title={STEPS[step]} />
         <View style={{ gap: SPACING.lg }}>{body}</View>
-        {error ? <ErrorState title={error} /> : null}
       </ScrollView>
+      {/* What's missing sits right above Next, never below the fold at 375x667 (said once, C5). */}
+      {error ? (
+        <View style={{ paddingHorizontal: SPACING.screen, paddingVertical: SPACING.sm, backgroundColor: COLOR.surface.bg, borderTopWidth: 1, borderTopColor: COLOR.surface.border }}>
+          <ErrorState title={error} />
+        </View>
+      ) : null}
       <ActionBar
         primary={step === LAST ? { label: editing ? (submitLabel ?? 'Save changes') : postLabel, onPress: save, busy: saving, haptic: 'success' } : { label: 'Next', onPress: nextStep }}
       />

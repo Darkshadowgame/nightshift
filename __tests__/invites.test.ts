@@ -1,4 +1,4 @@
-import { DEFAULT_FILTER, describeFilter, hostLeftOut } from '../src/lib/invites';
+import { DEFAULT_FILTER, describeFilter, hostLeftOut, inviteSummary } from '../src/lib/invites';
 import type { Build } from '../src/lib/types';
 
 describe('describeFilter', () => {
@@ -24,5 +24,16 @@ describe('hostLeftOut (B4)', () => {
     expect(hostLeftOut(DEFAULT_FILTER, [golf])).toBe(false);
     expect(hostLeftOut({ ...DEFAULT_FILTER, cars: false, everyone: true }, [golf])).toBe(false);
     expect(hostLeftOut({ ...DEFAULT_FILTER, cars: false }, [])).toBe(false);
+  });
+});
+
+describe('inviteSummary (REVIEW-11: open reads as open)', () => {
+  it('says open to anyone, and about how many people nearby', () => {
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toBe('Open to anyone within 25 mi · about 18 people nearby');
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1')).toBe('Open to anyone within 25 mi · about 1 person nearby');
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3')).toBe('Open to anyone within 10 mi · fewer than 3 people nearby');
+  });
+  it('says a limited meet as its limits and how many match', () => {
+    expect(inviteSummary({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7')).toBe('Bikes · within 10 mi · 7 people match');
   });
 });

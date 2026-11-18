@@ -1,4 +1,4 @@
-import { useEffect, useId, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,12 @@ export type ActionBarButton = {
   accessibilityLabel?: string;
   accessibilityHint?: string;
 };
+
+/**
+ * Set by a Sheet around its pinned footer: an ActionBar there draws flat (no bar of its own, no
+ * home-indicator inset, no toast anchor), since the Sheet already sits above the home indicator.
+ */
+export const InSheetContext = createContext(false);
 
 /**
  * The bottom bar of every detail screen (T3) and form (T4), and the sign-in screen (Redesign 2,
@@ -61,19 +67,20 @@ export function ActionBar({
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const anchor = useToastAnchor();
+  const inSheet = useContext(InSheetContext);
   const id = useId();
   const hasContent = !!(primary || secondary || status || children);
   useEffect(() => {
-    if (!hasContent) anchor(id, null);
+    if (!hasContent || inSheet) anchor(id, null);
     return () => anchor(id, null);
-  }, [anchor, id, hasContent]);
+  }, [anchor, id, hasContent, inSheet]);
   if (!hasContent) return null;
   // The status pill only stands in for a primary: with a primary showing it would say the same twice.
   const pill = !primary && status ? status : null;
   return (
     <View
-      onLayout={(e) => anchor(id, e.nativeEvent.layout.height)}
-      style={[
+      onLayout={inSheet ? undefined : (e) => anchor(id, e.nativeEvent.layout.height)}
+      style={inSheet ? { gap: SPACING.sm } : [
         {
           backgroundColor: COLOR.surface.bg,
           borderTopWidth: 1,

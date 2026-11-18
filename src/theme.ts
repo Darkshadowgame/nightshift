@@ -292,8 +292,9 @@ export const TYPE_SCALE = {
   bodyStrong: { fontFamily: F.bodyBold, fontSize: 15, lineHeight: 21, scale: 'body' },
   secondary: { fontFamily: F.body, fontSize: 14, lineHeight: 19, scale: 'body' },
   caption: { fontFamily: F.body, fontSize: 13, lineHeight: 17, scale: 'body' },
-  /** One-line facts: "Tonight 22:30 · 7 going · 3.2 mi". Keeps its case, tabular figures. */
-  meta: { fontFamily: F.label, fontSize: 13, lineHeight: 17, letterSpacing: 0.4, scale: 'chrome', tabular: true },
+  /** One-line facts: "Tonight 22:30 · 7 going · 3.2 mi". Keeps its case, tabular figures. Barlow, not the
+   * condensed label face: at 13 px the condensed "mi" read as "ml" (REVIEW-11). */
+  meta: { fontFamily: F.bodyMed, fontSize: 13, lineHeight: 17, letterSpacing: 0.2, scale: 'chrome', tabular: true },
   /** Field labels, stat labels. */
   label: { fontFamily: F.label, fontSize: 12, lineHeight: 16, letterSpacing: 1.0, caps: true, scale: 'chrome' },
   /** Section titles and an entity's kind. Fog (`text.secondary`) by default; a layer colour only for an event's or place's kind. */

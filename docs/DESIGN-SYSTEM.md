@@ -23,7 +23,7 @@ in `src/app` or `src/components` outside `ds/` (theme.ts is the only other place
 |---|---|---|
 | `SPACING` | `xxs 2, xs 4, sm 8, md 12, lg 16, xl 24, xxl 32, xxxl 48`; `screen 16`, `section 24` | Every gap, padding and margin comes from here. `screen` is the page gutter, `section` the gap between Sections. |
 | `RADII` | `tag 4, control 8, card 12, sheet 16, pill 999` | One radius per job: tags; buttons, inputs, chips; cards, embeds, toasts; sheet tops; search fields and dots. |
-| `TYPE_SCALE` | `display, heading, hero, titleLg, title, body, bodyStrong, secondary, caption, meta, label, eyebrow, button(Sm/Lg), tag, input, stat` | Each has family, size, line height, case and a text-size cap. Use through `DsText v=…` or `typeStyle()`. `hero` (30/34, upright display face, as typed) is for titles on photos and the sign-in tagline. `label` letter-spacing 1.0, `eyebrow` 1.5 (less shouting). Eyebrows are fog by default. |
+| `TYPE_SCALE` | `display, heading, hero, titleLg, title, body, bodyStrong, secondary, caption, meta, label, eyebrow, button(Sm/Lg), tag, input, stat` | Each has family, size, line height, case and a text-size cap. Use through `DsText v=…` or `typeStyle()`. `hero` (30/34, upright display face, as typed) is for titles on photos and the sign-in tagline. `label` letter-spacing 1.0, `eyebrow` 1.5 (less shouting). Eyebrows are fog by default. `meta` is Barlow Medium 13, not the condensed label face (condensed "mi" read as "ml"). |
 | `ELEVATION` | `flat`, `float`, `sheet`, `bar` | Only floating chrome (map buttons, toasts, a card over the map), sheets and the `ActionBar` (`bar`) cast a shadow. Cards on the page are flat with a border. |
 | `ASPECT` | `event 16/9, build 4/3, post 4/5` | Photo shapes for `PhotoCard` and `Hero`. |
 | `COLOR` | roles below | Pick by role, never by hue. |
@@ -133,13 +133,24 @@ overlapping faces (`people`: `{ id?, name?, handle?, photo? }`, yours first), "+
 then one `note` sentence ("Check-in opens at 21:30."). `text` replaces the location sentence for the
 states that aren't about location ("Cancelled by the host."). `done` swaps the pin for a green tick.
 
-**`DateTimeSheet({ visible, title?, value, onChange, onClose, minDate?, maxDate?, days = 14, stepMinutes = 15, mode = 'datetime' | 'date', past?, now? })`**
+**`DateTimeSheet({ visible, title?, value, onChange, onClose, minDate?, maxDate?, days = 14, stepMinutes = 15, mode = 'datetime' | 'date', past?, now?, after? })`**
 and **`DateTimeField({ label, hint?, value, onChange, placeholder?, …same options })`** — the one date
 and time picker (host flow Starts/Ends, a dyno run's date, a track day). A sideways row of `days`
-("Today", "Tomorrow", "Sat 21", …; `past` runs back from today), then "Another day" for the month
-calendar in the same sheet; for `datetime` an hour grid (00–23) and minutes in `stepMinutes`. Every
-tap calls `onChange(Date)`; Done closes. `minDate`/`maxDate` grey out the rest. `now` defaults to
-`appNow()`. The field shows the value in the time wording ("Sun 10:00", "Today").
+("Today / Fri 20", "Tomorrow / Sat 21", then "Sun / 22", …: the weekday is always on the chip;
+`past` runs back from today), then "Another day" for the month calendar in the same sheet; for
+`datetime` an hour grid (00–23) and minutes in `stepMinutes`. The day row opens scrolled to the
+picked day. Every tap calls `onChange(Date)`; Done closes. `minDate`/`maxDate` grey out the rest.
+`now` defaults to `appNow()`; on the demo clock the sheet says once which day "Today" is ("The demo
+night is Fri 20 Nov…"). `after` (an end's start) makes an end in the small hours after it read
+"01:00 (after midnight)" (4.10), never "Tonight 01:00". The field shows the value in the time wording
+("Sun 10:00", "Today").
+
+**`StepHeading({ step, of, title, hint? })`** — the one step indicator for a multi-step form
+(onboarding, the host flow): "Step 1 of 4" small, the step's question in `titleLg`, an optional line.
+The form's name is the caps header title ("GET STARTED", "HOST A MEET"); the step is never the header.
+
+**`BuildLine({ letter, name, power })`** — a build said in a line (K3): `ClassBadge`, name, "230 bhp"
+(`powerText(build)`). `ListRow`'s `build` prop draws it under a person's @handle.
 
 **`Gradient({ colours?, to?, style? })`** — the one SVG gradient (default `COLOR.surface.photoFade`),
 filling its parent. Used by PhotoCard, Hero and `PaintArt`.
@@ -171,7 +182,7 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `Button` | Actions | Tiers `primary` (one per screen, in the ActionBar on T3/T4), `secondary`, `tertiary` (text link, chalk), `destructive` (removes, leaves, declines). Sizes `sm 44`, `md 48`, `lg 56`. `busy` keeps the label. Destructive buzzes `warning`; pass `haptic="success"` on save and send. `disabled` + `hint` stays for form fields that need input first, never for a screen's primary. |
 | `IconButton` | Header icons, map chrome | Always has a label. `glass` floats over the map and buzzes `tap`. |
 | `Section` | Titled blocks | Fog eyebrow and hairline. `right` is a tertiary Button or a Tag, never a value. No colour prop. |
-| `ListRow` | Any list of people, builds, events, places, settings | `leading` is `{avatar}`, `{pin}`, `{classBadge}` or `{icon}`; title as typed; `subtitle`; `meta`; `trailing` (Tag, value or small Button); chevron when it opens something; `unread` dot. 56 tall with a mark, 44 without. |
+| `ListRow` | Any list of people, builds, events, places, settings | `leading` is `{avatar}`, `{pin}`, `{classBadge}` or `{icon}`; title as typed; `subtitle` (or `build`: a person's `BuildLine`); `meta`; `trailing` (Tag, value or small Button); chevron when it opens something; `unread` dot. 56 tall with a mark, 44 without. |
 | `Avatar` | A person | Photo, or initials in chalk on kerb. `sm 28`, `md 40`, `lg 76`. Never a class badge, never sodium. |
 | `ClassBadge` | A build's class | Skewed tile in its metal. Never stands in for a person. A tap opens one line (`CLASS_EXPLAINER`) in a Sheet. |
 | `BuildThumb` | A build's picture in a row | Photo or silhouette, 4:3. |
@@ -182,9 +193,9 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 | `EmptyState` | Nothing here | `block`: glyph, one line, one primary (whole screen). `inline`: one line, optional link (a section). |
 | `LoadingState` | Waiting | `rows` for lists, `inline` spinner. Buttons use `busy`. |
 | `ErrorState` | It failed | Under the thing that failed. Copy starts "Couldn't". Never a toast. |
-| `Sheet` / `SheetOption` | Pick, confirm, the `···` menu, vote, filters | Closes with **Done** (or its action). **Cancel** only on forms that lose work. Never on top of another sheet. |
+| `Sheet` / `SheetOption` | Pick, confirm, the `···` menu, vote, filters | Closes with **Done** (or its action). **Cancel** only on forms that lose work. Never on top of another sheet. A sheet's primary goes **last**: an `<ActionBar primary=… />` or a block primary `Button`. The Sheet pins it under the scroll so it is always fully visible at 375x667 (an ActionBar inside a Sheet draws flat, no inset). |
 | `ConfirmSheet` | Before something that can't be undone; leaving a form with changes | "{Verb} it" / "Keep it" (the host flow: "Discard it" / "Keep editing"). |
-| `SearchField` | Search | One per surface. `onOpen` makes it the read-only map pill. |
+| `SearchField` | Search | One per surface. `onOpen` makes it the read-only map pill. The magnifier says "search", so the words never do: a leading "Search " is dropped from the placeholder ("Meets, places…"). No browser focus ring on web: the pill's border shows focus. |
 | `SwitchRow` | A setting that's on or off | Label, hint, switch; sodium track when on. |
 | `Field` / `TextField` / `INPUT` | Form fields | Caps label above, hint below, 48 tall. |
 | `Card` | A plain block (a form group, facts) | Flat, hairline. Browse items are `PhotoCard`. |
@@ -193,7 +204,8 @@ filling its parent. Used by PhotoCard, Hero and `PaintArt`.
 
 Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `initials`, `displayHandle`,
 `toggleSelection`, `normaliseSelection`, `passesFilter`, `selectionSummary`, `segmentLabel`, `metaLine`,
-`entityA11yLabel`, `statA11yLabel`, `toastDuration`, `rgba`, `stripFaces`.
+`entityA11yLabel`, `statA11yLabel`, `toastDuration`, `rgba`, `stripFaces`, `shortDay`, `shortDate`,
+`afterMidnightLabel`.
 
 ---
 
@@ -207,7 +219,7 @@ holds the route → template map and checks the root layout against it (a new ro
 | **T1 Tab** | Tab header (4.1) | Sections of `PhotoCard`s or `ListRow`s | Header "+" only |
 | **T2 Map** | Tab header + search pill + Map/List | Map with one MapSheet | In the sheet's top card |
 | **T3 Detail** | Back, optional Share, `···` | `Hero` → facts → sections | `ActionBar` pinned to the bottom |
-| **T4 Form / wizard** | Back (asks before losing work), caps title, step "2 of 4" | Fields in Cards | `ActionBar` pinned to the bottom |
+| **T4 Form / wizard** | Back (asks before losing work), caps title (the form's name) | `StepHeading` ("Step 2 of 4", the question), then fields | `ActionBar` pinned to the bottom |
 | **T5 List of settings** | Back + caps title | Groups of `ListRow` / `SwitchRow` | None |
 
 ---
@@ -276,6 +288,8 @@ old "One way to do X" and "Added after Review N" lists.
 * 24-hour clock: `clock()` → "21:30".
 * `whenLabel(d, now)`: "Today 14:00" (before 17:00), "Tonight 22:00" (from 17:00, and the small
   hours after it: "Tonight 01:00"), "Tomorrow 20:00", "Sat 10:00" (within 6 days), "Sat 28 Nov, 10:00".
+* An **end** next to its start: in the small hours after it, "01:00 (after midnight)"
+  (`afterMidnightLabel`, ds/logic.ts; `DateTimeField after={start}`).
 * `liveLabel(end)` → "Live · until 23:00". `endedLabel(end, now)` → "Ended 23:00" / "Ended Fri".
   `eventTimeLabel(start, end, now)` picks one of the three. `timeRange()` → "Tonight 22:00–00:30".
 * Relative only under 60 minutes, in brackets after a clock time: `clockWithCountdown()` →

@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, View } from 'react-native';
-import { appNow } from '../../lib/appClock';
+import { appNow, clockOffset } from '../../lib/appClock';
 import { dayKey, dayLabelShort, dayOptions, whenLabel } from '../../lib/when';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { ChoiceGroup } from './Choice';
 import { MonthCalendar } from './DateField';
 import { Field, INPUT } from './Field';
 import { Icon } from './Icon';
-import { localDay, parseLocalDay } from './logic';
+import { afterMidnightLabel, localDay, parseLocalDay, shortDate, shortDay } from './logic';
 import { Press } from './Press';
 import { Sheet } from './Sheet';
 import { DsText } from './Text';
@@ -27,7 +27,18 @@ type Opts = {
   past?: boolean;
   /** "Now" for the day row. Defaults to the app clock (`appNow()`), so the demo night is respected. */
   now?: Date;
+  /**
+   * This is the end of something that starts at `after` (the host flow's Ends): an end in the small
+   * hours after it reads "01:00 (after midnight)" (4.10), not "Tonight 01:00".
+   */
+  after?: Date;
 };
+
+/** What the picker and its field say for a value: "Tonight 22:00", "Sun 10:00", "01:00 (after midnight)", "Today". */
+export function dateTimeText(value: Date, now: Date, mode: DateTimeMode = 'datetime', after?: Date): string {
+  if (mode === 'date') return dayLabelShort(value, now);
+  return (after && afterMidnightLabel(value, after)) || whenLabel(value, now);
+}
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
@@ -55,6 +66,7 @@ export function DateTimeSheet({
   mode = 'datetime',
   past = false,
   now: nowGiven,
+  after,
 }: Opts & {
   visible: boolean;
   title?: string;
@@ -63,7 +75,13 @@ export function DateTimeSheet({
   onClose: () => void;
 }) {
   const now = nowGiven ?? appNow();
+  // The demo runs on a virtual Friday night (appClock): say which day "Today" is, once, so a phone
+  // that reads Wednesday doesn't make "Today" look wrong.
+  const demoDay = !nowGiven && clockOffset() !== 0 ? `The demo night is ${shortDate(now)}, so that's "Today" here.` : null;
   const [calendar, setCalendar] = useState(false);
+  // The day row opens scrolled to the picked day (it can be two weeks along).
+  const row = useRef<ComponentRef<typeof ScrollView>>(null);
+  const scrolled = useRef(false);
   const options = dayOptions(now, days, past);
   const minKey = minDate ? dayKey(minDate) : undefined;
   const maxKey = maxDate ? dayKey(maxDate) : undefined;
@@ -110,26 +128,39 @@ export function DateTimeSheet({
     <Sheet visible={visible} title={title} onClose={onClose}>
       {value ? (
         <DsText v="title" accessibilityLiveRegion="polite">
-          {mode === 'date' ? dayLabelShort(value, now) : whenLabel(value, now)}
+          {dateTimeText(value, now, mode, after)}
         </DsText>
       ) : null}
+      {demoDay ? <DsText v="caption">{demoDay}</DsText> : null}
       {calendar ? (
         <MonthCalendar value={current} min={minKey} max={maxKey ?? (past ? localDay(now) : undefined)} onPick={pickDay} />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm, paddingVertical: SPACING.xxs }}>
-          {options.map((o) => {
+        <ScrollView ref={row} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm, paddingVertical: SPACING.xxs }}>
+          {options.map((o, i) => {
             const on = o.key === current;
             const off = dayOff(o.key);
-            const [word, num] = o.label.includes(' ') ? o.label.split(' ') : [o.label, String(o.date.getDate())];
+            // "Today / Fri 20", "Tomorrow / Sat 21", then "Sun / 22": the weekday is always on the chip.
+            const word = i === 0 ? 'Today' : i === 1 ? (past ? 'Yesterday' : 'Tomorrow') : shortDay(o.date).split(' ')[0];
+            const num = i <= 1 ? shortDay(o.date) : String(o.date.getDate());
             return (
               <Press
                 key={o.key}
+                onLayout={
+                  on
+                    ? (e) => {
+                        if (scrolled.current) return;
+                        scrolled.current = true;
+                        const x = e.nativeEvent.layout.x;
+                        if (x > 0) row.current?.scrollTo({ x: Math.max(0, x - SPACING.xl), animated: false });
+                      }
+                    : undefined
+                }
                 onPress={off ? undefined : () => pickDay(o.key)}
                 disabled={off}
                 haptic="select"
                 role="radio"
                 state={{ checked: on, disabled: off }}
-                label={`${o.label}${o.label.includes(' ') ? '' : `, ${o.date.getDate()}`}`}
+                label={`${word}, ${shortDate(o.date)}`}
                 style={{
                   minWidth: 64,
                   minHeight: 56,
@@ -244,7 +275,7 @@ export function DateTimeField({
 }: Opts & { label: string; hint?: string; value: Date | null; onChange: (d: Date) => void; placeholder?: string }) {
   const [open, setOpen] = useState(false);
   const now = opts.now ?? appNow();
-  const shown = value ? (opts.mode === 'date' ? dayLabelShort(value, now) : whenLabel(value, now)) : placeholder;
+  const shown = value ? dateTimeText(value, now, opts.mode, opts.after) : placeholder;
   return (
     <Field label={label} hint={hint}>
       <Press onPress={() => setOpen(true)} label={`${label}: ${shown}. Change`} style={[INPUT, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>

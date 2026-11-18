@@ -115,6 +115,23 @@ export function describeFilter(filter: InviteFilter): string {
   return parts.join(' · ');
 }
 
+/**
+ * The host form's "Who can come" line (REVIEW-11): open reads as open, and the count says what
+ * it is. `people` is the count as the form has it: "18", "fewer than 3", "…" or "?".
+ *
+ *   Open to anyone within 25 mi · about 18 people nearby
+ *   Cars · Class A–S · within 25 mi · 7 people match
+ */
+export function inviteSummary(filter: InviteFilter, people: string): string {
+  const n = /^\d+$/.test(people) ? Number(people) : null;
+  if (filter.everyone) {
+    const count = n === null ? `${people} people nearby` : n === 1 ? 'about 1 person nearby' : `about ${n} people nearby`;
+    return `Open to anyone within ${filter.radiusMiles} mi · ${count}`;
+  }
+  const count = n === null ? `${people} people match` : n === 1 ? '1 person matches' : `${n} people match`;
+  return `${describeFilter(filter)} · ${count}`;
+}
+
 const ORDER = 'SABCD';
 function classSort(a: string, b: string) {
   return ORDER.indexOf(a) - ORDER.indexOf(b);

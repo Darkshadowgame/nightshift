@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
+import { appNow } from '../../lib/appClock';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { Field, INPUT } from './Field';
 import { Icon } from './Icon';
@@ -22,14 +23,14 @@ export function dayLabel(day: string): string {
  * of `DateTimeSheet`. `min`/`max` (local "YYYY-MM-DD") grey out the rest.
  */
 export function MonthCalendar({ value, min, max, onPick }: { value: string | null; min?: string; max?: string; onPick: (day: string) => void }) {
-  const start = parseLocalDay(value) ?? parseLocalDay(max && localDay(new Date()) > max ? max : null) ?? new Date();
+  const start = parseLocalDay(value) ?? parseLocalDay(max && localDay(appNow()) > max ? max : null) ?? appNow();
   const [month, setMonth] = useState({ y: start.getFullYear(), m: start.getMonth() });
   const shift = (n: number) => setMonth(({ y, m }) => ({ y: y + Math.floor((m + n) / 12), m: (((m + n) % 12) + 12) % 12 }));
   const lastOfPrev = localDay(new Date(month.y, month.m, 0, 12));
   const firstOfNext = localDay(new Date(month.y, month.m + 1, 1, 12));
   const canBack = !min || lastOfPrev >= min;
   const canNext = !max || firstOfNext <= max;
-  const today = localDay(new Date());
+  const today = localDay(appNow());
   return (
     <View style={{ gap: SPACING.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -85,6 +85,23 @@ export function ClassBadge({ letter, size = 'md', decorative }: { letter: ClassL
   );
 }
 
+/**
+ * A build in a line (K3): its ClassBadge, its name and its one power figure, "197 bhp". The way a
+ * build is said inside a person's row, a going list or a search result.
+ *
+ *   <BuildLine letter="B" name="Volkswagen Golf GTI Mk7" power="230 bhp" />
+ */
+export function BuildLine({ letter, name, power }: { letter: ClassLetter; name: string; power: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+      <ClassBadge letter={letter} size="sm" decorative />
+      <DsText v="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
+        {`${name} · ${power}`}
+      </DsText>
+    </View>
+  );
+}
+
 /** A build's thumbnail: its first photo, or its silhouette. 4:3, control radius. Separate from Avatar on purpose. */
 export function BuildThumb({ photo, kind = 'car', shape, size = 56, label }: { photo?: Photo | null; kind?: VehicleKind; shape?: CarShape; size?: number; label?: string }) {
   const frame = { width: Math.round((size * 4) / 3), height: size, borderRadius: RADII.control, overflow: 'hidden' as const, backgroundColor: COLOR.surface.media };

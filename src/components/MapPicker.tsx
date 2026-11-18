@@ -235,8 +235,21 @@ function PickerBody({
         ]
       : [];
 
+  // The header sits above the map, never over it, so the map's own credit (top left on a tall
+  // web map) is always in view (REVIEW-11 problem 20); the crosshair is the map's centre.
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+      <View style={[st.top, { paddingTop: insets.top + SPACING.sm }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
+            {title}
+          </DsText>
+          <Button label="Cancel" tier="tertiary" size="sm" onPress={onCancel} />
+        </View>
+        {hint ? <DsText v="caption">{hint}</DsText> : null}
+        <PlaceSearch onPick={(h) => jump(h.at, Math.min(region.span, mode === 'path' ? 0.12 : 0.04))} />
+      </View>
+      <View style={{ flex: 1 }}>
       <NightMap
         ref={map}
         pins={[...(zones ? BAN_PINS : []), ...contextPins, ...extraPins, ...drawn]}
@@ -264,17 +277,6 @@ function PickerBody({
         <View style={[st.ring, { borderColor: onPlace ? COLOR.state.success : colour }]} />
         <View style={[st.lineH, { backgroundColor: onPlace ? COLOR.state.success : colour }]} />
         <View style={[st.lineV, { backgroundColor: onPlace ? COLOR.state.success : colour }]} />
-      </View>
-
-      <View style={[st.top, { paddingTop: insets.top + SPACING.sm }]} pointerEvents="box-none">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-          <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
-            {title}
-          </DsText>
-          <Button label="Cancel" tier="tertiary" size="sm" onPress={onCancel} />
-        </View>
-        {hint ? <DsText v="caption">{hint}</DsText> : null}
-        <PlaceSearch onPick={(h) => jump(h.at, Math.min(region.span, mode === 'path' ? 0.12 : 0.04))} />
       </View>
 
       <View style={[st.bottom, { paddingBottom: insets.bottom + SPACING.md }]} pointerEvents="box-none">
@@ -348,6 +350,7 @@ function PickerBody({
           )}
         </View>
       </View>
+      </View>
       {openZone ? (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, justifyContent: 'center', padding: SPACING.screen }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setZoneOpen(null)} accessibilityLabel="Close" />
@@ -364,7 +367,7 @@ const st = StyleSheet.create({
   ring: { position: 'absolute', width: 22, height: 22, borderRadius: RADII.pill, borderWidth: 2.5, backgroundColor: COLOR.surface.glass },
   lineH: { position: 'absolute', width: CROSS, height: 2, opacity: 0.9 },
   lineV: { position: 'absolute', width: 2, height: CROSS, opacity: 0.9 },
-  top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.glass },
+  top: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACING.md, gap: SPACING.sm },
   locate: { width: HIT, height: HIT, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.glass, alignItems: 'center', justifyContent: 'center', ...ELEVATION.float },
   panel: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, padding: SPACING.md, gap: SPACING.xs, ...ELEVATION.float },

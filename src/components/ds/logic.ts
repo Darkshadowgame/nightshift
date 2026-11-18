@@ -145,3 +145,28 @@ export function stripFaces<T>(people: readonly T[], max = 6): { shown: T[]; more
   const shown = people.slice(0, Math.max(0, max));
   return { shown, more: Math.max(0, people.length - shown.length) };
 }
+
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Fri 20": a day chip's date line. */
+export function shortDay(d: Date): string {
+  return `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()}`;
+}
+
+/** "Fri 20 Nov". */
+export function shortDate(d: Date): string {
+  return `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
+}
+
+/**
+ * An end time said against its start (Redesign 2, 4.10): an end in the small hours (before 05:00)
+ * of the day after the start is "01:00 (after midnight)", never "Tonight 01:00" next to a start
+ * that is also "Tonight". Anything else is null: say it the usual way (`whenLabel`).
+ */
+export function afterMidnightLabel(end: Date, start: Date): string | null {
+  const next = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  const sameDayAsNext = end.getFullYear() === next.getFullYear() && end.getMonth() === next.getMonth() && end.getDate() === next.getDate();
+  if (!sameDayAsNext || end.getHours() >= 5 || start.getHours() < 12) return null;
+  return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')} (after midnight)`;
+}

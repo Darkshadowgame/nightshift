@@ -33,7 +33,8 @@ jest.mock('react-native-reanimated', () => {
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
 import { Callout, DetailHero, textSafe } from '../src/components/Detail';
-import { ActionBar, DateTimeSheet, GoingStrip, HeaderActions, Hero, LocationLine, PhotoCard, plusShim } from '../src/components/ds';
+import { ActionBar, Button, DateTimeSheet, DsText, GoingStrip, HeaderActions, Hero, LocationLine, PhotoCard, plusShim, SheetPanel } from '../src/components/ds';
+import { splitFooter } from '../src/components/ds/Sheet';
 
 /**
  * Review 8 bug 1: EventForm passed `{leftOutWhy} Change it…` (an array) to Callout, which wrapped
@@ -126,6 +127,25 @@ describe('ActionBar', () => {
   });
 });
 
+describe('Sheet footer (REVIEW-11: a sheet primary is never scrolled away)', () => {
+  it('lifts a trailing ActionBar or block primary out of the scroll', () => {
+    expect(splitFooter([<DsText key="a">Body</DsText>, <ActionBar key="b" primary={{ label: 'Add', onPress: noop }} />]).footer).not.toBeNull();
+    expect(splitFooter([<DsText key="a">Body</DsText>, <Button key="b" label="Add" block onPress={noop} />]).footer).not.toBeNull();
+    expect(splitFooter([<DsText key="a">Body</DsText>, <Button key="b" label="Keep it" tier="secondary" block onPress={noop} />]).footer).toBeNull();
+    expect(splitFooter([<Button key="b" label="More" tier="tertiary" onPress={noop} />, <DsText key="a">Body</DsText>]).footer).toBeNull();
+  });
+  it('still draws the primary, after the body', () => {
+    const root = render(
+      <SheetPanel title="Add a mod" onClose={noop}>
+        <DsText>Pick a part</DsText>
+        <Button label="Add cold air intake" block onPress={noop} />
+      </SheetPanel>,
+    );
+    const t = texts(root.container);
+    expect(t.indexOf('Add cold air intake')).toBeGreaterThan(t.indexOf('Pick a part'));
+  });
+});
+
 describe('LocationLine', () => {
   it('says the 4.11 sentence and one note', () => {
     const root = render(<LocationLine state="shown" point="Leisure park car park" town="Tamworth" note="Check-in opens at 21:30." />);
@@ -176,7 +196,7 @@ describe('DateTimeSheet', () => {
     const picks: Date[] = [];
     const value = new Date(2026, 10, 22, 10, 0);
     const root = render(<DateTimeSheet visible title="Starts" now={now} value={value} onChange={(d) => picks.push(d)} onClose={noop} />);
-    tap(root, 'Tomorrow, 21');
+    tap(root, 'Tomorrow, Sat 21 Nov');
     expect(picks[0]).toEqual(new Date(2026, 10, 21, 10, 0));
     tap(root, '20:00');
     expect(picks[1]).toEqual(new Date(2026, 10, 22, 20, 0));
@@ -187,7 +207,21 @@ describe('DateTimeSheet', () => {
   it('greys out days before minDate', () => {
     const now = new Date(2026, 10, 20, 21, 10);
     const root = render(<DateTimeSheet visible now={now} minDate={new Date(2026, 10, 21, 0, 0)} value={null} onChange={noop} onClose={noop} />);
-    expect(labelled(root, 'Today, 20')[0].props!.accessibilityState).toMatchObject({ disabled: true });
+    expect(labelled(root, 'Today, Fri 20 Nov')[0].props!.accessibilityState).toMatchObject({ disabled: true });
+  });
+  it('puts the weekday on Today and Tomorrow, so a demo Friday reads as Friday', () => {
+    const now = new Date(2026, 10, 20, 21, 10);
+    const root = render(<DateTimeSheet visible now={now} value={null} onChange={noop} onClose={noop} />);
+    const t = texts(root.container);
+    expect(t).toEqual(expect.arrayContaining(['Today', 'Fri 20', 'Tomorrow', 'Sat 21', 'Sun', '22']));
+  });
+  it('says an end in the small hours after the start as "after midnight" (4.10)', () => {
+    const now = new Date(2026, 10, 20, 21, 10);
+    const start = new Date(2026, 10, 20, 22, 0);
+    const end = new Date(2026, 10, 21, 1, 0);
+    const root = render(<DateTimeSheet visible now={now} after={start} value={end} onChange={noop} onClose={noop} />);
+    expect(texts(root.container)).toContain('01:00 (after midnight)');
+    expect(texts(root.container)).not.toContain('Tonight 01:00');
   });
 });
 

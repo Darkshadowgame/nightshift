@@ -5,7 +5,7 @@ import { COLOR, SPACING } from '../../theme';
 import { Pin, type Glyph } from '../Pin';
 import { Icon, type IconName } from './Icon';
 import { entityA11yLabel } from './logic';
-import { Avatar, ClassBadge, type Photo } from './Marks';
+import { Avatar, BuildLine, ClassBadge, type Photo } from './Marks';
 import { Press } from './Press';
 import { DsText } from './Text';
 
@@ -46,6 +46,7 @@ export function ListRow({
   title,
   subtitle,
   meta,
+  build,
   trailing,
   chevron,
   unread,
@@ -59,6 +60,8 @@ export function ListRow({
   title: string;
   subtitle?: string;
   meta?: string;
+  /** A person's build, under their handle: ClassBadge + name + "bhp" (K3). Instead of a subtitle. */
+  build?: { letter: ClassLetter; name: string; power: string };
   trailing?: ReactNode;
   /** Defaults to true when the row opens something. */
   chevron?: boolean;
@@ -71,7 +74,9 @@ export function ListRow({
   accessibilityHint?: string;
 }) {
   const showChevron = chevron ?? !!onPress;
-  const label = accessibilityLabel ?? entityA11yLabel({ title: unread ? `New: ${title}` : title, meta: subtitle, detail: meta });
+  const label =
+    accessibilityLabel ??
+    entityA11yLabel({ title: unread ? `New: ${title}` : title, meta: build ? `${build.name}, Class ${build.letter}, ${build.power}` : subtitle, detail: meta });
   const body = (
     <>
       {leading ? <LeadingMark leading={leading} /> : null}
@@ -82,7 +87,7 @@ export function ListRow({
             {title}
           </DsText>
         </View>
-        {subtitle ? (
+        {build ? <BuildLine {...build} /> : subtitle ? (
           <DsText v="secondary" numberOfLines={2}>
             {subtitle}
           </DsText>

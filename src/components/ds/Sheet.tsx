@@ -1,18 +1,37 @@
-import type { ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { confirmLabels } from '../../lib/glossary';
 import { COLOR, ELEVATION, MOTION, RADII, SPACING } from '../../theme';
+import { ActionBar, InSheetContext } from './ActionBar';
 import { Button } from './Button';
 import { Press } from './Press';
 import { DsText } from './Text';
 
 /**
- * The panel of a bottom sheet: grabber, title, Done, then the content. Exported on its own so
- * the gallery (and tests) can show it without a modal.
+ * A sheet's primary is never scrolled out of sight (REVIEW-11: Add a mod's button sat under the
+ * sheet's bottom at 375x667). The last child, when it is an `ActionBar` or a block primary
+ * `Button` (no tier, or tier "primary"), is lifted out of the scroll and pinned under it.
+ */
+export function splitFooter(children: ReactNode): { body: ReactNode[]; footer: ReactNode | null } {
+  const list = Children.toArray(children);
+  const last = list[list.length - 1];
+  if (isValidElement(last)) {
+    const props = last.props as { tier?: string; block?: boolean };
+    if (last.type === ActionBar || (last.type === Button && props.block && (!props.tier || props.tier === 'primary'))) {
+      return { body: list.slice(0, -1), footer: last };
+    }
+  }
+  return { body: list, footer: null };
+}
+
+/**
+ * The panel of a bottom sheet: grabber, title, Done, then the content, and the pinned primary
+ * (see `splitFooter`). Exported on its own so the gallery (and tests) can show it without a modal.
  */
 export function SheetPanel({ title, onClose, doneLabel = 'Done', children, bottomInset = 0 }: { title: string; onClose: () => void; doneLabel?: string; children: ReactNode; bottomInset?: number }) {
+  const { body, footer } = splitFooter(children);
   return (
     <View
       style={[
@@ -46,8 +65,13 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', children, botto
         </Press>
       </View>
       <ScrollView bounces={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}>
-        {children}
+        {body}
       </ScrollView>
+      {footer ? (
+        <View style={{ flexShrink: 0, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border }}>
+          <InSheetContext.Provider value>{footer}</InSheetContext.Provider>
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActionBar, Button, DsText, ErrorState, Field, IconButton, SegmentedControl, TextField, useToast } from '../components/ds';
+import { ActionBar, Button, DsText, ErrorState, Field, IconButton, SegmentedControl, StepHeading, TextField, useToast } from '../components/ds';
 import { MapPicker } from '../components/MapPicker';
 import { NightMap } from '../components/NightMap';
 import { VehiclePicker } from '../components/VehiclePicker';
@@ -31,7 +31,8 @@ const HOME_RADIUS_MILES = 0.6;
  *    handle, pre-filled with a suggestion. Home is saved to about 1 km and sets the region.
  * Travel distance and notifications start at sensible defaults (25 mi, notify) and live in
  * Settings. The 18+ and terms box is at sign-in. The guard in _layout moves on once the profile
- * is saved. Onboarding draws its own header: back (step 2) and the step, never a button at the bottom.
+ * is saved. Onboarding draws its own header: back (step 2), GET STARTED and Sign in instead; the step
+ * is the body's StepHeading, as in the host flow. Never a back button at the bottom.
  */
 export default function Welcome() {
   const { saveProfile, saveBuild, backend, me } = useStore();
@@ -116,17 +117,14 @@ export default function Welcome() {
       <View style={[st.header, { paddingTop: insets.top + SPACING.xs }]}>
         {step === 2 ? <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={() => setStep(1)} /> : <View style={{ width: SPACING.sm }} />}
         <DsText v="heading" accessibilityRole="header" style={{ flex: 1 }}>
-          {`STEP ${step} OF 2`}
+          GET STARTED
         </DsText>
         <Button label={demo ? 'Sign in instead' : 'Sign out'} tier="tertiary" size="sm" onPress={() => (demo ? auth.leaveDemo() : auth.signOut())} />
       </View>
       <ScrollView ref={scroller} contentContainerStyle={st.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
         {step === 1 ? (
           <>
-            <View style={{ gap: SPACING.xs }}>
-              <DsText v="titleLg">What do you drive?</DsText>
-              <DsText v="secondary">It's what you bring to meets.</DsText>
-            </View>
+            <StepHeading step={1} of={2} title="What do you drive?" hint="It's what you bring to meets." />
             <SegmentedControl
               accessibilityLabel="Car or bike"
               value={kind}
@@ -158,10 +156,7 @@ export default function Welcome() {
           </>
         ) : (
           <>
-            <View style={{ gap: SPACING.xs }}>
-              <DsText v="titleLg">Where's home?</DsText>
-              <DsText v="secondary">So Tonight shows what's on near you.</DsText>
-            </View>
+            <StepHeading step={2} of={2} title="Where's home?" hint="So Tonight shows what's on near you." />
             <Pressable
               onPress={() => setPicking(true)}
               accessibilityRole="button"

@@ -34,6 +34,10 @@ export function SearchField({
   accessibilityLabel?: string;
 }) {
   const [focused, setFocused] = useState(false);
+  // The magnifier already says "search": the words never repeat it, so they fit a narrow pill at
+  // 375 ("Meets, places…", not "Search meets, pla…"). The full words stay in the accessibility label.
+  const words = placeholder.replace(/^search\s+/i, '');
+  const shown = words === placeholder ? placeholder : words.charAt(0).toUpperCase() + words.slice(1);
   const shell = [
     {
       flexDirection: 'row' as const,
@@ -53,8 +57,8 @@ export function SearchField({
     return (
       <Press onPress={onOpen} haptic={floating ? 'tap' : 'none'} role="search" label={accessibilityLabel ?? placeholder} hint="Opens search" style={shell}>
         <Icon name="search" size={20} colour={COLOR.text.secondary} />
-        <DsText v="input" tone={value ? 'primary' : 'secondary'} numberOfLines={1} style={{ flex: 1, paddingRight: SPACING.md }}>
-          {value || placeholder}
+        <DsText v="input" tone={value ? 'primary' : 'secondary'} numberOfLines={1} style={{ flex: 1, paddingRight: SPACING.xs }}>
+          {value || shown}
         </DsText>
       </Press>
     );
@@ -65,7 +69,7 @@ export function SearchField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={shown}
         placeholderTextColor={COLOR.text.secondary}
         onSubmitEditing={onSubmit}
         autoFocus={autoFocus}
@@ -78,8 +82,14 @@ export function SearchField({
         onBlur={() => setFocused(false)}
         maxFontSizeMultiplier={FONT_SCALE.chrome}
         selectionColor={COLOR.action.primary}
-        // The pill shows focus itself; the browser's square focus ring would sit inside it (web only).
-        style={[typeStyle('input'), { flex: 1, minHeight: 46, paddingVertical: 0 }, Platform.OS === 'web' && { outlineWidth: 0 }]}
+        // The pill shows focus itself (its border turns selected); the browser's square focus ring
+        // would sit inside it. `outlineStyle: 'none'` is what removes it in Chrome (width 0 alone
+        // leaves the "auto" ring), and the input has no box of its own (web only).
+        style={[
+          typeStyle('input'),
+          { flex: 1, minHeight: 46, paddingVertical: 0, minWidth: 0 },
+          Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, borderWidth: 0, backgroundColor: 'transparent' } as object),
+        ]}
       />
       {loading ? (
         <View style={{ width: 44, alignItems: 'center' }} accessibilityLabel="Searching" accessibilityRole="progressbar">

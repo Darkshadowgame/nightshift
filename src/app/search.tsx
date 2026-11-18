@@ -5,7 +5,6 @@ import {
   Button,
   ChipGroup,
   ChoiceGroup,
-  ClassBadge,
   DsText,
   EmptyState,
   ErrorState,
@@ -23,6 +22,7 @@ import { NightMap } from '../components/NightMap';
 import { classOf } from '../lib/classes';
 import { useNow } from '../lib/clock';
 import { useCommunity } from '../lib/communityStore';
+import { powerText } from '../lib/dyno';
 import { idsIn } from '../lib/connections';
 import { ALL_TYPES, defaultFilters, describeFilters, searchEvents, travelOf, TRAVEL_CHOICES, VEHICLE_LABELS, WHEN_LABELS, type SearchFilters, type SearchHit, type Vehicles, type When } from '../lib/discover';
 import { endTime, EVENT_LABELS } from '../lib/events';
@@ -246,6 +246,8 @@ export default function SearchScreen() {
         leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
         title={e.title}
         subtitle={metaLine([EVENT_LABELS[e.type], eventTimeLabel(e.startsAt, endTime(e), now)])}
+        // TODO(R11 X): use format.ts's single distance function for an event (the same number as
+        // Tonight and the event page) once it lands; these miles are from home to the area or stop.
         meta={metaLine([hidden ? distanceText(h.miles, 'about') : distanceText(h.miles, 'home'), !mine && !h.canGo ? NOT_OPEN : null])}
         trailing={mine ? <Tag label={roleLabel(role)} tone={role === 'going' ? 'success' : 'neutral'} /> : undefined}
         onPress={() => openEvent(e.id)}
@@ -268,8 +270,8 @@ export default function SearchScreen() {
       key={u.id}
       leading={{ avatar: { name: u.name, handle: u.handle } }}
       title={`@${u.handle}`}
-      subtitle={car ? `${car.make} ${car.model}` : u.name}
-      trailing={car ? <ClassBadge letter={classOf(car)} size="sm" /> : undefined}
+      build={car ? { letter: classOf(car), name: `${car.make} ${car.model}`, power: powerText(car) } : undefined}
+      subtitle={car ? undefined : u.name}
       onPress={() => openPerson(u.id)}
     />
   );

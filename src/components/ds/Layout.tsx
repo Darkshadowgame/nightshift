@@ -106,6 +106,23 @@ export function ScreenHeader({ title, tag, action, add, bell, onMenu }: { title:
   );
 }
 
+/**
+ * The one step indicator for a multi-step form (onboarding, the host flow): the form's name is the
+ * caps header title (4.1), and the body opens with this: "Step 1 of 4" small, the step's question
+ * big, an optional line under it. Never "STEP 1 OF 2" as the header title.
+ *
+ *   <StepHeading step={1} of={4} title="What and when" />
+ */
+export function StepHeading({ step, of, title, hint }: { step: number; of: number; title: string; hint?: string }) {
+  return (
+    <View style={{ gap: SPACING.xxs }} accessible accessibilityRole="header" accessibilityLabel={`Step ${step} of ${of}: ${title}`}>
+      <DsText v="meta">{`Step ${step} of ${of}`}</DsText>
+      <DsText v="titleLg">{title}</DsText>
+      {hint ? <DsText v="secondary">{hint}</DsText> : null}
+    </View>
+  );
+}
+
 export type Stat = { value: string; unit?: string; label: string; tone?: 'live' };
 
 /**

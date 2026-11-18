@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
+import { appNow } from '../lib/appClock';
 import { makeSuggestion, type FeedbackScreen } from '../lib/feedbackQueue';
 import { newId, useStore } from '../lib/store';
 import { SPACING } from '../theme';
@@ -31,7 +32,7 @@ export function SuggestMissing({
 
   function send() {
     try {
-      queueFeedback(makeSuggestion({ missing, notes, screen, context }, newId('fb'), new Date()));
+      queueFeedback(makeSuggestion({ missing, notes, screen, context }, newId('fb'), appNow()));
       setSent(true);
       setOpen(false);
       setMissing('');
