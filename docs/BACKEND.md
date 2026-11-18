@@ -2,7 +2,7 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 17 migrations and the seeds are applied and the 612 pgTAP checks pass
+All 18 migrations and the seeds are applied and the 613 pgTAP checks pass
 against the hosted database (Community added 17 Nov 2026, section 3b) (road reports added 17 Nov 2026, section 3a; Nightshift's
 own drives and photo spots on the server, section 7a-4). **The app is wired to it** (17 Nov 2026): signed in,
 every store action goes to the tables and RPCs below (section 5); "Try the demo
@@ -33,6 +33,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117220000_community.sql` | Community: Cars near you, connections, blocks, the forum, messages, feed posts, rate builds, reports, rate limits, the private `messages` bucket (section 3b) |
 | `supabase/migrations/20261117233000_report_targets.sql` | Report targets `chat`, `event`, `crew`, `spot` (on their own: a new enum value can't be used in the transaction that adds it) |
 | `supabase/migrations/20261117233100_moderation.sql` | Moderation for all user content: reports on event chat, events, crews and places; hidden chat lines; blocks in event chat; `suspensions`; `moderate_report()` with suspend; `lift_suspension()`; `my_moderation_status()` (section 3b) |
+| `supabase/migrations/20261118000000_message_photos_own.sql` | The sender can always list their own chat photos (`messages/{uid}/…`), so account deletion finds them after leaving a chat |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits (with their bundled ids) |
 | `supabase/seed_bundled_places.sql` | **Generated** by `scripts/seed-bundled-places.mjs` from `src/data/places.ts`: the 129 bundled drives and 111 photo spots, an upsert on `bundled_id` |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
@@ -44,7 +45,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
 | `supabase/tests/bundled_places_test.sql` | pgTAP: bundled ids (unique, format, no author), nobody signed in can add, change or delete one, finishing (with the road's own limit), visiting and rating one through the RPCs, `spot_stats` and `place_rep_for` the same for others, signed out refused (30 checks) |
-| `supabase/tests/community_test.sql` | pgTAP: Cars near you (rounding, hiding, blocks), connections (requests, declines and their 30 days, rate limit), 1-to-1 and group messages only between connections, blocks, the forum (filter, Solved rep and its caps, rate limits), feed posts (never near home, connections-only), reports and staff, message photos (163 checks) |
+| `supabase/tests/community_test.sql` | pgTAP: Cars near you (rounding, hiding, blocks), connections (requests, declines and their 30 days, rate limit), 1-to-1 and group messages only between connections, blocks, the forum (filter, Solved rep and its caps, rate limits), feed posts (never near home, connections-only), reports and staff, message photos (164 checks) |
 | `supabase/tests/moderation_test.sql` | pgTAP: reports on event chat (only lines you can read), events, crews and places; blocks hide event chat; three reports hide a chat line; staff hide, reject, cancel and suspend; a suspended person can't chat, post or connect but can report; lifting it (36 checks) |
 | `scripts/seed-bundled-places.mjs` | Writes `seed_bundled_places.sql` from the app's place list (`src/lib/backend/bundledSeed.ts`, unit-tested) and, with `--apply`, runs it on the hosted project |
 | `scripts/supabase-smoke.mjs` | End to end against the hosted project as three throwaway users (section 7c) |
@@ -892,7 +893,8 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
 
 * **Migrations** `20261117233000_report_targets.sql` and `20261117233100_moderation.sql`
   pushed with `db push --remote --yes` (a `pg_dump` of `public` taken first, kept off the repo).
-* **pgTAP:** 612 of 612 on the hosted database (the 576 above plus `moderation_test.sql`, 36).
+* **pgTAP:** 613 of 613 on the hosted database (the 576 above plus `moderation_test.sql`, 36, and one more
+  storage check in `community_test.sql` after `20261118000000_message_photos_own.sql`).
 * **Smoke test:** 106 of 106 (adds: a block hides the blocker's view of event chat, an event
   reported, a suspension stops a new thread and `my_moderation_status()` says so).
 

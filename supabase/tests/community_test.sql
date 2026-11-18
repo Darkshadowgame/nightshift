@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(163);
+select plan(164);
 
 insert into auth.users (id, email) values
   ('c0000000-0000-0000-0000-00000000000a', 'ca@example.test'),
@@ -176,6 +176,19 @@ select is((select count(*)::int from storage.objects where bucket_id = 'messages
   'storage: the other member can read it');
 select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
 select is((select count(*)::int from storage.objects where bucket_id = 'messages'), 0, 'storage: nobody else can');
+-- The sender still lists their own upload after leaving the chat (so deleting the account finds it).
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+reset role;
+create temp table t_members as select * from public.conversation_members where conversation_id = current_setting('t.dm')::uuid and user_id = 'c0000000-0000-0000-0000-00000000000a';
+alter table public.conversation_members disable trigger conversation_members_left;
+delete from public.conversation_members where conversation_id = current_setting('t.dm')::uuid and user_id = 'c0000000-0000-0000-0000-00000000000a';
+set local role authenticated;
+select is((select count(*)::int from storage.objects where bucket_id = 'messages' and name like 'c0000000-0000-0000-0000-00000000000a/%'), 1,
+  'storage: the sender can still list their own chat photo after leaving');
+reset role;
+insert into public.conversation_members select * from t_members;
+alter table public.conversation_members enable trigger conversation_members_left;
+set local role authenticated;
 
 -- Rate limit: 20 messages a minute.
 reset role;
