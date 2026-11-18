@@ -17,7 +17,8 @@ insert into auth.users (id, email) values
   ('d0000000-0000-0000-0000-0000000000a5', 'mo@example.test');
 update public.profiles set handle = 'mod_' || right(id::text, 1), display_name = 'Mod ' || right(id::text, 1), region = 'East', onboarded = true
   where id::text like 'd0000000-0000-0000-0000-0000000000a%';
-insert into public.staff (user_id, note) values ('d0000000-0000-0000-0000-0000000000a4', 'moderator');
+-- An admin: full suspensions are for admins (20261118140100).
+insert into public.staff (user_id, role, note) values ('d0000000-0000-0000-0000-0000000000a4', 'admin', 'test admin');
 
 insert into public.events (id, type, title, starts_at, ends_at, reveal_minutes_before, area, area_radius_miles, area_name, invite_min_mods, created_by) values
   ('de000000-0000-0000-0000-000000000001', 'meet', 'Moderated meet', now() + interval '1 day', null, 60, private.pt(53.22, -0.52), 3, 'Lincoln', 0, 'd0000000-0000-0000-0000-0000000000a1');
@@ -97,8 +98,8 @@ select is((select count(*)::int from public.moderation_queue where target = 'cha
 -- ---------------------------------------------------------------------------
 select set_config('request.jwt.claims', '{"sub":"d0000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
 select is((select suspended from public.my_moderation_status()), true, 'my_moderation_status: G sees they''re suspended');
-select throws_ok($$ insert into public.chat_messages (event_id, body) values ('de000000-0000-0000-0000-000000000001', 'back again') $$, '42501', null,
-  'suspended: no event chat');
+select throws_ok($$ insert into public.chat_messages (event_id, body) values ('de000000-0000-0000-0000-000000000001', 'back again') $$, 'P0001',
+  'Your account is suspended, so you can''t post or message right now. You can still read and report.', 'suspended: no event chat');
 select throws_ok($$ select public.create_thread('advice', null, 'Help please', '') $$, 'P0001',
   'Your account is suspended, so you can''t post or message right now. You can still read and report.', 'suspended: no forum threads');
 select throws_ok($$ select public.request_connection('d0000000-0000-0000-0000-0000000000a5') $$, 'P0001',
