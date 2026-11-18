@@ -73,18 +73,17 @@ export function HeaderActions({ action: given, add: addGiven, bell, onMenu }: { 
   );
 }
 
-type HeaderProps = { title?: string; action?: HeaderAction; add?: HeaderAdd; bell?: boolean; onMenu?: () => void; content?: boolean };
+type HeaderProps = { title?: string; action?: HeaderAction; add?: HeaderAdd; bell?: boolean; onMenu?: () => void };
 
 /**
  * Native-stack header options for a screen: `<Stack.Screen options={screenHeader({...})} />`.
  * - Tab (T1/T2): `{ title, add?, bell: true }`.
  * - Detail (T3): no title (the Hero carries it), optional `action` (Share) and `onMenu`.
  * - Form or settings (T4/T5): `{ title }` in caps.
- * Chat titles are the one sentence-case exception (`content: true`).
  */
-export function screenHeader({ title, action, add, bell, onMenu, content }: HeaderProps) {
+export function screenHeader({ title, action, add, bell, onMenu }: HeaderProps) {
   return {
-    title: title ? (content ? title : title.toUpperCase()) : '',
+    title: title ? title.toUpperCase() : '',
     headerRight: action || add || bell || onMenu ? () => <HeaderActions action={action} add={add} bell={bell} onMenu={onMenu} /> : undefined,
   };
 }
@@ -100,7 +99,7 @@ export const HEADER_ROW = Platform.OS === 'ios' ? 44 : 64;
  * An in-page header, for screens without a native header (the Tonight map, the gallery's preview).
  * Same anatomy as `screenHeader`: caps title, an optional `tag` after it (DEMO NIGHT), then the actions.
  */
-export function ScreenHeader({ title, tag, action, add, bell, onMenu }: { title: string; tag?: ReactNode } & Omit<HeaderProps, 'title' | 'content'>) {
+export function ScreenHeader({ title, tag, action, add, bell, onMenu }: { title: string; tag?: ReactNode } & Omit<HeaderProps, 'title'>) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: HEADER_ROW, gap: SPACING.sm }}>
       <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flexShrink: 1 }}>
