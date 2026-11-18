@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { Image, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import type { CarShape } from '../../lib/buildShape';
 import type { ClassLetter, VehicleKind } from '../../lib/types';
-import { ART, ASPECT, COLOR, RADII, SPACING, line, tint } from '../../theme';
+import { ART, ASPECT, COLOR, RADII, SPACING } from '../../theme';
 import { BuildArt } from '../BuildArt';
 import { Button } from './Button';
+import { FitImage } from './FitImage';
 import type { EntityTag } from './EntityCard';
 import { Gradient } from './Gradient';
 import { contentColour, entityA11yLabel, rgba } from './logic';
@@ -27,8 +28,6 @@ export type CardAction = {
   haptic?: Haptic;
   accessibilityLabel?: string;
 };
-
-const src = (p: Photo) => (typeof p === 'string' ? { uri: p } : p);
 
 /**
  * The browse card (Redesign 2, 5.1): photo on top, full width, then the words. Replaces
@@ -137,7 +136,7 @@ export function PhotoCard({
   });
 
   const picture = (
-    <Picture kind={kind} photo={photo} fallback={fallback} paint={paint} vehicle={vehicle} shape={shape} colour={placeLike ? (layerColour ?? COLOR.layer.event) : undefined} />
+    <Picture kind={kind} aspect={ratio} photo={photo} fallback={fallback} paint={paint} vehicle={vehicle} shape={shape} colour={placeLike ? (layerColour ?? COLOR.layer.event) : undefined} />
   );
 
   const badgeOnKindLine = narrow && !!classLetter;
@@ -288,6 +287,7 @@ export function narrowCard(width: number, fontScale = 1): boolean {
 /** The picture: photo, else the given fallback, else a drawing that's never a grey box. */
 function Picture({
   kind,
+  aspect,
   photo,
   fallback,
   paint,
@@ -296,6 +296,8 @@ function Picture({
   colour,
 }: {
   kind: PhotoCardKind;
+  /** The frame's shape: a photo of another shape is shown whole (FitImage), never cut. */
+  aspect: number;
   photo?: Photo | null;
   fallback?: ReactNode;
   paint?: string;
@@ -303,7 +305,7 @@ function Picture({
   shape?: CarShape;
   colour?: string;
 }) {
-  if (photo) return <Image source={src(photo)} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />;
+  if (photo) return <FitImage source={photo} frameAspect={aspect} />;
   if (fallback) return <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>{fallback}</View>;
   if (kind === 'build') return <PaintArt paint={paint} vehicle={vehicle} shape={shape} />;
   return <AreaArt colour={colour ?? COLOR.layer.event} />;
@@ -340,6 +342,10 @@ function luminance(hex: string): number {
  * An event or place with no photo: a dark map tile with its area circle and a pin in the middle,
  * in the layer colour (the stand-in for a map snapshot). Fills its parent.
  */
+/** The alphas in theme `tint()` (1f) and `line()` (40), for Svg fill and stroke opacity. */
+const TINT_ALPHA = 0x1f / 255;
+const LINE_ALPHA = 0x40 / 255;
+
 export function AreaArt({ colour = COLOR.layer.event }: { colour?: string }) {
   return (
     <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: ART.mapBg }} aria-hidden>
@@ -351,7 +357,8 @@ export function AreaArt({ colour = COLOR.layer.event }: { colour?: string }) {
           <Line key={`v${x}`} x1={x} y1={0} x2={x - 8} y2={90} stroke={ART.mapGrid} strokeWidth={1.2} />
         ))}
         <Line x1={0} y1={62} x2={160} y2={30} stroke={COLOR.surface.raisedHi} strokeWidth={2.4} />
-        <Circle cx={80} cy={45} r={28} fill={tint(colour)} stroke={line(colour)} strokeWidth={1.5} />
+        {/* Colour and alpha apart: react-native-svg on iOS can draw an alpha colour solid (566aac1). */}
+        <Circle cx={80} cy={45} r={28} fill={colour} fillOpacity={TINT_ALPHA} stroke={colour} strokeOpacity={LINE_ALPHA} strokeWidth={1.5} />
         <Circle cx={80} cy={45} r={5} fill={colour} />
       </Svg>
     </View>

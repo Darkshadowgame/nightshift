@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Image, Platform, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { navDirectionsAvailable } from '../../../modules/nav-directions';
 import { openReport } from '../../components/Community';
 import { CommonsStrip } from '../../components/CommonsStrip';
@@ -24,6 +24,7 @@ import {
   Tag,
   type ActionBarButton,
   type Stat,
+  FitImage,
 } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { useNavLaunch } from '../../components/NavLaunch';
@@ -627,7 +628,7 @@ function Photos({ spot }: { spot: Spot }) {
           {members.length ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {members.map((m) => (
-                <Image key={m.key} source={{ uri: photoUri(m.ref) }} style={{ width: 104, height: 104, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }} />
+                <FitImage key={m.key} source={photoUri(m.ref)} frameAspect={1} style={{ width: 104, height: 104, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }} />
               ))}
             </View>
           ) : (

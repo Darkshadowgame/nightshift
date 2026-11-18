@@ -4,6 +4,7 @@ import { COLOR, F, RADII, SPACING, outline } from '../../theme';
 import { BuildArt } from '../BuildArt';
 import type { CarShape } from '../../lib/buildShape';
 import { initials } from './logic';
+import { FitImage } from './FitImage';
 import { DsText } from './Text';
 
 /** A photo: a URI string (photoUri(ref)) or a bundled image. */
@@ -107,7 +108,7 @@ export function BuildLine({ letter, name, power }: { letter: ClassLetter; name: 
 /** A build's thumbnail: its first photo, or its silhouette. 4:3, control radius. Separate from Avatar on purpose. */
 export function BuildThumb({ photo, kind = 'car', shape, size = 56, label }: { photo?: Photo | null; kind?: VehicleKind; shape?: CarShape; size?: number; label?: string }) {
   const frame = { width: Math.round((size * 4) / 3), height: size, borderRadius: RADII.control, overflow: 'hidden' as const, backgroundColor: COLOR.surface.media };
-  if (photo) return <Image source={src(photo)} style={frame} accessibilityLabel={label} accessibilityIgnoresInvertColors />;
+  if (photo) return <FitImage source={photo} frameAspect={4 / 3} style={frame} accessibilityLabel={label} />;
   return (
     <View style={frame} accessibilityLabel={label} accessible={!!label} accessibilityRole={label ? 'image' : undefined}>
       <BuildArt kind={kind} shape={shape} colour={COLOR.text.secondary} height={size} />

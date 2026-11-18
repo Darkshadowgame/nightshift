@@ -1,5 +1,5 @@
 import { carShape } from '../lib/buildShape';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { classOf } from '../lib/classes';
 import { plural } from '../lib/format';
 import { photoSource } from '../lib/photoSource';
@@ -7,7 +7,7 @@ import type { Build } from '../lib/types';
 import { COLOR, RADII, SPACING, outline } from '../theme';
 import { BuildArt, DEFAULT_PAINT } from './BuildArt';
 import { useBuildPicture } from './BuildBits';
-import { ClassBadge, DsText, Tag } from './ds';
+import { ClassBadge, DsText, FitImage, Tag } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
 /**
@@ -22,7 +22,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
   return (
     <View style={[st.wrap, aspect ? { aspectRatio: aspect } : { height }]}>
       {pic ? (
-        <Image source={photoSource(pic.ref)} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+        <FitImage source={photoSource(pic.ref)} frameAspect={aspect} />
       ) : (
         <BuildArt kind={build.kind} shape={carShape(build)} paint={build.colour || DEFAULT_PAINT} height={height ?? 160} />
       )}

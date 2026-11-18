@@ -1,10 +1,10 @@
 import { useNavigation, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Image, TextInput, View, type TextStyle } from 'react-native';
+import { TextInput, View, type TextStyle } from 'react-native';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
 import type { Build } from '../lib/types';
 import { COLOR, RADII, SPACING } from '../theme';
-import { ActionBar, Button, ChoiceGroup, ConfirmSheet, DsText, Icon, Press, typeStyle } from './ds';
+import { ActionBar, Button, ChoiceGroup, ConfirmSheet, DsText, FitImage, Icon, Press, typeStyle } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 
 /** The text box style for composers (posts, threads, replies, chats): input type, strong border, control radius. */
@@ -43,7 +43,7 @@ export function ComposerPhotos({ photos, onChange, onError, max = 4 }: { photos:
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
           {photos.map((p) => (
             <View key={p}>
-              <Image source={{ uri: photoUri(p) }} style={{ width: 84, height: 84, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo to post" accessibilityIgnoresInvertColors />
+              <FitImage source={photoUri(p)} frameAspect={1} style={{ width: 84, height: 84, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo to post" />
               <Press
                 onPress={() => onChange(photos.filter((x) => x !== p))}
                 label="Remove this photo"

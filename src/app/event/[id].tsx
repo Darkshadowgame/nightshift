@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { TrophiesSection, VoteProgress, VoteSheet, voteCategories } from '../../components/AwardsSection';
 import { bhpLine, BringSheet, shortBuildName } from '../../components/BringPicker';
@@ -30,6 +30,7 @@ import {
   SwitchRow,
   useToast,
   type ActionBarButton,
+  FitImage,
 } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { UnlockReveal } from '../../components/motion';
@@ -819,7 +820,7 @@ function InviteRows({ rows }: { rows: { come: string; tell: string } }) {
 
 /** One square photo in the event's Photos grid. */
 function PhotoTile({ photoRef }: { photoRef: string }) {
-  return <Image source={photoSource(photoRef)} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />;
+  return <FitImage source={photoSource(photoRef)} frameAspect={1} />;
 }
 
 type Line = { id: string; userId: string; text: string; at: string; system?: boolean };

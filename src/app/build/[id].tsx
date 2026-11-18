@@ -1,13 +1,13 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Image, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { AddModSheet } from '../../components/AddModSheet';
 import { PaintedArt } from '../../components/BuildArt';
 import { MOD_SECTIONS, sectionOfCategory, useBuildPicture } from '../../components/BuildBits';
 import { at, isStaffNow, openProfile, openReport, OptionsSheet, personMark } from '../../components/Community';
 import { Cover } from '../../components/Cover';
 import { NotFoundState } from '../../components/Detail';
-import { ActionBar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
+import { ActionBar, DsText, EmptyState, ErrorState, FitImage, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
 import { DynoBadge } from '../../components/DynoBadge';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { PhotoManager } from '../../components/PhotoManager';
@@ -137,7 +137,7 @@ export default function BuildScreen() {
           <Section title="Photos">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {b.photos.slice(1).map((p) => (
-                <Image key={p} source={photoSource(p)} style={{ width: '31%', aspectRatio: 1, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" accessibilityIgnoresInvertColors />
+                <FitImage key={p} source={photoSource(p)} frameAspect={1} style={{ width: '31%', aspectRatio: 1, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" />
               ))}
             </View>
           </Section>

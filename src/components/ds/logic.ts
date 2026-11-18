@@ -183,3 +183,23 @@ export function afterMidnightLabel(end: Date, start: Date): string | null {
   if (!sameDayAsNext || end.getHours() >= 5 || start.getHours() < 12) return null;
   return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')} (after midnight)`;
 }
+
+/**
+ * How far a photo's shape can be from its frame's (10%) and still fill it. Past this, filling
+ * would cut off a real part of the picture (a portrait phone photo in a 4:3 card loses its top and
+ * bottom), so the photo is shown whole instead.
+ */
+export const FIT_TOLERANCE = 0.1;
+
+/**
+ * How to draw a photo in a fixed frame (aspects are width / height):
+ * - `cover` fills the frame, cropping a little, when the shapes are close (within `tolerance`);
+ * - `contain` shows the whole photo, centred over a blurred copy of itself (FitImage), when they
+ *   differ by more. A user's photo is never cropped in a way that loses the subject.
+ * An unknown or broken aspect gives `cover` (nothing to compare).
+ */
+export function fitMode(photoAspect: number | null | undefined, frameAspect: number | null | undefined, tolerance = FIT_TOLERANCE): 'cover' | 'contain' {
+  if (!photoAspect || !frameAspect || !Number.isFinite(photoAspect) || !Number.isFinite(frameAspect) || photoAspect <= 0 || frameAspect <= 0) return 'cover';
+  const apart = Math.max(photoAspect, frameAspect) / Math.min(photoAspect, frameAspect) - 1;
+  return apart > tolerance + 1e-9 ? 'contain' : 'cover';
+}

@@ -13,6 +13,7 @@ export { ListRow, RowDivider, type Leading } from './ListRow';
 export { EntityCard, type EntityTag } from './EntityCard';
 export { PhotoCard, PaintArt, AreaArt, type PhotoCardKind, type CardAction } from './PhotoCard';
 export { Hero } from './Hero';
+export { FitImage, usePhotoAspect } from './FitImage';
 export { ActionBar, PAGE_WITH_BAR, type ActionBarButton } from './ActionBar';
 export { GoingStrip, type StripPerson } from './GoingStrip';
 export { LocationLine } from './LocationLine';

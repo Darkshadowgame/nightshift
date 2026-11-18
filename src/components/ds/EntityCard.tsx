@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { Pin } from '../Pin';
 import { Button } from './Button';
+import { FitImage } from './FitImage';
 import type { Leading } from './ListRow';
 import { contentColour, entityA11yLabel, type EntityKind } from './logic';
 import { Avatar, ClassBadge, Tag, type Photo, type TagTone } from './Marks';
@@ -86,7 +87,7 @@ export function EntityCard({
     <>
       {media || mediaPhoto ? (
         <View style={{ height: 150, backgroundColor: COLOR.surface.media, overflow: 'hidden', borderTopLeftRadius: RADII.card, borderTopRightRadius: RADII.card }}>
-          {mediaPhoto ? <Image source={typeof mediaPhoto === 'string' ? { uri: mediaPhoto } : mediaPhoto} style={{ flex: 1 }} resizeMode="cover" accessibilityIgnoresInvertColors /> : media}
+          {mediaPhoto ? <FitImage source={mediaPhoto} /> : media}
         </View>
       ) : null}
       <View style={{ padding: SPACING.md, gap: SPACING.xs }}>

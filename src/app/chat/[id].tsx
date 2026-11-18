@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { FlatList, Image, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { at, mainBuild, openProfile, openReport, OptionsSheet, PersonRow, personMark, type SheetOption } from '../../components/Community';
 import { ownBuilds } from '../../lib/bringing';
 import { INPUT } from '../../components/ComposerParts';
-import { ActionBar, Avatar, Button, DsText, ErrorState, HeaderActions, IconButton, LoadingState, Press, screenHeader, useToast } from '../../components/ds';
+import { ActionBar, Avatar, Button, DsText, ErrorState, FitImage, HeaderActions, IconButton, LoadingState, Press, screenHeader, useToast } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { ShareCardView, SharePicker } from '../../components/SharePicker';
 import { useNow } from '../../lib/clock';
@@ -163,7 +163,7 @@ export default function ChatScreen() {
                 <DsText v="secondary">{at(sender)}</DsText>
               </Press>
             ) : null}
-            {m.photo ? <Image source={{ uri: photoUri(m.photo) }} style={{ width: 220, height: 220, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }} accessibilityIgnoresInvertColors /> : null}
+            {m.photo ? <FitImage source={photoUri(m.photo)} frameAspect={1} style={{ width: 220, height: 220, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo" /> : null}
             {m.share ? <ShareCardView card={m.share} onPress={() => router.push(shareHref(m.share!) as never)} /> : null}
             {m.body ? (
               <View

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { makeFirst, moveItem } from '../lib/crop';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, ConfirmBody, DsText, Press, Tag } from './ds';
+import { Button, ConfirmBody, DsText, FitImage, Press, Tag } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 
 /**
@@ -75,7 +75,7 @@ export function PhotoManager({
               hint="Shows crop, plate, order and delete actions"
               style={[st.thumb, p === sel && st.thumbOn]}
             >
-              <Image source={{ uri: photoUri(p) }} style={st.img} accessibilityIgnoresInvertColors />
+              <FitImage source={photoUri(p)} frameAspect={4 / 3} style={st.img} />
               {i === 0 ? (
                 <View style={st.cover}>
                   <Tag label="Cover" />

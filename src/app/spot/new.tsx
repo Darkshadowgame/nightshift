@@ -1,9 +1,9 @@
 import { openCreated } from '../../lib/openCreated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Callout, Field, MediaFrame, PAGE, TextField } from '../../components/Detail';
-import { Button, DsText, ErrorState, Press, Section, SegmentedControl } from '../../components/ds';
+import { Button, DsText, ErrorState, FitImage, Press, Section, SegmentedControl } from '../../components/ds';
 import { MapPicker } from '../../components/MapPicker';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { photoUri } from '../../lib/photos';
@@ -177,7 +177,7 @@ export default function SuggestPlace() {
                 Photo spots are for car and bike photos, so add one taken here with a car or bike in it. You can crop it, and number plates are blurred before it's saved. It
                 shows on the spot while it waits for approval.
               </DsText>
-              {photo ? <Image source={{ uri: photoUri(photo) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border }} /> : null}
+              {photo ? <FitImage source={photoUri(photo)} frameAspect={4 / 3} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border }} /> : null}
               <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                 <Button label={photo ? 'Retake' : 'Camera'} tier="secondary" style={{ flex: 1 }} block onPress={() => flow.pick(true)} disabled={flow.busy} />
                 <Button label="Library" tier="secondary" style={{ flex: 1 }} block onPress={() => flow.pick(false)} disabled={flow.busy} />

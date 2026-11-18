@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { at, postedLabel, BuildRow, openBuild, moderateOptions, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { BuildChooser, CommentBar, ComposerPhotos } from '../../components/ComposerParts';
-import { Avatar, Button, DsText, ErrorState, HeaderActions, Hero, Icon, IconButton, ListRow, LoadingState, PAGE_WITH_BAR, Press, Section, Tag, metaLine } from '../../components/ds';
+import { Avatar, Button, DsText, ErrorState, FitImage, HeaderActions, Hero, Icon, IconButton, ListRow, LoadingState, PAGE_WITH_BAR, Press, Section, Tag, metaLine } from '../../components/ds';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { boardLabel, LIMITS, replyProblem, type ForumReply } from '../../lib/forum';
@@ -110,7 +110,7 @@ export default function ThreadScreen() {
   };
 
   const photo = (p: string, label: string) => (
-    <Image key={p} source={{ uri: photoUri(p) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel={label} accessibilityIgnoresInvertColors />
+    <FitImage key={p} source={photoUri(p)} frameAspect={4 / 3} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel={label} />
   );
 
   return (

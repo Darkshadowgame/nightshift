@@ -2,7 +2,7 @@ import { modCount } from '../lib/modGroups';
 import { carShape } from '../lib/buildShape';
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Image, View, useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
 import { classOf, effectivePower } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
@@ -15,7 +15,7 @@ import { postPlace } from '../lib/postPrivacy';
 import { useStore } from '../lib/store';
 import type { Build, User } from '../lib/types';
 import { ASPECT, COLOR, RADII, SPACING } from '../theme';
-import { Avatar, BuildThumb, Button, ClassBadge, DsText, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
+import { Avatar, BuildThumb, Button, ClassBadge, DsText, FitImage, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
 import { photoSource } from '../lib/photoSource';
 import { PhotoCredit } from './PhotoCredit';
 import { useBuildPicture } from './BuildBits';
@@ -236,13 +236,11 @@ export function PostCard({
   const pictures = shown.map((p, i) => (
     <View key={p} style={{ aspectRatio: ASPECT.post, backgroundColor: COLOR.surface.media }}>
       {/* A photo that can't load (an old web preview link, a file that's gone) drops out instead of leaving a blank frame. */}
-      <Image
+      <FitImage
         source={photoSource(p)}
+        frameAspect={ASPECT.post}
         onError={() => setBroken((b) => new Set(b).add(p))}
-        style={{ width: '100%', height: '100%' }}
-        resizeMode="cover"
         accessibilityLabel={i === 0 ? `Photo by ${at(author)}` : 'Another photo in the post'}
-        accessibilityIgnoresInvertColors
       />
       <PhotoCredit photoRef={p} overlay corner="topRight" />
       {i === 0 && !full && post.photos.length > 1 ? (

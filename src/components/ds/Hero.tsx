@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import type { ClassLetter } from '../../lib/types';
 import { ASPECT, COLOR, RADII, SPACING } from '../../theme';
 import { Pin, type Glyph } from '../Pin';
 import type { EntityTag } from './EntityCard';
+import { FitImage } from './FitImage';
 import { Gradient } from './Gradient';
 import { contentColour } from './logic';
 import { ClassBadge, Tag, type Photo } from './Marks';
@@ -107,7 +108,7 @@ export function Hero({
   ));
 
   const picture = photo ? (
-    <Image source={typeof photo === 'string' ? { uri: photo } : photo} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+    <FitImage source={photo} frameAspect={aspect} />
   ) : (
     media
   );
