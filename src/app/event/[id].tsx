@@ -305,7 +305,7 @@ export default function EventScreen() {
         phase === 'live' ? { label: 'Checked in', value: `${checkedIn}/${ev.going.length}` } : { label: 'Going', value: String(ev.going.length) },
         ev.type === 'rolling' || ev.type === 'cruise'
           ? { label: ev.type === 'cruise' ? 'Stops' : 'Stop', value: ev.type === 'cruise' ? String(ev.stops.length) : `${ev.currentStop + 1} of ${ev.stops.length}` }
-          : hiddenNow && unlockAt > now
+          : !isPublicType(ev.type) && unlockAt > now
             ? { label: 'Unlocks in', value: countdown(unlockAt, now) }
             : { label: 'Stop', value: currentVisible ? 'Unlocked' : 'Locked' },
       ];

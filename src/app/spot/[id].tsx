@@ -234,7 +234,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
         <>
           <TrackPanel spot={spot} outline={outline} />
           <Callout tone="neutral" title="Tracks are the only place times count." right={<Button tier="tertiary" size="sm" label="Events ›" onPress={() => router.push('/events')} />}>
-            Look for track days on the Events tab.
+            Look for track days in Events.
           </Callout>
         </>
       ) : null}

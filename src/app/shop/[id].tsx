@@ -90,7 +90,6 @@ export default function ShopScreen() {
         kind={p ? partnerBadge(p) : 'Shop'}
         colour={colour}
         glyph={p ? 'partner' : (listing.categories[0] ?? 'shop')}
-        sample={!!p?.demo}
         status={state ? { label: state.open ? 'Open' : 'Closed', tone: state.open ? 'success' : 'neutral' } : null}
         title={listing.name}
         lines={[listing.categories.map((c) => CATEGORY_LABELS[c]).join(' · '), state?.label, listing.brand]}

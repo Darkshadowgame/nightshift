@@ -294,7 +294,7 @@ function EventEntity({ view, now }: { view: EventView; now: Date }) {
       mark={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
       title={e.title}
       status={view.phase === 'live' ? { label: 'Live', tone: 'live' } : role && view.phase !== 'over' ? { label: role, tone: view.role === 'going' ? 'success' : 'neutral' } : undefined}
-      meta={[when.absolute, plural(e.going.length, 'going')].join(' · ')}
+      meta={[when.absolute, `${e.going.length} going`].join(' · ')}
       detail={e.areaName}
       finished={view.phase === 'over' || view.phase === 'cancelled'}
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
