@@ -408,7 +408,7 @@ accepts); everyone else talks on the forum or under posts. Rules mirror
 | `forum_threads`, `forum_replies` | board (`advice`, `builds`, `cars`, `bikes`, `detailing`, `meets`, `for_sale`, `local` + region), title, body, up to 4 photo paths (`photos/{uid}/forum/…`), linked build, counts, `solved_reply_id`, `hidden_at` | signed-in users, minus hidden posts (the author still sees theirs) and **people you blocked** | `create_thread()`, `reply_thread()`, `mark_solved()`; the author deletes |
 | `forum_helpful` | "Helpful" per reply per person | own rows | `mark_helpful()` |
 | `forum_rep` | +25 per thread whose Solved reply is yours (0 over a cap) | own rows (`forum_rep_for()` for anyone) | `mark_solved()` |
-| `posts`, `post_likes`, `post_comments` | feed posts: text, up to 4 photo paths (`photos/{uid}/posts/…`), optional place (4 dp) and name, `public` / `connections`, counts | `can_see_post()`: public, or connections-only for connections; never across a block; hidden only to the author | `create_post()`, `like_post()`, `comment_post()`; authors delete (a post's author can delete comments on it) |
+| `posts`, `post_likes`, `post_comments` | feed posts: text, up to 4 photo paths (`photos/{uid}/posts/…`), optional place (4 dp) and name, `public` / `connections`, counts, `event_id` (the meet it was made at) | `can_see_post()`: public, or connections-only for connections; never across a block; hidden only to the author. **`location` and `place_name` can't be selected directly** (only through the two RPCs below) | `create_post()`, `like_post()`, `comment_post()`; authors delete (a post's author can delete comments on it) |
 | `conversations`, `conversation_members`, `messages` | 1-to-1 (`direct_key`) and group chats (name, up to 50, admins), `last_read_at` ("Seen"), text, a photo in the private `messages` bucket, a shared card (`share`: kind event/place/build, id, title, subtitle) | **members only** (staff too: no blanket read; reports carry a copy) | RPCs only (below) |
 | `reports` | target (thread, reply, message, post, comment, profile, build), reason, note, a copy of the text, status | **staff only** | `report_content()`; staff `moderate_report()` |
 | `private.rate_hits` | one row per rate-limited action (kept a day) | nobody (functions only) | the RPCs |
@@ -428,10 +428,10 @@ accepts); everyone else talks on the forum or under posts. Rules mirror
 | `send_message(p_conversation_id, p_body, p_photo_path, p_share)` | `private.can_post()`: a group member, or in a 1-to-1 still connected with no block. 20 a minute, 1,000 a day. Photo path must be `{you}/{conversation}/…` |
 | `mark_conversation_read(p_conversation_id)` / `my_conversations()` | Unread counts leave out your own lines, hidden lines and people you blocked; `can_send` |
 | `create_thread`, `reply_thread`, `mark_helpful`, `mark_solved`, `forum_rep_for` | Threads: 3 in 10 minutes, 15 a day. Replies: 5 a minute, 200 a day. Solved: +25 to the reply's author, once per thread, never your own reply, at most 3 paid a day and one a week from the same thread author |
-| `create_post(p_body, p_photos, p_lat, p_lng, p_place_name, p_visibility, p_build_id)` | 10 an hour, 30 a day. UK only; **refused within 1 km of your own home area** |
+| `create_post(p_body, p_photos, p_lat, p_lng, p_place_name, p_visibility, p_build_id)` | 10 an hour, 30 a day. UK only; **refused within 1 km of your own home area**. Within 0.25 mi of a meet point (not a show or track day) **that the author can see**, it's linked to that meet (`event_id`) |
 | `like_post`, `comment_post` | Comments: 5 a minute, 200 a day |
-| `feed_posts(p_scope, p_before, p_author)` | `local` (public posts placed within your travel distance of your home area, or by people living within it), `connections` (theirs and yours) or `author`; 50 at a time; lat/lng, counts, `liked_by_me` |
-| `posts_in_box(p_south, p_west, p_north, p_east)` | The map's Posts layer: posts with a place from the last 30 days, at most 200 |
+| `feed_posts(p_scope, p_before, p_author)` | `local` (public posts placed within your travel distance of your home area, or by people living within it), `connections` (theirs and yours) or `author`; 50 at a time; lat/lng, counts, `liked_by_me`, `event_id`. **A post at a meet point the viewer can't see yet** (`private.post_hidden_event()`, the `can_see_stop()` rule) comes back at the meet's area centre with no place name; the author and staff get it exact |
+| `posts_in_box(p_south, p_west, p_north, p_east)` | The map's Posts layer: posts with a place from the last 30 days, at most 200; posts at a meet point the viewer can't see yet are left out |
 | `rate_build(p_build_id, p_like)` / `build_likes(p_build_ids)` | Not your own build; 500 a day; counts only |
 | `report_content(p_target, p_target_id, p_reason, p_note)` | Not yourself, only things you can see, 30 a day, once per thing. **Three different people** reporting a thread, reply, message, post or comment hides it (`hidden_at`) until staff look |
 | `moderate_report(p_report_id, p_action)` | Staff only: `hide`, `restore` or `dismiss` (closes every open report on that thing) |
@@ -1028,6 +1028,15 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   `remove_dyno` in the audit log. pgTAP: `dyno_badge_test.sql` (16), run in a rolled-back transaction
   before the push.
 * **pgTAP:** 822 of 822 on the hosted database (adds `dyno_runs_test.sql`, 12, and `dyno_badge_test.sql`, 16).
+* **Not applied yet (branch `post-privacy`, waiting for the owner's yes):** `20261120100000_post_meet_point_privacy.sql`.
+  A post at a meet point no longer gives it away: `posts.event_id` links a post to the meet whose meet point
+  (within 0.25 mi) its author could see; `private.post_hidden_event(post, viewer)` applies `can_see_stop()`
+  (reveal time, going/invites, a rolling meet's current meet point); `feed_posts()` returns the meet's area
+  centre, no place name and `event_id` to a viewer who can't see it; `posts_in_box()` leaves it out; `location`
+  and `place_name` can't be selected directly. Authors and staff get the exact place. A post by someone who
+  can't see the meet point is never masked or linked, so posts can't be used to probe for one. pgTAP:
+  `post_privacy_test.sql` (44), run with the whole suite (887 of 887) in a rolled-back transaction on the
+  hosted database; `db push --dry-run` lists only this migration.
 * **Smoke test:** 121 of 121 (adds: A adds a dyno run with its sheet, B reads it with the build, B can't
   add one to A's build; B sees the badge proven, it goes when A edits the power by hand, B can't remove it).
 

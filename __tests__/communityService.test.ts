@@ -96,6 +96,11 @@ describe('server rows to the app (backend/community.ts)', () => {
     expect(r).toMatchObject({ helpfulCount: 3, helpfulByMe: true, hidden: true, photos: [] });
     const p = postFromRow({ id: 'p', author_id: 'a', body: 'b', photos: [], lat: 52.1, lng: -1.2, place_name: 'Spot', visibility: 'connections', build_id: null, created_at: 'c', like_count: 1, comment_count: 0, liked_by_me: true, hidden: false });
     expect(p).toMatchObject({ at: { lat: 52.1, lng: -1.2 }, placeName: 'Spot', visibility: 'connections', likedByMe: true });
+    expect(p.eventId).toBeUndefined();
+    // At a meet point the viewer can't see yet: the server sends the meet's area centre, no name, and the meet.
+    const hidden = postFromRow({ id: 'q', author_id: 'a', body: 'b', photos: [], lat: 52.95, lng: -0.25, place_name: null, visibility: 'public', build_id: null, created_at: 'c', like_count: 0, comment_count: 0, liked_by_me: false, hidden: false, event_id: 'ev1' });
+    expect(hidden).toMatchObject({ eventId: 'ev1', at: { lat: 52.95, lng: -0.25 } });
+    expect(hidden.placeName).toBeUndefined();
   });
   it('conversations, messages and the moderation queue', () => {
     const c = conversationFromRow({ id: 'c', kind: 'group', name: 'NR', created_at: 'a', last_message_at: 'b', member_ids: ['a', 'b'], admin_ids: ['a'], unread: 2, last_body: '', last_sender: 'b', last_kind: 'photo', can_send: true });
