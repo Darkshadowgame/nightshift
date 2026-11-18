@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(164);
+select plan(169);
 
 insert into auth.users (id, email) values
   ('c0000000-0000-0000-0000-00000000000a', 'ca@example.test'),
@@ -39,6 +39,19 @@ set local role authenticated;
 -- ---------------------------------------------------------------------------
 -- Cars near you
 -- ---------------------------------------------------------------------------
+-- Opt-in (REVIEW-10): new people start hidden until they turn it on.
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+select is((select count(*)::int from public.people_near(25)), 0, 'people_near: new people are hidden until they opt in');
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+select lives_ok($$ select public.save_community_prefs(true) $$, 'save_community_prefs: B opts in');
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000c","role":"authenticated"}', true);
+select lives_ok($$ select public.save_community_prefs(true) $$, 'save_community_prefs: C opts in');
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000e","role":"authenticated"}', true);
+select lives_ok($$ select public.save_community_prefs(true) $$, 'save_community_prefs: E opts in');
+reset role;
+select is((select column_default from information_schema.columns where table_schema = 'public' and table_name = 'profile_settings' and column_name = 'show_in_nearby'), 'false',
+  'profile_settings.show_in_nearby defaults to off for new rows');
+set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"c0000000-0000-0000-0000-00000000000d","role":"authenticated"}', true);
 select lives_ok($$ select public.save_community_prefs(false) $$, 'save_community_prefs: D hides from Cars near you');
 

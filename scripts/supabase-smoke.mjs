@@ -185,6 +185,9 @@ async function main() {
   await A.client.from('builds').update({ dyno_bhp: 420 }).eq('id', buildA.id);
   const { data: badge2 } = await B.client.rpc('dyno_badges', { p_build_ids: [buildA.id] });
   check('dyno_badges: power edited by hand loses it', badge2?.[0]?.dyno_verified === false);
+  // REVIEW-10: Class only uses a figure its sheet run backs (private.sheet_dyno_bhp, not callable by people).
+  const { error: sheetErr } = await A.client.schema('private').rpc('sheet_dyno_bhp', { p_build: buildA.id });
+  check('private.sheet_dyno_bhp is not reachable from the app', !!sheetErr);
   const { data: dyRow } = await A.client.from('build_dyno_runs').select('id').eq('build_id', buildA.id).single();
   const { error: rmErr } = await B.client.rpc('remove_dyno_badge', { p_run_id: dyRow?.id, p_reason: 'test' });
   check('remove_dyno_badge: staff only', !!rmErr, rmErr?.message);
@@ -400,6 +403,10 @@ async function roadReports() {
 async function community() {
   await rpc(C, 'save_profile', { p_handle: `smoke_c_${RUN}`, p_name: 'Smoke C', p_region: 'London', p_home_lat: 51.5074, p_home_lng: -0.1278 });
 
+  // Opt-in (REVIEW-10): new people start hidden until they turn it on.
+  const before = await rpc(B, 'people_near', { p_max_miles: 50 });
+  check('people_near: a new person is hidden until they opt in', !before.some((r) => r.user_id === A.id));
+  await rpc(A, 'save_community_prefs', { p_show_in_nearby: true });
   const near = await rpc(B, 'people_near', { p_max_miles: 50 });
   const a = near.find((r) => r.user_id === A.id);
   check('people_near: B sees A with a rough distance and nothing else', a && typeof a.miles === 'number' && Object.keys(a).sort().join(',') === 'miles,user_id', JSON.stringify(a));
