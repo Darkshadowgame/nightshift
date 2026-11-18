@@ -1028,7 +1028,7 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   `remove_dyno` in the audit log. pgTAP: `dyno_badge_test.sql` (16), run in a rolled-back transaction
   before the push.
 * **pgTAP:** 822 of 822 on the hosted database (adds `dyno_runs_test.sql`, 12, and `dyno_badge_test.sql`, 16).
-* **Not applied yet (branch `post-privacy`, waiting for the owner's yes):** `20261120100000_post_meet_point_privacy.sql`.
+* **applied 18 Nov 2026 after the owner said yes (branch `post-privacy`, waiting for the owner's yes):** `20261120100000_post_meet_point_privacy.sql`.
   A post at a meet point no longer gives it away: `posts.event_id` links a post to the meet whose meet point
   (within 0.25 mi) its author could see; `private.post_hidden_event(post, viewer)` applies `can_see_stop()`
   (reveal time, going/invites, a rolling meet's current meet point); `feed_posts()` returns the meet's area
