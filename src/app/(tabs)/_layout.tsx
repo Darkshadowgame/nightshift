@@ -24,7 +24,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: BRAND,
         tabBarInactiveTintColor: C.fog,
         tabBarAllowFontScaling: true,
-        tabBarLabelStyle: { fontFamily: F.label, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' },
+        // The bar gives the label 10 pt under a 28 pt icon box; capitals at 11 pt need 12. The icons are 26 pt,
+        // so the box shrinks to fit them and the line is set to 12 (no descenders in capitals): nothing clipped (B6).
+        tabBarLabelStyle: { fontFamily: F.label, fontSize: 11, lineHeight: 12, letterSpacing: 1, textTransform: 'uppercase' },
+        tabBarIconStyle: { height: 26 },
         sceneStyle: { backgroundColor: C.asphalt },
       }}
     >
