@@ -72,8 +72,12 @@ const BASE_BAN_ZONES: BanZone[] = [
   },
   {
     id: 'bz-halstead', name: 'Halstead and Polhill', centre: { lat: 51.333, lng: 0.135 }, radiusMiles: 1.5,
-    note: `${CHECK} Sevenoaks District Council nuisance-vehicle PSPO (from 1 May 2024, up to three years, so to about Apr 2027) on London Road, Halstead, the Orpington By-Pass, Badgers Mount and the M25 spur by junction 4, after car meets and racing.`,
-    source: 'https://www.kentonline.co.uk/sevenoaks/news/boy-racers-face-fines-over-noisy-car-cruising-events-304087/',
+    note: `${CHECK} Sevenoaks District Council car-cruising PSPO (CSU002, from 1 May 2024; the council lists it as expiring Mar 2027) on London Road, Halstead, the Orpington By-Pass, Badgers Mount and the M25 spur by junction 4, after car meets and racing.`,
+    source: 'https://www.sevenoaks.gov.uk/pspo',
+    sourceKind: 'council',
+    authority: 'Sevenoaks District Council',
+    newsSource: 'https://www.kentonline.co.uk/sevenoaks/news/boy-racers-face-fines-over-noisy-car-cruising-events-304087/',
+    checked: '2026-11-18',
   },
   {
     id: 'bz-medway', name: 'Medway (whole area)', centre: { lat: 51.4, lng: 0.55 }, radiusMiles: 7,
@@ -92,11 +96,6 @@ const BASE_BAN_ZONES: BanZone[] = [
     note: `${CHECK} Borough-wide nuisance-vehicles PSPO (first made May 2022 for three years; the council now lists a "Nuisance Vehicle Order 2025", so renewed in 2025, probably to about 2028). Enforced at Crossways Boulevard and Bluewater; Kent Police also use dispersal orders here.`,
     source: 'https://www.dartford.gov.uk/community-safety/public-space-protection-order',
     checked: '2026-11-17',
-  },
-  {
-    id: 'bz-sheerness', name: 'Sheerness', centre: { lat: 51.44, lng: 0.76 }, radiusMiles: 1.5,
-    note: `${CHECK} Kent Police have used 48-hour dispersal orders against planned race meets here. Not a standing order, but expect them.`,
-    source: 'https://www.kentonline.co.uk/sheerness/news/dispersal-order-to-stop-planned-race-meet-300812/',
   },
   // Added 17 Nov 2026 from docs/research/ban-zones-checked.md.
   {

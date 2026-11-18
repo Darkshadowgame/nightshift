@@ -721,10 +721,17 @@ Owner's request: "Obviously you need to use real maps and location."
   Netherfield order uses the council's own map. Solihull now has a street-racing PSPO
   on Damson and Bickenhill Parkways (a circle). The rest are circles: the Westminster and Kensington
   injunction (revving and dangerous driving 18:00–07:00), Enfield, Great Yarmouth,
-  Felixstowe, Norwich, Broadland and South Norfolk, Cromer, Halstead and Polhill,
-  and the Medway, Dartford and Sheerness dispersal hotspots. Each is marked
+  Felixstowe, Norwich, Broadland and South Norfolk, Cromer and Halstead and Polhill,
+  plus a few police dispersal hotspots. Each is marked
   "Sample — check the current order" with its source, and a point in several shows
-  all of them, the smallest first. Whether a place is in one is worked out when the
+  all of them, the smallest first.
+  **Evidence links must be official:** each zone's `source` is the council's page or
+  sealed order, the court judgment, or the police force's own notice (`sourceKind`),
+  and the card labels it ("Read the council's order ›", "Read the court order ›",
+  "See the police notice ›"). News is only a fallback, labelled "News report (no
+  official page found) ›", or a quieter second link beside the official one. A
+  dispersal order that has expired with no official record is removed, not kept on
+  news alone. `__tests__/zoneSources.test.ts` enforces this. Whether a place is in one is worked out when the
   app reads it, so a zone added in an update reaches every phone.
 
 ## Privacy and safety in Phase 1

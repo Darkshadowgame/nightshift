@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Linking, Pressable, View } from 'react-native';
 import { zoneInfo } from '../lib/zones';
 import type { BanZone } from '../lib/types';
-import { STATE } from '../theme';
+import { C, STATE } from '../theme';
 import { Card, LinkText, Row, Txt } from './ui';
 
 /**
@@ -39,10 +39,11 @@ export function ZoneCard({ zone, onClose }: { zone: BanZone; onClose?: () => voi
       <Txt v="caption">
         {z.sample} The area drawn is approximate{z.checked ? `; last checked ${z.checked}` : ''}.
       </Txt>
-      {z.source ? (
-        <View style={{ alignSelf: 'flex-start' }}>
-          <LinkText label="Read the order ›" onPress={() => Linking.openURL(z.source!).catch(() => {})} />
-        </View>
+      {z.source || z.newsSource ? (
+        <Row gap={16} style={{ alignSelf: 'flex-start' }}>
+          {z.source ? <LinkText label={z.sourceLabel ?? 'Read the order ›'} onPress={() => Linking.openURL(z.source!).catch(() => {})} /> : null}
+          {z.newsSource ? <LinkText label="News report ›" colour={C.fog} onPress={() => Linking.openURL(z.newsSource!).catch(() => {})} /> : null}
+        </Row>
       ) : null}
     </Card>
   );

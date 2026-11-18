@@ -445,11 +445,17 @@ export const banZones: BanZone[] = [
   {
     id: 'bz-sni-aberdeen', name: 'Aberdeen beach and Garthdee', centre: { lat: 57.14, lng: -2.105 }, radiusMiles: 3,
     note: `${CHECK} No standing order: Police Scotland repeatedly breaks up large unauthorised car meets here (Garthdee Road, May 2026; beach, Garthdee and Portlethen, July 2026) with arrests, seizures and fixed penalties.`,
-    source: 'https://news.stv.tv/north/two-arrests-as-police-descend-on-car-meet-up-involving-700-vehicles',
+    source: 'https://www.scotland.police.uk/what-s-happening/news/2026/may/arrests-made-following-large-scale-car-meet-up-in-aberdeen/',
+    sourceKind: 'police',
+    newsSource: 'https://news.stv.tv/north/two-arrests-as-police-descend-on-car-meet-up-involving-700-vehicles',
+    checked: '2026-11-18',
   },
   {
     id: 'bz-sni-portrush-portstewart', name: 'Portrush and Portstewart', centre: { lat: 55.192, lng: -6.67 }, radiusMiles: 2.5,
-    note: `${CHECK} PSNI operations against car cruising, "diffing" and anti-social driving (Easter 2026 warning); past checkpoints and diversions on Portstewart Promenade.`,
-    source: 'https://www.irishnews.com/news/northern-ireland/police-warning-over-diffing-and-other-anti-social-driving-in-the-north-coast-this-easter-M7YQ3JGCZJDT5PDIB4P4NJZ2ZY/',
+    note: `${CHECK} No standing order: PSNI north-coast Easter warnings against car cruising, "diffing" and anti-social driving (reported again Easter 2026); past checkpoints and diversions on Portstewart Promenade.`,
+    source: 'https://www.psni.police.uk/latest-news/police-want-ensure-safety-all-residents-and-visitors-north-coast-easter-weekend',
+    sourceKind: 'police',
+    newsSource: 'https://www.irishnews.com/news/northern-ireland/police-warning-over-diffing-and-other-anti-social-driving-in-the-north-coast-this-easter-M7YQ3JGCZJDT5PDIB4P4NJZ2ZY/',
+    checked: '2026-11-18',
   },
 ];

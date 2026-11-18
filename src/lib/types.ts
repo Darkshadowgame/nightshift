@@ -266,6 +266,18 @@ export interface BanZone {
   /** When it applies, e.g. "3pm to 7am", when known. */
   hours?: string;
   note: string;
-  /** Where the order is published. */
+  /**
+   * The evidence link: the official source (the council's page or sealed order,
+   * the court judgment, or the police force's own notice). A news link goes here
+   * only when no official page exists, with sourceKind 'news' and the note saying so.
+   */
   source?: string;
+  /** Who published `source`. Worked out from its web address when missing (zones.ts). */
+  sourceKind?: ZoneSourceKind;
+  /** The council (or court, or force) that made the order, for the link label. */
+  authority?: string;
+  /** A news report as a second, secondary link, when there is an official one too. */
+  newsSource?: string;
 }
+
+export type ZoneSourceKind = 'council' | 'court' | 'police' | 'news';

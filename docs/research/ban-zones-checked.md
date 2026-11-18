@@ -26,7 +26,7 @@ named roads or sites.
 | East Cambridgeshire | Vehicle ASB PSPO, whole district | `bz-east-cambs` (outline) | enforced 24 Aug 2026, three years | [East Cambs](https://eastcambs.gov.uk/press-releases/2026/new-powers-tackle-anti-social-driving-launched-east-cambs) |
 | Peterborough | Car-park PSPO, Pleasure Fair Meadow (medium) | `bz-peterborough-pfm` | ~Jul 2025, ~Jul 2028 | [Peterborough](https://www.peterborough.gov.uk/engagement-hub/pspo-to-be-introduced-at-car-park) |
 | Milton Keynes | Car cruise and street racing PSPO, treated as city-wide | `bz-milton-keynes` (outline) | extended Jan 2026, ~Jan 2029 | [MK](https://www.milton-keynes.gov.uk/community-safety-safermk-partnership/public-space-protection-orders-pspo/car-cruising-pspo) |
-| Solihull | Street-racing PSPO, Damson and Bickenhill Parkways (start date not found) | `bz-mw-solihull-parkways` | approved 18 Mar 2026, three years | [Switch Radio](https://new.switchradio.co.uk/residents-welcome-pspo-to-curb-illegal-street-racing) |
+| Solihull | Street-racing PSPO, Damson and Bickenhill Parkways (start date not found) | `bz-mw-solihull-parkways` | approved 18 Mar 2026, three years | [Solihull decision](https://democracy.solihull.gov.uk/ieDecisionDetails.aspx?AIId=57241) |
 | Gedling | Car-cruising PSPO, Netherfield, Colwick, Colliery Way | `bz-mw-gedling` (council map) | extended from 23 Jun 2026, three years | [Gedling report](https://democracy.gedling.gov.uk/documents/s44864/Approval%20to%20extend%20the%20Public%20Space%20Protection%20Order%20in%20parts%20of%20NetherfieldColwick%20and%20Colliery%20Wa.pdf) |
 | Bassetlaw | Nuisance-vehicles PSPO, whole district, 12 noon to 6am | `bz-mw-bassetlaw` (outline) | 1 Apr 2026 to 30 Mar 2029 | [Bassetlaw](https://www.bassetlaw.gov.uk/community-and-living/community-safety/public-space-protection-orders/nuisance-vehicles-public-space-protection-order-pspo/) |
 | Ashfield | District PSPO 2024 with vehicle-nuisance clause | `bz-mw-ashfield` (outline) | Sep 2024, ~Sep 2027 | [Ashfield order](https://democracy.ashfield.gov.uk/documents/s29474/Public%20Spaces%20Protection%20Order%202024.pdf) |
@@ -40,20 +40,42 @@ named roads or sites.
 | North Somerset | Area-wide PSPO with vehicle clauses; 2023 text ended 12 Oct 2026, renewal said done but not yet published (medium) | `bz-sws-north-somerset` (outline) | renewed Oct 2026? | [North Somerset](https://n-somerset.gov.uk/my-services/community-safety-crime/public-space-protection-orders/area-wide-orders) |
 | Plymouth | Car-park PSPO against car meets (city centre; Mount Batten and Jennycliff) | `bz-sws-plymouth-centre`, `bz-sws-mount-batten` | Sep 2025, ~Sep 2028 | [Plymouth decision](https://democracy.plymouth.gov.uk/ieDecisionDetails.aspx?ID=4650) |
 | Eastbourne | Anti-social driving PSPO, seafront and Beachy Head, 1 Apr to 31 Oct (renewal from news, medium) | `bz-sws-eastbourne` | renewed 2025, ~2028 | [2022 order](https://democracy.lewes-eastbourne.gov.uk/documents/s23095/Eastbourne%20Public%20Spaces%20Protection%20Anti-social%20Driving%20Order%202022.pdf) |
-| Elmbridge | Repeated police dispersal orders: Cobham Services, Brooklands, Waterside Drive | `bz-sws-cobham-services`, `bz-sws-brooklands`, `bz-sws-walton-waterside` | Aug 2025, May and Jun 2026 | [Ground News](https://ground.news/article/police-say-a-dispersal-order-will-be-in-place-at-cobham-services-and-brooklands-industrial-park-this-weekend) |
+| Elmbridge | Repeated police dispersal orders: Cobham Services, Brooklands, Waterside Drive | `bz-sws-cobham-services`, `bz-sws-brooklands`, `bz-sws-walton-waterside` | Aug 2025; Section 34, 24 May and 28 Jun 2026 | [Surrey Police, Weybridge](https://www.surrey.police.uk/area/your-area/surrey/elmbridge/weybridge/about-us/our-priorities) |
 | Stockport | Renewal approved Jun 2026 | `bz-ne-stockport` note | to 4 May 2029 | [Consultation](https://consultation.stockport.gov.uk/place/public-space-protection-order-car-cruising-2026) |
 | Trafford | Order ran to Aug 2026; no renewal found (kept, flagged "may have lapsed") | `bz-ne-trafford` note | Aug 2023 to Aug 2026 | [Trafford decision](https://democratic.trafford.gov.uk/ieDecisionDetails.aspx?ID=878) |
 | Enfield | Upheld Dec 2025 for 12 months, annual review | `bz-enfield` note | review ~Dec 2026 | [Enfield](https://enfield.gov.uk/services/your-council/injunction-order-car-cruising) |
 | Broadland, South Norfolk | From 4 Apr 2024 | `bz-broadland-south-norfolk` note | ~Apr 2027 | [SNB](https://www.southnorfolkandbroadland.gov.uk/neighbourhood-issues/public-spaces-protection-orders/public-spaces-protection-order-vehicle-anti-social-behaviour) |
-| Sevenoaks (Halstead) | From 1 May 2024 | `bz-halstead` note | ~Apr 2027 | [Sevenoaks](https://www.sevenoaks.gov.uk/pspohalsted) |
+| Sevenoaks (Halstead) | Car-cruising PSPO CSU002, from 1 May 2024 | `bz-halstead` note | listed as expiring Mar 2027 | [Sevenoaks PSPOs](https://www.sevenoaks.gov.uk/pspo) |
 | Wirral (Bromborough), West Lancs (Pimbo) | Both renewed Jul 2025 | notes | ~2028 | [Wirral](https://wirralview.com/node/11868), [West Lancs](https://www.westlancs.gov.uk/pspo) |
-| Basingstoke | No PSPO; no dispersals found in 2026 | `bz-sws-basingstoke` note | dispersals 2024, 2025 | [Basingstoke PSPOs](https://www.basingstoke.gov.uk/pspo) |
+| Basingstoke | No PSPO; no dispersals found in 2026. Zone removed 18 Nov 2026: the 2024 and 2025 dispersal orders have expired and only news reports were found | (removed) | dispersals 2024, 2025 | [Basingstoke PSPOs](https://www.basingstoke.gov.uk/pspo) |
 | Cannock Chase | District PSPO 2025, clause 6B anti-social use of motor vehicles, district-wide, 24/7; used after an Oct 2025 car cruise | `bz-mw-cannock-chase` (outline) | ~31 Jan 2025, ~Jan 2028 | [Cannock Chase](https://cannockchasedc.gov.uk/node/8719) |
 | Waltham Forest | Car-meets PSPO, whole borough (resolved: the 2024 proposal and order cover the entire borough) | `bz-waltham-forest` (outline) | Oct 2024, ~Oct 2027 (expiry inferred) | [Waltham Forest](https://www.walthamforest.gov.uk/neighbourhoods/crime-and-community-safety/public-space-protection-orders), [Echo](https://walthamforestecho.co.uk/2024/04/09/council-consults-on-planned-car-meets-crackdown/) |
 | Tonbridge and Malling | PSPO 2026, borough-wide car-cruising clause (owner, driver, passenger or spectator) | `bz-tonbridge-malling` (outline) | 1 Apr 2026, ~Mar 2029 | [TMBC order](https://www.tmbc.gov.uk/downloads/file/3074/public-space-protection-order-2026) |
 | Gravesham | Nuisance Vehicles PSPO 2026, whole borough (revving, racing, stunts, convoys) | `bz-gravesham` (outline) | 1 Jul 2026 to ~Jun 2029 | [Gravesham order](https://www.gravesham.gov.uk/downloads/file/1147/nuisance-vehicles-pspo) |
 | Dartford | Nuisance Vehicles PSPO, whole borough; was a dispersal circle. 2022 order (3 years) now listed as "Nuisance Vehicle Order 2025" (medium) | `bz-dartford` (now outline) | renewed 2025, ~2028 | [Dartford](https://www.dartford.gov.uk/community-safety/public-space-protection-order) |
 | Medway | Nuisance Vehicles PSPO, whole of Medway; was a dispersal circle. Renewal at scrutiny Aug 2026 | `bz-medway` (now outline) | 1 Apr 2024, ~Mar 2027 | [Medway](https://www.medway.gov.uk/pspo) |
+
+## Evidence links (18 Nov 2026)
+
+Owner rule: "if referring to a council, link to them as evidence". Every zone's
+`source` is now official (council page or sealed order, court judgment, or the police
+force's own page), with `sourceKind` and, where useful, the old news link kept as
+`newsSource`. The nine zones that cited news only:
+
+| Zone | Was | Official source now | Kind |
+|---|---|---|---|
+| `bz-halstead` | KentOnline | [Sevenoaks DC PSPO page](https://www.sevenoaks.gov.uk/pspo) (CSU002, expires Mar 2027; the old `/pspohalsted` link is a 404) | council |
+| `bz-mw-solihull-parkways` | Switch Radio | [Solihull decision, CPH Communities 18 Mar 2026](https://democracy.solihull.gov.uk/ieDecisionDetails.aspx?AIId=57241) | council |
+| `bz-sni-aberdeen` | STV | [Police Scotland, 31 May 2026](https://www.scotland.police.uk/what-s-happening/news/2026/may/arrests-made-following-large-scale-car-meet-up-in-aberdeen/) | police |
+| `bz-sni-portrush-portstewart` | Irish News | [PSNI north-coast Easter release](https://www.psni.police.uk/latest-news/police-want-ensure-safety-all-residents-and-visitors-north-coast-easter-weekend) (year not confirmed: psni.police.uk blocks automated reading) | police |
+| `bz-sws-cobham-services`, `bz-sws-brooklands`, `bz-sws-walton-waterside` | Ground News | [Surrey Police, Weybridge priorities](https://www.surrey.police.uk/area/your-area/surrey/elmbridge/weybridge/about-us/our-priorities) (Section 34 orders 24 May and 28 Jun 2026 for all three sites) | police |
+| `bz-sheerness` | KentOnline | none: **removed**. The one order found (27 Jan 2024) was a one-night Section 34 order over the Sheppey Crossing, Rushenden, Kemsley and Iwade, not Sheerness, and Kent Police have no page for it | — |
+| `bz-sws-basingstoke` | Hello Rayo | none: **removed**. Expired dispersal orders (Jul 2024, Jun 2025) known only from local radio; hampshire.police.uk blocks automated reading | — |
+
+No zone is left on news alone, so the test allowlist (`NEWS_ONLY` in
+`__tests__/zoneSources.test.ts`) is empty. The web-search budget ran out during
+this pass, so the Portrush release's year and any newer Hampshire Police notice are
+worth a manual recheck.
 
 ## Found but not mapped
 

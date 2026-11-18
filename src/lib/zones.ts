@@ -1,5 +1,5 @@
 import { milesBetween } from './geo';
-import type { BanZone, LatLng } from './types';
+import type { BanZone, LatLng, ZoneSourceKind } from './types';
 
 /**
  * Ban zones: is a point inside one? A zone is either a circle (small PSPOs and
@@ -104,6 +104,38 @@ export function zoneHours(z: Pick<BanZone, 'hours' | 'note'>): string | undefine
   return m?.[1];
 }
 
+const COURT_HOSTS = /(^|\.)(judiciary\.uk|bailii\.org|caselaw\.nationalarchives\.gov\.uk)$/;
+const POLICE_HOSTS = /(^|\.)police\.uk$/;
+
+/** Who published a zone's evidence link: the zone says, or its web address does. */
+export function zoneSourceKind(z: Pick<BanZone, 'source' | 'sourceKind'>): ZoneSourceKind | undefined {
+  if (z.sourceKind) return z.sourceKind;
+  if (!z.source) return undefined;
+  let host = '';
+  try {
+    host = new URL(z.source).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+  if (COURT_HOSTS.test(host)) return 'court';
+  if (POLICE_HOSTS.test(host)) return 'police';
+  return 'council';
+}
+
+/** The evidence link's label, by who published it. */
+export function zoneSourceLabel(kind: ZoneSourceKind, authority?: string): string {
+  switch (kind) {
+    case 'council':
+      return authority ? `Read ${authority}'s order ›` : "Read the council's order ›";
+    case 'court':
+      return 'Read the court order ›';
+    case 'police':
+      return 'See the police notice ›';
+    case 'news':
+      return 'News report (no official page found) ›';
+  }
+}
+
 export interface ZoneInfo {
   id: string;
   name: string;
@@ -113,6 +145,10 @@ export interface ZoneInfo {
   /** The zone's own note, without the sample line it starts with. */
   details: string;
   source?: string;
+  /** The evidence link's label ("Read the council's order ›" and so on). */
+  sourceLabel?: string;
+  /** A news report, shown as a quieter second link beside an official source. */
+  newsSource?: string;
   checked?: string;
   sample: string;
   forHosts: string;
@@ -120,6 +156,7 @@ export interface ZoneInfo {
 
 export function zoneInfo(z: BanZone): ZoneInfo {
   const kind = zoneKind(z);
+  const sourceKind = zoneSourceKind(z);
   return {
     id: z.id,
     name: z.name,
@@ -128,6 +165,8 @@ export function zoneInfo(z: BanZone): ZoneInfo {
     hours: zoneHours(z),
     details: z.note.replace(ZONE_SAMPLE_NOTE, '').trim(),
     source: z.source,
+    sourceLabel: sourceKind ? zoneSourceLabel(sourceKind, z.authority) : undefined,
+    newsSource: sourceKind === 'news' ? undefined : z.newsSource,
     checked: z.checked,
     sample: ZONE_SAMPLE_NOTE,
     forHosts: ZONE_HOST_NOTE,
