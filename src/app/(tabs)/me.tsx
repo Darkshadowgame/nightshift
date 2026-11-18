@@ -60,8 +60,8 @@ const DEMO_RESULTS_EVENT = 'ev-past-snowdome';
 /**
  * Me (Redesign 2, 3.10; T1): you, your meets and your trophies. Avatar, @handle and your level on
  * one line (tap for the ladder; owner decision, section 9) → your main build → Meets, Hosted,
- * Trophies → your meets, next then past → trophy covers → Edit profile, Settings, help, feedback.
- * Settings is also the gear in the header, so it's one tap from the top (REVIEW-12 #6).
+ * Trophies → your meets, next then past → trophy covers → Edit profile, help, feedback.
+ * Settings is the gear in the header only (REVIEW-12 #6; said once, C5).
  */
 export default function Me() {
   const { users, me, crews, builds, events, votes } = useStore();
@@ -208,8 +208,6 @@ export default function Me() {
 
       <View>
         <ListRow title="Edit profile" onPress={() => router.push('/profile')} />
-        <RowDivider />
-        <ListRow title={SCREEN_TITLES.settings} onPress={() => router.push('/settings')} />
         <RowDivider />
         <ListRow title={SCREEN_TITLES.help} onPress={() => router.push('/help')} />
         <RowDivider />
