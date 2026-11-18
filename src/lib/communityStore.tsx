@@ -265,7 +265,7 @@ export function useCommunityQuery<T>(fn: (s: CommunityService) => Promise<T>, de
         setData(d);
         setError(null);
       })
-      .catch((e) => live && setError(e instanceof Error ? e.message : 'Could not load this.'))
+      .catch((e) => live && setError(e instanceof Error ? e.message : "Couldn't load this."))
       .finally(() => live && setLoading(false));
     return () => {
       live = false;

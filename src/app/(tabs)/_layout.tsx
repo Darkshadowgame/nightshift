@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { screenHeader } from '../../components/ds';
+import { screenHeader, typeStyle } from '../../components/ds';
 import { Pin, type Glyph } from '../../components/Pin';
 import { useCommunity } from '../../lib/communityStore';
 import { COLOR, TYPE_SCALE } from '../../theme';
@@ -32,7 +32,7 @@ export default function TabsLayout() {
         tabBarAllowFontScaling: true,
         // The bar gives the label 10 pt under a 28 pt icon box; capitals at 11 pt need 12. The icons are 26 pt,
         // so the box shrinks to fit them and the line is set to 12 (no descenders in capitals): nothing clipped (B6).
-        tabBarLabelStyle: { fontFamily: TYPE_SCALE.tag.fontFamily, fontSize: 11, lineHeight: 12, letterSpacing: 1, textTransform: 'uppercase' },
+        tabBarLabelStyle: { ...typeStyle('tag'), lineHeight: 12, color: undefined },
         tabBarIconStyle: { height: 26 },
         sceneStyle: { backgroundColor: COLOR.surface.bg },
       }}

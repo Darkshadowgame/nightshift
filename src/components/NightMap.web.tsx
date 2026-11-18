@@ -1,7 +1,8 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polygon, Polyline } from 'react-native-svg';
-import { BRAND, C, FONT_SCALE, RADIUS, SURFACE, TYPE } from '../theme';
+import { ART, BRAND, C, RADII, SPACING, SURFACE } from '../theme';
+import { DsText } from './ds/Text';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
 import type { NightMapProps } from './mapTypes';
@@ -56,7 +57,7 @@ export function NightMap({
   };
 
   return (
-    <View ref={box as never} style={[StyleSheet.absoluteFill, { backgroundColor: '#080c13' }]} onLayout={onLayout}>
+    <View ref={box as never} style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={onLayout}>
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={onPressMap ? (e) => onPressMap(at(e.nativeEvent as never)) : undefined}
@@ -64,10 +65,10 @@ export function NightMap({
       >
         <Svg width={size.w} height={size.h}>
           {Array.from({ length: 12 }, (_, i) => (
-            <Line key={`h${i}`} x1={0} x2={size.w} y1={(i * size.h) / 12} y2={(i * size.h) / 12} stroke="#141c2a" strokeWidth={1} />
+            <Line key={`h${i}`} x1={0} x2={size.w} y1={(i * size.h) / 12} y2={(i * size.h) / 12} stroke={ART.mapGrid} strokeWidth={1} />
           ))}
           {Array.from({ length: 8 }, (_, i) => (
-            <Line key={`v${i}`} y1={0} y2={size.h} x1={(i * size.w) / 8} x2={(i * size.w) / 8} stroke="#141c2a" strokeWidth={1} />
+            <Line key={`v${i}`} y1={0} y2={size.h} x1={(i * size.w) / 8} x2={(i * size.w) / 8} stroke={ART.mapGrid} strokeWidth={1} />
           ))}
           {polygons.map((p) => (
             <Polygon key={p.id} points={p.coords.map((q) => `${x(q.lng)},${y(q.lat)}`).join(' ')} fill={`${p.colour}1f`} stroke={`${p.colour}99`} />
@@ -114,7 +115,7 @@ export function NightMap({
         </View>
       ) : null}
       {/* The stand-in can't pinch: zoom buttons, so zoom-dependent layers (cameras, circuit outlines) can be checked. */}
-      <View style={{ position: 'absolute', right: 8, top: '42%', gap: 6 }}>
+      <View style={{ position: 'absolute', right: SPACING.sm, top: '42%', gap: SPACING.xs }}>
         {[
           { label: '+', factor: 0.5 },
           { label: '−', factor: 2 },
@@ -124,15 +125,17 @@ export function NightMap({
             onPress={() => setMoved({ centre, span: Math.min(12, Math.max(0.005, span * z.factor)) })}
             accessibilityRole="button"
             accessibilityLabel={z.factor < 1 ? 'Zoom in' : 'Zoom out'}
-            style={{ width: 44, height: 44, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb, backgroundColor: SURFACE.glass, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 44, height: 44, borderRadius: RADII.control, borderWidth: 1, borderColor: C.kerb, backgroundColor: SURFACE.glass, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ color: C.chalk, fontSize: TYPE.title }}>{z.label}</Text>
+            <DsText v="stat">{z.label}</DsText>
           </Pressable>
         ))}
       </View>
       {credit ? (
-        <View pointerEvents="none" style={{ position: 'absolute', right: 4, bottom: 4, backgroundColor: SURFACE.glass, borderRadius: RADIUS.tag, paddingHorizontal: 4, paddingVertical: 1 }}>
-          <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ color: C.fog, fontSize: TYPE.micro }}>{credit}</Text>
+        <View pointerEvents="none" style={{ position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs }}>
+          <DsText v="tag" tone="secondary" style={{ textTransform: 'none', letterSpacing: 0 }}>
+            {credit}
+          </DsText>
         </View>
       ) : null}
     </View>

@@ -19,7 +19,7 @@ import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { startFrom, type DayChoice } from '../lib/when';
 import { zonePins, zoneShapes } from '../lib/zones';
-import { COLOR, SPACING } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
 import { Callout, Field, MediaFrame, TextField } from './Detail';
 import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, ListRow, Press, RowDivider, Section, StatBlock, SwitchRow } from './ds';
 import { MapPicker } from './MapPicker';
@@ -600,7 +600,7 @@ function StepBar({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
       <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
         {STEPS.map((s, i) => (
           <Press key={s} onPress={i < step ? () => onGo(i as Step) : undefined} disabled={i >= step} label={`Back to ${s}`} style={{ flex: 1, paddingVertical: SPACING.sm }}>
-            <View style={{ height: 4, borderRadius: 2, backgroundColor: i <= step ? COLOR.action.primary : COLOR.surface.raisedHi }} />
+            <View style={{ height: 4, borderRadius: RADII.pill, backgroundColor: i <= step ? COLOR.action.primary : COLOR.surface.raisedHi }} />
           </Press>
         ))}
       </View>

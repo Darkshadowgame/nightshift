@@ -235,6 +235,6 @@ const st = StyleSheet.create({
   page: { paddingHorizontal: SPACING.screen, gap: SPACING.section },
   input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   code: { textAlign: 'center', letterSpacing: 8 },
-  box: { width: 24, height: 24, marginTop: 1, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.secondary, alignItems: 'center', justifyContent: 'center' },
+  box: { width: 24, height: 24, marginTop: SPACING.xxs, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.secondary, alignItems: 'center', justifyContent: 'center' },
   demo: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
 });

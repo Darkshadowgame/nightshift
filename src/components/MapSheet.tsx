@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { feel } from '../lib/feel';
-import { C, RADIUS, SURFACE } from '../theme';
+import { C, ELEVATION, RADII, SPACING, SURFACE } from '../theme';
 
 /**
  * The map's bottom sheet (MAP-REDESIGN.md): three detents, peek, half and
@@ -163,18 +163,15 @@ const st = StyleSheet.create({
     right: 0,
     top: 0,
     backgroundColor: SURFACE.glassRaised,
-    borderTopLeftRadius: RADIUS.sheet + 4,
-    borderTopRightRadius: RADIUS.sheet + 4,
+    borderTopLeftRadius: RADII.sheet,
+    borderTopRightRadius: RADII.sheet,
     borderColor: C.kerbHi,
     borderWidth: 1,
     borderBottomWidth: 0,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -4 },
+    ...ELEVATION.sheet,
     overflow: 'hidden',
   },
   grabberHit: { alignItems: 'center', justifyContent: 'center', height: 22 },
-  grabber: { width: 40, height: 5, borderRadius: 3, backgroundColor: SURFACE.borderStrong },
-  body: { paddingHorizontal: 16, paddingBottom: 40, gap: 16 },
+  grabber: { width: 40, height: 5, borderRadius: RADII.pill, backgroundColor: SURFACE.borderStrong },
+  body: { paddingHorizontal: SPACING.screen, paddingBottom: SPACING.xxxl, gap: SPACING.lg },
 });

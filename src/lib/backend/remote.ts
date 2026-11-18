@@ -626,7 +626,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
         const r = await rpc<{ ok: boolean; reason?: string }>('complete_drive', { p_spot_id: id, p_fixes: run.fixes ?? [] });
         if (!r.ok) return { ok: false, reason: r.reason ?? 'That run doesn’t count.' };
       } catch (e) {
-        return { ok: false, reason: e instanceof Error ? e.message : 'Could not record the drive.' };
+        return { ok: false, reason: e instanceof Error ? e.message : "Couldn't record the drive." };
       }
       await quietly(refreshSpots());
       return { ok: true };

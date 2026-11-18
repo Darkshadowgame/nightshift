@@ -1,11 +1,12 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { photoUri } from '../lib/photos';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
 import { classOf, effectivePower } from '../lib/classes';
 import type { Build, NightEvent, User } from '../lib/types';
-import { BRAND, C, F, TYPE } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
 import { BuildArt } from './BuildArt';
+import { DsText } from './ds';
 
 /** The "cover shoot" reward: the winning build as a stylised magazine-style cover. */
 export function Cover({ award, build, owner, event, width = 260 }: { award: Award; build: Build; owner?: User; event?: NightEvent; width?: number }) {
@@ -21,26 +22,39 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
           <BuildArt kind={build.kind} colour={build.colour} height={h * 0.55} />
         </View>
       )}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,8,14,0.35)' }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, opacity: 0.6 }]} />
       <View style={st.top}>
-        <Text style={[st.mast, { fontSize: width * 0.14 }]} numberOfLines={1} adjustsFontSizeToFit>NIGHT<Text style={{ color: BRAND }}>SHIFT</Text></Text>
-        <Text style={st.issue}>{issue} · {event?.areaName?.toUpperCase() ?? 'UK'}</Text>
+        {/* The masthead is a drawing: it scales with the cover, not the text size. */}
+        <DsText v="display" numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false} style={{ fontSize: width * 0.14, lineHeight: width * 0.17, letterSpacing: -1 }}>
+          Night<DsText v="display" tone="action" allowFontScaling={false} style={{ fontSize: width * 0.14, letterSpacing: -1 }}>shift</DsText>
+        </DsText>
+        <DsText v="tag" tone="primary">
+          {issue} · {event?.areaName ?? 'UK'}
+        </DsText>
       </View>
       <View style={st.bottom}>
         <View style={st.ribbon}>
-          <Text style={st.ribbonText}>{categoryInfo(award.category).label}</Text>
+          <DsText v="eyebrow" tone="onAction">
+            {categoryInfo(award.category).label}
+          </DsText>
         </View>
-        <Text style={[st.headline, { fontSize: width * 0.1 }]} numberOfLines={2}>{build.make} {build.model}</Text>
-        <Text style={st.lines}>
-          <Text style={{ textTransform: 'none' }}>@{owner?.handle ?? 'unknown'}</Text> · {Math.round(effectivePower(build))} BHP · CLASS {classOf(build)} · {build.mods.length} MODS
-        </Text>
-        <Text style={st.lines}>{event?.title ?? ''}</Text>
+        <DsText v="display" numberOfLines={2} allowFontScaling={false} style={{ fontSize: width * 0.1, lineHeight: width * 0.12 }}>
+          {build.make} {build.model}
+        </DsText>
+        <DsText v="meta" tone="primary">
+          @{owner?.handle ?? 'unknown'} · {Math.round(effectivePower(build))} bhp · Class {classOf(build)} · {build.mods.length} mods
+        </DsText>
+        {event?.title ? (
+          <DsText v="meta" tone="primary" numberOfLines={1}>
+            {event.title}
+          </DsText>
+        ) : null}
       </View>
     </View>
   );
 }
 
-export function Trophy({ colour = BRAND, size = 34 }: { colour?: string; size?: number }) {
+export function Trophy({ colour = COLOR.action.primary, size = 34 }: { colour?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 40 40">
       <Path d="M13 8h14v8a7 7 0 0 1-14 0z" fill={colour} />
@@ -52,13 +66,8 @@ export function Trophy({ colour = BRAND, size = 34 }: { colour?: string; size?: 
 }
 
 const st = StyleSheet.create({
-  cover: { borderRadius: 6, overflow: 'hidden', backgroundColor: '#111827', borderWidth: 1, borderColor: C.kerbHi },
-  top: { position: 'absolute', top: 10, left: 12, right: 12 },
-  mast: { fontFamily: F.displayItalic, color: C.chalk, letterSpacing: -1, lineHeight: undefined },
-  issue: { fontFamily: F.label, color: C.chalk, fontSize: TYPE.micro, letterSpacing: 2 },
-  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 3 },
-  ribbon: { alignSelf: 'flex-start', backgroundColor: BRAND, paddingHorizontal: 8, paddingVertical: 3, transform: [{ skewX: '-10deg' }] },
-  ribbonText: { fontFamily: F.labelBold, color: C.ink, fontSize: TYPE.label, letterSpacing: 2, textTransform: 'uppercase' },
-  headline: { fontFamily: F.displayItalic, color: C.chalk, textTransform: 'uppercase' },
-  lines: { fontFamily: F.label, color: C.chalk, fontSize: TYPE.micro, letterSpacing: 1.2, textTransform: 'uppercase' },
+  cover: { borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.surface.raisedHi },
+  top: { position: 'absolute', top: SPACING.sm, left: SPACING.md, right: SPACING.md },
+  bottom: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs },
+  ribbon: { alignSelf: 'flex-start', backgroundColor: COLOR.action.primary, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, transform: [{ skewX: '-10deg' }] },
 });

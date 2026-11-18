@@ -17,7 +17,7 @@ import {
   type Handle,
   type Rotation,
 } from '../lib/crop';
-import { COLOR, SPACING, outline } from '../theme';
+import { COLOR, outline, RADII, SPACING } from '../theme';
 import { Button, ChoiceGroup, DsText } from './ds';
 
 const HANDLE = 40;
@@ -229,6 +229,6 @@ const st = StyleSheet.create({
   gridV: { position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: outline(COLOR.text.primary) },
   gridH: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: outline(COLOR.text.primary) },
   handle: { position: 'absolute', width: HANDLE, height: HANDLE },
-  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: COLOR.action.selected, borderRadius: 1 },
-  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: COLOR.action.selected, borderRadius: 1 },
+  markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: COLOR.action.selected, borderRadius: RADII.pill },
+  markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: COLOR.action.selected, borderRadius: RADII.pill },
 });

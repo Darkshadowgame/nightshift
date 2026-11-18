@@ -2,8 +2,9 @@ import { memo } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import type { NavIconShape } from '../lib/driveView';
+import { ART } from '../theme';
 
-const INK = '#0b0f17';
+const INK = ART.ink;
 
 /**
  * Your icon in the driving view: an arrow, a car seen from above (hatchback,

@@ -197,7 +197,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       try {
         recordCompletion(spot, ME, new Date());
       } catch (e) {
-        return { ok: false, reason: e instanceof Error ? e.message : 'Could not record the drive.' };
+        return { ok: false, reason: e instanceof Error ? e.message : "Couldn't record the drive." };
       }
       updateSpot(spotId, (x) => recordCompletion(x, ME, new Date()));
       return { ok: true };

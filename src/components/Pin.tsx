@@ -1,6 +1,8 @@
 import { memo } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { ART, RADII, SPACING } from '../theme';
+import { DsText } from './ds/Text';
 
 export type Glyph =
   | 'meet'
@@ -50,7 +52,7 @@ export type Glyph =
   | 'community'
   | 'me';
 
-const INK = '#0b0f17';
+const INK = ART.ink;
 
 
 /** Events are drawn filled ("something happening"); places, shops and cameras outlined ("somewhere to go"). */
@@ -73,15 +75,17 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
   if (!count && !badge) return svg;
   const label = badge ?? (count! > 99 ? '99+' : String(count));
   return (
-    <View style={{ width: size + 8, height: size + 4, paddingTop: 4 }}>
+    <View style={{ width: size + SPACING.sm, height: size + SPACING.xs, paddingTop: SPACING.xs }}>
       {svg}
       <View
         style={{
-          position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
+          position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
           backgroundColor: colour, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <Text maxFontSizeMultiplier={1.3} style={{ color: INK, fontSize: 11, lineHeight: 13, fontFamily: 'BarlowCondensed_700Bold' }}>{label}</Text>
+        <DsText v="tag" style={{ color: INK, lineHeight: 13, letterSpacing: 0 }}>
+          {label}
+        </DsText>
       </View>
     </View>
   );
@@ -295,7 +299,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
         <>
           <Rect x={10} y={13} width={15} height={10} rx={1.5} fill={c} />
           <Path d="M25 15.5h3.5v5H25" fill="none" stroke={c} strokeWidth={2} />
-          <Circle cx={15} cy={18} r={2.6} fill="#0b0f17" />
+          <Circle cx={15} cy={18} r={2.6} fill={INK} />
           <Path d="M17.5 23v7" stroke={c} strokeWidth={2.6} strokeLinecap="round" />
         </>
       );
@@ -304,7 +308,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Rect x={13} y={11} width={12} height={8} rx={1.2} fill={c} />
-          <Circle cx={17} cy={15} r={2} fill="#0b0f17" />
+          <Circle cx={17} cy={15} r={2} fill={INK} />
           <Path d="M25 13h3v4h-3" fill="none" stroke={c} strokeWidth={1.8} />
           <Path d="M9 27h22" stroke={c} strokeWidth={2.6} strokeLinecap="round" strokeDasharray="4 3" />
           <Path d="M9 23v8M31 23v8" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
@@ -345,7 +349,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Path d="M11 25c0-6.5 4-11 9.5-11 5.2 0 8.5 3.8 8.5 9v4H11z" fill={c} />
-          <Path d="M19 19.5h9" stroke="#0b0f17" strokeWidth={2.6} strokeLinecap="round" />
+          <Path d="M19 19.5h9" stroke={INK} strokeWidth={2.6} strokeLinecap="round" />
         </>
       );
     case 'dealer':

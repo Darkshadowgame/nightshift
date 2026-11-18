@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { iconRotation, type MapOrientation, type NavIconShape } from '../lib/driveView';
 import type { LatLng } from '../lib/types';
-import { BRAND, C, ROAD_COLOUR } from '../theme';
+import { BRAND, C, RADII, ROAD_COLOUR } from '../theme';
 import { NavIcon } from './NavIcon';
 import { Pin, type Glyph } from './Pin';
 
@@ -143,5 +143,5 @@ export const DriveMap = memo(function DriveMap({
 });
 
 const st = StyleSheet.create({
-  camera: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: C.alert, borderWidth: 1.5, borderColor: C.chalk },
+  camera: { width: 9, height: 9, borderRadius: RADII.pill, backgroundColor: C.alert, borderWidth: 1.5, borderColor: C.chalk },
 });

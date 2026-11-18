@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useStore } from '../lib/store';
-import { BRAND, C, F, FONT_SCALE, RADIUS, SURFACE, TYPE } from '../theme';
+import { BRAND, C, RADII, SPACING, SURFACE } from '../theme';
+import { DsText } from './ds/Text';
 
 export function BellIcon({ colour = C.chalk, size = 22 }: { colour?: string; size?: number }) {
   return (
@@ -26,7 +27,7 @@ export function NoticeBell({ boxed, size = 44 }: { boxed?: boolean; size?: numbe
       style={({ pressed }) => [
         { width: size, height: size, alignItems: 'center', justifyContent: 'center' },
         // On the map: the same 44 pt rounded square as every map button.
-        boxed && { backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.card },
+        boxed && { backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADII.control },
         pressed && { opacity: 0.8 },
       ]}
     >
@@ -34,11 +35,13 @@ export function NoticeBell({ boxed, size = 44 }: { boxed?: boolean; size?: numbe
       {unread > 0 ? (
         <View
           style={{
-            position: 'absolute', top: boxed ? -5 : 2, right: boxed ? -6 : 0, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
+            position: 'absolute', top: boxed ? -5 : 2, right: boxed ? -6 : 0, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
             backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={{ fontFamily: F.labelBold, fontSize: TYPE.micro, color: C.ink }}>{unread > 9 ? '9+' : unread}</Text>
+          <DsText v="tag" tone="onAction" style={{ letterSpacing: 0 }}>
+            {unread > 9 ? '9+' : unread}
+          </DsText>
         </View>
       ) : null}
     </Pressable>

@@ -1,7 +1,8 @@
 import { memo, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import MapView, { Circle, Marker, Polygon, Polyline } from 'react-native-maps';
-import { StyleSheet, Text, View } from 'react-native';
-import { BRAND, C, FONT_SCALE, RADIUS, SURFACE, TYPE } from '../theme';
+import { StyleSheet, View } from 'react-native';
+import { BRAND, C, RADII, SPACING, SURFACE } from '../theme';
+import { DsText } from './ds/Text';
 import { pinLayer } from '../lib/hud';
 import { PulseRing } from './motion';
 import { Pin } from './Pin';
@@ -162,7 +163,9 @@ export const NightMap = memo(function NightMap({
     </MapView>
     {credit ? (
       <View pointerEvents="none" style={st.credit}>
-        <Text style={st.creditText} maxFontSizeMultiplier={FONT_SCALE.chrome}>{credit}</Text>
+        <DsText v="tag" tone="secondary" style={{ textTransform: 'none', letterSpacing: 0 }}>
+          {credit}
+        </DsText>
       </View>
     ) : null}
     </View>
@@ -170,6 +173,5 @@ export const NightMap = memo(function NightMap({
 });
 
 const st = StyleSheet.create({
-  credit: { position: 'absolute', right: 4, bottom: 4, backgroundColor: SURFACE.glass, borderRadius: RADIUS.tag, paddingHorizontal: 4, paddingVertical: 1 },
-  creditText: { color: C.fog, fontSize: TYPE.micro },
+  credit: { position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs },
 });

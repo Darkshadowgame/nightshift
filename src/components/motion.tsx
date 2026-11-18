@@ -104,7 +104,7 @@ function Spark({ angle, distance, colour, go }: { angle: number; distance: numbe
       { scale: 1 - 0.5 * go.value },
     ],
   }));
-  return <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: colour }, style]} />;
+  return <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 6, height: 6, borderRadius: RADII.pill, backgroundColor: colour }, style]} />;
 }
 
 function Sparks({ count, distance, colours, go }: { count: number; distance: number; colours: string[]; go: SharedValue<number> }) {

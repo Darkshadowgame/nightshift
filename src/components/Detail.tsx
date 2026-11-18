@@ -90,7 +90,7 @@ export function Callout({ tone = 'info', title, children, right }: { tone?: Call
         backgroundColor: tone === 'neutral' ? COLOR.surface.card : tint(c),
       }}
     >
-      <View style={{ paddingTop: 1 }}>
+      <View style={{ paddingTop: SPACING.xxs }}>
         <Icon name={TONE_ICON[tone]} size={20} colour={c} />
       </View>
       <View style={{ flex: 1, gap: SPACING.xs }}>

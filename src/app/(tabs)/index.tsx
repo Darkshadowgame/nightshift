@@ -60,7 +60,7 @@ import { shortAgo } from '../../lib/format';
 import { openPlaceLabel, PLACE_NAMES, roleLabel, UNLOCK } from '../../lib/glossary';
 import { clearJustOnboarded, justOnboarded } from '../../lib/firstRun';
 import { ALL_LAYERS, CORE_LAYERS, layerOn, toggleLayer as toggledLayer, type CoreLayer, type Layer } from '../../lib/mapLayers';
-import { C, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, ROAD_COLOUR, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
+import { ART, C, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, ROAD_COLOUR, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
 
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
@@ -81,7 +81,7 @@ interface Selection {
 /** Count pins (places grouped when zoomed out): what each one is. */
 const CLUSTER_NAMES: Record<SpotKind, string> = { drive: 'drives', photo: 'photo spots', track: 'tracks', venue: 'meet spots' };
 /** Cameras with no recorded limit: dimmer than the rest, but still 4:1 on the dark map. */
-const CAMERA_DIM = '#c45a5a';
+const CAMERA_DIM = ART.cameraDim;
 
 /** The map key ("Key" button): what each pin means. Events are filled, places outlined. */
 const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
@@ -275,7 +275,7 @@ export default function TonightScreen() {
       feel.success();
       setRoadNote({ id: r.id, text: vote === 'still_there' ? 'Thanks. Marked as still there.' : 'Thanks. Marked as gone.' });
     } catch (e) {
-      setRoadNote({ id: r.id, text: e instanceof Error ? e.message : 'Could not send that.' });
+      setRoadNote({ id: r.id, text: e instanceof Error ? e.message : "Couldn't send that." });
     }
   }
 

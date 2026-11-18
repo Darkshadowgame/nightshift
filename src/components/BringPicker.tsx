@@ -51,9 +51,9 @@ export function BuildOption({ build, on, fits, locked, onPress }: { build: Build
       </View>
       {onPress ? (
         <View
-          style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 18, height: 18, borderRadius: RADII.pill, borderWidth: 1.5, borderColor: on ? COLOR.action.selected : COLOR.surface.borderStrong, alignItems: 'center', justifyContent: 'center' }}
         >
-          {on ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: COLOR.action.selected }} /> : null}
+          {on ? <View style={{ width: 9, height: 9, borderRadius: RADII.pill, backgroundColor: COLOR.action.selected }} /> : null}
         </View>
       ) : null}
     </Press>

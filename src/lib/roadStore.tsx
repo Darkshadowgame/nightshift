@@ -219,7 +219,7 @@ export function useRoadReports(opts: { centre: LatLng | null; radiusMi: number; 
         setError(null);
       })
       .catch((e) => {
-        if (live) setError(e instanceof Error ? e.message : 'Could not load road reports.');
+        if (live) setError(e instanceof Error ? e.message : "Couldn't load road reports.");
       });
     return () => {
       live = false;

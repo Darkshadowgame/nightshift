@@ -278,7 +278,7 @@ export const places: PlaceSeed[] = [
   {
     id: 'mw-v-ponderosa', kind: 'venue', name: 'Ponderosa Café, Horseshoe Pass', region: 'North Wales',
     description: 'Family-run café at the summit of the Horseshoe Pass (A542) above Llangollen, about 1,400 ft up. One of the best-known biker meeting spots in North Wales, busy with bikes of every age in summer (Devitt).',
-    warnings: ['The pass is heavily policed (see the Horseshoe Pass drive); car park fills on sunny weekends; position is the pass summit. Café\'s own site could not be checked.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],
+    warnings: ['The pass is heavily policed (see the Horseshoe Pass drive); car park fills on sunny weekends; position is the pass summit. Café\'s own site couldn\'t be checked.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],
     at: { lat: 53.0199, lng: -3.2022 },
     sources: ['https://www.devittinsurance.com/guides/biker-cafes/wales/ponderosa-cafe/'],
   },
@@ -369,7 +369,7 @@ export const places: PlaceSeed[] = [
   {
     id: 'mw-v-steel-horse', kind: 'venue', name: 'Steel Horse Café, Llanvihangel Gobion', region: 'Monmouthshire',
     description: 'Biker café on the B4598 between Abergavenny and Raglan, with a big car park and outdoor seating. Monthly Friday bike nights (Devitt).',
-    warnings: ['Open Wednesday to Sunday; position is the postcode centre; café\'s own site could not be checked.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],
+    warnings: ['Open Wednesday to Sunday; position is the postcode centre; café\'s own site couldn\'t be checked.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],
     at: { lat: 51.7824, lng: -2.9476 },
     sources: ['https://www.devittinsurance.com/guides/biker-cafes/wales/steel-horse-cafe/'],
   },
