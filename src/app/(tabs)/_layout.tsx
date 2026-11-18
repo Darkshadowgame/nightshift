@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Pin, type Glyph } from '../../components/Pin';
+import { useCommunity } from '../../lib/communityStore';
 import { BRAND, C, F } from '../../theme';
 
 /** Tab icons have their own glyphs: none is a map layer's (REVIEW-5 M12). */
@@ -8,6 +9,8 @@ function icon(glyph: Glyph) {
 }
 
 export default function TabsLayout() {
+  // Unread messages and connection requests waiting for you.
+  const { badge } = useCommunity();
   return (
     <Tabs
       screenOptions={{
@@ -27,6 +30,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Map', headerShown: false, tabBarIcon: icon('map') }} />
       <Tabs.Screen name="events" options={{ title: 'Events', tabBarIcon: icon('calendar') }} />
+      <Tabs.Screen name="community" options={{ title: 'Community', tabBarIcon: icon('community'), tabBarBadge: badge > 0 ? (badge > 99 ? '99+' : badge) : undefined, tabBarBadgeStyle: { backgroundColor: BRAND, color: C.ink, fontFamily: F.labelBold } }} />
       <Tabs.Screen name="garage" options={{ title: 'Garage', tabBarIcon: icon('car') }} />
       <Tabs.Screen name="me" options={{ title: 'Me', tabBarIcon: icon('me') }} />
     </Tabs>

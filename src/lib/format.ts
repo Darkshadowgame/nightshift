@@ -37,3 +37,14 @@ export function formatTime(iso: string): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
 }
+
+/** Short age for feeds and lists: "now", "12m", "3h", "2d", then "14 Nov". */
+export function shortAgo(iso: string, now: Date): string {
+  const mins = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60_000));
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  if (mins < 24 * 60) return `${Math.round(mins / 60)}h`;
+  if (mins < 7 * 24 * 60) return `${Math.round(mins / 1440)}d`;
+  const d = new Date(iso);
+  return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })}`;
+}

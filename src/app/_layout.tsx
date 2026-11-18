@@ -19,6 +19,7 @@ import { AuthProvider, useAuth } from '../lib/auth';
 import { SCREEN_TITLES as T, title } from '../lib/glossary';
 import { onNotificationTap } from '../lib/notify';
 import { RoadsProvider } from '../lib/roadStore';
+import { CommunityProvider } from '../lib/communityStore';
 import { StoreProvider, useStore } from '../lib/store';
 import { C, F } from '../theme';
 
@@ -83,6 +84,17 @@ function Gate() {
         <Stack.Screen name="find" options={{ title: title(T.find) }} />
         <Stack.Screen name="where" options={{ title: title(T.whereTo) }} />
         <Stack.Screen name="settings" options={{ title: title(T.settings) }} />
+        <Stack.Screen name="post/[id]" options={{ title: '' }} />
+        <Stack.Screen name="post/new" options={{ title: title(T.newPost), presentation: 'modal' }} />
+        <Stack.Screen name="forum/[id]" options={{ title: '' }} />
+        <Stack.Screen name="forum/new" options={{ title: title(T.newThread), presentation: 'modal' }} />
+        <Stack.Screen name="chat/[id]" options={{ title: '' }} />
+        <Stack.Screen name="chat/new" options={{ title: title(T.newChat), presentation: 'modal' }} />
+        <Stack.Screen name="chat/info" options={{ title: title(T.groupInfo) }} />
+        <Stack.Screen name="connections" options={{ title: title(T.connections) }} />
+        <Stack.Screen name="report" options={{ title: title(T.report), presentation: 'modal' }} />
+        <Stack.Screen name="rate" options={{ title: title(T.rateBuilds) }} />
+        <Stack.Screen name="moderation" options={{ title: title(T.moderation) }} />
         <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
       </Stack.Protected>
     </Stack>
@@ -106,9 +118,11 @@ export default function RootLayout() {
     <AuthProvider>
       <StoreProvider>
         <RoadsProvider>
-          <StatusBar style="light" />
-          <Gate />
-          <OfflinePill />
+          <CommunityProvider>
+            <StatusBar style="light" />
+            <Gate />
+            <OfflinePill />
+          </CommunityProvider>
         </RoadsProvider>
       </StoreProvider>
     </AuthProvider>

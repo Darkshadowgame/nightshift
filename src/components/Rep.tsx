@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { allAwards } from '../lib/awards';
 import { levelFor, repLedger, type LevelInfo, type RepLedger } from '../lib/rep';
 import { useRoads } from '../lib/roadStore';
+import { useCommunity } from '../lib/communityStore';
 import { useStore } from '../lib/store';
 import { useNow } from '../lib/clock';
 import { BRAND, C, F, FONT_SCALE, RADIUS, TYPE } from '../theme';
@@ -12,6 +13,7 @@ import { Card, Row, Txt } from './ui';
 export function useRepFor(): (userId: string) => { ledger: RepLedger; level: LevelInfo } {
   const { events, spots, builds, votes, crews, placeRep } = useStore();
   const { rep: roadRep } = useRoads();
+  const { forumRep } = useCommunity();
   const now = useNow();
   return useMemo(() => {
     const awards = allAwards(votes, events, builds, now);
@@ -19,13 +21,13 @@ export function useRepFor(): (userId: string) => { ledger: RepLedger; level: Lev
     return (userId: string) => {
       let hit = cache.get(userId);
       if (!hit) {
-        const ledger = repLedger(userId, { events, spots, builds, awards, now, crews, roadRep: roadRep[userId], placeRep: placeRep?.[userId] });
+        const ledger = repLedger(userId, { events, spots, builds, awards, now, crews, roadRep: roadRep[userId], placeRep: placeRep?.[userId], forumRep: forumRep[userId] });
         hit = { ledger, level: levelFor(ledger.total) };
         cache.set(userId, hit);
       }
       return hit;
     };
-  }, [events, spots, builds, votes, now, crews, roadRep, placeRep]);
+  }, [events, spots, builds, votes, now, crews, roadRep, placeRep, forumRep]);
 }
 
 export function useRep(userId: string) {

@@ -138,6 +138,14 @@ export const SCREEN_TITLES = {
   whereTo: 'Where to?',
   settings: 'Settings',
   feedback: 'Send feedback',
+  newPost: 'New post',
+  newThread: 'New thread',
+  newChat: 'New chat',
+  groupInfo: 'Group',
+  connections: 'Connections',
+  report: 'Report',
+  rateBuilds: 'Rate builds',
+  moderation: 'Moderation',
 } as const;
 
 /** Confirm-in-place: "{Verb} it / Keep it". */

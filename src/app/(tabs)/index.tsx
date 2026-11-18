@@ -42,9 +42,11 @@ import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { milesBetween } from '../../lib/geo';
 import { answerProblem, confirmations, KIND_INFO, reportAge, sourceCredit, type RoadReport, type RoadVote } from '../../lib/roadReports';
 import { useRoadReports, useRoads } from '../../lib/roadStore';
+import { usePostPins } from '../../lib/communityStore';
+import { shortAgo } from '../../lib/format';
 import { openPlaceLabel, PLACE_NAMES, roleLabel, roleTone, UNLOCK } from '../../lib/glossary';
 import { ALL_LAYERS, CORE_LAYERS, layerOn, toggleLayer as toggledLayer, type CoreLayer, type Layer } from '../../lib/mapLayers';
-import { BRAND, C, EVENT_COLOURS, F, FONT_SCALE, LAYER, PARTNER_COLOUR, RADIUS, ROAD_COLOUR, SHOP_COLOUR, SPOT_COLOURS, STATE, SURFACE, TYPE } from '../../theme';
+import { BRAND, C, EVENT_COLOURS, F, FONT_SCALE, LAYER, PARTNER_COLOUR, POST_COLOUR, RADIUS, ROAD_COLOUR, SHOP_COLOUR, SPOT_COLOURS, STATE, SURFACE, TYPE } from '../../theme';
 
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
@@ -123,7 +125,7 @@ export default function MapScreen() {
   const now = useNow();
   const newNear = nearby?.unseen.length ?? 0;
   // Every layer is saved in settings, the core ones too (mapLayers.ts), so they come back as left.
-  const layersKey = [settings.mapLayers, settings.cameras, settings.shops, settings.roadReports];
+  const layersKey = [settings.mapLayers, settings.cameras, settings.shops, settings.roadReports, settings.postsLayer];
   const layers = useMemo(
     () => Object.fromEntries(ALL_LAYERS.map((k) => [k, layerOn(settings, k)])) as Record<Layer, boolean>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,6 +255,8 @@ export default function MapScreen() {
     enabled: layers.roads,
   });
   const [roadNote, setRoadNote] = useState<{ id: string; text: string } | null>(null);
+  /** Community posts with a place (the Posts layer, off by default). */
+  const postPins = usePostPins(region.centre, region.span, layers.posts);
   async function answerReport(r: RoadReport, vote: RoadVote) {
     feel.select();
     setRoadNote(null);
@@ -313,6 +317,7 @@ export default function MapScreen() {
       for (const s of shopView.shops) pins.push({ id: `shop:${s.id}`, at: s.at, glyph: s.categories[0] ?? 'shop', colour: SHOP_COLOUR, title: s.name, size: shopPinSize(region.span) });
       for (const p of shopView.partners) pins.push({ id: `ptn:${p.id}`, at: p.at, glyph: 'partner', colour: PARTNER_COLOUR, title: `${p.name} (${partnerBadge(p)})`, size: 30, badge: 'P' });
     }
+    for (const p of postPins) pins.push({ id: `post:${p.id}`, at: p.at, glyph: 'post', colour: POST_COLOUR, title: p.placeName ?? 'Post', size: 30 });
     for (const r of roadReports) {
       if (r.path) paths.push({ id: `rrp:${r.id}`, coords: r.path, colour: ROAD_COLOUR, width: 4 });
       pins.push({ id: `rr:${r.id}`, at: r.at, glyph: r.kind, colour: ROAD_COLOUR, title: KIND_INFO[r.kind].label, size: 30 });
@@ -355,7 +360,7 @@ export default function MapScreen() {
     }
     return { pins: orderPins(pins), paths, circles, polygons };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [views, shown, placeView, cams, region.span, shopView, roadReports]);
+  }, [views, shown, placeView, cams, region.span, shopView, roadReports, postPins]);
 
   /** A count pin: zoom in on it. */
   function zoomCluster(id: string) {
@@ -413,6 +418,20 @@ export default function MapScreen() {
               ],
             }
           : {}),
+      };
+    }
+    if (kind === 'post') {
+      const p = postPins.find((x) => x.id === key);
+      if (!p) return null;
+      const who = users.find((u) => u.id === p.authorId);
+      return {
+        title: p.placeName ?? 'Post',
+        glyph: 'post',
+        meta: [who ? `@${who.handle}` : null, shortAgo(p.createdAt, now)].filter(Boolean).join(' · '),
+        body: 'A Community post with a place.',
+        colour: POST_COLOUR,
+        open: () => router.push({ pathname: '/post/[id]', params: { id: p.id } }),
+        cta: 'Open post',
       };
     }
     if (kind === 'shop') {

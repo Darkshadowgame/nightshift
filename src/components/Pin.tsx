@@ -39,10 +39,15 @@ export type Glyph =
   | 'traffic'
   | 'mobile_camera'
   | 'police'
+  // Community: feed posts on the map (a speech bubble), and empty states for forum and messages.
+  | 'post'
+  | 'forum'
+  | 'chat'
   // Tab bar only: never a map layer, so a tab never looks like a layer (REVIEW-5 M12).
   | 'map'
   | 'calendar'
   | 'car'
+  | 'community'
   | 'me';
 
 const INK = '#0b0f17';
@@ -229,6 +234,42 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
           <Path d="M9.5 24.5v-4l3.5-1.2 3-4.3h8.5l4 4.3 2 .8v4.4z" fill="none" stroke={c} strokeWidth={2.1} strokeLinejoin="round" />
           <Circle cx={14.5} cy={25} r={2.6} fill={c} />
           <Circle cx={25.5} cy={25} r={2.6} fill={c} />
+        </>
+      );
+    case 'community':
+      // Two people side by side (the Community tab).
+      return (
+        <>
+          <Circle cx={16} cy={16.5} r={3.4} fill="none" stroke={c} strokeWidth={2} />
+          <Circle cx={24.5} cy={15} r={3.4} fill="none" stroke={c} strokeWidth={2} />
+          <Path d="M9.5 28c0-4 2.9-6.6 6.5-6.6s6.5 2.6 6.5 6.6" fill="none" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          <Path d="M20.6 21.2c1.1-.8 2.4-1.2 3.9-1.2 3.6 0 6.5 2.6 6.5 6.6" fill="none" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+    case 'post':
+      // A speech bubble with a picture line (a post on the map).
+      return (
+        <>
+          <Path d="M11 12.5h18a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-9l-4.5 4v-4H11a1.5 1.5 0 0 1-1.5-1.5V14a1.5 1.5 0 0 1 1.5-1.5z" fill="none" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+          <Path d="M13 22.5l3.5-4 3 3 2.5-2.5 4 3.5" fill="none" stroke={c} strokeWidth={1.8} strokeLinejoin="round" />
+        </>
+      );
+    case 'forum':
+      // Two overlapping bubbles (the forum).
+      return (
+        <>
+          <Path d="M10 12h13a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 23 21.5h-7l-3.5 3v-3H10A1.5 1.5 0 0 1 8.5 20v-6.5A1.5 1.5 0 0 1 10 12z" fill="none" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+          <Path d="M27 17.5h2a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-1v2.5l-3-2.5h-6" fill="none" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+        </>
+      );
+    case 'chat':
+      // An envelope-free message bubble with dots (messages).
+      return (
+        <>
+          <Path d="M11 12.5h18a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-9l-4.5 4v-4H11a1.5 1.5 0 0 1-1.5-1.5V14a1.5 1.5 0 0 1 1.5-1.5z" fill="none" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+          <Circle cx={15} cy={19} r={1.5} fill={c} />
+          <Circle cx={20} cy={19} r={1.5} fill={c} />
+          <Circle cx={25} cy={19} r={1.5} fill={c} />
         </>
       );
     case 'me':

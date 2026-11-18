@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { ReportLink } from '../../components/Community';
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { EventCard } from '../../components/EventCard';
@@ -228,6 +229,7 @@ export default function CrewScreen() {
           ))}
         </Section>
       ) : null}
+      {!member ? <ReportLink target="crew" id={crew.id} what="crew" /> : null}
     </ScrollView>
   );
 }

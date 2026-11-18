@@ -1,4 +1,6 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { ReportLink } from '../../components/Community';
+import { useCommunityQuery } from '../../lib/communityStore';
 import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
 import { photoUri } from '../../lib/photos';
 import { useLayoutEffect, useState } from 'react';
@@ -29,6 +31,7 @@ export default function BuildScreen() {
   const now = useNow();
   const b = builds.find((x) => x.id === id);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const likes = useCommunityQuery((c) => c.buildLikes([id]), [id]);
 
   useLayoutEffect(() => {
     if (!b || b.ownerId !== me) return;
@@ -52,6 +55,9 @@ export default function BuildScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 40 }}>
       <BuildHero build={b} height={b.photos[0] ? 240 : 200} trophies={won.length} />
+      {likes.data && (likes.data[b.id] ?? 0) > 0 ? (
+        <Txt v="mono" accessibilityLabel={`${likes.data[b.id]} likes from Rate builds`}>♥ {likes.data[b.id]} {likes.data[b.id] === 1 ? 'LIKE' : 'LIKES'}</Txt>
+      ) : null}
       {b.ownerId === me ? (
         <Section title={`Photos (${b.photos.length})`}>
           <PhotoManager photos={b.photos} onChange={(photos) => saveBuild({ ...b, photos }).catch((e) => setPhotoError(e instanceof Error ? e.message : 'Could not save the photos.'))} onError={setPhotoError} />
@@ -147,6 +153,7 @@ export default function BuildScreen() {
       <Txt v="caption">
         {b.engineSwap ? 'Donor engine' : 'Stock'} {b.stockBhp} bhp · {b.weightKg} kg {b.kind === 'bike' ? 'wet' : 'kerb'}{b.engineSwap?.weightDeltaKg ? ` (incl. ${b.engineSwap.weightDeltaKg > 0 ? '+' : ''}${b.engineSwap.weightDeltaKg} kg from the swap)` : ''}
       </Txt>
+      {b.ownerId !== me ? <ReportLink target="build" id={b.id} userId={b.ownerId} what="build" /> : null}
     </ScrollView>
   );
 }

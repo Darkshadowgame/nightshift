@@ -1,6 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Share, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
+import { openReport, ReportLink } from '../../components/Community';
+import { useCommunity } from '../../lib/communityStore';
 import { AwardsSection } from '../../components/AwardsSection';
 import { BringPicker } from '../../components/BringPicker';
 import { CheckInMark, UnlockReveal } from '../../components/motion';
@@ -68,7 +70,9 @@ export default function EventScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshKey, e?.id]);
 
-  const messages = useMemo(() => chat.filter((m) => m.eventId === id), [chat, id]);
+  const { blocked } = useCommunity();
+  // Lines from people you blocked are hidden (the server leaves them out too).
+  const messages = useMemo(() => chat.filter((m) => m.eventId === id && !blocked.has(m.userId)), [chat, id, blocked]);
 
   // Signed in: live chat, who's going, check-ins and the meet moving on, while this screen is open.
   const remote = store.remote;
@@ -666,7 +670,12 @@ export default function EventScreen() {
                       {' · '}{formatTime(m.at)}
                     </Txt>
                   </UserLink>
-                  <Txt>{m.text}</Txt>
+                  <Pressable
+                    onLongPress={m.userId === me ? undefined : () => openReport('chat', m.id, m.userId, 'chat message')}
+                    accessibilityHint={m.userId === me ? undefined : 'Long press to report this message'}
+                  >
+                    <Txt>{m.text}</Txt>
+                  </Pressable>
                 </View>
               ),
             )}
@@ -722,6 +731,7 @@ export default function EventScreen() {
             <Button label="Cancel event" kind="danger" onPress={() => setConfirmCancel(true)} />
           )
         ) : null}
+        {!host ? <ReportLink target="event" id={ev.id} what="event" /> : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );

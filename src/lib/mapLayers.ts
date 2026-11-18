@@ -7,16 +7,16 @@
  */
 
 import type { Glyph } from '../components/Pin';
-import { LAYER, ROAD_COLOUR, SHOP_COLOUR } from '../theme';
+import { LAYER, POST_COLOUR, ROAD_COLOUR, SHOP_COLOUR } from '../theme';
 import { PLACE_NAMES } from './glossary';
 
 export type CoreLayer = 'events' | 'photo' | 'drive' | 'track';
 /** Layers kept under the layers button. `venue` is "Meet spots" in the UI. */
-export type MoreLayer = 'venue' | 'shops' | 'cameras' | 'roads';
+export type MoreLayer = 'venue' | 'shops' | 'cameras' | 'roads' | 'posts';
 export type Layer = CoreLayer | MoreLayer;
 
 export const CORE_LAYERS: readonly CoreLayer[] = ['events', 'photo', 'drive', 'track'];
-export const MORE_LAYERS: readonly MoreLayer[] = ['venue', 'shops', 'cameras', 'roads'];
+export const MORE_LAYERS: readonly MoreLayer[] = ['venue', 'shops', 'cameras', 'roads', 'posts'];
 
 /** Every layer, in the order the layers panel shows them. */
 export const ALL_LAYERS: readonly Layer[] = [...CORE_LAYERS, ...MORE_LAYERS];
@@ -34,6 +34,7 @@ export const LAYER_INFO: Record<Layer, { label: string; glyph: Glyph; colour: st
   shops: { label: 'Shops', glyph: 'shop', colour: SHOP_COLOUR, hint: 'From OpenStreetMap, and partners' },
   cameras: { label: 'Speed cameras', glyph: 'camera', colour: LAYER.camera, hint: 'Show when zoomed in' },
   roads: { label: 'Road reports', glyph: 'hazard', colour: ROAD_COLOUR, hint: 'Closures and drivers\' reports' },
+  posts: { label: 'Posts', glyph: 'post', colour: POST_COLOUR, hint: 'Community posts with a place, last 30 days' },
 };
 
 /** Saved on/off for the layers that start on: the core four and meet spots. */
@@ -55,6 +56,8 @@ export interface LayerSettings {
   shops?: boolean;
   cameras?: boolean;
   roadReports?: boolean;
+  /** Community posts with a place (off by default). */
+  postsLayer?: boolean;
 }
 
 /** A settings change for one layer (merged into Settings by the store). */
@@ -63,6 +66,7 @@ export interface LayerChange {
   shops?: boolean;
   cameras?: boolean;
   roadReports?: boolean;
+  postsLayer?: boolean;
 }
 
 /** Whether a layer is on, from the saved settings. */
@@ -70,6 +74,7 @@ export function layerOn(settings: LayerSettings, key: Layer): boolean {
   if (key === 'shops') return !!settings.shops;
   if (key === 'cameras') return !!settings.cameras;
   if (key === 'roads') return !!settings.roadReports;
+  if (key === 'posts') return !!settings.postsLayer;
   return savedLayers(settings.mapLayers)[key];
 }
 
@@ -78,6 +83,7 @@ export function setLayer(settings: LayerSettings, key: Layer, on: boolean): Laye
   if (key === 'shops') return { shops: on };
   if (key === 'cameras') return { cameras: on };
   if (key === 'roads') return { roadReports: on };
+  if (key === 'posts') return { postsLayer: on };
   return { mapLayers: { ...savedLayers(settings.mapLayers), [key]: on } };
 }
 

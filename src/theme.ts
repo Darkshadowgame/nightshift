@@ -51,6 +51,8 @@ export const LAYER = {
   camera: C.alert,
   /** Road reports: coral, not the cameras' red or the events' orange. */
   road: '#ff7a59',
+  /** Community posts with a place: a soft violet-blue, not the shops' purple. */
+  post: '#8fb4ff',
 } as const;
 
 /** States. None of these is a layer colour, so "live" never reads as "drive". */
@@ -153,3 +155,6 @@ export const PARTNER_COLOUR = LAYER.partner;
 
 /** Road reports on the map and in the driving view (roadReports.ts). */
 export const ROAD_COLOUR = LAYER.road;
+
+/** Community posts on the map's Posts layer. */
+export const POST_COLOUR = LAYER.post;

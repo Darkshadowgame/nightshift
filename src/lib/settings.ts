@@ -54,6 +54,8 @@ export interface Settings {
    * button). Off by default. Never shows police reports: those are only in the driving view.
    */
   roadReports?: boolean;
+  /** Map: Community posts that have a place (the Posts layer). Off by default. */
+  postsLayer?: boolean;
   /**
    * Map: the layer bar's layers (Events, Photos, Drives, Tracks) and Meet spots, saved like
    * the others so they come back the same after a restart (mapLayers.ts). All on by default.

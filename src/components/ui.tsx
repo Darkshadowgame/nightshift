@@ -553,3 +553,12 @@ export const s = StyleSheet.create({
     color: C.chalk, fontFamily: F.body, fontSize: 16,
   },
 });
+
+/** A bare pressable with a 44 pt tap area and the standard press feedback (avatars, ··· menus). */
+export function Pressable_({ onPress, label, children, role = 'button' }: { onPress: () => void; label: string; children: ReactNode; role?: 'button' | 'link' }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole={role} accessibilityLabel={label} hitSlop={10} style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.8 }]}>
+      {children}
+    </Pressable>
+  );
+}

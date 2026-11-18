@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { ReportLink } from '../../components/Community';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Platform, ScrollView, View } from 'react-native';
@@ -270,6 +271,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
           You've {spot.kind === 'drive' ? 'finished this drive' : 'checked in here'}.
         </Txt>
       ) : null}
+      {spot.authorId && !mine && spot.authorId !== SYSTEM_AUTHOR ? <ReportLink target="spot" id={spot.id} userId={spot.authorId} what="place" /> : null}
     </ScrollView>
   );
 }

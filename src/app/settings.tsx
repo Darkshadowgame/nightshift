@@ -4,6 +4,7 @@ import { ScrollView, View } from 'react-native';
 import { AboutSection } from '../components/AboutSection';
 import { AccountSection } from '../components/AccountSection';
 import { AppUpdates } from '../components/AppUpdates';
+import { CommunitySettings } from '../components/CommunitySettings';
 import { NavIconChoices } from '../components/DriveHud';
 import { TravelPrefs } from '../components/TravelPrefs';
 import { VoicePicker } from '../components/VoicePicker';
@@ -166,6 +167,8 @@ export default function SettingsScreen() {
           <Txt v="caption">Coming later: cruise mode and walkie-talkie with people nearby. Their settings will be here.</Txt>
         </Card>
       </Section>
+
+      <CommunitySettings />
 
       <Section title="Feedback">
         <Card>

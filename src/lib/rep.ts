@@ -120,7 +120,7 @@ export const REP = {
   mod: 20,
 } as const;
 
-export type RepSource = 'attended' | 'hosted' | 'drives' | 'spots' | 'authored' | 'awards' | 'mods' | 'roadReports' | 'roadChecks';
+export type RepSource = 'attended' | 'hosted' | 'drives' | 'spots' | 'authored' | 'awards' | 'mods' | 'roadReports' | 'roadChecks' | 'forum';
 
 export interface RepLine {
   source: RepSource;
@@ -155,6 +155,11 @@ export interface RepInputs {
    * demo), they're worked out from `spots`.
    */
   placeRep?: PlaceRep;
+  /**
+   * Forum answers marked Solved (forum.ts, forum_rep_for()): +25 each, at most 3 paid a
+   * day and one a week from the same person, never for your own thread.
+   */
+  forumRep?: { solved: number; rep: number };
 }
 
 function checkedInAt(e: NightEvent, userId: string): boolean {
@@ -210,6 +215,7 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
     { source: 'mods', label: 'Mods logged', count: mods, rep: mods * REP.mod },
     { source: 'roadReports', label: 'Road reports confirmed', count: road.reportsConfirmed, rep: road.reportedRep },
     { source: 'roadChecks', label: 'Road reports checked', count: road.reportsChecked, rep: road.checkedRep },
+    { source: 'forum', label: 'Answers marked solved', count: input.forumRep?.solved ?? 0, rep: input.forumRep?.rep ?? 0 },
   ];
   return { total: lines.reduce((s, l) => s + l.rep, 0), lines };
 }
