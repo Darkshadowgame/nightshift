@@ -10,6 +10,7 @@
  */
 
 import type { Glyph } from '../components/Pin';
+import type { EventFilter } from './eventFilter';
 import { LAYER, POST_COLOUR, ROAD_COLOUR, SHOP_COLOUR } from '../theme';
 import { PLACE_NAMES } from './glossary';
 
@@ -67,6 +68,8 @@ export interface LayerSettings {
   roadReports?: boolean;
   /** Community posts with a place (off by default). */
   postsLayer?: boolean;
+  /** Which events show when the Events layer is on (eventFilter.ts). */
+  eventFilter?: EventFilter;
 }
 
 /** A settings change for one layer (merged into Settings by the store). */
@@ -76,6 +79,7 @@ export interface LayerChange {
   cameras?: boolean;
   roadReports?: boolean;
   postsLayer?: boolean;
+  eventFilter?: EventFilter;
 }
 
 /** Whether a layer is on, from the saved settings. */

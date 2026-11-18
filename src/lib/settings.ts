@@ -1,4 +1,5 @@
 import type { DirectionsApp } from './directions';
+import { DEFAULT_EVENT_FILTER, savedEventFilter, type EventFilter } from './eventFilter';
 import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
 import type { MapOrientation, NavIcon } from './driveView';
@@ -83,12 +84,20 @@ export interface Settings {
    * (src/data/busyNight.ts). Off by default, so the normal demo stays as it is. Never sent anywhere.
    */
   busyNight?: boolean;
+  /**
+   * Tonight's map and list: which events show (Layers › Events, eventFilter.ts). Tonight only, and
+   * only ones your garage can go to, by default.
+   */
+  eventFilter: EventFilter;
+  /** Set once the event filters arrived (18 Nov 2026): When = Tonight and Only ones I can go to on, once. */
+  eventFilterOnce?: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: false, trackVehicles: ['car', 'bike'],
   shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true, eventsOnlyMap: true, layersBackOff: true,
   directionsApp: 'nightshift', navVoice: true, navCameraAlerts: true, mapLayers: { ...DEFAULT_LAYERS },
+  eventFilter: { ...DEFAULT_EVENT_FILTER }, eventFilterOnce: true,
 };
 
 /**
@@ -111,5 +120,7 @@ export function upgradeSettings(saved: Partial<Settings> | undefined, upgraded: 
   }
   // Shops and Speed cameras returned as optional layers: once, both off, whatever an older save said.
   if (!saved?.layersBackOff) next = { ...next, shops: false, cameras: false, layersBackOff: true };
+  // Event filters (owner, 18 Nov 2026): once, Tonight and Only ones I can go to; after that, the saved choice.
+  next = { ...next, eventFilter: saved?.eventFilterOnce ? savedEventFilter(saved.eventFilter) : { ...DEFAULT_EVENT_FILTER }, eventFilterOnce: true };
   return upgraded ? next : { ...next, simulateGps: false };
 }

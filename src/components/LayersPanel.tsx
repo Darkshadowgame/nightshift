@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { LAYER_INFO, type Layer } from '../lib/mapLayers';
 import { PLACE_NAMES } from '../lib/glossary';
@@ -26,6 +27,8 @@ export interface LayersPanelProps {
   /** The map's look: Auto (by sunrise and sunset), Day or Night. */
   mapStyle?: MapStyleChoice;
   onMapStyle?: (v: MapStyleChoice) => void;
+  /** The Events section at the top (EventFilters.tsx). */
+  events?: ReactNode;
 }
 
 const STYLES: MapStyleChoice[] = ['auto', 'day', 'night'];
@@ -35,10 +38,11 @@ const STYLES: MapStyleChoice[] = ['auto', 'day', 'night'];
  * Shops and Speed cameras (all off by default, saved in Settings through mapLayers.ts). The only place
  * layers are set.
  */
-export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapStyle }: LayersPanelProps) {
+export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapStyle, events }: LayersPanelProps) {
   return (
     <Sheet visible={visible} title="Map layers" onClose={onClose}>
       <View style={{ gap: SPACING.sm }}>
+        {events}
         {onMapStyle ? (
           <View style={{ gap: SPACING.xs, marginBottom: SPACING.md }}>
             <DsText v="label">Map style</DsText>
@@ -51,7 +55,7 @@ export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapSty
             <DsText v="caption">Auto goes light by day and dark after sunset where you are.</DsText>
           </View>
         ) : null}
-        <DsText v="secondary">The map always shows meets. Add more:</DsText>
+        <DsText v="secondary">{events ? 'Add more:' : 'The map always shows meets. Add more:'}</DsText>
         <View>
           {ROWS.map((r, i) => (
             <View key={r.key}>

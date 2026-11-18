@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { BringSheet } from '../../components/BringPicker';
 import {
+  Button,
   DsText,
   EmptyState,
   IconButton,
@@ -22,6 +23,7 @@ import {
   TAB_BAR_HEIGHT,
   useToast,
 } from '../../components/ds';
+import { EventFilters } from '../../components/EventFilters';
 import { LayersPanel } from '../../components/LayersPanel';
 import { detentTops, MapSheet, type Detent } from '../../components/MapSheet';
 import { MapWidgetSlot } from '../../components/MapWidgetSlot';
@@ -42,8 +44,8 @@ import { DEFAULT_SHOP_FILTER, describeCategories, SHOP_CREDIT, shopPinSize, shop
 import { areaRadius } from '../../lib/area';
 import { useNow } from '../../lib/clock';
 import { usePostPins } from '../../lib/communityStore';
-import { windowFor } from '../../lib/discover';
 import { canJoinDirectly, viewEvents, type EventView } from '../../lib/eventView';
+import { DEFAULT_EVENT_FILTER, filterEvents, filterLine, NO_EVENT_FILTER, whenEnds } from '../../lib/eventFilter';
 import { EVENT_LABELS } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
@@ -54,7 +56,7 @@ import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
 import { currentPosition, locationHelp } from '../../lib/location';
 import { useMapAppearance } from '../../lib/mapAppearance';
-import { layerOn, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
+import { layerOn, setLayer, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
 import { clusterEventPins, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
 import { postPlace } from '../../lib/postPrivacy';
@@ -211,28 +213,38 @@ export default function TonightScreen() {
     stableViews.current = { sig: viewsSig, events, views: allViews };
   }
   const views = stableViews.current.views;
+
+  // Layers › Events (eventFilter.ts): Events on or off, When, Type and Only ones I can go to. Yours
+  // always show; `views` stays whole so a pushed or tapped meet can still be found.
+  const eventFilter = settings.eventFilter ?? DEFAULT_EVENT_FILTER;
+  const eventsOn = layerOn(settings, 'events');
+  const ends = whenEnds(now);
+  const filtered = useMemo(
+    () => filterEvents(views, eventFilter, eventsOn, now),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [views, eventFilter, eventsOn, ends.tonight, ends.week],
+  );
+  const shownViews = filtered.shown;
   const pointOf = (v: EventView): LatLng => (v.shownStop >= 0 ? (v.event.stops[v.shownStop].at ?? v.event.area) : v.event.area);
 
   const lists = useMemo(() => {
-    const tonightEnd = windowFor('tonight', now)!.to.getTime();
     // "This week" ends with Sunday night (Review 14): next Wednesday is Later, not this week.
-    const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ((7 - now.getDay()) % 7) + 1, 5, 0, 0, 0);
-    const weekEnd = Math.max(tonightEnd, sunday.getTime());
+    const { tonight: tonightEnd, week: weekEnd } = whenEnds(now);
     const start = (v: EventView) => new Date(v.event.startsAt).getTime();
-    const upcoming = views.filter((v) => v.phase !== 'live');
+    const upcoming = shownViews.filter((v) => v.phase !== 'live');
     return {
-      live: views.filter((v) => v.phase === 'live'),
+      live: shownViews.filter((v) => v.phase === 'live'),
       tonight: upcoming.filter((v) => start(v) < tonightEnd),
       week: upcoming.filter((v) => start(v) >= tonightEnd && start(v) <= weekEnd),
       later: upcoming.filter((v) => start(v) > weekEnd),
     };
-  }, [views, now]);
+  }, [shownViews, now]);
 
   /** The pick: live now that you can go to, else the next meet you can go to. With no car, the same pick. */
   const pick = useMemo(() => {
     const open = (v: EventView) => canJoinDirectly(v.role);
-    return lists.live.find(open) ?? lists.tonight.find(open) ?? lists.week.find(open) ?? lists.later.find(open) ?? views[0] ?? null;
-  }, [lists, views]);
+    return lists.live.find(open) ?? lists.tonight.find(open) ?? lists.week.find(open) ?? lists.later.find(open) ?? shownViews[0] ?? null;
+  }, [lists, shownViews]);
 
   // ---------------------------------------------------------------------------
   // Places and posts on the map (Layers).
@@ -293,8 +305,10 @@ export default function TonightScreen() {
       );
     for (const s of placeView.lines) paths.push({ id: `pa:${s.id}`, coords: s.path!, colour: s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind], dashed: s.status === 'pending' });
     const selEvent = selected?.startsWith('ev:') ? selected.slice(3) : null;
+    // A tapped or pushed meet stays on the map even if the filters hide it.
+    const sel = selEvent && !shownViews.some((v) => v.event.id === selEvent) ? views.find((v) => v.event.id === selEvent) : undefined;
     const inView = inViewOnly(
-      views,
+      sel ? [...shownViews, sel] : shownViews,
       (v) => (v.shownStop >= 0 ? (v.event.type === 'cruise' ? v.event.stops.map((x) => x.at) : [v.event.stops[v.shownStop].at ?? v.event.area]) : [v.event.area]),
       snapped.centre,
       snapped.span,
@@ -324,7 +338,7 @@ export default function TonightScreen() {
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
-  }, [views, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span]);
+  }, [views, shownViews, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span]);
 
   function zoomCluster(id: string) {
     autoFit.current = false;
@@ -608,6 +622,21 @@ export default function TonightScreen() {
   })();
   const noCar = ready && myBuilds.length === 0;
   const nothingOn = ready && views.length === 0;
+  /** What the filters hid, said over the sheet and the list (nothing disappears silently). */
+  const hiddenLine = ready ? filterLine(filtered, eventFilter, eventsOn, myBuilds.length > 0) : null;
+  function showHidden(clears: 'all' | 'car') {
+    feel.select();
+    if (clears === 'car') return setSettings({ eventFilter: { ...eventFilter, canGoOnly: false } });
+    setSettings({ eventFilter: { ...NO_EVENT_FILTER }, ...(eventsOn ? {} : setLayer(settings, 'events', true)) });
+  }
+  const filterNote = hiddenLine ? (
+    <View style={st.filterLine} accessibilityLiveRegion="polite">
+      <DsText v="secondary" style={{ flex: 1 }}>
+        {hiddenLine.text}
+      </DsText>
+      <Button label={hiddenLine.action.label} tier="tertiary" size="sm" onPress={() => showHidden(hiddenLine.action.clears)} />
+    </View>
+  ) : null;
 
   // ---------------------------------------------------------------------------
   // The sections (the list, and the sheet drawn up).
@@ -623,6 +652,7 @@ export default function TonightScreen() {
     let i = 0;
     return (
       <>
+        {mode === 'list' ? filterNote : null}
         {noCar ? (
           <ListRow leading={{ icon: 'plus' }} title="Add your car to see what you can join" chevron onPress={() => router.push('/build/edit')} />
         ) : null}
@@ -668,6 +698,7 @@ export default function TonightScreen() {
             </View>
           </Section>
         ) : null}
+        {mode === 'list' && !nothingOn && shownViews.length === 0 ? <EmptyState variant="inline" title="No meets match your filters." /> : null}
         {nothingOn ? <EmptyState variant="inline" title="Nothing on near you yet." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} /> : null}
       </>
     );
@@ -681,7 +712,8 @@ export default function TonightScreen() {
 
   const sheetHeader = (
     <View style={st.header}>
-      {selCard ?? (pick ? eventCard(pick, false) : ready ? <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} /> : null)}
+      {filterNote}
+      {selCard ?? (pick ? eventCard(pick, false) : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
     </View>
   );
 
@@ -802,6 +834,7 @@ export default function TonightScreen() {
         onToggle={(k) => setSettings(toggledLayer(settings, k))}
         mapStyle={settings.mapStyle ?? 'auto'}
         onMapStyle={(v) => setSettings({ mapStyle: v })}
+        events={<EventFilters eventsOn={eventsOn} onToggleEvents={() => setSettings(toggledLayer(settings, 'events'))} filter={eventFilter} onChange={(f) => setSettings({ eventFilter: f })} />}
       />
 
       <BringSheet
@@ -840,6 +873,7 @@ const st = StyleSheet.create({
   stackRule: { height: 1, backgroundColor: COLOR.surface.border, marginHorizontal: SPACING.sm },
   mapButton: { width: BUTTON, height: BUTTON, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: SPACING.screen, paddingBottom: SPACING.md },
+  filterLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: 44 },
   closeOnPhoto: { position: 'absolute', top: SPACING.xs, right: SPACING.xs },
   glyphArt: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.raised },
   locNote: [
