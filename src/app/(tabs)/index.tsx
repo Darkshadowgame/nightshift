@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { BringSheet, shortBuildName } from '../../components/BringPicker';
+import { BringSheet } from '../../components/BringPicker';
 import {
   DsText,
   EmptyState,
@@ -83,6 +83,8 @@ const BUTTON = 48;
 const COMPASS = { x: -2, y: SPACING.md };
 /** The pick card's photo shape: wider than 16:9 so the peek stays about a third of the screen. */
 const PEEK_ASPECT = 2.4;
+/** How long Show where I am waits for a fix before it says it couldn't find you. */
+const LOCATE_WAIT_MS = 6000;
 
 /** The layers button's icon: three stacked sheets, as in Apple Maps. */
 function LayersIcon({ colour }: { colour: string }) {
@@ -153,7 +155,11 @@ export default function TonightScreen() {
   const [here, setHere] = useState<LatLng | null>(null);
   const [locNote, setLocNote] = useState<string | null>(null);
   async function locate(ask: boolean, explicit: boolean) {
-    const pos = await currentPosition(ask);
+    // A browser that never answers the location prompt still gets an answer (C6, Review 14).
+    const pos = await Promise.race([
+      currentPosition(ask),
+      new Promise<{ ok: false; reason: 'unavailable' }>((done) => setTimeout(() => done({ ok: false, reason: 'unavailable' }), LOCATE_WAIT_MS)),
+    ]);
     if (pos.ok) {
       setLocated(true);
       setHere(pos.at);
@@ -163,7 +169,7 @@ export default function TonightScreen() {
     }
     setLocated(false);
     // Only when asked: the map stays on your home area without a word otherwise.
-    if (explicit) setLocNote(pos.reason === 'denied' ? 'Location is off for Nightshift. Turn it on in Settings to see where you are.' : "Couldn't find where you are just now.");
+    if (explicit) setLocNote(pos.reason === 'denied' ? 'Location is off for Nightshift. Turn it on in Settings to see where you are.' : "Couldn't find where you are just now. Try again outside.");
   }
   useEffect(() => {
     if (ready) locate(false, false);
@@ -190,7 +196,9 @@ export default function TonightScreen() {
 
   const lists = useMemo(() => {
     const tonightEnd = windowFor('tonight', now)!.to.getTime();
-    const weekEnd = now.getTime() + 7 * 86_400_000;
+    // "This week" ends with Sunday night (Review 14): next Wednesday is Later, not this week.
+    const sunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ((7 - now.getDay()) % 7) + 1, 5, 0, 0, 0);
+    const weekEnd = Math.max(tonightEnd, sunday.getTime());
     const start = (v: EventView) => new Date(v.event.startsAt).getTime();
     const upcoming = views.filter((v) => v.phase !== 'live');
     return {
@@ -385,9 +393,9 @@ export default function TonightScreen() {
     setJoining(v.event.id);
     try {
       const res = await store.setGoing(v.event.id, true, buildId);
-      const b = myBuilds.find((x) => x.id === buildId);
+      // One line at any width (4.7): Change says which car.
       toast({
-        message: res === 'requested' ? 'Asked the host. You’ll hear when they say yes.' : b ? `You're going with your ${shortBuildName(b)}` : passenger ? "You're going as a passenger" : "You're going",
+        message: res === 'requested' ? 'Asked the host. You’ll hear when they say yes.' : passenger ? "You're going as a passenger" : "You're going",
         action: res !== 'requested' && myBuilds.length > 0 ? { label: 'Change', onPress: () => setBringFor(v) } : undefined,
       });
     } catch (e) {
@@ -504,7 +512,9 @@ export default function TonightScreen() {
   // ---------------------------------------------------------------------------
   // The sections (the list, and the sheet drawn up).
   // ---------------------------------------------------------------------------
-  const skip = mode === 'map' && !selCard && pick ? pick.event.id : null;
+  // The card in the sheet's top (the pick, or a tapped pin's meet) isn't listed again below it.
+  const topId = mode !== 'map' ? null : selected?.startsWith('ev:') ? selected.slice(3) : !selCard && pick ? pick.event.id : null;
+  const skip = topId;
   function sections(onOpen: (v: EventView) => void) {
     const live = lists.live.filter((v) => v.event.id !== skip);
     const tonight = lists.tonight.filter((v) => v.event.id !== skip);
@@ -649,6 +659,16 @@ export default function TonightScreen() {
             </Animated.View>
           ) : null}
 
+          {locNote ? (
+            // Under the button that failed (C6): what happened and what to do, never silent.
+            <View style={st.locNote} accessibilityLiveRegion="polite">
+              <DsText v="secondary" tone="primary" style={{ flex: 1 }}>
+                {locNote}
+              </DsText>
+              <IconButton icon="close" label="Close" onPress={() => setLocNote(null)} />
+            </View>
+          ) : null}
+
           {box.h ? (
             <MapSheet
               y={sheetY}
@@ -662,12 +682,8 @@ export default function TonightScreen() {
               header={sheetHeader}
               toastAnchor={anchorHeight}
             >
-              {locNote ? (
-                <View style={{ gap: SPACING.xs }} accessibilityLiveRegion="polite">
-                  <DsText v="secondary">{locNote}</DsText>
-                </View>
-              ) : null}
-              {selCard ? null : sections((v) => show(`ev:${v.event.id}`))}
+              {/* Read = push (4.5): a card in the sheet opens the event page, exactly as in List. */}
+              {sections((v) => openEvent(v.event.id))}
             </MapSheet>
           ) : null}
         </View>
@@ -701,12 +717,17 @@ const st = StyleSheet.create({
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   list: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
   stack: { position: 'absolute', right: SPACING.md, top: 0, gap: SPACING.sm, alignItems: 'flex-end' },
+  // Solid, so road names never show through the buttons (Review 14).
   stackGroup: [
-    { backgroundColor: COLOR.surface.glassRaised, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' },
+    { backgroundColor: COLOR.surface.raised, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' },
     ELEVATION.float,
   ] as never,
   stackRule: { height: 1, backgroundColor: COLOR.surface.border, marginHorizontal: SPACING.sm },
   mapButton: { width: BUTTON, height: BUTTON, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: SPACING.screen, paddingBottom: SPACING.md },
   closeOnPhoto: { position: 'absolute', top: SPACING.xs, right: SPACING.xs },
+  locNote: [
+    { position: 'absolute', top: SPACING.sm, left: SPACING.screen, right: SPACING.screen, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingLeft: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.raisedHi, backgroundColor: COLOR.surface.raised },
+    ELEVATION.float,
+  ] as never,
 });

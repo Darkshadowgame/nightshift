@@ -167,8 +167,12 @@ export const DEMO_NIGHT = {
   body: "The demo always runs on a Friday night, so you can try everything. Nothing leaves this phone, and check-in doesn't need you to be at the meet point.",
 } as const;
 
-/** The one explanation of class, behind a tap on the badge. */
-export const CLASS_EXPLAINER = "Class is your build's power for its weight. S is the quickest.";
+/**
+ * The one explanation of class (C5, Review 14): every screen that explains Class uses this sentence,
+ * and nothing else (Add a car, Power and dyno, Help, the badge). It matches classes.ts: the headline
+ * bhp against the weight (cars: bhp scaled for weight; bikes: bhp per tonne), each on its own scale.
+ */
+export const CLASS_EXPLAINER = "Class comes from your build's bhp for its weight, with cars and bikes on their own scales, from S (the quickest) down to D.";
 
 /**
  * Words that never appear on a first-level screen (Redesign 2, 4.12, with the owner's decisions in

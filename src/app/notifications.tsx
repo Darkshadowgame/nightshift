@@ -4,6 +4,7 @@ import { SectionList, StyleSheet, View } from 'react-native';
 import { Button, DsText, EmptyState, ListRow, RowDivider } from '../components/ds';
 import { useStore, type Notice } from '../lib/store';
 import { useNow } from '../lib/clock';
+import { endTime } from '../lib/events';
 import { clock, dayDiff, dayWord } from '../lib/when';
 import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 
@@ -22,8 +23,9 @@ function noticeTime(iso: string, now: Date): string {
  * The demo starts with none.
  */
 export default function NotificationsScreen() {
-  const { notices, events, users, markNoticesRead, settings } = useStore();
+  const { notices, events, users, markNoticesRead, settings, me } = useStore();
   const now = useNow();
+  const goingToOne = events.some((e) => !e.cancelled && e.going.includes(me) && endTime(e).getTime() > now.getTime());
   // Keep "new" marked while the list is open; mark it all read on the way out.
   const [unreadIds] = useState(() => new Set(notices.filter((n) => !n.read).map((n) => n.id)));
   useFocusEffect(
@@ -42,10 +44,22 @@ export default function NotificationsScreen() {
   if (notices.length === 0) {
     return (
       <View style={[st.page, { flex: 1 }]}>
+        {/* 4.6: glyph, one line, one primary. The line follows what you've done (Review 14). */}
         <EmptyState
           variant="block"
-          title="Nothing yet. Say you're going to a meet and we'll remind you."
-          action={{ label: 'See tonight', onPress: () => router.navigate({ pathname: '/', params: { view: 'list' } }) }}
+          glyph="meet"
+          title={
+            !settings.reminders
+              ? 'Event reminders are off.'
+              : goingToOne
+                ? 'Reminders for your meets will show here.'
+                : "Say you're going to a meet and its reminders show here."
+          }
+          action={
+            !settings.reminders
+              ? { label: 'Turn reminders on', onPress: () => router.push('/settings') }
+              : { label: 'See tonight', onPress: () => router.navigate({ pathname: '/', params: { view: 'list' } }) }
+          }
         />
       </View>
     );

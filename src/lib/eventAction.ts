@@ -11,26 +11,27 @@ import { clock, clockWithCountdown, dayWord, whenLabel } from './when';
 import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from './types';
 
 /**
- * The event page's state (Redesign 2, 3.5). Every state has one status line (the only place a
- * countdown appears) and one ActionBar shape:
+ * The event page's state (Redesign 2, 3.5). Every state has one place line (where, in the 4.11
+ * words only), at most one status note (the next step; the only place a countdown appears) and
+ * one ActionBar shape (Review 14, 4.11: the place line says only where):
  *
- * | kind        | status line                                                  | ActionBar                           |
- * |-------------|--------------------------------------------------------------|-------------------------------------|
- * | join        | "Location shows at 21:30 to people going."                   | I'm going                           |
- * | join+request| "Open to Class A and up. Ask a host to let you in."          | Ask to go                           |
- * | requested   | "You asked to go. A host will say yes or no."                | nothing                             |
- * | waiting     | "Location shows at 21:30 (in 20 min)."                       | Remind me (or Can't make it)        |
- * | navigate    | "Leisure park car park, Tamworth. Check-in opens at …"       | Navigate                            |
- * | checkin     | "Leisure park car park, Tamworth. Check-in is open."         | Check in + Navigate                 |
- * | checkedIn   | "Leisure park car park, Tamworth. Voting opens at 20:30."    | Navigate                            |
- * | vote        | "Leisure park car park, Tamworth. Voting is open until tomorrow 23:00." | Vote + Add a photo       |
- * | voted       | "Leisure park car park, Tamworth. Results tomorrow 23:00."   | Add a photo                         |
- * | ended       | "Ended. Best in show: @dan_r's BMW M4."                      | See photos (secondary)              |
- * | cancelled   | "Cancelled by the host."                                     | nothing                             |
+ * | kind        | place line                                   | status note                          | ActionBar                    |
+ * |-------------|----------------------------------------------|--------------------------------------|------------------------------|
+ * | join        | "Location shows at 21:30 to people going."   |                                      | I'm going                    |
+ * | join+request| "Open to Class A and up. Ask a host to let you in." |                               | Ask to go                    |
+ * | requested   | "You asked to go. A host will say yes or no."|                                      | nothing                      |
+ * | waiting     | "Location shows at 21:30 (in 20 min)."       |                                      | Remind me (or Can't make it) |
+ * | navigate    | "Leisure park car park, Tamworth."           | "Check-in opens at 21:00 (in 20 min)." | Navigate                   |
+ * | checkin     | "Leisure park car park, Tamworth."           | ("You're 2 mi away." with a fix)     | Check in + Navigate          |
+ * | checkedIn   | "Leisure park car park, Tamworth."           | "Voting opens at 20:30." (if early)  | Navigate / Add a photo       |
+ * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00."      | Vote + Add a photo           |
+ * | voted       | "Leisure park car park, Tamworth."           | "Results tomorrow 23:00." (demo: "Results are in.") | Add a photo   |
+ * | ended       | "Ended. Best in show: @dan_r's BMW M4."      |                                      | See photos (secondary)       |
+ * | cancelled   | "Cancelled by the host."                     |                                      | nothing                      |
  *
- * Each fact once (Review 12, C5): being going or checked in is the hero's status tag
- * (`myEventStatus`) and the toast, never the status line too; the time the location shows is the
- * status line, never a pill too. Once the meet point is shown it stays named, checked in or not.
+ * "Check-in is open" is never said: the ActionBar's Check in says it. Each fact once (C5): being
+ * going or checked in is the hero's status tag (`myEventStatus`) and the toast, never the place
+ * line too. Once the meet point is shown it stays named, checked in or not.
  */
 export type EventPrimary =
   /** Not going yet. `request`: not open to you, so a host has to say yes ("Ask to go"). */
@@ -112,14 +113,17 @@ function townOf(event: NightEvent): string | undefined {
 }
 
 /**
- * The event page's one status line (Redesign 2, 3.5 item 3; wording from 4.10 and 4.11). The only
- * place a countdown appears. `milesAway`: from your GPS fix, when there is one.
+ * The event page's place line and status note (Redesign 2, 3.5 item 3; wording from 4.10 and 4.11).
+ * `text` is the place line: where, and nothing else, once the meet point shows (Review 14). `note`
+ * is the one next step, said once; the only place a countdown appears. `milesAway`: from your GPS
+ * fix, when there is one. `resultsIn` (the demo): you've voted, so voting is closed for you and the
+ * results show now.
  */
 export function statusLine(
   event: NightEvent,
   state: EventPrimary,
-  ctx: { me: string; crews: Crew[]; builds: Build[]; users: User[]; votes: Vote[]; now: Date; milesAway?: number | null },
-): { text: string; done?: boolean } {
+  ctx: { me: string; crews: Crew[]; builds: Build[]; users: User[]; votes: Vote[]; now: Date; milesAway?: number | null; resultsIn?: boolean },
+): { text: string; note?: string; done?: boolean } {
   const { now } = ctx;
   const current = event.type === 'rolling' ? event.currentStop : 0;
   const stop = event.stops[current];
@@ -148,21 +152,20 @@ export function statusLine(
       if (host && !state.placing) return { text: locationSentence({ state: 'host', time: clock(reveal), leadMinutes: event.revealMinutesBefore }) };
       if (state.placing) return { text: event.type === 'rolling' && current > 0 ? 'Next location when the host moves on.' : 'The host is still placing the meet point.' };
       return { text: locationSentence({ state: 'hidden', time: clock(reveal), minutesTo: minsTo(reveal) }) };
-    case 'navigate': {
-      const opens = new Date(state.opensAt);
-      return { text: `${shownSentence()} Check-in opens at ${clockWithCountdown(opens, now)}.` };
-    }
+    case 'navigate':
+      return { text: shownSentence(), note: `Check-in opens at ${clockWithCountdown(new Date(state.opensAt), now)}.` };
     case 'checkin':
-      return { text: `${shownSentence()} ${ctx.milesAway != null ? `You're ${ctx.milesAway < 1 ? 'under 1 mi' : `${Math.round(ctx.milesAway)} mi`} away.` : 'Check-in is open.'}` };
+      // "Check-in is open" is the ActionBar's Check in; only the distance is new.
+      return { text: shownSentence(), note: ctx.milesAway != null ? `You're ${ctx.milesAway < 1 ? 'under 1 mi' : `${Math.round(ctx.milesAway)} mi`} away.` : undefined };
     case 'checkedIn': {
       // Checked in never hides the place (Review 12): the meet point stays, then what's next.
       const place = event.type === 'rolling' && (current > 0 || event.stops[current + 1]) ? locationSentence({ state: 'rolling', point: stop?.name }) : shownSentence();
-      return { text: now < new Date(event.startsAt) ? `${place} Voting opens at ${clock(event.startsAt)}.` : place };
+      return { text: place, note: now < new Date(event.startsAt) ? `Voting opens at ${clock(event.startsAt)}.` : undefined };
     }
     case 'vote':
-      return { text: `${shownSentence()} Voting is open until ${untilText(votingCloses(event), now)}.` };
+      return { text: shownSentence(), note: `Voting closes ${untilText(votingCloses(event), now)}.` };
     case 'voted':
-      return { text: `${shownSentence()} Results ${untilText(votingCloses(event), now)}.` };
+      return { text: shownSentence(), note: ctx.resultsIn ? 'Results are in.' : `Results ${untilText(votingCloses(event), now)}.` };
     case 'ended': {
       if (now < votingCloses(event)) return { text: `Ended. Results ${untilText(votingCloses(event), now)}.` };
       const best = results(ctx.votes, event, ctx.builds, now).find((a) => a.category === 'best-in-show');

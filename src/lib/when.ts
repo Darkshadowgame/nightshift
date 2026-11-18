@@ -206,6 +206,19 @@ export function whenLabel(d: Date | string | number, now: Date): string {
   return `${word}${/\d/.test(word) ? ',' : ''} ${clock(d)}`;
 }
 
+/**
+ * When something already happened (a post, a reply), in the 4.10 words: "Today 14:00", "Tonight
+ * 01:10" (after midnight is still tonight), "Yesterday 22:00", "Sat 10:00", then "Sat 14 Nov".
+ */
+export function pastLabel(d: Date | string | number, now: Date): string {
+  const x = toDate(d);
+  const days = dayDiff(x, now);
+  if (days === 0) return `${isNightHour(x.getHours()) ? 'Tonight' : 'Today'} ${clock(x)}`;
+  if (days === -1) return `Yesterday ${clock(x)}`;
+  if (days < -1 && days >= -6) return `${WEEKDAYS[x.getDay()]} ${clock(x)}`;
+  return `${WEEKDAYS[x.getDay()]} ${x.getDate()} ${MONTHS_SHORT[x.getMonth()]}`;
+}
+
 /** "Tonight 22:00–00:30" (an end on another day keeps just its clock). */
 export function timeRange(start: Date | string | number, end: Date | string | number | null | undefined, now: Date): string {
   return end ? `${whenLabel(start, now)}–${clock(end)}` : whenLabel(start, now);

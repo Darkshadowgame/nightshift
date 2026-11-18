@@ -13,7 +13,7 @@ import type { NightEvent } from '../lib/types';
 import { COLOR, MOTION, SPACING } from '../theme';
 import { bhpLine } from './BringPicker';
 import { Cover } from './Cover';
-import { ActionBar, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, SegmentedControl, Sheet, ToastView, displayHandle, useToast } from './ds';
+import { ActionBar, Button, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, Sheet, ToastView, displayHandle, useToast } from './ds';
 import { RevealIn } from './motion';
 import { PhotoCredit } from './PhotoCredit';
 
@@ -22,9 +22,9 @@ import { PhotoCredit } from './PhotoCredit';
  * them (the fourth motion moment), then one row per trophy. Three trophies only: Best in show,
  * Best car, Best bike.
  *
- * `preview` (the demo only, Review 12 L4): once you've voted in every trophy, or tap Done, the
- * results as they'd look if voting closed now, with the same reveal, so the trophy moment happens on
- * the demo night. Under a "Demo results" heading, and only for the trophies you voted in: a result
+ * `preview` (the demo only, Review 12 L4; Review 14): once you've voted and closed the vote sheet,
+ * voting is closed for you and the results show as they'd look if voting closed now, with the same
+ * reveal, so the trophy moment happens on the demo night. Under a "Demo results" heading, and only for the trophies you voted in: a result
  * you had no part in never looks decided (Review 13). When the real results show is said once, in
  * the status line.
  */
@@ -80,22 +80,19 @@ export function voteCategories(event: NightEvent, builds: Parameters<typeof cate
   return categoriesFor(event, builds).filter((c) => eligibleFor(c, event, builds).some((b) => b.ownerId !== me));
 }
 
-/** How long "Your vote" shows before the sheet moves on to the next trophy. */
-const MOVE_ON_MS = 900;
-
 /** "Hyundai i30 N" with the last short word kept on its line ("i30 N", never "i30" / "N"; "YZF-R6", never "YZF-" / "R6"). */
 export function buildTitle(make: string, model: string): string {
   return `${make} ${model}`.replace(/ (\S{1,3})$/, '\u00a0$1').replace(/-/g, '\u2011');
 }
 
 /**
- * Vote (Redesign 2, 3.5; Reviews 11 to 13): a Sheet, opened at the trophy you tapped (the
- * ActionBar's Vote opens the first you haven't voted on). The trophies sit on top as the one
- * SegmentedControl (it switches the view below, 4.4). The builds that turned up are photo cards,
- * one per row so a long name wraps whole at any text size; tap one to vote. Your pick gets "Your
- * vote" and a toast says what you voted for. If a trophy you haven't voted in is left, the toast
- * says "Next: Best bike" and the sheet moves on to it; after the last one it closes. Done closes it
- * any time. Never your own build. `onClose(voted)`: whether a vote was cast while it was open.
+ * Vote (Redesign 2, 3.5; Reviews 11 to 14): a Sheet with one trophy, the one you tapped (the
+ * ActionBar's Vote opens the first you haven't voted on). The builds that turned up are photo
+ * cards, one per row so a long name wraps whole at any text size; tap one to vote. Your pick gets
+ * "Your vote" and a one-line toast says what you voted for. While another trophy is left to vote
+ * in, a clear "Next: Best car" button takes you there; the sheet never moves on by itself (Review
+ * 14). After the last one it closes. Done closes it any time. Never your own build.
+ * `onClose(voted)`: whether a vote was cast while it was open.
  */
 export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: (voted: boolean) => void }) {
   const { builds, users, votes, me, vote, backend } = useStore();
@@ -109,12 +106,6 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   const [flash, setFlash] = useState<{ id: number; message: string } | null>(null);
   const flashes = useRef(0);
   const cast = useRef(false);
-  /** The move to the next trophy, a moment after a vote so you see "Your vote" land. */
-  const moveOn = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stopMove = () => {
-    if (moveOn.current) clearTimeout(moveOn.current);
-    moveOn.current = null;
-  };
   useEffect(() => {
     if (category) {
       setShown(category);
@@ -122,7 +113,6 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
       setFlash(null);
       cast.current = false;
     }
-    return stopMove;
   }, [category]);
   useEffect(() => {
     if (!flash) return;
@@ -134,10 +124,11 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   const label = categoryInfo(cat).label;
   const options = eligibleFor(cat, event, builds).filter((b) => b.ownerId !== me);
   const myVote = votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === cat)?.buildId;
-  const close = () => {
-    stopMove();
-    onClose(cast.current);
-  };
+  const votedIn = (c: AwardCategory) => votes.some((v) => v.eventId === event.id && v.voterId === me && v.category === c);
+  // The next trophy you haven't voted in: after this one, then from the top.
+  const at = cats.indexOf(cat);
+  const next = [...cats.slice(at + 1), ...cats.slice(0, at)].find((c) => !votedIn(c));
+  const close = () => onClose(cast.current);
 
   async function pick(buildId: string) {
     setError(null);
@@ -146,16 +137,8 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
       cast.current = true;
       const b = builds.find((x) => x.id === buildId);
       const name = b ? `${b.make} ${b.model}` : 'that build';
-      // On to the next trophy only while one you haven't voted in is still open (after this one, then from the top).
-      const done = (c: AwardCategory) => c === cat || votes.some((v) => v.eventId === event.id && v.voterId === me && v.category === c);
-      const at = cats.indexOf(cat);
-      const next = [...cats.slice(at + 1), ...cats.slice(0, at)].find((c) => !done(c));
-      stopMove();
-      if (next) {
-        // One line (4.7): "Your vote" on the card says which build; the toast says it counted and where next.
-        setFlash({ id: ++flashes.current, message: `Vote counted. Next: ${categoryInfo(next).label}` });
-        moveOn.current = setTimeout(() => setShown(next), MOVE_ON_MS);
-      } else {
+      if (next) setFlash({ id: ++flashes.current, message: `Voted for ${name}` });
+      else {
         onClose(true);
         toast({ message: `Voted for ${name}` });
       }
@@ -167,18 +150,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   return (
     <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close}>
       <View style={{ gap: SPACING.md }}>
-        {cats.length > 1 ? (
-          <SegmentedControl
-            accessibilityLabel="Trophy"
-            options={cats.map((c) => ({ key: c, label: categoryInfo(c).label }))}
-            value={cat}
-            onChange={(c) => {
-              stopMove();
-              setShown(c);
-            }}
-          />
-        ) : null}
-        <DsText v="secondary">Tap the build you think wins. You can change it until voting closes.</DsText>
+        <DsText v="secondary">Tap the build you think wins.</DsText>
         <View style={{ gap: SPACING.sm }}>
           {options.map((b) => {
             const owner = users.find((u) => u.id === b.ownerId);
@@ -207,11 +179,25 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
         </View>
         {error ? <ErrorState title={error} /> : null}
       </View>
-      {flash ? (
+      {flash || next ? (
         <ActionBar>
-          <Animated.View key={flash.id} entering={FadeInUp.duration(MOTION.base)}>
-            <ToastView message={flash.message} />
-          </Animated.View>
+          {flash ? (
+            <Animated.View key={flash.id} entering={FadeInUp.duration(MOTION.base)}>
+              <ToastView message={flash.message} />
+            </Animated.View>
+          ) : null}
+          {next ? (
+            <Button
+              tier={myVote ? 'primary' : 'secondary'}
+              size="md"
+              block
+              label={`Next: ${categoryInfo(next).label}`}
+              onPress={() => {
+                setFlash(null);
+                setShown(next);
+              }}
+            />
+          ) : null}
         </ActionBar>
       ) : null}
     </Sheet>

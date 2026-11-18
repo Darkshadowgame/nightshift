@@ -15,6 +15,7 @@ import {
   ErrorState,
   GoingStrip,
   Hero,
+  Icon,
   ListRow,
   LocationLine,
   PAGE_WITH_BAR,
@@ -60,12 +61,13 @@ import type { Build, LatLng } from '../../lib/types';
 import { clock, endedLabel, timeRange } from '../../lib/when';
 import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../../theme';
 
-/** Demo meets whose results preview has played (Review 12, L4): it stays on the page this session. */
-const previewed = new Set<string>();
-
 /** The event map's height, and the room the ActionBar takes at the bottom (for scrolling the map into view). */
 const MAP_H = 180;
 const BAR_ROOM = 140;
+/** How far the page scrolls before the hero's status tag (top left of the photo) is out of view. */
+const TAG_OUT = 36;
+/** The ActionBar line that says you're going while the tag is out of view. */
+const BAR_STATE_H = 32;
 
 /** Where an error shows: under the control that caused it. */
 type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
@@ -108,11 +110,10 @@ export default function EventScreen() {
   const photosAt = useRef(0);
   const mapAt = useRef(0);
   const viewH = useRef(0);
-  /** The going toast waits for the location-shows moment to finish, so it never covers it (L4). */
-  const pendingToast = useRef<Parameters<typeof toast>[0] | null>(null);
-  const unlocking = useRef(false);
   const trophiesAt = useRef(0);
-  const [preview, setPreview] = useState(() => !!id && previewed.has(id));
+  /** You said you're going on this visit and the page moved to the map: the ActionBar says so while the tag is out of view. */
+  const [wentHere, setWentHere] = useState(false);
+  const [tagOut, setTagOut] = useState(false);
 
   // "Location shown": the first time this person can see a meet point, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -122,12 +123,12 @@ export default function EventScreen() {
     if (!e || fresh.length === 0) return;
     const names = fresh.map((sid) => e.stops.find((x) => x.id === sid)?.name ?? '');
     setUnlock(e.type === 'cruise' && fresh.length > 1 ? 'The route' : names[names.length - 1]);
-    unlocking.current = true;
     markUnlockSeen(e.id, fresh);
-    // Bring the map into view for the moment (it sits under the hero on a meet with a photo).
+    // Bring the map into view for the moment (it sits under the hero on a meet with a photo): only as
+    // far as the map needs, so the place line stays on screen; the ActionBar says you're going (Review 14).
     if (mapAt.current > 0) {
-      const room = Math.max(SPACING.screen, (viewH.current - MAP_H - BAR_ROOM) / 2);
-      setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, mapAt.current - room), animated: true }), 50);
+      const y = mapAt.current + MAP_H + SPACING.md - (viewH.current - BAR_ROOM - BAR_STATE_H);
+      if (y > 0) setTimeout(() => scroll.current?.scrollTo({ y, animated: true }), 50);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshKey, e?.id]);
@@ -207,7 +208,11 @@ export default function EventScreen() {
   const goesWith = (b?: Build) => canGoWith(ev, me, crews, users, builds, b);
 
   const state = eventPrimary(ev, me, role, crews, builds, now, votes);
-  const status = statusLine(ev, state, { me, crews, builds, users, votes, now });
+  // The demo (Review 14): once you've voted and closed the vote sheet, voting is closed for you and
+  // the results show now, said once ("Results are in." and the results), never "Results tomorrow".
+  const votedAny = votes.some((v) => v.eventId === ev.id && v.voterId === me);
+  const resultsIn = store.backend === 'local' && votedAny && voteCat === null && !ev.cancelled && phase !== 'over';
+  const status = statusLine(ev, state, { me, crews, builds, users, votes, now, resultsIn });
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -223,29 +228,15 @@ export default function EventScreen() {
       const b = mine.find((x) => x.id === buildId);
       if (result === 'requested') toast({ message: 'Asked the host. You’ll hear when they say yes.' });
       else if (!wasGoing) {
-        const going = {
-          message: b ? `You're going with your ${shortBuildName(b)}` : passenger ? "You're going as a passenger" : "You're going",
-          action: mine.length > 0 ? { label: 'Change', onPress: () => setBring('change') } : undefined,
-        };
-        // Saying you're going shows the meet point: the location moment plays first, then this toast.
-        const reveals = result === 'going' && newlyUnlocked({ ...ev, going: [...ev.going, me] }, me, crews, appNow(), store.unlockSeen[ev.id] ?? []).length > 0;
-        if (reveals) {
-          pendingToast.current = going;
-          // If the moment doesn't start after all, the toast still shows.
-          setTimeout(() => !unlocking.current && flushToast(), 800);
-        } else toast(going);
+        // Straight away and on one line (4.7, Review 14). Which car: Change, and the ActionBar while the tag is out of view.
+        toast({ message: passenger ? "You're going as a passenger" : "You're going", action: mine.length > 0 ? { label: 'Change', onPress: () => setBring('change') } : undefined });
+        if (result === 'going') setWentHere(true);
       } else if (b) toast({ message: `Bringing your ${shortBuildName(b)}` });
     } catch (err) {
       setError('going', err instanceof Error ? err.message : "Couldn't change that.");
     } finally {
       setBusy(false);
     }
-  }
-
-  function flushToast() {
-    const t = pendingToast.current;
-    pendingToast.current = null;
-    if (t) toast(t);
   }
 
   /** I'm going: one build goes straight in; two or more ask which; none offers Add your car or a passenger seat. */
@@ -304,7 +295,7 @@ export default function EventScreen() {
         s.createPost({ body: `At ${ev.title}`, photos: [ref], at: currentStop.at, placeName: currentStop.name, visibility: 'public', buildId: bringing?.id }),
       );
       posts.reload();
-      toast({ message: 'Photo posted here and in Community' });
+      toast({ message: 'Photo posted' });
       setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, photosAt.current - SPACING.lg), animated: true }), 100);
     } catch (err) {
       setError('photo', err instanceof Error ? err.message : "Couldn't post that photo.");
@@ -393,6 +384,8 @@ export default function EventScreen() {
   }
 
   const barHasPhoto = primary === addPhoto || secondary === addPhoto;
+  const barState =
+    wentHere && tagOut && going && !pill && myEventStatus(ev, me, crews, now) === 'going' ? (bringing ? `Going with your ${shortBuildName(bringing)}` : "You're going") : null;
 
   // ---------------------------------------------------------------------------
   // Pieces
@@ -472,11 +465,7 @@ export default function EventScreen() {
           glyph={ev.type}
           colour={colour}
           title={unlock}
-          onDone={() => {
-            setUnlock(null);
-            unlocking.current = false;
-            flushToast();
-          }}
+          onDone={() => setUnlock(null)}
         />
       ) : null}
     </>
@@ -486,7 +475,18 @@ export default function EventScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Stack.Screen options={screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) })} />
-      <ScrollView ref={scroll as never} contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onLayout={(l) => (viewH.current = l.nativeEvent.layout.height)}>
+      <ScrollView
+        ref={scroll as never}
+        contentContainerStyle={PAGE_WITH_BAR}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        onLayout={(l) => (viewH.current = l.nativeEvent.layout.height)}
+        onScroll={(e) => {
+          const out = e.nativeEvent.contentOffset.y > TAG_OUT;
+          if (out !== tagOut) setTagOut(out);
+        }}
+        scrollEventThrottle={64}
+      >
         <Hero
           bleed
           photo={photoRef ? photoSource(photoRef) : null}
@@ -500,7 +500,15 @@ export default function EventScreen() {
         />
 
         <View style={{ gap: SPACING.md }}>
-          <LocationLine text={status.text} done={status.done} />
+          {/* The place line says only where (4.11); the next step is its own line, said once (Review 14). */}
+          <View style={{ gap: SPACING.xxs }}>
+            <LocationLine text={status.text} done={status.done} />
+            {status.note ? (
+              <DsText v="secondary" style={{ paddingLeft: 18 + SPACING.sm }} accessibilityLiveRegion="polite">
+                {status.note}
+              </DsText>
+            ) : null}
+          </View>
           {justCheckedIn ? (
             <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up." />
           ) : null}
@@ -514,9 +522,9 @@ export default function EventScreen() {
           />
         </View>
 
-        {!ev.cancelled && (preview || now >= votingCloses(ev)) ? (
+        {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (
           <View onLayout={(l) => (trophiesAt.current = l.nativeEvent.layout.y)}>
-            <TrophiesSection event={ev} preview={preview && now < votingCloses(ev)} />
+            <TrophiesSection event={ev} preview={resultsIn && now < votingCloses(ev)} />
           </View>
         ) : null}
 
@@ -547,7 +555,7 @@ export default function EventScreen() {
           </View>
         ) : null}
 
-        {votedCats.length > 0 && (state.kind === 'vote' || state.kind === 'voted') ? (
+        {votedCats.length > 0 && !resultsIn && (state.kind === 'vote' || state.kind === 'voted') ? (
           // Only the trophies you voted in, then one line for the rest (Review 13).
           <Section title="You voted">
             <View>
@@ -668,7 +676,22 @@ export default function EventScreen() {
         </Section>
       </ScrollView>
 
-      <ActionBar primary={primary} secondary={secondary} status={primary ? null : pill} />
+      {barState ? (
+        // Going, and the page moved to the map for the location moment: the state is said here while
+        // the hero's tag is out of view (Review 14), above the same buttons.
+        <ActionBar>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }} accessible accessibilityLabel={barState}>
+            <Icon name="success" size={18} colour={COLOR.state.success} />
+            <DsText v="secondary" tone="primary" numberOfLines={1} style={{ flex: 1 }}>
+              {barState}
+            </DsText>
+          </View>
+          {primary ? <Button tier="primary" size="md" block label={primary.label} onPress={primary.onPress} busy={primary.busy} haptic={primary.haptic} /> : null}
+          {secondary ? <Button tier="secondary" size="md" block label={secondary.label} onPress={secondary.onPress} busy={secondary.busy} haptic={secondary.haptic} /> : null}
+        </ActionBar>
+      ) : (
+        <ActionBar primary={primary} secondary={secondary} status={primary ? null : pill} />
+      )}
 
       {nav.sheet}
       {flow.view}
@@ -700,9 +723,7 @@ export default function EventScreen() {
         onClose={(votedNow) => {
           setVoteCat(null);
           // The demo's trophy moment (L4): straight after you vote, the results flip in here.
-          if (votedNow && store.backend === 'local' && !preview) {
-            previewed.add(ev.id);
-            setPreview(true);
+          if (votedNow && store.backend === 'local') {
             setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, trophiesAt.current - SPACING.lg), animated: true }), 350);
           }
         }}

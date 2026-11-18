@@ -341,8 +341,9 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
               <Pin glyph={glyph} colour={colour} size={56} />
             </Animated.View>
           </View>
-          <Animated.View style={[st.card, { borderLeftColor: colour }, cardStyle]}>
-            <Animated.Text style={[typeStyle('eyebrow', colour), letters]}>Location shown</Animated.Text>
+          {/* The pin carries the colour; the card's words stay neutral (sodium only on the primary, 5.4). */}
+          <Animated.View style={[st.card, { borderLeftColor: COLOR.surface.raisedHi }, cardStyle]}>
+            <Animated.Text style={[typeStyle('eyebrow', COLOR.text.secondary), letters]}>Location shown</Animated.Text>
             <DsText v="title" numberOfLines={1}>
               {title}
             </DsText>

@@ -400,7 +400,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
       description: 'Same car park, last Friday.',
       startsAt: iso(t.lastWeek.start), endsAt: iso(t.lastWeek.end), area: home, areaName: area,
       stops: [{ id: 'ps-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
-      currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
+      // Not Tom (Review 14): his build is the Sunday meet's photo, and a past meet needs its own.
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['priya'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
       going: lastGoing,
       checkIns: Object.fromEntries(lastGoing.map((u) => [u, ['ps-1']])),

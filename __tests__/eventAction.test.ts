@@ -52,8 +52,10 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
   test('going, the location is shown, before check-in opens: Navigate, and when check-in opens', () => {
     const p = eventPrimary(event, 'me', 'going', crews, [], at(-50));
     expect(p).toEqual({ kind: 'navigate', opensAt: at(-30).toISOString() });
-    const line = statusLine(event, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-50) }).text;
-    expect(line).toMatch(/^Spot, Midlands\. Check-in opens at \d\d:\d\d \(in 20 min\)\.$/);
+    // The place line says only where (4.11, Review 14); the next step is the note.
+    const line = statusLine(event, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-50) });
+    expect(line.text).toBe('Spot, Midlands.');
+    expect(line.note).toMatch(/^Check-in opens at \d\d:\d\d \(in 20 min\)\.$/);
   });
 
   test('check-in opens 30 minutes before the start', () => {
@@ -68,12 +70,20 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
     const v = [{ eventId: 'e', voterId: 'me', category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }];
     const voted = eventPrimary(done, 'me', 'going', crews, b, at(30), v);
     expect(voted.kind).toBe('voted');
-    expect(statusLine(done, voted, { me: 'me', crews, builds: b, users: [], votes: v, now: at(30) }).text).toMatch(/^Spot, Midlands\. Results (tomorrow|tonight|\w{3}) \d\d:\d\d\.$/);
+    const votedLine = statusLine(done, voted, { me: 'me', crews, builds: b, users: [], votes: v, now: at(30) });
+    expect(votedLine.text).toBe('Spot, Midlands.');
+    expect(votedLine.note).toMatch(/^Results (tomorrow|tonight|\w{3}) \d\d:\d\d\.$/);
+    // The demo: voting is closed for you once you've voted, so the results are in now (said once).
+    expect(statusLine(done, voted, { me: 'me', crews, builds: b, users: [], votes: v, now: at(30), resultsIn: true }).note).toBe('Results are in.');
     // Checked in never hides the meet point, and the line never repeats "checked in" (the tag says it).
     const vote = eventPrimary(done, 'me', 'going', crews, b, at(10));
-    expect(statusLine(done, vote, { me: 'me', crews, builds: b, users: [], votes: [], now: at(10) }).text).toMatch(/^Spot, Midlands\. Voting is open until (tomorrow|tonight|\w{3}) \d\d:\d\d\.$/);
+    const voteLine = statusLine(done, vote, { me: 'me', crews, builds: b, users: [], votes: [], now: at(10) });
+    expect(voteLine.text).toBe('Spot, Midlands.');
+    expect(voteLine.note).toMatch(/^Voting closes (tomorrow|tonight|\w{3}) \d\d:\d\d\.$/);
     const early = eventPrimary(done, 'me', 'going', crews, b, at(-10));
-    expect(statusLine(done, early, { me: 'me', crews, builds: b, users: [], votes: [], now: at(-10) }).text).toMatch(/^Spot, Midlands\. Voting opens at \d\d:\d\d\.$/);
+    const earlyLine = statusLine(done, early, { me: 'me', crews, builds: b, users: [], votes: [], now: at(-10) });
+    expect(earlyLine.text).toBe('Spot, Midlands.');
+    expect(earlyLine.note).toMatch(/^Voting opens at \d\d:\d\d\.$/);
     // Before the start, voting isn't open yet: just checked in.
     expect(eventPrimary(done, 'me', 'going', crews, b, at(-10))).toEqual({ kind: 'checkedIn', stopIndex: 0 });
     expect(eventPrimary(done, 'me', 'going', crews, b, at(180 + 25 * 60)).kind).toBe('ended');
@@ -93,8 +103,10 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
     };
     expect(eventPrimary(rolling, 'me', 'going', crews, [], at(30))).toEqual({ kind: 'checkin', stopIndex: 1 });
     expect(eventPrimary({ ...rolling, checkIns: { me: ['s1'] } }, 'me', 'going', crews, [], at(30))).toEqual({ kind: 'checkin', stopIndex: 1 });
-    const line = statusLine(rolling, { kind: 'checkin', stopIndex: 1 }, { me: 'me', crews, builds: [], users: [], votes: [], now: at(30) }).text;
-    expect(line).toBe('Now at Two. Next location when the host moves on. Check-in is open.');
+    const line = statusLine(rolling, { kind: 'checkin', stopIndex: 1 }, { me: 'me', crews, builds: [], users: [], votes: [], now: at(30) });
+    // "Check-in is open" is the ActionBar's Check in, never the place line (Review 14).
+    expect(line.text).toBe('Now at Two. Next location when the host moves on.');
+    expect(line.note).toBeUndefined();
   });
 
   test('untilText', () => {

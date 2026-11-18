@@ -1,4 +1,4 @@
-import { ALL_TIMES, calendarDays, endFrom, orderedTimes, quickDays, startFrom } from '../src/lib/when';
+import { ALL_TIMES, calendarDays, endFrom, orderedTimes, pastLabel, quickDays, startFrom } from '../src/lib/when';
 
 const TONIGHT = { label: 'Tonight', days: 0 };
 const at = (h: number, m = 0) => new Date(2026, 10, 17, h, m); // Tue 17 Nov 2026, local time
@@ -70,5 +70,16 @@ describe('orderedTimes (Review 8: chips in the order they happen)', () => {
     const r = orderedTimes({ label: 'Tomorrow', days: 1 }, TIMES, afternoon);
     expect(r.map((x) => x.label)).toEqual(['01:00', '09:00', '19:00', '20:30', '22:00', '22:30', '23:00', '23:59']);
     expect(r.map((x) => x.time)[0]).toBe('01:00');
+  });
+});
+
+describe('pastLabel (4.10, Review 14: after midnight is still tonight)', () => {
+  const now = new Date(2026, 10, 18, 9, 0); // Wed 18 Nov, 09:00
+  it('says Tonight for the small hours and the evening, Today in the day', () => {
+    expect(pastLabel(new Date(2026, 10, 18, 1, 10), now)).toBe('Tonight 01:10');
+    expect(pastLabel(new Date(2026, 10, 18, 8, 0), now)).toBe('Today 08:00');
+    expect(pastLabel(new Date(2026, 10, 17, 22, 0), now)).toBe('Yesterday 22:00');
+    expect(pastLabel(new Date(2026, 10, 14, 10, 0), now)).toBe('Sat 10:00');
+    expect(pastLabel(new Date(2026, 10, 7, 10, 0), now)).toBe('Sat 7 Nov');
   });
 });
