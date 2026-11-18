@@ -513,6 +513,8 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 * Always the root layout's back `IconButton` at the top left. Never a back button in the body.
 * With no history, back goes to the tab that owns the screen.
 * Back from a form with changes always asks first (`ConfirmSheet`: "Discard it" / "Keep editing").
+* **Exception:** the full-screen driving view has no back arrow; its **End** button is its back
+  (like every sat nav). Reviewers must not count it.
 
 ### 4.3 Buttons *(replaces rules 6, 7)*
 * One primary per screen. On T3 and T4 it lives in the `ActionBar`, pinned above the home indicator,
@@ -585,6 +587,7 @@ car scale, claimed, invited, you can go, Find, Where to?, + Host, Count it witho
 
 **Exception (owner decision, section 9.1):** "rep" and "level" are allowed in exactly three places:
 the one level line on Me, the ladder sheet it opens, and the "+150 rep" moment after check-in.
+The ladder sheet may also name the levels themselves (e.g. "Legend").
 Reviewers must not count those as breaks.
 
 ---
