@@ -69,6 +69,7 @@ const TEMPLATES: Record<string, Template> = {
   '(tabs)/me': 'T1',
   search: 'T1',
   notifications: 'T1',
+  'event/going': 'T1',
   'event/[id]': 'T3',
   'build/[id]': 'T3',
   'build/power': 'T5',

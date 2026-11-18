@@ -319,7 +319,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // The "Start here" pick: live, open to anyone, location shown. Going, check in and vote work at once.
       id: 'ev-meet-now', type: 'meet', title: 'Car park meet-up',
-      description: 'Park up at the far end, no revving, leave it clean. Open to any car or bike.',
+      description: 'Park up at the far end, no revving, leave it clean.',
       startsAt: iso(t.meetNow.start), endsAt: iso(t.meetNow.end),
       area: home, areaName: area,
       stops: [{ id: 'mn-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
@@ -357,7 +357,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       id: 'ev-meet-soon', type: 'meet', title: 'Sunday coffee and cars',
-      description: 'Open to any car or bike nearby. Arranged with the site. Park up, no revving, leave it clean.',
+      description: 'Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: iso(t.coffee.start), endsAt: iso(t.coffee.end),
       area: home, areaName: area,
       stops: [{ id: 'ms-1', name: 'Town centre car park', at: here(52.6333, -1.6951) }],
@@ -369,7 +369,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // Later in the week: A and B class, so a typical hot hatch can go.
       id: 'ev-meet-tam', type: 'meet', title: 'Hot hatch meet',
-      description: 'Hot hatches, A and B class, stock or modified. Arranged with the site.',
+      description: 'Hot hatches, stock or modified. Arranged with the site.',
       startsAt: at(now, 5, 20, 0), endsAt: at(now, 5, 23, 0), area: home, areaName: area,
       stops: [{ id: 'mt-1', name: 'Shopping park car park', at: here(52.6205, -1.7265) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'],
@@ -378,7 +378,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       id: 'ev-bike-cat', type: 'cruise', title: `Sunrise ride: ${d2.name}`,
-      description: 'Bikes only. Breakfast at the finish.',
+      description: 'Breakfast at the finish.',
       startsAt: at(now, 6, 7, 0), endsAt: at(now, 6, 10, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
       stops: driveStops('bc', d2),
       currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'],
@@ -397,7 +397,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // Ended a week ago, voting closed: results, trophies and photos.
       id: 'ev-past-snowdome', type: 'meet', title: "Last week's meet",
-      description: 'Same car park, last Friday. Voting has closed and the trophies are out.',
+      description: 'Same car park, last Friday.',
       startsAt: iso(t.lastWeek.start), endsAt: iso(t.lastWeek.end), area: home, areaName: area,
       stops: [{ id: 'ps-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],

@@ -29,6 +29,7 @@ import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
 import { feel } from '../lib/feel';
+import { DEMO_NIGHT } from '../lib/glossary';
 import {
   arrivedByRoute,
   bannerFor,
@@ -1052,7 +1053,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             (simulate ? 'Demo drive: it counts when you reach the finish.' : 'Pass every checkpoint in order and the drive counts.')}
         </SubLine>
       ) : null}
-      {simulate ? <SubLine>Demo drive · 4× speed</SubLine> : null}
+      {simulate ? <SubLine>{`${DEMO_NIGHT.tag}: Friday's clock · 4× speed`}</SubLine> : null}
     </>
   );
 

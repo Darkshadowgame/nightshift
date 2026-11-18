@@ -260,6 +260,15 @@ export function levelLabel(level: number): string {
   return `Level ${level} · ${levelName(level)}`;
 }
 
+/**
+ * A row on the ladder sheet: "Level 3 · Known face"; the top one is "Level 8+ · Legend", since every
+ * level from there on is Legend (the ladder sheet may name levels, rulebook 4.12).
+ */
+export function ladderLabel(level: number): string {
+  const top = LEVEL_NAMES[LEVEL_NAMES.length - 1].from;
+  return level >= top ? `Level ${top}+ · ${levelName(top)}` : levelLabel(level);
+}
+
 export interface LevelInfo {
   level: number;
   /** The level's name: Newcomer, Regular … Legend. */

@@ -1,15 +1,16 @@
 import { carShape } from '../lib/buildShape';
 import { Image, StyleSheet, View } from 'react-native';
 import { photoSource } from '../lib/photoSource';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect, TSpan, Text as SvgText } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
 import { classOf } from '../lib/classes';
+import { plural } from '../lib/format';
 import { powerText } from '../lib/dyno';
 import { modCount } from '../lib/modGroups';
 import type { Build, NightEvent, User } from '../lib/types';
-import { COLOR, RADII, SPACING } from '../theme';
+import { COLOR, F, RADII, SPACING } from '../theme';
 import { BuildArt } from './BuildArt';
-import { DsText } from './ds';
+import { ClassBadge, displayHandle, DsText } from './ds';
 
 /** The "cover shoot" reward: the winning build as a stylised magazine-style cover. */
 export function Cover({ award, build, owner, event, width = 260 }: { award: Award; build: Build; owner?: User; event?: NightEvent; width?: number }) {
@@ -27,25 +28,32 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
       )}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, opacity: 0.6 }]} />
       <View style={st.top}>
-        {/* The masthead is a drawing: it scales with the cover, not the text size. */}
-        <DsText v="display" numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false} style={{ fontSize: width * 0.14, lineHeight: width * 0.17, letterSpacing: -1 }}>
-          Night<DsText v="display" tone="brand" allowFontScaling={false} style={{ fontSize: width * 0.14, letterSpacing: -1 }}>shift</DsText>
-        </DsText>
+        {/* The masthead is a drawing (SVG text): it scales with the cover, never with the text size, so it's never cut. */}
+        <Svg width={width - 2 * SPACING.md} height={width * 0.17} accessibilityLabel="Nightshift">
+          <SvgText x={0} y={width * 0.135} fontFamily={F.displayItalic} fontSize={width * 0.14} letterSpacing={-1} fill={COLOR.text.primary}>
+            NIGHT
+            <TSpan fill={COLOR.action.primary}>SHIFT</TSpan>
+          </SvgText>
+        </Svg>
         <DsText v="tag" tone="primary">
           {issue} · {event?.areaName ?? 'UK'}
         </DsText>
       </View>
       <View style={st.bottom}>
+        {/* The trophy is chrome (a tag); the build's name is content, so it keeps its case (Review 13). */}
         <View style={st.ribbon}>
-          <DsText v="eyebrow" tone="onAction">
+          <DsText v="eyebrow" tone="primary">
             {categoryInfo(award.category).label}
           </DsText>
         </View>
-        <DsText v="display" numberOfLines={2} allowFontScaling={false} style={{ fontSize: width * 0.1, lineHeight: width * 0.12 }}>
-          {build.make} {build.model}
-        </DsText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <ClassBadge letter={classOf(build)} size="sm" />
+          <DsText v="hero" numberOfLines={2} allowFontScaling={false} style={{ flexShrink: 1, fontFamily: F.displayItalic, fontSize: width * 0.1, lineHeight: width * 0.12 }}>
+            {build.make} {build.model}
+          </DsText>
+        </View>
         <DsText v="meta" tone="primary">
-          @{owner?.handle ?? 'unknown'} · {powerText(build)} · Class {classOf(build)} · {modCount(build.mods)} mods
+          {[displayHandle(owner?.handle ?? 'unknown'), powerText(build), plural(modCount(build.mods), 'mod').replace(' ', '\u00a0')].join(' · ')}
         </DsText>
         {event?.title ? (
           <DsText v="meta" tone="primary" numberOfLines={1}>
@@ -72,5 +80,6 @@ const st = StyleSheet.create({
   cover: { borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.surface.raisedHi },
   top: { position: 'absolute', top: SPACING.sm, left: SPACING.md, right: SPACING.md },
   bottom: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs },
-  ribbon: { alignSelf: 'flex-start', backgroundColor: COLOR.action.primary, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, transform: [{ skewX: '-10deg' }] },
+  // Sodium is for the one primary (5.4): the ribbon is glass with a hairline.
+  ribbon: { alignSelf: 'flex-start', backgroundColor: COLOR.surface.glass, borderWidth: 1, borderColor: COLOR.text.primary, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, transform: [{ skewX: '-10deg' }] },
 });

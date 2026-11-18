@@ -252,6 +252,7 @@ export const SCREEN_TITLES = {
   hostEvent: 'Host a meet',
   editEvent: 'Edit event',
   changePlan: 'Change the plan',
+  going: 'Going',
   addBuild: 'Add a car or bike',
   editBuild: 'Edit build',
   profile: 'Your profile',

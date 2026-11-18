@@ -2,7 +2,7 @@ import { fallbackTab, NO_BACK } from '../src/lib/backFallback';
 
 describe('fallbackTab (REVIEW-8: Back with no history goes to the right tab)', () => {
   it('events and places go to Tonight', () => {
-    for (const r of ['event/[id]', 'spot/[id]', 'shop/[id]', 'zone/[id]', 'notifications', 'search']) expect(fallbackTab(r)).toBe('/');
+    for (const r of ['event/[id]', 'event/going', 'spot/[id]', 'shop/[id]', 'zone/[id]', 'notifications', 'search']) expect(fallbackTab(r)).toBe('/');
   });
   it('people, posts and threads go to Community', () => {
     for (const r of ['user/[id]', 'post/[id]', 'forum/[id]', 'chat/[id]', 'crew/[id]']) expect(fallbackTab(r)).toBe('/community');

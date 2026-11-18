@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { canVote, categoriesFor, categoryInfo, eligibleFor, previewResults, results, votingCloses, type AwardCategory } from '../lib/awards';
-import { untilText } from '../lib/eventAction';
 import { carShape } from '../lib/buildShape';
 import { classOf } from '../lib/classes';
 import { useNow } from '../lib/clock';
@@ -22,19 +21,22 @@ import { PhotoCredit } from './PhotoCredit';
  * them (the fourth motion moment), then one row per trophy. Three trophies only: Best in show,
  * Best car, Best bike.
  *
- * `preview` (the demo only, Review 12 L4): right after you vote, the results as they'd look if
- * voting closed now, with the same reveal, so the trophy moment happens on the demo night.
+ * `preview` (the demo only, Review 12 L4): once you've voted in every trophy, or tap Done, the
+ * results as they'd look if voting closed now, with the same reveal, so the trophy moment happens on
+ * the demo night. Under a "Demo results" heading, and only for the trophies you voted in: a result
+ * you had no part in never looks decided (Review 13). When the real results show is said once, in
+ * the status line.
  */
 export function TrophiesSection({ event, preview }: { event: NightEvent; preview?: boolean }) {
   const { builds, users, votes, me } = useStore();
   const now = useNow();
   if (event.cancelled || (!preview && now < votingCloses(event))) return null;
-  const awards = preview ? previewResults(votes, event, builds, me, now) : results(votes, event, builds, now);
+  const mine = (c: AwardCategory) => votes.some((v) => v.eventId === event.id && v.voterId === me && v.category === c);
+  const awards = preview ? previewResults(votes, event, builds, me, now).filter((a) => mine(a.category)) : results(votes, event, builds, now);
   if (preview && awards.length === 0) return null;
   const handle = (uid: string) => (uid === me ? 'You' : displayHandle(users.find((u) => u.id === uid)?.handle ?? 'unknown'));
   return (
-    <Section title="Trophies">
-      {preview ? <DsText v="secondary">{`Demo: the results now. For real, they show ${untilText(votingCloses(event), now)}.`}</DsText> : null}
+    <Section title={preview ? 'Demo results' : 'Trophies'}>
       {awards.length === 0 ? <DsText v="secondary">Not enough votes for any trophies at this one.</DsText> : null}
       {awards
         .filter((a) => categoryInfo(a.category).cover)
@@ -59,7 +61,7 @@ export function TrophiesSection({ event, preview }: { event: NightEvent; preview
                 leading={{ icon: 'success', colour: COLOR.state.success }}
                 title={info.label}
                 subtitle={`${handle(a.ownerId)} · ${b ? `${b.make} ${b.model}` : 'a build'}`}
-                meta={`${a.votes} votes`}
+                meta={preview ? `${a.votes} votes, yours included` : `${a.votes} votes`}
                 onPress={() => router.push({ pathname: '/user/[id]', params: { id: a.ownerId } })}
                 accessibilityLabel={`${info.label}: ${handle(a.ownerId)}, ${b?.make ?? ''} ${b?.model ?? ''}, ${a.votes} votes`}
               />
@@ -77,18 +79,22 @@ export function voteCategories(event: NightEvent, builds: Parameters<typeof cate
   return categoriesFor(event, builds).filter((c) => eligibleFor(c, event, builds).some((b) => b.ownerId !== me));
 }
 
+/** How long "Your vote" shows before the sheet moves on to the next trophy. */
+const MOVE_ON_MS = 900;
+
 /** "Hyundai i30 N" with the last short word kept on its line ("i30 N", never "i30" / "N"; "YZF-R6", never "YZF-" / "R6"). */
 export function buildTitle(make: string, model: string): string {
   return `${make} ${model}`.replace(/ (\S{1,3})$/, '\u00a0$1').replace(/-/g, '\u2011');
 }
 
 /**
- * Vote (Redesign 2, 3.5; Reviews 11 and 12): a Sheet, opened at the trophy you tapped (the
+ * Vote (Redesign 2, 3.5; Reviews 11 to 13): a Sheet, opened at the trophy you tapped (the
  * ActionBar's Vote opens the first you haven't voted on). The trophies sit on top as the one
- * SegmentedControl (it switches the view below, 4.4). The builds that turned up are photo cards in
- * two columns; tap one to vote: a toast says what you voted for and the sheet moves on to the next
- * trophy you haven't voted on. It closes after the last one, or on Done. Never your own build.
- * `onClose(voted)`: whether a vote was cast while it was open.
+ * SegmentedControl (it switches the view below, 4.4). The builds that turned up are photo cards,
+ * one per row so a long name wraps whole at any text size; tap one to vote. Your pick gets "Your
+ * vote" and a toast says what you voted for. If a trophy you haven't voted in is left, the toast
+ * says "Next: Best bike" and the sheet moves on to it; after the last one it closes. Done closes it
+ * any time. Never your own build. `onClose(voted)`: whether a vote was cast while it was open.
  */
 export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: (voted: boolean) => void }) {
   const { builds, users, votes, me, vote } = useStore();
@@ -101,6 +107,12 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   const [flash, setFlash] = useState<{ id: number; message: string } | null>(null);
   const flashes = useRef(0);
   const cast = useRef(false);
+  /** The move to the next trophy, a moment after a vote so you see "Your vote" land. */
+  const moveOn = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopMove = () => {
+    if (moveOn.current) clearTimeout(moveOn.current);
+    moveOn.current = null;
+  };
   useEffect(() => {
     if (category) {
       setShown(category);
@@ -108,6 +120,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
       setFlash(null);
       cast.current = false;
     }
+    return stopMove;
   }, [category]);
   useEffect(() => {
     if (!flash) return;
@@ -119,7 +132,10 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   const label = categoryInfo(cat).label;
   const options = eligibleFor(cat, event, builds).filter((b) => b.ownerId !== me);
   const myVote = votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === cat)?.buildId;
-  const close = () => onClose(cast.current);
+  const close = () => {
+    stopMove();
+    onClose(cast.current);
+  };
 
   async function pick(buildId: string) {
     setError(null);
@@ -127,17 +143,19 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
       await vote(event.id, cat, buildId);
       cast.current = true;
       const b = builds.find((x) => x.id === buildId);
-      const message = `Voted for ${b ? `${b.make} ${b.model}` : 'that build'}: ${label.toLowerCase()}`;
-      // On to the next trophy you haven't voted on (after this one, then from the top).
+      const name = b ? `${b.make} ${b.model}` : 'that build';
+      // On to the next trophy only while one you haven't voted in is still open (after this one, then from the top).
       const done = (c: AwardCategory) => c === cat || votes.some((v) => v.eventId === event.id && v.voterId === me && v.category === c);
       const at = cats.indexOf(cat);
       const next = [...cats.slice(at + 1), ...cats.slice(0, at)].find((c) => !done(c));
+      stopMove();
       if (next) {
-        setShown(next);
-        setFlash({ id: ++flashes.current, message });
+        // One line (4.7): "Your vote" on the card says which build; the toast says it counted and where next.
+        setFlash({ id: ++flashes.current, message: `Vote counted. Next: ${categoryInfo(next).label}` });
+        moveOn.current = setTimeout(() => setShown(next), MOVE_ON_MS);
       } else {
         onClose(true);
-        toast({ message });
+        toast({ message: `Voted for ${name}` });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't count that vote.");
@@ -148,16 +166,25 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
     <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close}>
       <View style={{ gap: SPACING.md }}>
         {cats.length > 1 ? (
-          <SegmentedControl accessibilityLabel="Trophy" options={cats.map((c) => ({ key: c, label: categoryInfo(c).label }))} value={cat} onChange={(c) => setShown(c)} />
+          <SegmentedControl
+            accessibilityLabel="Trophy"
+            options={cats.map((c) => ({ key: c, label: categoryInfo(c).label }))}
+            value={cat}
+            onChange={(c) => {
+              stopMove();
+              setShown(c);
+            }}
+          />
         ) : null}
         <DsText v="secondary">Tap the build you think wins. You can change it until voting closes.</DsText>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+        <View style={{ gap: SPACING.sm }}>
           {options.map((b) => {
             const owner = users.find((u) => u.id === b.ownerId);
             return (
-              <View key={b.id} style={{ width: '48%', flexGrow: 1 }}>
+              <View key={b.id}>
                 <PhotoCard
                   kind="build"
+                  size="sm"
                   photo={b.photos[0] ? photoSource(b.photos[0]) : null}
                   paint={b.colour}
                   vehicle={b.kind}
@@ -165,7 +192,8 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
                   classLetter={classOf(b)}
                   title={buildTitle(b.make, b.model)}
                   meta={`${displayHandle(owner?.handle ?? 'unknown')} · ${bhpLine(b)}`}
-                  tag={myVote === b.id ? { label: 'Your vote', tone: 'success' } : null}
+                  // Under the name, not a tag beside it: the name keeps the row's width (1.3x text).
+                  detail={myVote === b.id ? '✓ Your vote' : undefined}
                   overlay={<PhotoCredit photoRef={b.photos[0]} kind={b.kind} overlay />}
                   onPress={() => pick(b.id)}
                   accessibilityHint={`Votes for ${label.toLowerCase()}`}

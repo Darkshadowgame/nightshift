@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { LEVEL_NAMES, REP, repForLevel, type LevelInfo, type RepLedger } from '../lib/rep';
+import { ladderLabel, LEVEL_NAMES, REP, repForLevel, type LevelInfo, type RepLedger } from '../lib/rep';
 import { SPACING } from '../theme';
 import { DsText, ListRow, RowDivider, Section, Sheet, Tag, metaLine } from './ds';
 
@@ -33,12 +33,11 @@ export function LadderSheet({ visible, onClose, level, ledger }: { visible: bool
       </DsText>
       <View>
         {levels.map((l, i) => {
-          const named = [...LEVEL_NAMES].reverse().find((x) => l >= x.from)!.name;
           return (
             <View key={l}>
               {i ? <RowDivider /> : null}
               <ListRow
-                title={`Level ${l} · ${named}${l === top ? ' and up' : ''}`}
+                title={ladderLabel(l)}
                 subtitle={l === 1 ? 'Where everyone starts' : `From ${n(repForLevel(l))} rep`}
                 trailing={l === level.level ? <Tag label="You" tone="selected" /> : undefined}
               />

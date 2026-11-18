@@ -8,7 +8,6 @@ import { CheckInCelebration, MediaFrame, NotFoundState, TextField } from '../../
 import {
   ActionBar,
   Button,
-  ClassBadge,
   ConfirmSheet,
   displayHandle,
   DsText,
@@ -40,7 +39,6 @@ import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
 import { categoryInfo, votingCloses, type AwardCategory } from '../../lib/awards';
 import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
-import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
@@ -64,6 +62,10 @@ import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../../theme';
 
 /** Demo meets whose results preview has played (Review 12, L4): it stays on the page this session. */
 const previewed = new Set<string>();
+
+/** The event map's height, and the room the ActionBar takes at the bottom (for scrolling the map into view). */
+const MAP_H = 180;
+const BAR_ROOM = 140;
 
 /** Where an error shows: under the control that caused it. */
 type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
@@ -94,7 +96,6 @@ export default function EventScreen() {
   const [changesOpen, setChangesOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const [goingOpen, setGoingOpen] = useState(false);
   /** The trophy the vote sheet is open on (null: closed). */
   const [voteCat, setVoteCat] = useState<AwardCategory | null>(null);
   const sharer = useShareLink();
@@ -105,6 +106,11 @@ export default function EventScreen() {
   const [checkInPick, setCheckInPick] = useState<string | undefined>();
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
   const photosAt = useRef(0);
+  const mapAt = useRef(0);
+  const viewH = useRef(0);
+  /** The going toast waits for the location-shows moment to finish, so it never covers it (L4). */
+  const pendingToast = useRef<Parameters<typeof toast>[0] | null>(null);
+  const unlocking = useRef(false);
   const trophiesAt = useRef(0);
   const [preview, setPreview] = useState(() => !!id && previewed.has(id));
 
@@ -116,7 +122,13 @@ export default function EventScreen() {
     if (!e || fresh.length === 0) return;
     const names = fresh.map((sid) => e.stops.find((x) => x.id === sid)?.name ?? '');
     setUnlock(e.type === 'cruise' && fresh.length > 1 ? 'The route' : names[names.length - 1]);
+    unlocking.current = true;
     markUnlockSeen(e.id, fresh);
+    // Bring the map into view for the moment (it sits under the hero on a meet with a photo).
+    if (mapAt.current > 0) {
+      const room = Math.max(SPACING.screen, (viewH.current - MAP_H - BAR_ROOM) / 2);
+      setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, mapAt.current - room), animated: true }), 50);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshKey, e?.id]);
 
@@ -211,16 +223,29 @@ export default function EventScreen() {
       const b = mine.find((x) => x.id === buildId);
       if (result === 'requested') toast({ message: 'Asked the host. You’ll hear when they say yes.' });
       else if (!wasGoing) {
-        toast({
+        const going = {
           message: b ? `You're going with your ${shortBuildName(b)}` : passenger ? "You're going as a passenger" : "You're going",
           action: mine.length > 0 ? { label: 'Change', onPress: () => setBring('change') } : undefined,
-        });
+        };
+        // Saying you're going shows the meet point: the location moment plays first, then this toast.
+        const reveals = result === 'going' && newlyUnlocked({ ...ev, going: [...ev.going, me] }, me, crews, appNow(), store.unlockSeen[ev.id] ?? []).length > 0;
+        if (reveals) {
+          pendingToast.current = going;
+          // If the moment doesn't start after all, the toast still shows.
+          setTimeout(() => !unlocking.current && flushToast(), 800);
+        } else toast(going);
       } else if (b) toast({ message: `Bringing your ${shortBuildName(b)}` });
     } catch (err) {
       setError('going', err instanceof Error ? err.message : "Couldn't change that.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function flushToast() {
+    const t = pendingToast.current;
+    pendingToast.current = null;
+    if (t) toast(t);
   }
 
   /** I'm going: one build goes straight in; two or more ask which; none offers Add your car or a passenger seat. */
@@ -318,6 +343,9 @@ export default function EventScreen() {
   // The ActionBar, by state (3.5 table).
   // ---------------------------------------------------------------------------
   const cats = voteCategories(ev, builds, me, now);
+  const voted = (cat: string) => votes.find((v) => v.eventId === ev.id && v.voterId === me && v.category === cat)?.buildId;
+  const votedCats = cats.filter((c) => !!voted(c));
+  const toVote = cats.filter((c) => !voted(c));
   const firstUnvoted = cats.find((c) => !votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)) ?? cats[0];
   const addPhoto: ActionBarButton = { label: 'Add a photo', onPress: () => flow.pick(), busy: flow.busy };
   let primary: ActionBarButton | null = null;
@@ -363,6 +391,8 @@ export default function EventScreen() {
     default:
       break;
   }
+
+  const barHasPhoto = primary === addPhoto || secondary === addPhoto;
 
   // ---------------------------------------------------------------------------
   // Pieces
@@ -431,21 +461,32 @@ export default function EventScreen() {
       <NightMap
         pins={anyVisible ? mapPins : []}
         paths={mapPaths}
-        circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour }]}
+        // The area in a quiet grey: colour is for the pin (accent rule, Review 13).
+        circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour: COLOR.text.secondary }]}
         centre={mapCentre}
         span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.06) : Math.max(0.12, (areaMiles * 2.6) / 69)}
         follow
       />
-      {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
+      {unlock ? (
+        <UnlockReveal
+          glyph={ev.type}
+          colour={colour}
+          title={unlock}
+          onDone={() => {
+            setUnlock(null);
+            unlocking.current = false;
+            flushToast();
+          }}
+        />
+      ) : null}
     </>
   );
 
-  const voted = (cat: string) => votes.find((v) => v.eventId === ev.id && v.voterId === me && v.category === cat)?.buildId;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Stack.Screen options={screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) })} />
-      <ScrollView ref={scroll as never} contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scroll as never} contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} onLayout={(l) => (viewH.current = l.nativeEvent.layout.height)}>
         <Hero
           bleed
           photo={photoRef ? photoSource(photoRef) : null}
@@ -466,7 +507,11 @@ export default function EventScreen() {
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
           {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
-          <GoingStrip people={goingPeople} summary={goingSummary(ev.going.length, mix.cars, mix.bikes)} onPress={ev.going.length ? () => setGoingOpen(true) : undefined} />
+          <GoingStrip
+            people={goingPeople}
+            summary={goingSummary(ev.going.length, mix.cars, mix.bikes)}
+            onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
+          />
         </View>
 
         {!ev.cancelled && (preview || now >= votingCloses(ev)) ? (
@@ -475,11 +520,16 @@ export default function EventScreen() {
           </View>
         ) : null}
 
-        {mapOnTop ? null : <MediaFrame height={180}>{map}</MediaFrame>}
+        {mapOnTop ? null : (
+          <View onLayout={(l) => (mapAt.current = l.nativeEvent.layout.y)}>
+            <MediaFrame height={MAP_H}>{map}</MediaFrame>
+          </View>
+        )}
 
         {showPhotos && (tiles.length > 0 || canAddPhoto) ? (
           <View onLayout={(l) => (photosAt.current = l.nativeEvent.layout.y)}>
-            <Section title="Photos" right={canAddPhoto ? <Button tier="tertiary" size="sm" label="+ Add a photo" onPress={() => flow.pick()} /> : undefined}>
+            {/* Add a photo is said once (C5): in the ActionBar when it's there, else here. */}
+            <Section title="Photos" right={canAddPhoto && !barHasPhoto ? <Button tier="tertiary" size="sm" label="+ Add a photo" onPress={() => flow.pick()} /> : undefined}>
               {tiles.length === 0 ? (
                 <EmptyState variant="inline" title="No photos yet. Add the first one." />
               ) : (
@@ -497,26 +547,37 @@ export default function EventScreen() {
           </View>
         ) : null}
 
-        {cats.length > 0 && (state.kind === 'vote' || state.kind === 'voted') ? (
-          <Section title={state.kind === 'voted' ? 'You voted' : 'Vote'}>
+        {votedCats.length > 0 && (state.kind === 'vote' || state.kind === 'voted') ? (
+          // Only the trophies you voted in, then one line for the rest (Review 13).
+          <Section title="You voted">
             <View>
-              {cats.map((c, i) => {
-                const pick = voted(c);
-                const b = pick ? builds.find((x) => x.id === pick) : undefined;
+              {votedCats.map((c, i) => {
+                const b = builds.find((x) => x.id === voted(c));
                 const owner = b ? users.find((u) => u.id === b.ownerId) : undefined;
                 return (
                   <View key={c}>
                     {i > 0 ? <RowDivider inset /> : null}
                     <ListRow
-                      leading={{ icon: pick ? 'success' : 'plus', colour: pick ? COLOR.state.success : COLOR.text.secondary }}
+                      leading={{ icon: 'success', colour: COLOR.state.success }}
                       title={categoryInfo(c).label}
-                      subtitle={b ? `You voted: ${b.make} ${b.model}${owner ? ` · ${displayHandle(owner.handle)}` : ''}` : 'Not voted yet'}
+                      subtitle={b ? `${b.make} ${b.model}${owner ? ` · ${displayHandle(owner.handle)}` : ''}` : undefined}
                       onPress={() => setVoteCat(c)}
-                      accessibilityHint={pick ? 'Change your vote' : 'Vote'}
+                      accessibilityHint="Change your vote"
                     />
                   </View>
                 );
               })}
+              {toVote.length > 0 ? (
+                <View>
+                  <RowDivider inset />
+                  <ListRow
+                    leading={{ icon: 'plus', colour: COLOR.text.secondary }}
+                    title={`${toVote.length} more to vote`}
+                    subtitle={toVote.map((c) => categoryInfo(c).label).join(', ')}
+                    onPress={() => setVoteCat(toVote[0])}
+                  />
+                </View>
+              ) : null}
             </View>
           </Section>
         ) : null}
@@ -648,32 +709,6 @@ export default function EventScreen() {
       />
       {sharer.sheet}
 
-      <Sheet visible={goingOpen} title={goingSummary(ev.going.length, mix.cars, mix.bikes)} onClose={() => setGoingOpen(false)}>
-        <View>
-          {ev.going.map((uid, i) => {
-            const u = users.find((x) => x.id === uid);
-            const b = broughtBuild(ev, uid, builds);
-            const checked = (ev.checkIns[uid] ?? []).length > 0;
-            return (
-              <View key={uid}>
-                {i > 0 ? <RowDivider inset /> : null}
-                <ListRow
-                  leading={{ avatar: { name: u?.name, handle: u?.handle } }}
-                  title={userLabel(uid)}
-                  subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'Passenger'}
-                  trailing={b ? <ClassBadge letter={classOf(b)} size="sm" /> : undefined}
-                  meta={[hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null].filter(Boolean).join(' · ') || undefined}
-                  onPress={() => {
-                    setGoingOpen(false);
-                    openUser(uid);
-                  }}
-                />
-              </View>
-            );
-          })}
-        </View>
-      </Sheet>
-
       <Sheet visible={menu} title="Event options" onClose={() => setMenu(false)}>
         <View>
           {menuOptions.map((o) => (
@@ -707,12 +742,15 @@ export default function EventScreen() {
           });
         }}
       />
-      <Sheet visible={confirmLeave} title={GOING.leave} doneLabel="Cancel" onClose={() => setConfirmLeave(false)}>
-        <View style={{ gap: SPACING.md }}>
-          <DsText v="body">{`Take yourself off ${ev.title}? You won't get its reminders. You can undo it straight after.`}</DsText>
-          <Button label="Leave it" tier="destructive" block onPress={leave} />
-        </View>
-      </Sheet>
+      {/* One confirm pattern (4.5): "Leave it" / "Keep it", no header Cancel. */}
+      <ConfirmSheet
+        visible={confirmLeave}
+        title={GOING.leave}
+        message={`Take yourself off ${ev.title}? You won't get its reminders. You can undo it straight after.`}
+        verb="Leave"
+        onCancel={() => setConfirmLeave(false)}
+        onConfirm={leave}
+      />
     </KeyboardAvoidingView>
   );
 }

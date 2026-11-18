@@ -11,6 +11,8 @@
 export type TabHref = '/' | '/community' | '/garage' | '/me';
 
 const BY_ROUTE: Record<string, TabHref> = {
+  // Who's going belongs to the meet, on Tonight.
+  'event/going': '/',
   'user/[id]': '/community',
   'post/[id]': '/community',
   'post/new': '/community',

@@ -85,6 +85,8 @@ function Gate() {
         <Stack.Screen name="event/new" options={{ title: title(T.hostEvent), presentation: 'modal' }} />
         <Stack.Screen name="event/edit" options={{ title: title(T.editEvent), presentation: 'modal' }} />
         <Stack.Screen name="event/plan" options={{ title: title(T.changePlan) }} />
+        {/* Who's going: a list to read, so a push (4.5), not a sheet. */}
+        <Stack.Screen name="event/going" options={{ title: title(T.going) }} />
         <Stack.Screen name="build/[id]" options={{ title: '' }} />
         <Stack.Screen name="build/power" options={{ title: title('Power and dyno') }} />
         {/* build/edit sets "Edit build" itself when it opens an existing build. */}
