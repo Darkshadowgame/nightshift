@@ -27,9 +27,9 @@ describe('moving the sample scene', () => {
       for (const st of e.stops) expect(milesBetween(st.at!, LEEDS)).toBeLessThan(15);
       expect(e.areaName).toBe(sceneAreaName(LEEDS));
     }
-    // Never "Sample area": the demo home is Tamworth, anywhere else its region until the geocoder names the town.
+    // Never "Sample area": the demo home is Tamworth, anywhere else the nearest town (areaNameNear).
     expect(sceneAreaName(DEMO_HOME)).toBe(DEMO_TOWN);
-    expect(sceneAreaName(LEEDS)).toBe('Yorkshire');
+    expect(sceneAreaName(LEEDS)).toBe('Leeds');
     const homes = sampleHomes(LEEDS);
     for (const u of s.users) expect(milesBetween(u.home, LEEDS)).toBeLessThan(35);
     expect(homes.size).toBe(s.users.length);

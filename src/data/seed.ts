@@ -3,7 +3,7 @@ import { DEFAULT_FILTER } from '../lib/invites';
 import type { Vote } from '../lib/awards';
 import { eventArea } from '../lib/area';
 import { isPublicType } from '../lib/events';
-import { nearestRegion } from '../lib/profile';
+import { areaNameNear, nearestRegion } from '../lib/profile';
 import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
 import { PLACES, type PlaceSeed } from './places';
 import { SAMPLE_PHOTOS } from './samplePhotos';
@@ -288,7 +288,7 @@ export const DEMO_TOWN = 'Tamworth';
 
 /** The area name sample meets use until the geocoder names the town: Tamworth for the demo home, else your region. */
 export function sceneAreaName(home: LatLng): string {
-  return Math.abs(home.lat - DEMO_HOME.lat) < 0.02 && Math.abs(home.lng - DEMO_HOME.lng) < 0.02 ? DEMO_TOWN : nearestRegion(home);
+  return Math.abs(home.lat - DEMO_HOME.lat) < 0.02 && Math.abs(home.lng - DEMO_HOME.lng) < 0.02 ? DEMO_TOWN : areaNameNear(home);
 }
 
 /** Start, halfway and finish of a real drive, for the sample cruises. */
