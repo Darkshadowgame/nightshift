@@ -237,14 +237,16 @@ export function repForLevel(level: number): number {
 
 /**
  * One ladder (REVIEW-9 decision 14): rep is the points, the level is where they put you, and each
- * level has a name. Legend is the top. Class (the build) and trophies are separate on purpose.
+ * level has its own name (no two levels share one; Review 12). Legend is the top. Class (the build) and trophies are separate on purpose.
  */
 export const LEVEL_NAMES: { from: number; name: string }[] = [
   { from: 1, name: 'Newcomer' },
   { from: 2, name: 'Regular' },
   { from: 3, name: 'Known face' },
   { from: 4, name: 'Local name' },
+  { from: 5, name: 'Crowd favourite' },
   { from: 6, name: 'Scene veteran' },
+  { from: 7, name: 'Scene icon' },
   { from: 8, name: 'Legend' },
 ];
 

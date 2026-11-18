@@ -35,7 +35,7 @@ import { NightMap } from '../../components/NightMap';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { useShareLink } from '../../components/ShareLink';
 import { usePhotoFlow } from '../../components/PhotoFlow';
-import { eventPhotoRef, roleTag } from '../../components/TonightCards';
+import { eventPhotoRef, statusTag } from '../../components/TonightCards';
 import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
 import { categoryInfo, votingCloses, type AwardCategory } from '../../lib/awards';
@@ -43,9 +43,9 @@ import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsI
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
-import { eventPrimary, goingMix, statusLine, statusPill } from '../../lib/eventAction';
+import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
 import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
-import { newlyUnlocked, roleOf } from '../../lib/eventView';
+import { myEventStatus, newlyUnlocked, roleOf } from '../../lib/eventView';
 import { formatTime, goingSummary, plural } from '../../lib/format';
 import { aroundArea, GOING, MEET_POINT } from '../../lib/glossary';
 import { describeFilter } from '../../lib/invites';
@@ -61,6 +61,9 @@ import { useStore } from '../../lib/store';
 import type { Build, LatLng } from '../../lib/types';
 import { clock, endedLabel, timeRange } from '../../lib/when';
 import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../../theme';
+
+/** Demo meets whose results preview has played (Review 12, L4): it stays on the page this session. */
+const previewed = new Set<string>();
 
 /** Where an error shows: under the control that caused it. */
 type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
@@ -102,6 +105,8 @@ export default function EventScreen() {
   const [checkInPick, setCheckInPick] = useState<string | undefined>();
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
   const photosAt = useRef(0);
+  const trophiesAt = useRef(0);
+  const [preview, setPreview] = useState(() => !!id && previewed.has(id));
 
   // "Location shown": the first time this person can see a meet point, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -317,7 +322,9 @@ export default function EventScreen() {
   const addPhoto: ActionBarButton = { label: 'Add a photo', onPress: () => flow.pick(), busy: flow.busy };
   let primary: ActionBarButton | null = null;
   let secondary: ActionBarButton | null = null;
-  let pill: string | null = statusPill(state);
+  // No status pill that repeats the status line (C5, Review 12): the line says when the location
+  // shows; the ActionBar only adds what's new (the reminder you set).
+  let pill: string | null = null;
   /** Going (not hosting) and nothing to do yet: "Can't make it" is the bar's secondary (Review 11). */
   const leaveInBar = going && !host && (state.kind === 'waiting' || state.kind === 'navigate');
   const leaveButton: ActionBarButton = { label: GOING.leave, onPress: () => setConfirmLeave(true) };
@@ -374,7 +381,8 @@ export default function EventScreen() {
           ? `Until ${clock(endTime(ev))}`
           : timeRange(ev.startsAt, ev.endsAt, now);
   const meta = [time, where, ev.routeMiles ? `${ev.routeMiles} mi route` : null].filter(Boolean).join(' · ');
-  const heroTag = myCheckIns.length > 0 ? { label: 'Checked in', tone: 'success' as const } : roleTag(role, ev.filter) ?? null;
+  // Your status, once (K3, C5): the same tag as Tonight's card and Me (myEventStatus).
+  const heroTag = statusTag(myEventStatus(ev, me, crews, now)) ?? null;
 
   const goingPeople = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
     const u = users.find((x) => x.id === uid);
@@ -437,14 +445,13 @@ export default function EventScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Stack.Screen options={screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) })} />
-      <ScrollView ref={scroll as never} contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll as never} contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Hero
           bleed
           photo={photoRef ? photoSource(photoRef) : null}
           media={mapOnTop ? <View style={{ aspectRatio: 16 / 9, overflow: 'hidden' }}>{map}</View> : undefined}
           overlay={photoRef ? <PhotoCredit photoRef={photoRef} overlay corner="topRight" /> : undefined}
           eyebrow={EVENT_LABELS[ev.type]}
-          layerColour={colour}
           live={phase === 'live'}
           title={ev.title}
           meta={meta}
@@ -454,7 +461,7 @@ export default function EventScreen() {
         <View style={{ gap: SPACING.md }}>
           <LocationLine text={status.text} done={status.done} />
           {justCheckedIn ? (
-            <CheckInCelebration play title={`+${REP.attended} rep`} body={`For turning up at ${currentStop?.name ?? `the ${MEET_POINT.one}`}.`} />
+            <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up." />
           ) : null}
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
@@ -462,7 +469,11 @@ export default function EventScreen() {
           <GoingStrip people={goingPeople} summary={goingSummary(ev.going.length, mix.cars, mix.bikes)} onPress={ev.going.length ? () => setGoingOpen(true) : undefined} />
         </View>
 
-        <TrophiesSection event={ev} />
+        {!ev.cancelled && (preview || now >= votingCloses(ev)) ? (
+          <View onLayout={(l) => (trophiesAt.current = l.nativeEvent.layout.y)}>
+            <TrophiesSection event={ev} preview={preview && now < votingCloses(ev)} />
+          </View>
+        ) : null}
 
         {mapOnTop ? null : <MediaFrame height={180}>{map}</MediaFrame>}
 
@@ -622,7 +633,19 @@ export default function EventScreen() {
         onClose={() => setBring(null)}
       />
 
-      <VoteSheet event={ev} category={voteCat} onClose={() => setVoteCat(null)} />
+      <VoteSheet
+        event={ev}
+        category={voteCat}
+        onClose={(votedNow) => {
+          setVoteCat(null);
+          // The demo's trophy moment (L4): straight after you vote, the results flip in here.
+          if (votedNow && store.backend === 'local' && !preview) {
+            previewed.add(ev.id);
+            setPreview(true);
+            setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, trophiesAt.current - SPACING.lg), animated: true }), 350);
+          }
+        }}
+      />
       {sharer.sheet}
 
       <Sheet visible={goingOpen} title={goingSummary(ev.going.length, mix.cars, mix.bikes)} onClose={() => setGoingOpen(false)}>

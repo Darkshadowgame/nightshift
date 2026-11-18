@@ -30,7 +30,7 @@ import { FadeUp } from '../../components/motion';
 import { NightMap } from '../../components/NightMap';
 import { Pin } from '../../components/Pin';
 import { PhotoCredit } from '../../components/PhotoCredit';
-import { cardDistance, cardTime, driveLength, EventEntityCard, EventRow, eventPhotoRef, notOpenLine, placeDistance, roleTag } from '../../components/TonightCards';
+import { cardDistance, cardTime, driveLength, EventEntityCard, EventRow, eventPhotoRef, notOpenLine, placeDistance, statusTag } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { areaRadius } from '../../lib/area';
 import { useNow } from '../../lib/clock';
@@ -48,6 +48,7 @@ import { currentPosition } from '../../lib/location';
 import { layerOn, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
 import { clusterEventPins, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
+import { postPlace } from '../../lib/postPrivacy';
 import { visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import { isSpectatorVenue } from '../../lib/tracks';
@@ -82,8 +83,8 @@ function LayersIcon({ colour }: { colour: string }) {
  * as a list. Header: TONIGHT, the DEMO NIGHT tag in the demo, "+" (host a meet) and the bell; then
  * the search pill and Map / List. The map shows events only (plus Drives, Photo spots, Tracks and
  * Posts from Layers, all off by default). The sheet's peek is one PhotoCard: the pick (live now,
- * else the next meet you can go to) with I'm going, the screen's one primary. A tapped pin takes
- * the card's place, with ✕. Drag up: the same sections as the list.
+ * else the next meet you can go to) with I'm going as the card's one secondary (4.3: cards never
+ * carry a primary; Review 12). A tapped pin takes the card's place, with ✕. Drag up: the same sections as the list.
  */
 export default function TonightScreen() {
   const insets = useSafeAreaInsets();
@@ -163,7 +164,7 @@ export default function TonightScreen() {
     [events, me, crews, users, builds, now],
   );
   // The 30 s clock only matters to the pins when a phase, role or shown meet point changes.
-  const viewsSig = allViews.map((v) => `${v.event.id}:${v.phase}:${v.role}:${v.shownStop}:${v.event.going.length}`).join('|');
+  const viewsSig = allViews.map((v) => `${v.event.id}:${v.phase}:${v.role}:${v.shownStop}:${v.event.going.length}:${v.status}`).join('|');
   const stableViews = useRef<{ sig: string; events: typeof events; views: EventView[] } | null>(null);
   if (!stableViews.current || stableViews.current.sig !== viewsSig || stableViews.current.events !== events) {
     stableViews.current = { sig: viewsSig, events, views: allViews };
@@ -213,7 +214,7 @@ export default function TonightScreen() {
     const pins: MapPin[] = [];
     const paths: MapPath[] = [];
     const circles: MapCircle[] = [];
-    for (const p of postPins) pins.push({ id: `post:${p.id}`, at: p.at, glyph: 'post', colour: POST_COLOUR, title: p.placeName ?? 'Post', size: 30 });
+    for (const p of postPins) pins.push({ id: `post:${p.id}`, at: p.at, glyph: 'post', colour: POST_COLOUR, title: postPlace(p, { events })?.text ?? 'Post', size: 30 });
     for (const s of placeView.places) pins.push({ id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind], title: s.name, size: 32 });
     for (const c of placeView.clusters)
       pins.push(
@@ -253,7 +254,7 @@ export default function TonightScreen() {
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
-  }, [views, placeView, postPins, snapped.key, selected, snapped.centre, snapped.span]);
+  }, [views, events, placeView, postPins, snapped.key, selected, snapped.centre, snapped.span]);
 
   function zoomCluster(id: string) {
     const c = placeView.clusters.find((x) => x.id === id) ?? eventClusters.current.find((x) => x.id === id);
@@ -378,7 +379,7 @@ export default function TonightScreen() {
         layerColour={EVENT_COLOURS[e.type]}
         live={v.phase === 'live'}
         title={e.title}
-        tag={roleTag(v.role, e.filter) ?? null}
+        tag={statusTag(v.status) ?? null}
         meta={metaLine([cardTime(e, now), cardDistance(v, origin), `${e.going.length} going`])}
         detail={notOpenLine(v)}
         onPress={() => openEvent(e.id)}
@@ -393,7 +394,7 @@ export default function TonightScreen() {
         }
         action={
           canGo
-            ? { label: "I'm going", tier: 'primary', haptic: 'success', busy: joining === e.id, onPress: () => imGoing(v) }
+            ? { label: "I'm going", tier: 'secondary', haptic: 'success', busy: joining === e.id, onPress: () => imGoing(v) }
             : { label: 'Open', tier: 'secondary', onPress: () => openEvent(e.id) }
         }
       />
@@ -442,7 +443,7 @@ export default function TonightScreen() {
           titleOnPhoto
           eyebrow="Post"
           layerColour={POST_COLOUR}
-          title={p.placeName ?? 'A post'}
+          title={postPlace(p, { events })?.text ?? 'A post'}
           meta={who ? `@${who.handle}` : undefined}
           overlay={
             <View style={st.closeOnPhoto}>
@@ -524,7 +525,7 @@ export default function TonightScreen() {
   }
 
   const listBody = (
-    <ScrollView contentContainerStyle={st.list} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={st.list} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       {sections((v) => openEvent(v.event.id))}
     </ScrollView>
   );

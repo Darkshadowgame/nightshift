@@ -1,4 +1,5 @@
-import { eventPrimary, mixLine, openToLine, statusLine, statusPill, untilText, whenLine } from '../src/lib/eventAction';
+import { myEventStatus } from '../src/lib/eventView';
+import { eventPrimary, mixLine, openToLine, statusLine, untilText, whenLine } from '../src/lib/eventAction';
 import { classRange, DEFAULT_FILTER, fromVehicleSelection, vehicleSelection } from '../src/lib/invites';
 import type { Build, Crew, NightEvent } from '../src/lib/types';
 
@@ -30,13 +31,15 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
     expect(p).toEqual({ kind: 'waiting', at: at(-60).toISOString() });
     const line = statusLine(event, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-80) }).text;
     expect(line).toMatch(/^Location shows at \d\d:\d\d \(in 20 min\)\.$/);
-    expect(statusPill(p)).toMatch(/^Location at \d\d:\d\d$/);
     expect(JSON.stringify(p) + line).not.toMatch(/unlock|stop/i);
   });
 
   test('not going and hidden: says who sees it and when', () => {
     const p = eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(-120));
     expect(statusLine({ ...event, going: ['host'] }, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-120) }).text).toMatch(/^Location shows at \d\d:\d\d to people going\.$/);
+    // Live, not going: the 4.11 words with no time (it has passed).
+    const live = eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(10));
+    expect(statusLine({ ...event, going: ['host'] }, live, { me: 'me', crews, builds: [], users: [], votes: [], now: at(10) }).text).toBe('Location shows to people going.');
   });
 
   test('not open to your car: why, and Ask to go', () => {
@@ -65,7 +68,12 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
     const v = [{ eventId: 'e', voterId: 'me', category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }];
     const voted = eventPrimary(done, 'me', 'going', crews, b, at(30), v);
     expect(voted.kind).toBe('voted');
-    expect(statusLine(done, voted, { me: 'me', crews, builds: b, users: [], votes: v, now: at(30) }).text).toMatch(/^You voted\. Results at \d\d:\d\d (tomorrow|on \w+)\.$/);
+    expect(statusLine(done, voted, { me: 'me', crews, builds: b, users: [], votes: v, now: at(30) }).text).toMatch(/^Spot, Midlands\. Results (tomorrow|tonight|\w{3}) \d\d:\d\d\.$/);
+    // Checked in never hides the meet point, and the line never repeats "checked in" (the tag says it).
+    const vote = eventPrimary(done, 'me', 'going', crews, b, at(10));
+    expect(statusLine(done, vote, { me: 'me', crews, builds: b, users: [], votes: [], now: at(10) }).text).toMatch(/^Spot, Midlands\. Voting is open until (tomorrow|tonight|\w{3}) \d\d:\d\d\.$/);
+    const early = eventPrimary(done, 'me', 'going', crews, b, at(-10));
+    expect(statusLine(done, early, { me: 'me', crews, builds: b, users: [], votes: [], now: at(-10) }).text).toMatch(/^Spot, Midlands\. Voting opens at \d\d:\d\d\.$/);
     // Before the start, voting isn't open yet: just checked in.
     expect(eventPrimary(done, 'me', 'going', crews, b, at(-10))).toEqual({ kind: 'checkedIn', stopIndex: 0 });
     expect(eventPrimary(done, 'me', 'going', crews, b, at(180 + 25 * 60)).kind).toBe('ended');
@@ -90,7 +98,8 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
   });
 
   test('untilText', () => {
-    expect(untilText(at(60 * 24), at(0))).toMatch(/^\d\d:\d\d tomorrow$/);
+    // 4.10 order: the day, then the clock ("tomorrow 23:00", never "23:00 tomorrow").
+    expect(untilText(at(60 * 24), at(0))).toMatch(/^(tomorrow|Sat|Sun|Mon|Tue|Wed|Thu|Fri) \d\d:\d\d$/);
   });
 });
 
@@ -125,5 +134,18 @@ describe('invite chips', () => {
     expect(classRange(['S'])).toBe('S');
     expect(classRange(['S', 'B'])).toBe('B, S');
     expect(classRange(['A', 'B', 'C'])).toBe('C–A');
+  });
+});
+
+describe('myEventStatus: one status everywhere (Review 12, K3)', () => {
+  test('going, checked in, went, hosting, hosted, none', () => {
+    expect(myEventStatus(event, 'me', crews, at(-30))).toBe('going');
+    expect(myEventStatus({ ...event, checkIns: { me: ['s'] } }, 'me', crews, at(10))).toBe('checkedIn');
+    expect(myEventStatus({ ...event, checkIns: { me: ['s'] } }, 'me', crews, at(400))).toBe('went');
+    expect(myEventStatus(event, 'me', crews, at(400))).toBe('went');
+    expect(myEventStatus(event, 'host', crews, at(10))).toBe('hosting');
+    expect(myEventStatus(event, 'host', crews, at(400))).toBe('hosted');
+    expect(myEventStatus(event, 'stranger', crews, at(10))).toBeNull();
+    expect(myEventStatus({ ...event, cancelled: true }, 'me', crews, at(10))).toBeNull();
   });
 });

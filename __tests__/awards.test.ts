@@ -1,4 +1,4 @@
-import { awardRep, canVote, castVote, categoriesFor, hasLegend, results, votingCloses, winner, type Vote } from '../src/lib/awards';
+import { awardRep, canVote, castVote, categoriesFor, hasLegend, previewResults, results, votingCloses, winner, type Vote } from '../src/lib/awards';
 import { DEFAULT_FILTER } from '../src/lib/invites';
 import type { Build, NightEvent } from '../src/lib/types';
 
@@ -116,5 +116,15 @@ describe('kind-aware trophies and the demo cap (REVIEW-10)', () => {
     const cats = categoriesFor(meet, s.builds, DEMO_TROPHIES);
     expect(cats).toEqual(['best-in-show', 'best-car', 'best-bike']);
     expect(categoriesFor(meet, s.builds)).toEqual(cats);
+  });
+});
+
+describe('previewResults (the demo trophy moment, Review 12 L4)', () => {
+  test('your vote picks each winner, never your own build, before voting closes', () => {
+    const v: Vote[] = [{ eventId: event.id, voterId: 'u1', category: 'best-in-show', buildId: 'b2', at: at(1).toISOString() }];
+    const r = previewResults(v, event, builds, 'u1', at(1));
+    expect(r.find((a) => a.category === 'best-in-show')?.buildId).toBe('b2');
+    expect(r.every((a) => a.ownerId !== 'u1')).toBe(true);
+    expect(results(v, event, builds, at(1))).toEqual([]);
   });
 });

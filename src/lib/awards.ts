@@ -206,3 +206,20 @@ export function hasLegend(awards: Award[], userId: string, now: Date): boolean {
 export function allAwards(votes: Vote[], events: NightEvent[], builds: Build[], now: Date): Award[] {
   return events.flatMap((e) => results(votes, e, builds, now));
 }
+
+/**
+ * The demo's trophy moment (Review 12, L4): the results as they'd look if voting closed now, so a
+ * newcomer sees the trophy reveal straight after voting instead of "tomorrow 23:00". Your vote picks
+ * each winner (the rest of the room is sample people); a trophy you didn't vote on goes to the
+ * build with the most votes, else the first that turned up. Never your own build. Demo only.
+ */
+export function previewResults(votes: Vote[], event: NightEvent, builds: Build[], me: string, at: Date): Award[] {
+  const room = Math.max(MIN_VOTES, Math.round(attendeeIds(event).length / 2));
+  return categoriesFor(event, builds).flatMap((category) => {
+    const options = eligibleFor(category, event, builds).filter((b) => b.ownerId !== me);
+    const mine = votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === category)?.buildId;
+    const top = winner(votes, event, category)?.buildId;
+    const build = options.find((b) => b.id === mine) ?? options.find((b) => b.id === top) ?? options[0];
+    return build ? [{ eventId: event.id, category, buildId: build.id, ownerId: build.ownerId, votes: room, at: at.toISOString() }] : [];
+  });
+}

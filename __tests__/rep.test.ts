@@ -1,5 +1,5 @@
 import { DEFAULT_FILTER } from '../src/lib/invites';
-import { attendedEvents, authorRep, duplicateBuild, vehicleKey, hostedEvents, levelFor, repForLevel, repLedger, REP, routeScore, validRatings, ROUTE_APPROVED_REP } from '../src/lib/rep';
+import { attendedEvents, authorRep, duplicateBuild, vehicleKey, hostedEvents, levelFor, levelName, LEVEL_NAMES, repForLevel, repLedger, REP, routeScore, validRatings, ROUTE_APPROVED_REP } from '../src/lib/rep';
 import { publicProfile } from '../src/lib/people';
 import type { Build, NightEvent } from '../src/lib/types';
 
@@ -208,5 +208,13 @@ describe('drive length tiers', () => {
     expect(aRep({ kind: 'spot', miles: 100, authorId: 'x', completions: drivers, ratings })).toBe(
       aRep({ kind: 'spot', authorId: 'x', completions: drivers, ratings }),
     );
+  });
+});
+
+describe('level names (Review 12)', () => {
+  test('every level on the ladder has its own name', () => {
+    const top = LEVEL_NAMES[LEVEL_NAMES.length - 1].from;
+    const names = Array.from({ length: top }, (_, i) => levelName(i + 1));
+    expect(new Set(names).size).toBe(names.length);
   });
 });

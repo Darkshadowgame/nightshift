@@ -1,5 +1,5 @@
 import { endTime, EVENT_LABELS } from '../lib/events';
-import type { EventView, Role } from '../lib/eventView';
+import { STATUS_LABELS, type EventView, type MyEventStatus } from '../lib/eventView';
 import { distanceText, meetDistance, type DistanceOrigin } from '../lib/format';
 import { milesBetween } from '../lib/geo';
 import { NOT_OPEN, PLACE_NAMES } from '../lib/glossary';
@@ -10,15 +10,23 @@ import { EVENT_COLOURS, SPOT_COLOURS, COLOR } from '../theme';
 import { ListRow, PhotoCard, Tag, metaLine, type CardAction, type EntityTag, type Photo, type TagTone } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
-/** A role as one status tag: Going, Hosting, Requested. Nothing for an event you can simply go to. */
-export function roleTag(role: Role, _filter?: { everyone: boolean }): EntityTag | undefined {
-  const tags: Partial<Record<Role, EntityTag>> = {
-    host: { label: 'Hosting', tone: 'info' },
-    going: { label: 'Going', tone: 'success' },
-    requested: { label: 'Requested', tone: 'warning' },
-    declined: { label: 'Declined', tone: 'danger' },
-  };
-  return tags[role];
+const STATUS_TONES: Record<MyEventStatus, TagTone> = {
+  hosting: 'info',
+  hosted: 'neutral',
+  checkedIn: 'success',
+  went: 'neutral',
+  going: 'success',
+  requested: 'warning',
+  declined: 'danger',
+};
+
+/**
+ * Your status with an event as its one tag (Review 12, K3): Going, Checked in, Went, Hosting…
+ * from `myEventStatus()` (eventView.ts). Tonight, the event page, Search and Me all use this, so the
+ * same meet says the same thing everywhere. Nothing for an event you have no part in.
+ */
+export function statusTag(status: MyEventStatus | null | undefined): EntityTag | undefined {
+  return status ? { label: STATUS_LABELS[status], tone: STATUS_TONES[status] } : undefined;
 }
 
 /**
@@ -96,7 +104,7 @@ export function EventEntityCard({
       layerColour={EVENT_COLOURS[e.type]}
       live={v.phase === 'live'}
       title={e.title}
-      tag={tag ?? roleTag(v.role, e.filter) ?? null}
+      tag={tag ?? statusTag(v.status) ?? null}
       meta={metaLine([cardTime(e, now), cardDistance(v, origin), `${e.going.length} going`])}
       detail={notOpenLine(v)}
       finished={done}
@@ -110,7 +118,7 @@ export function EventEntityCard({
 /** An event as a row (This week, Later, notifications): pin, title, "Tomorrow 20:00 · about 9 mi", tag. */
 export function EventRow({ view: v, now, origin, onPress }: { view: EventView; now: Date; origin?: DistanceOrigin | null; onPress: () => void }) {
   const e = v.event;
-  const tag = roleTag(v.role, e.filter);
+  const tag = statusTag(v.status);
   return (
     <ListRow
       leading={{ pin: e.type, colour: v.phase === 'over' ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}

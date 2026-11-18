@@ -8,11 +8,13 @@ import { Avatar, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, 
 import { LadderSheet } from '../../components/LadderSheet';
 import { NoticeBell } from '../../components/NoticeBell';
 import { useRep } from '../../components/Rep';
+import { statusTag } from '../../components/TonightCards';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { lastBrought } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { EVENT_LABELS, endTime, isHost, phaseOf } from '../../lib/events';
+import { myEventStatus } from '../../lib/eventView';
 import { SCREEN_TITLES } from '../../lib/glossary';
 import { attendedEvents, levelLabel } from '../../lib/rep';
 import { useStore } from '../../lib/store';
@@ -130,9 +132,8 @@ export default function Me() {
         {next.length ? (
           <View>
             {next.map((e, i) => {
-              // TODO(K3): use myEventStatus + STATUS_LABELS (src/lib/eventView.ts, agent X) once it's on main, so Me,
-              // Tonight and the event page share one status. Until then this matches it: Hosting / Checked in / Going.
-              const label = host(e) ? 'Hosting' : checkedIn(e) ? 'Checked in' : 'Going';
+              // K3: the one status (myEventStatus), the same tag as Tonight's card and the event page.
+              const tag = statusTag(myEventStatus(e, me, crews, now)) ?? { label: 'Going', tone: 'success' as const };
               return (
                 <View key={e.id}>
                   {i ? <RowDivider /> : null}
@@ -140,7 +141,7 @@ export default function Me() {
                     leading={{ pin: e.type, colour: COLOR.text.primary }}
                     title={e.title}
                     subtitle={metaLine([EVENT_LABELS[e.type], timeOf(e)])}
-                    trailing={<Tag label={label} tone={host(e) ? 'info' : 'success'} />}
+                    trailing={<Tag label={tag.label} tone={tag.tone} />}
                     onPress={() => openEvent(e.id)}
                   />
                 </View>

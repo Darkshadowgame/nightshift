@@ -238,7 +238,7 @@ function Gallery() {
           <LocationLine state="shown" point="Leisure park car park" town="Tamworth" note="Check-in opens at 21:30." />
           <LocationLine state="rolling" point="Ventura retail park" />
           <LocationLine state="host" time="21:30" leadMinutes={60} />
-          <LocationLine done text="You're checked in. Voting is open until 23:00 tomorrow." />
+          <LocationLine text="Leisure park car park, Tamworth. Voting is open until tomorrow 23:00." />
           <Caption>The 4.11 words only. The one countdown on a screen ("(in 20 min)", under an hour only).</Caption>
         </Group>
 

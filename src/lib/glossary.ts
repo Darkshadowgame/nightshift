@@ -147,7 +147,8 @@ export function locationSentence({ state, time, minutesTo, point, town, leadMinu
   const at = time ?? 'the start';
   switch (state) {
     case 'notGoing':
-      return `Location shows at ${at} to people going.`;
+      // A meet that's already on: the time has passed, so no time ("Location shows to people going.").
+      return time ? `Location shows at ${time} to people going.` : 'Location shows to people going.';
     case 'hidden':
       return minutesTo != null && minutesTo > 0 && minutesTo < 60 ? `Location shows at ${at} (in ${Math.ceil(minutesTo)} min).` : `Location shows at ${at}.`;
     case 'shown':

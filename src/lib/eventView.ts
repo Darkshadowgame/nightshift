@@ -13,10 +13,47 @@ export function canJoinDirectly(role: Role): boolean {
   return role === 'host' || role === 'going' || role === 'invited' || role === 'public';
 }
 
+/**
+ * Where this user stands with one event, in one word (Review 12, K3). The ONE source for the status
+ * tag on Tonight's cards and rows, the event page's hero, Search and Me, so a meet never says Going
+ * in one place and Checked in in another.
+ *
+ * hosting / hosted: you host it (before or after it ends) · checkedIn: you checked in and it hasn't
+ * ended · went: it ended and you were going or checked in · going: you said you're going ·
+ * requested / declined: you asked to go · null: none of these.
+ */
+export type MyEventStatus = 'hosting' | 'hosted' | 'checkedIn' | 'went' | 'going' | 'requested' | 'declined';
+
+export function myEventStatus(event: NightEvent, me: string, crews: Crew[], now: Date): MyEventStatus | null {
+  const phase = phaseOf(event, now);
+  const over = phase === 'over';
+  if (isHost(event, me, crews)) return over ? 'hosted' : 'hosting';
+  const checkedIn = (event.checkIns[me] ?? []).length > 0;
+  if (phase === 'cancelled') return null;
+  if (checkedIn) return over ? 'went' : 'checkedIn';
+  if (event.going.includes(me)) return over ? 'went' : 'going';
+  if (hasRequested(event, me)) return 'requested';
+  if (event.declined?.includes(me)) return 'declined';
+  return null;
+}
+
+/** The words for each status, as the tag shows them. */
+export const STATUS_LABELS: Record<MyEventStatus, string> = {
+  hosting: 'Hosting',
+  hosted: 'Hosted',
+  checkedIn: 'Checked in',
+  went: 'Went',
+  going: 'Going',
+  requested: 'Requested',
+  declined: 'Declined',
+};
+
 export interface EventView {
   event: NightEvent;
   role: Role;
   phase: Phase;
+  /** Your status with it (myEventStatus): the tag every surface shows. */
+  status: MyEventStatus | null;
   /** Index of the stop to show on the map, or -1 when only the area may be shown. */
   shownStop: number;
 }
@@ -45,7 +82,7 @@ export function viewEvent(event: NightEvent, me: string, crews: Crew[], users: U
       break;
     }
   }
-  return { event, role, phase, shownStop };
+  return { event, role, phase, shownStop, status: myEventStatus(event, me, crews, now) };
 }
 
 /**
