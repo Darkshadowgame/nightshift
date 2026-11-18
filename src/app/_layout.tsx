@@ -54,8 +54,6 @@ function Gate() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      {/* Feedback works for everyone: signed out (the sign-in screen), the demo and signed in. */}
-      <Stack.Screen name="feedback" options={{ title: title(T.feedback), presentation: 'modal' }} />
       <Stack.Protected guard={signedOut}>
         <Stack.Screen name="signin" options={{ headerShown: false }} />
       </Stack.Protected>
@@ -96,7 +94,15 @@ function Gate() {
         <Stack.Screen name="rate" options={{ title: title(T.rateBuilds) }} />
         <Stack.Screen name="moderation" options={{ title: title(T.moderation) }} />
         <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
+        <Stack.Screen name="credits" options={{ title: title('Credits') }} />
       </Stack.Protected>
+      {/*
+        Feedback works for everyone: signed out (the sign-in screen), the demo and signed in.
+        Declared last, and every other route is declared above: when the screen on show becomes
+        protected (Try the demo, signing in or out), the router opens the first route still
+        allowed, which must be sign-in, welcome or the map, never a modal or Credits.
+      */}
+      <Stack.Screen name="feedback" options={{ title: title(T.feedback), presentation: 'modal' }} />
     </Stack>
   );
 }
