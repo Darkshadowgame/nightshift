@@ -38,7 +38,7 @@ export function eventClock(view: EventView, now: Date): { label: string; value: 
 }
 
 /**
- * When the place unlocks for this person, if it's still hidden from them and
+ * When the location shows for this person, if it's still hidden from them and
  * they'd see it at the reveal (going, or invited and could go). Null otherwise.
  */
 export function unlocksIn(view: EventView, now: Date): string | null {

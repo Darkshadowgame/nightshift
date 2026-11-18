@@ -6,7 +6,7 @@ import { Pin, type Glyph } from './Pin';
 
 /** The core loop, in three lines (docs/SPEC.md): what's on, go with your car, get recognised. */
 const PITCH: { glyph: Glyph; text: string }[] = [
-  { glyph: 'meet', text: 'Meets, cruises and rolling meets near you tonight. Stops unlock for the people going.' },
+  { glyph: 'meet', text: 'Meets, cruises and rolling meets near you tonight. The exact meet point is shown to the people going, about an hour before.' },
   { glyph: 'car', text: "Say you're going with your car or bike, then check in when you get there." },
   { glyph: 'show', text: 'Vote for the best builds, win trophies, and come back next week.' },
 ];

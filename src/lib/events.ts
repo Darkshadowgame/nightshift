@@ -122,8 +122,9 @@ export function phaseOf(event: NightEvent, now: Date): Phase {
  * - Hosts see everything.
  * - Shows and track days are public.
  * - Others must be going and past the reveal time.
- * - Rolling meets: stop 0 like a meet; later stops only once the host has moved on to them,
- *   and only for people checked in at the stop before.
+ * - Rolling meets: the meet point it's at now, for everyone going (so a late joiner can find it
+ *   and check in). Never one ahead of it. A meet point it has left stays shown to people who
+ *   were there (checked in at it or at the one before); stop 0 always.
  */
 export function canSeeStop(event: NightEvent, stopIndex: number, userId: string, crews: Crew[], now: Date): boolean {
   const stop = event.stops[stopIndex];
@@ -134,10 +135,10 @@ export function canSeeStop(event: NightEvent, stopIndex: number, userId: string,
   if (!event.going.includes(userId)) return false;
   if (now.getTime() < revealTime(event).getTime()) return false;
   if (event.type !== 'rolling') return true;
-  if (stopIndex === 0) return true;
   if (stopIndex > event.currentStop) return false;
-  const previous = event.stops[stopIndex - 1];
-  return (event.checkIns[userId] ?? []).includes(previous.id);
+  if (stopIndex === event.currentStop || stopIndex === 0) return true;
+  const mine = event.checkIns[userId] ?? [];
+  return mine.includes(stop.id) || mine.includes(event.stops[stopIndex - 1].id);
 }
 
 /** The stop people should head to now (or the start, before it begins). */
@@ -175,12 +176,12 @@ export function canCheckIn(
   if (now < checkInOpensAt(event)) return { ok: false, reason: 'Check-in opens 30 minutes before the start.' };
   if (!event.going.includes(userId) && !isHost(event, userId, crews))
     return { ok: false, reason: "Tap Going first, then check in." };
-  if (!canSeeStop(event, stopIndex, userId, crews, now)) return { ok: false, reason: "You can't see this stop yet." };
+  if (!canSeeStop(event, stopIndex, userId, crews, now)) return { ok: false, reason: "You can't see this meet point yet." };
   if (event.type === 'rolling' && stopIndex !== event.currentStop)
-    return { ok: false, reason: 'The meet has moved on. Check in at the current stop.' };
+    return { ok: false, reason: 'The meet has moved on. Check in at the meet point it is at now.' };
   const stop = event.stops[stopIndex];
   if (!skipDistance) {
-    if (!position) return { ok: false, reason: 'Turn on location so the app can see you are at the stop.' };
+    if (!position) return { ok: false, reason: 'Turn on location so the app can see you are at the meet point.' };
     if (stop.at && milesBetween(position, stop.at) > CHECK_IN_RADIUS_MILES)
       return { ok: false, reason: `You need to be within ${CHECK_IN_RADIUS_MILES} mi of ${stop.name}.` };
   }
@@ -224,7 +225,7 @@ export function moveOn(event: NightEvent, now: Date): NightEvent {
   if (event.type !== 'rolling') throw new Error('Only rolling meets move on.');
   const nextIndex = event.currentStop + 1;
   const planned = event.stops[nextIndex];
-  if (!planned || !planned.at) throw new Error('This is the last planned stop.');
+  if (!planned || !planned.at) throw new Error('This is the last planned meet point.');
   const stops = [...event.stops];
   stops[nextIndex] = { ...planned, revealedAt: now.toISOString() };
   return { ...event, stops, currentStop: nextIndex };
@@ -277,7 +278,7 @@ function stopHasCheckIns(event: NightEvent, stopId: string): boolean {
 
 /** Can the hosts still change the plan of this rolling meet? */
 export function canChangePlan(event: NightEvent, now: Date): Permission {
-  if (event.type !== 'rolling') return { ok: false, reason: 'Only rolling meets can change stops on the night.' };
+  if (event.type !== 'rolling') return { ok: false, reason: 'Only rolling meets can change meet points on the night.' };
   const phase = phaseOf(event, now);
   if (phase === 'cancelled') return { ok: false, reason: 'This event was cancelled.' };
   if (phase === 'over') return { ok: false, reason: 'This event has finished.' };
@@ -287,8 +288,8 @@ export function canChangePlan(event: NightEvent, now: Date): Permission {
 /** Can this stop be moved? Stops the meet has left, or with people checked in, are fixed. */
 export function canMoveStop(event: NightEvent, stopIndex: number): Permission {
   const stop = event.stops[stopIndex];
-  if (!stop) return { ok: false, reason: 'That stop no longer exists.' };
-  if (stopIndex < event.currentStop) return { ok: false, reason: 'The meet has already left this stop.' };
+  if (!stop) return { ok: false, reason: 'That meet point no longer exists.' };
+  if (stopIndex < event.currentStop) return { ok: false, reason: 'The meet has already left this meet point.' };
   if (stopHasCheckIns(event, stop.id)) return { ok: false, reason: 'People have checked in here, so it can’t be moved.' };
   return { ok: true };
 }
@@ -296,8 +297,8 @@ export function canMoveStop(event: NightEvent, stopIndex: number): Permission {
 /** Only stops the meet hasn't reached yet can be removed. */
 export function canRemoveStop(event: NightEvent, stopIndex: number): Permission {
   const stop = event.stops[stopIndex];
-  if (!stop) return { ok: false, reason: 'That stop no longer exists.' };
-  if (stopIndex <= event.currentStop) return { ok: false, reason: 'You can only remove stops the meet hasn’t reached. Move this one instead.' };
+  if (!stop) return { ok: false, reason: 'That meet point no longer exists.' };
+  if (stopIndex <= event.currentStop) return { ok: false, reason: 'You can only remove meet points the meet hasn’t reached. Move this one instead.' };
   return { ok: true };
 }
 
@@ -330,21 +331,21 @@ export function applyPlanChange(
   let placeName = '';
 
   if (change.kind === 'add') {
-    const name = change.name.trim() || `Stop ${stops.length + 1}`;
+    const name = change.name.trim() || `Meet point ${stops.length + 1}`;
     zone = banZoneAt(change.at, zones);
     placeName = name;
     stops.push({ id: makeId(), name, at: change.at });
-    text = `Added ${name} as stop ${stops.length}.`;
+    text = `Added ${name} as meet point ${stops.length}.`;
   } else {
     const index = stops.findIndex((s) => s.id === change.stopId);
-    if (index < 0) throw new Error('That stop no longer exists.');
+    if (index < 0) throw new Error('That meet point no longer exists.');
     const stop = stops[index];
     if (change.kind === 'rename') {
       const name = change.name.trim();
-      if (!name) throw new Error('Give the stop a name.');
+      if (!name) throw new Error('Give the meet point a name.');
       if (name === stop.name) throw new Error('That’s the same name.');
       stops[index] = { ...stop, name };
-      text = `Renamed stop ${index + 1} from ${stop.name} to ${name}.`;
+      text = `Renamed meet point ${index + 1} from ${stop.name} to ${name}.`;
     } else if (change.kind === 'move') {
       const ok = canMoveStop(event, index);
       if (!ok.ok) throw new Error(ok.reason);
@@ -352,12 +353,12 @@ export function applyPlanChange(
       placeName = stop.name;
       const miles = stop.at ? milesBetween(stop.at, change.at) : 0;
       stops[index] = { ...stop, at: change.at };
-      text = `Moved stop ${index + 1}, ${stop.name}${miles >= 0.1 ? `, by ${miles.toFixed(1)} mi` : ''}.`;
+      text = `Moved meet point ${index + 1}, ${stop.name}${miles >= 0.1 ? `, by ${miles.toFixed(1)} mi` : ''}.`;
     } else {
       const ok = canRemoveStop(event, index);
       if (!ok.ok) throw new Error(ok.reason);
       stops.splice(index, 1);
-      text = `Removed stop ${index + 1}, ${stop.name}.`;
+      text = `Removed meet point ${index + 1}, ${stop.name}.`;
     }
   }
 
@@ -388,7 +389,7 @@ export function canEditEvent(event: NightEvent, now: Date): Permission {
   if (now.getTime() >= new Date(event.startsAt).getTime())
     return {
       ok: false,
-      reason: event.type === 'rolling' ? 'It has started. Use Change the plan to edit stops.' : 'It has started, so it can’t be edited.',
+      reason: event.type === 'rolling' ? 'It has started. Use Change the plan to edit meet points.' : 'It has started, so it can’t be edited.',
     };
   if (Object.values(event.checkIns).some((ids) => ids.length > 0))
     return { ok: false, reason: 'People have already checked in, so it can’t be edited.' };

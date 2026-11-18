@@ -181,10 +181,10 @@ export function crewFromRow(r: CrewRow): Crew {
  */
 export function stopFromRow(r: StopRow): Stop {
   if (!r.visible || r.lat === null || r.lng === null) {
-    return { id: r.id, name: `Stop ${r.position + 1}`, ...(r.revealed_at ? { revealedAt: r.revealed_at } : {}) };
+    return { id: r.id, name: `Meet point ${r.position + 1}`, ...(r.revealed_at ? { revealedAt: r.revealed_at } : {}) };
   }
   return {
-    id: r.id, name: r.name ?? `Stop ${r.position + 1}`, at: { lat: r.lat, lng: r.lng },
+    id: r.id, name: r.name ?? `Meet point ${r.position + 1}`, at: { lat: r.lat, lng: r.lng },
     ...(r.note ? { note: r.note } : {}), ...(r.revealed_at ? { revealedAt: r.revealed_at } : {}),
   };
 }

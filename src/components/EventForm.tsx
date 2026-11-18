@@ -9,8 +9,8 @@ import { isCrewHost } from '../lib/crews';
 import { banZoneAt, EVENT_LABELS, isPublicType, stopsFromDraft, type DraftStop } from '../lib/events';
 import { formatWhen, plural } from '../lib/format';
 import { fitRegion } from '../lib/geo';
-import { GOING, UNLOCK } from '../lib/glossary';
-import { classRange, DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, vehicleSelection, type VehicleKey } from '../lib/invites';
+import { GOING, leadText, LOCATION, MEET_POINT } from '../lib/glossary';
+import { classRange, DEFAULT_FILTER, describeFilter, fromVehicleSelection, hostLeftOut, invitees, leftOutMessage, vehicleSelection, type VehicleKey } from '../lib/invites';
 import { geocoderAvailable, nameForPlace, townForPlace } from '../lib/location';
 import { shouldAutoName } from '../lib/placeNames';
 import { nearestRegion } from '../lib/profile';
@@ -21,7 +21,7 @@ import { startFrom, type DayChoice } from '../lib/when';
 import { zonePins, zoneShapes } from '../lib/zones';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Callout, Field, MediaFrame, TextField } from './Detail';
-import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, ListRow, Press, RowDivider, Section, StatBlock, SwitchRow } from './ds';
+import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, Press, RowDivider, Section, StatBlock, SwitchRow } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -32,10 +32,10 @@ const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
 const TYPE_HINTS: Record<EventType, string> = {
-  cruise: 'A planned route with regroup stops. The whole route unlocks for everyone going at the time you pick.',
-  rolling: 'A meet in several parts. Every stop is placed now; the next one unlocks only for people checked in at the current one, when a host moves on.',
-  meet: 'One stop. Pick somewhere with permission, or a meet spot that welcomes meets.',
-  show: 'A public show. The stop is visible to everyone.',
+  cruise: 'A planned route with regroup points. The whole route is shown to everyone going at the time you pick.',
+  rolling: 'A meet in several parts. Every meet point is placed now. People going see the one it is at; a host moves it on to the next.',
+  meet: 'One meet point. Pick somewhere with permission, or a meet spot that welcomes meets.',
+  show: 'A public show. The venue is visible to everyone.',
   trackday: 'A circuit or sprint venue. Public, and the only place lap times count.',
 };
 const DAY_CHOICES: DayChoice[] = [
@@ -156,6 +156,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   const friends = meUser.crewId ? users.filter((u) => u.id !== me && u.crewId === meUser.crewId) : [];
   const myBuilds = builds.filter((b) => b.ownerId === me);
   const leftOut = !isPublicType(type) && hostLeftOut(filter, myBuilds);
+  const leftOutWhy = leftOut ? leftOutMessage(filter, myBuilds) : null;
 
   function setStop(i: number, patch: Partial<DraftStop>) {
     setStops((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -190,10 +191,10 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
 
   function stopLabel(i: number, n: number) {
     if (type === 'cruise') return i === 0 ? 'Start' : i === n - 1 ? 'Finish' : `Regroup ${i}`;
-    if (type === 'rolling') return `Stop ${i + 1}`;
-    if (type === 'show') return 'Show venue';
+    if (type === 'rolling') return `Meet point ${i + 1}`;
+    if (type === 'show') return 'Venue';
     if (type === 'trackday') return 'Circuit';
-    return 'Meet spot';
+    return 'Meet point';
   }
 
   /** What's missing on a step, if anything (shown under Next, which stays tappable). */
@@ -203,7 +204,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
     if (s === 2) {
       if (!visibleStops[0]?.at) return `Choose the ${stopLabel(0, visibleStops.length).toLowerCase()} on the map.`;
       if (type === 'cruise' && placed.length < 2) return 'A cruise needs at least a start and a finish.';
-      if (type === 'rolling' && visibleStops.some((x) => !x.at)) return 'Place every stop on the map. Rolling meets are planned in full before they start.';
+      if (type === 'rolling' && visibleStops.some((x) => !x.at)) return 'Place every meet point on the map. Rolling meets are planned in full before they start.';
     }
     return null;
   }
@@ -282,7 +283,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         : [],
     );
   const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: COLOR.action.primary, dashed: true }] : [];
-  // The preview frames the stops placed so far, or opens on home.
+  // The preview frames the meet points placed so far, or opens on home.
   const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.9 };
   function openPicker(i: number) {
     setActiveStop(i);
@@ -290,7 +291,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   }
 
   const startText = chosen.ok ? formatWhen(chosen.start.toISOString(), now) : '';
-  const revealText = isPublicType(type) ? 'Visible to everyone' : reveal === 0 ? 'The stop unlocks straight away for people going' : `The stop unlocks ${reveal} min before the start`;
+  const revealText = isPublicType(type) ? 'Visible to everyone' : `${LOCATION.lead(reveal)}, to people going`;
   const coHostNames = coHosts.map((h) => displayHandle(users.find((u) => u.id === h)?.handle ?? h));
 
   // ---------------------------------------------------------------------------
@@ -323,12 +324,12 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       {!isPublicType(type) ? (
         <>
           <ChoiceGroup
-            label={UNLOCK.setting}
-            options={REVEAL_CHOICES.map((m) => ({ key: String(m), label: m === 0 ? 'Straight away' : `${m} min before` }))}
+            label={LOCATION.setting}
+            options={REVEAL_CHOICES.map((m) => ({ key: String(m), label: m === 0 ? 'At the start' : `${leadText(m)} before` }))}
             value={String(reveal)}
             onChange={(k) => setReveal(Number(k))}
           />
-          <DsText v="secondary">Until it unlocks, people going only see the rough area.</DsText>
+          <DsText v="secondary">{LOCATION.toGoing}. Until then they only see the area.</DsText>
         </>
       ) : null}
     </>
@@ -337,7 +338,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   const whereStep = (
     <>
       <DsText v="secondary">
-        Choose {singlePlace ? 'the stop' : 'each stop'} on the map: move it until the crosshair is on it. It's named after the street or the known place it's on; edit the name if you like. Each stop is checked against meet bans.
+        Choose {singlePlace ? `the ${MEET_POINT.one}` : `each ${MEET_POINT.one}`} on the map: move it until the crosshair is on it. It's named after the street or the known place it's on; edit the name if you like. Each one is checked against meet bans.
       </DsText>
       <Press onPress={() => openPicker(activeStop)} label={`Open the map to place the ${stopLabel(activeStop, visibleStops.length).toLowerCase()}`} feedback="card">
         <MediaFrame height={180}>
@@ -369,7 +370,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
               value={st.name}
               onChangeText={(name) => setStop(i, { name })}
               onFocus={() => setActiveStop(i)}
-              placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : 'Name this stop'}
+              placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : `Name this ${MEET_POINT.one}`}
               accessibilityLabel={`${label} name`}
             />
             {st.at && autoNames.current[st.key] && st.name === autoNames.current[st.key] ? <DsText v="caption">Named from the map. Edit it if people know it by another name.</DsText> : null}
@@ -402,7 +403,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       })}
       {!singlePlace ? (
         <Button
-          label={type === 'cruise' ? 'Add a regroup stop' : 'Add a stop'}
+          label={type === 'cruise' ? 'Add a regroup point' : `Add a ${MEET_POINT.one}`}
           icon="plus"
           tier="tertiary"
           onPress={() => {
@@ -417,7 +418,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       {bans.length ? <DsText v="caption">Nightshift only warns. As the host, you're responsible for checking the order.</DsText> : null}
       <Field
         label="Area name"
-        hint={isPublicType(type) ? 'Shown with the event.' : `Until the stop unlocks, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any stop.`}
+        hint={isPublicType(type) ? 'Shown with the event.' : `Until the location shows, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any ${MEET_POINT.one}.`}
       >
         <TextField value={areaName} onChangeText={setAreaName} placeholder={`e.g. ${suggestedAreaName}`} maxLength={30} accessibilityLabel="Area name" />
       </Field>
@@ -472,7 +473,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       {remote && serverCount === 'offline' ? <DsText v="caption">Can't count while offline.</DsText> : null}
       {leftOut ? (
         <Callout tone="warning" title="None of your own builds fits this invite">
-          Check Vehicles, Class, Minimum mods and Brands, or you'll be hosting something you can't bring a car or bike to.
+          {leftOutWhy} Change it, or you'll be hosting something you can't bring a car or bike to.
         </Callout>
       ) : null}
       {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
@@ -502,7 +503,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         <RowDivider />
         <ReviewRow
           label="Where"
-          value={`${placed.length ? placed.map((p, i) => p.name || stopLabel(i, visibleStops.length)).join(' → ') : 'No stop placed'} · shown as ${areaName.trim() || suggestedAreaName}`}
+          value={`${placed.length ? placed.map((p, i) => p.name || stopLabel(i, visibleStops.length)).join(' → ') : 'Nothing placed'} · shown as ${areaName.trim() || suggestedAreaName}`}
           onEdit={() => go(2)}
         />
         <RowDivider />
@@ -515,15 +516,15 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         />
       </View>
       <Callout tone="info" title={inviteSentence(filter, peopleCount)}>
-        {isPublicType(type) ? 'Anyone can see it and the stop.' : `${revealText}. Until then, people see the rough area and a circle about ${areaRadiusMiles * 2} mi across.`}
+        {isPublicType(type) ? 'Anyone can see it and where it is.' : `${revealText}. Until then, people see the area and a circle about ${areaRadiusMiles * 2} mi across.`}
       </Callout>
       {leftOut ? (
         <Callout tone="warning" title="None of your own builds fits this invite" right={<Button tier="tertiary" size="sm" label="Change" onPress={() => go(3)} />}>
-          You'd be hosting something you can't bring your own car or bike to.
+          {leftOutWhy} You'd be hosting something you can't bring your own car or bike to.
         </Callout>
       ) : null}
       {bans.map(({ st, zone }) => (
-        <ZoneNotice key={st.key} zone={zone!} subject={st.name || 'A stop'} />
+        <ZoneNotice key={st.key} zone={zone!} subject={st.name || `A ${MEET_POINT.one}`} />
       ))}
     </>
   );
@@ -559,8 +560,8 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         visible={picking !== null}
         mode="point"
         title={picking !== null ? `Place the ${stopLabel(picking, visibleStops.length).toLowerCase()}` : ''}
-        hint="Move the map so the crosshair is on the stop, or tap a grey pin to use a known place."
-        confirmLabel={picking !== null && visibleStops[picking]?.at ? 'Move it here' : 'Set stop here'}
+        hint={`Move the map so the crosshair is on the ${picking !== null ? stopLabel(picking, visibleStops.length).toLowerCase() : MEET_POINT.one}, or tap a grey pin to use a known place.`}
+        confirmLabel={picking !== null ? `${visibleStops[picking]?.at ? 'Move' : 'Set'} ${stopLabel(picking, visibleStops.length).toLowerCase()} here` : ''}
         start={(picking !== null && (visibleStops[picking]?.at ?? [...visibleStops.slice(0, picking)].reverse().find((x) => x.at)?.at)) || placed[0]?.at || meUser.home}
         span={0.08}
         initial={picking !== null && visibleStops[picking]?.at ? [visibleStops[picking].at!] : []}
@@ -589,8 +590,17 @@ function inviteSentence(filter: InviteFilter, people: string): string {
   return `Invites ${kinds}${cls}${mods}${brands} within ${filter.radiusMiles} mi: ${people} people match.`;
 }
 
+/** Label above the value, as in every other form (REVIEW-7 inconsistency 13). */
 function ReviewRow({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
-  return <ListRow title={value} subtitle={label} trailing={<Button tier="tertiary" size="sm" label="Edit" accessibilityLabel={`Edit ${label}`} onPress={onEdit} />} />;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.sm, minHeight: 56 }}>
+      <View style={{ flex: 1, gap: SPACING.xxs }}>
+        <DsText v="label">{label}</DsText>
+        <DsText v="body">{value}</DsText>
+      </View>
+      <Button tier="tertiary" size="sm" label="Edit" accessibilityLabel={`Edit ${label}`} onPress={onEdit} />
+    </View>
+  );
 }
 
 /** Where you are in the five steps. Earlier steps can be tapped to go back. */

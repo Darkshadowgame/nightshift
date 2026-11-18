@@ -152,7 +152,7 @@ describe('rule-checked actions go to their RPCs', () => {
   it('checkIn: sends the GPS fix (never stored) and refuses without one', async () => {
     const m = mockClient({ rpcs: { check_in: () => null } });
     const { repo } = setup(m);
-    await expect(repo.checkIn(EV, 0)).rejects.toThrow('Turn on location so the app can see you are at the stop.');
+    await expect(repo.checkIn(EV, 0)).rejects.toThrow('Turn on location so the app can see you are at the meet point.');
     await repo.checkIn(EV, 0, BUILD, { lat: 52.4801, lng: -1.8801 });
     expect(m.rpcCalls.find(([n]) => n === 'check_in')![1]).toEqual({ p_event_id: EV, p_position: 0, p_lat: 52.4801, p_lng: -1.8801, p_build_id: BUILD });
   });
@@ -439,7 +439,7 @@ describe('reads', () => {
     expect(s.onboarded).toBe(true);
     expect(s.users.find((u) => u.id === ME)).toMatchObject({ home: { lat: 52.21, lng: 0.12 }, travelMiles: 40 });
     expect(s.users.find((u) => u.id === DAN)).toMatchObject({ crewId: 'c1', home: { lat: 0, lng: 0 } });
-    expect(s.events[0]).toMatchObject({ id: EV, going: [ME], hostIds: [DAN], stops: [{ id: S0, name: 'Stop 1' }] });
+    expect(s.events[0]).toMatchObject({ id: EV, going: [ME], hostIds: [DAN], stops: [{ id: S0, name: 'Meet point 1' }] });
     expect(s.events[0].stops[0].at).toBeUndefined();
     expect(s.builds[0].photos[0]).toBe(SIGN(`${DAN}/builds/${BUILD}/a.jpg`));
     expect(s.notices.map((n) => n.id)).toEqual(['n1', 'local']);

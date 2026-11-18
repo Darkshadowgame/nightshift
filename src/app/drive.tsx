@@ -150,7 +150,7 @@ export default function DriveScreen() {
           Nothing to navigate to
         </DsText>
         <DsText v="secondary" style={{ textAlign: 'center' }}>
-          The stop isn't unlocked for you yet, or it's gone.
+          The meet point isn't shown to you yet, or it's gone.
         </DsText>
         <Button block label="Back" tier="secondary" size="lg" onPress={() => router.back()} />
       </View>

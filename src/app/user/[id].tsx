@@ -112,7 +112,7 @@ export default function UserScreen() {
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
             <Tag label={`Level ${rep.level.level}`} />
-            {p.legend ? <Tag label="Legend" tone="info" /> : null}
+            {p.legend ? <Tag label="Legend this week" tone="info" /> : null}
             {SAMPLE_PEOPLE.includes(p.id) ? <Tag label="Sample" /> : null}
             {!isMe && state === 'connected' ? <Tag label={CONNECT.connected} tone="success" /> : null}
           </View>

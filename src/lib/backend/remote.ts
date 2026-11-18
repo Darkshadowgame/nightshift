@@ -578,7 +578,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       await quietly(refreshEvent(eventId));
     },
     async checkIn(eventId, stopIndex, buildId, position) {
-      if (!position) throw new Error('Turn on location so the app can see you are at the stop.');
+      if (!position) throw new Error('Turn on location so the app can see you are at the meet point.');
       await rpc('check_in', { p_event_id: eventId, p_position: stopIndex, p_lat: position.lat, p_lng: position.lng, p_build_id: buildId && isUuid(buildId) ? buildId : null });
       await quietly(refreshEvent(eventId));
     },
@@ -591,7 +591,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       const told = (audience ?? []).filter((u) => u !== uid).length;
       const notice: Notice = {
         id: uuid(), eventId, at: new Date().toISOString(), read: false, kind: 'host',
-        text: `${event.title} moved on to ${stop?.name ?? 'the next stop'}. ${told === 1 ? '1 person' : `${told} people`} checked in at ${event.stops[event.currentStop]?.name ?? 'the last stop'} ${told === 1 ? 'has' : 'have'} been told.`,
+        text: `${event.title} moved on to ${stop?.name ?? 'the next meet point'}. ${told === 1 ? '1 person' : `${told} people`} checked in at ${event.stops[event.currentStop]?.name ?? 'the last meet point'} ${told === 1 ? 'has' : 'have'} been told.`,
       };
       set((s) => ({ ...s, notices: [notice, ...s.notices] }));
     },

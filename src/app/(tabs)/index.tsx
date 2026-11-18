@@ -31,7 +31,7 @@ import {
   useToast,
 } from '../../components/ds';
 import { EventEntityCard, PlaceEntityCard, roleTag } from '../../components/TonightCards';
-import { EVENT_LABELS } from '../../lib/events';
+import { checkInWindowOpen, EVENT_LABELS } from '../../lib/events';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
 import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
@@ -57,7 +57,7 @@ import { answerProblem, confirmations, KIND_INFO, reportAge, sourceCredit, type 
 import { useRoadReports, useRoads } from '../../lib/roadStore';
 import { usePostPins } from '../../lib/communityStore';
 import { shortAgo } from '../../lib/format';
-import { openPlaceLabel, PLACE_NAMES, roleLabel, UNLOCK } from '../../lib/glossary';
+import { LOCATION, openPlaceLabel, PLACE_NAMES, roleLabel } from '../../lib/glossary';
 import { clearJustOnboarded, justOnboarded } from '../../lib/firstRun';
 import { ALL_LAYERS, CORE_LAYERS, layerOn, toggleLayer as toggledLayer, type CoreLayer, type Layer } from '../../lib/mapLayers';
 import { ART, C, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, ROAD_COLOUR, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
@@ -88,7 +88,7 @@ const KEY_ROWS: { glyph: Glyph; colour: string; label: string }[] = [
   { glyph: 'meet', colour: EVENT_COLOURS.meet, label: 'Meet, cruise or rolling meet' },
   { glyph: 'show', colour: EVENT_COLOURS.show, label: 'Show' },
   { glyph: 'trackday', colour: EVENT_COLOURS.trackday, label: 'Track day' },
-  { glyph: 'locked', colour: EVENT_COLOURS.meet, label: `Event, ${UNLOCK.locked}` },
+  { glyph: 'locked', colour: EVENT_COLOURS.meet, label: `Event, ${LOCATION.hidden}` },
   { glyph: 'drive', colour: SPOT_COLOURS.drive, label: 'Drive' },
   { glyph: 'photo', colour: SPOT_COLOURS.photo, label: 'Photo spot' },
   { glyph: 'track', colour: SPOT_COLOURS.track, label: 'Track' },
@@ -358,7 +358,7 @@ export default function TonightScreen() {
           }
         } else {
           circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour });
-          const what = v.role === 'requested' ? `requested, ${UNLOCK.locked}` : UNLOCK.locked;
+          const what = v.role === 'requested' ? `requested, ${LOCATION.hidden}` : LOCATION.hidden;
           pins.push({ id: `ev:${e.id}`, at: e.area, glyph: 'locked', colour, title: `${e.title} (${what})`, size: 34 });
         }
       }
@@ -489,8 +489,8 @@ export default function TonightScreen() {
         v.shownStop >= 0
           ? e.stops[v.shownStop].name
           : v.role === 'requested'
-            ? `${e.areaName} · ${UNLOCK.locked} · requested, waiting for a host`
-            : `${e.areaName} · ${UNLOCK.locked}`;
+            ? `${e.areaName} · ${LOCATION.hidden} · requested, waiting for a host`
+            : `${e.areaName} · ${LOCATION.hidden}`;
       const clock = eventClock(v, now);
       return {
         title: e.title,
@@ -561,12 +561,19 @@ export default function TonightScreen() {
   };
   const myBuilds = builds.filter((b) => b.ownerId === me);
   const introBuild = myBuilds.find((b) => b.id === intro?.buildId) ?? myBuilds[myBuilds.length - 1];
-  /** The pick for a first-timer: live now or the soonest tonight, that you can go to. */
+  /** The pick for a first-timer: a plain meet open for check-in now, else live now, else the soonest, that you can go to. */
   const pick = useMemo(() => {
     if (!intro) return null;
     const t = now.getTime();
     const open = views.filter((v) => (v.role === 'invited' || v.role === 'public' || v.role === 'going') && new Date(v.event.startsAt).getTime() < t + 24 * 3_600_000);
-    return open.find((v) => v.phase === 'live') ?? open.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt))[0] ?? null;
+    const checkInNow = open.filter((v) => checkInWindowOpen(v.event, now));
+    return (
+      checkInNow.find((v) => v.event.type === 'meet') ??
+      checkInNow[0] ??
+      open.find((v) => v.phase === 'live') ??
+      open.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt))[0] ??
+      null
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intro, views]);
   const [joining, setJoining] = useState(false);
@@ -725,7 +732,7 @@ export default function TonightScreen() {
         )}
       </Section>
       <EventSection title="Live now" list={lists.live} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
-      <EventSection title="Tonight" list={lists.tonight} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
+      <EventSection title={laterLabel(now)} list={lists.tonight} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
       <EventSection title="This week" list={lists.week} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
       {nothingOn ? <EmptyState variant="inline" title="Nothing on near you this week." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} /> : null}
     </ScrollView>
@@ -881,7 +888,7 @@ export default function TonightScreen() {
                     </View>
                   ) : null}
                   <EventSection title="Live now" list={lists.live} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
-                  <EventSection title="Tonight" list={lists.tonight} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
+                  <EventSection title={laterLabel(now)} list={lists.tonight} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
                   <EventSection
                     title="This week"
                     list={lists.week.slice(0, 6)}
@@ -970,6 +977,12 @@ function MapButton({ onPress, label, lit, children }: { onPress: () => void; lab
 }
 
 /** A titled run of event cards, without the ones already shown elsewhere. Nothing at all when it's empty. */
+/** The next-12-hours list says "Later today" in the daytime and "Tonight" from 5 pm (REVIEW-7 bug 9). */
+function laterLabel(now: Date): string {
+  const h = now.getHours();
+  return h >= 5 && h < 17 ? 'Later today' : 'Tonight';
+}
+
 function EventSection({
   title,
   list,
@@ -1009,7 +1022,7 @@ function LeadRow({ lead, now, miles, onPress }: { lead: EventView; now: Date; mi
       leading={{ pin: lead.shownStop >= 0 ? e.type : 'locked', colour: EVENT_COLOURS[e.type] }}
       title={e.title}
       subtitle={metaLine([clock.live ? 'Live now' : 'Next up', EVENT_LABELS[e.type], role?.label])}
-      meta={metaLine([clock.live ? `Ends in ${clock.value}` : `Starts in ${clock.value}`, `${e.going.length} going`, locked ? UNLOCK.in(locked) : formatMiles(miles)])}
+      meta={metaLine([clock.live ? `Ends in ${clock.value}` : `Starts in ${clock.value}`, `${e.going.length} going`, locked ? LOCATION.showsIn(locked) : formatMiles(miles)])}
       onPress={onPress}
       accessibilityHint="Shows it on the map"
     />

@@ -22,19 +22,24 @@ const TOPICS: { title: string; lines: string[] }[] = [
     ],
   },
   {
-    title: 'Stops unlock',
+    title: 'Meet points',
     lines: [
-      'Until a meet is close, you only see its rough area (a circle on the map). The exact stop unlocks for the people going, usually an hour before.',
-      'A rolling meet has more than one stop. The hosts move it on, and the next stop unlocks for the people who checked in.',
+      'Until a meet is close, you only see its area (a circle on the map). The exact meet point is shown to the people going, usually 1 hour before. The event says when ("Location shows at 21:30").',
+      'A rolling meet has more than one meet point. The hosts move it on. Everyone going sees the one it is at now, so you can join late; the ones after it stay hidden.',
     ],
   },
   {
     title: 'Check in',
-    lines: ["When you get there, check in. It needs you to be there (within about half a mile). It's how the next stop unlocks for you, and who can vote."],
+    lines: [
+      "When you get there, check in. It needs you to be there: within half a mile of an event's meet point, or 0.2 mi of a photo spot or a drive's checkpoint. Checking in is what lets you vote.",
+    ],
   },
   {
     title: 'Trophies and votes',
-    lines: ['After a meet, the people who checked in vote for the best builds for a day. Winners get trophies, and the best get a cover shoot.'],
+    lines: [
+      'After a meet, the people who checked in vote for the best builds for a day. Winners get trophies, and the best get a cover shoot.',
+      'Best in show also makes you a Legend for a week: a badge on your profile and next to your name.',
+    ],
   },
   {
     title: 'Classes',
@@ -42,7 +47,10 @@ const TOPICS: { title: string; lines: string[] }[] = [
   },
   {
     title: 'Rep and levels',
-    lines: ['You earn rep for turning up, hosting, trophies, drives and places people use. Your level is a plain count of it, nothing more.'],
+    lines: [
+      'You earn rep for turning up (150 for each event you check in at), hosting, trophies, drives and places people use. Your level is a plain count of it, nothing more.',
+      "Class is about your build, not you: S to D from power to weight. Level and rep are about you. Legend is this week's best in show.",
+    ],
   },
   {
     title: 'Privacy',

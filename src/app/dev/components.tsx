@@ -324,7 +324,7 @@ function Gallery() {
             status={{ label: 'Live', tone: 'live' }}
             sample
             meta={metaLine(['Ends 01:30', '7 going', '3.2 mi'])}
-            detail="Starts at Tamworth services, then 2 more stops"
+            detail="Starts at Tamworth services, then 2 more meet points"
             chips={[{ label: 'Cars' }, { label: 'Class S A', raw: true }]}
             action={{ label: 'Check in', onPress: noop }}
             onPress={noop}
@@ -373,7 +373,7 @@ function Gallery() {
             stats={[
               { value: '1:42', unit: 'h', label: 'Ends in', tone: 'live' },
               { value: '7', label: 'Going' },
-              { value: '2/3', label: 'Stop' },
+              { value: '2/3', label: 'Point' },
             ]}
           />
         </Group>

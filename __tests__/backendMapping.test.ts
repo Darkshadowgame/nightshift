@@ -114,7 +114,7 @@ describe('crews', () => {
 
 describe('events', () => {
   it('a locked stop has no place and a neutral name, so the app can never show it', () => {
-    expect(stopFromRow(stop(1, false))).toEqual({ id: S1, name: 'Stop 2' });
+    expect(stopFromRow(stop(1, false))).toEqual({ id: S1, name: 'Meet point 2' });
     expect(stopFromRow(stop(0, true))).toEqual({ id: S0, name: 'Place 0', at: { lat: 52.48, lng: -1.88 } });
   });
 

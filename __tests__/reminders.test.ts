@@ -37,10 +37,12 @@ describe('which reminders an event needs', () => {
     expect(r.every((x) => x.url === '/event/e1')).toBe(true);
   });
 
-  test('never names the stop on the lock screen', () => {
+  test('never names the meet point on the lock screen, and uses plain words', () => {
     for (const r of remindersFor(meet(), 'me', crews)) {
       expect(r.title + r.body).not.toContain('Secret car park');
+      expect(r.title + r.body).not.toMatch(/unlock|\bstop\b/i);
     }
+    expect(remindersFor(meet(), 'me', crews)[0].title).toMatch(/: location shown$/);
   });
 
   test('hosts (including the crew owner) get them too, with host wording', () => {
@@ -161,7 +163,8 @@ describe('moved on', () => {
     const e = checkIn(rolling(), 0, 'me');
     const r = movedOnReminder(e, 'me', NOW);
     expect(r?.kind).toBe('moved');
-    expect(r?.body).toContain('Stop 2');
+    expect(r?.body).toContain('Meet point 2');
+    expect(r?.body).not.toMatch(/unlock/i);
     expect(r!.title + r!.body).not.toContain('Hidden Two');
     expect(movedOnReminder(rolling(), 'me', NOW)).toBeNull();
     expect(movedOnReminder(meet(), 'me', NOW)).toBeNull();

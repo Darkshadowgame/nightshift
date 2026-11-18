@@ -5,6 +5,7 @@ import { canSeeStop, checkInOpensAt, checkInWindowOpen, endTime, hasRequested, i
 import type { Role } from './eventView';
 import { countdown } from './hud';
 import { formatTime, formatWhen, plural } from './format';
+import { LOCATION } from './glossary';
 import type { Build, ClassLetter, Crew, NightEvent } from './types';
 
 /**
@@ -16,8 +17,13 @@ export type EventPrimary =
   | { kind: 'join'; request: boolean }
   | { kind: 'requested' }
   | { kind: 'declined' }
-  /** Going, before check-in. `ready`: the stop is visible, so there's somewhere to go. `hint` says why not. */
-  | { kind: 'navigate'; ready: boolean; hint: string }
+  /**
+   * Going, the location isn't shown to you yet: no button, a state line ("Location shows at 21:30")
+   * and a secondary Remind me. `at` is when it shows (ISO).
+   */
+  | { kind: 'waiting'; at: string; line: string; detail: string }
+  /** Going, the meet point is shown, before check-in opens. `hint` says when check-in opens. */
+  | { kind: 'navigate'; hint: string }
   /** Going, check-in is open and the current stop is visible. */
   | { kind: 'checkin'; stopIndex: number }
   /** Checked in at the current stop, nothing to vote on yet. */
@@ -47,14 +53,19 @@ export function eventPrimary(event: NightEvent, me: string, role: Role, crews: C
   const visible = canSeeStop(event, current, me, crews, now);
   if (checkedInHere) return { kind: 'checkedIn', stopIndex: current };
   if (visible && checkInWindowOpen(event, now)) return { kind: 'checkin', stopIndex: current };
-  if (!visible) {
-    const hint =
-      event.type === 'rolling' && current > 0
-        ? 'The next stop unlocks when you check in here and the hosts move on.'
-        : `The stop unlocks for people going in ${countdown(revealTime(event), now)}.`;
-    return { kind: 'navigate', ready: false, hint };
+  if (!visible || !stop?.at) {
+    const at = revealTime(event);
+    if (!stop?.at || at.getTime() <= now.getTime()) {
+      return { kind: 'waiting', at: at.toISOString(), line: 'The host is still placing the meet point', detail: "You'll see it here once it's placed." };
+    }
+    return {
+      kind: 'waiting',
+      at: at.toISOString(),
+      line: LOCATION.showsAt(formatTime(at.toISOString())),
+      detail: `In ${countdown(at, now)}. ${LOCATION.toGoing}, ${LOCATION.lead(event.revealMinutesBefore).replace(/^Location shows /, '')}. Until then you see the area.`,
+    };
   }
-  return { kind: 'navigate', ready: !!stop?.at, hint: `Check-in opens in ${countdown(checkInOpensAt(event), now)}, 30 minutes before the start.` };
+  return { kind: 'navigate', hint: `Check-in opens in ${countdown(checkInOpensAt(event), now)}, 30 minutes before the start.` };
 }
 
 /**

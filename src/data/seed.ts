@@ -209,7 +209,7 @@ function minutesFrom(now: Date, minutes: number): string {
 
 /** Seed event ids: everything else in the events list was made on the phone. */
 export const SEED_EVENT_IDS = [
-  'ev-rolling-live', 'ev-rolling-host', 'ev-meet-soon', 'ev-cruise-peak', 'ev-meet-tam', 'ev-bike-cat', 'ev-past-snowdome', 'ev-show-don', 'ev-track-curb',
+  'ev-meet-now', 'ev-rolling-live', 'ev-rolling-host', 'ev-meet-soon', 'ev-cruise-peak', 'ev-meet-tam', 'ev-bike-cat', 'ev-past-snowdome', 'ev-show-don', 'ev-track-curb',
 ];
 
 /** Rough areas are worked out the same way as for events made in the app: fuzzed, never on a stop. */
@@ -245,8 +245,20 @@ function events(now: Date, home: LatLng): NightEvent[] {
   const [sprint] = nearest(PLACES.filter(isSprint), home, 1);
   return withAreas([
     {
-      id: 'ev-rolling-live', type: 'rolling', title: 'Late rolling meet',
-      description: 'Three stops, all planned in advance. Check in at each stop to unlock the next one.',
+      // The first thing a new demo user is pointed at ("Start here"): one meet point, on now, check-in open.
+      id: 'ev-meet-now', type: 'meet', title: 'Car park meet-up',
+      description: 'Open to any car or bike. On now: say you\'re going, head over, check in, then vote for the best builds.',
+      startsAt: minutesFrom(now, -20), endsAt: minutesFrom(now, 160),
+      area: home, areaName: NEAR_YOU,
+      stops: [{ id: 'mn-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['em'],
+      filter: { ...DEFAULT_FILTER, minMods: 0, radiusMiles: 30 },
+      going: ['em', 'jord', 'bex', 'lew'],
+      checkIns: { em: ['mn-1'], jord: ['mn-1'], bex: ['mn-1'] },
+    },
+    {
+      id: 'ev-rolling-live', type: 'rolling', title: 'Rolling meet',
+      description: 'Three meet points, all planned in advance. The hosts move it on, and everyone going sees where it is now.',
       startsAt: minutesFrom(now, -45), endsAt: minutesFrom(now, 180),
       area: home, areaName: NEAR_YOU,
       stops: [
@@ -269,13 +281,13 @@ function events(now: Date, home: LatLng): NightEvent[] {
         { id: 'rh-2', name: 'Country park car park', at: here(52.5711, -1.6745), note: 'Planned, hidden until you move on' },
       ],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['mo'], crewId: 'nr',
-      filter: { ...DEFAULT_FILTER, classes: ['S', 'A', 'B'], radiusMiles: 25 },
+      filter: { ...DEFAULT_FILTER, classes: ['S', 'A', 'B'], minMods: 3, radiusMiles: 25 },
       going: ['mo', 'dan', 'aimee', 'priya', 'cal'], checkIns: {},
       requests: ['ash'],
     },
     {
       // An invite a few hours away that you aren't going to yet: tap Going to try the reminders and the reveal.
-      id: 'ev-meet-soon', type: 'meet', title: 'Coffee and cars, late edition',
+      id: 'ev-meet-soon', type: 'meet', title: 'Coffee and cars',
       description: 'Open to any car or bike nearby. Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: minutesFrom(now, 180), endsAt: minutesFrom(now, 330),
       area: home, areaName: NEAR_YOU,
@@ -291,7 +303,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       startsAt: at(now, 2, 22, 30), area: d1.at, areaName: d1.region, routeMiles: Math.round(d1.miles ?? 20),
       stops: driveStops('pc', d1),
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['dan'], crewId: 'nr',
-      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], radiusMiles: 100 },
+      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], minMods: 3, radiusMiles: 100 },
       going: ['dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
       requests: ['jord', 'nina'],
     },

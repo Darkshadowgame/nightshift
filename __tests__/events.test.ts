@@ -38,15 +38,33 @@ describe('rolling meets', () => {
     expect(canSeeStop(e, 2, 'host', crews, NOW)).toBe(false); // no place yet
   });
 
-  test('moving on reveals the next stop only to people checked in at the last one', () => {
+  test('moving on shows the new meet point to everyone going; only people checked in are told', () => {
     let e = rolling();
     e = checkIn(e, 0, 'a');
+    expect(canSeeStop(e, 1, 'a', crews, NOW)).toBe(false); // never one ahead
     e = moveOn(e, NOW);
     expect(e.currentStop).toBe(1);
     expect(e.stops[1].revealedAt).toBe(NOW.toISOString());
     expect(canSeeStop(e, 1, 'a', crews, NOW)).toBe(true);
-    expect(canSeeStop(e, 1, 'b', crews, NOW)).toBe(false);
-    expect(moveOnAudience(e, 0)).toEqual(['a']);
+    expect(canSeeStop(e, 1, 'b', crews, NOW)).toBe(true); // going, joined late: can find it now
+    expect(canSeeStop(e, 1, 'stranger', crews, NOW)).toBe(false);
+    expect(moveOnAudience(e, 0)).toEqual(['a']); // the "moved on" notice
+  });
+
+  test('a late joiner sees and checks in at the current meet point, never the next one', () => {
+    const s3 = { id: 's3', name: 'Three', at: { lat: 52.7, lng: -1.8 } };
+    const e = rolling({ stops: [...rolling().stops.slice(0, 2), s3], currentStop: 1, checkIns: { a: ['s1'] }, going: ['a', 'b', 'late'] });
+    expect(canSeeStop(e, 1, 'late', crews, NOW)).toBe(true);
+    expect(canSeeStop(e, 2, 'late', crews, NOW)).toBe(false);
+    expect(canSeeStop(e, 2, 'a', crews, NOW)).toBe(false);
+    expect(canCheckIn(e, 1, 'late', crews, NOW, null, true).ok).toBe(true);
+    expect(canCheckIn(e, 2, 'late', crews, NOW, null, true).ok).toBe(false);
+    // A meet point it has left: shown to people who were there, not to the late joiner.
+    const later = moveOn(checkIn(e, 1, 'late'), NOW);
+    expect(canSeeStop(later, 1, 'late', crews, NOW)).toBe(true);
+    expect(canSeeStop(later, 1, 'b', crews, NOW)).toBe(false);
+    expect(canSeeStop(later, 0, 'b', crews, NOW)).toBe(true);
+    expect(moveOnAudience(later, 1)).toEqual(['late']);
   });
 
   test('moving on stops at the last planned stop', () => {

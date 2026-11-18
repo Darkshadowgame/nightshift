@@ -142,7 +142,7 @@ select results_eq(format('select position from public.event_stops where event_id
   $$ values (0), (1), (2) $$, 'change_plan: positions close up after a removal');
 select throws_ok(format($$ select public.change_plan(%L, 'remove', %L) $$, current_setting('t.event'),
     (select id from public.event_stops where event_id = current_setting('t.event')::uuid and position = 0)),
-  'P0001', 'You can only remove stops the meet hasn''t reached. Move this one instead.', 'change_plan: cannot remove the current stop');
+  'P0001', 'You can only remove meet points the meet hasn''t reached. Move this one instead.', 'change_plan: cannot remove the current stop');
 select is((select count(*) from public.chat_messages where event_id = current_setting('t.event')::uuid and body = 'Hosts changed the plan')::int, 4,
   'change_plan: every change posts "Hosts changed the plan" (never where)');
 select throws_ok(format('select public.move_on(%L)', current_setting('t.event')), 'P0001', 'The meet hasn''t started yet.', 'move_on: only once the meet is live');

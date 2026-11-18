@@ -99,7 +99,7 @@ export default function Me() {
         <RowDivider />
         <ListRow title={SCREEN_TITLES.feedback} subtitle="A bug, an idea, or something wrong on the map" onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
         <RowDivider />
-        <ListRow title={SCREEN_TITLES.help} subtitle="Stops, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
+        <ListRow title={SCREEN_TITLES.help} subtitle="Meet points, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
       </View>
     </ScrollView>
   );

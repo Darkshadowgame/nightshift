@@ -54,7 +54,7 @@ function nearest(p: LatLng, stops: LatLng[]): number {
  * small moves of a stop usually don't change it (the grid absorbs them).
  */
 export function roughArea(stops: LatLng[], key: string): LatLng {
-  if (stops.length === 0) throw new Error('Place a stop first.');
+  if (stops.length === 0) throw new Error('Place a meet point first.');
   const c = centroid(stops);
   const snapped = { lat: Math.round(c.lat / GRID_LAT) * GRID_LAT, lng: Math.round(c.lng / GRID_LNG) * GRID_LNG };
   const h = hash(`${key}:${snapped.lat.toFixed(3)},${snapped.lng.toFixed(3)}`);

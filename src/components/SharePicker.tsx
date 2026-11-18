@@ -82,7 +82,7 @@ export function SharePicker({ visible, onPick, onClose }: { visible: boolean; on
           })
         )}
       </View>
-      <DsText v="caption">Events are shared with their rough area only. Stops stay locked to the people going.</DsText>
+      <DsText v="caption">Events are shared with their area only. The meet point is only shown to people going.</DsText>
     </Sheet>
   );
 }

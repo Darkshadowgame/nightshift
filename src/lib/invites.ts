@@ -7,7 +7,8 @@ export const DEFAULT_FILTER: InviteFilter = {
   cars: true,
   bikes: true,
   classes: [],
-  minMods: 3,
+  // No minimum: everyone is invited unless the host narrows it (REVIEW-7 problem 3).
+  minMods: 0,
   brands: [],
   radiusMiles: 25,
 };
@@ -18,6 +19,34 @@ export const DEFAULT_FILTER: InviteFilter = {
  */
 export function hostLeftOut(filter: InviteFilter, hostBuilds: readonly Build[]): boolean {
   return !filter.everyone && hostBuilds.length > 0 && !hostBuilds.some((b) => buildMatches(b, filter));
+}
+
+/**
+ * Which rows of the invite leave this build out, in plain words:
+ * ["Minimum mods 3+ (it has 0)"]. Empty when it fits.
+ */
+export function rowsLeavingOut(build: Build, filter: InviteFilter): string[] {
+  if (filter.everyone) return [];
+  const out: string[] = [];
+  if ((build.kind === 'car' && !filter.cars) || (build.kind === 'bike' && !filter.bikes)) out.push(`Vehicles: ${filter.cars ? 'cars' : 'bikes'} only (it's a ${build.kind})`);
+  if (filter.classes.length > 0 && !filter.classes.includes(classOf(build))) out.push(`Class ${classRange(filter.classes)} (it's class ${classOf(build)})`);
+  if (build.mods.length < filter.minMods) out.push(`Minimum mods ${filter.minMods}+ (it has ${build.mods.length})`);
+  if (filter.brands.length > 0 && !filter.brands.some((b) => b.trim().toLowerCase() === build.make.trim().toLowerCase())) out.push(`Brands (it's a ${build.make})`);
+  return out;
+}
+
+/**
+ * The warning when the host's own builds are all left out, naming the row:
+ * "Minimum mods 3+ leaves out your Civic Type R (it has 0)." Uses the build that's closest to fitting.
+ */
+export function leftOutMessage(filter: InviteFilter, hostBuilds: readonly Build[]): string | null {
+  if (!hostLeftOut(filter, hostBuilds)) return null;
+  const [best] = [...hostBuilds].map((b) => ({ b, rows: rowsLeavingOut(b, filter) })).sort((x, y) => x.rows.length - y.rows.length);
+  if (!best || best.rows.length === 0) return null;
+  const rows = best.rows.map((r) => r.replace(/ \(.*\)$/, ''));
+  const why = best.rows.map((r) => r.match(/\((.*)\)$/)?.[1]).filter(Boolean).join(', ');
+  const verb = rows.length === 1 ? 'leaves' : 'leave';
+  return `${rows.join(' and ')} ${verb} out your ${best.b.make} ${best.b.model} (${why}).`;
 }
 
 export function buildMatches(build: Build, filter: InviteFilter): boolean {

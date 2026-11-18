@@ -25,15 +25,20 @@ describe('eventPrimary: the one action, by state', () => {
     expect(eventPrimary({ ...event, going: ['host'], declined: ['me'] }, 'me', 'declined', crews, [], at(-300)).kind).toBe('declined');
   });
 
-  test('going, before the reveal: Navigate, not ready, says when it unlocks', () => {
+  test('going, before the location shows: no disabled button, a state line saying when', () => {
     const p = eventPrimary(event, 'me', 'going', crews, [], at(-120));
-    expect(p).toEqual({ kind: 'navigate', ready: false, hint: 'The stop unlocks for people going in 1h.' });
+    expect(p).toEqual({
+      kind: 'waiting',
+      at: at(-60).toISOString(),
+      line: expect.stringMatching(/^Location shows at \d\d:\d\d$/),
+      detail: 'In 1h. Shown to people going, 1 h before. Until then you see the area.',
+    });
+    expect(JSON.stringify(p)).not.toMatch(/unlock|stop/i);
   });
 
-  test('going, unlocked, before check-in opens: Navigate is ready', () => {
+  test('going, the location is shown, before check-in opens: Navigate', () => {
     const p = eventPrimary(event, 'me', 'going', crews, [], at(-50));
-    expect(p.kind).toBe('navigate');
-    expect(p.kind === 'navigate' && p.ready).toBe(true);
+    expect(p).toEqual({ kind: 'navigate', hint: 'Check-in opens in 20m, 30 minutes before the start.' });
   });
 
   test('check-in opens 30 minutes before the start', () => {
@@ -56,14 +61,12 @@ describe('eventPrimary: the one action, by state', () => {
     expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(200)).kind).toBe('none');
   });
 
-  test('a rolling meet: the next stop waits for the hosts to move on', () => {
+  test('a rolling meet: a late joiner goes straight to the meet point it is at now', () => {
     const rolling: NightEvent = {
       ...event, type: 'rolling', currentStop: 1,
       stops: [{ id: 's1', name: 'One', at: { lat: 52.6, lng: -1.7 } }, { id: 's2', name: 'Two', at: { lat: 52.7, lng: -1.7 }, revealedAt: at(20).toISOString() }],
     };
-    const p = eventPrimary(rolling, 'me', 'going', crews, [], at(30));
-    expect(p.kind).toBe('navigate');
-    expect(p.kind === 'navigate' && p.hint).toMatch(/hosts move on/);
+    expect(eventPrimary(rolling, 'me', 'going', crews, [], at(30))).toEqual({ kind: 'checkin', stopIndex: 1 });
     expect(eventPrimary({ ...rolling, checkIns: { me: ['s1'] } }, 'me', 'going', crews, [], at(30))).toEqual({ kind: 'checkin', stopIndex: 1 });
   });
 });

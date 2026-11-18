@@ -109,7 +109,7 @@ export const ZONE_SAMPLE_NOTE = 'Sample — check the current order.';
 
 /** What it means for someone hosting there. */
 export const ZONE_HOST_NOTE =
-  "Nightshift only warns: it never stops you placing a stop here. As the host you're responsible for checking the current order and for where you send people.";
+  "Nightshift only warns: it never stops you placing a meet point here. As the host you're responsible for checking the current order and for where you send people.";
 
 export function zoneKind(z: Pick<BanZone, 'kind' | 'note'>): ZoneKind {
   if (z.kind) return z.kind;

@@ -25,6 +25,7 @@ import {
   SwitchRow,
   Tag,
   type Stat,
+  useToast,
 } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { UnlockReveal } from '../../components/motion';
@@ -54,12 +55,12 @@ import {
 } from '../../lib/events';
 import { newlyUnlocked, roleOf } from '../../lib/eventView';
 import { formatRelative, formatTime, formatWhen, plural } from '../../lib/format';
-import { GOING, roleLabel, UNLOCK, WHERE } from '../../lib/glossary';
+import { GOING, LOCATION, MEET_POINT, roleLabel, WHERE } from '../../lib/glossary';
 import { countdown } from '../../lib/hud';
 import { describeFilter } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
 import { planForEvent } from '../../lib/navPlan';
-import { askPermission } from '../../lib/notify';
+import { askPermission, notificationsSupported } from '../../lib/notify';
 import { lastPage, PAGE as LIST_PAGE } from '../../lib/paging';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
@@ -88,6 +89,8 @@ export default function EventScreen() {
   const errorAt = (at: ErrorAt) => (error?.at === at ? error.text : null);
   const [busy, setBusy] = useState(false);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
+  const [reminded, setReminded] = useState(false);
+  const toast = useToast();
   const [unlock, setUnlock] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -103,7 +106,7 @@ export default function EventScreen() {
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
   const votesAt = useRef(0);
 
-  // "Stop unlocked": the first time this person can see a stop, play the reveal once.
+  // "Location shown": the first time this person can see a meet point, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
   const freshKey = fresh.join(',');
   const { markUnlockSeen } = store;
@@ -261,6 +264,22 @@ export default function EventScreen() {
     }
   }
 
+  /** "Remind me" while the location is hidden: turn reminders on, ask once, and say when. */
+  async function remindMe(at: string) {
+    const time = formatTime(at);
+    if (!settings.reminders) store.setSettings({ reminders: true });
+    const allowed = notificationsSupported ? await askPermission().catch(() => false) : false;
+    store.refreshReminders();
+    setReminded(true);
+    toast({
+      message: allowed
+        ? `We'll remind you at ${time}.`
+        : notificationsSupported
+          ? `Allow notifications for Nightshift in Settings to get it on your lock screen. It'll be in Notifications at ${time}.`
+          : `It'll be in Notifications at ${time}.`,
+    });
+  }
+
   async function doShare() {
     setMenu(false);
     try {
@@ -279,12 +298,11 @@ export default function EventScreen() {
   const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
   const when = whenLine(ev, now);
   const unlockAt = revealTime(ev);
-  const hiddenNow = !currentVisible && !isPublicType(ev.type);
   const where = currentVisible && currentStop
     ? ev.type === 'cruise'
       ? ev.stops[0].name
       : `At ${currentStop.name}`
-    : `${ev.areaName} · rough area`;
+    : `${ev.areaName} · ${(going || host) && unlockAt > now ? LOCATION.showsAt(formatTime(unlockAt.toISOString())).toLowerCase() : LOCATION.hidden}`;
   const checkedIn = Object.values(ev.checkIns).filter((x) => x.length > 0).length;
   const roleText = roleLabel(role);
   const status =
@@ -304,10 +322,10 @@ export default function EventScreen() {
         phase === 'live' ? { label: 'Ends in', value: countdown(ev.endsAt ?? new Date(new Date(ev.startsAt).getTime() + 3 * 3600_000).toISOString(), now), tone: 'live' } : { label: 'Starts in', value: countdown(ev.startsAt, now) },
         phase === 'live' ? { label: 'Checked in', value: `${checkedIn}/${ev.going.length}` } : { label: 'Going', value: String(ev.going.length) },
         ev.type === 'rolling' || ev.type === 'cruise'
-          ? { label: ev.type === 'cruise' ? 'Stops' : 'Stop', value: ev.type === 'cruise' ? String(ev.stops.length) : `${ev.currentStop + 1} of ${ev.stops.length}` }
+          ? { label: ev.type === 'cruise' ? 'Points' : 'Point', value: ev.type === 'cruise' ? String(ev.stops.length) : `${ev.currentStop + 1} of ${ev.stops.length}` }
           : !isPublicType(ev.type) && unlockAt > now
-            ? { label: 'Unlocks in', value: countdown(unlockAt, now) }
-            : { label: 'Stop', value: currentVisible ? 'Unlocked' : 'Locked' },
+            ? { label: 'Location in', value: countdown(unlockAt, now) }
+            : { label: 'Location', value: currentVisible ? LOCATION.shown : LOCATION.hiddenValue },
       ];
 
   const hostIds = ev.hostIds;
@@ -458,7 +476,7 @@ export default function EventScreen() {
   const checkedInTitle = currentStop ? `Checked in at ${currentStop.name}` : 'Checked in';
   const checkedInBody =
     ev.type === 'rolling' && nextStop
-      ? 'The next stop unlocks for you when the hosts move on.'
+      ? 'When the hosts move on, the next meet point shows here and you get a notice.'
       : phase === 'live'
         ? 'Vote for trophies from the builds that turned up.'
         : 'Voting for trophies opens when it starts.';
@@ -472,7 +490,7 @@ export default function EventScreen() {
       primaryBlock = (
         <View style={{ gap: SPACING.md }}>
           <Callout tone="warning" title={`${GOING.requestSent}. A host will say yes or no.`}>
-            {`If they say yes, the stop unlocks for you with everyone else going.${role === 'invited' && mine.length > 1 ? ' Bring a build the invite covers and you can go straight in.' : ''}`}
+            {`If they say yes, you'll see the ${MEET_POINT.one} with everyone else going.${role === 'invited' && mine.length > 1 ? ' Bring a build the invite covers and you can go straight in.' : ''}`}
           </Callout>
           {changePicker ?? bringingRow}
           <Button
@@ -488,19 +506,32 @@ export default function EventScreen() {
     case 'declined':
       primaryBlock = <Callout tone="neutral">A host said no to this one. Keep an eye out for the next.</Callout>;
       break;
+    case 'waiting':
+      // Locked: a plain state line and a secondary Remind me, never a greyed-out primary (REVIEW-7 problem 5).
+      primaryBlock = (
+        <View style={{ gap: SPACING.md }}>
+          <View style={{ gap: SPACING.xxs }} accessibilityRole="text">
+            <DsText v="bodyStrong">{primary.line}</DsText>
+            <DsText v="secondary">{primary.detail}</DsText>
+          </View>
+          {new Date(primary.at) > now ? (
+            reminded ? (
+              <DsText v="caption" accessibilityLiveRegion="polite">
+                Reminder on for {formatTime(primary.at)}.
+              </DsText>
+            ) : (
+              <Button label="Remind me" tier="secondary" block onPress={() => remindMe(primary.at)} />
+            )
+          ) : null}
+          {changePicker ?? bringingRow}
+        </View>
+      );
+      break;
     case 'navigate':
       primaryBlock = (
         <View style={{ gap: SPACING.md }}>
-          {navPlan || !primary.ready ? (
-            <NavLaunch
-              target={{ kind: 'event', id: ev.id }}
-              to={navPlan?.stops[0]?.at ?? ev.area}
-              kind="primary"
-              disabled={!primary.ready || !navPlan}
-              hint={!primary.ready ? primary.hint : undefined}
-            />
-          ) : null}
-          {primary.ready ? <DsText v="caption">{primary.hint}</DsText> : null}
+          {navPlan ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navPlan.stops[0].at} kind="primary" /> : null}
+          <DsText v="caption">{primary.hint}</DsText>
           {changePicker ?? bringingRow}
         </View>
       );
@@ -509,12 +540,12 @@ export default function EventScreen() {
       primaryBlock = (
         <View style={{ gap: SPACING.md }}>
           <Button
-            label={`Check in at ${currentStop?.name ?? 'the stop'}`}
+            label={`Check in at ${currentStop?.name ?? `the ${MEET_POINT.one}`}`}
             size="lg"
             block
             busy={busy}
             onPress={doCheckIn}
-            accessibilityHint="Checks you are within half a mile of the stop"
+            accessibilityHint={`Checks you are within half a mile of the ${MEET_POINT.one}`}
           />
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {checkInLine}
@@ -605,7 +636,7 @@ export default function EventScreen() {
                 <DsText v="bodyStrong">
                   {plural(requests.length, 'request')} to go
                 </DsText>
-                <DsText v="secondary">They don't match the invite. Say yes and the stop unlocks for them with everyone going.</DsText>
+                <DsText v="secondary">They don't match the invite. Say yes and they see the {MEET_POINT.one} with everyone going.</DsText>
                 {requests.map((uid, i) => {
                   const b = broughtBuild(ev, uid, builds);
                   const u = users.find((x) => x.id === uid);
@@ -651,25 +682,25 @@ export default function EventScreen() {
                 <View style={{ gap: SPACING.xs }}>
                   <Button label={`Move on to ${nextStop.name}`} tier="secondary" block haptic="warning" onPress={() => attempt('moveon', () => store.moveOn(ev.id), "Couldn't move on.")} />
                   {errorAt('moveon') ? <ErrorState title={errorAt('moveon')!} /> : null}
-                  <DsText v="caption">The next stop unlocks only for the {audience} people checked in here.</DsText>
+                  <DsText v="caption">Everyone going sees the next {MEET_POINT.one}. The {audience} people checked in here also get a notice.</DsText>
                 </View>
               ) : (
-                <DsText v="secondary">This is the last planned stop.</DsText>
+                <DsText v="secondary">This is the last planned {MEET_POINT.one}.</DsText>
               )
             ) : null}
             <View>
-              {canPlan ? <ListRow leading={{ icon: 'plus' }} title="Change the plan" subtitle="Rename, move, add or remove stops" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} /> : null}
-              {canEdit ? <ListRow leading={{ icon: 'info' }} title="Edit event" subtitle="Name, time, stops and the invite" onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} /> : null}
+              {canPlan ? <ListRow leading={{ icon: 'plus' }} title="Change the plan" subtitle="Rename, move, add or remove meet points" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} /> : null}
+              {canEdit ? <ListRow leading={{ icon: 'info' }} title="Edit event" subtitle="Name, time, meet points and the invite" onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} /> : null}
             </View>
             <DsText v="secondary">Invite: {describeFilter(ev.filter)}</DsText>
             {canPreview ? (
               <View style={{ gap: SPACING.xs }}>
-                <SwitchRow label="See as a guest" hint="The map as invited people see it before the stop unlocks" value={asGuest} onValueChange={setAsGuest} />
+                <SwitchRow label="See as a guest" hint="The map as invited people see it before the location shows" value={asGuest} onValueChange={setAsGuest} />
                 {guestView ? (
                   <DsText v="caption" accessibilityLiveRegion="polite">
-                    Invited people see a locked circle about {Math.round(areaMiles * 2)} mi across, never centred on your stop. For people going, the stop unlocks{' '}
-                    {ev.revealMinutesBefore > 0 ? `${ev.revealMinutesBefore} min before the start` : 'at the start'}
-                    {ev.type === 'rolling' ? ', and later stops only when you move on' : ''}.
+                    Invited people see a circle about {Math.round(areaMiles * 2)} mi across, never centred on your {MEET_POINT.one}. {LOCATION.toGoing},{' '}
+                    {LOCATION.lead(ev.revealMinutesBefore).replace(/^Location shows /, '')}
+                    {ev.type === 'rolling' ? ', and each later one when you move on' : ''}.
                   </DsText>
                 ) : null}
               </View>
@@ -712,7 +743,7 @@ export default function EventScreen() {
                       leading={{ avatar: { name: u?.name, handle: u?.handle } }}
                       title={userLabel(uid)}
                       subtitle={b ? `${b.make} ${b.model} · Class ${classOf(b)}` : 'No car or bike yet'}
-                      meta={[hostIds.includes(uid) ? 'Hosting' : null, hasLegend(awardsSoFar, uid, now) ? 'Legend' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
+                      meta={[hostIds.includes(uid) ? 'Hosting' : null, hasLegend(awardsSoFar, uid, now) ? 'Legend this week' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
                       trailing={b ? <BuildThumb photo={b.photos[0] ? photoUri(b.photos[0]) : null} kind={b.kind} size={30} /> : undefined}
                       onPress={() => openUser(uid)}
                     />
@@ -723,7 +754,7 @@ export default function EventScreen() {
           )}
         </Section>
 
-        <Section title={ev.type === 'cruise' ? 'Route' : ev.type === 'rolling' ? 'Stops' : 'Stop'}>
+        <Section title={ev.type === 'cruise' ? 'Route' : ev.type === 'rolling' ? 'Meet points' : 'Meet point'}>
           <MediaFrame height={200}>
             <NightMap
               pins={anyVisible ? mapPins : [{ id: 'area', at: ev.area, glyph: 'locked', colour, title: ev.areaName }]}
@@ -739,22 +770,32 @@ export default function EventScreen() {
             <DsText v="secondary">
               {going || host
                 ? unlockAt > now
-                  ? `${UNLOCK.in(countdown(unlockAt, now))} (${formatTime(unlockAt.toISOString())}). Until then you see the rough area, ${ev.areaName}.`
-                  : `You see the rough area, ${ev.areaName}.`
-                : `The stop unlocks for people going ${ev.revealMinutesBefore > 0 ? `${ev.revealMinutesBefore} min before the start` : 'at the start'}. Until then everyone sees the rough area.`}
+                  ? `${LOCATION.showsAt(formatTime(unlockAt.toISOString()))} (in ${countdown(unlockAt, now)}). Until then you see the area, ${ev.areaName}.`
+                  : `You see the area, ${ev.areaName}.`
+                : phase === 'live' || unlockAt <= now
+                  ? `${LOCATION.toGoing}. Say you're going to see it.`
+                  : `${LOCATION.toGoing}, ${LOCATION.lead(ev.revealMinutesBefore).replace(/^Location shows /, '')}. Until then everyone sees the area.`}
             </DsText>
           ) : null}
           <View>
             {visibleStops.map(({ st, i, visible }) => {
               const done = myCheckIns.includes(st.id);
               const isCurrent = ev.type === 'rolling' && i === ev.currentStop;
+              // A hidden point says why in plain words, and never in the past tense while it's still hidden.
+              const revealsLater = revealTime(ev) > now;
               const title = visible
                 ? st.name
-                : st.at
-                  ? ev.type === 'rolling' && i > 0
-                    ? 'Unlocks when the hosts move on'
-                    : `Unlocks ${formatRelative(revealTime(ev).toISOString(), now)} for people going`
-                  : 'Not placed yet';
+                : !st.at
+                  ? 'Not placed yet'
+                  : ev.type === 'rolling' && i > ev.currentStop
+                    ? 'Shows when the hosts move on'
+                    : ev.type === 'rolling' && i < ev.currentStop
+                      ? 'Already left'
+                      : (going || host) && revealsLater
+                        ? LOCATION.showsAt(formatTime(revealTime(ev).toISOString()))
+                        : going || host
+                          ? 'Location hidden'
+                          : LOCATION.toGoing;
               return (
                 <View key={st.id}>
                   {i > 0 ? <RowDivider inset /> : null}

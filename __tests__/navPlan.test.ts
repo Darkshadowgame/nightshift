@@ -38,11 +38,12 @@ describe('what navigation routes through', () => {
     expect(planForEvent(event({ cancelled: true }), 'me', crews, NOW)).toBeNull();
   });
 
-  test('a rolling meet: only the stop it is at now, once you can see it', () => {
+  test('a rolling meet: only the meet point it is at now, for everyone going', () => {
     const e = event({ type: 'rolling', currentStop: 1, checkIns: { me: ['s1'] } });
     expect(planForEvent(e, 'me', crews, NOW)!.stops.map((s) => [s.name, s.role, s.checkIn])).toEqual([['Regroup', 'destination', true]]);
-    // Not checked in at the stop before: the new stop stays hidden.
-    expect(planForEvent({ ...e, checkIns: {} }, 'me', crews, NOW)).toBeNull();
+    // Joined late (no check-in at the one before): still goes to the current one, never further.
+    expect(planForEvent({ ...e, checkIns: {} }, 'me', crews, NOW)!.stops.map((s) => s.name)).toEqual(['Regroup']);
+    expect(planForEvent({ ...e, going: [] }, 'me', crews, NOW)).toBeNull();
   });
 
   test('a drive: the start, then every checkpoint', () => {

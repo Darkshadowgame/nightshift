@@ -3,7 +3,7 @@ import { EVENT_LABELS } from '../lib/events';
 import type { EventView } from '../lib/eventView';
 import { formatWhen } from '../lib/format';
 import { formatMiles } from '../lib/geo';
-import { roleLabel, PLACE_NAMES, UNLOCK } from '../lib/glossary';
+import { LOCATION, roleLabel, PLACE_NAMES } from '../lib/glossary';
 import { countdown, unlocksIn } from '../lib/hud';
 import { endTime } from '../lib/events';
 import type { Role } from '../lib/eventView';
@@ -30,7 +30,7 @@ export function whenLine(v: EventView, now: Date): string {
 
 /**
  * An event on a browse surface (Tonight's sheet and list, Search): the one EntityCard anatomy.
- * The place is the shown stop, or the rough area while it's locked (and when it unlocks).
+ * The place is the shown meet point, or the area while the location is hidden (and when it shows).
  */
 export function EventEntityCard({
   view: v,
@@ -42,7 +42,7 @@ export function EventEntityCard({
 }: {
   view: EventView;
   now: Date;
-  /** Distance to the shown stop or the rough area, already worked out. */
+  /** Distance to the shown meet point or the area, already worked out. */
   miles?: number | null;
   onPress: () => void;
   /** Overrides the role tag, e.g. "New". */
@@ -52,7 +52,7 @@ export function EventEntityCard({
   const e = v.event;
   const locked = v.shownStop < 0;
   const unlock = unlocksIn(v, now);
-  const place = locked ? `${e.areaName} · ${unlock ? UNLOCK.in(unlock) : UNLOCK.locked}` : e.stops[v.shownStop].name;
+  const place = locked ? `${e.areaName} · ${unlock ? LOCATION.showsIn(unlock).toLowerCase() : LOCATION.hidden}` : e.stops[v.shownStop].name;
   const done = v.phase === 'over' || v.phase === 'cancelled';
   return (
     <EntityCard

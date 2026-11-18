@@ -87,7 +87,7 @@ export function remindersFor(event: NightEvent, me: string, crews: Crew[]): Remi
         event,
         'reveal',
         reveal,
-        `${event.title}: stop unlocked`,
+        `${event.title}: location shown`,
         host
           ? `People going can now see where your ${label} is.`
           : `Open Nightshift to see where the ${label} is. Starts ${formatTime(event.startsAt)}.`,
@@ -104,7 +104,7 @@ export function remindersFor(event: NightEvent, me: string, crews: Crew[]): Remi
         ? `Check-in is open. ${event.areaName}.`
         : isPublicType(event.type) || event.revealMinutesBefore >= SOON_MINUTES
           ? `Check-in is open. ${event.areaName}.`
-          : `The stop is unlocked and check-in is open. ${event.areaName}.`,
+          : `The location is shown and check-in is open. ${event.areaName}.`,
     ),
   );
   return out;
@@ -169,7 +169,7 @@ export function dueReminders(
 
 /**
  * The "moved on" message for someone checked in at the stop being left.
- * Never names the new place: it only unlocks in the app.
+ * Never names the new place: it's only shown in the app.
  * Returns null when this person wasn't checked in there.
  */
 export function movedOnReminder(before: NightEvent, me: string, now: Date): Reminder | null {
@@ -177,7 +177,7 @@ export function movedOnReminder(before: NightEvent, me: string, now: Date): Remi
   if (!moveOnAudience(before, before.currentStop).includes(me)) return null;
   const next = before.currentStop + 2;
   const title = `${before.title} moved on`;
-  const body = `Stop ${next} is unlocked. Open Nightshift to see where.`;
+  const body = `Meet point ${next} is shown. Open Nightshift to see where.`;
   return make(before, 'moved', now, title, body, before.currentStop + 1);
 }
 

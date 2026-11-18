@@ -12,8 +12,10 @@ import type { SpotKind } from './types';
  * | Hosting                               | You host, organiser                   |
  * | Request to go / Requested / Cancel request | Ask to go, Asked to go, Withdraw request |
  * | Public                                | Open to all, Everyone welcome         |
- * | unlocks (the place)                   | reveal, revealed                      |
- * | stop (a point on an event)            | place, spot, location (for events)    |
+ * | meet point (where an event is)        | stop, spot, venue (for events)        |
+ * | Location shows 1 h before / at 21:30  | unlocks, reveal, revealed             |
+ * | Shown to people going                 | unlocked, stop locked                 |
+ * | area (the circle before it shows)     | rough area                            |
  * | drive (a road to enjoy)               | route (only a cruise's line)          |
  * | meet spot                             | venue, coffee & meet spot             |
  * | check in                              | visit (in buttons)                    |
@@ -72,15 +74,36 @@ export const GOING = {
   public: 'Public',
 } as const;
 
-/** The place becoming visible to the people going. */
-export const UNLOCK = {
-  verb: 'unlocks',
-  done: 'Unlocked',
-  locked: 'stop locked',
-  /** "Stop unlocks in 2h 10m". */
-  in: (what: string) => `Stop unlocks in ${what}`,
+/** Where an event is: one meet point for a meet, several for a rolling meet or a cruise. */
+export const MEET_POINT = { one: 'meet point', many: 'meet points' } as const;
+
+/** "1 h", "2 h", "30 min", "1 h 30 min": how far ahead of the start the location shows. */
+export function leadText(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return [h ? `${h} h` : null, m ? `${m} min` : null].filter(Boolean).join(' ') || '0 min';
+}
+
+/**
+ * The exact location becoming visible to the people going, in plain words
+ * (REVIEW-7 problem 2). Never "unlocks" or "stop".
+ */
+export const LOCATION = {
+  /** Card meta while it's hidden: "Sample area · location hidden". */
+  hidden: 'location hidden',
+  /** "Location shows in 2h 10m". */
+  showsIn: (what: string) => `Location shows in ${what}`,
+  /** "Location shows at 21:30". */
+  showsAt: (time: string) => `Location shows at ${time}`,
+  /** "Location shows 1 h before", or "at the start" when the lead is 0. */
+  lead: (minutes: number) => (minutes > 0 ? `Location shows ${leadText(minutes)} before` : 'Location shows at the start'),
+  /** Who sees it. */
+  toGoing: 'Shown to people going',
+  /** Stat tile value once it's visible to you. */
+  shown: 'Shown',
+  hiddenValue: 'Hidden',
   /** The host form's control. */
-  setting: 'When the stop unlocks',
+  setting: 'When the location shows',
 } as const;
 
 /** Kinds of place, singular and plural. Venues are "meet spots" everywhere in the UI. */

@@ -42,7 +42,7 @@ export default function ChangePlan() {
   if (!ev || !isHost(ev, me, crews)) {
     return (
       <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
-        <EmptyState title="Only hosts can change the plan" body="Ask a host of this event to move or add stops." />
+        <EmptyState title="Only hosts can change the plan" body="Ask a host of this event to move or add meet points." />
       </View>
     );
   }
@@ -128,13 +128,13 @@ export default function ChangePlan() {
       </DsText>
 
       <ChoiceGroup
-        label="Stop"
-        options={[...ev.stops.map((st, i) => ({ key: String(i), label: `${i + 1}. ${st.name}${i < ev.currentStop ? ' (left)' : ''}` })), { key: 'new', label: 'New stop' }]}
+        label="Meet point"
+        options={[...ev.stops.map((st, i) => ({ key: String(i), label: `${i + 1}. ${st.name}${i < ev.currentStop ? ' (left)' : ''}` })), { key: 'new', label: 'New meet point' }]}
         value={String(selected)}
         onChange={(k) => select(k === 'new' ? 'new' : Number(k))}
       />
 
-      <Press onPress={canPlace ? () => setPicking(true) : undefined} disabled={!canPlace} feedback="card" label={canPlace ? 'Open the map to choose the place' : 'Map of the stops'}>
+      <Press onPress={canPlace ? () => setPicking(true) : undefined} disabled={!canPlace} feedback="card" label={canPlace ? 'Open the map to choose the place' : 'Map of the meet points'}>
         <MediaFrame height={200} style={canPlace ? { borderColor: COLOR.action.primary } : undefined}>
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
@@ -159,7 +159,7 @@ export default function ChangePlan() {
       ) : null}
 
       {stop ? (
-        <Section title={`Stop ${index + 1}`} right={<Tag label={`${status(index)}${checkedIn ? ` · ${checkedIn} checked in` : ''}`} tone={index === ev.currentStop ? 'live' : 'neutral'} />}>
+        <Section title={`Meet point ${index + 1}`} right={<Tag label={`${status(index)}${checkedIn ? ` · ${checkedIn} checked in` : ''}`} tone={index === ev.currentStop ? 'live' : 'neutral'} />}>
           <Field label="Rename">
             <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
               <TextField value={name} onChangeText={setName} placeholder={stop.name} style={{ flex: 1 }} accessibilityLabel="New name" />
@@ -170,7 +170,7 @@ export default function ChangePlan() {
             {move?.ok ? (
               pending ? (
                 <View style={{ gap: SPACING.sm }}>
-                  {pendingZone ? <ZoneNotice zone={pendingZone} subject="The new stop" /> : <DsText v="secondary">Not in a known meet ban.</DsText>}
+                  {pendingZone ? <ZoneNotice zone={pendingZone} subject="The new meet point" /> : <DsText v="secondary">Not in a known meet ban.</DsText>}
                   <Button label={pendingZone ? 'Move here anyway' : 'Move here'} block onPress={() => apply({ kind: 'move', stopId: stop.id, at: pending }, `Moved ${stop.name}.`)} />
                   <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                     <Button label="Pick again" tier="secondary" style={{ flex: 1 }} block onPress={() => setPicking(true)} />
@@ -178,7 +178,7 @@ export default function ChangePlan() {
                   </View>
                 </View>
               ) : (
-                <Button label="Choose the new stop on the map" tier="secondary" block onPress={() => setPicking(true)} />
+                <Button label="Choose the new meet point on the map" tier="secondary" block onPress={() => setPicking(true)} />
               )
             ) : (
               <DsText v="secondary">{move?.ok === false ? move.reason : ''}</DsText>
@@ -186,7 +186,7 @@ export default function ChangePlan() {
           </Field>
           <Field label="Remove">
             {remove?.ok ? (
-              <Button label="Remove this stop" tier="destructive" block onPress={() => setConfirmRemove(true)} />
+              <Button label="Remove this meet point" tier="destructive" block onPress={() => setConfirmRemove(true)} />
             ) : (
               <DsText v="secondary">{remove?.ok === false ? remove.reason : ''}</DsText>
             )}
@@ -194,7 +194,7 @@ export default function ChangePlan() {
           {error ? <ErrorState title={error} /> : null}
           <ConfirmSheet
             visible={confirmRemove}
-            title="Remove stop"
+            title="Remove meet point"
             message={`Remove ${stop.name}? Everyone going gets a chat line that the plan changed.`}
             verb="Remove"
             onConfirm={() => apply({ kind: 'remove', stopId: stop.id }, `Removed ${stop.name}.`)}
@@ -202,24 +202,24 @@ export default function ChangePlan() {
           />
         </Section>
       ) : (
-        <Section title="New stop">
-          <TextField value={name} onChangeText={setName} placeholder="Name this stop" accessibilityLabel="Name this stop" />
+        <Section title="New meet point">
+          <TextField value={name} onChangeText={setName} placeholder="Name this meet point" accessibilityLabel="Name this meet point" />
           {pending ? (
             pendingZone ? (
-              <ZoneNotice zone={pendingZone} subject={name.trim() || 'The new stop'} />
+              <ZoneNotice zone={pendingZone} subject={name.trim() || 'The new meet point'} />
             ) : (
               <DsText v="secondary">Not in a known meet ban.</DsText>
             )
           ) : (
-            <DsText v="secondary">It goes after the last stop.</DsText>
+            <DsText v="secondary">It goes after the last meet point.</DsText>
           )}
           <Button label={pending ? 'Pick again on the map' : 'Choose on the map'} tier="secondary" block onPress={() => setPicking(true)} />
           <Button
-            label={pendingZone ? 'Add stop anyway' : 'Add stop'}
+            label={pendingZone ? 'Add meet point anyway' : 'Add meet point'}
             block
             disabled={!pending}
             hint="Choose it on the map first"
-            onPress={() => pending && apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new stop'}.`)}
+            onPress={() => pending && apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new meet point'}.`)}
           />
           {error ? <ErrorState title={error} /> : null}
         </Section>
@@ -228,9 +228,9 @@ export default function ChangePlan() {
       <MapPicker
         visible={picking}
         mode="point"
-        title={stop ? `Move ${stop.name}` : 'Place the new stop'}
-        hint="Move the map so the crosshair is on the new stop, or tap a grey pin to use a known place."
-        confirmLabel={stop ? 'Move it here' : 'Set stop here'}
+        title={stop ? `Move ${stop.name}` : 'Place the new meet point'}
+        hint="Move the map so the crosshair is on the new meet point, or tap a grey pin to use a known place."
+        confirmLabel={stop ? 'Move meet point here' : 'Set meet point here'}
         start={pending ?? centre}
         span={0.06}
         initial={pending ? [pending] : stop?.at ? [stop.at] : []}

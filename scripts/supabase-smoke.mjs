@@ -213,7 +213,7 @@ async function main() {
   const far = await rpcError(B, 'check_in', { p_event_id: made.eventId, p_position: 0, p_lat: live[0].lat + 0.05, p_lng: live[0].lng });
   check('check_in: refused from 3 mi away with the app\'s sentence', far?.startsWith('You need to be within 0.5 mi of'), far ?? 'no error');
   const ahead = await rpcError(B, 'check_in', { p_event_id: made.eventId, p_position: 1, p_lat: 52.52, p_lng: -1.92 });
-  check("check_in: can't check in at a stop B can't see", ahead === "You can't see this stop yet.", ahead ?? 'no error');
+  check("check_in: can't check in at a meet point B can't see (one ahead)", ahead === "You can't see this meet point yet.", ahead ?? 'no error');
   await rpc(B, 'check_in', { p_event_id: made.eventId, p_position: 0, p_lat: live[0].lat + 0.001, p_lng: live[0].lng });
   const { data: myCheckIns } = await B.client.from('check_ins').select('stop_id').eq('event_id', made.eventId);
   check('check_in: B checked in at stop 1 (no position stored)', myCheckIns?.length === 1);
@@ -244,7 +244,7 @@ async function main() {
     heard.notice?.kind === 'moved' && !/Smoke stop/.test(`${heard.notice?.title} ${heard.notice?.body}`), heard.notice?.body);
   await B.client.removeChannel(channel);
   const after = await rpc(B, 'get_event_stops', { p_event_ids: [made.eventId] });
-  check('move_on visibility: stop 2 unlocks for B (checked in at stop 1); stop 3 stays locked',
+  check('move_on visibility: meet point 2 is shown to B (going); 3 stays hidden',
     after[1]?.visible && after[1]?.name === 'Smoke stop two' && !after[2]?.visible, after.map((s) => s.visible).join(','));
   const { data: chatB } = await B.client.from('chat_messages').select('body').eq('event_id', made.eventId);
   check('chat: B (going) reads the chat', chatB?.some((m) => m.body.startsWith('Smoke test')));

@@ -146,7 +146,7 @@ export default function SettingsScreen() {
       <Group title="Notifications">
         <SwitchRow
           label="Event reminders"
-          hint="When the stop unlocks and 30 minutes before the start, for events you're going to or hosting."
+          hint="When the location shows and 30 minutes before the start, for events you're going to or hosting."
           value={settings.reminders}
           onValueChange={(v) => {
             setSettings({ reminders: v });
@@ -207,7 +207,7 @@ export default function SettingsScreen() {
       </Group>
 
       <Group title="About and legal">
-        <ListRow title={SCREEN_TITLES.help} subtitle="Stops, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
+        <ListRow title={SCREEN_TITLES.help} subtitle="Meet points, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
         <RowDivider />
         {LEGAL_ROWS.map((r) => (
           <View key={r.key}>

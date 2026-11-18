@@ -8,7 +8,7 @@ import { useNow } from '../lib/clock';
 import { SPACING, COLOR, RADII } from '../theme';
 
 const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
-  reveal: 'Stop unlocked',
+  reveal: 'Location shown',
   soon: 'Starting soon',
   moved: 'Moved on',
   host: 'You moved the meet on',
@@ -44,7 +44,7 @@ export default function NotificationsScreen() {
       ListEmptyComponent={
         <EmptyState
           title="Nothing yet"
-          body="Say you're going to an event and you'll get a reminder when its stop unlocks and 30 minutes before the start."
+          body="Say you're going to an event and you'll get a reminder when its location shows and 30 minutes before the start."
           action={{ label: 'See tonight', onPress: () => router.navigate({ pathname: '/', params: { view: 'list' } }) }}
         />
       }

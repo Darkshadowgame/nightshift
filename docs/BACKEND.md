@@ -174,9 +174,13 @@ with no part in a private event get no stop rows at all.
 3. Cancelled events reveal nothing more.
 4. Otherwise you must be **going** and it must be **past the reveal time** (`starts_at − reveal_minutes_before`).
 5. Cruises and meets: then every stop.
-6. Rolling meets: stop 0 from the reveal. A later stop only once a host has
-   **moved on** to it (`position <= current_stop`), **and** only if you
-   **checked in at the stop before**.
+6. Rolling meets: the meet point it is at **now** (`position = current_stop`) for
+   everyone going, so someone who joins late can find it and check in. Never one
+   ahead of it. One it has left: stop 0 always, a later one only if you checked in
+   at it or at the one before. (Changed by `20261118200000_late_joiners_plain_words.sql`,
+   REVIEW-7; before, every later stop needed a check-in at the one before, so a late
+   joiner could never reach a live rolling meet.) The "moved on" notice still goes
+   only to people checked in at the meet point being left.
 
 Stop names count as location (they come from the reverse geocoder, e.g. a
 street name), so they're hidden too.
@@ -970,6 +974,17 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   counting only real duplicates, a selling post flagged, a Community ban with its end time, member
   tools refused to non-staff).
 * **No staff rows were added.** The owner sets themselves (docs/MODERATION.md).
+
+### 7a-10. What's live (18 Nov 2026, REVIEW-7: late joiners, plain words)
+
+* **Migration** `20261118200000_late_joiners_plain_words.sql` pushed with `db push --remote --yes`,
+  after a dry run of it plus `late_joiner_test.sql` in a rolled-back transaction on the hosted database.
+  `private.can_see_stop()`: everyone going sees a rolling meet's current meet point (late joiners can
+  check in), never one ahead. Words: "meet point" and "location shown" in `check_in()`, `move_on()`,
+  `change_plan()`, `save_event()` refusals, the hosts' plan log, the "moved on" notice and
+  `queue_due_reminders()`. `invite_min_mods` defaults to 0 (column, `save_event()`, `invite_count()`).
+* **pgTAP:** 772 of 772 on the hosted database (adds `late_joiner_test.sql`, 16; `rls_test.sql` now
+  expects the current meet point to be shown to G2, who never checked in).
 
 ### 7c. The smoke test
 

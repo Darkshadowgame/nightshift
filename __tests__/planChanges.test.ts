@@ -91,7 +91,8 @@ describe('changing a rolling meet on the night', () => {
     expect(canSeeStop(e, 1, 'a', crews, NOW)).toBe(false);
     e = moveOn(e, NOW);
     expect(canSeeStop(e, 1, 'a', crews, NOW)).toBe(true);
-    expect(canSeeStop(e, 1, 'b', crews, NOW)).toBe(false);
+    expect(canSeeStop(e, 1, 'b', crews, NOW)).toBe(true); // everyone going sees the meet point it's at now
+    expect(canSeeStop(e, 1, 'stranger', crews, NOW)).toBe(false);
   });
 
   test('changes are refused once the meet is over or for other types', () => {

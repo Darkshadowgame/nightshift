@@ -31,7 +31,7 @@ export async function openDirections(app: Exclude<DirectionsApp, 'nightshift'>, 
 
 const CHOICES: { id: DirectionsApp | 'other'; label: string; note: string }[] = [
   { id: 'nightshift', label: 'Nightshift', note: 'Turn by turn here, with camera alerts' },
-  { id: 'apple', label: 'Apple Maps', note: 'To the first stop' },
+  { id: 'apple', label: 'Apple Maps', note: 'To the first meet point' },
   { id: 'google', label: 'Google Maps', note: 'The app, or the website without it' },
   { id: 'waze', label: 'Waze', note: 'The app, or the website without it' },
   { id: 'other', label: 'Other app…', note: 'Share the spot with any app' },
@@ -42,7 +42,7 @@ const CHOICES: { id: DirectionsApp | 'other'; label: string; note: string }[] = 
  * Maps, Waze or the share sheet instead. "Always use this" remembers the choice
  * (Me › Settings › Navigation changes it back). `to` is where other apps are sent: the first stop.
  * `kind`: secondary unless navigating is the main thing the screen is for (one primary per screen).
- * `disabled` + `hint` keep the button's shape and say why ("The stop unlocks in 1h").
+ * `disabled` + `hint` keep the button's shape and say why ("Location shows at 21:30").
  */
 export function NavLaunch({
   target,
@@ -120,7 +120,7 @@ export function NavLaunch({
           ))}
         </View>
         <SwitchRow label="Always use this" value={always} onValueChange={setAlways} />
-        <DsText v="caption">Other apps get the first stop's position only. Change it any time in {menuPath('Me', 'Settings', 'Navigation')}.</DsText>
+        <DsText v="caption">Other apps get the first meet point only. Change it any time in {menuPath('Me', 'Settings', 'Navigation')}.</DsText>
       </Sheet>
     </View>
   );

@@ -8,7 +8,7 @@ The core loop (owner's decision, 18 Nov 2026, after Review 6):
 
 1. **See what's on** near you tonight (the Tonight tab: map or list).
 2. **"I'm going"** with your build (the car or bike you add in the first 30 seconds).
-3. **Check in** when you get there (stops unlock for the people going).
+3. **Check in** when you get there (the exact meet point is shown to the people going, usually 1 h before).
 4. **Vote and trophies** after the meet.
 5. **Come back next week.**
 
@@ -49,11 +49,14 @@ of Tonight and Community only.
   **Skip for now**), **2. Where's home?** (map pick or your location, saved to about
   1 km, with why) and a handle. The region comes from home; travel distance (25 mi) and
   new-event alerts (Notify me) start at defaults and change in Settings. Then Tonight
-  opens with **Start here**: tonight's pick and **I'm going** with the car you just added.
+  opens with **Start here**: a plain meet that is open for check-in now (else the next one you can go to)
+  and **I'm going** with the car you just added.
 * **The demo starts you fresh:** sample people and events (marked Sample) are round
   your home area, but you're not going to anything, not hosting, not in a crew, with
-  no car, rep or trophies until you act. The live rolling meet is open to any car or
-  bike so you can say you're going and check in.
+  no car, rep or trophies until you act. "Car park meet-up" is on now with check-in open,
+  and the live rolling meet is open to any car or bike, so you can say you're going, see
+  the meet point, check in and vote straight away (REVIEW-7). The next-12-hours list is
+  headed "Later today" before 17:00 and "Tonight" after.
 * Every route is declared inside a guard in `src/app/_layout.tsx` (the component
   gallery only in development builds); `__tests__/routes.test.ts` checks it. The root
   layout has the `ToastProvider`.
@@ -159,9 +162,9 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
 
 | Type | Places | Who sees the place, and when |
 |---|---|---|
-| Cruise | Start, regroup stops, finish (a route) | Everyone going sees the whole route from the reveal time |
-| Rolling meet | Every stop planned before the event (checked against ban zones) | Stop 1 shows from the reveal time. Once the meet is live, a host taps **Move on**, and only people checked in at the current stop see the next one |
-| Meet | One spot | Everyone going, from the reveal time |
+| Cruise | Start, regroup points, finish (a route) | Everyone going sees the whole route from the reveal time |
+| Rolling meet | Every meet point planned before the event (checked against ban zones) | The first shows from the reveal time. Once it's live, a host taps **Move on**: everyone going (late joiners too) sees the meet point it is at **now** and can check in there; the ones after it stay hidden; one it has left stays shown to people who were there. The "moved on" notice goes to the people checked in at the one being left (REVIEW-7, owner's decision 18 Nov 2026) |
+| Meet | One meet point | Everyone going, from the reveal time |
 | Show | One spot | Public: always visible |
 | Track day | A circuit | Public: always visible |
 
@@ -194,7 +197,7 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
 * **Chat** is for hosts and people going (it can carry "far end of the car park").
 * **Rolling meets:** every stop is placed when the event is created, and nothing is
   picked on the night (owner's decision after the legal research, 17 Nov 2026).
-  Stops stay hidden until a host moves on.
+  Each later meet point stays hidden until a host moves on to it.
 * **Changing the plan on the night** (owner request, 17 Nov 2026): hosts can rename,
   move or remove stops the meet hasn't reached, or add one on the end. Each change
   is checked against ban zones (warning, not a block), logged on the event for
@@ -874,8 +877,9 @@ One vocabulary, in `src/lib/glossary.ts` (screens import it rather than writing 
 | **Hosting**, **Going**, **Requested**, **Invited**, **Public**, **Declined** (`roleLabel()`) | You host, Asked to go, Open to all |
 | **Request to go** / **Cancel request** | Ask to go, Withdraw request |
 | **Public · anyone within N mi** (invite line) | Everyone welcome |
-| the stop **unlocks** | reveal, revealed (UI copy) |
-| **stop** (a point on an event) | place, spot, location |
+| **meet point** (where an event is; "Meet point 2" on a rolling meet) | stop, spot, venue (for events) |
+| **Location shows 1 h before** / **Location shows at 21:30** / **Shown to people going** (`LOCATION`) | unlocks, unlocked, reveal, stop locked |
+| the **area** (the circle before the location shows) | rough area |
 | **drive** (a road to enjoy); **route** only for a cruise's line | route for drives |
 | **meet spot** (cafés and museums that welcome meets) | venue |
 | **check in** (events and photo spots) | visit (in buttons) |

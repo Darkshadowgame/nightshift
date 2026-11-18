@@ -151,7 +151,7 @@ select throws_like($$ select public.check_in('e0000000-0000-0000-0000-0000000000
 select lives_ok($$ select public.check_in('e0000000-0000-0000-0000-0000000000a1', 0, 53.2030, -0.5010) $$,
   'check-in: accepted within 0.5 mi');
 select throws_ok($$ select public.check_in('e0000000-0000-0000-0000-0000000000a1', 1, 53.25, -0.45) $$,
-  'P0001', 'You can''t see this stop yet.', 'check-in: not at a stop you cannot see');
+  'P0001', 'You can''t see this meet point yet.', 'check-in: not at a meet point you cannot see');
 
 -- ---------------------------------------------------------------------------
 -- H moves on
@@ -174,22 +174,22 @@ select ok((select count(*) from public.plan_changes where event_id = 'e0000000-0
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 
 select ok((select visible from public.get_event_stops(array['e0000000-0000-0000-0000-0000000000a1'::uuid]) where position = 1),
-  'rolling: the next stop unlocks for people checked in at the stop before');
+  'rolling: the meet point it moved on to is shown to people checked in at the one before');
 select ok(not (select visible from public.get_event_stops(array['e0000000-0000-0000-0000-0000000000a1'::uuid]) where position = 2),
   'rolling: stops the meet has not reached stay locked');
 select is((select count(*) from public.notices where kind = 'moved')::int, 1, 'move on: a "moved on" notice is queued');
 select ok((select body not like '%car park%' from public.notices where kind = 'moved'),
   'move on: the notice never names the place');
 select throws_ok($$ select public.check_in('e0000000-0000-0000-0000-0000000000a1', 0, 53.2030, -0.5010) $$,
-  'P0001', 'The meet has moved on. Check in at the current stop.', 'check-in: not at a stop the meet has left');
+  'P0001', 'The meet has moved on. Check in at the meet point it is at now.', 'check-in: not at a meet point the meet has left');
 select is((select count(*) from public.plan_changes)::int, 0, 'plan changes: hidden from people who are not hosts');
 select is((select count(*) from public.chat_messages where event_id = 'e0000000-0000-0000-0000-0000000000a1')::int, 1,
   'chat: readable by people going');
 
 select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
 
-select ok(not (select visible from public.get_event_stops(array['e0000000-0000-0000-0000-0000000000a1'::uuid]) where position = 1),
-  'rolling: the next stop stays locked for people who did not check in at the stop before');
+select ok((select visible from public.get_event_stops(array['e0000000-0000-0000-0000-0000000000a1'::uuid]) where position = 1),
+  'rolling: the meet point it is at now is shown to everyone going, checked in before or not (late joiners)');
 select ok((select visible from public.get_event_stops(array['e0000000-0000-0000-0000-0000000000a1'::uuid]) where position = 0),
   'rolling: stop 1 stays visible to people going');
 

@@ -79,7 +79,7 @@ select throws_ok($$ select public.check_in('ce000000-0000-0000-0000-0000000000a0
 select lives_ok($$ select public.check_in('ce000000-0000-0000-0000-0000000000a0', 1, 53.2010, -0.5010, 'cb000000-0000-0000-0000-0000000000c3') $$,
   'check_in: the same build is fine');
 
--- Reminder wording: the glossary's "stop unlocked", never "location unlocked".
+-- Reminder wording: the glossary's "location shown" (20261118200000), never "unlocked" or "stop".
 reset role;
 insert into public.events (id, type, title, starts_at, reveal_minutes_before, area, area_radius_miles, area_name, invite_everyone)
   values ('ce000000-0000-0000-0000-0000000000c0', 'meet', 'Reveal soon', now() + interval '55 minutes', 60, private.pt(53.22, -0.52), 3, 'Lincoln', true);
@@ -88,9 +88,9 @@ insert into public.event_stops (id, event_id, position, name, location) values
 insert into public.event_going (event_id, user_id) values ('ce000000-0000-0000-0000-0000000000c0', 'c2222222-2222-2222-2222-222222222222');
 select public.queue_due_reminders();
 select is((select title from public.notices where user_id = 'c2222222-2222-2222-2222-222222222222' and key = 'ns.ce000000-0000-0000-0000-0000000000c0.reveal'),
-  'Reveal soon: stop unlocked', 'reminders: the reveal says "stop unlocked"');
-select is((select count(*)::int from public.notices where created_at = now() and (title ilike '%location unlocked%' or body ilike '%location unlocked%')), 0,
-  'reminders: no "location unlocked" anywhere');
+  'Reveal soon: location shown', 'reminders: the reveal says "location shown"');
+select is((select count(*)::int from public.notices where created_at = now() and (title ilike '%unlock%' or body ilike '%unlock%' or title ~* '\mstop\M' or body ~* '\mstop\M')), 0,
+  'reminders: no "unlocked" or "stop" anywhere');
 
 select * from finish();
 rollback;

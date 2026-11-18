@@ -278,7 +278,7 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
 }
 
 // ---------------------------------------------------------------------------
-// Event unlocked: dim, a scan sweeps round the lock, the pin swaps, a card rises.
+// Location shown: dim, a scan sweeps round the lock, the pin swaps, a card rises.
 // ---------------------------------------------------------------------------
 
 export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; colour: string; title: string; onDone: () => void }) {
@@ -327,7 +327,7 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, wrap]}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel={`Unlocked: ${title}. Tap to close.`}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel={`Location shown: ${title}. Tap to close.`}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim }, scrim]} />
         <View style={[StyleSheet.absoluteFill, st.centre]}>
           <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
@@ -342,7 +342,7 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
             </Animated.View>
           </View>
           <Animated.View style={[st.card, { borderLeftColor: colour }, cardStyle]}>
-            <Animated.Text style={[typeStyle('eyebrow', colour), letters]}>Unlocked</Animated.Text>
+            <Animated.Text style={[typeStyle('eyebrow', colour), letters]}>Location shown</Animated.Text>
             <DsText v="title" numberOfLines={1}>
               {title}
             </DsText>
