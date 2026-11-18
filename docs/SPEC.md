@@ -12,14 +12,15 @@ with the focus on modified builds.
 | In | Out (later phases) |
 |---|---|
 | Garage: car and bike builds, mods, specs, photos | Live "cruise mode" presence of other users |
-| Class letter (S/A/B/C/D) per build | Swipe-to-match, follows, DMs |
-| Map with game-style pins: events, photo spots, drives, tracks | Crew chat |
-| Events: cruise, rolling meet, meet, show, track day | Badges; leaderboards beyond track times (never for public roads) |
-| Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Hazard reports, push-to-talk (turn-by-turn and camera alerts are built: see "Driving view") |
+| Class letter (S/A/B/C/D) per build | Badges; leaderboards beyond track times (never for public roads) |
+| Map with game-style pins: events, photo spots, drives, tracks | Hazard reports, push-to-talk (turn-by-turn and camera alerts are built: see "Driving view") |
+| Events: cruise, rolling meet, meet, show, track day | Typing indicator in messages |
+| Invite filters: class, cars/bikes, brands, min mods, radius, "everyone welcome" | Video in posts and messages |
 | Co-hosts and crew-owned events | Real push notifications (need a paid Apple developer account) |
 | RSVP, check-in, timed reveal, rolling "Move on" | Real push to a locked phone (Phase 2) |
 | Event chat (live when signed in) | Sign in with Apple |
 | Email sign-in (one-time code or link), demo without an account, delete account | |
+| Community (17 Nov 2026): feed posts, Cars near you, connections, Rate builds, forum, 1-to-1 and group messages, report, block and moderation (see "Community") | |
 
 Phase 1 runs two ways (Nov 2026):
 
@@ -509,6 +510,68 @@ Anti-gaming rules:
 * The average starts as if five people had already given 3 stars, so a few mates
   giving 5 stars can't push a route to the top.
 
+## Community (built, 17 Nov 2026)
+
+Owner's request: "Is the community cars or local people available? I also don't see a community
+forum like people asking for advice. I would also like a private chat area that can be 1 on 1 or
+group chats", then "like Facebook". Owner decision, 17 Nov 2026: **private messages only between
+connected people**; everyone else talks in public on the forum or under posts. A new tab between
+Events and Garage (two people icon) with four parts, and a badge for unread messages plus
+connection requests.
+
+* **Feed:** posts with text and up to 4 photos (the same plate-review flow as builds), a linked
+  build, and an optional place picked on the full-screen map (never within about 1 km of your home
+  area: the phone warns and the server refuses). **Public** (everyone signed in) or
+  **Connections**. Likes and comments. "Near you" shows public posts placed within your travel
+  distance or by people living within it; "Connections" shows theirs. Posts with a place show on
+  the map's **Posts** layer (layers panel, off by default) for 30 days.
+* **People (Cars near you):** people within your travel distance (10/25/50/100 mi), nearest first,
+  as cards with their best build's photo, class, bhp, make and model, mods, level and a rough
+  distance ("Under 5 mi", "About 12 mi"). The distance comes from the server, from both home areas
+  snapped again to about 5 km and rounded (to 2 mi under 20, 5 under 50, 10 beyond), so nobody can be
+  pinned down. Filters: cars or bikes, class, make. **Show me in Cars near you** (on by default) is
+  on the People tab and in Settings › Community. **Rate builds**: one build at a time, Like or Pass
+  (buttons or swipe); likes show on the build page; passes are only remembered.
+* **Profiles** read like a social profile: a cover from their best build, level, stats, a garage
+  grid, posts, crew and trophies, with **Connect / Requested / Connected / Accept** and **Message**
+  once connected. Never a location.
+* **Connections:** a request the other person accepts or declines. A decline isn't shown to the
+  asker (it stays "Requested"), and asking again does nothing for 30 days. At most 20 requests a day.
+  **Remove connection** from the profile or Connections. Requests have their own list (Community ›
+  People › See requests) and badge.
+* **Forum:** boards Advice and help, Builds and projects, Cars, Bikes, Detailing, Meets and events
+  chat, For sale and wanted (posts only, no payments), Local (by region). Threads have a title, body,
+  photos and a linked build; replies too. Sort by most active or newest; search by title.
+  **Helpful** on replies; the thread's author marks one reply **Solved**: +25 rep to its author, once
+  per thread, never your own, at most 3 paid a day and one a week from the same person (the rep
+  ledger's "Answers marked solved").
+* **Messages:** 1-to-1 and groups (a name, up to 50 people, admins add, remove and rename; when the
+  last admin leaves, the longest-standing member takes over). Only your connections can be added.
+  Text, photos (plate review) and shared cards (a build, an event with its rough area only, or a
+  place). **Seen** under your last message ("Seen by 3" in groups). Live by Realtime; a phone
+  notification while the app is open and that chat isn't on screen (no push without the paid
+  Apple account). Someone who disconnects or blocks can't be messaged 1-to-1; the chat says so.
+* **Rules for public text** (`src/lib/moderation.ts`, the same on the server): a short word list
+  (slurs and the strongest swearing), **no police spotting** ("police spotted…", "speed trap at
+  the A15": police reports stay in the driving view only) and **no racing or timing on public
+  roads**. Talking about the police is fine. Rate limits on every kind of post and message.
+* **Safety (App Store 1.2):** **Report** with a reason on every post, comment, thread, reply,
+  message, profile, build, event chat line (long press), event, crew and suggested place.
+  Three different people reporting a post, comment, thread, reply, message or chat line hides it
+  until staff look. **Block** hides the person's posts, threads, replies, comments, messages and
+  event chat everywhere, ends any connection and stops messages both ways (they aren't told).
+  **Staff** see Settings › Moderation: open reports with a copy of what was reported, and Dismiss,
+  Hide (cancels an event, rejects a place) or Suspend (1, 7 or 30 days, or until lifted). A
+  suspended person can read and report but not post, comment, message, connect or use event chat.
+* **Demo:** sample posts, threads, chats and two requests round your home area, all labelled
+  Sample; sample people accept your requests and answer your messages after a few seconds.
+
+Code: `src/lib/carsNear.ts`, `connections.ts`, `forum.ts`, `posts.ts`, `messages.ts`,
+`moderation.ts` (tests in `__tests__/community.test.ts`), `communityService.ts` (the demo) and
+`backend/community.ts` (the server; `__tests__/communityService.test.ts`), `communityStore.tsx`;
+screens `src/app/(tabs)/community.tsx`, `post/`, `forum/`, `chat/`, `connections.tsx`, `rate.tsx`,
+`report.tsx`, `moderation.tsx`, `user/[id].tsx`. Server: docs/BACKEND.md section 3b.
+
 ## Rep and levels (built)
 
 | Source | Rep |
@@ -522,6 +585,7 @@ Anti-gaming rules:
 | Each logged mod: road-legal only, each kind once per build, at most 10 per build | 20 |
 | Each road report of yours two other drivers confirmed (at most 5 a day) | 10 |
 | Each "Still there?" answer, once per report (at most 10 a day) | 2 |
+| Each forum answer marked Solved (at most 3 a day, one a week from the same person) | 25 |
 
 Level n starts at 250 × (n − 1) × n ÷ 2 rep: level 2 at 250, 3 at 750, 4 at 1,500.
 Me shows the total, level, a progress bar and the breakdown; profiles show the level.
@@ -695,21 +759,22 @@ Owner's request: "Obviously you need to use real maps and location."
    (locked or revealed), RSVP, check-in, Move on (hosts), attendees and chat.
 4. **New event:** type, name, time, area, stops, filters with a live count of
    matching builds, hosts and the reveal time.
-5. **Garage:** your builds as cards showing the class letter.
-6. **Build:** a game-style stats screen with specs, mods by category and photos.
-7. **Edit build:** car or bike, vehicle picker (make, model, generation) that fills
+5. **Community:** Feed, People (Cars near you), Forum and Messages (see "Community").
+6. **Garage:** your builds as cards showing the class letter.
+7. **Build:** a game-style stats screen with specs, mods by category and photos.
+8. **Edit build:** car or bike, vehicle picker (make, model, generation) that fills
    stock specs, year, nickname, engine swap, stock bhp, weight, dyno figure, tune
    stage, quick-pick mod chips and the mods list with bhp gains.
-8. **Me:** profile, rep and level with a breakdown, crew and your places (Suggest a place).
+9. **Me:** profile, rep and level with a breakdown, crew and your places (Suggest a place).
    **Settings** (header button): map layers, events near you (willing to travel, new-event
    alerts), reminders, navigation, privacy, account, about and legal (the site/ pages and a
    credits screen), demo controls (demo only: skip the GPS
    check, restart the demo events, reset data) and app updates.
 
-9. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
-10. **Suggest a place:** draw a drive or drop a photo spot on the map.
-11. **Crews:** browse crews, crew page, start a crew.
-12. **Find:** a **Where to?** box (any address or place, then Go here), then events: filters
+10. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
+11. **Suggest a place:** draw a drive or drop a photo spot on the map.
+12. **Crews:** browse crews, crew page, start a crew.
+13. **Find:** a **Where to?** box (any address or place, then Go here), then events: filters
     and results nearest first; opens the event.
 
 ## Words and design system (REVIEW-5, 17 Nov 2026)
@@ -750,7 +815,7 @@ Design rules (`src/theme.ts`, `src/components/ui.tsx`):
 * **Headers.** Detail screens are blank (the hero carries the title); list and form
   screens use `title(SCREEN_TITLES.x)` in capitals ("ADD A CAR OR BIKE" / "EDIT BUILD").
 * **Icons.** Drive is a winding road, track and track day a chequered flag; tab icons
-  (folded map, calendar, car, person) never reuse a map layer glyph. Pulse means live only.
+  (folded map, calendar, two people, car, person) never reuse a map layer glyph. Pulse means live only.
 
 ## Next steps after Phase 1
 

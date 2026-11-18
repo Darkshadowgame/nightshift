@@ -468,6 +468,20 @@ async function community() {
   check('block_user: the connection is gone', !after.some((r) => r.user_id === A.id));
   const { data: hiddenFromA } = await A.client.from('forum_replies').select('id').eq('id', reply);
   check("block_user: B's replies are hidden from A", (hiddenFromA ?? []).length === 0);
+  // Blocks reach event chat: B blocks A, so A's chat lines on the smoke meet are hidden from B.
+  await rpc(B, 'block_user', { p_user: A.id });
+  const { data: chatAfter } = await B.client.from('chat_messages').select('user_id').eq('event_id', made.eventId);
+  check("block_user: A's event chat lines are hidden from B", !(chatAfter ?? []).some((m) => m.user_id === A.id), `${chatAfter?.length} lines`);
+  const chatReport = await rpcError(C, 'report_content', { p_target: 'event', p_target_id: made.eventId, p_reason: 'spam', p_note: 'smoke test' });
+  check('report_content: events can be reported', !chatReport, chatReport ?? '');
+
+  // A suspension (set with SQL, as staff would through moderate_report) stops posting, not reading.
+  await sql(`insert into public.suspensions (user_id, reason) values (${lit(C.id)}, 'smoke test')`);
+  const suspended = await rpcError(C, 'create_thread', { p_board: 'cars', p_region: null, p_title: `Smoke thread ${RUN} 2`, p_body: '', p_photos: [], p_build_id: null });
+  const modStatus = (await rpc(C, 'my_moderation_status', {}))[0];
+  check('suspension: C can no longer post, and the app can tell', suspended?.startsWith('Your account is suspended') && modStatus?.suspended === true, suspended ?? 'no error');
+  await sql(`delete from public.suspensions where user_id = ${lit(C.id)}`);
+
   await B.client.removeChannel(ch);
 
   const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });

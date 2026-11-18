@@ -2,12 +2,12 @@
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
-All 14 migrations and the seeds are applied and the 539 pgTAP checks pass
+All 17 migrations and the seeds are applied and the 612 pgTAP checks pass
 against the hosted database (Community added 17 Nov 2026, section 3b) (road reports added 17 Nov 2026, section 3a; Nightshift's
 own drives and photo spots on the server, section 7a-4). **The app is wired to it** (17 Nov 2026): signed in,
 every store action goes to the tables and RPCs below (section 5); "Try the demo
 without an account" keeps the local sample scene. The end-to-end smoke test
-(`scripts/supabase-smoke.mjs`, section 7c) passes 93 of 93 checks as three real
+(`scripts/supabase-smoke.mjs`, section 7c) passes 106 of 106 checks as three real
 users. Sign-in emails need custom SMTP before testers other than the project team
 can get one: see section 7b, "Still to do".
 
@@ -31,6 +31,8 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117230000_feedback_triage.sql` | Feedback triage (`triage_notes`, `fixed_in`, `handled_at`), senders read their own, `feedback_status()`, kind `other`, screenshots list, context and opt-in location, `pg_net` and the email trigger (section 3, "Feedback"; 7e) |
 | `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
 | `supabase/migrations/20261117220000_community.sql` | Community: Cars near you, connections, blocks, the forum, messages, feed posts, rate builds, reports, rate limits, the private `messages` bucket (section 3b) |
+| `supabase/migrations/20261117233000_report_targets.sql` | Report targets `chat`, `event`, `crew`, `spot` (on their own: a new enum value can't be used in the transaction that adds it) |
+| `supabase/migrations/20261117233100_moderation.sql` | Moderation for all user content: reports on event chat, events, crews and places; hidden chat lines; blocks in event chat; `suspensions`; `moderate_report()` with suspend; `lift_suspension()`; `my_moderation_status()` (section 3b) |
 | `supabase/seed.sql` | Places only: the 2 sample ban zones and 8 UK circuits (with their bundled ids) |
 | `supabase/seed_bundled_places.sql` | **Generated** by `scripts/seed-bundled-places.mjs` from `src/data/places.ts`: the 129 bundled drives and 111 photo spots, an upsert on `bundled_id` |
 | `supabase/tests/rls_test.sql` | pgTAP: stop visibility, votes, home privacy (47 checks) |
@@ -43,6 +45,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
 | `supabase/tests/bundled_places_test.sql` | pgTAP: bundled ids (unique, format, no author), nobody signed in can add, change or delete one, finishing (with the road's own limit), visiting and rating one through the RPCs, `spot_stats` and `place_rep_for` the same for others, signed out refused (30 checks) |
 | `supabase/tests/community_test.sql` | pgTAP: Cars near you (rounding, hiding, blocks), connections (requests, declines and their 30 days, rate limit), 1-to-1 and group messages only between connections, blocks, the forum (filter, Solved rep and its caps, rate limits), feed posts (never near home, connections-only), reports and staff, message photos (163 checks) |
+| `supabase/tests/moderation_test.sql` | pgTAP: reports on event chat (only lines you can read), events, crews and places; blocks hide event chat; three reports hide a chat line; staff hide, reject, cancel and suspend; a suspended person can't chat, post or connect but can report; lifting it (36 checks) |
 | `scripts/seed-bundled-places.mjs` | Writes `seed_bundled_places.sql` from the app's place list (`src/lib/backend/bundledSeed.ts`, unit-tested) and, with `--apply`, runs it on the hosted project |
 | `scripts/supabase-smoke.mjs` | End to end against the hosted project as three throwaway users (section 7c) |
 | `supabase/functions/feedback-notify/` | Emails the team about each new report through Brevo SMTP (section 7e); `message.ts` is pure and tested in Jest |
@@ -456,9 +459,30 @@ conversation you're in; members read; you delete your own. Forum and post photos
 (threads, replies, posts, comments, messages, connections, blocks, ratings); the app removes
 `photos/{uid}/` and `messages/{uid}/` first.
 
+**Moderation for all user content** (`20261117233100_moderation.sql`, App Store 1.2):
+
+* `report_content()` also takes `chat` (an event chat line you can read: you're a host or
+  going), `event`, `crew` (reported against its owner) and `spot` (a suggested place, not
+  Nightshift's own). Three reports hide a chat line (`chat_messages.hidden_at`), as for posts.
+* **Blocks reach event chat:** a restrictive select policy on `chat_messages` leaves out lines
+  from people you blocked (Realtime too) and hidden lines (their writer and staff still see them).
+* **Suspensions** (`public.suspensions`: user, reason, `until` or null for "until lifted"): read
+  your own (the app explains it) and staff read all; written only by `moderate_report(…,
+  'suspend', p_days)` and removed by `lift_suspension()`. A suspended person can't post a thread,
+  reply, post, comment, message, start a chat or group, ask to connect (all checked in
+  `private.rate_hit()` and `check_can_add()`) or write in event chat (restrictive insert policy).
+  They can still read, report and delete their account.
+* **Staff in the app:** `my_moderation_status()` (`is_staff`, `suspended`, `suspended_until`)
+  shows **Settings › Moderation** to staff only. It lists `moderation_queue` and calls
+  `moderate_report(p_report_id, p_action, p_days, p_reason)`: `dismiss`; `hide` (posts, comments,
+  threads, replies, messages and chat lines are hidden; an event is cancelled; a place is rejected;
+  profiles, builds and crews are handled by suspending); `restore`; `suspend`. Every open report on
+  the same thing closes with it.
+
 Known gaps: photos on Connections-only posts are in `photos`, which any signed-in user can read
 with the path (paths are random and never listed); the word list is short on purpose
-(owner to extend); there's no in-app moderation screen yet (SQL above).
+(owner to extend); there's no appeal flow (people write to the support address); banning an
+account for good is done in the dashboard (Authentication › Users › Ban).
 
 ## 4. RPC reference
 
@@ -863,6 +887,14 @@ feedback-notify › Logs) say `not configured (missing …)` when a setting is m
 key is wrong. Edge Functions can't use ports 25 or 587, so it always connects to
 Brevo on 465 (implicit TLS), whatever `BREVO_SMTP_PORT` says. More than one
 recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
+
+### 7a-7. What's live (18 Nov 2026, moderation for all content)
+
+* **Migrations** `20261117233000_report_targets.sql` and `20261117233100_moderation.sql`
+  pushed with `db push --remote --yes` (a `pg_dump` of `public` taken first, kept off the repo).
+* **pgTAP:** 612 of 612 on the hosted database (the 576 above plus `moderation_test.sql`, 36).
+* **Smoke test:** 106 of 106 (adds: a block hides the blocker's view of event chat, an event
+  reported, a suspension stops a new thread and `my_moderation_status()` says so).
 
 ### 7c. The smoke test
 

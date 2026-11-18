@@ -120,3 +120,15 @@ Work in this order. Each item ships over the air unless marked native.
    road name, speed, OSM speed-limit roundel, arrival, miles and time left and END at the
    bottom; heading-up or north-up; your own icon; recentre after a look round; fixes for
    set-back destinations and the check-in panel when stopped.
+7. **Community tab (owner request, built 17–18 Nov 2026, over the air)**: Feed (posts with
+   plate-blurred photos, an optional place on the map's Posts layer, never near home; Public
+   or Connections; likes and comments), People (Cars near you with server-side rough
+   distances, filters, Rate builds, social profiles), Connections (request, accept, decline
+   with a silent 30-day cooldown; messages only between connections, owner decision), Forum
+   (boards, Helpful, Solved +25 rep, capped), Messages (1-to-1 and groups up to 50, photos,
+   shared cards, Seen, unread badges). Safety on all user content: report with reasons, block
+   everywhere (event chat too), three reports hide, staff Moderation screen with suspend. See
+   SPEC "Community" and BACKEND 3b. **Left for the owner:** extend the word list
+   (`private.banned_terms`), add staff (`insert into public.staff …`), decide on an appeals
+   address, and whether swearing short of the list is fine. **Later:** typing indicator, video,
+   real push for messages (paid Apple account), and paging the feed and people by distance at scale.
