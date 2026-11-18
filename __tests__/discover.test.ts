@@ -254,7 +254,7 @@ describe('new events near you', () => {
     expect(nearbyBatch([ev('one')], NOW)!.url).toBe('/event/one');
     const batch = nearbyBatch([ev('one'), ev('two'), ev('three')], NOW)!;
     expect(batch.title).toBe('3 new events near you');
-    expect(batch.url).toBe('/find');
+    expect(batch.url).toBe('/search?tab=events');
     expect(nearbyBatch([ev('s1', { type: 'show' }), ev('s2', { type: 'trackday' })], NOW)!.title).toBe('2 new shows and track days near you');
   });
 });

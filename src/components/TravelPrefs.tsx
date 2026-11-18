@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { ALERT_HINTS, ALERT_LABELS, parseMiles, TRAVEL_CHOICES, travelProblem, type AlertMode } from '../lib/discover';
-import { C } from '../theme';
-import { Chip, InlineError, Row, Txt, s as ui } from './ui';
+import { COLOR, FONT_SCALE, RADII, SPACING } from '../theme';
+import { ChoiceGroup, DsText, ErrorState, typeStyle } from './ds';
 
 const MODES: AlertMode[] = ['notify', 'search', 'off'];
 
 /**
- * "Willing to travel" and "New events near you". Used on the profile form and
- * on Me. Calls onChange only with values that pass the checks in discover.ts.
+ * "Willing to travel" and "New events near you" (Settings › Notifications, and
+ * the profile form). Calls onChange only with values that pass the checks in discover.ts.
  */
 export function TravelPrefs({
   miles,
@@ -33,51 +33,39 @@ export function TravelPrefs({
   }
 
   return (
-    <View style={{ gap: 14 }}>
-      <View style={{ gap: 8 }}>
-        <Txt>Willing to travel</Txt>
-        <Txt v="caption">How far you'd go for an event. It sets which new events you hear about and where Find events starts. Only you see it.</Txt>
-        <Row gap={6}>
-          {TRAVEL_CHOICES.map((m) => (
-            <Chip
-              key={m}
-              label={`${m} mi`}
-              on={!custom && miles === m}
-              onPress={() => {
-                setCustom(false);
-                setProblem(null);
-                onChange({ travelMiles: m });
-              }}
-            />
-          ))}
-          <Chip label={custom && !problem && text ? `${miles} mi` : 'Custom'} on={custom} onPress={() => setCustom(true)} />
-        </Row>
+    <View style={{ gap: SPACING.lg }}>
+      <View style={{ gap: SPACING.xs }}>
+        <ChoiceGroup
+          label="Willing to travel"
+          value={custom ? 'custom' : String(miles)}
+          onChange={(k) => {
+            if (k === 'custom') return setCustom(true);
+            setCustom(false);
+            setProblem(null);
+            onChange({ travelMiles: Number(k) });
+          }}
+          options={[...TRAVEL_CHOICES.map((m) => ({ key: String(m), label: `${m} mi` })), { key: 'custom', label: custom && !problem && text ? `${miles} mi` : 'Custom' }]}
+        />
         {custom ? (
-          <View style={{ gap: 4 }}>
-            <TextInput
-              value={text}
-              onChangeText={typed}
-              placeholder="Miles, 1 to 300"
-              placeholderTextColor={C.fog}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              maxLength={3}
-              style={ui.input}
-              accessibilityLabel="Willing to travel, in miles"
-            />
-            <InlineError message={problem} />
-          </View>
+          <TextInput
+            value={text}
+            onChangeText={typed}
+            placeholder="Miles, 1 to 300"
+            placeholderTextColor={COLOR.text.secondary}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            maxLength={3}
+            maxFontSizeMultiplier={FONT_SCALE.chrome}
+            style={[typeStyle('input'), { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card }]}
+            accessibilityLabel="Willing to travel, in miles"
+          />
         ) : null}
+        {problem ? <ErrorState title={problem} /> : null}
+        <DsText v="caption">How far you'd go for an event: which new events you hear about, and where Search › Events starts. Only you see it.</DsText>
       </View>
-
-      <View style={{ gap: 8 }}>
-        <Txt>New events near you</Txt>
-        <Row gap={6}>
-          {MODES.map((m) => (
-            <Chip key={m} label={ALERT_LABELS[m]} on={alerts === m} onPress={() => onChange({ alerts: m })} />
-          ))}
-        </Row>
-        <Txt v="caption">{ALERT_HINTS[alerts]} Only events you can go to: your car or bike fits the invite, it's public, or it's a show or track day.</Txt>
+      <View style={{ gap: SPACING.xs }}>
+        <ChoiceGroup label="New events near you" layout="list" value={alerts} onChange={(m) => onChange({ alerts: m })} options={MODES.map((m) => ({ key: m, label: ALERT_LABELS[m], hint: ALERT_HINTS[m] }))} />
+        <DsText v="caption">Only events you can go to: your car or bike fits the invite, it's public, or it's a show or track day.</DsText>
       </View>
     </View>
   );

@@ -39,7 +39,10 @@ export function ProfileForm({
   const [locError, setLocError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   /** The demo draws sample people round your home; signed in there are none, and the demo area isn't offered. */
-  const demo = useStore().backend === 'local';
+  const { backend, settings } = useStore();
+  const demo = backend === 'local';
+  /** The fixed demo area is for testing only: development builds, or with the demo's GPS skip on. */
+  const devArea = demo && (__DEV__ || !!settings.simulateGps);
 
   const isDemoHome = !!home && home.lat === DEMO_HOME.lat && home.lng === DEMO_HOME.lng;
 
@@ -167,8 +170,8 @@ export function ProfileForm({
         />
       </Section>
 
-      {demo && !isDemoHome ? (
-        <Button label="Testing: use the demo area (Tamworth)" kind="secondary" onPress={pickDemoArea} />
+      {devArea && !isDemoHome ? (
+        <Button label="Developer: use the demo area (Tamworth)" kind="secondary" onPress={pickDemoArea} />
       ) : null}
 
       <Button label={submitLabel} onPress={submit} busy={saving} />

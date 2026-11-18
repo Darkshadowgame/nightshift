@@ -1,13 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, InlineError, LinkText, Row, Section, Txt, s as ui } from '../components/ui';
+import { Button, DsText, ErrorState, Icon, Press, Section, typeStyle } from '../components/ds';
 import { openLegal } from '../components/AboutSection';
 import { Wordmark } from '../components/Wordmark';
 import { isReviewEmail, useAuth } from '../lib/auth';
-import { BRAND, C } from '../theme';
+import { COLOR, FONT_SCALE, RADII, SPACING } from '../theme';
 
 /** Set once someone ticks the 18+ and terms box, so it stays ticked next time. Bump the date when the terms change. */
 const AGREED_KEY = 'nightshift.agreed';
@@ -16,37 +16,28 @@ const TERMS_VERSION = '2026-11-17';
 /** "I'm 18 or over and agree…": required before an account is made (App Store 1.2 and the Terms). */
 function AgreeRow({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
-    <View style={{ gap: 6 }}>
-      <Pressable
+    <View style={{ gap: SPACING.xs }}>
+      <Press
         onPress={() => onChange(!on)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: on }}
-        accessibilityLabel="I'm 18 or over and I agree to the Terms of Use and Community Guidelines"
+        haptic="select"
+        role="checkbox"
+        state={{ checked: on }}
+        label="I'm 18 or over and I agree to the Terms of Use and Community Guidelines"
         hitSlop={8}
-        style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', minHeight: 44 }}
+        style={{ flexDirection: 'row', gap: SPACING.md, alignItems: 'flex-start', minHeight: 44 }}
       >
-        <View
-          style={{
-            width: 24,
-            height: 24,
-            marginTop: 1,
-            borderRadius: 6,
-            borderWidth: 2,
-            borderColor: on ? BRAND : C.fog,
-            backgroundColor: on ? BRAND : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {on ? <Txt style={{ color: C.ink, fontSize: 16, lineHeight: 18 }}>✓</Txt> : null}
+        <View style={[st.box, on && { borderColor: COLOR.action.selected, backgroundColor: COLOR.action.selected }]}>
+          {on ? <Icon name="check" size={16} colour={COLOR.action.onPrimary} /> : null}
         </View>
-        <Txt style={{ flex: 1 }}>I'm 18 or over and I agree to the Terms of Use and Community Guidelines. Zero tolerance for abuse, harassment or organising street racing.</Txt>
-      </Pressable>
-      <Row gap={16}>
-        <LinkText label="Terms ›" onPress={() => openLegal('terms')} />
-        <LinkText label="Community rules ›" onPress={() => openLegal('guidelines')} />
-        <LinkText label="Privacy ›" onPress={() => openLegal('privacy')} />
-      </Row>
+        <DsText v="body" style={{ flex: 1 }}>
+          I'm 18 or over and I agree to the Terms of Use and Community Guidelines. Zero tolerance for abuse, harassment or organising street racing.
+        </DsText>
+      </Press>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+        <Button label="Terms" tier="tertiary" size="sm" onPress={() => openLegal('terms')} accessibilityHint="Opens in Safari" />
+        <Button label="Community rules" tier="tertiary" size="sm" onPress={() => openLegal('guidelines')} accessibilityHint="Opens in Safari" />
+        <Button label="Privacy" tier="tertiary" size="sm" onPress={() => openLegal('privacy')} accessibilityHint="Opens in Safari" />
+      </View>
     </View>
   );
 }
@@ -115,17 +106,20 @@ export default function SignIn() {
       if (!ok) throw new Error("That isn't a Nightshift sign-in link. Copy the whole link from the email.");
     });
 
+  const input = [typeStyle('input'), st.input];
+  const err = (at: Parameters<typeof errorAt>[0]) => {
+    const t = errorAt(at);
+    return t ? <ErrorState title={t} /> : null;
+  };
+
   return (
     <ScrollView
-      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 28, paddingBottom: insets.bottom + 40, gap: 24 }}
+      contentContainerStyle={[st.page, { paddingTop: insets.top + SPACING.xl, paddingBottom: insets.bottom + SPACING.xxxl }]}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
       keyboardDismissMode="interactive"
     >
-      <View style={{ gap: 14 }}>
-        <Wordmark />
-        <Txt v="label">18+ only</Txt>
-      </View>
+      <Wordmark />
 
       {!sentTo ? (
         <Section title="Sign in or create an account">
@@ -133,8 +127,8 @@ export default function SignIn() {
             value={email}
             onChangeText={setEmail}
             placeholder="you@example.com"
-            placeholderTextColor={C.fog}
-            style={ui.input}
+            placeholderTextColor={COLOR.text.secondary}
+            style={input}
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="email"
@@ -142,6 +136,7 @@ export default function SignIn() {
             textContentType="emailAddress"
             returnKeyType="send"
             onSubmitEditing={send}
+            maxFontSizeMultiplier={FONT_SCALE.chrome}
             accessibilityLabel="Email address"
           />
           {review ? (
@@ -149,8 +144,8 @@ export default function SignIn() {
               value={password}
               onChangeText={setPassword}
               placeholder="Password (App Review account)"
-              placeholderTextColor={C.fog}
-              style={ui.input}
+              placeholderTextColor={COLOR.text.secondary}
+              style={input}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -164,73 +159,82 @@ export default function SignIn() {
           {review ? (
             <Button
               label="Sign in with password"
+              block
               onPress={() => run('send', async () => { mustAgree(); await auth.signInWithPassword(email, password); })}
               busy={busy === 'send'}
               disabled={!password}
+              hint="Type the password first"
             />
           ) : (
-            <Button label="Email me a code" onPress={send} busy={busy === 'send'} />
+            <Button label="Email me a code" block onPress={send} busy={busy === 'send'} />
           )}
-          <InlineError message={errorAt('send')} />
-          <Txt v="caption">No password. We email you a 6-digit code each time you sign in. New here? The same code makes your account.</Txt>
+          {err('send')}
+          <DsText v="caption">No password. We email you a 6-digit code each time you sign in. New here? The same code makes your account.</DsText>
         </Section>
       ) : (
         <Section title="Check your email">
-          <Txt v="muted">
-            We sent a sign-in email to {sentTo}. Type the 6-digit code, or tap the link in the email on this phone.
-          </Txt>
+          <DsText v="secondary">We sent a sign-in email to {sentTo}. Type the 6-digit code, or tap the link in the email on this phone.</DsText>
           <TextInput
             value={code}
             onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
             placeholder="123456"
-            placeholderTextColor={C.fog}
-            style={[ui.input, { fontSize: 24, letterSpacing: 8, textAlign: 'center' }]}
+            placeholderTextColor={COLOR.text.secondary}
+            style={[input, st.code]}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
             maxLength={6}
             returnKeyType="done"
             onSubmitEditing={verify}
+            maxFontSizeMultiplier={FONT_SCALE.chrome}
             accessibilityLabel="6-digit code"
           />
-          <Button label="Sign in" onPress={verify} busy={busy === 'verify'} disabled={code.length !== 6} />
-          <InlineError message={errorAt('code')} />
+          <Button label="Sign in" block onPress={verify} busy={busy === 'verify'} disabled={code.length !== 6} hint="Type the 6-digit code" />
+          {err('code')}
           {showLink ? (
-            <View style={{ gap: 8 }}>
-              <Txt v="caption">Opened the email somewhere else? Copy the sign-in link from it and paste it here.</Txt>
+            <View style={{ gap: SPACING.sm }}>
+              <DsText v="caption">Opened the email somewhere else? Copy the sign-in link from it and paste it here.</DsText>
               <TextInput
                 value={link}
                 onChangeText={setLink}
                 placeholder="https://…supabase.co/auth/v1/verify?token=…"
-                placeholderTextColor={C.fog}
-                style={ui.input}
+                placeholderTextColor={COLOR.text.secondary}
+                style={input}
                 autoCapitalize="none"
                 autoCorrect={false}
                 accessibilityLabel="Sign-in link"
               />
-              <Button label="Use this link" kind="secondary" onPress={useLink} busy={busy === 'link'} disabled={!link.trim()} />
-              <InlineError message={errorAt('link')} />
+              <Button label="Use this link" tier="secondary" block onPress={useLink} busy={busy === 'link'} disabled={!link.trim()} hint="Paste the link first" />
+              {err('link')}
             </View>
           ) : (
-            <LinkText label="The email has a link, not a code ›" onPress={() => setShowLink(true)} />
+            <Button label="The email has a link, not a code" tier="tertiary" size="sm" onPress={() => setShowLink(true)} />
           )}
-          <Row gap={20}>
-            <LinkText label="Send it again ›" onPress={() => run('send', async () => { await auth.sendCode(sentTo); setNote('Sent again. Codes last 10 minutes; you can ask once a minute.'); })} />
-            <LinkText label="Use another email ›" onPress={() => { setSentTo(null); setError(null); setNote(null); }} />
-          </Row>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+            <Button label="Send it again" tier="tertiary" size="sm" onPress={() => run('send', async () => { await auth.sendCode(sentTo); setNote('Sent again. Codes last 10 minutes; you can ask once a minute.'); })} />
+            <Button label="Use another email" tier="tertiary" size="sm" onPress={() => { setSentTo(null); setError(null); setNote(null); }} />
+          </View>
         </Section>
       )}
 
-      {note ? <Txt v="muted" accessibilityLiveRegion="polite">{note}</Txt> : null}
+      {note ? <DsText v="secondary" accessibilityLiveRegion="polite">{note}</DsText> : null}
 
-      <Card>
-        <Txt>Just looking?</Txt>
-        <Txt v="muted">Try Nightshift with sample people and events round your area. Nothing leaves your phone, and you can sign in later.</Txt>
-        <Button label="Try the demo without an account" kind="secondary" busy={busy === 'demo'} onPress={() => run('demo', () => auth.startDemo())} />
-        <InlineError message={errorAt('demo')} />
-      </Card>
+      <View style={st.demo}>
+        <DsText v="title">Just looking?</DsText>
+        <DsText v="secondary">Try Nightshift with sample people and events round your area. Nothing leaves your phone, and you can sign in later.</DsText>
+        <Button label="Try the demo without an account" tier="secondary" block busy={busy === 'demo'} onPress={() => run('demo', () => auth.startDemo())} />
+        {err('demo')}
+      </View>
 
-      <LinkText label="Trouble signing in? Send feedback ›" onPress={() => router.push({ pathname: '/feedback', params: { from: '/signin', kind: 'bug' } })} />
+      <Button label="Trouble signing in? Send feedback" tier="tertiary" size="sm" onPress={() => router.push({ pathname: '/feedback', params: { from: '/signin', kind: 'bug' } })} />
     </ScrollView>
   );
 }
+
+const st = StyleSheet.create({
+  page: { paddingHorizontal: SPACING.screen, gap: SPACING.section },
+  input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
+  code: { textAlign: 'center', letterSpacing: 8 },
+  box: { width: 24, height: 24, marginTop: 1, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.secondary, alignItems: 'center', justifyContent: 'center' },
+  demo: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
+});

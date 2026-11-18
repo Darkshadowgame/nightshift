@@ -1,13 +1,13 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { usePhotoFlow } from '../components/PhotoFlow';
-import { Button, Card, Chip, InlineError, Row, Section, ToggleRow, Txt, s as ui } from '../components/ui';
+import { Button, ChoiceGroup, DsText, EmptyState, ErrorState, ListRow, Section, Tag, typeStyle } from '../components/ds';
 import { FEEDBACK_KINDS, FEEDBACK_MAX, FEEDBACK_PHOTOS_MAX, kindLabel, makeReport, statusLabel, type FeedbackKind } from '../lib/feedbackQueue';
 import { currentPosition } from '../lib/location';
 import { deletePhotos, photoUri } from '../lib/photos';
 import { newId, useStore } from '../lib/store';
-import { BRAND, C, STATE } from '../theme';
+import { COLOR, RADII, SPACING } from '../theme';
 
 /**
  * Send feedback (Settings, Me and the sign-in screen open it). A type, a
@@ -87,120 +87,120 @@ export default function FeedbackScreen() {
   const list = sentFeedback ?? [];
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={st.page} keyboardShouldPersistTaps="handled">
       {flow.view}
       {sent ? (
-        <Card accent={STATE.success}>
-          <Txt v="h3">Thanks, it’s with the team</Txt>
-          <Txt v="muted">
+        <View style={st.done} accessibilityLiveRegion="polite">
+          <DsText v="title">Thanks, it’s with the team</DsText>
+          <DsText v="secondary">
             {waiting.size > 0
               ? 'No signal right now, so it’s waiting on your phone and goes as soon as there is.'
               : 'Every report is read. Check back here to see what happens to it.'}
-          </Txt>
-          <Button label="Send more feedback" kind="secondary" size="sm" onPress={() => setSent(false)} />
-        </Card>
+          </DsText>
+          <Button label="Send more feedback" tier="secondary" size="sm" onPress={() => setSent(false)} />
+        </View>
       ) : (
-        <Section title="Send feedback">
-          <Card>
-            <Txt v="label">What kind?</Txt>
-            <Row style={{ flexWrap: 'wrap' }}>
-              {FEEDBACK_KINDS.map((k) => (
-                <Chip key={k.kind} label={k.label} raw on={kind === k.kind} onPress={() => setKind(k.kind)} />
-              ))}
-            </Row>
-            <Txt v="caption">{FEEDBACK_KINDS.find((k) => k.kind === kind)?.hint}</Txt>
+        <View style={{ gap: SPACING.lg }}>
+          <ChoiceGroup label="What kind?" value={kind} onChange={setKind} options={FEEDBACK_KINDS.map((k) => ({ key: k.kind, label: k.label }))} />
+          <DsText v="caption">{FEEDBACK_KINDS.find((k) => k.kind === kind)?.hint}</DsText>
+          <View style={{ gap: SPACING.xs }}>
+            <DsText v="label">Your message</DsText>
             <TextInput
               value={message}
               onChangeText={setMessage}
               placeholder={kind === 'bug' ? 'What happened, and what did you expect?' : kind === 'looks_wrong' ? 'Which place or event, and what’s wrong?' : 'Tell us…'}
-              placeholderTextColor={C.fog}
-              style={[ui.input, { minHeight: 120, textAlignVertical: 'top' }]}
+              placeholderTextColor={COLOR.text.secondary}
+              style={[typeStyle('input'), st.input]}
               multiline
               maxLength={FEEDBACK_MAX}
               accessibilityLabel="Your feedback"
             />
+          </View>
 
-            <Txt v="label">Screenshots or photos</Txt>
+          <View style={{ gap: SPACING.sm }}>
+            <DsText v="label">Screenshots or photos</DsText>
             {signedIn ? (
-              <View style={{ gap: 8 }}>
+              <>
                 {photos.length ? (
-                  <Row style={{ flexWrap: 'wrap' }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
                     {photos.map((p, i) => (
-                      <Pressable
-                        key={p}
-                        onPress={() => removePhoto(p)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remove photo ${i + 1}`}
-                        style={{ width: 72, height: 72, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: C.kerbHi }}
-                      >
+                      <Pressable key={p} onPress={() => removePhoto(p)} accessibilityRole="button" accessibilityLabel={`Remove photo ${i + 1}`} style={st.thumb}>
                         <Image source={{ uri: photoUri(p) }} style={{ width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
                       </Pressable>
                     ))}
-                  </Row>
+                  </View>
                 ) : null}
                 {photos.length < FEEDBACK_PHOTOS_MAX ? (
-                  <Row style={{ flexWrap: 'nowrap' }}>
-                    <Button label="Add a screenshot" kind="secondary" size="sm" style={{ flex: 1 }} busy={flow.busy} onPress={() => flow.pick(false)} />
-                    <Button label="Take a photo" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => flow.pick(true)} />
-                  </Row>
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                    <Button label="Add a screenshot" tier="secondary" size="sm" block style={{ flex: 1 }} busy={flow.busy} onPress={() => flow.pick(false)} />
+                    <Button label="Take a photo" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(true)} />
+                  </View>
                 ) : null}
-                <Txt v="caption">Up to {FEEDBACK_PHOTOS_MAX}. Number plates are found and blurred first; tap a photo to take it off. Only the Nightshift team sees them.</Txt>
-              </View>
+                <DsText v="caption">Up to {FEEDBACK_PHOTOS_MAX}. Number plates are found and blurred first; tap a photo to take it off. Only the Nightshift team sees them.</DsText>
+              </>
             ) : (
-              <Txt v="caption">Sign in to add screenshots. You can still send this without them.</Txt>
+              <DsText v="caption">Sign in to add screenshots. You can still send this without them.</DsText>
             )}
+          </View>
 
-            <ToggleRow
-              label="Include my location"
-              hint="Off unless you tick it. Useful when a place is wrong where you are. It goes with this report only."
+          <View style={st.switchRow}>
+            <View style={{ flex: 1, gap: SPACING.xxs }}>
+              <DsText v="body">Include my location</DsText>
+              <DsText v="caption">Off unless you turn it on. Useful when a place is wrong where you are. It goes with this report only.</DsText>
+            </View>
+            <Switch
               value={withLocation}
               onValueChange={setWithLocation}
+              accessibilityLabel="Include my location"
+              trackColor={{ true: COLOR.action.primary, false: COLOR.surface.raisedHi }}
+              thumbColor={COLOR.text.primary}
+              ios_backgroundColor={COLOR.surface.raisedHi}
             />
+          </View>
 
-            <Button label="Send feedback" onPress={send} busy={busy} disabled={!message.trim()} />
-            <InlineError message={error} />
+          <Button label="Send feedback" size="lg" block onPress={send} busy={busy} disabled={!message.trim()} hint="Write something first" haptic="success" />
+          {error ? <ErrorState title={error} /> : null}
 
-            <Pressable onPress={() => setShowDetails((v) => !v)} accessibilityRole="button" hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
-              <Txt v="label" style={{ color: BRAND }}>{showDetails ? 'Hide what’s sent with it' : 'What’s sent with it ›'}</Txt>
-            </Pressable>
-            {showDetails ? (
-              <View style={{ gap: 2 }}>
-                <Txt v="caption">App version: {process.env.EXPO_PUBLIC_APP_VERSION ?? 'development'}{context.runtime ? ` (runtime ${context.runtime})` : ''}</Txt>
-                <Txt v="caption">Device: {[context.model, context.os].filter(Boolean).join(', ')}</Txt>
-                <Txt v="caption">Screen: {route}</Txt>
-                <Txt v="caption">Mode: {context.backend}</Txt>
-                <Txt v="caption">{signedIn ? 'Your account, so we can see your reports here.' : 'No account: it’s sent anonymously.'} Never your name, email or location (unless ticked).</Txt>
-              </View>
-            ) : null}
-          </Card>
-        </Section>
+          <Button label={showDetails ? 'Hide what’s sent with it' : 'What’s sent with it'} tier="tertiary" size="sm" onPress={() => setShowDetails((v) => !v)} />
+          {showDetails ? (
+            <View style={{ gap: SPACING.xxs }}>
+              <DsText v="caption">App version: {process.env.EXPO_PUBLIC_APP_VERSION ?? 'development'}{context.runtime ? ` (runtime ${context.runtime})` : ''}</DsText>
+              <DsText v="caption">Device: {[context.model, context.os].filter(Boolean).join(', ')}</DsText>
+              <DsText v="caption">Screen: {route}</DsText>
+              <DsText v="caption">Mode: {context.backend}</DsText>
+              <DsText v="caption">{signedIn ? 'Your account, so we can see your reports here.' : 'No account: it’s sent anonymously.'} Never your name, email or location (unless turned on).</DsText>
+            </View>
+          ) : null}
+        </View>
       )}
 
-      <Section title="Your feedback">
+      <Section title="Your feedback" right={list.length ? <Button label="Check for updates" tier="tertiary" size="sm" onPress={refresh} /> : undefined}>
         {list.length === 0 ? (
-          <Card>
-            <Txt v="muted">Nothing sent from this phone yet. What you send shows here with what happened to it: New, Seen, Planned, or Fixed in a version.</Txt>
-          </Card>
+          <EmptyState variant="inline" title="Nothing sent from this phone yet. What you send shows here, with what happened to it." />
         ) : (
-          <Card>
-            {list.map((f) => {
-              const label = statusLabel(f, waiting.has(f.id));
-              const tone = f.status === 'done' ? STATE.success : f.status === 'planned' ? BRAND : waiting.has(f.id) ? STATE.warning : C.fog;
-              return (
-                <View key={f.id} style={{ gap: 2, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.kerb }}>
-                  <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-                    <Txt v="caption" style={{ flex: 1 }}>{kindLabel(f.kind)} · {new Date(f.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</Txt>
-                    <Txt v="label" style={{ color: tone }}>{label}</Txt>
-                  </Row>
-                  <Txt numberOfLines={2}>{f.summary}</Txt>
-                </View>
-              );
-            })}
-            <Button label="Check for updates" kind="ghost" size="sm" onPress={refresh} />
-            <InlineError message={listError} />
-          </Card>
+          list.map((f) => {
+            const label = statusLabel(f, waiting.has(f.id));
+            const tone = f.status === 'done' ? 'success' : f.status === 'planned' ? 'info' : waiting.has(f.id) ? 'warning' : 'neutral';
+            return (
+              <ListRow
+                key={f.id}
+                title={f.summary}
+                meta={`${kindLabel(f.kind)} · ${new Date(f.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                trailing={<Tag label={label} tone={tone} />}
+              />
+            );
+          })
         )}
+        {listError ? <ErrorState title={listError} onRetry={refresh} /> : null}
       </Section>
     </ScrollView>
   );
 }
+
+const st = StyleSheet.create({
+  page: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
+  done: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
+  input: { minHeight: 120, textAlignVertical: 'top', padding: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
+  thumb: { width: 72, height: 72, borderRadius: RADII.control, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.raisedHi },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 56 },
+});

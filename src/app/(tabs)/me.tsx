@@ -1,23 +1,20 @@
-import { router, useNavigation } from 'expo-router';
-import { useLayoutEffect } from 'react';
-import { ScrollView } from 'react-native';
-import { CrewCard } from '../../components/CrewCard';
-import { RepPanel, useRep } from '../../components/Rep';
-import { Button, Card, HeaderAction, LegendTag, LinkText, ListRow, Row, Section, Txt } from '../../components/ui';
-import { allAwards, hasLegend } from '../../lib/awards';
-import { isHost, phaseOf } from '../../lib/events';
-import { plural } from '../../lib/format';
+import { router } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Avatar, Button, DsText, EmptyState, ListRow, RowDivider, Section, Tag, metaLine } from '../../components/ds';
+import { useRep } from '../../components/Rep';
+import { allAwards, categoryInfo, hasLegend } from '../../lib/awards';
+import { formatWhen, plural } from '../../lib/format';
 import { PLACE_NAMES, SCREEN_TITLES } from '../../lib/glossary';
-import { useStore, type Settings } from '../../lib/store';
+import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
-import { C, SPOT_COLOURS } from '../../theme';
+import { COLOR, SPACING, SPOT_COLOURS } from '../../theme';
 
 /**
- * Me: who you are (REVIEW-5 M7). Profile, rep, crew and your places. Every
- * setting is on the Settings screen (the header's Settings button).
+ * Me: who you are, in one screen. Profile (avatar, handle, level, crew),
+ * trophies and your places, then Settings, feedback and how the app works.
+ * Every setting lives on the one Settings screen.
  */
 export default function Me() {
-  const nav = useNavigation();
   const { users, me, crews, builds, events, votes, spots } = useStore();
   const now = useNow();
   const rep = useRep(me);
@@ -26,84 +23,89 @@ export default function Me() {
   const user = users.find((u) => u.id === me);
   const crew = crews.find((c) => c.id === user?.crewId);
   const mySpots = spots.filter((x) => x.authorId === me);
-  const hosting = events.filter((e) => !e.cancelled && phaseOf(e, now) !== 'over' && isHost(e, me, crews)).length;
-
-  useLayoutEffect(() => {
-    nav.setOptions({
-      headerRight: () => (
-        <Row style={{ marginRight: 10 }}>
-          <HeaderAction label={SCREEN_TITLES.settings} onPress={() => router.push('/settings')} />
-        </Row>
-      ),
-    });
-  }, [nav]);
+  const myBuilds = builds.filter((b) => b.ownerId === me);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}>
-      <Card>
-        <Row>
-          <Txt v="h2" style={{ textTransform: 'none' }}>@{user?.handle}</Txt>
-          {hasLegend(awards, me, now) ? <LegendTag /> : null}
-        </Row>
-        <Txt>{user?.name}</Txt>
-        <Txt v="muted">{user?.region}{crew ? ` · Crew: ${crew.name}` : ''}</Txt>
-        <Row gap={16}>
-          <Txt v="mono">{plural(builds.filter((b) => b.ownerId === me).length, 'build').toUpperCase()}</Txt>
-          {/* Hosting now (upcoming or live), not ever hosted: profiles count that. */}
-          <Txt v="mono">{hosting > 0 ? `HOSTING ${hosting} NOW` : 'NOT HOSTING'}</Txt>
-          <Txt v="mono">{plural(myAwards.length, 'trophy', 'trophies').toUpperCase()}</Txt>
-        </Row>
-        <Row style={{ flexWrap: 'nowrap' }}>
-          <Button label="Edit profile" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => router.push('/profile')} />
-          <Button label="Public view" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/user/[id]', params: { id: me } })} />
-        </Row>
-      </Card>
+    <ScrollView contentContainerStyle={st.page}>
+      <View style={st.profile}>
+        <Avatar name={user?.name} handle={user?.handle} size="lg" />
+        <View style={{ flex: 1, gap: SPACING.xxs }}>
+          <DsText v="titleLg" numberOfLines={1}>
+            @{user?.handle}
+          </DsText>
+          {user?.name && user.name !== user.handle ? <DsText v="secondary">{user.name}</DsText> : null}
+          {/* The level as a plain fact: not an action, so not sodium (DESIGN-SYSTEM rule 11). */}
+          <DsText v="meta">{metaLine([`Level ${rep.level.level}`, `${rep.ledger.total.toLocaleString('en-GB')} rep`, plural(myBuilds.length, 'build')])}</DsText>
+          {hasLegend(awards, me, now) ? <Tag label="Legend this week" tone="selected" /> : null}
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+        <Button label="Edit profile" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => router.push('/profile')} />
+        <Button label="Public view" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => router.push({ pathname: '/user/[id]', params: { id: me } })} />
+      </View>
 
-      {/* The level shows once, here (REVIEW-5 m8). */}
-      <RepPanel ledger={rep.ledger} level={rep.level} title="Your rep" />
-
-      <Section title="Crew" right={<LinkText label="All crews ›" onPress={() => router.push('/crews')} />}>
+      <Section title="Crew" right={<Button label="All crews" tier="tertiary" size="sm" onPress={() => router.push('/crews')} />}>
         {crew ? (
-          <CrewCard crew={crew} />
+          <ListRow
+            title={crew.name}
+            subtitle={metaLine([crew.tag, plural(crew.memberIds.length, 'member')])}
+            onPress={() => router.push({ pathname: '/crew/[id]', params: { id: crew.id } })}
+          />
         ) : (
-          <Card>
-            <Txt v="muted">You're not in a crew. Crews host events together.</Txt>
-            <Row style={{ flexWrap: 'nowrap' }}>
-              <Button label="Find a crew" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => router.push('/crews')} />
-              <Button label="Start one" kind="secondary" size="sm" style={{ flex: 1 }} onPress={() => router.push('/crew/new')} />
-            </Row>
-          </Card>
+          <EmptyState variant="inline" title="Not in a crew. Crews host events together." action={{ label: 'Find a crew', onPress: () => router.push('/crews') }} />
         )}
       </Section>
 
-      <Section title="Your places">
-        <Card>
-          {mySpots.length === 0 ? (
-            <Txt v="muted">Suggest a great road to drive or a photo spot. You earn rep when it's approved and each time someone else uses it.</Txt>
-          ) : null}
-          {mySpots.map((x) => (
-            <ListRow
-              key={x.id}
-              glyph={x.kind}
-              colour={x.status === 'pending' ? C.fog : SPOT_COLOURS[x.kind]}
-              title={x.name}
-              subtitle={`${PLACE_NAMES[x.kind].one} · ${x.status === 'pending' ? 'waiting for approval' : 'live'}`}
-              onPress={() => router.push({ pathname: '/spot/[id]', params: { id: x.id } })}
-            />
-          ))}
-          <Button label="Suggest a place" kind="secondary" size="sm" onPress={() => router.push('/spot/new')} />
-        </Card>
+      <Section title="Trophies">
+        {myAwards.length === 0 ? (
+          <EmptyState variant="inline" title="None yet. Check in at a meet, and people there vote for the best builds." />
+        ) : (
+          myAwards.map((a) => {
+            const b = builds.find((x) => x.id === a.buildId);
+            const e = events.find((x) => x.id === a.eventId);
+            return (
+              <ListRow
+                key={`${a.eventId}:${a.category}`}
+                leading={{ icon: 'success', colour: COLOR.text.primary }}
+                title={categoryInfo(a.category).label}
+                subtitle={metaLine([b ? `${b.make} ${b.model}` : null, e?.title])}
+                meta={metaLine([plural(a.votes, 'vote'), formatWhen(a.at, now)])}
+                onPress={e ? () => router.push({ pathname: '/event/[id]', params: { id: e.id } }) : undefined}
+              />
+            );
+          })
+        )}
       </Section>
 
-      <Card>
-        <Txt>Something not right, or got an idea?</Txt>
-        <Button label="Send feedback" kind="secondary" size="sm" onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
-        <Txt v="caption">See what happened to what you sent under Send feedback › Your feedback.</Txt>
-      </Card>
+      <Section title="Your places" right={<Button label="Suggest one" tier="tertiary" size="sm" onPress={() => router.push('/spot/new')} />}>
+        {mySpots.length === 0 ? (
+          <EmptyState variant="inline" title="Suggest a great road to drive or a photo spot. You earn rep when it's approved." />
+        ) : (
+          mySpots.map((x) => (
+            <ListRow
+              key={x.id}
+              leading={{ pin: x.kind, colour: x.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[x.kind] }}
+              title={x.name}
+              subtitle={PLACE_NAMES[x.kind].one}
+              trailing={x.status === 'pending' ? <Tag label="Waiting" tone="warning" /> : <Tag label="Live" tone="success" />}
+              onPress={() => router.push({ pathname: '/spot/[id]', params: { id: x.id } })}
+            />
+          ))
+        )}
+      </Section>
 
-      <LinkText label="All settings ›" onPress={() => router.push('/settings')} />
+      <View>
+        <ListRow title={SCREEN_TITLES.settings} subtitle="Account, navigation, notifications, privacy" onPress={() => router.push('/settings')} />
+        <RowDivider />
+        <ListRow title={SCREEN_TITLES.feedback} subtitle="A bug, an idea, or something wrong on the map" onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
+        <RowDivider />
+        <ListRow title={SCREEN_TITLES.help} subtitle="Stops, check-in, classes, trophies and rep" onPress={() => router.push('/help')} />
+      </View>
     </ScrollView>
   );
 }
 
-export type { Settings };
+const st = StyleSheet.create({
+  page: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg },
+});

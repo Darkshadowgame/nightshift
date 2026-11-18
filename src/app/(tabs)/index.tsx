@@ -2,9 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { areaRadius } from '../../lib/area';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Linking, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PulseRing } from '../../components/motion';
 import { Pin, type Glyph } from '../../components/Pin';
 import { LayersPanel } from '../../components/LayersPanel';
 import { detentTops, MapSheet, type Detent } from '../../components/MapSheet';
@@ -15,12 +14,26 @@ import { feel } from '../../lib/feel';
 import { inViewOnly, nearestPoints, placesForView, regionKey } from '../../lib/mapPlaces';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapHandle } from '../../components/mapTypes';
-import { NoticeBell } from '../../components/NoticeBell';
-import { Button, LinkText, ListRow, Notice, Row, Tag, Txt } from '../../components/ui';
+import {
+  Button,
+  DsText,
+  EmptyState,
+  IconButton,
+  ListRow,
+  Press,
+  ScreenHeader,
+  SearchField,
+  Section,
+  SegmentedControl,
+  Sheet,
+  SheetOption,
+  metaLine,
+  useToast,
+} from '../../components/ds';
+import { EventEntityCard, PlaceEntityCard, roleTag } from '../../components/TonightCards';
 import { EVENT_LABELS } from '../../lib/events';
 import { viewEvents, type EventView } from '../../lib/eventView';
 import { describeFilter } from '../../lib/invites';
-import { plural } from '../../lib/format';
 import { eventClock, mapHud, orderPins, unlocksIn } from '../../lib/hud';
 import { fitRegion, formatMiles } from '../../lib/geo';
 import { currentPosition } from '../../lib/location';
@@ -30,12 +43,12 @@ import { driveTier } from '../../lib/rep';
 import { cameraIndex } from '../../lib/cameraData';
 import { CAMERA_CAVEAT, CAMERA_CREDIT, cameraPinSize, camerasForView, describeCamera, describeZone } from '../../lib/cameras';
 import { ALL_VEHICLES, isSpectatorVenue, matchesVehicles, outlinesInView } from '../../lib/tracks';
-import { VEHICLE_LABELS, type TrackVehicle } from '../../lib/laptimes';
+import type { TrackVehicle } from '../../lib/laptimes';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
 import { useShopIndex } from '../../lib/shopData';
-import { describeCategories, SHOP_CREDIT, shopPinSize, shopsForView, toggleCategory, type ShopFilter } from '../../lib/shops';
-import { ALL_CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, MENU_ORDER, shopFilterNote, type ShopCategory } from '../../lib/shopCategories';
+import { describeCategories, shopPinSize, shopsForView, toggleCategory, type ShopFilter } from '../../lib/shops';
+import { ALL_CATEGORIES, type ShopCategory } from '../../lib/shopCategories';
 import { parseOpeningHours, openState } from '../../lib/openingHours';
 import { demoPartners, partnerBadge } from '../../lib/partners';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
@@ -44,9 +57,10 @@ import { answerProblem, confirmations, KIND_INFO, reportAge, sourceCredit, type 
 import { useRoadReports, useRoads } from '../../lib/roadStore';
 import { usePostPins } from '../../lib/communityStore';
 import { shortAgo } from '../../lib/format';
-import { openPlaceLabel, PLACE_NAMES, roleLabel, roleTone, UNLOCK } from '../../lib/glossary';
+import { openPlaceLabel, PLACE_NAMES, roleLabel, UNLOCK } from '../../lib/glossary';
+import { clearJustOnboarded, justOnboarded } from '../../lib/firstRun';
 import { ALL_LAYERS, CORE_LAYERS, layerOn, toggleLayer as toggledLayer, type CoreLayer, type Layer } from '../../lib/mapLayers';
-import { BRAND, C, EVENT_COLOURS, F, FONT_SCALE, LAYER, PARTNER_COLOUR, POST_COLOUR, RADIUS, ROAD_COLOUR, SHOP_COLOUR, SPOT_COLOURS, STATE, SURFACE, TYPE } from '../../theme';
+import { C, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, ROAD_COLOUR, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
 
 
 /** What the card at the bottom shows for the tapped pin. Cameras have nothing to open. */
@@ -59,7 +73,7 @@ interface Selection {
   open?: () => void;
   cta?: string;
   /** Buttons on the card (road reports: Still there / Gone). */
-  actions?: { label: string; onPress: () => void; colour: string }[];
+  actions?: { label: string; onPress: () => void }[];
   /** A short line under the body, e.g. why you can't answer from here. */
   note?: string;
 }
@@ -96,15 +110,6 @@ function NearIcon({ colour }: { colour: string }) {
   );
 }
 
-/** Find (events, and Where to? for any address): a magnifier. */
-function FindIcon({ colour }: { colour: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
-      <Path d="M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zM15.5 15.5 20 20" fill="none" stroke={colour} strokeWidth={2.2} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 /** The layers button's icon: three stacked sheets, as in Apple Maps. */
 function LayersIcon({ colour }: { colour: string }) {
   return (
@@ -118,12 +123,17 @@ function LayersIcon({ colour }: { colour: string }) {
 const START = { lat: 52.7, lng: -1.7 };
 const START_SPAN = 1.4;
 
-export default function MapScreen() {
+/**
+ * Tonight (docs/SPEC.md): what's on near you tonight, on a map or as a list.
+ * The header has the one search, the Map / List switch, the + (host an event,
+ * suggest a place) and the bell. The map keeps the bottom sheet from
+ * MAP-REDESIGN.md; the list shows your events, live now, tonight and this week.
+ */
+export default function TonightScreen() {
   const insets = useSafeAreaInsets();
   const store = useStore();
-  const { events, me, crews, users, builds, spots, nearby, settings, setSettings } = store;
+  const { events, me, crews, users, builds, spots, settings, setSettings } = store;
   const now = useNow();
-  const newNear = nearby?.unseen.length ?? 0;
   // Every layer is saved in settings, the core ones too (mapLayers.ts), so they come back as left.
   const layersKey = [settings.mapLayers, settings.cameras, settings.shops, settings.roadReports, settings.postsLayer];
   const layers = useMemo(
@@ -422,8 +432,8 @@ export default function MapScreen() {
         ...(r.source === 'user' && !problem && roadNote?.id !== r.id
           ? {
               actions: [
-                { label: 'Still there', onPress: () => answerReport(r, 'still_there'), colour: STATE.success },
-                { label: 'Gone', onPress: () => answerReport(r, 'gone'), colour: C.fog },
+                { label: 'Still there', onPress: () => answerReport(r, 'still_there') },
+                { label: 'Gone', onPress: () => answerReport(r, 'gone') },
               ],
             }
           : {}),
@@ -513,10 +523,10 @@ export default function MapScreen() {
   /** One short line under the bar: what to zoom in for, or the OpenStreetMap credit. */
   const openDataCredit = Array.from(new Set(roadReports.filter((r) => r.source !== 'user').map((r) => sourceCredit(r)).filter(Boolean))).join(' · ');
   const mapNote = (() => {
-    const zoom = [cams?.tooWide && camerasAsked ? 'CAMERAS' : null, shopView?.tooWide ? 'SHOPS' : null].filter(Boolean);
-    if (shopView?.loading) return { zoom: true, text: shopsFailed ? "COULDN'T LOAD SHOPS" : 'LOADING SHOPS…' };
-    if (zoom.length) return { zoom: true, text: `ZOOM IN TO SEE ${zoom.join(' AND ')}` };
-    if (shopView && shopFilter.partnersOnly) return { zoom: false, text: `PARTNERS ONLY · ${shopView.partners.length} HERE` };
+    const zoom = [cams?.tooWide && camerasAsked ? 'cameras' : null, shopView?.tooWide ? 'shops' : null].filter(Boolean);
+    if (shopView?.loading) return { zoom: true, text: shopsFailed ? "Couldn't load shops" : 'Loading shops…' };
+    if (zoom.length) return { zoom: true, text: `Zoom in to see ${zoom.join(' and ')}` };
+    if (shopView && shopFilter.partnersOnly) return { zoom: false, text: `Partners only · ${shopView.partners.length} here` };
     const more = shopView?.more ? ' · nearest shops shown' : '';
     const closures = openDataCredit ? ` · closures: ${openDataCredit}` : '';
     return { zoom: false, text: `© OpenStreetMap${cams && !cams.tooWide ? ' · cameras may be incomplete' : ''}${more}${closures}` };
@@ -532,8 +542,49 @@ export default function MapScreen() {
     if (r) setView((v) => ({ ...r, key: (v?.key ?? 0) + 1 }));
   }
   const lead = hud.live[0] ?? hud.next;
-  /** The one-time "how the map works" hint (REVIEW-5 M8), once the location note is out of the way. */
-  const showHint = ready && !settings.mapHintSeen && !locNote;
+  const toast = useToast();
+
+  // ---------------------------------------------------------------------------
+  // Map or list, and the first-run highlight.
+  // ---------------------------------------------------------------------------
+  const params = useLocalSearchParams<{ focus?: string; t?: string; view?: string }>();
+  const [mode, setMode] = useState<'map' | 'list'>(params.view === 'list' ? 'list' : 'map');
+  useEffect(() => {
+    if (params.view === 'list' || params.view === 'map') setMode(params.view);
+  }, [params.view, params.t]);
+  const [plusOpen, setPlusOpen] = useState(false);
+  /** Welcome's last step: "here's what's on, say you're going with the car you just added". Once. */
+  const [intro, setIntroState] = useState(() => justOnboarded());
+  const setIntro = (x: null) => {
+    clearJustOnboarded();
+    setIntroState(x);
+  };
+  const myBuilds = builds.filter((b) => b.ownerId === me);
+  const introBuild = myBuilds.find((b) => b.id === intro?.buildId) ?? myBuilds[myBuilds.length - 1];
+  /** The pick for a first-timer: live now or the soonest tonight, that you can go to. */
+  const pick = useMemo(() => {
+    if (!intro) return null;
+    const t = now.getTime();
+    const open = views.filter((v) => (v.role === 'invited' || v.role === 'public' || v.role === 'going') && new Date(v.event.startsAt).getTime() < t + 24 * 3_600_000);
+    return open.find((v) => v.phase === 'live') ?? open.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt))[0] ?? null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intro, views]);
+  const [joining, setJoining] = useState(false);
+  async function goWithMyCar(v: EventView) {
+    if (!introBuild) return;
+    setJoining(true);
+    try {
+      const res = await store.setGoing(v.event.id, true, introBuild.id);
+      setIntro(null);
+      toast({ message: res === 'requested' ? 'Asked the host. You’ll hear when they say yes.' : `You’re going in your ${introBuild.make} ${introBuild.model}. Check in when you get there.` });
+      router.push({ pathname: '/event/[id]', params: { id: v.event.id } });
+    } catch (e) {
+      toast({ message: e instanceof Error ? e.message : "Couldn't do that just now.", tone: 'danger' });
+    } finally {
+      setJoining(false);
+    }
+  }
+  const openEvent = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
 
   // ---------------------------------------------------------------------------
   // The sheet (MAP-REDESIGN.md): Tonight near you, or the selected pin.
@@ -542,12 +593,12 @@ export default function MapScreen() {
   const [detent, setDetent] = useState<Detent>('peek');
   const [headerH, setHeaderH] = useState(120);
   const sheetY = useSharedValue(screen.height);
-  const sheetTop = insets.top + 8;
+  const sheetTop = SPACING.sm;
   const tops = detentTops(box.h, headerH, sheetTop);
-  // The first visit, or a location note: open the sheet so the note is read.
+  // A location note: open the sheet so it's read.
   useEffect(() => {
-    if (showHint || locNote) setDetent((d) => (d === 'peek' ? 'half' : d));
-  }, [showHint, locNote]);
+    if (locNote) setDetent((d) => (d === 'peek' ? 'half' : d));
+  }, [locNote]);
 
   /** Where an event or place is on the map (an event's shown stop, or its rough area). */
   const where = useCallback(
@@ -569,6 +620,7 @@ export default function MapScreen() {
    */
   function show(id: string, zoom = true, onlyIfHidden = false) {
     feel.select();
+    setMode('map');
     setSelected(id);
     setDetent('peek');
     const at = where(id);
@@ -580,8 +632,7 @@ export default function MapScreen() {
   }
   const showRef = useRef(show);
   showRef.current = show;
-  // Search (Find) sends people back here with what they picked: `focus` is a pin id ("ev:…" or "sp:…").
-  const params = useLocalSearchParams<{ focus?: string; t?: string }>();
+  // Search and "Show on map" send people here with what they picked: `focus` is a pin id ("ev:…" or "sp:…").
   useEffect(() => {
     if (params.focus && ready) showRef.current(params.focus);
   }, [params.focus, params.t, ready]);
@@ -603,36 +654,36 @@ export default function MapScreen() {
   const lists = useMemo(() => {
     const t = now.getTime();
     const start = (v: EventView) => new Date(v.event.startsAt).getTime();
-    // The lead event is already in the sheet's header.
-    const upcoming = views.filter((v) => v.phase !== 'live' && v !== lead).sort((a, b) => start(a) - start(b));
+    const upcoming = views.filter((v) => v.phase !== 'live').sort((a, b) => start(a) - start(b));
+    const mine = (v: EventView) => v.role === 'host' || v.role === 'going' || v.role === 'requested';
     return {
-      live: hud.live.filter((v) => v !== lead),
+      yours: [...hud.live.filter(mine), ...upcoming.filter(mine)],
+      live: hud.live,
       tonight: upcoming.filter((v) => start(v) <= t + 12 * 3_600_000),
-      week: upcoming.filter((v) => start(v) > t + 12 * 3_600_000 && start(v) <= t + 7 * 86_400_000).slice(0, 6),
+      week: upcoming.filter((v) => start(v) > t + 12 * 3_600_000 && start(v) <= t + 7 * 86_400_000),
     };
-  }, [views, now, lead, hud.live]);
+  }, [views, now, hud.live]);
   const nearPlaces = useMemo(() => {
     const shownPlaces = places.filter((s) => s.status !== 'pending' && (layers[s.kind] || (s.kind === 'venue' && venuesViaShops)));
     return shownPlaces
       .map((s) => ({ s, miles: milesBetween(snapped.centre, s.at) }))
       .sort((a, b) => a.miles - b.miles)
-      .slice(0, 5);
+      .slice(0, 3);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, shown, venuesViaShops, snapped.key]);
   const milesTo = (v: EventView) => {
     const at = v.shownStop >= 0 ? v.event.stops[v.shownStop].at ?? v.event.area : v.event.area;
-    return formatMiles(milesBetween(origin, at));
+    return milesBetween(origin, at);
   };
   const nothingOn = ready && !lead && lists.week.length === 0;
 
   // The map's buttons and notes ride just above the sheet, up to half; they fade out as it opens fully.
   const [stackH, setStackH] = useState(176);
   const [noteH, setNoteH] = useState(30);
-  const pillBottom = insets.top + 8 + PILL + 8;
   const ride = (y: number, h: number) => {
     'worklet';
     const yy = Math.min(y, tops.peek);
-    const lift = Math.max(pillBottom, yy - h - 12);
+    const lift = Math.max(SPACING.sm, yy - h - SPACING.md);
     const fade = Math.min(1, Math.max(0, (yy - (tops.full + 60)) / Math.max(1, tops.half - tops.full - 60)));
     return { transform: [{ translateY: lift }], opacity: fade };
   };
@@ -643,201 +694,237 @@ export default function MapScreen() {
   const [showLayers, setShowLayers] = useState(false);
   const showNote = (cams && (!cams.tooWide || camerasAsked)) || shopView || openDataCredit;
 
-  return (
-    <View style={{ flex: 1, backgroundColor: C.asphalt }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <NightMap
-        ref={map}
-        pins={pins}
-        paths={paths}
-        circles={circles}
-        polygons={polygons}
-        centre={view?.centre ?? meUser?.home ?? START}
-        span={view?.span ?? START_SPAN}
-        onRegion={setRegion}
-        recentreKey={view?.key ?? 0}
-        onSelect={onSelectPin2}
-        onPressMap={onMapPress}
-        showsUser={located}
-        compass={COMPASS}
-      />
+  /** The first-run card: tonight's pick and "I'm going" with the car you just added (or add one first). */
+  const introCard =
+    intro && pick ? (
+      <View style={st.intro} accessibilityLiveRegion="polite">
+        <DsText v="eyebrow" tone="action" accessibilityRole="header">
+          Start here
+        </DsText>
+        <DsText v="secondary">
+          {introBuild ? `Say you're going, with your ${introBuild.make} ${introBuild.model}. Then check in when you get there.` : 'Add your car or bike, then say you’re going.'}
+        </DsText>
+        <EventEntityCard view={pick} now={now} miles={milesTo(pick)} onPress={() => openEvent(pick.event.id)} />
+        {introBuild ? (
+          <Button label="I'm going" size="lg" block busy={joining} haptic="success" onPress={() => goWithMyCar(pick)} />
+        ) : (
+          <Button label="Add a car or bike" size="lg" block onPress={() => router.push('/build/edit')} />
+        )}
+        <Button label="Not now" tier="tertiary" size="sm" onPress={() => setIntro(null)} style={{ alignSelf: 'center' }} />
+      </View>
+    ) : null;
 
-      {/* Top: one search pill and the bell. */}
-      <View style={[st.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <Pressable
-          onPress={() => router.push({ pathname: '/find', params: { focus: '1' } })}
-          style={({ pressed }) => [st.search, pressed && { opacity: 0.85 }]}
-          accessibilityRole="search"
-          accessibilityLabel={`Search: where to, events, places and people${newNear > 0 ? `. ${newNear} new events near you` : ''}`}
-        >
-          <FindIcon colour={C.chalk} />
+  const listBody = (
+    <ScrollView contentContainerStyle={st.list} keyboardShouldPersistTaps="handled">
+      {introCard}
+      <Section title="Your events">
+        {lists.yours.length ? (
+          lists.yours.map((v) => <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => openEvent(v.event.id)} />)
+        ) : (
+          <EmptyState variant="inline" title="Nothing yet. Say you're going to something below, or host one." />
+        )}
+      </Section>
+      <EventSection title="Live now" list={lists.live} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
+      <EventSection title="Tonight" list={lists.tonight} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
+      <EventSection title="This week" list={lists.week} skip={lists.yours} now={now} milesTo={milesTo} onOpen={openEvent} />
+      {nothingOn ? <EmptyState variant="inline" title="Nothing on near you this week." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} /> : null}
+    </ScrollView>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+      {/* The header: title, + (host or suggest), the bell; then the one search and Map / List. */}
+      <View style={[st.top, { paddingTop: insets.top }]}>
+        <ScreenHeader title="Tonight" bell action={{ label: '+ Host', accessibilityLabel: 'Host an event or suggest a place', onPress: () => setPlusOpen(true) }} />
+        <View style={st.searchRow}>
           <View style={{ flex: 1 }}>
-            <Txt v="body" scale="chrome" style={{ fontFamily: F.bodyBold }} numberOfLines={1}>Where to?</Txt>
-            <Txt v="caption" scale="chrome" numberOfLines={1}>Events, places, people, addresses</Txt>
+            <SearchField onOpen={() => router.push('/search')} placeholder="Search" accessibilityLabel="Search events, places, people and addresses" />
           </View>
-          {newNear > 0 ? (
-            <View style={st.newBadge}>
-              <Text maxFontSizeMultiplier={FONT_SCALE.chrome} style={st.newBadgeText}>{newNear > 9 ? '9+' : newNear} new</Text>
-            </View>
-          ) : null}
-        </Pressable>
-        <NoticeBell boxed size={PILL} />
+          <View style={{ width: 132 }}>
+            <SegmentedControl
+              accessibilityLabel="Show as"
+              value={mode}
+              onChange={(m) => {
+                setMode(m);
+                if (m === 'list') close();
+              }}
+              options={[
+                { key: 'map', label: 'Map' },
+                { key: 'list', label: 'List' },
+              ]}
+            />
+          </View>
+        </View>
       </View>
 
-      {/* Left, above the sheet: what to zoom in for, or the OpenStreetMap credit. */}
-      {showNote && box.h ? (
-        <Animated.View style={[st.note, { maxWidth: box.w - 16 - BUTTON - 24 }, noteStyle]} pointerEvents="none" onLayout={(e) => setNoteH(e.nativeEvent.layout.height)}>
-          <Txt v="micro" scale="chrome" style={{ color: mapNote.zoom ? C.chalk : C.fog }} numberOfLines={2}>{mapNote.text}</Txt>
-        </Animated.View>
-      ) : null}
+      {mode === 'list' ? (
+        listBody
+      ) : (
+        <View style={{ flex: 1, overflow: 'hidden' }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+          <NightMap
+            ref={map}
+            pins={pins}
+            paths={paths}
+            circles={circles}
+            polygons={polygons}
+            centre={view?.centre ?? meUser?.home ?? START}
+            span={view?.span ?? START_SPAN}
+            onRegion={setRegion}
+            recentreKey={view?.key ?? 0}
+            onSelect={onSelectPin2}
+            onPressMap={onMapPress}
+            showsUser={located}
+            compass={COMPASS}
+          />
 
-      {/* Right, above the sheet: layers, locate me, near me. */}
-      {box.h ? (
-        <Animated.View style={[st.stack, stackStyle]} pointerEvents={chromeLive ? 'box-none' : 'none'} onLayout={(e) => setStackH(e.nativeEvent.layout.height)}>
-          {/* Room for one small map widget (e.g. a speed readout). See MapWidgetSlot. */}
-          <MapWidgetSlot />
-          <View style={st.stackGroup}>
-            <MapButton
-              onPress={() => setShowLayers(true)}
-              label={`Map layers and key${moreOn > 0 ? `, ${moreOn} extra on` : ''}`}
-              lit={moreOn > 0}
-            >
-              <LayersIcon colour={moreOn > 0 ? C.chalk : C.fog} />
-            </MapButton>
-            <View style={st.stackRule} />
-            <MapButton onPress={() => locate(true, true)} label="Show where I am">
-              <Pin glyph="you" colour={located ? C.chalk : C.fog} size={26} />
-            </MapButton>
-            <View style={st.stackRule} />
-            <MapButton onPress={nearMe} label="Near me: fit what's around you">
-              <NearIcon colour={C.chalk} />
-            </MapButton>
-          </View>
-        </Animated.View>
-      ) : null}
+          {/* Left, above the sheet: what to zoom in for, or the OpenStreetMap credit. */}
+          {showNote && box.h ? (
+            <Animated.View style={[st.note, { maxWidth: box.w - SPACING.lg - BUTTON - SPACING.xl }, noteStyle]} pointerEvents="none" onLayout={(e) => setNoteH(e.nativeEvent.layout.height)}>
+              <DsText v="caption" tone={mapNote.zoom ? 'primary' : 'secondary'} numberOfLines={2}>
+                {mapNote.text}
+              </DsText>
+            </Animated.View>
+          ) : null}
 
-      {box.h ? (
-        <MapSheet
-          y={sheetY}
-          height={box.h}
-          top={sheetTop}
-          peek={headerH}
-          detent={detent}
-          onDetent={setDetent}
-          label={sel ? sel.title : 'Tonight near you'}
-          onHeaderLayout={setHeaderH}
-          header={
-            sel ? (
-              <View style={st.header}>
-                <Row style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }} gap={12}>
-                  <Pin glyph={sel.glyph} colour={sel.colour} size={36} />
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Txt v="h3" numberOfLines={2} accessibilityRole="header">{sel.title}</Txt>
-                    <Txt v="mono" scale="chrome" style={{ color: sel.colour }} numberOfLines={2}>{sel.meta}</Txt>
+          {/* Right, above the sheet: layers, locate me, near me. */}
+          {box.h ? (
+            <Animated.View style={[st.stack, stackStyle]} pointerEvents={chromeLive ? 'box-none' : 'none'} onLayout={(e) => setStackH(e.nativeEvent.layout.height)}>
+              {/* Room for one small map widget (e.g. a speed readout). See MapWidgetSlot. */}
+              <MapWidgetSlot />
+              <View style={st.stackGroup}>
+                <MapButton onPress={() => setShowLayers(true)} label={`Map layers and key${moreOn > 0 ? `, ${moreOn} extra on` : ''}`} lit={moreOn > 0}>
+                  <LayersIcon colour={moreOn > 0 ? COLOR.text.primary : COLOR.text.secondary} />
+                </MapButton>
+                <View style={st.stackRule} />
+                <MapButton onPress={() => locate(true, true)} label="Show where I am">
+                  <Pin glyph="you" colour={located ? COLOR.text.primary : COLOR.text.secondary} size={26} />
+                </MapButton>
+                <View style={st.stackRule} />
+                <MapButton onPress={nearMe} label="Near me: fit what's around you">
+                  <NearIcon colour={COLOR.text.primary} />
+                </MapButton>
+              </View>
+            </Animated.View>
+          ) : null}
+
+          {box.h ? (
+            <MapSheet
+              y={sheetY}
+              height={box.h}
+              top={sheetTop}
+              peek={headerH}
+              detent={detent}
+              onDetent={setDetent}
+              label={sel ? sel.title : 'Tonight near you'}
+              onHeaderLayout={setHeaderH}
+              header={
+                sel ? (
+                  <View style={st.header}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md }}>
+                      <View aria-hidden>
+                        <Pin glyph={sel.glyph} colour={sel.colour} size={36} />
+                      </View>
+                      <View style={{ flex: 1, gap: SPACING.xxs }}>
+                        <DsText v="title" numberOfLines={2} accessibilityRole="header">
+                          {sel.title}
+                        </DsText>
+                        <DsText v="meta" numberOfLines={2}>
+                          {sel.meta}
+                        </DsText>
+                      </View>
+                      <IconButton icon="close" label="Close" onPress={close} />
+                    </View>
+                    {sel.body ? (
+                      <DsText v="secondary" numberOfLines={detent === 'peek' ? 3 : undefined}>
+                        {sel.body}
+                      </DsText>
+                    ) : null}
+                    {sel.note ? <DsText v="secondary" tone="primary">{sel.note}</DsText> : null}
+                    {sel.actions ? (
+                      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                        {sel.actions.map((a) => (
+                          <Button key={a.label} label={a.label} tier="secondary" onPress={a.onPress} style={{ flex: 1 }} block />
+                        ))}
+                      </View>
+                    ) : null}
+                    {sel.open ? <Button label={sel.cta ?? 'Open'} onPress={sel.open} block /> : null}
                   </View>
-                  <Pressable onPress={close} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={st.closeBtn}>
-                    <Txt v="h3" scale="chrome" style={{ color: C.fog }}>✕</Txt>
-                  </Pressable>
-                </Row>
-                {sel.body ? <Txt v="muted" numberOfLines={detent === 'peek' ? 3 : undefined}>{sel.body}</Txt> : null}
-                {sel.note ? <Txt v="muted" style={{ color: C.chalk }}>{sel.note}</Txt> : null}
-                {sel.actions ? (
-                  <Row gap={10} style={{ flexWrap: 'nowrap' }}>
-                    {sel.actions.map((a) => (
-                      <Pressable
-                        key={a.label}
-                        onPress={a.onPress}
-                        accessibilityRole="button"
-                        style={({ pressed }) => [st.answer, { borderColor: a.colour }, pressed && { opacity: 0.8 }]}
-                      >
-                        <Txt v="label" scale="chrome" style={{ color: a.colour, fontSize: TYPE.body }}>{a.label}</Txt>
-                      </Pressable>
-                    ))}
-                  </Row>
-                ) : null}
-                {sel.open ? <Button label={sel.cta ?? 'Open'} onPress={sel.open} /> : null}
-              </View>
-            ) : (
-              <View style={st.header}>
-                <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-                  <Txt v="eyebrow" scale="chrome" accessibilityRole="header">Tonight near you</Txt>
-                  {hud.tonight > 0 ? <Txt v="mono" scale="chrome" style={{ color: BRAND }}>{hud.tonight} IN THE NEXT 12H</Txt> : null}
-                </Row>
-                {lead ? (
-                  <LeadRow lead={lead} now={now} miles={milesTo(lead)} onPress={() => show(`ev:${lead.event.id}`)} />
-                ) : ready ? (
-                  <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between', minHeight: 48 }}>
-                    <Txt v="h3" style={{ flex: 1 }}>Nothing on near you tonight</Txt>
-                    <LinkText label="Find events ›" onPress={() => router.push('/find')} />
-                  </Row>
-                ) : null}
-              </View>
-            )
-          }
-        >
-          {sel ? null : (
-            <>
-              {locNote ? (
-                <Notice onDismiss={() => setLocNote(null)} action={Platform.OS !== 'web' ? { label: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) } : undefined}>
-                  {locNote}
-                </Notice>
-              ) : null}
-              {showHint ? (
-                <View style={st.hint} accessibilityLiveRegion="polite">
-                  <Txt v="eyebrow">How the map works</Txt>
-                  <Txt v="muted" style={{ color: C.chalk }}>
-                    Filled pins are events, outlined pins are places. Tap one to see it here. Search is at the top; the layers button (right) picks what the map shows.
-                  </Txt>
-                  <LinkText label="Got it" onPress={() => setSettings({ mapHintSeen: true })} />
-                </View>
-              ) : null}
-              <Row gap={8} style={{ flexWrap: 'nowrap' }}>
-                <Action label="Host an event" glyph="meet" onPress={() => router.push('/event/new')} />
-                <Action label="Suggest a place" glyph="destination" onPress={() => router.push('/spot/new')} />
-                <Action label="Find events" glyph="calendar" onPress={() => router.push('/find')} />
-              </Row>
-              {lists.live.length ? (
-                <SheetSection title="Live now">
-                  {lists.live.map((v) => (
-                    <EventRow key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => show(`ev:${v.event.id}`)} />
-                  ))}
-                </SheetSection>
-              ) : null}
-              {lists.tonight.length ? (
-                <SheetSection title="Tonight">
-                  {lists.tonight.map((v) => (
-                    <EventRow key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => show(`ev:${v.event.id}`)} />
-                  ))}
-                </SheetSection>
-              ) : null}
-              {lists.week.length ? (
-                <SheetSection title="This week" right={<LinkText label="All events ›" onPress={() => router.push('/find')} />}>
-                  {lists.week.map((v) => (
-                    <EventRow key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => show(`ev:${v.event.id}`)} />
-                  ))}
-                </SheetSection>
-              ) : null}
-              {nothingOn ? (
-                <Txt v="muted">Nothing coming up near you. Find an event further out, or host one for your mates.</Txt>
-              ) : null}
-              {nearPlaces.length ? (
-                <SheetSection title="Places on the map">
-                  {nearPlaces.map(({ s, miles }) => (
-                    <ListRow
-                      key={s.id}
-                      glyph={s.kind}
-                      colour={SPOT_COLOURS[s.kind]}
-                      title={s.name}
-                      subtitle={[PLACE_NAMES[s.kind].one, s.region, `${formatMiles(miles)} from the map's centre`].filter(Boolean).join(' · ')}
-                      onPress={() => show(`sp:${s.id}`, false)}
-                      accessibilityLabel={`${s.name}, ${PLACE_NAMES[s.kind].one}. Show on the map`}
-                    />
-                  ))}
-                </SheetSection>
-              ) : null}
-            </>
-          )}
-        </MapSheet>
-      ) : null}
+                ) : introCard ? (
+                  // First run: the pick and "I'm going" are the sheet's header, so they show lowered too.
+                  <View style={st.header}>{introCard}</View>
+                ) : (
+                  <View style={st.header}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 }}>
+                      <DsText v="eyebrow" tone="action" accessibilityRole="header">
+                        Tonight near you
+                      </DsText>
+                      {hud.tonight > 0 ? <DsText v="meta">{hud.tonight} in the next 12 h</DsText> : null}
+                    </View>
+                    {lead ? (
+                      <LeadRow lead={lead} now={now} miles={milesTo(lead)} onPress={() => show(`ev:${lead.event.id}`)} />
+                    ) : ready ? (
+                      <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host one', onPress: () => router.push('/event/new') }} />
+                    ) : null}
+                  </View>
+                )
+              }
+            >
+              {sel ? null : (
+                <>
+                  {locNote ? (
+                    <View style={st.notice} accessibilityLiveRegion="polite">
+                      <DsText v="secondary" tone="primary">{locNote}</DsText>
+                      <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+                        {Platform.OS !== 'web' ? <Button label="Open Settings" tier="tertiary" size="sm" onPress={() => Linking.openSettings().catch(() => {})} /> : null}
+                        <Button label="Dismiss" tier="tertiary" size="sm" onPress={() => setLocNote(null)} />
+                      </View>
+                    </View>
+                  ) : null}
+                  <EventSection title="Live now" list={lists.live} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
+                  <EventSection title="Tonight" list={lists.tonight} skip={lead && !introCard ? [lead] : []} now={now} milesTo={milesTo} onOpen={(id) => show(`ev:${id}`)} />
+                  <EventSection
+                    title="This week"
+                    list={lists.week.slice(0, 6)}
+                    skip={[]}
+                    now={now}
+                    milesTo={milesTo}
+                    onOpen={(id) => show(`ev:${id}`)}
+                    right={lists.week.length > 6 ? <Button label="All" tier="tertiary" size="sm" onPress={() => setMode('list')} accessibilityLabel="See every event as a list" /> : undefined}
+                  />
+                  {nothingOn ? <DsText v="secondary">Nothing coming up near you. Host one for your mates with the + at the top.</DsText> : null}
+                  {nearPlaces.length ? (
+                    <Section title="Places on the map">
+                      {nearPlaces.map(({ s, miles }) => (
+                        <PlaceEntityCard key={s.id} spot={s} miles={miles} milesFrom=" from the map's centre" onPress={() => show(`sp:${s.id}`, false)} />
+                      ))}
+                    </Section>
+                  ) : null}
+                </>
+              )}
+            </MapSheet>
+          ) : null}
+        </View>
+      )}
+
+      {/* The one + : host an event, or suggest a place. */}
+      <Sheet visible={plusOpen} title="Add" onClose={() => setPlusOpen(false)} doneLabel="Cancel">
+        <SheetOption
+          label="Host an event"
+          detail="A meet, cruise or rolling meet. You choose who's invited."
+          onPress={() => {
+            setPlusOpen(false);
+            router.push('/event/new');
+          }}
+        />
+        <SheetOption
+          label="Suggest a place"
+          detail="A drive, photo spot or meet spot. It's checked before it goes on the map."
+          onPress={() => {
+            setPlusOpen(false);
+            router.push('/spot/new');
+          }}
+        />
+      </Sheet>
 
       <LayersPanel
         visible={showLayers}
@@ -869,147 +956,84 @@ export default function MapScreen() {
   );
 }
 
-/** Search pill and map buttons: big enough for a thumb (48 pt). */
-const PILL = 52;
-/** Where the map's compass sits. One object for the module: a new one each render would re-render the memoised map. */
-const COMPASS = { x: -2, y: PILL + 12 };
+/** Map buttons: big enough for a thumb (48 pt). */
 const BUTTON = 48;
+/** Where the map's compass sits. One object for the module: a new one each render would re-render the memoised map. */
+const COMPASS = { x: -2, y: SPACING.md };
 
 function MapButton({ onPress, label, lit, children }: { onPress: () => void; label: string; lit?: boolean; children: ReactNode }) {
   return (
-    <Pressable
-      onPress={() => {
-        feel.tap();
-        onPress();
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [st.mapButton, lit && { backgroundColor: C.kerb }, pressed && { opacity: 0.7 }]}
-    >
+    <Press onPress={onPress} haptic="tap" label={label} style={[st.mapButton, lit && { backgroundColor: COLOR.surface.raised }]}>
       {children}
-    </Pressable>
+    </Press>
   );
 }
 
-/** One of the sheet's three actions: icon over a short label, a big target. */
-function Action({ label, glyph, onPress }: { label: string; glyph: Glyph; onPress: () => void }) {
+/** A titled run of event cards, without the ones already shown elsewhere. Nothing at all when it's empty. */
+function EventSection({
+  title,
+  list,
+  skip,
+  now,
+  milesTo,
+  onOpen,
+  right,
+}: {
+  title: string;
+  list: EventView[];
+  skip: EventView[];
+  now: Date;
+  milesTo: (v: EventView) => number;
+  onOpen: (eventId: string) => void;
+  right?: ReactNode;
+}) {
+  const shown = list.filter((v) => !skip.some((x) => x.event.id === v.event.id));
+  if (!shown.length) return null;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [st.action, pressed && { opacity: 0.8 }]}>
-      <Pin glyph={glyph} colour={BRAND} size={24} />
-      <Txt v="label" scale="chrome" style={{ color: C.chalk, textAlign: 'center' }} numberOfLines={2}>{label}</Txt>
-    </Pressable>
+    <Section title={title} right={right}>
+      {shown.map((v) => (
+        <EventEntityCard key={v.event.id} view={v} now={now} miles={milesTo(v)} onPress={() => onOpen(v.event.id)} />
+      ))}
+    </Section>
   );
 }
 
-function SheetSection({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
-  return (
-    <View style={{ gap: 2 }}>
-      <Row style={{ justifyContent: 'space-between', minHeight: 28 }}>
-        <Txt v="micro" accessibilityRole="header">{title}</Txt>
-        {right}
-      </Row>
-      {children}
-    </View>
-  );
-}
-
-/** An event in the sheet's lists: tap to see it on the map. */
-function EventRow({ view: v, now, miles, onPress }: { view: EventView; now: Date; miles: string; onPress: () => void }) {
-  const e = v.event;
-  const clock = eventClock(v, now);
-  const role = roleLabel(v.role);
-  const locked = v.shownStop < 0;
-  const sub = [EVENT_LABELS[e.type], `${clock.label} ${clock.value}`, `${e.going.length} going`, locked ? `${e.areaName} (rough area)` : miles].join(' · ');
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${e.title}. ${role ? `${role}. ` : ''}${sub}. Show on the map`}
-      style={({ pressed }) => [st.row, pressed && { opacity: 0.8 }]}
-    >
-      <Pin glyph={locked ? 'locked' : e.type} colour={EVENT_COLOURS[e.type]} size={30} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
-          {clock.live ? <View style={st.liveDot} accessibilityLabel="Live now" /> : null}
-          <Txt numberOfLines={1} style={{ flexShrink: 1 }}>{e.title}</Txt>
-        </Row>
-        <Txt v="caption" numberOfLines={2}>{sub}</Txt>
-      </View>
-      {role ? <Tag label={role} tone={roleTone(v.role)} /> : null}
-    </Pressable>
-  );
-}
-
-/** The sheet's peek: what's live now, or the next thing you're part of, with its countdown. */
-function LeadRow({ lead, now, miles, onPress }: { lead: EventView; now: Date; miles: string; onPress: () => void }) {
+/** The sheet's peek: what's live now, or the next thing, in one row with its countdown. */
+function LeadRow({ lead, now, miles, onPress }: { lead: EventView; now: Date; miles: number; onPress: () => void }) {
   const e = lead.event;
-  const colour = EVENT_COLOURS[e.type];
   const clock = eventClock(lead, now);
   const locked = unlocksIn(lead, now);
-  const role = roleLabel(lead.role);
+  const role = roleTag(lead.role);
   return (
-    <Pressable
+    <ListRow
+      leading={{ pin: lead.shownStop >= 0 ? e.type : 'locked', colour: EVENT_COLOURS[e.type] }}
+      title={e.title}
+      subtitle={metaLine([clock.live ? 'Live now' : 'Next up', EVENT_LABELS[e.type], role?.label])}
+      meta={metaLine([clock.live ? `Ends in ${clock.value}` : `Starts in ${clock.value}`, `${e.going.length} going`, locked ? UNLOCK.in(locked) : formatMiles(miles)])}
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${clock.live ? 'Live now' : 'Next up'}: ${e.title}, ${role ? `${role}, ` : ''}${clock.label} ${clock.value}. Show on the map`}
-      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }, pressed && { opacity: 0.8 }]}
-    >
-      <PulseRing live={clock.live} size={38}>
-        <Pin glyph={lead.shownStop >= 0 ? e.type : 'locked'} colour={colour} size={38} />
-      </PulseRing>
-      <View style={{ flex: 1, gap: 1 }}>
-        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
-          {clock.live ? <View style={st.liveDot} /> : null}
-          <Txt v="eyebrow" scale="chrome" style={{ color: clock.live ? STATE.live : colour, flexShrink: 1 }} numberOfLines={1}>
-            {clock.live ? 'Live now' : 'Next up'} · {EVENT_LABELS[e.type]}
-          </Txt>
-        </Row>
-        <Txt v="h3" scale="chrome" numberOfLines={1}>{e.title}</Txt>
-        <Row gap={6} style={{ flexWrap: 'nowrap' }}>
-          {role ? <Tag label={role} tone={roleTone(lead.role)} /> : null}
-          <Txt v="mono" scale="chrome" numberOfLines={1} style={{ flexShrink: 1 }}>
-            {[`${e.going.length} going`, locked ? UNLOCK.in(locked) : miles].filter(Boolean).join(' · ')}
-          </Txt>
-        </Row>
-      </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Txt v="micro" scale="chrome">{clock.live ? 'Ends in' : 'Starts in'}</Txt>
-        <Txt v="h2" scale="chrome" style={{ color: clock.live ? STATE.live : C.chalk, fontVariant: ['tabular-nums'], textTransform: 'none' }}>{clock.value}</Txt>
-      </View>
-    </Pressable>
+      accessibilityHint="Shows it on the map"
+    />
   );
 }
 
 const st = StyleSheet.create({
-  top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
-  search: {
-    flex: 1, minHeight: PILL, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 6,
-    backgroundColor: SURFACE.glassRaised, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.pill,
-    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
-  },
-  newBadge: { backgroundColor: BRAND, borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 3 },
-  newBadgeText: { fontFamily: F.labelBold, fontSize: TYPE.micro, color: C.ink, letterSpacing: 0.6, textTransform: 'uppercase' },
-  stack: { position: 'absolute', right: 12, top: 0, gap: 8, alignItems: 'flex-end' },
-  stackGroup: {
-    backgroundColor: SURFACE.glassRaised, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.sheet, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-  },
-  stackRule: { height: 1, backgroundColor: C.kerb, marginHorizontal: 8 },
+  top: { zIndex: 2, paddingHorizontal: SPACING.screen, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  list: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
+  stack: { position: 'absolute', right: SPACING.md, top: 0, gap: SPACING.sm, alignItems: 'flex-end' },
+  stackGroup: [
+    { backgroundColor: COLOR.surface.glassRaised, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' },
+    ELEVATION.float,
+  ] as never,
+  stackRule: { height: 1, backgroundColor: COLOR.surface.border, marginHorizontal: SPACING.sm },
   mapButton: { width: BUTTON, height: BUTTON, alignItems: 'center', justifyContent: 'center' },
   note: {
-    position: 'absolute', left: 12, top: 0,
-    backgroundColor: SURFACE.glass, borderColor: C.kerb, borderWidth: 1, borderRadius: RADIUS.tag, paddingHorizontal: 6, paddingVertical: 3,
+    position: 'absolute', left: SPACING.md, top: 0,
+    backgroundColor: COLOR.surface.glass, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.tag, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs,
   },
-  header: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
-  closeBtn: { width: 44, height: 44, marginTop: -6, marginRight: -8, alignItems: 'center', justifyContent: 'center' },
-  hint: { backgroundColor: C.tarmac, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.card, padding: 12, gap: 8 },
-  action: {
-    flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4, paddingVertical: 8,
-    backgroundColor: C.tarmac, borderColor: C.kerbHi, borderWidth: 1, borderRadius: RADIUS.card,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: STATE.liveDot },
-  answer: { flex: 1, minHeight: 48, borderWidth: 1.5, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center' },
+  header: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md, gap: SPACING.sm },
+  notice: { backgroundColor: COLOR.surface.raised, borderColor: COLOR.surface.raisedHi, borderWidth: 1, borderRadius: RADII.card, padding: SPACING.md, gap: SPACING.xs },
+  intro: { gap: SPACING.sm, paddingBottom: SPACING.sm },
 });
 
 /** "at 22:40", or "tomorrow at 09:00" / "on Fri 21 Nov". */

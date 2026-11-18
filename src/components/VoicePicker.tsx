@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppState, Pressable, View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { speak, voicePickerAvailable, voices as installedVoices, type Voice } from '../../modules/nav-directions';
 import { menuPath } from '../lib/glossary';
 import { useStore } from '../lib/store';
@@ -14,13 +14,13 @@ import {
   voiceToUse,
   type SpeechRate,
 } from '../lib/voices';
-import { BRAND, C, RADIUS } from '../theme';
-import { Button, Chip, LinkText, Row, Txt } from './ui';
+import { SPACING } from '../theme';
+import { Button, ChoiceGroup, DsText } from './ds';
 
 const RATES: SpeechRate[] = ['slower', 'normal', 'faster'];
 
 /**
- * Settings › Navigation: which installed voice reads the directions, how fast,
+ * Settings › Navigation and voice: which installed voice reads the directions, how fast,
  * and a sample. Builds before 11 can't list voices: they say so instead.
  */
 export function VoicePicker() {
@@ -40,7 +40,7 @@ export function VoicePicker() {
   }, []);
 
   if (!voicePickerAvailable) {
-    return <Txt v="caption">Choosing a voice needs the latest iPhone app (build 11 or later).</Txt>;
+    return <DsText v="caption">Choosing a voice needs the latest iPhone app (build 11 or later).</DsText>;
   }
 
   const sorted = sortVoices(list ?? []);
@@ -48,58 +48,35 @@ export function VoicePicker() {
   const shown = showAll || british.length === 0 ? sorted : sorted.filter((v) => british.includes(v) || v.identifier === picked);
   const auto = bestVoice(sorted);
   const using = voiceToUse(sorted, picked);
+  const current = picked && sorted.some((v) => v.identifier === picked) ? picked : 'auto';
 
   return (
-    <View style={{ gap: 10 }}>
-      <Txt>Voice</Txt>
-      <VoiceRow
-        title="Automatic"
-        detail={auto ? `Best British voice installed: ${auto.name}, ${voiceDetail(auto)}` : 'Best British voice installed'}
-        on={!picked || !sorted.some((v) => v.identifier === picked)}
-        onPress={() => setSettings({ navVoiceId: null })}
+    <View style={{ gap: SPACING.md }}>
+      <ChoiceGroup
+        label="Voice"
+        layout="list"
+        value={current}
+        onChange={(k) => setSettings({ navVoiceId: k === 'auto' ? null : k })}
+        options={[
+          { key: 'auto', label: 'Automatic', hint: auto ? `Best British voice installed: ${auto.name}, ${voiceDetail(auto)}` : 'Best British voice installed' },
+          ...shown.map((v) => ({ key: v.identifier, label: v.name, hint: voiceDetail(v) })),
+        ]}
       />
-      {shown.map((v) => (
-        <VoiceRow key={v.identifier} title={v.name} detail={voiceDetail(v)} on={picked === v.identifier} onPress={() => setSettings({ navVoiceId: v.identifier })} />
-      ))}
       {!showAll && sorted.length > shown.length ? (
-        <LinkText label={`Show other English voices (${sorted.length - shown.length}) ›`} onPress={() => setShowAll(true)} />
+        <Button label={`Show other English voices (${sorted.length - shown.length})`} tier="tertiary" size="sm" onPress={() => setShowAll(true)} />
       ) : null}
-
-      <Txt>Speed</Txt>
-      <Row>
-        {RATES.map((r) => (
-          <Chip key={r} label={SPEECH_RATE_LABELS[r]} on={rate === r} onPress={() => setSettings({ navVoiceRate: r })} />
-        ))}
-      </Row>
+      <ChoiceGroup label="Speed" value={rate} onChange={(r) => setSettings({ navVoiceRate: r })} options={RATES.map((r) => ({ key: r, label: SPEECH_RATE_LABELS[r] }))} />
       <Button
         label="Play sample"
-        kind="secondary"
+        tier="secondary"
         size="sm"
         accessibilityHint={using ? `Plays ${using.name}` : undefined}
         onPress={() => speak(VOICE_SAMPLE, { voice: picked, rate: speechRate(rate) })}
       />
-      <Txt v="caption">
+      <DsText v="caption">
         For a more natural voice, download one in iPhone Settings › {menuPath('Accessibility', 'Read & Speak', 'Voices', 'English')} (Spoken Content
         before iOS 26). Pick a UK voice, download its Enhanced or Premium version, then pick it here.
-      </Txt>
+      </DsText>
     </View>
-  );
-}
-
-function VoiceRow({ title, detail, on, onPress }: { title: string; detail: string; on: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel={`${title}. ${detail}`}
-      style={({ pressed }) => [
-        { borderWidth: 1, borderColor: on ? BRAND : C.kerbHi, borderRadius: RADIUS.card, paddingVertical: 10, paddingHorizontal: 12, minHeight: 44 },
-        pressed && { opacity: 0.7 },
-      ]}
-    >
-      <Txt>{title}{on ? '  ·  now' : ''}</Txt>
-      <Txt v="caption">{detail}</Txt>
-    </Pressable>
   );
 }

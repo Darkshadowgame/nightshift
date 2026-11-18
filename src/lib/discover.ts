@@ -34,8 +34,8 @@ export const ALERT_LABELS: Record<AlertMode, string> = {
 
 export const ALERT_HINTS: Record<AlertMode, string> = {
   notify: "We'll tell you when someone posts an event you can go to within your distance.",
-  search: "No notifications. New ones get a NEW tag in Find events, so you can browse when you like.",
-  off: 'Nothing at all. You can still use Find events.',
+  search: "No notifications. New ones get a NEW tag in Search › Events, so you can browse when you like.",
+  off: 'Nothing at all. You can still use Search.',
 };
 
 /** The first thing wrong with a travel distance, or null. Whole miles, 1 to 300. */
@@ -296,7 +296,7 @@ export function nearbyBatch(events: NightEvent[], now: Date): Reminder | null {
     kind: 'nearby',
     at: now,
     title: `${events.length} new ${publicOnly ? 'shows and track days' : 'events'} near you`,
-    body: 'Open Find events to see them, nearest first.',
-    url: '/find',
+    body: 'Open Search › Events to see them, nearest first.',
+    url: '/search?tab=events',
   };
 }

@@ -1,10 +1,10 @@
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { VEHICLES_VERSION } from '../data/vehicles';
-import { STATE } from '../theme';
-import { Button, Card, InlineError, Row, Txt } from './ui';
+import { SPACING } from '../theme';
+import { Button, ErrorState, Tag } from './ds';
 
 /**
  * Version line, e.g. "Nightshift v1.0.08". The number is set by the OTA workflow
@@ -29,13 +29,12 @@ export function runtimeLine(runtime: string | null | undefined, channel: string 
 
 /**
  * New versions arrive over the air: checked when the app opens, and here on demand
- * (copied from Caristini's Settings › App updates).
+ * (Settings › About and legal). The runtime and data versions are in Settings › Developer.
  */
 export function AppUpdates() {
   const [state, setState] = useState<'idle' | 'checking' | 'none' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const enabled = Platform.OS !== 'web' && Updates.isEnabled;
-  const when = Updates.createdAt ? Updates.createdAt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : null;
 
   async function check() {
     setState('checking');
@@ -54,38 +53,24 @@ export function AppUpdates() {
     }
   }
 
+  if (state === 'ready') return <Button label="Restart to update" block onPress={() => Updates.reloadAsync()} />;
   return (
-    <Card>
-      <Txt>{versionLine()}</Txt>
-      <Txt v="muted">{when ? `Running the update from ${when}` : 'Running the version built into this install'}</Txt>
-      {enabled ? (
-        <Txt v="micro" selectable>
-          {runtimeLine(Updates.runtimeVersion, Updates.channel)}
-        </Txt>
-      ) : null}
-      {state === 'ready' ? (
-        <Button label="Restart to update" onPress={() => Updates.reloadAsync()} />
-      ) : (
-        <Row style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
-          <Button
-            label={state === 'checking' ? 'Checking…' : 'Check for updates'}
-            kind="ghost"
-            onPress={check}
-            disabled={!enabled || state === 'checking'}
-            style={{ flex: 1 }}
-          />
-          {state === 'none' ? <Txt v="label" style={{ color: STATE.success, marginLeft: 12 }}>Up to date</Txt> : null}
-          {state === 'error' ? <Txt v="label" style={{ color: STATE.danger, marginLeft: 12 }}>Couldn't check</Txt> : null}
-        </Row>
-      )}
-      <InlineError message={error} />
-      <Txt v="caption">
-        {enabled
-          ? 'New versions download by themselves when the app opens and apply the next time it starts. A free Apple ID install still needs signing again every 7 days.'
-          : 'Updates work in the installed iPhone app, not in this preview.'}
-      </Txt>
-      {/* The car and bike list's version (was under the vehicle picker: REVIEW-5 m15). */}
-      <Txt v="micro" selectable>Car and bike list {VEHICLES_VERSION}</Txt>
-    </Card>
+    <View style={{ gap: SPACING.xs }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+        <Button label="Check for updates" tier="secondary" size="sm" busy={state === 'checking'} disabled={!enabled} hint="Updates work in the installed iPhone app, not in this preview." onPress={check} />
+        {state === 'none' ? <Tag label="Up to date" tone="success" /> : null}
+      </View>
+      {state === 'error' ? <ErrorState title={`Couldn't check: ${error ?? 'try again later'}`} onRetry={check} /> : null}
+    </View>
   );
+}
+
+/** For Settings › Developer: when this update was made, the runtime and channel, and the car and bike list. */
+export function updateDetails(): string[] {
+  const when = Updates.createdAt ? Updates.createdAt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : null;
+  return [
+    when ? `Running the update from ${when}` : 'Running the version built into this install',
+    runtimeLine(Updates.runtimeVersion, Updates.channel),
+    `Car and bike list ${VEHICLES_VERSION}`,
+  ];
 }

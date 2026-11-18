@@ -15,13 +15,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { OfflinePill } from '../components/OfflinePill';
+import { ToastProvider } from '../components/ds';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { SCREEN_TITLES as T, title } from '../lib/glossary';
 import { onNotificationTap } from '../lib/notify';
 import { RoadsProvider } from '../lib/roadStore';
 import { CommunityProvider } from '../lib/communityStore';
 import { StoreProvider, useStore } from '../lib/store';
-import { C, F } from '../theme';
+import { C, COLOR, TYPE_SCALE } from '../theme';
 
 function Gate() {
   const auth = useAuth();
@@ -37,7 +38,7 @@ function Gate() {
   if (auth.status === 'loading' || !ready) {
     return (
       <View style={{ flex: 1, backgroundColor: C.asphalt, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={C.sodium} />
+        <ActivityIndicator color={COLOR.text.secondary} />
       </View>
     );
   }
@@ -48,7 +49,7 @@ function Gate() {
         headerTintColor: C.chalk,
         // One size for tab and stack headers. Titles come from title() in glossary.ts, in capitals
         // (native stack headers can't transform text). Detail screens are blank: their hero carries the title.
-        headerTitleStyle: { fontFamily: F.display, fontSize: 17 },
+        headerTitleStyle: { fontFamily: TYPE_SCALE.heading.fontFamily, fontSize: TYPE_SCALE.heading.fontSize },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: C.asphalt },
         headerBackButtonDisplayMode: 'minimal',
@@ -79,9 +80,14 @@ function Gate() {
         <Stack.Screen name="crew/[id]" options={{ title: '' }} />
         <Stack.Screen name="crew/new" options={{ title: title(T.newCrew), presentation: 'modal' }} />
         <Stack.Screen name="notifications" options={{ title: title(T.notifications) }} />
-        <Stack.Screen name="find" options={{ title: title(T.find) }} />
-        <Stack.Screen name="where" options={{ title: title(T.whereTo) }} />
+        {/* One search for events, places, people and addresses. Find and Where to? are old names for it. */}
+        <Stack.Screen name="search" options={{ title: title(T.search) }} />
+        <Stack.Screen name="find" options={{ title: title(T.search) }} />
+        <Stack.Screen name="where" options={{ title: title(T.search) }} />
+        {/* The old Events tab: now Tonight's list. */}
+        <Stack.Screen name="events" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: title(T.settings) }} />
+        <Stack.Screen name="help" options={{ title: title(T.help) }} />
         <Stack.Screen name="post/[id]" options={{ title: '' }} />
         <Stack.Screen name="post/new" options={{ title: title(T.newPost), presentation: 'modal' }} />
         <Stack.Screen name="forum/[id]" options={{ title: '' }} />
@@ -94,7 +100,11 @@ function Gate() {
         <Stack.Screen name="rate" options={{ title: title(T.rateBuilds) }} />
         <Stack.Screen name="moderation" options={{ title: title(T.moderation) }} />
         <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
-        <Stack.Screen name="credits" options={{ title: title('Credits') }} />
+        <Stack.Screen name="credits" options={{ title: title(T.credits) }} />
+      </Stack.Protected>
+      {/* The design system gallery: development builds only (it redirects home in release too). */}
+      <Stack.Protected guard={onboarded && __DEV__}>
+        <Stack.Screen name="dev/components" options={{ title: 'COMPONENTS' }} />
       </Stack.Protected>
       {/*
         Feedback works for everyone: signed out (the sign-in screen), the demo and signed in.
@@ -125,9 +135,12 @@ export default function RootLayout() {
       <StoreProvider>
         <RoadsProvider>
           <CommunityProvider>
-            <StatusBar style="light" />
-            <Gate />
-            <OfflinePill />
+            {/* Toasts sit above the tab bar. */}
+            <ToastProvider bottomOffset={56}>
+              <StatusBar style="light" />
+              <Gate />
+              <OfflinePill />
+            </ToastProvider>
           </CommunityProvider>
         </RoadsProvider>
       </StoreProvider>
