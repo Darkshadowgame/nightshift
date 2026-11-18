@@ -113,7 +113,7 @@ export default function NewPost() {
         visible={picking}
         mode="point"
         title="PLACE THE POST"
-        hint="Move the map so the crosshair is on the spot. Not near your home."
+        hint={placeError ?? 'Move the map so the crosshair is on the spot. Not near your home.'}
         confirmLabel="Use this place"
         colour={POST_COLOUR}
         start={at ?? home ?? { lat: 52.63, lng: -1.7 }}
@@ -122,14 +122,18 @@ export default function NewPost() {
         showKinds={['photo', 'venue', 'track']}
         snap
         onDone={(stops) => {
-          setPicking(false);
           const s = stops[0];
-          if (!s) return;
+          if (!s) {
+            setPicking(false);
+            return;
+          }
           const problem = locationProblem(s.at, home);
           if (problem) {
+            // Stay on the map and say why (B5): closing it left the post with no place and no word about it.
             setPlaceError(problem);
             return;
           }
+          setPicking(false);
           setPlaceError(null);
           setAt(s.at);
           if (s.name && !placeName) setPlaceName(s.name.slice(0, POST_LIMITS.placeName));
