@@ -4,8 +4,11 @@ import { dynoBadge, powerText } from '../lib/dyno';
 import { plural } from '../lib/format';
 import { modCount } from '../lib/modGroups';
 import { photoSource } from '../lib/photoSource';
+import { buildPicture } from '../lib/similarPhoto';
+import { useStore } from '../lib/store';
 import type { ModGroup } from '../data/catalog';
 import type { Build, ModCategory } from '../lib/types';
+import { PaintedArt } from './BuildArt';
 import { PhotoCard, metaLine, type CardAction } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
@@ -23,18 +26,31 @@ export function powerLine(b: Build, now: Date, withMods = true): string {
 }
 
 /**
- * A build as a browse card (Garage's main build): the photo at 4:3, or the silhouette on its paint
- * gradient; the class badge and name on the photo; the power line under it; one secondary.
+ * What a build shows as its picture on this phone: its photo; in the demo, a similar licensed sample
+ * photo (labelled "similar" behind the ⓘ); else nothing, and it's drawn in its paint.
  */
-export function BuildCard({ build, now, onPress, action }: { build: Build; now: Date; onPress?: () => void; action?: CardAction | null }) {
-  const photo = build.photos[0];
+export function useBuildPicture(build: Pick<Build, 'photos' | 'make' | 'model' | 'kind'>) {
+  const { backend } = useStore();
+  return buildPicture(build, backend === 'local');
+}
+
+/**
+ * A build as a browse card (Garage's main build, Me): the photo at 4:3 (or `aspect`), or the build
+ * drawn in its paint (never grey); the class badge and name on the photo; the power line under it;
+ * one secondary.
+ */
+export function BuildCard({ build, now, onPress, action, aspect }: { build: Build; now: Date; onPress?: () => void; action?: CardAction | null; aspect?: number }) {
+  const pic = useBuildPicture(build);
+  const shape = build.kind === 'car' ? carShape(build) : undefined;
   return (
     <PhotoCard
       kind="build"
-      photo={photo ? photoSource(photo) : null}
+      aspect={aspect}
+      photo={pic ? photoSource(pic.ref) : null}
+      fallback={pic ? undefined : <PaintedArt paint={build.colour} vehicle={build.kind} shape={shape} />}
       paint={build.colour}
       vehicle={build.kind}
-      shape={build.kind === 'car' ? carShape(build) : undefined}
+      shape={shape}
       title={buildName(build)}
       classLetter={classOf(build)}
       titleOnPhoto
@@ -43,7 +59,7 @@ export function BuildCard({ build, now, onPress, action }: { build: Build; now: 
       action={action}
       onPress={onPress}
       accessibilityHint="Opens the build"
-      overlay={photo ? <PhotoCredit photoRef={photo} kind={build.kind} overlay corner="topRight" /> : null}
+      overlay={pic ? <PhotoCredit photoRef={pic.ref} kind={build.kind} similar={pic.similar} overlay corner="topRight" /> : null}
     />
   );
 }

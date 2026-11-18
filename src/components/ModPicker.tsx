@@ -108,7 +108,7 @@ export function ModPicker({
   return (
     <View style={{ gap: SPACING.lg }}>
       <View style={{ gap: SPACING.sm }}>
-        <ChoiceGroup<TuneStage> label={`Tune stage${swapped ? ' (swapped engine)' : ''}`} options={TUNE_STAGES.map((st) => ({ key: st, label: stageLabel(st) }))} value={stage} onChange={pickStage} />
+        <ChoiceGroup<TuneStage> layout="list" label={`Tune stage${swapped ? ' (swapped engine)' : ''}`} options={TUNE_STAGES.map((st) => ({ key: st, label: stageLabel(st) }))} value={stage} onChange={pickStage} />
         {kind === 'car' && !aspKnown ? <ChoiceGroup label="What kind of engine?" options={ASP_CHOICES} value={engine?.asp ?? null} onChange={onAsp} /> : null}
         <DsText v="secondary">{stageIncludes(kind, engine?.asp, stage)}</DsText>
         {/* A remap, a decat or a bigger turbo with the stage still lower: suggest it (REVIEW-9). */}

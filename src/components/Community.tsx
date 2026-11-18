@@ -10,6 +10,8 @@ import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/f
 import { plural, shortAgo } from '../lib/format';
 import { conversationTitle, previewLine, type Conversation } from '../lib/messages';
 import { VISIBILITY, type Post } from '../lib/posts';
+import { postPlace } from '../lib/postPrivacy';
+import { useStore } from '../lib/store';
 import type { Build, User } from '../lib/types';
 import { ASPECT, COLOR, RADII, SPACING } from '../theme';
 import { Avatar, BuildThumb, Button, ClassBadge, DsText, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
@@ -209,7 +211,8 @@ export function PostCard({
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
   const photos = post.photos.filter((p) => !broken.has(p));
   const shown = full ? photos : photos.slice(0, 1);
-  const place = post.placeName ? post.placeName : post.at ? 'On the map' : null;
+  const { me, events, crews } = useStore();
+  const place = postPlace(post, { me, events, crews, now });
 
   const pictures = shown.map((p, i) => (
     <View key={p} style={{ aspectRatio: ASPECT.post, backgroundColor: COLOR.surface.media }}>
@@ -269,9 +272,13 @@ export function PostCard({
               <DsText v="bodyStrong" numberOfLines={1}>
                 {at(author)}
               </DsText>
-              <DsText v="meta" numberOfLines={1}>
-                {metaLine([build ? `${build.make} ${build.model}` : null, place])}
-              </DsText>
+              {/* A build is always its class badge, name and bhp (K3). */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+                {build ? <ClassBadge letter={classOf(build)} size="sm" decorative /> : null}
+                <DsText v="meta" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {metaLine([build ? buildLine(build) : null, place])}
+                </DsText>
+              </View>
             </View>
           </Press>
           {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}

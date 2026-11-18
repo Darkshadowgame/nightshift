@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { ANY_NEAR, isFiltered, makesNear, personCards, type NearFilter } from '../lib/carsNear';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
@@ -14,7 +15,8 @@ import { Button, Card, ChipGroup, DsText, EmptyState, ErrorState, ListRow, Loadi
 const DISTANCES = [10, 25, 50, 100] as const;
 type Distance = `${(typeof DISTANCES)[number]}`;
 
-/** "Not now" on the People near you question holds until the app restarts: asked once, never nagged. */
+/** "Not now" on the People near you question is kept on the phone: asked once, never nagged. */
+const NOT_NOW_KEY = 'nightshift.peopleNear.notNow';
 let notNow = false;
 
 /**
@@ -34,6 +36,20 @@ export function CommunityPeople() {
   const [makes, setMakes] = useState<string[]>([]);
   const [filtering, setFiltering] = useState(false);
   const [later, setLater] = useState(notNow);
+  useEffect(() => {
+    if (notNow) return;
+    let live = true;
+    AsyncStorage.getItem(NOT_NOW_KEY)
+      .then((v) => {
+        if (v !== '1' || !live) return;
+        notNow = true;
+        setLater(true);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
   const [busy, setBusy] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const optedIn = community.showInNearby;
@@ -85,6 +101,7 @@ export function CommunityPeople() {
             onPress={() => {
               notNow = true;
               setLater(true);
+              AsyncStorage.setItem(NOT_NOW_KEY, '1').catch(() => {});
             }}
           />
         </View>

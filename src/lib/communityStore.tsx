@@ -11,7 +11,8 @@ import { totalUnread, type Conversation } from './messages';
 import { notifyNow } from './notify';
 import { nearestRegion } from './profile';
 import { useStore } from './store';
-import { appNow } from './appClock';
+import { appNow, realNowMs } from './appClock';
+import { guardMeetPoint, placeVisible } from './postPrivacy';
 
 /**
  * The Community tab's shared state: connections, blocks, conversations and
@@ -57,6 +58,10 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const { backend, me, ready, users, settings } = store;
   const usersRef = useRef(users);
   usersRef.current = users;
+  const eventsRef = useRef(store.events);
+  eventsRef.current = store.events;
+  const crewsRef = useRef(store.crews);
+  crewsRef.current = store.crews;
   const meUser = users.find((u) => u.id === me);
   const travelRef = useRef(25);
   travelRef.current = meUser?.travelMiles ?? 25;
@@ -90,13 +95,30 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     if (backend !== 'local' || !demoLoaded || !meUser?.home) return;
     const a = demo.current.around;
     if (a && `${a.lat.toFixed(2)}:${a.lng.toFixed(2)}` === homeKey) return;
-    demo.current = seedDemoCommunity(demo.current, meUser.home, meUser.region || nearestRegion(meUser.home), new Date());
+    demo.current = seedDemoCommunity(demo.current, meUser.home, meUser.region || nearestRegion(meUser.home), appNow());
     AsyncStorage.setItem(DEMO_KEY, JSON.stringify(demo.current)).catch(() => {});
     bump();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, demoLoaded, homeKey]);
 
   const service = useMemo<CommunityService | null>(() => {
+    const base = makeService();
+    // A post made at a meet point keeps the meet, never the place (postPrivacy.ts, REVIEW-11 #16).
+    return base
+      ? {
+          ...base,
+          createPost: (d) => base.createPost(guardMeetPoint(d, eventsRef.current)),
+          // A post pinned on a meet point stays off the map for anyone who can't see that meet point yet.
+          postsInBox: async (box) => {
+            const viewer = { me, events: eventsRef.current, crews: crewsRef.current, now: appNow() };
+            return (await base.postsInBox(box)).filter((p) => placeVisible(p.at, viewer));
+          },
+        }
+      : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, backend, demoLoaded, me]);
+
+  function makeService(): CommunityService | null {
     if (!ready) return null;
     if (backend === 'supabase') return createRemoteCommunity(supabase(), me);
     if (!demoLoaded) return null;
@@ -112,7 +134,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       // Sample people accept a connection after 3 seconds (Redesign 2, 3.1).
       replyDelay: 3000,
     });
-  }, [ready, backend, demoLoaded, me]);
+  }
 
   const [connections, setConnections] = useState<Record<string, ConnectionState>>({});
   const [blocked, setBlocked] = useState<ReadonlySet<string>>(EMPTY_SET);
@@ -174,7 +196,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       if (!remindersRef.current || AppState.currentState !== 'active') return;
       const who = usersRef.current.find((u) => u.id === c.senderId);
       notifyNow({
-        key: `cm.${c.conversationId}`, scheduleId: `cm.${c.conversationId}.${Date.now()}`, eventId: '', kind: 'moved', at: new Date(),
+        key: `cm.${c.conversationId}`, scheduleId: `cm.${c.conversationId}.${realNowMs()}`, eventId: '', kind: 'moved', at: appNow(),
         title: who ? `@${who.handle}` : 'New message', body: c.body ? c.body.slice(0, 120) : 'Sent a photo', url: `/chat/${c.conversationId}`,
       }).catch(() => {});
     });

@@ -15,16 +15,20 @@ export function PhotoCredit({
   kind = 'car',
   overlay,
   corner = 'bottomRight',
+  similar: standIn,
 }: {
   photoRef: string | undefined | null;
   kind?: 'car' | 'bike' | 'place';
   overlay?: boolean;
   /** Where the ⓘ sits on the photo. */
   corner?: 'bottomRight' | 'topRight';
+  /** A stand-in for a build with no photo yet (similarPhoto.ts): always labelled "similar". */
+  similar?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const p = samplePhoto(photoRef);
-  if (!p) return null;
+  const found = samplePhoto(photoRef);
+  if (!found) return null;
+  const p = standIn && !found.similar ? { ...found, similar: found.title } : found;
   const line = creditLine(p, kind);
   const openCommons = () => Linking.openURL(p.page).catch(() => {});
   if (!overlay) {
@@ -62,7 +66,7 @@ export function PhotoCredit({
         <View style={{ gap: SPACING.sm }}>
           <DsText v="bodyStrong">{p.title}</DsText>
           <DsText v="body">{`By ${p.author} · ${p.licence}`}</DsText>
-          {similar ? <DsText v="secondary">{similar}</DsText> : null}
+          {similar ? <DsText v="secondary">{standIn ? `${similar}. Add your own photo from the build page.` : similar}</DsText> : null}
           {p.edited ? <DsText v="secondary">{p.edited}</DsText> : null}
           <DsText v="caption">A sample photo from Wikimedia Commons, used under its free licence. The demo's people and builds are made up.</DsText>
           <Button label="Open on Wikimedia Commons" tier="secondary" block onPress={openCommons} />

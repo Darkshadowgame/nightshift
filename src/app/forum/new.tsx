@@ -94,11 +94,11 @@ export default function NewThread() {
       {/* "Sell a part" / "Sell or find a part" open a listing: no board picker there (REVIEW-10). */}
       {sellOnly ? null : (
         <View style={{ gap: SPACING.xs }}>
-          <ChoiceGroup<BoardKey> label="Board" value={board} onChange={setBoard} options={BOARDS.map((b) => ({ key: b.key, label: b.label }))} />
+          <ChoiceGroup<BoardKey> label="Board" layout="list" value={board} onChange={setBoard} options={BOARDS.map((b) => ({ key: b.key, label: b.label }))} />
           <DsText v="caption">{info.hint}</DsText>
         </View>
       )}
-      {board === 'local' ? <ChoiceGroup<string> label="Region" value={region} onChange={setRegion} options={REGIONS.map((r) => ({ key: r.name, label: r.name }))} /> : null}
+      {board === 'local' ? <ChoiceGroup<string> label="Region" layout="list" value={region} onChange={setRegion} options={REGIONS.map((r) => ({ key: r.name, label: r.name }))} /> : null}
       {listing ? <ChoiceGroup<ListingKind> label="Listing" value={kind} onChange={setKind} options={LISTING_KINDS.map((k) => ({ key: k.key, label: k.label }))} /> : null}
       <Field label="Title" hint={listing ? (kind === 'sale' ? 'What it is, and what it fits.' : "What you're after, and what it's for.") : 'One line that says what you need. People pick threads by the title.'}>
         <TextInput

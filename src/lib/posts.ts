@@ -29,6 +29,8 @@ export interface Post {
   placeName?: string;
   visibility: PostVisibility;
   buildId?: string;
+  /** Made at a meet's meet point: the meet, never the place (postPrivacy.ts). */
+  eventId?: string;
   createdAt: string;
   likeCount: number;
   commentCount: number;
@@ -55,6 +57,8 @@ export interface PostDraft {
   placeName?: string;
   visibility: PostVisibility;
   buildId?: string;
+  /** Set by guardMeetPoint (postPrivacy.ts) for a post made at a meet point. */
+  eventId?: string;
 }
 
 export const POST_LIMITS = { body: 2000, comment: 1000, photos: 4, placeName: 80 } as const;

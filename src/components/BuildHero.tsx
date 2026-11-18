@@ -5,7 +5,7 @@ import { plural } from '../lib/format';
 import { photoSource } from '../lib/photoSource';
 import type { Build } from '../lib/types';
 import { COLOR, RADII, SPACING, outline } from '../theme';
-import { BuildArt } from './BuildArt';
+import { BuildArt, DEFAULT_PAINT } from './BuildArt';
 import { ClassBadge, DsText, Tag } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
@@ -22,7 +22,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
       {build.photos[0] ? (
         <Image source={photoSource(build.photos[0])} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
       ) : (
-        <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={height ?? 160} />
+        <BuildArt kind={build.kind} shape={carShape(build)} paint={build.colour || DEFAULT_PAINT} height={height ?? 160} />
       )}
       {/* Top-left, on its own dark plate, so it reads on any photo and never covers the car. */}
       <View style={[st.stamp, { borderColor: outline(metal) }]}>

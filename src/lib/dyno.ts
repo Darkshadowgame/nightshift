@@ -1,3 +1,4 @@
+import { appNow } from './appClock';
 import { DYNO_MATCH, effectivePower, powerIsEstimate, sheetCrank, WHEEL_LOSS as LOSS } from './classes';
 import type { Build, DynoRun, VehicleKind } from './types';
 
@@ -50,14 +51,14 @@ function withRuns(build: Build, runs: DynoRun[]): Build {
 }
 
 /** "12 Mar" (this year) or "12 Mar 2025". */
-export function runDay(date: string, now: Date = new Date()): string {
+export function runDay(date: string, now: Date = appNow()): string {
   const [y, m, d] = date.split('-').map(Number);
   const when = new Date(y, (m || 1) - 1, d || 1);
   return when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(y !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }
 
 /** "312 whp · 295 lb-ft · at the wheels · 12 Mar" (bhp at the crank). */
-export function runSummary(run: DynoRun, now: Date = new Date()): string {
+export function runSummary(run: DynoRun, now: Date = appNow()): string {
   // Wheel figures read whp: never a bigger number than the sheet's.
   return [`${Math.round(run.powerBhp)} ${run.at === 'wheels' ? 'whp' : 'bhp'}`, run.torqueLbFt ? `${Math.round(run.torqueLbFt)} lb-ft` : null, run.at === 'wheels' ? 'at the wheels' : 'at the crank', runDay(run.date, now)]
     .filter(Boolean)
@@ -82,7 +83,7 @@ export function changeText(c: { power: number; torque: number | null }): string 
 }
 
 /** The first thing wrong with a run before saving, or null. */
-export function runProblem(run: Pick<DynoRun, 'powerBhp' | 'torqueLbFt' | 'date' | 'shop'>, today: Date = new Date()): string | null {
+export function runProblem(run: Pick<DynoRun, 'powerBhp' | 'torqueLbFt' | 'date' | 'shop'>, today: Date = appNow()): string | null {
   if (!Number.isFinite(run.powerBhp) || run.powerBhp < 20 || run.powerBhp > 2500) return 'Type the peak power from the sheet (20 to 2,500 bhp).';
   if (run.torqueLbFt !== undefined && (!Number.isFinite(run.torqueLbFt) || run.torqueLbFt < 10 || run.torqueLbFt > 2000)) return 'Torque looks wrong: 10 to 2,000 lb-ft, or leave it empty.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(run.date)) return 'Pick the day of the run.';
@@ -127,7 +128,7 @@ function runTime(date: string): number {
  * 4. signed in, the server's `dynoVerified` must agree.
  * Wheel runs show as whp, never inflated; Class's crank estimate is labelled "est." where it shows.
  */
-export function dynoBadge(build: Pick<Build, 'kind' | 'dynoBhp' | 'dynoRuns' | 'dynoVerified'>, now: Date = new Date()): DynoBadge | null {
+export function dynoBadge(build: Pick<Build, 'kind' | 'dynoBhp' | 'dynoRuns' | 'dynoVerified'>, now: Date = appNow()): DynoBadge | null {
   const run = latestRun(build.dynoRuns);
   if (!run || !run.photo || run.badgeRemoved) return null;
   const crank = crankBhp(run, build.kind);

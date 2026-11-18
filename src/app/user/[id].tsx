@@ -2,9 +2,10 @@ import { carShape } from '../../lib/buildShape';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { BuildRow, buildMeta, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
+import { BuildRow, buildLine, buildMeta, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { PostList } from '../../components/CommunityFeed';
-import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PaintArt, PhotoCard, RowDivider, Section, metaLine, useToast, type ActionBarButton } from '../../components/ds';
+import { PaintedArt } from '../../components/BuildArt';
+import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PhotoCard, RowDivider, Section, metaLine, useToast, type ActionBarButton } from '../../components/ds';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf, effectivePower } from '../../lib/classes';
@@ -106,7 +107,7 @@ export default function UserScreen() {
         <Hero
           bleed
           photo={coverPhoto ? photoSource(coverPhoto) : null}
-          media={cover && !coverPhoto ? <PaintArt paint={cover.colour} vehicle={cover.kind} shape={carShape(cover)} /> : undefined}
+          media={cover && !coverPhoto ? <PaintedArt paint={cover.colour} vehicle={cover.kind} shape={carShape(cover)} /> : undefined}
           aspect={ASPECT.build}
           title={handle}
           classLetter={cover ? classOf(cover) : undefined}
@@ -177,7 +178,7 @@ export default function UserScreen() {
                     <ListRow
                       leading={b ? { classBadge: classOf(b) } : undefined}
                       title={categoryInfo(a.category).label}
-                      subtitle={metaLine([b ? `${b.make} ${b.model}` : null, ev?.title])}
+                      subtitle={metaLine([b ? buildLine(b) : null, ev?.title])}
                       onPress={ev ? () => router.push({ pathname: '/event/[id]', params: { id: ev.id } }) : undefined}
                     />
                   </View>

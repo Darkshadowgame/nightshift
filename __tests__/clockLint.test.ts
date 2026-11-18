@@ -24,12 +24,8 @@ const ALLOWED: Record<string, string> = {
   'src/lib/photoRefs.ts': 'a unique file name',
 };
 
-/** Left to clear. Owner: Z (Garage, Me, Community). */
-const KNOWN: Record<string, number> = {
-  // Z
-  'src/lib/dyno.ts': 4,
-  'src/lib/communityStore.tsx': 3,
-};
+/** Left to clear: none. */
+const KNOWN: Record<string, number> = {};
 
 const BANNED = /new Date\(\s*\)|Date\.now\(\s*\)/g;
 

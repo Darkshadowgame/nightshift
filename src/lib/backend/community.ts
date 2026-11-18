@@ -1,3 +1,4 @@
+import { realNowMs } from '../appClock';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Nearby } from '../carsNear';
 import type { ConnectionState } from '../connections';
@@ -356,7 +357,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
    * record itself); the fifth in a day pauses posting for 24 hours.
    */
   async function guarded<T>(kind: 'post' | 'comment' | 'thread' | 'reply' | 'message', place: string | null, text: string, run: () => Promise<T>): Promise<T> {
-    const o = { message: kind === 'message', place: kind === 'message' ? place : null, now: Date.now() };
+    const o = { message: kind === 'message', place: kind === 'message' ? place : null, now: realNowMs() };
     const early = duplicateProblem(text, sent, o);
     try {
       if (early) throw new Error(early);

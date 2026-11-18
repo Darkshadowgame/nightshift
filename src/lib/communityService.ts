@@ -565,7 +565,7 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       if (p) throw new Error(p);
       const post: Post = {
         id: newId('po'), authorId: ME, body: d.body.trim(), photos: d.photos, at: d.at ? snapPlace(d.at) : undefined,
-        placeName: d.at ? d.placeName?.trim() || undefined : undefined, visibility: d.visibility, buildId: d.buildId, createdAt: iso(),
+        placeName: d.at ? d.placeName?.trim() || undefined : undefined, visibility: d.visibility, buildId: d.buildId, ...(d.eventId ? { eventId: d.eventId } : {}), createdAt: iso(),
         likeCount: 0, commentCount: 0, likedByMe: false,
       };
       update((s) => ({ ...s, posts: [post, ...s.posts] }));

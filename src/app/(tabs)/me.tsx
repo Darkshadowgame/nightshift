@@ -1,25 +1,26 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { buildName, powerLine } from '../../components/BuildBits';
+import { BuildCard } from '../../components/BuildBits';
 import { Cover } from '../../components/Cover';
-import { Avatar, DsText, EmptyState, Icon, ListRow, PhotoCard, Press, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
+import { Avatar, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, StatBlock, Tag, metaLine } from '../../components/ds';
 import { LadderSheet } from '../../components/LadderSheet';
 import { useRep } from '../../components/Rep';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { lastBrought } from '../../lib/bringing';
-import { carShape } from '../../lib/buildShape';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
-import { EVENT_LABELS, isHost, phaseOf } from '../../lib/events';
-import { formatWhen } from '../../lib/format';
+import { EVENT_LABELS, endTime, isHost, phaseOf } from '../../lib/events';
 import { SCREEN_TITLES } from '../../lib/glossary';
-import { photoSource } from '../../lib/photoSource';
-import { attendedEvents, hostedEvents, levelLabel } from '../../lib/rep';
+import { attendedEvents, levelLabel } from '../../lib/rep';
 import { useStore } from '../../lib/store';
-import { COLOR, SPACING } from '../../theme';
+import { eventTimeLabel } from '../../lib/when';
+import { ASPECT, COLOR, SPACING } from '../../theme';
 
 const openEvent = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
+
+/** The demo's ended meet with its results and trophies (src/data/seed.ts): always under Past, so the results are one tap from Me. */
+const DEMO_RESULTS_EVENT = 'ev-past-snowdome';
 
 /**
  * Me (Redesign 2, 3.10; T1): you, your meets and your trophies. Avatar, @handle and your level on
@@ -43,7 +44,11 @@ export default function Me() {
   const next = mine.filter((e) => { const p = phaseOf(e, now); return p !== 'over' && p !== 'cancelled'; }).sort((a, b) => startMs(a.startsAt) - startMs(b.startsAt));
   const past = mine.filter((e) => phaseOf(e, now) === 'over' && (checkedIn(e) || host(e))).sort((a, b) => startMs(b.startsAt) - startMs(a.startsAt));
   const meets = attendedEvents(events, me, now).length;
-  const hosted = hostedEvents(events, me, crews, now).length;
+  // Hosted counts the meets you host that are still to come too, so it's never "0 Hosted" while you're hosting one.
+  const hosted = events.filter((e) => host(e) && phaseOf(e, now) !== 'cancelled').length;
+  const results = events.find((e) => e.id === DEMO_RESULTS_EVENT && phaseOf(e, now) === 'over' && !past.some((x) => x.id === e.id));
+  const pastShown = [...past.slice(0, 5), ...(results ? [results] : [])];
+  const timeOf = (e: (typeof events)[number]) => eventTimeLabel(e.startsAt, endTime(e), now);
 
   return (
     <ScrollView contentContainerStyle={st.page}>
@@ -69,19 +74,7 @@ export default function Me() {
           </View>
         </View>
         {main ? (
-          <PhotoCard
-            kind="build"
-            size="sm"
-            photo={main.photos[0] ? photoSource(main.photos[0]) : null}
-            paint={main.colour}
-            vehicle={main.kind}
-            shape={main.kind === 'car' ? carShape(main) : undefined}
-            classLetter={classOf(main)}
-            title={buildName(main)}
-            meta={powerLine(main, now)}
-            onPress={() => router.push({ pathname: '/build/[id]', params: { id: main.id } })}
-            accessibilityHint="Opens the build"
-          />
+          <BuildCard build={main} now={now} aspect={ASPECT.event} onPress={() => router.push({ pathname: '/build/[id]', params: { id: main.id } })} />
         ) : (
           <ListRow leading={{ icon: 'plus' }} title="Add your car or bike" onPress={() => router.push('/build/edit')} />
         )}
@@ -96,28 +89,52 @@ export default function Me() {
       />
 
       <Section title="Your meets">
-        {next.length === 0 && past.length === 0 ? (
+        {next.length === 0 && pastShown.length === 0 ? (
           <EmptyState variant="inline" title="Nothing yet. Say you're going to a meet on Tonight." action={{ label: 'See tonight', onPress: () => router.navigate('/') }} />
         ) : null}
-        {next.length || past.length ? (
-        <View>
-          {[...next, ...past.slice(0, 5)].map((e, i) => {
-            const over = phaseOf(e, now) === 'over';
-            const label = over ? (host(e) ? 'Hosted' : 'Went') : host(e) ? 'Hosting' : checkedIn(e) ? 'Checked in' : 'Going';
-            return (
-              <View key={e.id}>
-                {i ? <RowDivider /> : null}
-                <ListRow
-                  leading={{ pin: e.type, colour: over ? COLOR.text.secondary : COLOR.text.primary }}
-                  title={e.title}
-                  subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
-                  trailing={<Tag label={label} tone={over ? 'neutral' : host(e) ? 'info' : 'success'} />}
-                  onPress={() => openEvent(e.id)}
-                />
-              </View>
-            );
-          })}
-        </View>
+        {next.length ? (
+          <View>
+            {next.map((e, i) => {
+              const label = host(e) ? 'Hosting' : checkedIn(e) ? 'Checked in' : 'Going';
+              return (
+                <View key={e.id}>
+                  {i ? <RowDivider /> : null}
+                  <ListRow
+                    leading={{ pin: e.type, colour: COLOR.text.primary }}
+                    title={e.title}
+                    subtitle={metaLine([EVENT_LABELS[e.type], timeOf(e)])}
+                    trailing={<Tag label={label} tone={host(e) ? 'info' : 'success'} />}
+                    onPress={() => openEvent(e.id)}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+        {pastShown.length ? (
+          <View style={{ gap: SPACING.xxs }}>
+            <DsText v="label" accessibilityRole="header">
+              Past
+            </DsText>
+            <View>
+              {pastShown.map((e, i) => {
+                const label = e === results ? 'Results' : host(e) ? 'Hosted' : 'Went';
+                return (
+                  <View key={e.id}>
+                    {i ? <RowDivider /> : null}
+                    <ListRow
+                      leading={{ pin: e.type, colour: COLOR.text.secondary }}
+                      title={e.title}
+                      subtitle={metaLine([EVENT_LABELS[e.type], timeOf(e)])}
+                      trailing={<Tag label={label} tone="neutral" />}
+                      onPress={() => openEvent(e.id)}
+                      accessibilityHint={e === results ? 'Opens the results and trophies' : undefined}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          </View>
         ) : null}
       </Section>
 
@@ -143,7 +160,7 @@ export default function Me() {
               return (
                 <View key={`${a.eventId}:${a.category}`}>
                   {i ? <RowDivider /> : null}
-                  <ListRow leading={{ icon: 'success', colour: COLOR.text.primary }} title={categoryInfo(a.category).label} subtitle={metaLine([e?.title, formatWhen(a.at, now)])} onPress={e ? () => openEvent(e.id) : undefined} />
+                  <ListRow leading={{ icon: 'success', colour: COLOR.text.primary }} title={categoryInfo(a.category).label} subtitle={metaLine([e?.title, e ? timeOf(e) : null])} onPress={e ? () => openEvent(e.id) : undefined} />
                 </View>
               );
             })}

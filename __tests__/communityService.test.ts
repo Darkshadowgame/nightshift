@@ -27,29 +27,32 @@ describe('the demo Community (LocalCommunity)', () => {
     expect(threads.length).toBeGreaterThan(5);
     expect(threads.every((t) => t.sample)).toBe(true);
     const conns = await svc.connections();
-    expect(conns.dan).toBe('connected');
+    expect(conns.mo).toBe('connected');
+    // The first people at tonight's live meet are not connected yet, so task 7 can connect with them.
+    expect(conns.dan).toBeUndefined();
+    expect(conns.em).toBeUndefined();
     // Nothing waiting on a first open (REVIEW-10 #13): no requests, nothing unread.
     expect(Object.values(conns)).not.toContain('incoming');
     const convs = await svc.conversations();
-    expect(convs.map((c) => c.id)).toEqual(expect.arrayContaining(['cv-dan', 'cv-nr']));
+    expect(convs.map((c) => c.id)).toEqual(expect.arrayContaining(['cv-mo', 'cv-nr']));
     expect(convs.every((c) => c.unread === 0)).toBe(true);
   });
   it('messages only between connected people, and a block stops them', async () => {
     const { svc } = demo();
     await expect(svc.startDirect('tom')).rejects.toThrow("You can only message people you're connected with.");
-    await svc.send('cv-dan', { body: 'On my way' });
-    expect((await svc.messages('cv-dan')).messages.pop()!.body).toBe('On my way');
-    await svc.block('dan');
-    expect((await svc.connections()).dan).toBeUndefined();
-    await expect(svc.send('cv-dan', { body: 'hello?' })).rejects.toThrow("You can only message people you're connected with.");
-    expect((await svc.threads({ board: 'all', sort: 'new' })).some((t) => t.authorId === 'dan')).toBe(false);
+    await svc.send('cv-mo', { body: 'On my way' });
+    expect((await svc.messages('cv-mo')).messages.pop()!.body).toBe('On my way');
+    await svc.block('mo');
+    expect((await svc.connections()).mo).toBeUndefined();
+    await expect(svc.send('cv-mo', { body: 'hello?' })).rejects.toThrow("You can only message people you're connected with.");
+    expect((await svc.threads({ board: 'all', sort: 'new' })).some((t) => t.authorId === 'mo')).toBe(false);
   });
   it('accepting a request connects you; groups only take connections', async () => {
     const { svc } = demo(true);
     await svc.answerConnection('kez', true);
     expect((await svc.connections()).kez).toBe('connected');
     await expect(svc.createGroup('Sunday', ['tom'])).rejects.toThrow("You can only message people you're connected with.");
-    const id = await svc.createGroup('Sunday', ['kez', 'dan']);
+    const id = await svc.createGroup('Sunday', ['kez', 'mo']);
     const c = (await svc.conversations()).find((x) => x.id === id)!;
     expect(c.adminIds).toEqual([ME]);
     expect((await svc.messages(id)).messages[0].system).toBe(true);

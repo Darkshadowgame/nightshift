@@ -2,11 +2,12 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { AddModSheet } from '../../components/AddModSheet';
-import { MOD_SECTIONS, sectionOfCategory } from '../../components/BuildBits';
+import { PaintedArt } from '../../components/BuildArt';
+import { MOD_SECTIONS, sectionOfCategory, useBuildPicture } from '../../components/BuildBits';
 import { at, isStaffNow, openProfile, openReport, OptionsSheet, personMark } from '../../components/Community';
 import { Cover } from '../../components/Cover';
 import { NotFoundState } from '../../components/Detail';
-import { ActionBar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PaintArt, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
+import { ActionBar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
 import { DynoBadge } from '../../components/DynoBadge';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { PhotoManager } from '../../components/PhotoManager';
@@ -42,6 +43,7 @@ export default function BuildScreen() {
   const mine = b?.ownerId === me;
   const community = useCommunity();
   const toast = useToast();
+  const pic = useBuildPicture(b ?? { photos: [], make: '', model: '', kind: 'car' });
 
   useLayoutEffect(() => {
     if (!b) return;
@@ -60,7 +62,7 @@ export default function BuildScreen() {
   const stage = b.tuneStage ?? stageFromMods(b.mods);
   const groups = MOD_SECTIONS.map((s) => ({ ...s, mods: b.mods.filter((m) => sectionOfCategory(m.category) === s.key) })).filter((g) => g.mods.length);
   const latest = latestRun(b.dynoRuns);
-  const photo = b.photos[0];
+  const photo = pic?.ref;
   const kindLine = metaLine([b.kind === 'bike' ? 'Bike' : 'Car', b.year ? String(b.year) : null, stage !== 'stock' ? stageLabel(stage) : null, swap]);
   const openPower = () => router.push({ pathname: '/build/power', params: { id: b.id } });
 
@@ -73,13 +75,13 @@ export default function BuildScreen() {
           photo={photo ? photoSource(photo) : null}
           media={
             photo ? undefined : (
-              <PaintArt paint={b.colour} vehicle={b.kind} shape={b.kind === 'car' ? carShape(b) : undefined} />
+              <PaintedArt paint={b.colour} vehicle={b.kind} shape={b.kind === 'car' ? carShape(b) : undefined} />
             )
           }
           classLetter={letter}
           title={`${b.make} ${b.model}`}
           meta={[b.nickname, kindLine]}
-          overlay={photo ? <PhotoCredit photoRef={photo} kind={b.kind} overlay corner="topRight" /> : null}
+          overlay={photo ? <PhotoCredit photoRef={photo} kind={b.kind} similar={pic?.similar} overlay corner="topRight" /> : null}
         />
 
         <View style={{ gap: SPACING.sm }}>

@@ -19,13 +19,15 @@ import {
 } from '../lib/crop';
 import { plateRedactorAvailable } from '../lib/photos';
 import { COLOR, outline, RADII, SPACING } from '../theme';
-import { Button, ChoiceGroup, DsText } from './ds';
+import { Button, DsText, Icon, IconButton, ListRow, RowDivider, Sheet, SheetOption } from './ds';
 
 const HANDLE = 40;
 const MARK = 20;
 
 /**
  * Crop and turn a photo. Drag inside the box to move it, drag a corner to resize.
+ * One primary (Use this crop). Cancel is the ✕ in the header; Rotate, Reset and "Use the whole
+ * photo" sit in the ··· menu (Redesign 2, 4.3); Shape is one row that opens a list (4.4).
  * Pure React Native (PanResponder), so it ships over the air. The maths is in crop.ts.
  *
  * `saved`: the photo is one already kept (plates already blurred). The original
@@ -59,6 +61,8 @@ export function CropEditor({
   const [aspect, setAspect] = useState<AspectKey>(initialAspect);
   const [box, setBox] = useState<Box | null>(null);
   const [stage, setStage] = useState({ w: 0, h: 0 });
+  const [menu, setMenu] = useState(false);
+  const [shapes, setShapes] = useState(false);
 
   // The picker's size is usually right; a saved photo needs reading.
   useEffect(() => {
@@ -140,18 +144,20 @@ export function CropEditor({
   return (
     <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onCancel}>
       <View style={[st.screen, { paddingTop: insets.top + SPACING.sm, paddingBottom: insets.bottom + SPACING.sm }]}>
-        <View style={{ paddingHorizontal: SPACING.screen, gap: SPACING.xs }}>
-          <DsText v="heading" accessibilityRole="header">
-            {saved ? 'Crop or rotate photo' : 'Crop the photo'}
+        <View style={st.header}>
+          <IconButton icon="close" label="Cancel" onPress={onCancel} />
+          <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
+            {saved ? 'Crop or rotate' : 'Crop the photo'}
           </DsText>
-          <DsText v="caption">
-            {saved
-              ? "This changes the saved photo. Originals aren't kept, so anything cropped off now can't be got back, and blurred plates stay blurred."
-              : plateRedactorAvailable
-                ? 'Drag the box to move it, or a corner to resize. Plates are checked on the cropped photo next.'
-                : "Drag the box to move it, or a corner to resize. Automatic plate blurring is in the iPhone app only: here, crop a readable plate out."}
-          </DsText>
+          <IconButton icon="more" label="More: rotate, reset" onPress={() => setMenu(true)} />
         </View>
+        <DsText v="caption" style={{ paddingHorizontal: SPACING.screen }}>
+          {saved
+            ? "This changes the saved photo. Anything cropped off now can't be got back."
+            : plateRedactorAvailable
+              ? 'Drag the box, or a corner to resize. Plates are checked next.'
+              : 'Drag the box, or a corner to resize. Crop out any readable number plate.'}
+        </DsText>
 
         <View style={st.stage} onLayout={onStage}>
           {failed ? (
@@ -207,25 +213,54 @@ export function CropEditor({
           )}
         </View>
 
-        <View style={{ gap: SPACING.md, paddingHorizontal: SPACING.screen }}>
-          <ChoiceGroup label="Shape" options={ASPECTS.map((a) => ({ key: a.key, label: a.label }))} value={aspect} onChange={pickAspect} />
-          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-            <Button label="Rotate 90°" tier="secondary" size="sm" onPress={rotate} disabled={!box || busy} style={{ flex: 1 }} block accessibilityLabel="Rotate 90 degrees clockwise" />
-            <Button label="Reset" tier="secondary" size="sm" onPress={reset} disabled={!box || busy} style={{ flex: 1 }} block />
-          </View>
-          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-            <Button label={saved ? 'Save crop' : 'Use this crop'} onPress={() => box && onDone(box, rot, view.w, view.h)} busy={busy} disabled={!box} style={{ flex: 1 }} block />
-            {onSkip ? <Button label="Skip" tier="secondary" onPress={onSkip} disabled={busy} accessibilityLabel="Skip crop" /> : null}
-            <Button label="Cancel" tier="secondary" onPress={onCancel} disabled={busy} />
-          </View>
+        <View style={{ gap: SPACING.sm, paddingHorizontal: SPACING.screen }}>
+          <ListRow
+            title="Shape"
+            trailing={<DsText v="meta">{ASPECTS.find((x) => x.key === aspect)?.label}</DsText>}
+            onPress={() => setShapes(true)}
+            accessibilityLabel={`Shape: ${ASPECTS.find((x) => x.key === aspect)?.label}. Change`}
+          />
+          <Button label={saved ? 'Save crop' : 'Use this crop'} onPress={() => box && onDone(box, rot, view.w, view.h)} busy={busy} block />
         </View>
+
+        <Sheet visible={shapes} title="Shape" onClose={() => setShapes(false)}>
+          <View accessibilityRole="radiogroup" accessibilityLabel="Shape">
+            {ASPECTS.map((a, i) => {
+              const on = a.key === aspect;
+              return (
+                <View key={a.key}>
+                  {i ? <RowDivider /> : null}
+                  <ListRow
+                    title={a.label}
+                    chevron={false}
+                    trailing={on ? <Icon name="check" size={20} colour={COLOR.text.primary} /> : undefined}
+                    onPress={() => {
+                      pickAspect(a.key);
+                      setShapes(false);
+                    }}
+                    accessibilityLabel={on ? `${a.label}, selected` : a.label}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        </Sheet>
+
+        <Sheet visible={menu} title="Photo" onClose={() => setMenu(false)}>
+          <View>
+            <SheetOption label="Rotate 90°" onPress={() => { setMenu(false); rotate(); }} />
+            <SheetOption label="Reset" detail="Back to the whole photo, the right way up" onPress={() => { setMenu(false); reset(); }} />
+            {onSkip ? <SheetOption label="Use the whole photo" detail="Skip cropping" onPress={() => { setMenu(false); onSkip(); }} /> : null}
+          </View>
+        </Sheet>
       </View>
     </Modal>
   );
 }
 
 const st = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLOR.surface.bg, gap: SPACING.md },
+  screen: { flex: 1, backgroundColor: COLOR.surface.bg, gap: SPACING.sm },
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, minHeight: 48 },
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center', margin: SPACING.xl },
   shade: { position: 'absolute', backgroundColor: COLOR.surface.scrim },
   box: { position: 'absolute', borderWidth: 1.5, borderColor: COLOR.text.primary },

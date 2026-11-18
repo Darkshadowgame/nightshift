@@ -33,7 +33,8 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
   const near = (dLat: number, dLng: number): LatLng => ({ lat: Math.round((home.lat + dLat) * 1e4) / 1e4, lng: Math.round((home.lng + dLng) * 1e4) / 1e4 });
 
   const connections: ConnectionRow[] = [
-    { from: 'dan', to: ME, status: 'accepted', createdAt: ago(40 * DAY), answeredAt: ago(39 * DAY) },
+    // Not @dan_r or anyone at tonight's live meet (REVIEW-11 #15): the first person a newcomer meets
+    // there can still be connected with.
     { from: ME, to: 'mo', status: 'accepted', createdAt: ago(30 * DAY), answeredAt: ago(30 * DAY) },
     { from: 'aimee', to: ME, status: 'accepted', createdAt: ago(20 * DAY), answeredAt: ago(19 * DAY) },
     // No waiting requests and nothing unread on a first open (REVIEW-10 #13): badges only come from
@@ -108,7 +109,10 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     p('po-3', 'mo', 'Rolling road day: 470 at the hubs after the map. Brakes next.', 26 * HOUR,
       { at: near(-0.04, 0.07), placeName: 'Rolling road', buildId: 'b-mo-0', likeCount: 21, commentCount: 1 }),
     p('po-4', 'liv', 'Out early this morning, roads were empty and dry for once.', 30 * HOUR, { at: near(0.11, 0.09), placeName: 'Reservoir viewpoint', buildId: 'b-liv-0', likeCount: 5 }),
-    p('po-5', 'dan', 'Crew only: wash day Saturday, 10am. Bring your own snow foam.', 2 * DAY, { visibility: 'connections', likeCount: 3 }),
+    p('po-5', 'mo', 'Connections only: wash day Saturday, 10am. Bring your own snow foam.', 2 * DAY, { visibility: 'connections', likeCount: 3 }),
+    // People at tonight's live meet have posts on their profiles too (REVIEW-11 #15).
+    p('po-7', 'jord', 'New tyres on the ST. Grip for days, ready for tonight.', 5 * HOUR, { buildId: 'b-jord-0', likeCount: 9, commentCount: 0 }),
+    p('po-8', 'em', 'i30 N washed and ready. See you at the car park.', 9 * HOUR, { buildId: 'b-em-0', likeCount: 6 }),
     p('po-6', 'tom', 'GR Yaris a year in: Stage 1 remap, coilovers and forged 18s so far. What would you do next?', 3 * DAY, { buildId: 'b-tom-0', likeCount: 17, commentCount: 1 }),
   ];
   const c = (id: string, postId: string, authorId: string, body: string, created: number): PostComment => ({ id, postId, authorId, body, createdAt: ago(created), sample: true });
@@ -121,8 +125,8 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
 
   const conversations: Conversation[] = [
     {
-      id: 'cv-dan', kind: 'direct', memberIds: [ME, 'dan'], adminIds: [], lastMessageAt: ago(20 * MIN), unread: 0, canSend: true, sample: true,
-      readUpTo: { [ME]: ago(20 * MIN), dan: ago(20 * MIN) },
+      id: 'cv-mo', kind: 'direct', memberIds: [ME, 'mo'], adminIds: [], lastMessageAt: ago(20 * MIN), unread: 0, canSend: true, sample: true,
+      readUpTo: { [ME]: ago(20 * MIN), mo: ago(20 * MIN) },
     },
     {
       id: 'cv-nr', kind: 'group', name: 'NightRunners', memberIds: ['dan', ME, 'mo', 'aimee'], adminIds: ['dan'], lastMessageAt: ago(35 * MIN), unread: 0, canSend: true, sample: true,
@@ -133,9 +137,9 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     id, conversationId, senderId, body, createdAt: ago(created), sample: true, ...extra,
   });
   const messages: Message[] = [
-    m('ms-1', 'cv-dan', 'dan', 'You coming Sunday?', 2 * HOUR),
-    m('ms-2', 'cv-dan', ME, 'Should be. Need to get the new wheels on first.', 110 * MIN),
-    m('ms-3', 'cv-dan', 'dan', 'Send pics when they’re on', 20 * MIN),
+    m('ms-1', 'cv-mo', 'mo', 'You coming Sunday?', 2 * HOUR),
+    m('ms-2', 'cv-mo', ME, 'Should be. Need to get the new wheels on first.', 110 * MIN),
+    m('ms-3', 'cv-mo', 'mo', 'Send pics when they’re on', 20 * MIN),
     m('ms-4', 'cv-nr', null, '@dan_r started the group', 10 * DAY, { system: true }),
     m('ms-5', 'cv-nr', 'mo', 'Wash day Saturday? The hand car wash on the retail park opens at 9.', 4 * HOUR),
     m('ms-6', 'cv-nr', 'aimee', 'I’m in', 50 * MIN),
