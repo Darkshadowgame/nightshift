@@ -1,25 +1,26 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Callout, Field, MediaFrame, PAGE, TextField } from '../../components/Detail';
+import { Button, ChoiceGroup, ConfirmSheet, displayHandle, DsText, EmptyState, ErrorState, Press, Section, Tag } from '../../components/ds';
 import { MapPicker } from '../../components/MapPicker';
-import { NightMap } from '../../components/NightMap';
 import type { MapPin } from '../../components/mapTypes';
-import { nameForPlace } from '../../lib/location';
-import { shouldAutoName } from '../../lib/placeNames';
-import { Button, Card, Chip, ConfirmBox, EmptyState, InlineError, Row, Section, Txt, s as ui } from '../../components/ui';
-import { BAN_ZONES } from '../../data/seed';
-import { zonePins, zoneShapes } from '../../lib/zones';
+import { NightMap } from '../../components/NightMap';
 import { ZoneNotice } from '../../components/ZoneCard';
+import { BAN_ZONES } from '../../data/seed';
+import { useNow } from '../../lib/clock';
 import { banZoneAt, canChangePlan, canMoveStop, canRemoveStop, isHost, type PlanChange } from '../../lib/events';
 import { formatTime } from '../../lib/format';
+import { nameForPlace } from '../../lib/location';
+import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
-import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
-import { BRAND, C, RADIUS, STATE } from '../../theme';
+import { zonePins, zoneShapes } from '../../lib/zones';
+import { COLOR, SPACING } from '../../theme';
 
-/** Ban zones drawn on the map: circles, and council outlines for borough-wide orders. */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, STATE.warning);
-const BAN_PINS = zonePins(BAN_ZONES, STATE.warning);
+/** Meet bans drawn on the map: circles, and council outlines for borough-wide orders. */
+const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
+const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
 type Selected = number | 'new';
 
@@ -40,7 +41,7 @@ export default function ChangePlan() {
 
   if (!ev || !isHost(ev, me, crews)) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
         <EmptyState title="Only hosts can change the plan" body="Ask a host of this event to move or add stops." />
       </View>
     );
@@ -48,7 +49,7 @@ export default function ChangePlan() {
   const allowed = canChangePlan(ev, now);
   if (!allowed.ok) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
         <EmptyState title="Can't change the plan now" body={allowed.reason} />
       </View>
     );
@@ -82,7 +83,7 @@ export default function ChangePlan() {
       if (change.kind === 'remove') setSelected(Math.max(0, index - 1));
     } catch (e) {
       setDone(null);
-      setError(e instanceof Error ? e.message : 'That change did not work.');
+      setError(e instanceof Error ? e.message : "Couldn't make that change.");
     }
   }
 
@@ -94,9 +95,10 @@ export default function ChangePlan() {
 
   const pins: MapPin[] = ev.stops.flatMap((st, i) =>
     st.at
-      ? [{ id: st.id, at: st.at, glyph: 'rolling' as const, colour: i === index ? BRAND : i < ev.currentStop ? C.kerbHi : C.chalk, title: st.name, size: i === index ? 40 : 30 }]
+      ? [{ id: st.id, at: st.at, glyph: 'rolling' as const, colour: i === index ? COLOR.action.primary : i < ev.currentStop ? COLOR.surface.raisedHi : COLOR.text.primary, title: st.name, size: i === index ? 40 : 30 }]
       : [],
   );
+  const line = ev.stops.flatMap((s) => (s.at ? [s.at] : []));
   const centre = stop?.at ?? ev.stops[ev.currentStop]?.at ?? ev.area;
   const canPlace = selected === 'new' || !!move?.ok;
 
@@ -120,126 +122,113 @@ export default function ChangePlan() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
-      <Txt v="muted">
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+      <DsText v="secondary">
         Every change is logged for the hosts. Everyone going gets a chat line saying the plan changed, never where. Stops after the current one stay hidden until you move on.
-      </Txt>
+      </DsText>
 
-      <Row gap={6}>
-        {ev.stops.map((st, i) => (
-          <Chip key={st.id} label={`${i + 1}. ${st.name}`} on={selected === i} onPress={() => select(i)} strike={i < ev.currentStop} />
-        ))}
-        <Chip label="+ New stop" on={selected === 'new'} onPress={() => select('new')} />
-      </Row>
+      <ChoiceGroup
+        label="Stop"
+        options={[...ev.stops.map((st, i) => ({ key: String(i), label: `${i + 1}. ${st.name}${i < ev.currentStop ? ' (left)' : ''}` })), { key: 'new', label: 'New stop' }]}
+        value={String(selected)}
+        onChange={(k) => select(k === 'new' ? 'new' : Number(k))}
+      />
 
-      <Pressable
-        onPress={canPlace ? () => setPicking(true) : undefined}
-        disabled={!canPlace}
-        accessibilityRole="button"
-        accessibilityLabel={canPlace ? 'Open the map to choose the place' : 'Map of the stops'}
-        style={{ height: 220, borderRadius: RADIUS.sheet, overflow: 'hidden', borderWidth: 1, borderColor: canPlace ? BRAND : C.kerb }}
-      >
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <NightMap
-            key={`${selected}`}
-            pins={[...BAN_PINS, ...pins]}
-            circles={BAN_SHAPES.circles}
-            polygons={BAN_SHAPES.polygons}
-            paths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
-            centre={pending ?? centre}
-            span={0.3}
-            follow
-            picked={pending}
-          />
-        </View>
-      </Pressable>
+      <Press onPress={canPlace ? () => setPicking(true) : undefined} disabled={!canPlace} feedback="card" label={canPlace ? 'Open the map to choose the place' : 'Map of the stops'}>
+        <MediaFrame height={200} style={canPlace ? { borderColor: COLOR.action.primary } : undefined}>
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <NightMap
+              key={`${selected}`}
+              pins={[...BAN_PINS, ...pins]}
+              circles={BAN_SHAPES.circles}
+              polygons={BAN_SHAPES.polygons}
+              paths={[{ id: 'line', coords: line, colour: COLOR.surface.raisedHi, dashed: true }]}
+              centre={pending ?? centre}
+              span={0.3}
+              follow
+              picked={pending}
+            />
+          </View>
+        </MediaFrame>
+      </Press>
 
       {done ? (
-        <Card accent={done.warning ? STATE.warning : STATE.success}>
-          <Txt>{done.text} Everyone going got “Hosts changed the plan”.</Txt>
-          {done.warning ? <Txt v="muted">{done.warning}</Txt> : null}
-        </Card>
+        <Callout tone={done.warning ? 'warning' : 'success'} title={`${done.text} Everyone going got “Hosts changed the plan”.`}>
+          {done.warning ?? undefined}
+        </Callout>
       ) : null}
 
       {stop ? (
-        <Section title={`Stop ${index + 1}`} right={<Txt v="mono" scale="chrome" style={{ color: index === ev.currentStop ? C.chalk : C.fog }}>{status(index)}{checkedIn ? ` · ${checkedIn} checked in` : ''}</Txt>}>
-          <Card>
-            <Txt v="label">Rename</Txt>
-            <Row style={{ flexWrap: 'nowrap' }}>
-              <TextInput value={name} onChangeText={setName} placeholder={stop.name} placeholderTextColor={C.fog} style={[ui.input, { flex: 1 }]} />
-              <Button label="Rename" kind="secondary" size="sm" disabled={!name.trim()} onPress={() => apply({ kind: 'rename', stopId: stop.id, name }, `Renamed to ${name.trim()}.`)} />
-            </Row>
-          </Card>
-          <Card>
-            <Txt v="label">Move</Txt>
+        <Section title={`Stop ${index + 1}`} right={<Tag label={`${status(index)}${checkedIn ? ` · ${checkedIn} checked in` : ''}`} tone={index === ev.currentStop ? 'live' : 'neutral'} />}>
+          <Field label="Rename">
+            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+              <TextField value={name} onChangeText={setName} placeholder={stop.name} style={{ flex: 1 }} accessibilityLabel="New name" />
+              <Button label="Rename" tier="secondary" disabled={!name.trim()} onPress={() => apply({ kind: 'rename', stopId: stop.id, name }, `Renamed to ${name.trim()}.`)} />
+            </View>
+          </Field>
+          <Field label="Move">
             {move?.ok ? (
               pending ? (
-                <>
-                  {pendingZone ? (
-                    <ZoneNotice zone={pendingZone} subject="The new stop" />
-                  ) : (
-                    <Txt v="muted">Not in a known ban zone.</Txt>
-                  )}
-                  <Row style={{ flexWrap: 'nowrap' }}>
-                    <Button label={pendingZone ? 'Move here anyway' : 'Move here'} style={{ flex: 1 }} onPress={() => apply({ kind: 'move', stopId: stop.id, at: pending }, `Moved ${stop.name}.`)} />
-                    <Button label="Not now" kind="secondary" onPress={() => setPending(null)} />
-                  </Row>
-                  <Button label="Pick again on the map" kind="secondary" onPress={() => setPicking(true)} />
-                </>
+                <View style={{ gap: SPACING.sm }}>
+                  {pendingZone ? <ZoneNotice zone={pendingZone} subject="The new stop" /> : <DsText v="secondary">Not in a known meet ban.</DsText>}
+                  <Button label={pendingZone ? 'Move here anyway' : 'Move here'} block onPress={() => apply({ kind: 'move', stopId: stop.id, at: pending }, `Moved ${stop.name}.`)} />
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                    <Button label="Pick again" tier="secondary" style={{ flex: 1 }} block onPress={() => setPicking(true)} />
+                    <Button label="Not now" tier="secondary" style={{ flex: 1 }} block onPress={() => setPending(null)} />
+                  </View>
+                </View>
               ) : (
-                <Button label="Choose the new stop on the map" onPress={() => setPicking(true)} />
+                <Button label="Choose the new stop on the map" tier="secondary" block onPress={() => setPicking(true)} />
               )
             ) : (
-              <Txt v="muted">{move?.ok === false ? move.reason : ''}</Txt>
+              <DsText v="secondary">{move?.ok === false ? move.reason : ''}</DsText>
             )}
-          </Card>
-          <Card>
-            <Txt v="label">Remove</Txt>
+          </Field>
+          <Field label="Remove">
             {remove?.ok ? (
-              confirmRemove ? (
-                <ConfirmBox
-                  message={`Remove ${stop.name}? Everyone going gets a chat line that the plan changed.`}
-                  verb="Remove"
-                  onConfirm={() => apply({ kind: 'remove', stopId: stop.id }, `Removed ${stop.name}.`)}
-                  onCancel={() => setConfirmRemove(false)}
-                />
-              ) : (
-                <Button label="Remove this stop" kind="danger" onPress={() => setConfirmRemove(true)} />
-              )
+              <Button label="Remove this stop" tier="destructive" block onPress={() => setConfirmRemove(true)} />
             ) : (
-              <Txt v="muted">{remove?.ok === false ? remove.reason : ''}</Txt>
+              <DsText v="secondary">{remove?.ok === false ? remove.reason : ''}</DsText>
             )}
-          </Card>
-          <InlineError message={error} />
+          </Field>
+          {error ? <ErrorState title={error} /> : null}
+          <ConfirmSheet
+            visible={confirmRemove}
+            title="Remove stop"
+            message={`Remove ${stop.name}? Everyone going gets a chat line that the plan changed.`}
+            verb="Remove"
+            onConfirm={() => apply({ kind: 'remove', stopId: stop.id }, `Removed ${stop.name}.`)}
+            onCancel={() => setConfirmRemove(false)}
+          />
         </Section>
       ) : (
         <Section title="New stop">
-          <Card>
-            <TextInput value={name} onChangeText={setName} placeholder="Name this stop" placeholderTextColor={C.fog} style={ui.input} />
-            {pending ? (
-              pendingZone ? (
-                <ZoneNotice zone={pendingZone} subject={name.trim() || 'The new stop'} />
-              ) : (
-                <Txt v="muted">Not in a known ban zone.</Txt>
-              )
+          <TextField value={name} onChangeText={setName} placeholder="Name this stop" accessibilityLabel="Name this stop" />
+          {pending ? (
+            pendingZone ? (
+              <ZoneNotice zone={pendingZone} subject={name.trim() || 'The new stop'} />
             ) : (
-              <Txt v="muted">It goes after the last stop.</Txt>
-            )}
-            <Button label={pending ? 'Pick again on the map' : 'Choose on the map'} kind="secondary" onPress={() => setPicking(true)} />
-            <Button
-              label={pendingZone ? 'Add stop anyway' : 'Add stop'}
-              disabled={!pending}
-              onPress={() => pending && apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new stop'}.`)}
-            />
-            <InlineError message={error} />
-          </Card>
+              <DsText v="secondary">Not in a known meet ban.</DsText>
+            )
+          ) : (
+            <DsText v="secondary">It goes after the last stop.</DsText>
+          )}
+          <Button label={pending ? 'Pick again on the map' : 'Choose on the map'} tier="secondary" block onPress={() => setPicking(true)} />
+          <Button
+            label={pendingZone ? 'Add stop anyway' : 'Add stop'}
+            block
+            disabled={!pending}
+            hint="Choose it on the map first"
+            onPress={() => pending && apply({ kind: 'add', name, at: pending }, `Added ${name.trim() || 'a new stop'}.`)}
+          />
+          {error ? <ErrorState title={error} /> : null}
         </Section>
       )}
 
       <MapPicker
         visible={picking}
         mode="point"
-        title={stop ? `MOVE ${stop.name.toUpperCase()}` : 'PLACE THE NEW STOP'}
+        title={stop ? `Move ${stop.name}` : 'Place the new stop'}
         hint="Move the map so the crosshair is on the new stop, or tap a grey pin to use a known place."
         confirmLabel={stop ? 'Move it here' : 'Set stop here'}
         start={pending ?? centre}
@@ -249,24 +238,26 @@ export default function ChangePlan() {
         snap
         zones
         extraPins={pins.filter((p) => p.id !== stop?.id)}
-        extraPaths={[{ id: 'line', coords: ev.stops.flatMap((s) => (s.at ? [s.at] : [])), colour: C.kerbHi, dashed: true }]}
+        extraPaths={[{ id: 'line', coords: line, colour: COLOR.surface.raisedHi, dashed: true }]}
         onDone={([s]) => (s ? picked(s.at, s.name) : setPicking(false))}
         onCancel={() => setPicking(false)}
       />
 
       <Section title={`Change log (${ev.changes?.length ?? 0})`}>
-        <Card>
-          {(ev.changes ?? []).length === 0 ? <Txt v="muted">No changes yet.</Txt> : null}
-          {[...(ev.changes ?? [])].reverse().map((c) => (
-            <View key={c.id} style={{ gap: 2 }}>
-              <Txt v="label">
-                {c.by === me ? 'You' : `@${users.find((u) => u.id === c.by)?.handle ?? c.by}`} · {formatTime(c.at)}
-              </Txt>
-              <Txt>{c.text}</Txt>
-              {c.banZone ? <Txt v="mono" style={{ color: STATE.warning }}>In the {c.banZone} ban zone</Txt> : null}
-            </View>
-          ))}
-        </Card>
+        {(ev.changes ?? []).length === 0 ? <EmptyState variant="inline" title="No changes yet." /> : null}
+        {[...(ev.changes ?? [])].reverse().map((c) => (
+          <View key={c.id} style={{ gap: SPACING.xxs }}>
+            <DsText v="meta">
+              {c.by === me ? 'You' : displayHandle(users.find((u) => u.id === c.by)?.handle ?? c.by)} · {formatTime(c.at)}
+            </DsText>
+            <DsText v="body">{c.text}</DsText>
+            {c.banZone ? (
+              <DsText v="caption" tone="warning">
+                In the {c.banZone} meet ban
+              </DsText>
+            ) : null}
+          </View>
+        ))}
       </Section>
     </ScrollView>
   );

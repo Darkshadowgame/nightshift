@@ -1,71 +1,96 @@
 import { router } from 'expo-router';
-import { Linking, Pressable, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { MEET_BAN } from '../lib/glossary';
 import { zoneInfo } from '../lib/zones';
 import type { BanZone } from '../lib/types';
-import { C, STATE } from '../theme';
-import { Card, LinkText, Row, Txt } from './ui';
+import { COLOR, RADII, SPACING, line, tint } from '../theme';
+import { Button, DsText, Icon } from './ds';
 
-/**
- * A car-meet order area (a "ban zone"), explained: what kind of order, what it
- * bans in plain words, when, the source, and what it means for a host.
- * Opened from host maps, stop warnings and place pages.
- */
-export function ZoneCard({ zone, onClose }: { zone: BanZone; onClose?: () => void }) {
+const openUrl = (url: string) => Linking.openURL(url).catch(() => {});
+
+/** The zone's evidence links, labelled by who published them ("Read Sandwell Council's order ›"). */
+function SourceLinks({ zone }: { zone: BanZone }) {
   const z = zoneInfo(zone);
+  if (!z.source && !z.newsSource) return null;
   return (
-    <Card accent={STATE.warning}>
-      <Row style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-        <Txt v="h3" style={{ flex: 1 }}>{z.name}</Txt>
-        {onClose ? (
-          <LinkText label="Close" onPress={onClose} />
-        ) : null}
-      </Row>
-      <Txt v="mono" scale="chrome" style={{ color: STATE.warning }}>{z.kind} · {z.id}</Txt>
-      <View style={{ gap: 2 }}>
-        <Txt v="label">What it bans</Txt>
-        <Txt>{z.bans}</Txt>
-      </View>
-      {z.hours ? (
-        <View style={{ gap: 2 }}>
-          <Txt v="label">When</Txt>
-          <Txt>{z.hours}</Txt>
-        </View>
-      ) : null}
-      {z.details ? <Txt v="muted">{z.details}</Txt> : null}
-      <View style={{ gap: 2 }}>
-        <Txt v="label">If you're hosting</Txt>
-        <Txt>{z.forHosts}</Txt>
-      </View>
-      <Txt v="caption">
-        {z.sample} The area drawn is approximate{z.checked ? `; last checked ${z.checked}` : ''}.
-      </Txt>
-      {z.source || z.newsSource ? (
-        <Row gap={16} style={{ alignSelf: 'flex-start' }}>
-          {z.source ? <LinkText label={z.sourceLabel ?? 'Read the order ›'} onPress={() => Linking.openURL(z.source!).catch(() => {})} /> : null}
-          {z.newsSource ? <LinkText label="News report ›" colour={C.fog} onPress={() => Linking.openURL(z.newsSource!).catch(() => {})} /> : null}
-        </Row>
-      ) : null}
-    </Card>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: SPACING.md, marginLeft: -SPACING.xs }}>
+      {z.source ? <Button tier="tertiary" size="sm" label={z.sourceLabel ?? 'Read the order ›'} onPress={() => openUrl(z.source!)} /> : null}
+      {z.newsSource ? <Button tier="tertiary" size="sm" label="News report ›" onPress={() => openUrl(z.newsSource!)} /> : null}
+    </View>
   );
 }
 
 /**
- * One short line for a place or stop inside an order area, opening the info
- * card: the full legal notice is one tap away, never lost.
+ * A meet ban (a car-meet order area), explained: the kind of order, what it bans in plain words,
+ * when, the official source, and what it means for a host. The zone page and host maps show it.
+ */
+export function ZoneCard({ zone, onClose }: { zone: BanZone; onClose?: () => void }) {
+  const z = zoneInfo(zone);
+  return (
+    <View style={{ gap: SPACING.lg, backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, padding: SPACING.lg }}>
+      <View style={{ gap: SPACING.xs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+          <Icon name="alert" size={18} colour={COLOR.state.warning} />
+          <DsText v="eyebrow" style={{ color: COLOR.state.warning, flex: 1 }}>
+            {MEET_BAN}
+          </DsText>
+          {onClose ? <Button tier="tertiary" size="sm" label="Close" onPress={onClose} /> : null}
+        </View>
+        <DsText v="titleLg" accessibilityRole="header">
+          {z.name}
+        </DsText>
+        <DsText v="meta">{z.kind}</DsText>
+      </View>
+      <Fact label="What it bans" text={z.bans} />
+      {z.hours ? <Fact label="When" text={z.hours} /> : null}
+      {z.details ? <DsText v="secondary">{z.details}</DsText> : null}
+      <Fact label="If you're hosting" text={z.forHosts} />
+      <DsText v="caption">
+        {z.sample} The area drawn is approximate{z.checked ? `; last checked ${z.checked}` : ''}.
+      </DsText>
+      <SourceLinks zone={zone} />
+    </View>
+  );
+}
+
+function Fact({ label, text }: { label: string; text: string }) {
+  return (
+    <View style={{ gap: SPACING.xxs }}>
+      <DsText v="label">{label}</DsText>
+      <DsText v="body">{text}</DsText>
+    </View>
+  );
+}
+
+/**
+ * Inline, where a stop or place is inside a meet ban: the warning, what it bans, the official
+ * source link and the full card one tap away. Shown on host steps, plan changes and place pages.
  */
 export function ZoneNotice({ zone, subject, onOpen }: { zone: BanZone; subject?: string; onOpen?: () => void }) {
+  const z = zoneInfo(zone);
   const open = onOpen ?? (() => router.push({ pathname: '/zone/[id]', params: { id: zone.id } }));
   return (
-    <Pressable
-      onPress={open}
-      accessibilityRole="button"
-      accessibilityHint="Opens what the order bans and what it means for hosts"
-      style={({ pressed }) => [{ borderLeftWidth: 3, borderLeftColor: STATE.warning, paddingLeft: 10, paddingVertical: 8, minHeight: 44, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}
+    <View
+      style={{ gap: SPACING.xs, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: line(COLOR.state.warning), backgroundColor: tint(COLOR.state.warning) }}
+      accessibilityRole="summary"
     >
-      <Txt>
-        {subject ? `${subject} is inside` : 'Inside'} a car-meet order area ({zone.name}).{' '}
-        <Txt v="label" style={{ color: STATE.warning }}>See details ›</Txt>
-      </Txt>
-    </Pressable>
+      <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
+        <Icon name="alert" size={20} colour={COLOR.state.warning} />
+        <DsText v="bodyStrong" style={{ flex: 1 }}>
+          {subject ? `${subject} is inside a meet ban` : 'Inside a meet ban'}
+        </DsText>
+      </View>
+      <DsText v="meta" style={{ color: COLOR.text.primary }}>
+        {z.name} · {z.kind}
+        {z.hours ? ` · ${z.hours}` : ''}
+      </DsText>
+      <DsText v="secondary" numberOfLines={3}>
+        {z.bans}
+      </DsText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: SPACING.md, marginLeft: -SPACING.xs }}>
+        {z.source ? <Button tier="tertiary" size="sm" label={z.sourceLabel ?? 'Read the order ›'} onPress={() => openUrl(z.source!)} /> : null}
+        <Button tier="tertiary" size="sm" label="Details ›" accessibilityLabel={`${MEET_BAN} details: ${z.name}`} onPress={open} />
+      </View>
+    </View>
   );
 }

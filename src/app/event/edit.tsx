@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { EventForm } from '../../components/EventForm';
-import { EmptyState, NotFound } from '../../components/ui';
+import { NotFoundState } from '../../components/Detail';
+import { EmptyState } from '../../components/ds';
 import { canEditEvent, isHost } from '../../lib/events';
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
+import { COLOR, SPACING } from '../../theme';
 
 export default function EditEvent() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,10 +19,10 @@ export default function EditEvent() {
       ? { ok: false as const, reason: 'Only hosts can edit this event.' }
       : canEditEvent(event, now);
 
-  if (!event) return <NotFound what="Event" />;
+  if (!event) return <NotFoundState what="Event" />;
   if (!allowed.ok) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
         <EmptyState title="Can't edit this event" body={allowed.reason} action={{ label: 'Go back', onPress: () => router.back() }} />
       </View>
     );
