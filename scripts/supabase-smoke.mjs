@@ -439,6 +439,21 @@ async function community() {
   const { data: threadC } = await C.client.from('forum_threads').select('reply_count,solved_reply_id').eq('id', thread).single();
   check('forum: C reads the thread with its reply count and answer', threadC?.reply_count === 1 && threadC?.solved_reply_id === reply);
 
+  // For sale and wanted listings (20261118230000): price, ONO, condition, handover, Sold by the author only.
+  const listing = await rpc(A, 'create_thread', {
+    p_board: 'for_sale', p_region: null, p_title: `Smoke thread ${RUN} listing`, p_body: 'Rear wing, fits an FK8', p_photos: [], p_build_id: null,
+    p_listing_kind: 'sale', p_price_pence: 45000, p_ono: true, p_condition: 'good', p_handover: 'collection',
+  });
+  const { data: listedB } = await B.client.from('forum_threads').select('listing_kind,price_pence,ono,condition,handover,sold_at').eq('id', listing).single();
+  check('listings: B reads the price, ONO, condition and collection', listedB?.listing_kind === 'sale' && listedB?.price_pence === 45000 && listedB?.ono === true && listedB?.condition === 'good' && listedB?.handover === 'collection' && listedB?.sold_at === null, JSON.stringify(listedB));
+  const notYours = await rpcError(B, 'set_listing_sold', { p_thread_id: listing, p_sold: true });
+  check('listings: B cannot mark A\'s listing sold', notYours === 'Only the person who listed it can mark it sold.', notYours ?? 'no error');
+  const soldAt = await rpc(A, 'set_listing_sold', { p_thread_id: listing, p_sold: true });
+  const { data: soldB } = await B.client.from('forum_threads').select('sold_at').eq('id', listing).single();
+  check('listings: A marks it sold and B sees it', !!soldAt && !!soldB?.sold_at, JSON.stringify(soldB));
+  const noOno = await rpcError(A, 'create_thread', { p_board: 'for_sale', p_region: null, p_title: `Smoke thread ${RUN} free`, p_body: '', p_photos: [], p_build_id: null, p_ono: true });
+  check('listings: ONO needs a price', noOno === 'Add a price to say "or nearest offer".', noOno ?? 'no error');
+
   // Feed posts.
   const nearHome = await rpcError(A, 'create_post', { p_body: 'From home', p_photos: [], p_lat: 52.487, p_lng: -1.891, p_place_name: null, p_visibility: 'public', p_build_id: null });
   check('create_post: never near your home area', nearHome?.startsWith("That's within about 1 km of your home area"), nearHome ?? 'no error');

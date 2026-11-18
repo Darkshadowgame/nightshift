@@ -5,7 +5,7 @@ import { Image, View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
 import { classOf, effectivePower } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
-import { boardLabel, type ForumThread } from '../lib/forum';
+import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
 import { plural, shortAgo } from '../lib/format';
 import { conversationTitle, previewLine, type Conversation } from '../lib/messages';
 import { photoUri } from '../lib/photos';
@@ -276,15 +276,27 @@ export function PostCard({
 
 /** A thread on the forum, as a card: board, author, title, replies and Solved. */
 export function ThreadCard({ thread, author, now, showBoard }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean }) {
+  // For sale and wanted: the price leads, then condition and collection or postage.
+  const l = thread.listing;
   return (
     <EntityCard
       kind="person"
-      eyebrow={showBoard ? boardLabel(thread.board) : thread.region ?? 'Thread'}
+      eyebrow={l ? (l.kind === 'wanted' ? 'Wanted' : 'For sale') : showBoard ? boardLabel(thread.board) : thread.region ?? 'Thread'}
       mark={{ avatar: personMark(author) }}
-      status={thread.hidden ? { label: 'Hidden', tone: 'warning' } : thread.solvedReplyId ? { label: 'Solved', tone: 'success' } : undefined}
+      status={
+        thread.hidden
+          ? { label: 'Hidden', tone: 'warning' }
+          : l?.soldAt
+            ? { label: l.kind === 'wanted' ? 'Found' : 'Sold', tone: 'success' }
+            : thread.solvedReplyId
+              ? { label: 'Solved', tone: 'success' }
+              : undefined
+      }
       sample={thread.sample}
       title={thread.title}
-      meta={metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now), thread.photos.length ? 'Photos' : null])}
+      finished={!!l?.soldAt}
+      meta={l ? metaLine([priceLabel(l), ...listingFacts(l)]) : metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now), thread.photos.length ? 'Photos' : null])}
+      detail={l ? metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), shortAgo(thread.lastActivityAt, now)]) : undefined}
       onPress={() => router.push({ pathname: '/forum/[id]', params: { id: thread.id } })}
     />
   );

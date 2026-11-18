@@ -140,17 +140,35 @@ describe('rep and public profile agree', () => {
     ev('live', '2026-11-20T21:00:00Z', '2026-11-21T01:00:00Z'),
   ];
 
-  test('attended and hosted count finished events only, crew hosts included', () => {
-    expect(attendedEvents(events, 'me', NOW).map((e) => e.id)).toEqual(['done']);
+  test('attended counts from check-in (REVIEW-8), hosted counts finished events, crew hosts included', () => {
+    expect(attendedEvents(events, 'me', NOW).map((e) => e.id)).toEqual(['done', 'live']);
     expect(hostedEvents(events, 'me', crews, NOW).map((e) => e.id)).toEqual(['done']);
     const ledger = repLedger('me', { now: NOW, events, spots: [], builds: [], awards: [], crews });
     const by = Object.fromEntries(ledger.lines.map((l) => [l.source, l]));
-    expect(by.attended.count).toBe(1);
+    expect(by.attended.count).toBe(2);
+    expect(by.attended.rep).toBe(2 * REP.attended);
     expect(by.hosted.count).toBe(1);
     const users = [{ id: 'me', handle: 'me', name: 'Me', region: 'Midlands', home, crewId: 'c' }];
     const p = publicProfile('me', users, [], crews, events, [], NOW)!;
     expect(p.meetsAttended).toBe(by.attended.count);
     expect(p.hosted).toBe(by.hosted.count);
+    expect(p.events).toBe(2);
+  });
+
+  test('a cancelled event never counts, even after checking in', () => {
+    const cancelled = [ev('gone', '2026-11-20T21:00:00Z', '2026-11-21T01:00:00Z', { cancelled: true } as Partial<NightEvent>)];
+    expect(attendedEvents(cancelled, 'me', NOW)).toEqual([]);
+  });
+
+  test('photo spot visits and finished drives add rep straight away (the demo path)', () => {
+    const base = { status: 'approved' as const, createdAt: '2026-11-01T00:00:00Z', ratings: [], authorId: 'nightshift' };
+    const spots = [
+      { ...base, id: 'p', kind: 'photo' as const, name: 'P', at: home, description: '', completions: [{ userId: 'me', on: '2026-11-20' }] },
+      { ...base, id: 'd', kind: 'drive' as const, name: 'D', at: home, description: '', miles: 12, path: [home, home], completions: [{ userId: 'me', on: '2026-11-20' }] },
+    ];
+    const before = repLedger('me', { now: NOW, events: [], spots: spots.map((s) => ({ ...s, completions: [] })), builds: [], awards: [] }).total;
+    const after = repLedger('me', { now: NOW, events: [], spots: spots as never, builds: [], awards: [] }).total;
+    expect(after - before).toBe(REP.photoSpot + REP.drive);
   });
 });
 

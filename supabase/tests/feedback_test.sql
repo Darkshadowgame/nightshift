@@ -81,7 +81,8 @@ update public.feedback set status = 'done';
 delete from public.feedback;
 reset role;
 
-select is((select count(*) from public.feedback where status = 'new')::int, 5,
+-- Counts look only at this test's rows (made in this transaction, so created_at = now()): real feedback may be there too.
+select is((select count(*) from public.feedback where status = 'new' and created_at = now())::int, 5,
   'feedback: a tester''s update and delete change nothing');
 select is((select user_id from public.feedback where message = 'Map pin is off by a street'),
   'f0000000-0000-0000-0000-000000000001'::uuid, 'feedback: user_id defaults to the sender');
@@ -105,13 +106,13 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"f0000000-0000-0000-0000-000000000003","role":"authenticated"}', true);
 
-select is((select count(*) from public.feedback)::int, 25, 'feedback: staff read it all');
+select is((select count(*) from public.feedback where created_at = now())::int, 25, 'feedback: staff read it all');
 select lives_ok($$ update public.feedback set status = 'seen' where kind = 'bug' $$, 'feedback: staff set the status');
 select throws_ok($$ update public.feedback set message = 'edited' $$, '42501', null, 'feedback: staff can''t rewrite a message');
 select throws_ok($$ update public.feedback set status = 'whatever' $$, '23514', null, 'feedback: known statuses only');
 select is((select count(*) from storage.objects where bucket_id = 'feedback')::int, 1, 'feedback bucket: staff read screenshots');
 select lives_ok($$ delete from public.feedback where kind = 'idea' $$, 'feedback: staff delete');
-select is((select count(*) from public.feedback)::int, 4, 'feedback: and it''s gone');
+select is((select count(*) from public.feedback where created_at = now())::int, 4, 'feedback: and it''s gone');
 reset role;
 
 select * from finish();

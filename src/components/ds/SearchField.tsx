@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, TextInput, View } from 'react-native';
 import { COLOR, ELEVATION, FONT_SCALE, RADII, SPACING } from '../../theme';
 import { Icon } from './Icon';
 import { Press } from './Press';
@@ -78,7 +78,8 @@ export function SearchField({
         onBlur={() => setFocused(false)}
         maxFontSizeMultiplier={FONT_SCALE.chrome}
         selectionColor={COLOR.action.primary}
-        style={[typeStyle('input'), { flex: 1, minHeight: 46, paddingVertical: 0 }]}
+        // The pill shows focus itself; the browser's square focus ring would sit inside it (web only).
+        style={[typeStyle('input'), { flex: 1, minHeight: 46, paddingVertical: 0 }, Platform.OS === 'web' && { outlineWidth: 0 }]}
       />
       {loading ? (
         <View style={{ width: 44, alignItems: 'center' }} accessibilityLabel="Searching" accessibilityRole="progressbar">

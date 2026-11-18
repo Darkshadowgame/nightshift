@@ -90,6 +90,8 @@ export const SURFACE = {
   glass: 'rgba(11,15,23,0.92)',
   /** Cards and menus floating over the map. */
   glassRaised: 'rgba(19,26,38,0.97)',
+  /** The map's bottom sheet: the glassRaised colour, solid, so pins never show through its text (REVIEW-8). */
+  sheet: '#131a26',
   /** Dimming behind a sheet or modal. */
   scrim: 'rgba(5,7,12,0.6)',
   border: C.kerb,
@@ -212,6 +214,7 @@ export const COLOR = {
     media: '#111827',
     glass: SURFACE.glass,
     glassRaised: SURFACE.glassRaised,
+    sheet: SURFACE.sheet,
     scrim: SURFACE.scrim,
     border: SURFACE.border,
     /** Inputs and anything that must read as a control: 3:1 or better. */

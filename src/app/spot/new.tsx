@@ -1,3 +1,4 @@
+import { openCreated } from '../../lib/openCreated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
@@ -76,7 +77,7 @@ export default function SuggestPlace() {
     if (problem) return setError(problem);
     try {
       const { id } = await suggestSpot(draft);
-      router.replace({ pathname: '/spot/[id]', params: { id } });
+      openCreated({ pathname: '/spot/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save your suggestion.");
     }

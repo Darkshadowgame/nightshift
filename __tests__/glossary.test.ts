@@ -4,7 +4,7 @@ import type { Role } from '../src/lib/eventView';
 describe('glossary', () => {
   it('has one label per role', () => {
     const roles: Role[] = ['host', 'going', 'requested', 'invited', 'public', 'declined', 'none'];
-    expect(roles.map(roleLabel)).toEqual(['Hosting', 'Going', 'Requested', 'Invited', 'Public', 'Declined', '']);
+    expect(roles.map(roleLabel)).toEqual(['Hosting', 'Going', 'Requested', 'You can go', 'Public', 'Declined', '']);
   });
   it('never gives hosting a layer colour tone', () => {
     expect(roleTone('host')).toBe('brand');

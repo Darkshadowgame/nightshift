@@ -75,3 +75,27 @@ describe('bundled UK places', () => {
     for (const z of BAN_ZONES) expect(z.note).toMatch(/^Sample — check the current order\./);
   });
 });
+
+describe('splitWarnings (REVIEW-8: no internal data notes shown to people)', () => {
+  const { splitWarnings, placeDescription, placeSpots } = require('../src/data/places');
+  it('moves confidence and OSM notes to devNotes and keeps real warnings', () => {
+    expect(splitWarnings(['Paid parking; opening times apply.', 'Medium confidence: car park position is an unnamed OSM car park near the tower. Check it before you go.'])).toEqual({
+      warnings: ['Paid parking; opening times apply.'],
+      devNotes: ['Medium confidence: car park position is an unnamed OSM car park near the tower. Check it before you go.'],
+    });
+  });
+  it('splits a warning that mixes both', () => {
+    const r = splitWarnings(['Unfenced moor roads, sheep and ponies; single-track sections. Car park position is an unnamed OSM car park south of the summit.']);
+    expect(r.warnings).toEqual(['Unfenced moor roads, sheep and ponies; single-track sections.']);
+    expect(r.devNotes).toHaveLength(1);
+  });
+  it('no bundled place shows a data note to people', () => {
+    for (const s of placeSpots('2026-01-01T00:00:00Z')) {
+      for (const w of s.warnings ?? []) expect(w).not.toMatch(/confidence|OSM|research/i);
+      expect(s.description).not.toMatch(/Untimed: rep for finishing/);
+    }
+  });
+  it('drops the repeated "Untimed" line from drive descriptions', () => {
+    expect(placeDescription('A great road. Untimed: rep for finishing it within the limits.')).toBe('A great road.');
+  });
+});

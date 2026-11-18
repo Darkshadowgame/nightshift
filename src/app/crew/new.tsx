@@ -1,3 +1,4 @@
+import { openCreated } from '../../lib/openCreated';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -32,7 +33,7 @@ export default function NewCrew() {
     setBusy(true);
     try {
       const id = await createCrew(name, tag);
-      router.replace({ pathname: '/crew/[id]', params: { id } });
+      openCreated({ pathname: '/crew/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't start the crew.");
     } finally {

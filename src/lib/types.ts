@@ -228,6 +228,11 @@ export interface Spot {
   limitMph?: number;
   /** Things to know before you go (single-track, snow gates, cameras). */
   warnings?: string[];
+  /**
+   * Notes from the research behind a bundled place ("Medium confidence: …", "an unnamed OSM car
+   * park"). Never shown to users; development builds show them under the place (REVIEW-8).
+   */
+  devNotes?: string[];
   /** Rough region, e.g. "Peak District". */
   region?: string;
   /** Suggested photo spots: the suggester's photo of the place with a car or bike in it (stored name, plate-blurred). */

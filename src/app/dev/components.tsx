@@ -286,7 +286,7 @@ function Gallery() {
             <Tag label="Going" tone="success" />
             <Tag label="Hosting" tone="selected" />
             <Tag label="Requested" tone="warning" />
-            <Tag label="Invited" tone="info" />
+            <Tag label="You can go" tone="info" />
             <Tag label="Declined" tone="danger" />
             <Tag label="Live" tone="live" />
             <Tag label="Sample" />

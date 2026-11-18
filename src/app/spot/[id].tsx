@@ -18,10 +18,10 @@ import { SYSTEM_AUTHOR } from '../../data/places';
 import { BAN_ZONES } from '../../data/seed';
 import { radiusFor } from '../../lib/commons';
 import { plural } from '../../lib/format';
-import { NAVIGATE, ONLY_ON_PHONE, PLACE_NAMES, WHERE } from '../../lib/glossary';
+import { ONLY_ON_PHONE, PLACE_NAMES } from '../../lib/glossary';
 import { preciseFix } from '../../lib/location';
 import { photoUri } from '../../lib/photos';
-import { driveTier } from '../../lib/rep';
+import { driveTier, REP } from '../../lib/rep';
 import {
   advanceRun,
   averageStars,
@@ -182,6 +182,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
           </View>
         </Callout>
       ) : null}
+      {__DEV__ && spot.devNotes?.length ? <DsText v="caption">{`Data notes (development builds only): ${spot.devNotes.join(' ')}`}</DsText> : null}
       {zones.map((zone) => (
         <ZoneNotice key={zone.id} zone={zone} subject="This place" />
       ))}
@@ -299,9 +300,10 @@ function DrivePanel({
   const store = useStore();
   const { settings } = store;
   const [error, setError] = useState<string | null>(null);
-  // The demo's "skip the GPS check"; signed in, the server always checks where you are.
-  const simGps = settings.simulateGps && store.backend === 'local';
+  // The demo never needs you to be there: the app drives the checkpoints for you at a legal pace.
+  // Signed in, GPS counts them and the server checks the run again.
   const demo = store.backend === 'local';
+  const simGps = demo;
   const checkpoints = spot.path ?? [];
   const miles = driveMiles(spot);
   /**
@@ -318,6 +320,9 @@ function DrivePanel({
   const runRef = useRef(run);
   runRef.current = run;
   const done = hasCompleted(spot, store.me);
+  /** Finished before this screen opened: rep is for the first finish only. */
+  const [doneBefore] = useState(done);
+  const firstFinish = !doneBefore;
 
   /** Set once the screen has closed, so a watch that starts late is removed at once. */
   const closed = useRef(false);
@@ -367,7 +372,7 @@ function DrivePanel({
       if (!perm.granted) {
         setRun(null);
         setError(
-          `Drives need your location to pass the checkpoints. Allow it for Nightshift in Settings${demo ? ` (or, for testing, ${WHERE.demoSkipGps}: skip the GPS check)` : ''}.`,
+          'Drives need your location to pass the checkpoints. Allow it for Nightshift in Settings.',
         );
         return;
       }
@@ -426,23 +431,35 @@ function DrivePanel({
   }
 
   if (!run) {
+    // One primary, "Start the drive" (REVIEW-8): Nightshift's own directions count it as you go; without
+    // them (the web preview, another directions app) the checkpoints are counted here; the demo drives it for you.
+    const startLabel = done || passed ? 'Drive it again' : 'Start the drive';
     return (
       <View style={{ gap: SPACING.md }}>
         {passed ? (
-          <CheckInCelebration play title="Drive complete" body={`Every checkpoint passed.${done && spot.authorId !== store.me ? ' Rep added if this was your first time.' : ''}`} />
+          <CheckInCelebration
+            play
+            title="Drive complete"
+            body={`Every checkpoint passed.${spot.authorId === store.me ? '' : firstFinish ? ` +${driveTier(spot.miles).rep} rep.` : ' Rep is for the first finish only.'}`}
+          />
         ) : null}
-        <NavLaunch target={{ kind: 'spot', id: spot.id }} to={checkpoints.length ? checkpoints[0] : spot.at} label={done || passed ? 'Navigate it again' : NAVIGATE} kind="primary" />
+        {ownNav && !simGps ? (
+          <NavLaunch target={{ kind: 'spot', id: spot.id }} to={checkpoints.length ? checkpoints[0] : spot.at} toName="the start" label={startLabel} kind="primary" />
+        ) : (
+          <>
+            <Button
+              label={startLabel}
+              size="lg"
+              block
+              onPress={simGps ? simulate : start}
+              accessibilityHint={simGps ? 'Demo: drives the checkpoints for you at a legal pace' : 'Counts the checkpoints with GPS while you drive'}
+            />
+            <NavLaunch target={{ kind: 'spot', id: spot.id }} to={checkpoints.length ? checkpoints[0] : spot.at} toName="the start" label="Directions to the start" kind="secondary" />
+          </>
+        )}
         <DsText v="caption">
-          {ownNav
-            ? `Turn by turn through all ${checkpoints.length} checkpoints. Passing every one in order counts the drive.`
-            : `Pass all ${checkpoints.length} checkpoints in order to count the drive.`}{' '}
-          Drives are never timed or ranked: you only get pass or fail. Stick to the speed limits, as a run that's too quick doesn't count.
+          {`Pass all ${checkpoints.length} checkpoints in order to count it. Stick to the speed limits: a run that's too quick doesn't count.${simGps ? ' Demo: location check skipped, the app drives it for you.' : ''}`}
         </DsText>
-        {simGps ? (
-          <Button label="Simulate the drive" tier="secondary" block onPress={simulate} />
-        ) : !ownNav ? (
-          <Button label="Count it without directions" tier="secondary" block onPress={start} accessibilityHint="Counts the checkpoints with GPS while you drive, with no directions" />
-        ) : null}
         {error ? <ErrorState title={error} /> : null}
       </View>
     );
@@ -462,7 +479,7 @@ function DrivePanel({
       </View>
       <DsText v="caption">
         {simGps
-          ? `Demo: skip the GPS check is on (${WHERE.demoSkipGps}), so the app walks the checkpoints for you at a legal pace.`
+          ? 'Demo: location check skipped, so the app drives the checkpoints for you at a legal pace.'
           : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
       </DsText>
       {simulating ? <Button label="Driving" tier="secondary" block busy onPress={simulate} /> : null}
@@ -478,10 +495,10 @@ function DrivePanel({
 
 function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) {
   const store = useStore();
-  const { settings } = store;
   const [error, setError] = useState<string | null>(null);
-  // The demo's "skip the GPS check"; signed in, the server always checks where you are.
-  const simGps = settings.simulateGps && store.backend === 'local';
+  // The demo never blocks a check-in on distance; signed in, the server always checks where you are.
+  const simGps = store.backend === 'local';
+  const visitedBefore = useRef(hasCompleted(spot, store.me)).current;
   const [step, setStep] = useState<'idle' | 'photo' | 'done'>('idle');
   const [busy, setBusy] = useState(false);
   /** The fix the distance check used, sent with the check-in (signed in, the server checks it again). */
@@ -497,7 +514,7 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
         if (!fix.ok) {
           setError(
             fix.reason === 'denied'
-              ? `Checking in here needs your location. Allow it for Nightshift in Settings${store.backend === 'local' ? ` (or, for testing, ${WHERE.demoSkipGps}: skip the GPS check)` : ''}.`
+              ? 'Checking in here needs your location. Allow it for Nightshift in Settings.'
               : "Couldn't read your location. Try again outside.",
           );
           return;
@@ -535,7 +552,11 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
   if (step === 'done') {
     return (
       <View style={{ gap: SPACING.md }}>
-        <CheckInCelebration play title={`Checked in at ${spot.name}`} body={spot.authorId !== store.me ? 'Rep added if this was your first time here.' : undefined} />
+        <CheckInCelebration
+          play={false}
+          title={`Checked in at ${spot.name}`}
+          body={spot.authorId === store.me ? undefined : visitedBefore ? 'Rep is for your first visit only.' : `+${REP.photoSpot} rep for your first visit.`}
+        />
         <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} kind="secondary" />
         <Button label="Check in again" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => setStep('idle')} />
       </View>
@@ -546,16 +567,19 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
     <View style={{ gap: SPACING.md }}>
       {step === 'idle' ? (
         <>
-          <Button label="Check in here" size="lg" block busy={busy} onPress={checkIn} accessibilityHint="Checks you are within 0.2 mi of the spot" />
+          <Button label="Check in here" size="lg" block busy={busy} onPress={checkIn} accessibilityHint={simGps ? undefined : 'Checks you are within 0.2 mi of the spot'} />
           {error ? <ErrorState title={error} /> : null}
-          <DsText v="caption">Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved.</DsText>
+          <DsText v="caption">
+            {simGps
+              ? 'Demo: location check skipped. Add a photo after if you like; plates are blurred before anything is saved.'
+              : "Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved."}
+          </DsText>
           <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} kind="secondary" />
         </>
       ) : (
         <>
-          <Callout tone="success" title="You're here. Add a photo?">
-            Plates are blurred before anything is saved.
-          </Callout>
+          {/* The same check-in moment as an event's (the burst, the tick, the buzz). */}
+          <CheckInCelebration play title={`You're at ${spot.name}`} body="Add a photo? Plates are blurred before anything is saved." />
           <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
             <Button label="Camera" style={{ flex: 1 }} block onPress={() => pickPhoto(true)} disabled={busy || flow.busy} />
             <Button label="Library" tier="secondary" style={{ flex: 1 }} block onPress={() => pickPhoto(false)} disabled={busy || flow.busy} />

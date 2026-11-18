@@ -1,4 +1,4 @@
-import { startFrom } from '../src/lib/when';
+import { orderedTimes, startFrom } from '../src/lib/when';
 
 const TONIGHT = { label: 'Tonight', days: 0 };
 const at = (h: number, m = 0) => new Date(2026, 10, 17, h, m); // Tue 17 Nov 2026, local time
@@ -30,5 +30,19 @@ describe('host form start time', () => {
   test('editing keeps the event date', () => {
     const r = startFrom({ label: 'Fri (as planned)', days: 0, date: new Date(2026, 10, 20, 22, 0).toISOString() }, '23:00', at(20));
     expect(r.ok && r.start).toEqual(new Date(2026, 10, 20, 23, 0));
+  });
+});
+
+describe('orderedTimes (Review 8: chips in the order they happen)', () => {
+  const TIMES = ['19:00', '20:30', '22:00', '22:30', '23:00', '23:59', '06:00', '09:00'];
+  const afternoon = new Date(2026, 10, 18, 15, 0);
+  it('Tonight: evening first, then the small hours, labelled tomorrow', () => {
+    const r = orderedTimes({ label: 'Tonight', days: 0 }, TIMES, afternoon);
+    expect(r.map((x) => x.label)).toEqual(['19:00', '20:30', '22:00', '22:30', '23:00', '23:59', '06:00 tomorrow', '09:00 tomorrow']);
+  });
+  it('another day: in clock order, morning first, no "tomorrow"', () => {
+    const r = orderedTimes({ label: 'Tomorrow', days: 1 }, TIMES, afternoon);
+    expect(r.map((x) => x.label)).toEqual(['06:00', '09:00', '19:00', '20:30', '22:00', '22:30', '23:00', '23:59']);
+    expect(r.map((x) => x.time)[0]).toBe('06:00');
   });
 });

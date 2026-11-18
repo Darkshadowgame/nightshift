@@ -229,7 +229,7 @@ export default function ChangePlan() {
         visible={picking}
         mode="point"
         title={stop ? `Move ${stop.name}` : 'Place the new meet point'}
-        hint="Move the map so the crosshair is on the new meet point, or tap a grey pin to use a known place."
+        hint="Move the map so the crosshair is on the new meet point, or tap a grey pin to use a known place. Orange outlines and pins are meet bans."
         confirmLabel={stop ? 'Move meet point here' : 'Set meet point here'}
         start={pending ?? centre}
         span={0.06}

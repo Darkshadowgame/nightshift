@@ -176,7 +176,7 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
         {Platform.OS === 'web'
           ? 'The web preview has no directions or voice. Open Nightshift on the iPhone, or use another app for now.'
           : 'This install is older than the navigation update. Install the latest IPA, or use another app for now.'}
-        {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Count it without directions does." : ''}
+        {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Start the drive does." : ''}
       </DsText>
       <DsText v="title">{plan.title}</DsText>
       <Button block label="Apple Maps" size="lg" onPress={() => openDirections('apple', to)} />

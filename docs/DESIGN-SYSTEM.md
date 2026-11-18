@@ -33,7 +33,7 @@ in `src/app` or `src/components` outside `ds/` (theme.ts is the only other place
 |---|---|---|
 | `action` | `primary, onPrimary, link, selected, selectedTint, disabledBorder, destructive` | Sodium = "you can tap this" or "this is on". Nothing else. |
 | `text` | `primary, secondary, emphasis, info, onAction, disabled` | `emphasis` (chalk) and `info` (blue-grey) replace sodium on info lines like "you can go". |
-| `surface` | `bg, card, raised, raisedHi, media, glass, glassRaised, scrim, border, borderStrong, skeleton` | `media` is the one colour behind photos and build art. `scrim` is the one dim layer. |
+| `surface` | `bg, card, raised, raisedHi, media, glass, glassRaised, sheet, scrim, border, borderStrong, skeleton` | `media` is the one colour behind photos and build art. `scrim` is the one dim layer. `sheet` is the map sheet, solid. |
 | `state` | `live, liveDot, success, warning, danger, info` | States only, never a layer colour. |
 | `classMetal` | `S A B C D` | Only on `ClassBadge`. |
 | `layer` | `event, show, trackday, photo, drive, track, venue, shop, partner, camera, road, post` | Map and place identity: pins, the layers panel, an entity's kind eyebrow and accent bar. Never on chips, section titles or buttons. |

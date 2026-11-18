@@ -100,7 +100,7 @@ export default function Welcome() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         ref={scroller}
-        contentContainerStyle={[st.page, { paddingTop: insets.top + SPACING.xl, paddingBottom: insets.bottom + SPACING.xxxl }]}
+        contentContainerStyle={[st.page, { paddingTop: insets.top + SPACING.xl, paddingBottom: SPACING.xl }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
@@ -140,6 +140,7 @@ export default function Welcome() {
               ]}
             />
             <VehiclePicker
+              searchFirst
               kind={kind}
               make={make}
               model={model}
@@ -151,24 +152,16 @@ export default function Welcome() {
               }}
               onPickVariant={pickVariant}
             />
-            <Button label="Next" size="lg" block disabled={!variant} hint="Pick yours from the list, or skip for now" onPress={() => setStep(2)} />
-            <Button
-              label="Skip for now"
-              tier="tertiary"
-              onPress={() => {
-                setVehicleId(undefined);
-                setStep(2);
-              }}
-              style={{ alignSelf: 'center' }}
-              accessibilityHint="You can add it later in the Garage"
-            />
           </View>
         ) : (
           <View style={{ gap: SPACING.lg }}>
             <View style={{ gap: SPACING.xs }}>
-              <DsText v="eyebrow" tone="action">
-                Step 2 of 2
-              </DsText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <DsText v="eyebrow" tone="action">
+                  Step 2 of 2
+                </DsText>
+                <Button label="‹ Back" tier="tertiary" size="sm" accessibilityLabel="Back to step 1" onPress={() => setStep(1)} />
+              </View>
               <DsText v="heading" accessibilityRole="header">
                 Where's home?
               </DsText>
@@ -211,23 +204,7 @@ export default function Welcome() {
               <DsText v="caption">Shown on your profile, in chat and on trophies. Letters, numbers, dots and underscores.</DsText>
             </View>
 
-            {variant ? (
-              <DsText v="caption">
-                Bringing: {variant.make} {variant.model} {variant.gen}. Add mods later in the Garage.
-              </DsText>
-            ) : null}
-            <Button
-              label="Show me tonight"
-              size="lg"
-              block
-              busy={saving}
-              haptic="success"
-              disabled={!home || handle.trim().length < 3}
-              hint={!home ? 'Set your home area first' : 'Add a handle first'}
-              onPress={finish}
-            />
-            {error ? <ErrorState title={error} /> : null}
-            <Button label="Back" tier="tertiary" onPress={() => setStep(1)} style={{ alignSelf: 'center' }} />
+            {variant ? <DsText v="caption">{`Bringing: ${variant.make} ${variant.model} ${variant.gen}. Add mods later in the Garage.`}</DsText> : null}
           </View>
         )}
 
@@ -249,6 +226,39 @@ export default function Welcome() {
           onCancel={() => setPicking(false)}
         />
       </ScrollView>
+      {/* The step's main button stays on screen (as in the host form), so picking a car never hides Next. */}
+      <View style={[st.footer, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
+        {step === 1 ? (
+          <>
+            <Button label="Next" size="lg" block disabled={!variant} hint="Pick yours from the list, or skip for now" onPress={() => setStep(2)} />
+            <Button
+              label="Skip for now"
+              tier="tertiary"
+              size="sm"
+              onPress={() => {
+                setVehicleId(undefined);
+                setStep(2);
+              }}
+              style={{ alignSelf: 'center' }}
+              accessibilityHint="You can add it later in the Garage"
+            />
+          </>
+        ) : (
+          <>
+            {error ? <ErrorState title={error} /> : null}
+            <Button
+              label="Show me tonight"
+              size="lg"
+              block
+              busy={saving}
+              haptic="success"
+              disabled={!home || handle.trim().length < 3}
+              hint={!home ? 'Set your home area first' : 'Add a handle first'}
+              onPress={finish}
+            />
+          </>
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -257,5 +267,6 @@ const st = StyleSheet.create({
   page: { paddingHorizontal: SPACING.screen, gap: SPACING.xl },
   who: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: SPACING.sm },
   map: { height: 200, borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.borderStrong },
+  footer: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, gap: SPACING.xs, borderTopWidth: 1, borderTopColor: COLOR.surface.border, backgroundColor: COLOR.surface.bg },
   input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
 });

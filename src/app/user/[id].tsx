@@ -131,7 +131,7 @@ export default function UserScreen() {
           <StatBlock
             stats={[
               { value: String(p.builds.length), label: p.builds.length === 1 ? 'Build' : 'Builds' },
-              { value: String(p.meetsAttended), label: p.meetsAttended === 1 ? 'Event' : 'Events' },
+              { value: String(p.events), label: p.events === 1 ? 'Event' : 'Events' },
               { value: rep.ledger.total.toLocaleString('en-GB'), label: 'Rep' },
             ]}
           />

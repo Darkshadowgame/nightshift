@@ -16,7 +16,8 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { ModerationGate } from '../components/ModerationGate';
 import { OfflinePill } from '../components/OfflinePill';
-import { ToastProvider } from '../components/ds';
+import { IconButton, ToastProvider } from '../components/ds';
+import { fallbackTab, NO_BACK } from '../lib/backFallback';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { SCREEN_TITLES as T, title } from '../lib/glossary';
 import { onNotificationTap } from '../lib/notify';
@@ -45,7 +46,13 @@ function Gate() {
   }
   const stack = (
     <Stack
-      screenOptions={{
+      screenOptions={({ navigation, route }) => ({
+        // Back is always there (REVIEW-8 problem 2): with nothing behind (a link, a notification,
+        // the web address bar) it goes to the screen's tab. One label everywhere: "Go back".
+        ...(!NO_BACK.has(route.name) && !navigation.canGoBack()
+          ? { headerLeft: () => <IconButton icon="back" label="Go back" colour={C.chalk} onPress={() => router.replace(fallbackTab(route.name))} /> }
+          : {}),
+        headerBackTitle: 'Back',
         headerStyle: { backgroundColor: C.asphalt },
         headerTintColor: C.chalk,
         // One size for tab and stack headers. Titles come from title() in glossary.ts, in capitals
@@ -54,7 +61,7 @@ function Gate() {
         headerShadowVisible: false,
         contentStyle: { backgroundColor: C.asphalt },
         headerBackButtonDisplayMode: 'minimal',
-      }}
+      })}
     >
       <Stack.Protected guard={signedOut}>
         <Stack.Screen name="signin" options={{ headerShown: false }} />

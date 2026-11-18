@@ -1,3 +1,4 @@
+import { openCreated } from '../../lib/openCreated';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
@@ -35,7 +36,7 @@ export default function NewChat() {
     setBusy(true);
     try {
       const id = await community.run((s) => (group ? s.createGroup(name, picked) : s.startDirect(picked[0])));
-      router.replace({ pathname: '/chat/[id]', params: { id } });
+      openCreated({ pathname: '/chat/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't start the chat.");
     } finally {

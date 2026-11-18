@@ -198,3 +198,58 @@ export function zoneInfo(z: BanZone): ZoneInfo {
 export function zonePins(zones: readonly BanZone[], colour: string): { id: string; at: LatLng; glyph: 'area'; colour: string; title: string; size: number }[] {
   return zones.map((z) => ({ id: `zone:${z.id}`, at: z.centre, glyph: 'area' as const, colour, title: `${z.name}: car-meet order area`, size: 24 }));
 }
+
+// ---------------------------------------------------------------------------
+// Hosting inside a meet ban: warn only, but ask before publishing (owner, Review 8)
+// ---------------------------------------------------------------------------
+
+/**
+ * A zone's name for a sentence: any trailing bracket dropped, so "Birmingham (whole city)" reads
+ * "Birmingham's court injunction", never "(Birmingham (whole city))".
+ */
+export function zoneShortName(z: Pick<BanZone, 'name'>): string {
+  return z.name.replace(/\s*\([^()]*\)\s*$/, '').trim() || z.name;
+}
+
+export interface PublishCheck {
+  /** The first meet point inside a court injunction: publishing needs an explicit "Publish anyway". */
+  injunction: { zone: BanZone; stop: string } | null;
+  /** PSPOs any meet point is inside (each once): a lighter "I've checked it" on the Review step. */
+  pspos: BanZone[];
+}
+
+/**
+ * What a host must confirm before publishing these meet points. Every zone a point is inside
+ * counts (a small PSPO inside a city-wide injunction still triggers the injunction). Dispersal
+ * orders aren't standing bans: the inline warning is enough.
+ */
+export function publishCheck(stops: readonly { name: string; at?: LatLng }[], zones: readonly BanZone[]): PublishCheck {
+  let injunction: PublishCheck['injunction'] = null;
+  const pspos: BanZone[] = [];
+  for (const st of stops) {
+    if (!st.at) continue;
+    for (const z of zonesAt(st.at, zones)) {
+      const kind = zoneKind(z);
+      if (kind === 'injunction' && !injunction) injunction = { zone: z, stop: st.name };
+      if (kind === 'pspo' && !pspos.includes(z)) pspos.push(z);
+    }
+  }
+  return { injunction, pspos };
+}
+
+/** The confirm sheet's words for a court injunction. */
+export function injunctionConfirmText(zone: Pick<BanZone, 'name'>, verb = 'Publish'): string {
+  return `This spot is inside ${zoneShortName(zone)}'s court injunction. Organising or attending a meet here can be contempt of court. ${verb} anyway?`;
+}
+
+/** The meet-point placer's line: "Inside a court injunction area: Birmingham (whole city)". One bracket at most. */
+export function zoneLine(z: BanZone): string {
+  const kind = zoneKind(z);
+  const what = kind === 'injunction' ? 'a court injunction area' : kind === 'pspo' ? 'a PSPO area' : 'a dispersal-order hotspot';
+  return `Inside ${what}: ${z.name}`;
+}
+
+/** Of the zones a point is in, the one to warn about first: a court injunction, else the most specific. */
+export function worstZone(zones: readonly BanZone[]): BanZone | undefined {
+  return zones.find((z) => zoneKind(z) === 'injunction') ?? zones[0];
+}

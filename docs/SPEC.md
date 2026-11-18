@@ -874,7 +874,7 @@ One vocabulary, in `src/lib/glossary.ts` (screens import it rather than writing 
 | Use | Not |
 |---|---|
 | **event** (cruise, rolling meet, meet, show, track day) | "meet" as the generic word |
-| **Hosting**, **Going**, **Requested**, **Invited**, **Public**, **Declined** (`roleLabel()`) | You host, Asked to go, Open to all |
+| **Hosting**, **Going**, **Requested**, **You can go** (your build fits the invite), **Public**, **Declined** (`roleLabel()`) | You host, Asked to go, Open to all |
 | **Request to go** / **Cancel request** | Ask to go, Withdraw request |
 | **Public · anyone within N mi** (invite line) | Everyone welcome |
 | **meet point** (where an event is; "Meet point 2" on a rolling meet) | stop, spot, venue (for events) |

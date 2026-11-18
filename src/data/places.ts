@@ -1035,17 +1035,46 @@ export const ROAD_LIMIT_MPH: Record<string, number> = {
 };
 
 /** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. Ban zones: see placeStore.ts. */
+/** Research notes, not things a driver needs: how sure the data is and where it came from. */
+const DATA_NOTE = /\b(\w+ confidence|unnamed OSM|from OSM|research notes|researched area|rebuilt from a postcode)\b/i;
+
+/**
+ * A place's warnings for people, and its data notes for the team (REVIEW-8: "Medium confidence:
+ * … an unnamed OSM car park" was shown as "Before you go"). A warning that mixes both is split
+ * by sentence. Untimed drives already say so on the page, so that line goes too.
+ */
+export function splitWarnings(warnings: readonly string[] | undefined): { warnings?: string[]; devNotes?: string[] } {
+  const keep: string[] = [];
+  const notes: string[] = [];
+  for (const w of warnings ?? []) {
+    if (!DATA_NOTE.test(w)) {
+      keep.push(w);
+      continue;
+    }
+    const sentences = w.split(/(?<=\.)\s+/);
+    const mine = sentences.filter((x) => !DATA_NOTE.test(x)).join(' ').trim();
+    if (mine && !/^check (it )?before you go\.?$/i.test(mine)) keep.push(mine);
+    notes.push(w);
+  }
+  return { ...(keep.length ? { warnings: keep } : {}), ...(notes.length ? { devNotes: notes } : {}) };
+}
+
+/** "Untimed: rep for finishing it within the limits." ends most drive descriptions; the page says it once. */
+export function placeDescription(description: string): string {
+  return description.replace(/\s*Untimed: rep for finishing it within the limits\.?/g, '').trim();
+}
+
 export function placeSpots(createdAt: string): Spot[] {
   return PLACES.map((p) => ({
     id: p.id,
     kind: p.kind,
     name: p.name,
     at: p.at,
-    description: p.description,
+    description: placeDescription(p.description),
     ...(p.path ? { path: p.path } : {}),
     ...(p.miles ? { miles: p.miles } : {}),
     ...(ROAD_LIMIT_MPH[p.id] ? { limitMph: ROAD_LIMIT_MPH[p.id] } : {}),
-    ...(p.warnings?.length ? { warnings: p.warnings } : {}),
+    ...splitWarnings(p.warnings),
     region: p.region,
     // Ban zones are worked out when the app reads the places (src/lib/placeStore.ts), from the current zones.
     ...(p.kind === 'track' || p.kind === 'venue' ? {} : { authorId: SYSTEM_AUTHOR }),

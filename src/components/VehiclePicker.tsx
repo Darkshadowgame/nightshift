@@ -16,7 +16,7 @@ import {
   type Variant,
 } from '../lib/vehicles';
 import { COLOR, RADII, SPACING } from '../theme';
-import { DsText, Icon, INPUT, Press, SearchField } from './ds';
+import { Button, DsText, Icon, INPUT, Press, SearchField } from './ds';
 import { SearchSelect } from './SearchSelect';
 import { SuggestMissing } from './SuggestMissing';
 
@@ -33,7 +33,13 @@ export function VehiclePicker({
   onMakeModel,
   onPickVariant,
   editableBelow = false,
+  searchFirst = false,
 }: {
+  /**
+   * Onboarding: one way to pick (search), with Make and Model behind "Can't find it?". Once
+   * picked, the confirmation sits right under the search so it's on screen.
+   */
+  searchFirst?: boolean;
   /** The figures can be changed in fields below the picker (the build form); not in onboarding. */
   editableBelow?: boolean;
   kind: VehicleKind;
@@ -49,6 +55,8 @@ export function VehiclePicker({
   const family = familyFor(list, kind, make, model, variant);
   const variants = useMemo(() => (family ? variantsFor(list, kind, make, family) : []), [list, kind, make, family]);
   const [query, setQuery] = useState('');
+  const [browsing, setBrowsing] = useState(false);
+  const showSelects = !searchFirst || browsing;
   const hits = useMemo(() => searchVariants(list, kind, query, 8), [list, kind, query]);
   const noun = kind === 'car' ? 'car' : 'bike';
 
@@ -69,6 +77,19 @@ export function VehiclePicker({
         </View>
       ) : null}
 
+      {searchFirst && variant && !browsing ? <Picked variant={variant} kind={kind} editableBelow={editableBelow} /> : null}
+      {searchFirst && !browsing ? (
+        <Button
+          tier="tertiary"
+          size="sm"
+          label={variant ? 'Not quite right? Pick the make and model' : "Can't find it? Pick the make and model"}
+          style={{ alignSelf: 'flex-start' }}
+          onPress={() => setBrowsing(true)}
+        />
+      ) : null}
+
+      {showSelects ? (
+      <>
       <SearchSelect
         label="Make"
         value={make}
@@ -113,21 +134,7 @@ export function VehiclePicker({
         />
       ) : null}
 
-      {variant ? (
-        <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
-          <Icon name="success" size={20} colour={COLOR.state.success} />
-          <View style={{ flex: 1, gap: SPACING.xxs }}>
-            <DsText v="body">
-              {variant.make} {modelLabel(variant)} · {variant.engine} · {yearsLabel(variant)}
-            </DsText>
-            <DsText v="caption">
-              Standard figures filled in: {variant.bhp} bhp · {variant.weightKg} kg {kind === 'car' ? 'kerb' : 'wet'}{variant.weightApprox ? ' (approx. from dry)' : ''}
-              {variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}.
-              {editableBelow ? ' Change anything below if yours differs.' : ' Add your mods in the Garage later.'}
-            </DsText>
-          </View>
-        </View>
-      ) : null}
+      {variant ? <Picked variant={variant} kind={kind} editableBelow={editableBelow} /> : null}
 
       <SuggestMissing
         screen="vehicle-picker"
@@ -135,7 +142,23 @@ export function VehiclePicker({
         placeholder={kind === 'car' ? 'e.g. Vauxhall Astra VXR Arctic Edition' : 'e.g. Honda CBR400RR NC29'}
         context={[kind, make, model].filter(Boolean).join(' · ')}
       />
-      <DsText v="caption">Standard figures are the manufacturer's UK figures.</DsText>
+      </>
+      ) : null}
+    </View>
+  );
+}
+
+/** What you picked, with its standard figures (the manufacturer's UK figures), said once. */
+function Picked({ variant, kind, editableBelow }: { variant: Variant; kind: VehicleKind; editableBelow: boolean }) {
+  return (
+    <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
+      <Icon name="success" size={20} colour={COLOR.state.success} />
+      <View style={{ flex: 1, gap: SPACING.xxs }}>
+        <DsText v="body">{`${variant.make} ${modelLabel(variant)} · ${variant.engine} · ${yearsLabel(variant)}`}</DsText>
+        <DsText v="caption">
+          {`Manufacturer's UK figures filled in: ${variant.bhp} bhp · ${variant.weightKg} kg ${kind === 'car' ? 'kerb' : 'wet'}${variant.weightApprox ? ' (approx. from dry)' : ''}${variant.torqueLbFt ? ` · ${variant.torqueLbFt} lb-ft` : ''}.${editableBelow ? ' Change anything below if yours differs.' : ' Add your mods in the Garage later.'}`}
+        </DsText>
+      </View>
     </View>
   );
 }

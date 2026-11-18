@@ -115,8 +115,9 @@ export function NightMap({
         </View>
       ) : null}
       {/* The stand-in can't pinch: zoom buttons, so zoom-dependent layers (cameras, circuit outlines) can be checked. */}
-      {/* Left, a quarter down: clear of the sheet, the picker's header and the layers, locate and fit stack on the right (REVIEW-7 bug 2). */}
-      <View style={{ position: 'absolute', left: SPACING.sm, top: '24%', gap: SPACING.xs }}>
+      {/* Top left: clear of the layers, locate and fit stack on the right (REVIEW-7 bug 2), and of the sheet even
+          when the first-run card makes it tall on a 375x667 phone (REVIEW-8 bug 12). */}
+      <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm, gap: SPACING.xs }}>
         {[
           { label: '+', factor: 0.5 },
           { label: '−', factor: 2 },

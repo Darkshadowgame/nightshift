@@ -13,6 +13,7 @@ import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
+import { ListingCard, soldWord } from '../../components/ListingCard';
 
 /** A thread: the question, replies (Helpful, Solved), and a reply box. */
 export default function ThreadScreen() {
@@ -35,8 +36,18 @@ export default function ThreadScreen() {
   useLayoutEffect(() => {
     if (!thread) return;
     const mine = thread.authorId === community.me;
+    const l = thread.listing;
     const opts: SheetOption[] = mine
-      ? [{ label: 'Delete thread', danger: true, onPress: () => community.run((s) => s.deleteThread(thread.id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) }]
+      ? [
+          ...(l
+            ? [
+                l.soldAt
+                  ? { label: l.kind === 'wanted' ? 'Still looking' : 'Back on sale', onPress: () => community.run((s) => s.setListingSold(thread.id, false)).catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it.")) }
+                  : { label: `Mark as ${soldWord(l).toLowerCase()}`, detail: 'It stays up, marked ' + soldWord(l), onPress: () => community.run((s) => s.setListingSold(thread.id, true)).catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it.")) },
+              ]
+            : []),
+          { label: 'Delete thread', danger: true, onPress: () => community.run((s) => s.deleteThread(thread.id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) },
+        ]
       : [
           { label: 'Report thread', onPress: () => openReport('thread', thread.id, thread.authorId, 'thread') },
           { label: 'Block the author', danger: true, onPress: () => openReport('block', thread.authorId, thread.authorId) },
@@ -116,6 +127,20 @@ export default function ThreadScreen() {
         <DsText v="titleLg" accessibilityRole="header">
           {thread.title}
         </DsText>
+        {thread.listing ? (
+          <ListingCard
+            listing={thread.listing}
+            mine={mineThread}
+            busy={busy}
+            onSold={(sold) => {
+              setBusy(true);
+              community
+                .run((s) => s.setListingSold(thread.id, sold))
+                .catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it."))
+                .finally(() => setBusy(false));
+            }}
+          />
+        ) : null}
         <ListRow
           leading={{ avatar: personMark(author) }}
           title={at(author)}
@@ -208,7 +233,7 @@ export default function ThreadScreen() {
         <TextInput
             value={body}
             onChangeText={setBody}
-            placeholder="Share what you know"
+            placeholder={thread.listing ? (mineThread ? 'Add an update' : 'Ask about it') : 'Share what you know'}
             placeholderTextColor={COLOR.text.secondary}
             multiline
             maxLength={LIMITS.body}

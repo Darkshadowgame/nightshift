@@ -17,11 +17,11 @@ import { nearestRegion } from '../lib/profile';
 import { newId, useStore } from '../lib/store';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
-import { startFrom, type DayChoice } from '../lib/when';
-import { zonePins, zoneShapes } from '../lib/zones';
+import { orderedTimes, startFrom, type DayChoice } from '../lib/when';
+import { injunctionConfirmText, publishCheck, zonePins, zoneShapes, zoneShortName } from '../lib/zones';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Callout, Field, MediaFrame, TextField } from './Detail';
-import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, Press, RowDivider, Section, StatBlock, SwitchRow } from './ds';
+import { Button, ChipGroup, ChoiceGroup, displayHandle, DsText, ErrorState, Press, RowDivider, Section, Sheet, StatBlock, SwitchRow } from './ds';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -30,7 +30,7 @@ import { ZoneNotice } from './ZoneCard';
 const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
 const BAN_PINS = zonePins(BAN_ZONES, COLOR.state.warning);
 
-const TYPES: EventType[] = ['cruise', 'rolling', 'meet', 'show', 'trackday'];
+const TYPES: EventType[] = ['meet', 'cruise', 'rolling', 'show', 'trackday'];
 const TYPE_HINTS: Record<EventType, string> = {
   cruise: 'A planned route with regroup points. The whole route is shown to everyone going at the time you pick.',
   rolling: 'A meet in several parts. Every meet point is placed now. People going see the one it is at; a host moves it on to the next.',
@@ -64,7 +64,20 @@ function hhmm(iso: string): string {
  * and may throw with a readable reason. Invite filters follow the chip rule: nothing selected
  * means everyone in that dimension.
  */
-export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightEvent; submitLabel: string; onSubmit: (event: NightEvent) => void | Promise<void> }) {
+/** What the form showed when it was sent: the invite count ("12", "fewer than 3", "…" while counting). */
+export interface EventFormSent {
+  invited: string;
+}
+
+export function EventForm({
+  initial,
+  submitLabel,
+  onSubmit,
+}: {
+  initial?: NightEvent;
+  submitLabel: string;
+  onSubmit: (event: NightEvent, sent: EventFormSent) => void | Promise<void>;
+}) {
   const store = useStore();
   const { users, builds, me, crews } = store;
   const now = useNow();
@@ -81,7 +94,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
     initial ? [{ label: formatWhen(initial.startsAt, now).replace(/ \d\d:\d\d$/, '') + ' (as planned)', days: 0, date: initial.startsAt }, ...DAY_CHOICES] : DAY_CHOICES,
   );
   const [timeChoices] = useState<string[]>(() => (initial && !TIME_CHOICES.includes(hhmm(initial.startsAt)) ? [hhmm(initial.startsAt), ...TIME_CHOICES] : TIME_CHOICES));
-  const [type, setType] = useState<EventType>(initial?.type ?? 'cruise');
+  const [type, setType] = useState<EventType>(initial?.type ?? 'meet');
   const [title, setTitle] = useState(initial?.title ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [areaName, setAreaName] = useState(initial?.areaName ?? '');
@@ -102,6 +115,12 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   const [coHosts, setCoHosts] = useState<string[]>(initial ? initial.hostIds.filter((h) => h !== me) : []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Set once Next was tapped on Where, so unnamed meet points show their own error. */
+  const [checkNames, setCheckNames] = useState(false);
+  /** The court-injunction confirm is open. */
+  const [askInjunction, setAskInjunction] = useState(false);
+  /** PSPOs the host has said they checked (by zone id), for the Review step's lighter confirm. */
+  const [pspoAck, setPspoAck] = useState<string>('');
 
   const chosen = startFrom(dayChoices[day], time, now);
 
@@ -153,6 +172,11 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   const peopleCount = !remote ? String(localMatches.userIds.length) : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : countText(serverCount.people);
   const buildCount = !remote ? String(localMatches.buildIds.length) : serverCount === 'loading' ? '…' : serverCount === 'offline' ? '?' : countText(serverCount.builds);
   const bans = placed.map((st) => ({ st, zone: banZoneAt(st.at!, BAN_ZONES) })).filter((x) => x.zone);
+  // Warn only (owner), but a court injunction needs "Publish anyway" and a PSPO a tick on Review.
+  const check = publishCheck(placed, BAN_ZONES);
+  const psposKey = check.pspos.map((z) => z.id).join(',');
+  const pspoOk = !psposKey || pspoAck === psposKey;
+  const verb = editing ? 'Save' : 'Publish';
   const friends = meUser.crewId ? users.filter((u) => u.id !== me && u.crewId === meUser.crewId) : [];
   const myBuilds = builds.filter((b) => b.ownerId === me);
   const leftOut = !isPublicType(type) && hostLeftOut(filter, myBuilds);
@@ -205,6 +229,8 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       if (!visibleStops[0]?.at) return `Choose the ${stopLabel(0, visibleStops.length).toLowerCase()} on the map.`;
       if (type === 'cruise' && placed.length < 2) return 'A cruise needs at least a start and a finish.';
       if (type === 'rolling' && visibleStops.some((x) => !x.at)) return 'Place every meet point on the map. Rolling meets are planned in full before they start.';
+      const unnamed = visibleStops.findIndex((x) => x.at && !x.name.trim());
+      if (unnamed >= 0) return `Give the ${stopLabel(unnamed, visibleStops.length).toLowerCase()} a name people will recognise.`;
     }
     return null;
   }
@@ -216,20 +242,31 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   }
 
   function nextStep() {
+    if (step === 2) setCheckNames(true);
     const p = problem(step);
     if (p) return setError(p);
     go((step + 1) as Step);
   }
 
-  async function save() {
+  /** Publish: checks every step, then asks before a court injunction (warn only, never blocked). */
+  function save() {
     if (saving) return;
     for (const s of [0, 1, 2] as Step[]) {
       const p = problem(s);
       if (p) {
+        if (s === 2) setCheckNames(true);
         setStep(s);
         return setError(p);
       }
     }
+    if (!pspoOk) return setError(`Tick that you've checked the PSPO first.`);
+    if (check.injunction) return setAskInjunction(true);
+    return publish();
+  }
+
+  async function publish() {
+    setAskInjunction(false);
+    if (saving) return;
     const used = visibleStops;
     const id = initial?.id ?? newId('ev');
     const finalStops = stopsFromDraft(id, used, initial?.stops ?? [], stopLabel);
@@ -270,7 +307,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
     setError(null);
     setSaving(true);
     try {
-      await onSubmit(event);
+      await onSubmit(event, { invited: peopleCount });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
@@ -321,7 +358,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
   const whenStep = (
     <>
       <ChoiceGroup label="Day" options={dayChoices.map((d, i) => ({ key: String(i), label: d.label }))} value={String(day)} onChange={(k) => setDay(Number(k))} />
-      <ChoiceGroup label="Start time" options={timeChoices.map((t) => ({ key: t, label: t }))} value={time} onChange={setTime} />
+      <ChoiceGroup label="Start time" options={orderedTimes(dayChoices[day], timeChoices, now).map((t) => ({ key: t.time, label: t.label }))} value={time} onChange={setTime} />
       {chosen.ok ? <DsText v="bodyStrong">Starts {startText}</DsText> : <ErrorState title={chosen.reason} />}
       {!isPublicType(type) ? (
         <>
@@ -375,7 +412,13 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
               placeholder={st.at && geocoderAvailable ? 'Naming it from the map…' : `Name this ${MEET_POINT.one}`}
               accessibilityLabel={`${label} name`}
             />
-            {st.at && autoNames.current[st.key] && st.name === autoNames.current[st.key] ? <DsText v="caption">Named from the map. Edit it if people know it by another name.</DsText> : null}
+            {checkNames && st.at && !st.name.trim() ? (
+              <DsText v="caption" tone="danger">
+                Name it, e.g. the car park or venue people know it by.
+              </DsText>
+            ) : st.at && autoNames.current[st.key] && st.name === autoNames.current[st.key] ? (
+              <DsText v="caption">Named from the map. Edit it if people know it by another name.</DsText>
+            ) : null}
             <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
               <Button
                 label={st.at ? 'Move on the map' : 'Choose on the map'}
@@ -420,7 +463,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       {bans.length ? <DsText v="caption">Nightshift only warns. As the host, you're responsible for checking the order.</DsText> : null}
       <Field
         label="Area name"
-        hint={isPublicType(type) ? 'Shown with the event.' : `Until the location shows, people only see this name and a ${areaRadiusMiles} mi circle that doesn't centre on any ${MEET_POINT.one}.`}
+        hint={isPublicType(type) ? 'Shown with the event.' : `Until the location shows, people only see this name and ${areaCircle(areaRadiusMiles)} that doesn't centre on any ${MEET_POINT.one}.`}
       >
         <TextField value={areaName} onChangeText={setAreaName} placeholder={`e.g. ${suggestedAreaName}`} maxLength={30} accessibilityLabel="Area name" />
       </Field>
@@ -468,14 +511,14 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
       <ChoiceGroup label="Radius from the area" options={RADIUS_CHOICES.map((r) => ({ key: String(r), label: `${r} mi` }))} value={String(filter.radiusMiles)} onChange={(k) => setFilter((f) => ({ ...f, radiusMiles: Number(k) }))} />
       <StatBlock
         stats={[
-          { label: 'People match', value: peopleCount },
-          { label: 'Builds match', value: buildCount },
+          { label: peopleCount === '1' ? 'Person matches' : 'People match', value: peopleCount },
+          { label: buildCount === '1' ? 'Build matches' : 'Builds match', value: buildCount },
         ]}
       />
       {remote && serverCount === 'offline' ? <DsText v="caption">Can't count while offline.</DsText> : null}
       {leftOut ? (
         <Callout tone="warning" title="None of your own builds fits this invite">
-          {leftOutWhy} Change it, or you'll be hosting something you can't bring a car or bike to.
+          {`${leftOutWhy} Change it, or you'll be hosting something you can't bring a car or bike to.`}
         </Callout>
       ) : null}
       {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
@@ -518,16 +561,24 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         />
       </View>
       <Callout tone="info" title={inviteSentence(filter, peopleCount)}>
-        {isPublicType(type) ? 'Anyone can see it and where it is.' : `${revealText}. Until then, people see the area and a circle about ${areaRadiusMiles * 2} mi across.`}
+        {isPublicType(type) ? 'Anyone can see it and where it is.' : `${revealText}. Until then, people see the area name and ${areaCircle(areaRadiusMiles)}.`}
       </Callout>
       {leftOut ? (
         <Callout tone="warning" title="None of your own builds fits this invite" right={<Button tier="tertiary" size="sm" label="Change" onPress={() => go(3)} />}>
-          {leftOutWhy} You'd be hosting something you can't bring your own car or bike to.
+          {`${leftOutWhy} You'd be hosting something you can't bring your own car or bike to.`}
         </Callout>
       ) : null}
       {bans.map(({ st, zone }) => (
         <ZoneNotice key={st.key} zone={zone!} subject={st.name || `A ${MEET_POINT.one}`} />
       ))}
+      {check.pspos.length ? (
+        <SwitchRow
+          label={`I've checked the PSPO rules for ${check.pspos.map(zoneShortName).join(' and ')}`}
+          hint="A PSPO can make meets and gathering to watch an offence, with a fine. Nightshift only warns."
+          value={pspoOk}
+          onValueChange={(v) => setPspoAck(v ? psposKey : '')}
+        />
+      ) : null}
     </>
   );
 
@@ -553,7 +604,11 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
           {step > 0 ? <Button label="Back" tier="secondary" onPress={() => go((step - 1) as Step)} /> : null}
           <View style={{ flex: 1 }}>
-            {last ? <Button label={submitLabel} block busy={saving} haptic="success" onPress={save} /> : <Button label="Next" block onPress={nextStep} />}
+            {last ? (
+              <Button label={submitLabel} block busy={saving} haptic="success" onPress={save} disabled={!pspoOk} hint={pspoOk ? undefined : "Tick that you've checked the PSPO first"} />
+            ) : (
+              <Button label="Next" block onPress={nextStep} />
+            )}
           </View>
         </View>
       </View>
@@ -562,7 +617,7 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         visible={picking !== null}
         mode="point"
         title={picking !== null ? `Place the ${stopLabel(picking, visibleStops.length).toLowerCase()}` : ''}
-        hint={`Move the map so the crosshair is on the ${picking !== null ? stopLabel(picking, visibleStops.length).toLowerCase() : MEET_POINT.one}, or tap a grey pin to use a known place.`}
+        hint={`Move the map so the crosshair is on the ${picking !== null ? stopLabel(picking, visibleStops.length).toLowerCase() : MEET_POINT.one}, or tap a grey pin to use a known place. Orange outlines and pins are meet bans.`}
         confirmLabel={picking !== null ? `${visibleStops[picking]?.at ? 'Move' : 'Set'} ${stopLabel(picking, visibleStops.length).toLowerCase()} here` : ''}
         start={(picking !== null && (visibleStops[picking]?.at ?? [...visibleStops.slice(0, picking)].reverse().find((x) => x.at)?.at)) || placed[0]?.at || meUser.home}
         span={0.08}
@@ -578,18 +633,41 @@ export function EventForm({ initial, submitLabel, onSubmit }: { initial?: NightE
         }}
         onCancel={() => setPicking(null)}
       />
+
+      <Sheet visible={askInjunction} title="Court injunction" onClose={() => setAskInjunction(false)} doneLabel="Cancel">
+        <View style={{ gap: SPACING.md }}>
+          {check.injunction ? <DsText v="body">{injunctionConfirmText(check.injunction.zone, verb)}</DsText> : null}
+          {check.injunction ? <DsText v="caption">{`${check.injunction.stop || stopLabel(0, visibleStops.length)} is inside it. Nightshift only warns: you're responsible for where you send people.`}</DsText> : null}
+          <Button
+            label="Change location"
+            block
+            onPress={() => {
+              setAskInjunction(false);
+              go(2);
+            }}
+          />
+          <Button label={`${verb} anyway`} tier="destructive" block busy={saving} onPress={publish} />
+        </View>
+      </Sheet>
     </View>
   );
 }
 
+/** One wording for the rough area on Where and Review: its size across, as people see it on the map. */
+function areaCircle(radiusMiles: number): string {
+  return `a circle about ${radiusMiles * 2} mi across`;
+}
+
 /** "Cars and bikes · Class A–S · 3+ mods · within 25 mi" as a sentence about who gets the invite. */
 function inviteSentence(filter: InviteFilter, people: string): string {
-  if (filter.everyone) return `Anyone within ${filter.radiusMiles} mi can go (${people} people near here).`;
+  const n = Number(people);
+  const who = people === '1' ? '1 person' : `${people} people`;
+  if (filter.everyone) return `Anyone within ${filter.radiusMiles} mi can go (${who} near here).`;
   const kinds = filter.cars && !filter.bikes ? 'cars' : filter.bikes && !filter.cars ? 'bikes' : 'cars and bikes';
   const cls = filter.classes.length ? `, class ${classRange(filter.classes)}` : '';
   const mods = filter.minMods > 0 ? ` with ${plural(filter.minMods, 'mod')} or more` : '';
   const brands = filter.brands.length ? ` (${filter.brands.join(', ')})` : '';
-  return `Invites ${kinds}${cls}${mods}${brands} within ${filter.radiusMiles} mi: ${people} people match.`;
+  return `Invites ${kinds}${cls}${mods}${brands} within ${filter.radiusMiles} mi: ${who} ${n === 1 ? 'matches' : 'match'}.`;
 }
 
 /** Label above the value, as in every other form (REVIEW-7 inconsistency 13). */

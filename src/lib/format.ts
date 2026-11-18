@@ -48,3 +48,14 @@ export function shortAgo(iso: string, now: Date): string {
   const d = new Date(iso);
   return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })}`;
 }
+
+/**
+ * The toast after hosting: "Invites sent to 12 people", "… to 1 person", "… to fewer than 3 people"
+ * (signed in, small counts stay vague); a public event is just "Published".
+ */
+export function sentToast(invited: string, isPublic: boolean): string {
+  if (isPublic) return 'Published';
+  if (invited === '1') return 'Invites sent to 1 person';
+  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invites sent to ${invited} people`;
+  return 'Invites sent';
+}

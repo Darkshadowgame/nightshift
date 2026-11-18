@@ -162,7 +162,7 @@ const st = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    backgroundColor: SURFACE.glassRaised,
+    backgroundColor: SURFACE.sheet,
     borderTopLeftRadius: RADII.sheet,
     borderTopRightRadius: RADII.sheet,
     borderColor: C.kerbHi,

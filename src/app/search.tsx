@@ -116,6 +116,8 @@ export default function SearchScreen() {
     };
   }, []);
   const origin = meUser.home;
+  const homeArea: Destination | null =
+    origin.lat === 0 && origin.lng === 0 ? null : { at: origin, name: 'Home area', address: meUser.region ? `${meUser.region}, to about 1 km` : 'To about 1 km' };
 
   // ---- Events: the server's search when signed in, the same search on the phone otherwise. ----
   const localHits = useMemo(() => searchEvents(events, { me, crews, users, builds }, origin, filters, now), [events, me, crews, users, builds, origin, filters, now]);
@@ -383,13 +385,22 @@ export default function SearchScreen() {
         <>
           <Section title="Saved">
             {SLOTS.map((k) => {
-              const d = saved[k];
+              // Home falls back to the home area from your profile (set in onboarding), so it's never
+              // "Not set" once you have one (REVIEW-8): a saved address only makes it exact.
+              const d = saved[k] ?? (k === 'home' && homeArea ? homeArea : undefined);
+              const fromProfile = k === 'home' && !saved.home && !!homeArea;
               return (
                 <ListRow
                   key={k}
                   leading={{ pin: 'destination', colour: d ? COLOR.text.primary : COLOR.text.secondary }}
                   title={SLOT_LABELS[k]}
-                  subtitle={d ? [d.name, d.address].filter(Boolean).join(', ') : `Not set. Search for it, then save it as ${SLOT_LABELS[k]}.`}
+                  subtitle={
+                    fromProfile
+                      ? `Your home area${meUser.region ? `, ${meUser.region}` : ''}, to about 1 km. Search your address and save it as Home to make it exact.`
+                      : d
+                        ? [d.name, d.address].filter(Boolean).join(', ')
+                        : `Not set. Search for it, then save it as ${SLOT_LABELS[k]}.`
+                  }
                   onPress={d ? () => pick(d) : undefined}
                 />
               );

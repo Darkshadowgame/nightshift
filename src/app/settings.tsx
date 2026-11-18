@@ -237,7 +237,7 @@ export default function SettingsScreen() {
         <Group title="Demo">
           <SwitchRow
             label="Skip the GPS check"
-            hint="Try check-ins, photo spots and drives without being there. Off, you have to be there, as in the real app."
+            hint="Road reports and the turn-by-turn view without being there. Check-ins, photo spots and drives in the demo never need you there."
             value={!!settings.simulateGps}
             onValueChange={(v) => setSettings({ simulateGps: v })}
           />

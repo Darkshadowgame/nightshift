@@ -6,7 +6,7 @@ import { COLOR } from '../../theme';
  * Unicode stand-ins (›, ✕, ✓, ···, ⚠) in components. Decorative: the control
  * that holds an icon carries the accessibility label.
  */
-export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment';
+export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit';
 
 export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: IconName; size?: number; colour?: string }) {
   const p = { stroke: colour, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -23,6 +23,7 @@ export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: I
       {name === 'back' ? <Path d="M15 5l-7 7 7 7" {...p} /> : null}
       {name === 'check' ? <Path d="M5 12.5l4.5 4.5L19 7.5" {...p} /> : null}
       {name === 'plus' ? <Path d="M12 5v14M5 12h14" {...p} /> : null}
+      {name === 'edit' ? <Path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" {...p} /> : null}
       {name === 'more' ? (
         <>
           <Circle cx={5} cy={12} r={1.8} fill={colour} />

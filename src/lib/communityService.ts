@@ -12,6 +12,7 @@ import {
   type ConnectionState,
 } from './connections';
 import {
+  cleanListing,
   forumRepOf,
   replyProblem,
   searchThreads,
@@ -89,6 +90,8 @@ export interface CommunityService {
   reply(threadId: string, body: string, photos: string[], buildId?: string): Promise<void>;
   helpful(replyId: string, on: boolean): Promise<void>;
   markSolved(threadId: string, replyId: string | null): Promise<void>;
+  /** For sale and wanted: the author marks it sold (or found), or back on sale. */
+  setListingSold(threadId: string, sold: boolean): Promise<void>;
   deleteThread(id: string): Promise<void>;
   deleteReply(id: string): Promise<void>;
   forumRep(userIds: string[]): Promise<Record<string, ForumRep>>;
@@ -448,6 +451,7 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       const t: ForumThread = {
         id: newId('ft'), board: d.board, region: d.board === 'local' ? d.region : undefined, authorId: ME, title: d.title.trim(), body: d.body.trim(),
         photos: d.photos, buildId: d.buildId, createdAt: iso(), lastActivityAt: iso(), replyCount: 0,
+        ...(d.board === 'for_sale' ? { listing: cleanListing(d.listing ?? { kind: 'sale' }) } : {}),
       };
       update((s) => ({ ...s, threads: [t, ...s.threads] }));
       return t.id;
@@ -488,6 +492,21 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
         threads: s.threads.map((x) => (x.id === threadId ? { ...x, solvedReplyId: replyId ?? undefined } : x)),
         solved: rec ? [...s.solved, rec] : s.solved,
       });
+    },
+    async setListingSold(threadId, sold) {
+      const t = ctx.get().threads.find((x) => x.id === threadId);
+      if (!t) throw new Error("That thread isn't there any more.");
+      if (t.authorId !== ME) throw new Error('Only the person who listed it can mark it sold.');
+      if (t.board !== 'for_sale' || !t.listing) throw new Error('Only For sale & wanted listings can be marked sold.');
+      const soldAt = sold ? (t.listing.soldAt ?? iso()) : undefined;
+      update((s) => ({
+        ...s,
+        threads: s.threads.map((x) => {
+          if (x.id !== threadId || !x.listing) return x;
+          const { soldAt: _old, ...rest } = x.listing;
+          return { ...x, listing: soldAt ? { ...rest, soldAt } : rest };
+        }),
+      }));
     },
     async deleteThread(id) {
       update((s) => ({ ...s, threads: s.threads.filter((t) => !(t.id === id && t.authorId === ME)), replies: s.replies.filter((r) => r.threadId !== id || s.threads.some((t) => t.id === id && t.authorId !== ME)) }));

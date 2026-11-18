@@ -44,7 +44,8 @@ describe('other people', () => {
     expect(p.builds.length).toBeGreaterThan(0);
     expect(p.trophies.some((a) => a.category === 'best-in-show')).toBe(true);
     expect(p.crew?.id).toBe('nr');
-    expect(p.meetsAttended).toBe(1);
+    // The finished sample meet and the live rolling meet he's checked in at (attended counts from check-in).
+    expect(p.meetsAttended).toBe(2);
     expect(JSON.stringify(p)).not.toContain('home');
     expect(Object.keys(p)).not.toContain('home');
     expect(publicProfile('nobody', s.users, s.builds, s.crews, s.events, awards, now)).toBeNull();

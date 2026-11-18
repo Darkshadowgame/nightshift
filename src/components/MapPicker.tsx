@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAN_ZONES } from '../data/seed';
-import { zonePins, zoneShapes } from '../lib/zones';
+import { worstZone, zoneKind, zoneLine, zonePins, zoneShapes, zonesAt } from '../lib/zones';
 import { ZoneCard } from './ZoneCard';
-import { banZoneAt } from '../lib/events';
 import { currentPosition, geocoderAvailable, nameForPlace } from '../lib/location';
 import {
   addPoint,
@@ -127,7 +126,9 @@ function PickerBody({
   const near = useMemo(() => nearbyPlaces(known, region.centre, region.span), [known, region]);
   const snapTo: PickPlace[] = useMemo(() => (snap ? near.filter((s) => s.kind !== 'drive') : []), [snap, near]);
   const onPlace = snapPlace(region.centre, snapTo, region.span);
-  const zone = zones ? banZoneAt(onPlace?.at ?? region.centre, BAN_ZONES) : undefined;
+  const zone = zones ? worstZone(zonesAt(onPlace?.at ?? region.centre, BAN_ZONES)) : undefined;
+  // Opened on home (nothing placed, map not moved) inside a court injunction: say so before anything is set.
+  const openedInBan = !!zone && zoneKind(zone) === 'injunction' && points.length === 0 && region.centre.lat === opensAt.lat && region.centre.lng === opensAt.lng;
   /** The zone whose info card is open (tap a zone pin or the line under the crosshair). */
   const [zoneOpen, setZoneOpen] = useState<string | null>(null);
   const openZone = zoneOpen ? BAN_ZONES.find((z) => z.id === zoneOpen) : undefined;
@@ -290,11 +291,14 @@ function PickerBody({
             {label}
           </DsText>
           {zone ? (
-            <Press onPress={() => setZoneOpen(zone.id)} label={`Inside a car-meet order area: ${zone.name}. Details`} hitSlop={6}>
-              <DsText v="meta" tone="warning" numberOfLines={2}>
-                Inside a car-meet order area ({zone.name}) · Details ›
+            <Press onPress={() => setZoneOpen(zone.id)} label={`${zoneLine(zone)}. Details`} hitSlop={6}>
+              <DsText v="meta" tone={zoneKind(zone) === 'injunction' ? 'danger' : 'warning'} numberOfLines={2}>
+                {`${zoneLine(zone)} · Details ›`}
               </DsText>
             </Press>
+          ) : null}
+          {openedInBan ? (
+            <DsText v="caption">The map opened on your home area, which is inside it. Move the map out of the outline to pick somewhere else.</DsText>
           ) : null}
           {mode === 'path' ? (
             <>

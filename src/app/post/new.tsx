@@ -1,3 +1,4 @@
+import { openCreated } from '../../lib/openCreated';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
@@ -40,7 +41,7 @@ export default function NewPost() {
       const id = await community.run((s) => s.createPost(draft));
       // "On the map" should mean you can see it there: turn the Posts layer on (REVIEW-7 bug 8).
       if (at && !settings.postsLayer) setSettings({ postsLayer: true });
-      router.replace({ pathname: '/post/[id]', params: { id } });
+      openCreated({ pathname: '/post/[id]', params: { id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't post that.");
     } finally {

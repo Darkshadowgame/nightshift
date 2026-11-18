@@ -188,7 +188,15 @@ export default function BuildScreen() {
         title="Build options"
         options={
           mine
-            ? [{ label: 'Edit build', onPress: () => router.push({ pathname: '/build/edit', params: { id: b.id } }) }]
+            ? [
+                { label: 'Edit build', onPress: () => router.push({ pathname: '/build/edit', params: { id: b.id } }) },
+                {
+                  label: 'Sell a part',
+                  detail: 'A For sale listing on the forum, linked to this build',
+                  onPress: () => router.push({ pathname: '/forum/new', params: { board: 'for_sale', buildId: b.id, body: `Fits: ${b.make} ${b.model}${b.year ? ` (${b.year})` : ''}
+` } }),
+                },
+              ]
             : [
                 ...(owner ? [{ label: `View ${at(owner)}`, onPress: () => openProfile(owner.id) }] : []),
                 { label: 'Report build', onPress: () => openReport('build', b.id, b.ownerId, 'build') },

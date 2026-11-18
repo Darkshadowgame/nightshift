@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Nearby } from '../carsNear';
 import type { ConnectionState } from '../connections';
 import type { CommunityChange, CommunityService, HistoryItem, MemberOverview, ModerationActionRow, PostPin, QueueItem } from '../communityService';
-import { ilikePattern, NO_FORUM_REP, replyProblem, threadProblem, type BoardKey, type ForumRep, type ForumReply, type ForumThread } from '../forum';
+import { cleanListing, ilikePattern, NO_FORUM_REP, replyProblem, threadProblem, type BoardKey, type ForumRep, type ForumReply, type ForumThread, type Handover, type Listing, type ListingCondition, type ListingKind } from '../forum';
 import { uuid } from '../ids';
 import { groupProblem, messageProblem, type Conversation, type Message, type ShareCard } from '../messages';
 import { duplicateProblem, rememberSent, reportProblem, SPAM_PROBLEMS, type BanScope, type ReportReason, type ReportTarget, type SentText, type StaffRole } from '../moderation';
@@ -37,6 +37,13 @@ export interface ThreadRow {
   reply_count: number;
   solved_reply_id: string | null;
   hidden_at: string | null;
+  /** For sale and wanted (20261118230000); absent on older rows and other boards. */
+  listing_kind?: ListingKind | null;
+  price_pence?: number | null;
+  ono?: boolean | null;
+  condition?: ListingCondition | null;
+  handover?: Handover | null;
+  sold_at?: string | null;
 }
 
 export interface ReplyRow {
@@ -121,6 +128,30 @@ export function threadFromRow(r: ThreadRow, sign: Signed = same): ForumThread {
     replyCount: r.reply_count ?? 0,
     ...(r.solved_reply_id ? { solvedReplyId: r.solved_reply_id } : {}),
     ...(r.hidden_at ? { hidden: true } : {}),
+    ...(r.board === 'for_sale' ? { listing: listingFromRow(r) } : {}),
+  };
+}
+
+/** A For sale and wanted row's listing. Older listings (before the columns) read as for sale, offers. */
+export function listingFromRow(r: ThreadRow): Listing {
+  return {
+    kind: r.listing_kind ?? 'sale',
+    ...(r.price_pence != null ? { pricePence: r.price_pence } : {}),
+    ...(r.ono ? { ono: true } : {}),
+    ...(r.condition ? { condition: r.condition } : {}),
+    ...(r.handover ? { handover: r.handover } : {}),
+    ...(r.sold_at ? { soldAt: r.sold_at } : {}),
+  };
+}
+
+/** create_thread()'s listing arguments. */
+export function listingParams(l: Omit<Listing, 'soldAt'>): Record<string, unknown> {
+  return {
+    p_listing_kind: l.kind,
+    p_price_pence: l.pricePence ?? null,
+    p_ono: !!l.ono,
+    p_condition: l.condition ?? null,
+    p_handover: l.handover ?? null,
   };
 }
 
@@ -296,7 +327,7 @@ interface HistoryRow {
   board: string | null;
 }
 
-const THREAD_COLS = 'id,board,region,author_id,title,body,photos,build_id,created_at,last_activity_at,reply_count,solved_reply_id,hidden_at';
+const THREAD_COLS = 'id,board,region,author_id,title,body,photos,build_id,created_at,last_activity_at,reply_count,solved_reply_id,hidden_at,listing_kind,price_pence,ono,condition,handover,sold_at';
 const REPLY_COLS = 'id,thread_id,author_id,body,photos,build_id,created_at,helpful_count,hidden_at';
 const MESSAGE_COLS = 'id,conversation_id,sender_id,body,photo_path,share,system,created_at';
 const SIGNED_SECONDS = 7 * 24 * 3600;
@@ -483,6 +514,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
         return rpc<string>('create_thread', {
           p_board: d.board, p_region: d.board === 'local' ? d.region ?? null : null, p_title: d.title.trim(), p_body: d.body.trim(), p_photos: photos,
           p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
+          ...(d.board === 'for_sale' ? listingParams(cleanListing(d.listing ?? { kind: 'sale' })) : {}),
         });
       });
     },
@@ -499,6 +531,9 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     },
     async markSolved(threadId, replyId) {
       await rpc('mark_solved', { p_thread_id: threadId, p_reply_id: replyId });
+    },
+    async setListingSold(threadId, sold) {
+      await rpc('set_listing_sold', { p_thread_id: threadId, p_sold: sold });
     },
     async deleteThread(id) {
       await call(() => client.from('forum_threads').delete().eq('id', id) as unknown as PromiseLike<Result<unknown>>);

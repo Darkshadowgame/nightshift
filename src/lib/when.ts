@@ -43,3 +43,23 @@ export function startFrom(choice: DayChoice, time: string, now: Date): StartResu
   }
   return { ok: true, start: d };
 }
+
+/**
+ * The start-time chips for a day, in the order they happen: for Tonight the evening first, then
+ * the small hours labelled "06:00 tomorrow" (startFrom puts them after midnight); for any other day
+ * the morning first. Times are "HH:MM".
+ */
+export function orderedTimes(choice: DayChoice, times: readonly string[], now: Date): { time: string; label: string }[] {
+  const at = (t: string) => {
+    const r = startFrom(choice, t, now);
+    if (r.ok) return r.start.getTime();
+    // A time that has passed tonight sorts where it would have been.
+    const [h, m] = t.split(':').map(Number);
+    return (h < 12 && choice.days === 0 && !choice.date ? 24 + h : h) * 60 + m - 1e15;
+  };
+  const tonight = choice.days === 0 && !choice.date;
+  return [...new Set(times)]
+    .map((time) => ({ time, label: tonight && Number(time.split(':')[0]) < 12 ? `${time} tomorrow` : time, ms: at(time) }))
+    .sort((a, b) => a.ms - b.ms)
+    .map(({ time, label }) => ({ time, label }));
+}

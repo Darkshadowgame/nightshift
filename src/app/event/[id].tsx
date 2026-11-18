@@ -56,7 +56,7 @@ import {
 } from '../../lib/events';
 import { newlyUnlocked, roleOf } from '../../lib/eventView';
 import { formatRelative, formatTime, formatWhen, plural } from '../../lib/format';
-import { GOING, LOCATION, MEET_POINT, roleLabel, WHERE } from '../../lib/glossary';
+import { GOING, LOCATION, MEET_POINT, roleLabel } from '../../lib/glossary';
 import { countdown } from '../../lib/hud';
 import { describeFilter } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
@@ -202,12 +202,22 @@ export default function EventScreen() {
   const anyVisible = mapPins.length > 0;
   // Navigate: through the stops you can see (a rolling meet: only the one it's at now).
   const navPlan = !closed && !guestView ? planForEvent(ev, me, crews, now) : null;
+  // Other apps take one point: the meet point Check in names (a rolling meet's current one), else the first.
+  const navTo = navPlan ? (navPlan.stops.find((s) => s.checkIn) ?? navPlan.stops[0]) : null;
+  const navToNote = navTo
+    ? ev.type === 'rolling'
+      ? `Other apps go to ${navTo.name}, the ${MEET_POINT.one} it's at now. Come back here when it moves on.`
+      : navPlan!.stops.length > 1
+        ? `Other apps get ${navTo.name} only, not the rest of the route.`
+        : undefined
+    : undefined;
   const mapCentre = anyVisible ? (mapPins.find((p) => p.id === currentStop?.id)?.at ?? mapPins[0]?.at ?? ev.area) : ev.area;
   const areaMiles = areaRadius(ev);
   const currentVisible = visibleStops[current]?.visible;
 
-  // "Skip the GPS check" is the demo's only: signed in, the server checks the distance itself.
-  const skipGps = settings.simulateGps && store.backend === 'local';
+  // The demo never blocks a check-in on distance (there's no way to be at a sample meet point).
+  // Signed in, the distance check always runs, here and again on the server.
+  const skipGps = store.backend === 'local';
 
   async function doCheckIn() {
     setErrorState(null);
@@ -221,7 +231,7 @@ export default function EventScreen() {
           setError(
             'checkin',
             fix.reason === 'denied'
-              ? `Check-in needs your location. Allow it for Nightshift in Settings${store.backend === 'local' ? ` (or, for testing, ${WHERE.demoSkipGps}: skip the GPS check)` : ''}.`
+              ? 'Check-in needs your location. Allow it for Nightshift in Settings.'
               : "Couldn't read your location. Try again outside.",
           );
           return;
@@ -532,7 +542,7 @@ export default function EventScreen() {
     case 'navigate':
       primaryBlock = (
         <View style={{ gap: SPACING.md }}>
-          {navPlan ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navPlan.stops[0].at} kind="primary" /> : null}
+          {navTo ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navTo.at} toName={navTo.name} otherAppsNote={navToNote} kind="primary" /> : null}
           <DsText v="caption">{primary.hint}</DsText>
           {changePicker ?? bringingRow}
         </View>
@@ -547,12 +557,12 @@ export default function EventScreen() {
             block
             busy={busy}
             onPress={doCheckIn}
-            accessibilityHint={`Checks you are within half a mile of the ${MEET_POINT.one}`}
+            accessibilityHint={skipGps ? undefined : `Checks you are within half a mile of the ${MEET_POINT.one}`}
           />
-          <DsText v="caption">Checking in earns {REP.attended} rep and lets you vote for the best builds.</DsText>
+          <DsText v="caption">{`Checking in earns ${REP.attended} rep and lets you vote for the best builds.${skipGps ? ' Demo: location check skipped.' : ''}`}</DsText>
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {checkInLine}
-          {navPlan ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navPlan.stops[0].at} kind="secondary" /> : null}
+          {navTo ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navTo.at} toName={navTo.name} otherAppsNote={navToNote} kind="secondary" /> : null}
         </View>
       );
       break;
@@ -685,7 +695,7 @@ export default function EventScreen() {
                 <View style={{ gap: SPACING.xs }}>
                   <Button label={`Move on to ${nextStop.name}`} tier="secondary" block haptic="warning" onPress={() => attempt('moveon', () => store.moveOn(ev.id), "Couldn't move on.")} />
                   {errorAt('moveon') ? <ErrorState title={errorAt('moveon')!} /> : null}
-                  <DsText v="caption">Everyone going sees the next {MEET_POINT.one}. The {audience} people checked in here also get a notice.</DsText>
+                  <DsText v="caption">{`Everyone going sees the next ${MEET_POINT.one}. ${audience === 1 ? 'The 1 person checked in here also gets a notice.' : `The ${audience} people checked in here also get a notice.`}`}</DsText>
                 </View>
               ) : (
                 <DsText v="secondary">This is the last planned {MEET_POINT.one}.</DsText>
@@ -693,7 +703,7 @@ export default function EventScreen() {
             ) : null}
             <View>
               {canPlan ? <ListRow leading={{ icon: 'plus' }} title="Change the plan" subtitle="Rename, move, add or remove meet points" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} /> : null}
-              {canEdit ? <ListRow leading={{ icon: 'info' }} title="Edit event" subtitle="Name, time, meet points and the invite" onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} /> : null}
+              {canEdit ? <ListRow leading={{ icon: 'edit' }} title="Edit event" subtitle="Name, time, meet points and the invite" onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} /> : null}
             </View>
             <DsText v="secondary">Invite: {describeFilter(ev.filter)}</DsText>
             {canPreview ? (

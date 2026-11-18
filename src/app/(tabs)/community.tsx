@@ -34,7 +34,7 @@ export default function CommunityScreen() {
     });
   }, [nav]);
 
-  const go = (path: '/post/new' | '/forum/new' | '/chat/new') => {
+  const go = (path: '/post/new' | '/forum/new' | '/chat/new' | { pathname: '/forum/new'; params: { board: string } }) => {
     setCreating(false);
     router.push(path);
   };
@@ -60,6 +60,7 @@ export default function CommunityScreen() {
         <View>
           <SheetOption label="New post" detail="A photo or an update on your build, for the feed" onPress={() => go('/post/new')} />
           <SheetOption label="New thread" detail="Ask for advice or start a discussion on the forum" onPress={() => go('/forum/new')} />
+          <SheetOption label="Sell or find a part" detail="A For sale and wanted listing: price, condition, collection or postage" onPress={() => go({ pathname: '/forum/new', params: { board: 'for_sale' } })} />
           <SheetOption label="New chat" detail="Message one of your connections, or a group" onPress={() => go('/chat/new')} />
         </View>
       </Sheet>

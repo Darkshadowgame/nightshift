@@ -8,8 +8,8 @@ import { FadeUp } from './motion';
 import { Pin, type Glyph } from './Pin';
 
 /** The core loop, in three lines (docs/SPEC.md): what's on, go with your car, get recognised. */
-const PITCH: { glyph: Glyph; text: string }[] = [
-  { glyph: 'meet', text: 'Meets, cruises and rolling meets near you tonight. The exact meet point is shown to the people going, about an hour before.' },
+const PITCH: { glyph: Glyph; text: string; short?: string }[] = [
+  { glyph: 'meet', text: 'Meets, cruises and rolling meets near you tonight. The exact meet point is shown to the people going, about an hour before.', short: 'Meets, cruises and rolling meets near you tonight.' },
   { glyph: 'car', text: "Say you're going with your car or bike, then check in when you get there." },
   { glyph: 'show', text: 'Vote for the best builds, win trophies, and come back next week.' },
 ];
@@ -17,9 +17,10 @@ const PITCH: { glyph: Glyph; text: string }[] = [
 /**
  * The sign-in and first-run header: the wordmark, and on sign-in the pitch.
  * `compact`: the wordmark only (Welcome: the pitch was on the screen before).
+ * `short`: a small phone (375x667): the pitch in fewer lines, so the demo button stays on screen.
  * No pulse here: the pulse means "live now" and is kept for live events (REVIEW-5 m1).
  */
-export function Wordmark({ compact }: { compact?: boolean }) {
+export function Wordmark({ compact, short }: { compact?: boolean; short?: boolean }) {
   return (
     <View style={{ gap: SPACING.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
@@ -39,7 +40,7 @@ export function Wordmark({ compact }: { compact?: boolean }) {
                     <Pin glyph={l.glyph} colour={COLOR.text.secondary} size={26} />
                   </View>
                   <DsText v="secondary" style={{ flex: 1 }}>
-                    {l.text}
+                    {short ? (l.short ?? l.text) : l.text}
                   </DsText>
                 </View>
               </FadeUp>

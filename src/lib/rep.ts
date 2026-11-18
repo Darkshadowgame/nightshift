@@ -172,11 +172,13 @@ function crowd(e: NightEvent): number {
 
 /**
  * One rule for "meets attended" and "events hosted", used by the rep ledger and
- * by public profiles so the numbers agree: finished events only (not
- * cancelled). Attended means checked in; hosted includes crew hosts.
+ * by public profiles so the numbers agree. Attended means checked in, and counts
+ * (with its rep) from the moment you check in, so the "+150 rep" the check-in
+ * promises shows straight away (REVIEW-8); a cancelled event never counts. Hosted
+ * means finished (the crowd decides its rep) and includes crew hosts.
  */
 export function attendedEvents(events: NightEvent[], userId: string, now: Date): NightEvent[] {
-  return events.filter((e) => phaseOf(e, now) === 'over' && checkedInAt(e, userId));
+  return events.filter((e) => phaseOf(e, now) !== 'cancelled' && checkedInAt(e, userId));
 }
 
 export function hostedEvents(events: NightEvent[], userId: string, crews: Crew[], now: Date): NightEvent[] {

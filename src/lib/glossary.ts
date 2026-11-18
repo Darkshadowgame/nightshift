@@ -34,7 +34,8 @@ export function roleLabel(role: Role): string {
     case 'requested':
       return 'Requested';
     case 'invited':
-      return 'Invited';
+      // "Invited" read as a personal invite to a first-timer (REVIEW-8): it means your build fits the invite.
+      return 'You can go';
     case 'public':
       return 'Public';
     case 'declined':

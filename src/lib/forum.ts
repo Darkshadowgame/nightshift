@@ -10,15 +10,19 @@ import { REGIONS } from './profile';
 
 export type BoardKey = 'advice' | 'builds' | 'cars' | 'bikes' | 'detailing' | 'meets' | 'for_sale' | 'local';
 
-export const BOARDS: readonly { key: BoardKey; label: string; short: string; hint: string }[] = [
-  { key: 'advice', label: 'Advice and help', short: 'Advice', hint: 'Ask anything: tuning, faults, insurance, MOTs.' },
-  { key: 'builds', label: 'Builds and projects', short: 'Builds', hint: 'Progress threads and plans.' },
-  { key: 'cars', label: 'Cars', short: 'Cars', hint: 'Anything on four wheels.' },
-  { key: 'bikes', label: 'Bikes', short: 'Bikes', hint: 'Anything on two wheels.' },
-  { key: 'detailing', label: 'Detailing', short: 'Detailing', hint: 'Washing, polishing, wraps and tints.' },
-  { key: 'meets', label: 'Meets and events', short: 'Meets and events', hint: 'Talk about events. Never where police are.' },
-  { key: 'for_sale', label: 'For sale and wanted', short: 'For sale', hint: 'Posts only: no payments through Nightshift.' },
-  { key: 'local', label: 'Local', short: 'Local', hint: 'Your region.' },
+/**
+ * One name per board, the same on the chips, the board list, tags and cards. `title` and `body`
+ * are the composer's placeholders for that board.
+ */
+export const BOARDS: readonly { key: BoardKey; label: string; hint: string; title: string; body: string }[] = [
+  { key: 'advice', label: 'Advice and help', hint: 'Ask anything: tuning, faults, insurance, MOTs.', title: 'e.g. Clutch slipping after a remap', body: "What's the car or bike, what have you tried, what do you want to know?" },
+  { key: 'builds', label: 'Builds and projects', hint: 'Progress threads and plans.', title: 'e.g. FK8 build: stock to Stage 2', body: "What you've done so far, what's next, and what it cost in time and money." },
+  { key: 'cars', label: 'Cars', hint: 'Anything on four wheels.', title: 'e.g. GR Yaris or Type R as a daily?', body: 'Say what you think and why. Pictures welcome.' },
+  { key: 'bikes', label: 'Bikes', hint: 'Anything on two wheels.', title: 'e.g. First winter with an R1', body: 'Say what you think and why. Pictures welcome.' },
+  { key: 'detailing', label: 'Detailing', hint: 'Washing, polishing, wraps and tints.', title: 'e.g. Ceramic coat or wax on a daily?', body: 'Paint, colour, how it lives (garaged or outside), and what you use now.' },
+  { key: 'meets', label: 'Meets and events', hint: 'Talk about events. Never where police are.', title: 'e.g. Parking tips for Sunday’s show', body: 'Which event, and what you want to know or share. Nothing about where police are.' },
+  { key: 'for_sale', label: 'For sale and wanted', hint: 'Posts only: no payments through Nightshift.', title: 'e.g. FK8 rear wing, Championship White', body: 'Condition, mileage or age, part numbers, what it fits, where you are…' },
+  { key: 'local', label: 'Local', hint: 'Your region.', title: 'e.g. Coffee stops that welcome a few cars?', body: 'Where roughly, and what you have in mind.' },
 ];
 
 export function boardLabel(key: BoardKey): string {
@@ -42,6 +46,8 @@ export interface ForumThread {
   solvedReplyId?: string;
   /** Hidden after reports: only the author sees it, with a note. */
   hidden?: boolean;
+  /** For sale and wanted only. */
+  listing?: Listing;
   /** Demo sample. */
   sample?: boolean;
 }
@@ -67,6 +73,107 @@ export interface ThreadDraft {
   body: string;
   photos: string[];
   buildId?: string;
+  /** For sale and wanted only; ignored on other boards. */
+  listing?: ListingDraft;
+}
+
+// ---------------------------------------------------------------------------
+// Listings (For sale and wanted): mirrors forum_threads' listing columns and
+// create_thread() / set_listing_sold() (20261118230000_forum_listings.sql)
+// ---------------------------------------------------------------------------
+
+export type ListingKind = 'sale' | 'wanted';
+export type ListingCondition = 'new' | 'like_new' | 'good' | 'fair' | 'parts';
+export type Handover = 'collection' | 'postage' | 'either';
+
+export interface Listing {
+  kind: ListingKind;
+  /** Price (for sale) or budget (wanted), in pence. None: "Offers" / "Any budget". */
+  pricePence?: number;
+  /** "Or nearest offer". Only with a price. */
+  ono?: boolean;
+  /** For sale only. */
+  condition?: ListingCondition;
+  handover?: Handover;
+  /** When it was marked sold (or found, when wanted). */
+  soldAt?: string;
+}
+
+export type ListingDraft = Omit<Listing, 'soldAt'>;
+
+export const LISTING_KINDS: readonly { key: ListingKind; label: string }[] = [
+  { key: 'sale', label: 'For sale' },
+  { key: 'wanted', label: 'Wanted' },
+];
+
+export const CONDITIONS: readonly { key: ListingCondition; label: string }[] = [
+  { key: 'new', label: 'New' },
+  { key: 'like_new', label: 'Used: like new' },
+  { key: 'good', label: 'Used: good' },
+  { key: 'fair', label: 'Used: fair' },
+  { key: 'parts', label: 'For parts' },
+];
+
+export const HANDOVERS: readonly { key: Handover; label: string }[] = [
+  { key: 'collection', label: 'Collection only' },
+  { key: 'postage', label: 'Postage only' },
+  { key: 'either', label: 'Collection or postage' },
+];
+
+/** The most a price can be: £1,000,000. */
+export const MAX_PRICE_PENCE = 100_000_000;
+
+/**
+ * Pence from what someone typed: "450", "£450", "1,250.50", "45.5". Null when empty,
+ * NaN when it isn't a price.
+ */
+export function parsePrice(typed: string): number | null {
+  const t = typed.trim().replace(/^£/, '').replace(/,/g, '').trim();
+  if (!t) return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
+  const [pounds, pence = ''] = t.split('.');
+  return Number(pounds) * 100 + Number(pence.padEnd(2, '0'));
+}
+
+/** "£450", "£1,250.50", "£450 ONO"; "Offers" or "Any budget" with no price. */
+export function priceLabel(l: Pick<Listing, 'kind' | 'pricePence' | 'ono'>): string {
+  if (l.pricePence == null) return l.kind === 'wanted' ? 'Any budget' : 'Offers';
+  const pounds = Math.floor(l.pricePence / 100);
+  const pence = l.pricePence % 100;
+  const money = `£${pounds.toLocaleString('en-GB')}${pence ? `.${String(pence).padStart(2, '0')}` : ''}`;
+  return `${l.kind === 'wanted' ? 'Budget ' : ''}${money}${l.ono ? ' ONO' : ''}`;
+}
+
+export function conditionLabel(c: ListingCondition | undefined): string | null {
+  return c ? (CONDITIONS.find((x) => x.key === c)?.label ?? null) : null;
+}
+
+export function handoverLabel(h: Handover | undefined): string | null {
+  return h ? (HANDOVERS.find((x) => x.key === h)?.label ?? null) : null;
+}
+
+/** The facts line under a listing: condition and how it changes hands. */
+export function listingFacts(l: Listing): string[] {
+  return [l.kind === 'sale' ? conditionLabel(l.condition) : null, handoverLabel(l.handover)].filter((x): x is string => !!x);
+}
+
+/** What the server would refuse in a listing, in the same words. */
+export function listingProblem(l: ListingDraft): string | null {
+  if (l.kind !== 'sale' && l.kind !== 'wanted') return "Say whether it's for sale or wanted.";
+  if (l.pricePence != null && (!Number.isInteger(l.pricePence) || l.pricePence < 0 || l.pricePence > MAX_PRICE_PENCE)) return 'Give a price between £0 and £1,000,000.';
+  if (l.ono && l.pricePence == null) return 'Add a price to say "or nearest offer".';
+  return null;
+}
+
+/** The listing as saved: wanted listings have no condition, and ONO needs a price. */
+export function cleanListing(l: ListingDraft): ListingDraft {
+  return {
+    kind: l.kind,
+    ...(l.pricePence != null ? { pricePence: l.pricePence } : {}),
+    ...(l.ono && l.pricePence != null ? { ono: true } : {}),
+    ...(l.kind === 'sale' && l.condition ? { condition: l.condition } : {}),
+    ...(l.handover ? { handover: l.handover } : {}),
+  };
 }
 
 export const LIMITS = { title: [4, 120], body: 5000, photos: 4 } as const;
@@ -78,6 +185,10 @@ export function threadProblem(d: ThreadDraft): string | null {
   if (d.body.trim().length > LIMITS.body) return 'Keep it to 5,000 characters or fewer.';
   if (d.board === 'local' && !REGIONS.some((r) => r.name === d.region)) return 'Pick a region for the Local board.';
   if (d.photos.length > LIMITS.photos) return 'Up to 4 photos a post.';
+  if (d.board === 'for_sale' && d.listing) {
+    const l = listingProblem(d.listing);
+    if (l) return l;
+  }
   return textProblem(`${title}\n${d.body}`);
 }
 

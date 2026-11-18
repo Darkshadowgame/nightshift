@@ -11,7 +11,7 @@ import type { Spot } from '../lib/types';
 import { EVENT_COLOURS, SPOT_COLOURS, COLOR } from '../theme';
 import { EntityCard, metaLine, type EntityTag, type TagTone } from './ds';
 
-/** A role as one status tag: Going, Hosting, Requested, Invited. Public needs no tag. */
+/** A role as one status tag: Going, Hosting, Requested, You can go. Public needs no tag. */
 export function roleTag(role: Role): EntityTag | undefined {
   const tone: Partial<Record<Role, TagTone>> = { host: 'selected', going: 'success', requested: 'warning', invited: 'info', declined: 'danger' };
   const label = roleLabel(role);

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, DsText, ErrorState, Icon, Press, Section, typeStyle } from '../components/ds';
 import { openLegal } from '../components/AboutSection';
@@ -52,6 +52,8 @@ function AgreeRow({ on, onChange }: { on: boolean; onChange: (v: boolean) => voi
 export default function SignIn() {
   const auth = useAuth();
   const insets = useSafeAreaInsets();
+  // A small phone (iPhone SE, 375x667): the shorter pitch keeps "Try the demo" on the first screen.
+  const short = useWindowDimensions().height < 740;
   const [email, setEmail] = useState('');
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -119,7 +121,7 @@ export default function SignIn() {
       automaticallyAdjustKeyboardInsets
       keyboardDismissMode="interactive"
     >
-      <Wordmark />
+      <Wordmark short={short} />
 
       {!sentTo ? (
         <Section title="Sign in or create an account">
@@ -169,7 +171,7 @@ export default function SignIn() {
             <Button label="Email me a code" block onPress={send} busy={busy === 'send'} />
           )}
           {err('send')}
-          <DsText v="caption">No password. We email you a 6-digit code each time you sign in. New here? The same code makes your account.</DsText>
+          <DsText v="caption">No password: we email you a 6-digit code. New here? The same code makes your account.</DsText>
         </Section>
       ) : (
         <Section title="Check your email">
@@ -219,10 +221,10 @@ export default function SignIn() {
 
       {note ? <DsText v="secondary" accessibilityLiveRegion="polite">{note}</DsText> : null}
 
-      <View style={st.demo}>
-        <DsText v="title">Just looking?</DsText>
-        <DsText v="secondary">Try Nightshift with sample people and events round your area. Nothing leaves your phone, and you can sign in later.</DsText>
+      {/* Straight after the email button, so a 375x667 phone shows both choices without scrolling. */}
+      <View style={{ gap: SPACING.sm }}>
         <Button label="Try the demo without an account" tier="secondary" block busy={busy === 'demo'} onPress={() => run('demo', () => auth.startDemo())} />
+        <DsText v="caption">Just looking? Sample people and events round your area. Nothing leaves your phone, and you can sign in later.</DsText>
         {err('demo')}
       </View>
 
@@ -236,5 +238,4 @@ const st = StyleSheet.create({
   input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   code: { textAlign: 'center', letterSpacing: 8 },
   box: { width: 24, height: 24, marginTop: SPACING.xxs, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.secondary, alignItems: 'center', justifyContent: 'center' },
-  demo: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
 });

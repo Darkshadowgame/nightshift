@@ -922,7 +922,7 @@ export default function TonightScreen() {
       <Sheet visible={plusOpen} title="New" onClose={() => setPlusOpen(false)}>
         <SheetOption
           label="Host an event"
-          detail="A meet, cruise or rolling meet. You choose who's invited."
+          detail="A meet, cruise, rolling meet, show or track day. You choose who's invited."
           onPress={() => {
             setPlusOpen(false);
             router.push('/event/new');
@@ -930,10 +930,18 @@ export default function TonightScreen() {
         />
         <SheetOption
           label="Suggest a place"
-          detail="A drive, photo spot or meet spot. It's checked before it goes on the map."
+          detail="A drive or photo spot. It's checked before it goes on the map."
           onPress={() => {
             setPlusOpen(false);
             router.push('/spot/new');
+          }}
+        />
+        <SheetOption
+          label="Sell or find a part"
+          detail="A For sale and wanted listing on the forum. Posts only: no payments through Nightshift."
+          onPress={() => {
+            setPlusOpen(false);
+            router.push({ pathname: '/forum/new', params: { board: 'for_sale' } });
           }}
         />
       </Sheet>

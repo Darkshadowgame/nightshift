@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, useEffect, type ReactNode } from 'react';
 import { TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { COLOR, RADII, SPACING, tint, line } from '../theme';
 import { buzz, DsText, EmptyState, Icon, Tag, typeStyle, type IconName, type TagTone } from './ds';
@@ -67,6 +67,39 @@ export function MediaFrame({ height, children, style }: { height: number; childr
   return <View style={[{ height, borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }, style]}>{children}</View>;
 }
 
+/**
+ * Children for a View with any loose text wrapped: runs of strings and numbers (`{why} Change it…`
+ * is an array) become one secondary DsText, elements stay as they are. Raw text in a View throws
+ * "Text strings must be rendered within a <Text>" on iOS and falls back to a serif face on web.
+ */
+export function textSafe(children: ReactNode): ReactNode {
+  const out: ReactNode[] = [];
+  let run: string[] = [];
+  const flush = () => {
+    const text = run.join('');
+    if (text.trim()) out.push(<DsText key={`t${out.length}`} v="secondary">{text}</DsText>);
+    run = [];
+  };
+  const walk = (node: ReactNode) => {
+    Children.forEach(node, (c) => {
+      if (c == null || typeof c === 'boolean') return;
+      if (typeof c === 'string' || typeof c === 'number' || typeof c === 'bigint') {
+        run.push(String(c));
+        return;
+      }
+      if (isValidElement(c) && c.type === Fragment) {
+        walk((c.props as { children?: ReactNode }).children);
+        return;
+      }
+      flush();
+      out.push(isValidElement(c) && c.key == null ? <Fragment key={`e${out.length}`}>{c}</Fragment> : c);
+    });
+  };
+  walk(children);
+  flush();
+  return out.length === 1 ? out[0] : out;
+}
+
 export type CalloutTone = 'info' | 'warning' | 'success' | 'danger' | 'neutral';
 
 const TONE_ICON: Record<CalloutTone, IconName> = { info: 'info', warning: 'alert', success: 'success', danger: 'alert', neutral: 'info' };
@@ -95,7 +128,7 @@ export function Callout({ tone = 'info', title, children, right }: { tone?: Call
       </View>
       <View style={{ flex: 1, gap: SPACING.xs }}>
         {title ? <DsText v="bodyStrong">{title}</DsText> : null}
-        {typeof children === 'string' ? <DsText v="secondary">{children}</DsText> : children}
+        {textSafe(children)}
       </View>
       {right}
     </View>

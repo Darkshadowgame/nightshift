@@ -252,7 +252,7 @@ export const places: PlaceSeed[] = [
     sources: ['https://www.english-heritage.org.uk/visit/places/westbury-white-horse-and-bratton-camp/', OSM],
   },
   {
-    id: 'sws-p-broadway-tower', kind: 'photo', name: 'Broadway Tower', region: 'South West',
+    id: 'sws-p-broadway-tower', kind: 'photo', name: 'Broadway Tower', region: 'Worcestershire',
     description: 'Car park by the 18th-century folly tower on the Cotswold edge (just over the Worcestershire line). Classic Cotswolds landmark near the start of the B4632 drive.',
     warnings: ['Paid parking for the country park; opening times apply.', 'Medium confidence: car park position is an unnamed OSM car park near the tower. Check it before you go.'],
     at: p(52.0236, -1.8388),

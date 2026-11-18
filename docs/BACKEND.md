@@ -518,6 +518,13 @@ Rules: docs/SPEC.md "Community"; roles and the audit: docs/MODERATION.md. Mirror
   itself: the app calls `record_blocked_duplicate(kind, place, text)`, which re-checks it is really a
   duplicate before counting. The fifth in 24 h: an automatic `spam` report and a 24-hour Community ban
   (a longer ban stays), logged as `cooldown` with actor `system`, and a notice.
+* **Listings (REVIEW-8, `20261118230000_forum_listings.sql`):** For sale & wanted threads carry
+  `listing_kind` (`sale`/`wanted`), `price_pence` (0 to £1,000,000; a budget when wanted), `ono` (needs a
+  price), `condition` (`new`, `like_new`, `good`, `fair`, `parts`; for sale only), `handover`
+  (`collection`, `postage`, `either`) and `sold_at`. A check keeps them null on every other board.
+  `create_thread()` takes them as five new named arguments (the old six still work; For sale defaults
+  to `sale`) and drops them off other boards; `set_listing_sold(thread, sold)` is the author's only.
+  Mirrored in `src/lib/forum.ts` (`listingProblem`, `cleanListing`, `priceLabel`, `parsePrice`).
 * **Selling:** `private.is_selling()`; `private.check_selling_allowed()` in `create_post` and
   `create_thread` (not For sale & wanted); the For sale & wanted cap in `create_thread`;
   `private.check_sell_only()` after each post or thread (automatic `sell_only` report, once while open).
@@ -986,6 +993,19 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
 * **pgTAP:** 772 of 772 on the hosted database (adds `late_joiner_test.sql`, 16; `rls_test.sql` now
   expects the current meet point to be shown to G2, who never checked in).
 * **Smoke test:** 111 of 111 (the check-in refusal now reads "You can't see this meet point yet.").
+
+### 7a-11. What's live (18 Nov 2026, REVIEW-8: listings)
+
+* **Migration** `20261118230000_forum_listings.sql` pushed with `db push --remote --yes`, after a `pg_dump`
+  of `public` (kept off the repo) and a dry run of it plus `forum_listings_test.sql` in a rolled-back
+  transaction on the hosted database (22 of 22).
+* **pgTAP:** 794 of 794 on the hosted database (adds `forum_listings_test.sql`, 22). `feedback_test.sql`
+  now counts only its own rows (`created_at = now()`): a real feedback row on the hosted database had
+  made its three whole-table counts one too high.
+* **Smoke test:** 115 of 115 (adds: a listing with price, ONO, condition and collection read back by B,
+  B refused Sold, A marks it sold and B sees it, ONO without a price refused). One earlier run that day
+  lost the three Realtime checks (event moved on, chat line, notice) and passed the rest; the next run
+  passed in full.
 
 ### 7c. The smoke test
 
