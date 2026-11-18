@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { openLegal } from '../components/AboutSection';
 import { DsText, ListRow, RowDivider, Section } from '../components/ds';
-import { SCREEN_TITLES } from '../lib/glossary';
+import { CLASS_EXPLAINER, SCREEN_TITLES } from '../lib/glossary';
 import { SPACING } from '../theme';
 
 /** One idea per block, in the order you meet them on a night out. */
@@ -37,7 +37,8 @@ const TOPICS: { title: string; lines: string[] }[] = [
   },
   {
     title: 'Class',
-    lines: ["Class is your build's power for its weight, from S (the quickest) to D. Cars and bikes each have their own scale. A dyno run with its sheet photo gets the ✓ Dyno badge."],
+    // The one class explanation (C5), word for word as on the build form and Power and dyno.
+    lines: [CLASS_EXPLAINER, 'A dyno run with its sheet photo gets the ✓ Dyno badge.'],
   },
   {
     title: 'Privacy',

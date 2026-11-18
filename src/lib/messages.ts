@@ -3,6 +3,7 @@ import type { NightEvent, Spot, Build } from './types';
 import { classOf } from './classes';
 import { powerText } from './dyno';
 import { modCount } from './modGroups';
+import { clock, dayDiff, SMALL_HOURS_END, whenLabel } from './when';
 
 /**
  * Messages (Community › Messages): 1-to-1 and group chats between connected
@@ -151,4 +152,23 @@ export function shareHref(c: ShareCard): string {
   if (c.kind === 'event') return `/event/${c.id}`;
   if (c.kind === 'build') return `/build/${c.id}`;
   return `/spot/${c.id}`;
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * When something was posted or sent, in the app's one time wording (4.10, when.ts): a clock time,
+ * never "4m" or "1d". Today: "Today 14:00"; from 17:00, and in the small hours until 05:00,
+ * "Tonight 01:10" (Review 14); the small hours after last night's 23:00 post are still that
+ * night; this week: "Thu 22:10"; older: "Thu 12 Nov".
+ */
+export function postedLabel(iso: string, now: Date): string {
+  const d = new Date(iso);
+  const days = -dayDiff(d, now);
+  if (days <= 0) return whenLabel(d, now);
+  // Posted at 23:00, read at 00:30: the same night.
+  if (days === 1 && now.getHours() < SMALL_HOURS_END && d.getHours() >= 17) return `Tonight ${clock(d)}`;
+  if (days <= 6) return `${WEEKDAYS[d.getDay()]} ${clock(d)}`;
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }

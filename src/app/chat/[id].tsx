@@ -8,12 +8,15 @@ import { usePhotoFlow } from '../../components/PhotoFlow';
 import { ShareCardView, SharePicker } from '../../components/SharePicker';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
-import { formatTime } from '../../lib/format';
-import { conversationTitle, dayLabel, MESSAGE_MAX, messageProblem, otherMember, seenLabel, shareHref, type Message, type ShareCard } from '../../lib/messages';
+import { clock, dayLabelShort } from '../../lib/when';
+import { conversationTitle, MESSAGE_MAX, messageProblem, otherMember, seenLabel, shareHref, type Message, type ShareCard } from '../../lib/messages';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
+
+/** The toast's height and its gap above the composer, at 1.3x text too. */
+const TOAST_ROOM = 76;
 
 /** One chat: messages, photos (plate-blurred), shared cards, "Seen". Only between connected people. */
 export default function ChatScreen() {
@@ -30,6 +33,12 @@ export default function ChatScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
+  /** While the "Sent" toast shows, the newest message sits above it, never under it (Review 14). */
+  const [toastRoom, setToastRoom] = useState(false);
+  const roomTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (roomTimer.current) clearTimeout(roomTimer.current);
+  }, []);
   const list = useRef<FlatList<Message>>(null);
   const handleOf = (uid: string) => users.find((u) => u.id === uid)?.handle;
   const other = conv ? otherMember(conv, community.me) : undefined;
@@ -44,6 +53,10 @@ export default function ChatScreen() {
       if (!m.photo && !m.share) setText('');
       // Every done action gets a toast (4.7): "sent" is on the list.
       toast({ message: m.photo ? 'Photo sent' : m.share ? 'Shared' : 'Sent' });
+      setToastRoom(true);
+      if (roomTimer.current) clearTimeout(roomTimer.current);
+      roomTimer.current = setTimeout(() => setToastRoom(false), 3600);
+      list.current?.scrollToOffset({ offset: 0, animated: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send that.");
     } finally {
@@ -106,12 +119,12 @@ export default function ChatScreen() {
 
   /** Messages from one person within 10 minutes run together: one name, one time under the last. */
   const sameRun = (a?: Message, b?: Message) =>
-    !!a && !!b && !a.system && !b.system && a.senderId === b.senderId && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < 10 * 60_000 && dayLabel(a.createdAt, now) === dayLabel(b.createdAt, now);
+    !!a && !!b && !a.system && !b.system && a.senderId === b.senderId && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < 10 * 60_000 && dayLabelShort(a.createdAt, now) === dayLabelShort(b.createdAt, now);
 
   const renderItem = ({ item: m, index }: { item: Message; index: number }) => {
     const older = rows[index + 1];
     const newer = rows[index - 1];
-    const newDay = !older || dayLabel(older.createdAt, now) !== dayLabel(m.createdAt, now);
+    const newDay = !older || dayLabelShort(older.createdAt, now) !== dayLabelShort(m.createdAt, now);
     const mine = m.senderId === community.me;
     const firstOfRun = !sameRun(older, m);
     const lastOfRun = !sameRun(m, newer);
@@ -122,7 +135,7 @@ export default function ChatScreen() {
       <View style={{ gap: SPACING.xs, marginTop: firstOfRun ? SPACING.sm : 0 }}>
         {newDay ? (
           <DsText v="label" style={{ textAlign: 'center', marginVertical: SPACING.sm }}>
-            {dayLabel(m.createdAt, now)}
+            {dayLabelShort(m.createdAt, now)}
           </DsText>
         ) : null}
         {m.system ? (
@@ -137,7 +150,7 @@ export default function ChatScreen() {
             }}
             feedback="none"
             role="text"
-            label={`${mine ? 'You' : at(sender)}, ${formatTime(m.createdAt)}: ${m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
+            label={`${mine ? 'You' : at(sender)}, ${clock(m.createdAt)}: ${m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
             hint={mine ? undefined : 'Long press to report or block'}
             style={{ alignSelf: side, maxWidth: '82%', gap: SPACING.xs, alignItems: side }}
           >
@@ -169,7 +182,7 @@ export default function ChatScreen() {
                 </DsText>
               </View>
             ) : null}
-            {lastOfRun ? <DsText v="meta">{formatTime(m.createdAt)}</DsText> : null}
+            {lastOfRun ? <DsText v="meta">{clock(m.createdAt)}</DsText> : null}
           </Press>
         )}
       </View>
@@ -186,10 +199,15 @@ export default function ChatScreen() {
         renderItem={renderItem}
         contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.xs }}
         ListHeaderComponent={
-          seen ? (
-            <DsText v="meta" style={{ textAlign: 'right' }} accessibilityLiveRegion="polite">
-              {seen}
-            </DsText>
+          seen || toastRoom ? (
+            // Inverted: the header is the bottom of the chat, and its top padding shows under it.
+            <View style={{ paddingTop: toastRoom ? TOAST_ROOM : 0 }}>
+              {seen ? (
+                <DsText v="meta" style={{ textAlign: 'right' }} accessibilityLiveRegion="polite">
+                  {seen}
+                </DsText>
+              ) : null}
+            </View>
           ) : undefined
         }
         ListEmptyComponent={

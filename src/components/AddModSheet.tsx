@@ -7,8 +7,8 @@ import { powerText } from '../lib/dyno';
 import { OFF_ROAD_TAG } from '../lib/legality';
 import { newId, useStore } from '../lib/store';
 import { groupCategory, hasQuickMod, quickModsFor, stageFromMods, suggestedGain } from '../lib/tune';
-import type { Build, ModCategory } from '../lib/types';
-import { findVariant } from '../lib/vehicles';
+import type { Build, Mod, ModCategory } from '../lib/types';
+import { findVariant, type Aspiration } from '../lib/vehicles';
 import { MOD_SECTIONS, sectionOfGroup, type ModSection } from './BuildBits';
 import { COLOR } from '../theme';
 import { Button, DsText, ErrorState, Field, Icon, ListRow, RowDivider, SegmentedControl, Sheet, TextField, useToast } from './ds';
@@ -31,10 +31,27 @@ const OTHER = '__other';
  * (4.4: one of more than five is a list, never chips) → "Something else" to type one → the power
  * gain once a part is picked → Add. The toast says the build's class and power afterwards.
  */
-export function AddModSheet({ visible, build, onClose }: { visible: boolean; build: Build; onClose: () => void }) {
+export function AddModSheet({
+  visible,
+  build,
+  onClose,
+  onAdd,
+  asp: aspGiven,
+}: {
+  visible: boolean;
+  build: Build;
+  onClose: () => void;
+  /**
+   * The build form (Add a car or bike, Edit build): hand the mod back to the form's draft instead
+   * of saving it, so a mod is picked the same way everywhere (K2).
+   */
+  onAdd?: (mod: Mod) => void;
+  /** The engine kind when the form knows it (a guess for a typed car, the donor's after a swap). */
+  asp?: Aspiration;
+}) {
   const { saveBuild } = useStore();
   const toast = useToast();
-  const asp = build.engineSwap ? undefined : findVariant(allVariants(), build.vehicleId)?.asp;
+  const asp = aspGiven ?? (build.engineSwap ? undefined : findVariant(allVariants(), build.vehicleId)?.asp);
   const parts = quickModsFor(build.kind, asp).filter((c) => !hasQuickMod(build.mods, c));
   const [section, setSection] = useState<ModSection>('engine');
   const [picked, setPicked] = useState<QuickMod | null>(null);
@@ -70,11 +87,18 @@ export function AddModSheet({ visible, build, onClose }: { visible: boolean; bui
     if (Number.isNaN(bhpGain)) return setError('Type the gain as a number of bhp, or leave it empty.');
     const fallback: ModCategory = MOD_GROUPS.find((g) => sectionOfGroup(g.key) === section)?.category ?? 'other';
     const category = picked ? groupCategory(picked) : fallback;
-    const next: Build = { ...build, mods: [...build.mods, { id: newId('m'), category, name: name.slice(0, 60), ...(bhpGain ? { bhpGain } : {}) }] };
+    const mod: Mod = { id: newId('m'), category, name: name.slice(0, 60), ...(bhpGain ? { bhpGain } : {}) };
+    if (onAdd) {
+      onAdd(mod);
+      close();
+      return;
+    }
+    const next: Build = { ...build, mods: [...build.mods, mod] };
     setBusy(true);
     try {
       await saveBuild(next);
-      toast({ message: `Added ${name}. Now ${powerText(next)}, Class ${classOf(next)}` });
+      // One line at 1.3x text too (4.7): the part's name is on the button just tapped.
+      toast({ message: `Added. Now ${powerText(next)}, Class ${classOf(next)}` });
       close();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't add the mod.");

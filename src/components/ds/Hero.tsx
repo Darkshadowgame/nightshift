@@ -34,6 +34,7 @@ export function Hero({
   meta,
   tag,
   classLetter,
+  leading,
   titleOnPhoto = true,
   overlay,
   bleed,
@@ -55,6 +56,8 @@ export function Hero({
   tag?: EntityTag | null;
   /** Builds: the ClassBadge before the title. */
   classLetter?: ClassLetter;
+  /** People: their Avatar before the @handle (K3: a person is always avatar + @handle). */
+  leading?: ReactNode;
   titleOnPhoto?: boolean;
   overlay?: ReactNode;
   bleed?: boolean;
@@ -88,6 +91,7 @@ export function Hero({
 
   const titleRow = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+      {leading ?? null}
       {classLetter ? <ClassBadge letter={classLetter} size={onPhoto ? 'md' : 'sm'} /> : null}
       {/* On a photo, three lines at most: at 1.3x text a long title never climbs out of the picture (Review 13). */}
       <DsText v={onPhoto ? 'hero' : 'titleLg'} accessibilityRole="header" numberOfLines={onPhoto ? 3 : undefined} style={{ flexShrink: 1 }}>

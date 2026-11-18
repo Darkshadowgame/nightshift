@@ -88,6 +88,8 @@ describe('stand-in photos for your own build (REVIEW-13 #2, L1)', () => {
     expect(similarSample('Ford', 'Puma ST', 'car')?.match).toBe('make');
     expect(similarSample('VW', 'Golf R Mk7.5', 'car')).toEqual({ key: 'si-golf-r-mk7', match: 'model' });
     expect(similarSample('Volkswagen', 'Golf GTI Mk8', 'car')).toEqual({ key: 'si-golf-gti-mk8', match: 'model' });
+    // Review 14: an FK8 has its own photo, never the older FK2's.
+    expect(similarSample('Honda', 'Civic Type R FK8', 'car')).toEqual({ key: 'si-civic-fk8', match: 'model' });
   });
 
   it('bikes match on make, model and the model years', () => {

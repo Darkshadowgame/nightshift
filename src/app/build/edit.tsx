@@ -1,13 +1,13 @@
 import { router, Stack, useLocalSearchParams, useNavigation, usePreventRemove } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { ActionBar, ClassBadge, ConfirmSheet, DsText, ErrorState, HeaderActions, Icon, INPUT, PAGE_WITH_BAR, Press, Section, SegmentedControl } from '../../components/ds';
+import { ActionBar, ClassBadge, ConfirmSheet, DsText, ErrorState, HeaderActions, Icon, INPUT, PAGE_WITH_BAR, Press, Section, SegmentedControl, SwitchRow } from '../../components/ds';
 import { ClassUpMoment } from '../../components/motion';
 import { ModPicker } from '../../components/ModPicker';
 import { SearchSelect } from '../../components/SearchSelect';
 import { VehiclePicker } from '../../components/VehiclePicker';
 import { allEngines, allVariants } from '../../data/vehicles';
-import { claimedPower, classOf, classUp, effectivePower } from '../../lib/classes';
+import { classOf, classUp, effectivePower } from '../../lib/classes';
 import { modCount } from '../../lib/modGroups';
 import { chassisWeight, isSwapMod, swapFromMods, swapProblem, swapSpecs, withSwapMod } from '../../lib/swap';
 import { restage, stageFromMods, withStage, type StageEngine } from '../../lib/tune';
@@ -16,7 +16,7 @@ import { PhotoManager } from '../../components/PhotoManager';
 import { plateRedactorAvailable } from '../../lib/photos';
 import { newId, useStore } from '../../lib/store';
 import type { Build, ClassLetter, EngineSwap, Mod, TuneStage, VehicleKind } from '../../lib/types';
-import { SCREEN_TITLES, title } from '../../lib/glossary';
+import { CLASS_EXPLAINER, SCREEN_TITLES, title } from '../../lib/glossary';
 import { duplicateBuild } from '../../lib/rep';
 import { COLOR, RADII, SPACING } from '../../theme';
 
@@ -154,6 +154,11 @@ export default function EditBuild() {
     engineSwap: swap,
   };
   const ready = draft.make && draft.model && draft.stockBhp > 0;
+  /**
+   * Add a car or bike (Review 14): one search first, like onboarding; the rest of the form only
+   * once there's a car or bike to fill in (picked, or typed in "Enter it yourself").
+   */
+  const chosen = !!existing || !!vehicleId || !!(make.trim() && model.trim());
   /** The same vehicle already in your garage (B3): saving adds a second one, so say so. */
   const twin = draft.make && draft.model ? duplicateBuild(draft, store.builds) : undefined;
   /** Close the form: back where you came from, or the Garage when it was opened by a link (no history). */
@@ -228,7 +233,7 @@ export default function EditBuild() {
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
       >
-        <Section title="1 · Car or bike">
+        <Section title={chosen ? '1 · Car or bike' : 'Car or bike'}>
           <SegmentedControl<VehicleKind>
             value={kind}
             onChange={changeKind}
@@ -253,12 +258,19 @@ export default function EditBuild() {
             }}
             onPickVariant={pickVariant}
           />
-          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-            <Field label="Year" value={year} onChange={setYear} flex={1} />
-            <Field label="Nickname (optional)" value={nickname} onChange={setNickname} flex={2} text />
-          </View>
-          {variant ? <DsText v="caption">This version was sold {yearsLabel(variant)}.</DsText> : null}
+          {chosen ? (
+            <>
+              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                <Field label="Year" value={year} onChange={setYear} flex={1} />
+                <Field label="Nickname (optional)" value={nickname} onChange={setNickname} flex={2} text />
+              </View>
+              {variant ? <DsText v="caption">This version was sold {yearsLabel(variant)}.</DsText> : null}
+            </>
+          ) : null}
         </Section>
+
+        {chosen ? (
+        <>
 
         <Section title="2 · Power and weight">
           <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
@@ -272,15 +284,16 @@ export default function EditBuild() {
             </View>
           </View>
           {ready ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
+            // The build as it will show (K3: badge, name, bhp), then the one class explanation (C5).
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }} accessibilityLiveRegion="polite">
               <ClassBadge letter={classOf(draft)} size="md" />
-              <DsText v="secondary" style={{ flex: 1 }} accessibilityLiveRegion="polite">
-                Class {classOf(draft)} at {Math.round(effectivePower(draft))} bhp{effectivePower(draft) !== claimedPower(draft) ? ' (dyno run with its sheet)' : swapOn ? ' (donor engine plus mods)' : ' (standard plus mods)'}
-                {swapOn ? ` and ${draft.weightKg} kg` : ''}.
-              </DsText>
+              <View style={{ flex: 1, gap: SPACING.xxs }}>
+                <DsText v="bodyStrong">{`${Math.round(effectivePower(draft))} bhp`}</DsText>
+                <DsText v="caption">{CLASS_EXPLAINER}</DsText>
+              </View>
             </View>
           ) : (
-            <DsText v="caption">Pick your car or bike above, or type its standard bhp, to see its class.</DsText>
+            <DsText v="caption">Type the standard bhp to see its class.</DsText>
           )}
         </Section>
 
@@ -293,15 +306,8 @@ export default function EditBuild() {
           }}
         >
         <Section title={`3 · Engine and mods (${modCount(mods) + (swapOn && donorModel.trim() ? 1 : 0)})`}>
-          <SegmentedControl<'original' | 'swapped'>
-            value={swapOn ? 'swapped' : 'original'}
-            onChange={(v) => setSwapOn(v === 'swapped')}
-            accessibilityLabel="Engine"
-            options={[
-              { key: 'original', label: 'Original engine' },
-              { key: 'swapped', label: 'Engine swap' },
-            ]}
-          />
+          {/* On or off, so a switch: the screen's one SegmentedControl is Car or bike (4.4). */}
+          <SwitchRow label="Engine swap" hint={swapOn ? undefined : 'Only if it has another engine in it.'} value={swapOn} onValueChange={setSwapOn} />
           {swapOn ? (
             <View style={{ gap: SPACING.md }}>
               <SearchSelect
@@ -333,7 +339,7 @@ export default function EditBuild() {
               </View>
               <Field label="Weight change kg (+ or −, optional)" value={weightDelta} onChange={setWeightDelta} signed placeholder="e.g. +25 or -10" a11y="Weight change from the swap in kg" />
               <DsText v="caption">
-                Class uses the donor engine's bhp with the {kind === 'car' ? 'car' : 'bike'}'s weight{signed(weightDelta) ? ` ${signed(weightDelta)! > 0 ? '+' : '−'} ${Math.abs(signed(weightDelta)!)} kg` : ''}. The tune stage below applies to the donor engine.
+                The power is the donor engine's from here on, and the weight change is added to the {kind === 'car' ? 'car' : 'bike'}'s. The tune stage below applies to the donor engine.
               </DsText>
             </View>
           ) : null}
@@ -388,6 +394,10 @@ export default function EditBuild() {
           ) : null}
           {error && !confirmDelete ? <ErrorState title={error} /> : null}
         </View>
+        </>
+        ) : error && !confirmDelete ? (
+          <ErrorState title={error} />
+        ) : null}
       </ScrollView>
       <ActionBar primary={{ label: 'Save build', onPress: save, busy: saving, haptic: 'success' }} />
       </View>

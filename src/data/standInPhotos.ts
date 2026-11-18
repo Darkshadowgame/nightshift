@@ -138,6 +138,21 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     },
   },
   {
+    // Review 14: an FK8 showed the FK2 above as "similar"; now it has its own.
+    key: 'si-civic-fk8',
+    kind: 'car',
+    fits: [{ make: 'honda', model: 'civic type r', gens: ['fk8'] }],
+    photo: {
+      image: require('../../assets/stand-ins/civic-fk8.jpg'),
+      page: 'https://commons.wikimedia.org/wiki/File:2017_Honda_Civic_Type_R_FK8_in_Championship_White,_front_right,_08-04-2024.jpg',
+      title: 'Honda Civic Type R (FK8, 2017)',
+      author: 'Ethan Llamas',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      edited: 'Plate covered',
+    },
+  },
+  {
     key: 'si-civic-fl5',
     kind: 'car',
     fits: [{ make: 'honda', model: 'civic type r', gens: ['fl5'] }],

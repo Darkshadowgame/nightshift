@@ -54,6 +54,7 @@ export function ActionBar({
   primary,
   secondary,
   status,
+  statusIcon = 'calendar',
   children,
   inset = true,
 }: {
@@ -61,6 +62,8 @@ export function ActionBar({
   secondary?: ActionBarButton | null;
   /** Shown instead of a primary that can't be pressed yet: one short line, "Location at 21:30". */
   status?: string | null;
+  /** The glyph before the status: a calendar for a time ("Location at 21:30"); null for none ("Waiting for @jo to accept"). */
+  statusIcon?: IconName | null;
   children?: ReactNode;
   inset?: boolean;
 }) {
@@ -102,7 +105,7 @@ export function ActionBar({
           ) : null}
           {pill ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-              <StatusPill text={pill} />
+              <StatusPill text={pill} icon={statusIcon} />
               {secondary ? <Button tier="secondary" size="md" {...barButton(secondary)} /> : null}
             </View>
           ) : secondary ? (
@@ -123,7 +126,7 @@ function barButton(b: ActionBarButton) {
  * (a clock-face icon and plain text, no fill, no border, no pill shape), so it never reads as a
  * button next to the secondary (Review 12).
  */
-function StatusPill({ text }: { text: string }) {
+function StatusPill({ text, icon }: { text: string; icon: IconName | null }) {
   return (
     <View
       accessible
@@ -131,8 +134,9 @@ function StatusPill({ text }: { text: string }) {
       accessibilityLabel={text}
       style={{ flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}
     >
-      <Icon name="calendar" size={18} colour={COLOR.text.secondary} />
-      <DsText v="body" numberOfLines={2} style={{ flexShrink: 1, color: COLOR.text.secondary }}>
+      {icon ? <Icon name={icon} size={18} colour={COLOR.text.secondary} /> : null}
+      {/* Three lines, so "Waiting for @handle to accept" beside a secondary never cuts off at 1.3x text (Review 14). */}
+      <DsText v="body" numberOfLines={3} style={{ flexShrink: 1, color: COLOR.text.secondary }}>
         {text}
       </DsText>
     </View>

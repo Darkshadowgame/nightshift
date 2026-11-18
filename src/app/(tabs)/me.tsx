@@ -177,7 +177,13 @@ export default function Me() {
       </Section>
 
       <Section title="Trophies">
-        {myAwards.length === 0 ? <EmptyState variant="inline" title="None yet. Check in at a meet, and the people there vote for the best builds." /> : null}
+        {myAwards.length === 0 ? (
+          <EmptyState
+            variant="inline"
+            // Said for where you are (Review 14): once you've checked in, the next step is the vote, not "check in".
+            title={events.some((e) => checkedIn(e)) ? 'None yet. Winners show here when the voting at your meets ends.' : 'None yet. Check in at a meet, and the people there vote for the best builds.'}
+          />
+        ) : null}
         {covers.length ? (
           <ScrollView horizontal contentContainerStyle={{ gap: SPACING.sm }} showsHorizontalScrollIndicator={false}>
             {covers.map((a) => {

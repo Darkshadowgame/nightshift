@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { MOD_GROUPS, type ModGroup } from '../data/catalog';
 import { newId } from '../lib/store';
 import {
   addTypicalParts,
@@ -19,11 +18,13 @@ import {
   withStage,
   type StageEngine,
 } from '../lib/tune';
-import type { Mod, TuneStage, VehicleKind } from '../lib/types';
+import type { Build, Mod, TuneStage, VehicleKind } from '../lib/types';
 import { isRoadIllegal, OFF_ROAD_TAG } from '../lib/legality';
 import type { Aspiration } from '../lib/vehicles';
 import { COLOR, RADII, SPACING } from '../theme';
-import { Button, Chip, ChoiceGroup, DsText, IconButton, INPUT, RowDivider, Tabs, Tag } from './ds';
+import { AddModSheet } from './AddModSheet';
+import { ChoiceRow } from './ChoiceRow';
+import { Button, Chip, DsText, IconButton, INPUT, RowDivider, Tag } from './ds';
 import { SuggestMissing } from './SuggestMissing';
 
 const mid = () => newId('m');
@@ -43,8 +44,10 @@ const ASP_CHOICES: { key: Aspiration; label: string }[] = [
 ];
 
 /**
- * Tune stage, quick-pick mod chips grouped by category, the list of mods with
- * editable gains, and free-typed mods. Everything goes through `onChange`.
+ * The build form's engine and mods (Review 14, 4.4 and K2): the tune stage and, for a typed car,
+ * the kind of engine are rows that open a list (more than five options), parts are added with the
+ * same Add a mod sheet as the build page, then the list of mods with editable gains. Everything
+ * goes through `onChange`.
  */
 export function ModPicker({
   kind,
@@ -67,13 +70,7 @@ export function ModPicker({
   onChange: (mods: Mod[], stage: TuneStage) => void;
   swapped?: boolean;
 }) {
-  const [group, setGroup] = useState<ModGroup>('engine');
-  const [modName, setModName] = useState('');
-  const [modGain, setModGain] = useState('');
-  const chips = quickModsFor(kind, engine?.asp);
-  const groups = MOD_GROUPS.filter((g) => chips.some((c) => c.group === g.key));
-  const activeGroup = groups.some((g) => g.key === group) ? group : groups[0]?.key ?? 'engine';
-  const shown = chips.filter((c) => c.group === activeGroup);
+  const [adding, setAdding] = useState(false);
   const estimate = engine ? stageEstimate(engine, stage) : null;
   const parts = typicalParts(kind, engine?.asp, stage);
   const missingParts = parts.filter((p) => !hasQuickMod(mods, p));
@@ -83,14 +80,6 @@ export function ModPicker({
   function pickStage(next: TuneStage) {
     const est = engine ? stageEstimate(engine, next) : null;
     onChange(withStage(mods, next, est?.gain, mid), next);
-  }
-
-  function addFree() {
-    if (!modName.trim()) return;
-    const category = MOD_GROUPS.find((g) => g.key === activeGroup)?.category ?? 'other';
-    onChange([...mods, { id: mid(), category, name: modName.trim().slice(0, 60), bhpGain: num(modGain) }], stage);
-    setModName('');
-    setModGain('');
   }
 
   function setGain(id: string, text: string) {
@@ -103,13 +92,20 @@ export function ModPicker({
   }
 
   const hint = stageHint(mods, stage);
-  const toggle = (c: (typeof chips)[number]) => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage);
+  const toggle = (c: ReturnType<typeof quickModsFor>[number]) => onChange(toggleQuickMod(mods, c, suggestedGain(c, stockBhp, stage), mid), stage);
 
   return (
     <View style={{ gap: SPACING.lg }}>
       <View style={{ gap: SPACING.sm }}>
-        <ChoiceGroup<TuneStage> layout="list" label={`Tune stage${swapped ? ' (swapped engine)' : ''}`} options={TUNE_STAGES.map((st) => ({ key: st, label: stageLabel(st) }))} value={stage} onChange={pickStage} />
-        {kind === 'car' && !aspKnown ? <ChoiceGroup label="What kind of engine?" options={ASP_CHOICES} value={engine?.asp ?? null} onChange={onAsp} /> : null}
+        <View>
+          {kind === 'car' && !aspKnown ? (
+            <>
+              <ChoiceRow label="Kind of engine" options={ASP_CHOICES} value={engine?.asp ?? null} onChange={onAsp} />
+              <RowDivider />
+            </>
+          ) : null}
+          <ChoiceRow<TuneStage> label={`Tune stage${swapped ? ' (swapped engine)' : ''}`} options={TUNE_STAGES.map((st) => ({ key: st, label: stageLabel(st) }))} value={stage} onChange={pickStage} />
+        </View>
         <DsText v="secondary">{stageIncludes(kind, engine?.asp, stage)}</DsText>
         {/* A remap, a decat or a bigger turbo with the stage still lower: suggest it (REVIEW-9). */}
         {hint ? (
@@ -149,33 +145,7 @@ export function ModPicker({
         ) : null}
       </View>
 
-      <View style={{ gap: SPACING.sm }}>
-        <DsText v="label">Add parts</DsText>
-        {/* REVIEW-10 #11: categories are tabs, so they never look like the part chips under them. */}
-        <Tabs<ModGroup>
-          accessibilityLabel="Part type"
-          value={activeGroup}
-          onChange={setGroup}
-          options={groups.map((g) => {
-            const n = chips.filter((c) => c.group === g.key && hasQuickMod(mods, c)).length;
-            return { key: g.key, label: g.label, count: n || undefined };
-          })}
-        />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
-          {shown.map((c) => (
-            <Chip key={c.key} label={c.name} raw on={hasQuickMod(mods, c)} onPress={() => toggle(c)} accessibilityLabel={c.roadLegal === false ? `${c.name}, ${OFF_ROAD_TAG}` : c.name} />
-          ))}
-        </View>
-        <DsText v="caption">
-          Tap to add, tap again to remove.{stage !== 'stock' ? ' With a tune stage set, power parts start at +0 because the stage figure covers them.' : ''}
-          {shown.some((c) => c.roadLegal === false) ? ' Some parts here are off-road only: you can still log them.' : ''} Parts that do the same job count once (a Stage 1 tune and an ECU remap are one mod).
-        </DsText>
-        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-          <TextInput value={modName} onChangeText={setModName} placeholder="Something else, e.g. Wagner intercooler" placeholderTextColor={COLOR.text.secondary} style={[INPUT, { flex: 2, minWidth: 0 }]} onSubmitEditing={addFree} maxLength={60} accessibilityLabel={`Mod name, added under ${MOD_GROUPS.find((g) => g.key === activeGroup)?.label ?? 'Other'}`} />
-          <TextInput value={modGain} onChangeText={setModGain} placeholder="+bhp" keyboardType="number-pad" placeholderTextColor={COLOR.text.secondary} style={[INPUT, { flex: 1, minWidth: 0 }]} accessibilityLabel="bhp gain (optional)" />
-        </View>
-        <Button label="Add mod" tier="secondary" size="sm" onPress={addFree} disabled={!modName.trim()} />
-      </View>
+      <Button label="Add a mod" icon="plus" tier="secondary" block onPress={() => setAdding(true)} />
 
       {mods.length ? (
         <View style={{ borderWidth: 1, borderColor: COLOR.surface.border, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
@@ -209,7 +179,20 @@ export function ModPicker({
         </View>
       ) : null}
 
-      <SuggestMissing screen="mod-picker" label="Suggest a missing mod" placeholder="e.g. Wastegate actuator" context={`${kind} · ${group}`} />
+      {mods.length ? (
+        <DsText v="caption">
+          {stage !== 'stock' ? 'With a tune stage set, power parts start at +0 because the stage figure covers them. ' : ''}Parts that do the same job count once (a Stage 1 tune and an ECU remap are one mod).
+        </DsText>
+      ) : null}
+
+      <SuggestMissing screen="mod-picker" label="Suggest a missing mod" placeholder="e.g. Wastegate actuator" context={kind} />
+      <AddModSheet
+        visible={adding}
+        build={{ id: 'draft', ownerId: '', kind, make: '', model: '', stockBhp, weightKg: 0, mods, photos: [], colour: '', tuneStage: stage === 'stock' ? undefined : stage } as Build}
+        asp={engine?.asp}
+        onAdd={(m) => onChange([...mods, m], stage)}
+        onClose={() => setAdding(false)}
+      />
     </View>
   );
 }

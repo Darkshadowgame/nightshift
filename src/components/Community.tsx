@@ -8,7 +8,7 @@ import { classOf } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
 import { plural } from '../lib/format';
-import { clock, dayDiff } from '../lib/when';
+import { postedLabel } from '../lib/messages';
 import { conversationTitle, previewLine, type Conversation } from '../lib/messages';
 import { VISIBILITY, type Post } from '../lib/posts';
 import { postPlace } from '../lib/postPrivacy';
@@ -46,21 +46,8 @@ export function openProfile(id: string) {
   router.push({ pathname: '/user/[id]', params: { id } });
 }
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/**
- * When something was posted or sent, in the app's one time wording (4.10): a clock time, never
- * "4m" or "1d". Today: "Today 14:00", from 17:00 "Tonight 21:09"; this week: "Thu 22:10"; older:
- * "Thu 12 Nov".
- */
-export function postedLabel(iso: string, now: Date): string {
-  const d = new Date(iso);
-  const days = -dayDiff(d, now);
-  if (days <= 0) return `${d.getHours() >= 17 ? 'Tonight' : 'Today'} ${clock(d)}`;
-  if (days <= 6) return `${WEEKDAYS[d.getDay()]} ${clock(d)}`;
-  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
+/** When something was posted or sent (4.10): in messages.ts, so it's testable. */
+export { postedLabel };
 
 /** Open a meet's page. */
 export function openEvent(id: string) {
@@ -300,17 +287,25 @@ export function PostCard({
                 {at(author)}
               </DsText>
               {/* A build is always its class badge, name and bhp (K3). */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
-                {build ? <ClassBadge letter={classOf(build)} size="sm" decorative /> : null}
-                <DsText v="meta" numberOfLines={1} style={{ flexShrink: 1 }}>
-                  {metaLine([build ? buildLine(build) : null, place?.kind === 'place' ? place.text : null])}
-                </DsText>
-              </View>
+              {build ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+                  <ClassBadge letter={classOf(build)} size="sm" decorative />
+                  <DsText v="meta" numberOfLines={1} style={{ flexShrink: 1 }}>
+                    {buildLine(build)}
+                  </DsText>
+                </View>
+              ) : null}
             </View>
           </Press>
           {post.visibility === 'connections' ? <Tag label={VISIBILITY.connections.label} tone="info" /> : null}
           {onMore ? <IconButton icon="more" label="More options for this post" onPress={onMore} colour={COLOR.text.secondary} /> : null}
         </View>
+        {/* The place on its own line, so the build line is never cut short (Review 14, at 393 wide). */}
+        {place?.kind === 'place' ? (
+          <DsText v="meta" numberOfLines={1}>
+            {place.text}
+          </DsText>
+        ) : null}
         {place?.kind === 'event' ? (
           // A post made at a meet links to the meet, never names the place (REVIEW-12 #1).
           <Press onPress={() => openEvent(place.eventId)} role="link" label={`${place.text}. Opens the meet`} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xxs, minHeight: 32, alignSelf: 'flex-start' }}>

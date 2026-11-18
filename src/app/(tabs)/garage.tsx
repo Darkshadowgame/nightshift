@@ -47,7 +47,7 @@ export default function Garage() {
   if (!main) {
     return (
       <ScrollView contentContainerStyle={{ padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1, justifyContent: 'center' }} showsVerticalScrollIndicator={false}>
-        <EmptyState glyph="car" title="Add your car or bike" body="It's how you say what you're bringing to a meet." action={{ label: 'Add your car or bike', onPress: addBuild }} />
+        <EmptyState glyph="car" title="Your garage is empty" body="It's how you say what you're bringing to a meet." action={{ label: 'Add your car or bike', onPress: addBuild }} />
       </ScrollView>
     );
   }

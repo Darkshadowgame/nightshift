@@ -100,8 +100,12 @@ export default function UserScreen() {
   else if (blocked) secondary = { label: CONNECT.unblock, busy, onPress: () => void act(() => community.run((s) => s.unblock(id)), 'Unblocked') };
   else if (state === 'connected') primary = { label: CONNECT.message, busy, onPress: () => void message() };
   else if (state === 'incoming') primary = { label: CONNECT.accept, busy, haptic: 'success', onPress: () => void act(() => community.run((s) => s.answerConnection(id, true)), `Connected with ${handle}`) };
-  // The toast said "Request sent"; the bar only says what's left (C5).
-  else if (state === 'outgoing') status = `Waiting for ${handle}`;
+  // The toast said "Request sent"; the bar says what's left and offers the one thing that helps
+  // (4.3): a status with no calendar (it isn't a time) and "Cancel request" next to it.
+  else if (state === 'outgoing') {
+    status = `Waiting for ${handle} to accept`;
+    secondary = { label: CONNECT.cancel, busy, onPress: () => void act(() => community.run((s) => s.removeConnection(id)), 'Request cancelled') };
+  }
   else primary = { label: CONNECT.connect, busy, haptic: 'success', accessibilityHint: `Once ${handle} accepts, you can message each other`, onPress: () => void connect() };
 
   // The cover build is under the Hero; the garage shows the rest.
@@ -116,17 +120,15 @@ export default function UserScreen() {
           media={cover && !coverPhoto ? <PaintedArt paint={cover.colour} vehicle={cover.kind} shape={carShape(cover)} /> : undefined}
           aspect={ASPECT.build}
           title={handle}
-          classLetter={cover ? classOf(cover) : undefined}
+          leading={<Avatar {...personMark(p)} size="md" label={`${handle}'s picture`} />}
           meta={cover ? undefined : 'No car or bike yet'}
           tag={!isMe && state === 'connected' ? { label: CONNECT.connected, tone: 'success' } : null}
           overlay={coverPhoto ? <PhotoCredit photoRef={coverPhoto} kind={cover?.kind} standIn={coverPic?.standIn} overlay corner="topRight" /> : null}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingTop: SPACING.xs }}>
-            <Avatar {...personMark(p)} size="md" label={`${handle}'s picture`} />
-            <DsText v="secondary" style={{ flex: 1 }} numberOfLines={1}>
-              {isMe ? `${p.name} (you)` : p.name}
-            </DsText>
-          </View>
+          {/* K3: a person is avatar + @handle (on the photo); the class badge belongs to the build row. */}
+          <DsText v="secondary" numberOfLines={1}>
+            {isMe ? `${p.name} (you)` : p.name}
+          </DsText>
           {cover ? <BuildRow build={cover} onPress={() => openBuild(cover.id)} /> : null}
           {blocked ? <DsText v="secondary">You blocked {handle}. Their posts and messages are hidden from you.</DsText> : null}
           {error ? <ErrorState title={error} /> : null}
@@ -201,7 +203,7 @@ export default function UserScreen() {
           Nightshift never shows where anyone lives or where they are.
         </DsText>
       </ScrollView>
-      <ActionBar primary={primary} secondary={secondary} status={status} />
+      <ActionBar primary={primary} secondary={secondary} status={status} statusIcon={null} />
       <OptionsSheet visible={menu} title="Profile options" options={options} onClose={() => setMenu(false)} />
     </View>
   );

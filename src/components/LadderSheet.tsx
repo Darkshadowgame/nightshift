@@ -54,7 +54,7 @@ export function LadderSheet({ visible, onClose, level, ledger }: { visible: bool
             <DsText v="meta">{e.rep}</DsText>
           </View>
         ))}
-        <DsText v="caption">Rep is for people. Class is your build's, from its power for its weight.</DsText>
+        <DsText v="caption">Rep is for people; class is for cars and bikes.</DsText>
       </Section>
       {earned.length ? (
         <Section title="Your rep">

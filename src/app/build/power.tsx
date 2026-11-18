@@ -3,7 +3,8 @@ import { ScrollView, View } from 'react-native';
 import { NotFoundState, PAGE } from '../../components/Detail';
 import { DsText, Section, StatBlock } from '../../components/ds';
 import { DynoSection } from '../../components/DynoSection';
-import { bhpPerTonne, classOf, sheetRun } from '../../lib/classes';
+import { bhpPerTonne, sheetRun } from '../../lib/classes';
+import { CLASS_EXPLAINER } from '../../lib/glossary';
 import { headlinePower, whpText } from '../../lib/dyno';
 import { useStore } from '../../lib/store';
 import { SPACING } from '../../theme';
@@ -40,7 +41,8 @@ export default function PowerAndDyno() {
         />
         <View style={{ gap: SPACING.xs }}>
           {whp ? <DsText v="secondary">{whp}</DsText> : null}
-          <DsText v="caption">{`Class ${classOf(b)} comes from bhp per tonne. ${b.kind === 'bike' ? 'Bikes' : 'Cars'} have their own scale.`}</DsText>
+          {/* The one class explanation, word for word as everywhere (C5; glossary.ts). */}
+          <DsText v="caption">{CLASS_EXPLAINER}</DsText>
         </View>
       </Section>
       <DynoSection build={b} mine={mine} onSave={saveBuild} />
