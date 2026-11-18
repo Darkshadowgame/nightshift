@@ -735,6 +735,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     /** Demo: skip the GPS check (Me) drives the route for you, four times faster than life, at Apple's pace for each leg. */
     async function startSim() {
       const here = await currentPosition(true);
+      // Closed (or sent to the background) while finding you: don't start a timer nothing will stop.
+      if (closed.current || AppState.currentState !== 'active') return;
       let origin: LatLng = here.ok ? here.at : { lat: stops[0].at.lat - 0.01, lng: stops[0].at.lng };
       let along = 0;
       let gen = 0;
