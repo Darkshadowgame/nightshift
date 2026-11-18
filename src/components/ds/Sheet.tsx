@@ -30,7 +30,7 @@ export function splitFooter(children: ReactNode): { body: ReactNode[]; footer: R
  * The panel of a bottom sheet: grabber, title, Done, then the content, and the pinned primary
  * (see `splitFooter`). Exported on its own so the gallery (and tests) can show it without a modal.
  */
-export function SheetPanel({ title, onClose, doneLabel = 'Done', children, bottomInset = 0 }: { title: string; onClose: () => void; doneLabel?: string; children: ReactNode; bottomInset?: number }) {
+export function SheetPanel({ title, onClose, doneLabel = 'Done', hideDone, children, bottomInset = 0 }: { title: string; onClose: () => void; doneLabel?: string; hideDone?: boolean; children: ReactNode; bottomInset?: number }) {
   const { body, footer } = splitFooter(children);
   return (
     <View
@@ -58,13 +58,15 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', children, botto
         <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
           {title}
         </DsText>
-        <Press onPress={onClose} label={doneLabel} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACING.xs }}>
-          <DsText v="buttonSm" tone="action">
-            {doneLabel}
-          </DsText>
-        </Press>
+        {hideDone ? null : (
+          <Press onPress={onClose} label={doneLabel} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACING.xs }}>
+            <DsText v="buttonSm" tone="action">
+              {doneLabel}
+            </DsText>
+          </Press>
+        )}
       </View>
-      <ScrollView bounces={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}>
+      <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}>
         {body}
       </ScrollView>
       {footer ? (
@@ -82,7 +84,7 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', children, botto
  * VoicePicker). Slides up; with reduced motion it fades. Tap the scrim or Done to close.
  * Create and edit flows are modal routes, not sheets.
  */
-export function Sheet({ visible, title, onClose, doneLabel, children }: { visible: boolean; title: string; onClose: () => void; doneLabel?: string; children: ReactNode }) {
+export function Sheet({ visible, title, onClose, doneLabel, hideDone, children }: { visible: boolean; title: string; onClose: () => void; doneLabel?: string; /** No header Done: the sheet's own buttons are the only way out (ConfirmSheet). The scrim still closes it. */ hideDone?: boolean; children: ReactNode }) {
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   // The height cap is layout, not a percentage: the wrapper is a shrinkable flex item of a
@@ -101,7 +103,7 @@ export function Sheet({ visible, title, onClose, doneLabel, children }: { visibl
           accessibilityViewIsModal
           style={{ marginTop: insets.top + SPACING.xl, flexShrink: 1, minHeight: 0 }}
         >
-          <SheetPanel title={title} onClose={onClose} doneLabel={doneLabel} bottomInset={insets.bottom}>
+          <SheetPanel title={title} onClose={onClose} doneLabel={doneLabel} hideDone={hideDone} bottomInset={insets.bottom}>
             {children}
           </SheetPanel>
         </Animated.View>
@@ -151,7 +153,8 @@ export function ConfirmSheet({
   onCancel: () => void;
 }) {
   return (
-    <Sheet visible={visible} title={title} onClose={onCancel} doneLabel="Cancel">
+    // One way to back out (rule 4.5, REVIEW-11): "Keep it" in the body, no header Cancel as well.
+    <Sheet visible={visible} title={title} onClose={onCancel} hideDone>
       <ConfirmBody message={message} verb={verb} cancelLabel={cancelLabel} destructive={destructive} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />
     </Sheet>
   );
