@@ -108,6 +108,7 @@ export function ConfirmSheet({
   title,
   message,
   verb,
+  cancelLabel,
   destructive = true,
   busy,
   onConfirm,
@@ -118,6 +119,8 @@ export function ConfirmSheet({
   message: string;
   /** "Leave" gives "Leave it / Keep it" (glossary.confirmLabels). */
   verb: string;
+  /** Instead of "Keep it": "Keep editing" when leaving a form with changes (4.2). */
+  cancelLabel?: string;
   destructive?: boolean;
   busy?: boolean;
   onConfirm: () => void;
@@ -125,14 +128,14 @@ export function ConfirmSheet({
 }) {
   return (
     <Sheet visible={visible} title={title} onClose={onCancel} doneLabel="Cancel">
-      <ConfirmBody message={message} verb={verb} destructive={destructive} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />
+      <ConfirmBody message={message} verb={verb} cancelLabel={cancelLabel} destructive={destructive} busy={busy} onConfirm={onConfirm} onCancel={onCancel} />
     </Sheet>
   );
 }
 
 /** The inside of ConfirmSheet, on its own for the gallery. */
-export function ConfirmBody({ message, verb, destructive = true, busy, onConfirm, onCancel }: { message: string; verb: string; destructive?: boolean; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
-  const labels = confirmLabels(verb);
+export function ConfirmBody({ message, verb, cancelLabel, destructive = true, busy, onConfirm, onCancel }: { message: string; verb: string; cancelLabel?: string; destructive?: boolean; busy?: boolean; onConfirm: () => void; onCancel: () => void }) {
+  const labels = { ...confirmLabels(verb), ...(cancelLabel ? { cancel: cancelLabel } : null) };
   return (
     <View style={{ gap: SPACING.md }}>
       <DsText v="body">{message}</DsText>

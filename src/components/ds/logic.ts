@@ -131,3 +131,17 @@ export function monthGrid(year: number, month: number): (string | null)[][] {
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   return rows;
 }
+
+/** A hex colour at an alpha, as rgba(): gradients over a build's paint colour. */
+export function rgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 || h.length === 4 ? h.slice(0, 3).split('').map((c) => c + c).join('') : h.slice(0, 6);
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+/** Up to `max` faces for a GoingStrip, and how many more there are ("+3"). */
+export function stripFaces<T>(people: readonly T[], max = 6): { shown: T[]; more: number } {
+  const shown = people.slice(0, Math.max(0, max));
+  return { shown, more: Math.max(0, people.length - shown.length) };
+}

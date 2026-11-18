@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, View } from 'react-native';
-import Animated, { FadeIn, FadeInUp, FadeOut, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLOR, ELEVATION, MOTION, RADII, SPACING } from '../../theme';
 import { Button } from './Button';
@@ -14,9 +14,9 @@ export type ToastInput = { message: string; tone?: ToastTone; action?: { label: 
 
 /**
  * A short confirmation after something happened ("Saved", "Request sent", "Left the group · Undo").
- * At the top of the screen, just under the header, one at a time, so it never sits on a screen's
- * main buttons (REVIEW-10: "You're going" covered the going list and Navigate). Read out by screen readers, buzzes
- * `success` (or `warning` for danger). Not for errors the user must act on: those are ErrorState.
+ * One line, 3.2 s, just above the ActionBar or the tab bar (Redesign 2, 4.7), so it never covers
+ * the primary. Read out by screen readers, buzzes `success` (or `warning` for danger). Not for
+ * errors the user must act on: those stay under the thing that failed (ErrorState).
  */
 export function ToastView({ message, tone = 'success', action, onDismiss }: ToastInput & { onDismiss?: () => void }) {
   const colour = tone === 'success' ? COLOR.state.success : tone === 'danger' ? COLOR.state.danger : COLOR.state.info;
@@ -50,14 +50,41 @@ export function ToastView({ message, tone = 'success', action, onDismiss }: Toas
 
 const ToastContext = createContext<(t: ToastInput) => void>(() => {});
 
+/** The tab bar's height above the home indicator: where a toast sits when no ActionBar is showing. */
+export const TAB_BAR_HEIGHT = 49;
+
+type Anchor = (id: string, height: number | null) => void;
+const AnchorContext = createContext<Anchor>(() => {});
+
+/**
+ * For `ActionBar`: tell the toast host how tall the bar is (null when it unmounts), so toasts sit
+ * just above it. The most recently mounted bar wins.
+ */
+export function useToastAnchor(): Anchor {
+  return useContext(AnchorContext);
+}
+
 /** `const toast = useToast(); toast({ message: 'Saved' })`. Needs a ToastProvider above it. */
 export function useToast() {
   return useContext(ToastContext);
 }
 
-/** Hosts toasts for everything inside it. Goes once at the root (or around a screen, like the gallery). */
-export function ToastProvider({ children, topOffset = 56 }: { children: ReactNode; topOffset?: number }) {
+/**
+ * Hosts toasts for everything inside it. Goes once at the root (or around a screen, like the gallery).
+ * `placement="bottom"` (default) sits above the ActionBar when one is showing, else above the tab
+ * bar; `top` (with `topOffset`) is kept for full-screen views with controls at the bottom.
+ */
+export function ToastProvider({ children, placement = 'bottom', topOffset = 56 }: { children: ReactNode; placement?: 'bottom' | 'top'; topOffset?: number }) {
   const [toast, setToast] = useState<(ToastInput & { id: number }) | null>(null);
+  const [anchors, setAnchors] = useState<[string, number][]>([]);
+  const anchor = useCallback<Anchor>((id, height) => {
+    setAnchors((list) => {
+      const rest = list.filter(([k]) => k !== id);
+      if (height == null) return rest.length === list.length ? list : rest;
+      const same = list.find(([k, h]) => k === id && Math.abs(h - height) < 1);
+      return same ? list : [...rest, [id, height]];
+    });
+  }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
@@ -72,19 +99,23 @@ export function ToastProvider({ children, topOffset = 56 }: { children: ReactNod
     if (timer.current) clearTimeout(timer.current);
   }, []);
   const value = useMemo(() => show, [show]);
+  const bar = anchors.length ? anchors[anchors.length - 1][1] : null;
+  const position = placement === 'top' ? { top: insets.top + topOffset } : { bottom: (bar ?? insets.bottom + TAB_BAR_HEIGHT) + SPACING.sm };
   return (
+    <AnchorContext.Provider value={anchor}>
     <ToastContext.Provider value={value}>
       {children}
       {toast ? (
         <Animated.View
           key={toast.id}
-          entering={reduced ? FadeIn.duration(MOTION.fast) : FadeInUp.duration(MOTION.base)}
+          entering={reduced ? FadeIn.duration(MOTION.fast) : (placement === 'top' ? FadeInDown : FadeInUp).duration(MOTION.base)}
           exiting={FadeOut.duration(MOTION.fast)}
-          style={{ position: 'absolute', left: SPACING.lg, right: SPACING.lg, top: insets.top + topOffset }}
+          style={{ position: 'absolute', left: SPACING.lg, right: SPACING.lg, ...position }}
         >
           <ToastView {...toast} onDismiss={() => setToast(null)} />
         </Animated.View>
       ) : null}
     </ToastContext.Provider>
+    </AnchorContext.Provider>
   );
 }

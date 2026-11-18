@@ -2,20 +2,20 @@ import { router } from 'expo-router';
 import { Children, Fragment, isValidElement, useEffect, type ReactNode } from 'react';
 import { TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import { COLOR, RADII, SPACING, tint, line } from '../theme';
-import { buzz, DsText, EmptyState, Icon, Tag, typeStyle, type IconName, type TagTone } from './ds';
+import { buzz, DsText, EmptyState, Hero, Icon, type IconName, type TagTone } from './ds';
 import { CheckInMark } from './motion';
-import { Pin, type Glyph } from './Pin';
+import type { Glyph } from './Pin';
 
 /**
- * Detail-screen anatomy for events, places, shops, zones and crews (DESIGN-SYSTEM.md "One way
- * to do X" 4): a hero in a fixed order (kind → title → meta lines → tags), then Sections.
- * Kept here until the design system's own Hero lands; the props match its proposal.
+ * @deprecated Use the design system's `Hero` (Redesign 2): it adds the photo, the title on a
+ * gradient and the live dot. This shim draws a words-only Hero so existing detail screens keep
+ * working until they move over. `sample` is ignored: "Sample" tags are cut (the Tonight header
+ * carries DEMO NIGHT instead).
  */
 export function DetailHero({
   kind,
   colour,
   glyph,
-  sample,
   status,
   title,
   lines,
@@ -26,6 +26,7 @@ export function DetailHero({
   /** Layer colour for events and places; omit for crews (people aren't layers). */
   colour?: string;
   glyph?: Glyph;
+  /** Ignored (Redesign 2 cuts "Sample" tags). */
   sample?: boolean;
   /** One state tag on the right: Live, Going, Hosting, Waiting. */
   status?: { label: string; tone?: TagTone; raw?: boolean } | null;
@@ -35,30 +36,9 @@ export function DetailHero({
   children?: ReactNode;
 }) {
   return (
-    <View style={{ gap: SPACING.xs }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
-        {glyph ? (
-          <View aria-hidden>
-            <Pin glyph={glyph} colour={colour ?? COLOR.text.secondary} size={24} />
-          </View>
-        ) : null}
-        <DsText v="eyebrow" style={{ color: colour ?? COLOR.text.secondary }}>
-          {kind}
-        </DsText>
-        {sample ? <Tag label="Sample" accessibilityLabel="Sample, for the demo" /> : null}
-        <View style={{ flex: 1 }} />
-        {status ? <Tag label={status.label} tone={status.tone} raw={status.raw} /> : null}
-      </View>
-      <DsText v="titleLg" accessibilityRole="header">
-        {title}
-      </DsText>
-      {(lines ?? []).filter((l): l is string => !!l).map((l, i) => (
-        <DsText key={`${i}:${l}`} v={i === 0 ? 'bodyStrong' : 'meta'} style={i === 0 ? undefined : { color: COLOR.text.primary }}>
-          {l}
-        </DsText>
-      ))}
+    <Hero eyebrow={kind} layerColour={colour} glyph={glyph} tag={status} title={title} meta={lines}>
       {children}
-    </View>
+    </Hero>
   );
 }
 
@@ -170,8 +150,9 @@ export function CheckInCelebration({ play, title, body, children }: { play: bool
 /** Fields moved to the design system; re-exported so detail screens keep one import. */
 export { Field, INPUT, TextField } from './ds';
 
-/** The page body for detail screens: gutter, section rhythm, room at the bottom. */
+/** The page body for detail screens: gutter, section rhythm, room at the bottom. Above an ActionBar use `PAGE_WITH_BAR`. */
 export const PAGE = { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl } as const;
+export { PAGE_WITH_BAR } from './ds';
 
 /** A detail route whose thing is gone: what, why, and Go back. */
 export function NotFoundState({ what, message }: { what: string; message?: string }) {

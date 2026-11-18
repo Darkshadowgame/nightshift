@@ -25,12 +25,15 @@ jest.mock('react-native-reanimated', () => {
     Easing: new Proxy({}, { get: () => () => id }),
     FadeIn: entering,
     FadeInDown: entering,
+    FadeInUp: entering,
     FadeOut: entering,
     SlideInDown: entering,
   };
 });
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
-import { Callout, textSafe } from '../src/components/Detail';
+import { Callout, DetailHero, textSafe } from '../src/components/Detail';
+import { ActionBar, DateTimeSheet, GoingStrip, HeaderActions, Hero, LocationLine, PhotoCard, plusShim } from '../src/components/ds';
 
 /**
  * Review 8 bug 1: EventForm passed `{leftOutWhy} Change it…` (an array) to Callout, which wrapped
@@ -92,3 +95,110 @@ describe('textSafe', () => {
     expect(textSafe([null, false, '  '])).toEqual([]);
   });
 });
+
+/**
+ * The Redesign 2 foundation components render their words in Text (no raw text in a View, which
+ * throws on iOS) and say what the plan says.
+ */
+type Node = { type?: unknown; props?: Record<string, unknown>; children?: unknown[] };
+function find(node: unknown, pred: (n: Node) => boolean): Node[] {
+  const n = node as Node;
+  if (!n || typeof n !== 'object') return [];
+  return [...(pred(n) ? [n] : []), ...(n.children ?? []).flatMap((c) => find(c, pred))];
+}
+const labelled = (root: { container: unknown }, label: string) => find(root.container, (n) => n.props?.accessibilityLabel === label);
+const noop = () => {};
+/** Press a Pressable's host view (onClick runs its onPress). */
+const tap = (root: { container: unknown }, label: string) => act(() => (labelled(root, label)[0].props!.onClick as (e: unknown) => void)({ nativeEvent: {} }));
+
+describe('ActionBar', () => {
+  it('stacks the primary over the secondary', () => {
+    const root = render(<ActionBar primary={{ label: 'Check in', onPress: noop }} secondary={{ label: 'Navigate', onPress: noop }} />);
+    expect(texts(root.container)).toEqual(['Check in', 'Navigate']);
+  });
+  it('shows a status pill instead of a disabled primary', () => {
+    const root = render(<ActionBar status="Location at 21:30" secondary={{ label: 'Remind me', onPress: noop }} />);
+    expect(texts(root.container)).toEqual(['Location at 21:30', 'Remind me']);
+  });
+  it('renders nothing with nothing to do', () => {
+    const root = render(<ActionBar />);
+    expect(texts(root.container)).toEqual([]);
+  });
+});
+
+describe('LocationLine', () => {
+  it('says the 4.11 sentence and one note', () => {
+    const root = render(<LocationLine state="shown" point="Leisure park car park" town="Tamworth" note="Check-in opens at 21:30." />);
+    expect(texts(root.container).join('')).toBe('Leisure park car park, Tamworth. Check-in opens at 21:30.');
+    const hidden = render(<LocationLine state="hidden" time="21:30" minutesTo={20} />);
+    expect(texts(hidden.container).join('')).toBe('Location shows at 21:30 (in 20 min).');
+  });
+});
+
+describe('GoingStrip', () => {
+  it('shows six faces, +N for the rest, and the summary', () => {
+    const people = Array.from({ length: 9 }, (_, i) => ({ id: String(i), handle: `p${i}` }));
+    const root = render(<GoingStrip people={people} summary="9 going · 7 cars, 2 bikes" onPress={noop} />);
+    const all = texts(root.container);
+    expect(all).toContain('+3');
+    expect(all).toContain('9 going · 7 cars, 2 bikes');
+  });
+});
+
+describe('PhotoCard', () => {
+  it('draws an event with the live kind line, title, meta and one action', () => {
+    const root = render(
+      <PhotoCard kind="event" live eyebrow="Meet" title="Car park meet-up" meta="Live · until 23:00 · 2 mi · 9 going" tag={{ label: 'Going', tone: 'success' }} action={{ label: 'Open', onPress: noop }} onPress={noop} />,
+    );
+    expect(texts(root.container)).toEqual(['Going', 'Live · Meet', 'Car park meet-up', 'Live · until 23:00 · 2 mi · 9 going', 'Open']);
+    expect(labelled(root, 'Live, Meet, Car park meet-up, Live · until 23:00 · 2 mi · 9 going, Going')).not.toHaveLength(0);
+  });
+  it('puts a build title on the photo, with its class', () => {
+    const root = render(<PhotoCard kind="build" titleOnPhoto classLetter="A" paint="#c8102e" title="Ford Fiesta ST Mk8" meta="197 bhp · 3 mods" />);
+    expect(texts(root.container)).toEqual(expect.arrayContaining(['A', 'Ford Fiesta ST Mk8', '197 bhp · 3 mods']));
+  });
+});
+
+describe('Hero', () => {
+  it('words only: kind, title, meta', () => {
+    const root = render(<Hero eyebrow="Crew" title="Midlands Night Crew" meta={['12 members', null, 'Around Birmingham']} />);
+    expect(texts(root.container)).toEqual(['Crew', 'Midlands Night Crew', '12 members', 'Around Birmingham']);
+  });
+  it('DetailHero is a Hero and no longer draws a Sample tag', () => {
+    const root = render(<DetailHero kind="Meet" sample title="Car park meet-up" lines={['Tonight 22:00']} status={{ label: 'Going', tone: 'success' }} />);
+    expect(texts(root.container)).toEqual(['Meet', 'Going', 'Car park meet-up', 'Tonight 22:00']);
+  });
+});
+
+describe('DateTimeSheet', () => {
+  it('changes the day, the hour and the minutes', () => {
+    const now = new Date(2026, 10, 20, 21, 10); // Friday
+    const picks: Date[] = [];
+    const value = new Date(2026, 10, 22, 10, 0);
+    const root = render(<DateTimeSheet visible title="Starts" now={now} value={value} onChange={(d) => picks.push(d)} onClose={noop} />);
+    tap(root, 'Tomorrow, 21');
+    expect(picks[0]).toEqual(new Date(2026, 10, 21, 10, 0));
+    tap(root, '20:00');
+    expect(picks[1]).toEqual(new Date(2026, 10, 22, 20, 0));
+    tap(root, ':30, 3 of 4');
+    expect(picks[2]).toEqual(new Date(2026, 10, 22, 10, 30));
+    expect(texts(root.container)).toContain('Sun 10:00');
+  });
+  it('greys out days before minDate', () => {
+    const now = new Date(2026, 10, 20, 21, 10);
+    const root = render(<DateTimeSheet visible now={now} minDate={new Date(2026, 10, 21, 0, 0)} value={null} onChange={noop} onClose={noop} />);
+    expect(labelled(root, 'Today, 20')[0].props!.accessibilityState).toMatchObject({ disabled: true });
+  });
+});
+
+describe('header "+" (4.1)', () => {
+  it('turns an old "+ New" text action into the + icon', () => {
+    const onPress = noop;
+    expect(plusShim({ label: '+ New', accessibilityLabel: 'Add a car or bike', onPress })).toEqual({ add: { label: 'Add a car or bike', onPress } });
+    expect(plusShim({ label: 'Share', onPress })).toEqual({ action: { label: 'Share', onPress } });
+    const root = render(<HeaderActions action={{ label: '+ New', accessibilityLabel: 'Host a meet', onPress }} bell />);
+    expect(texts(root.container)).toEqual([]);
+    expect(labelled(root, 'Host a meet')).not.toHaveLength(0);
+  });
+});
+

@@ -8,14 +8,15 @@ import { Press } from './Press';
 import { DsText } from './Text';
 
 /**
- * A titled block. Eyebrow title in sodium, a hairline to the edge, and at most one thing on
- * the right: a tertiary Button or a Tag (never a value). No colour prop: sections aren't layers.
+ * A titled block. Eyebrow title in fog (never sodium: Redesign 2, 5.4), a hairline to the edge,
+ * and at most one thing on the right: a tertiary Button or a Tag (never a value). No colour prop:
+ * sections aren't layers.
  */
 export function Section({ title, right, children, gap = 'md' }: { title: string; right?: ReactNode; children: ReactNode; gap?: 'sm' | 'md' }) {
   return (
     <View style={{ gap: SPACING[gap] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 24 }}>
-        <DsText v="eyebrow" tone="action" accessibilityRole="header">
+        <DsText v="eyebrow" accessibilityRole="header">
           {title}
         </DsText>
         <View style={{ flex: 1, height: 1, backgroundColor: COLOR.surface.border }} />
@@ -28,7 +29,10 @@ export function Section({ title, right, children, gap = 'md' }: { title: string;
 
 export type HeaderAction = { label: string; onPress: () => void; accessibilityLabel?: string };
 
-/** One text action in a header ("+ Host", "Settings"): sodium, 44 pt tall. */
+/** The tab header's "+" (Tonight, Community, Garage only): what it makes, said in the label. */
+export type HeaderAdd = { onPress: () => void; label: string };
+
+/** One text action in a pushed screen's header ("Share"): chalk, 44 pt tall. */
 export function HeaderTextAction({ label, onPress, accessibilityLabel }: HeaderAction) {
   return (
     <Press onPress={onPress} label={accessibilityLabel ?? label} hitSlop={8} style={{ minHeight: 44, paddingHorizontal: SPACING.sm, justifyContent: 'center' }}>
@@ -40,42 +44,64 @@ export function HeaderTextAction({ label, onPress, accessibilityLabel }: HeaderA
 }
 
 /**
- * The right side of every header: at most one text action, the bell, and a ··· menu.
+ * A text action written "+ New" or "+ Host" is the old tab-header create button: it draws as the
+ * "+" icon instead (Redesign 2, 4.1: never a text action in a tab header). Kept so screens that
+ * still pass `action: { label: '+ New' }` follow the rule until they pass `add`.
+ */
+export function plusShim(action: HeaderAction | undefined): { action?: HeaderAction; add?: HeaderAdd } {
+  if (action && /^\+\s/.test(action.label)) return { add: { onPress: action.onPress, label: action.accessibilityLabel ?? action.label.replace(/^\+\s*/, '') } };
+  return { action };
+}
+
+/**
+ * The right side of every header, always in this order (Redesign 2, 4.1):
+ * - a tab: `add` ("+", only on Tonight, Community and Garage), then the `bell`;
+ * - a pushed screen: at most one text `action` (Share), then the `···` menu (`onMenu`).
  * Nothing else goes up there.
  */
-export function HeaderActions({ action, bell, onMenu }: { action?: HeaderAction; bell?: boolean; onMenu?: () => void }) {
+export function HeaderActions({ action: given, add: addGiven, bell, onMenu }: { action?: HeaderAction; add?: HeaderAdd; bell?: boolean; onMenu?: () => void }) {
+  const shim = plusShim(given);
+  const action = shim.action;
+  const add = addGiven ?? shim.add;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
       {action ? <HeaderTextAction {...action} /> : null}
+      {add ? <IconButton icon="plus" label={add.label} onPress={add.onPress} /> : null}
       {bell ? <NoticeBell /> : null}
       {onMenu ? <IconButton icon="more" label="More options" onPress={onMenu} /> : null}
     </View>
   );
 }
 
+type HeaderProps = { title?: string; action?: HeaderAction; add?: HeaderAdd; bell?: boolean; onMenu?: () => void; content?: boolean };
+
 /**
  * Native-stack header options for a screen: `<Stack.Screen options={screenHeader({...})} />`.
- * Title in caps (chrome). Detail screens pass no title (their hero carries it) and an `onMenu`.
+ * - Tab (T1/T2): `{ title, add?, bell: true }`.
+ * - Detail (T3): no title (the Hero carries it), optional `action` (Share) and `onMenu`.
+ * - Form or settings (T4/T5): `{ title }` in caps.
  * Chat titles are the one sentence-case exception (`content: true`).
  */
-export function screenHeader({ title, action, bell, onMenu, content }: { title?: string; action?: HeaderAction; bell?: boolean; onMenu?: () => void; content?: boolean }) {
+export function screenHeader({ title, action, add, bell, onMenu, content }: HeaderProps) {
   return {
     title: title ? (content ? title : title.toUpperCase()) : '',
-    headerRight: action || bell || onMenu ? () => <HeaderActions action={action} bell={bell} onMenu={onMenu} /> : undefined,
+    headerRight: action || add || bell || onMenu ? () => <HeaderActions action={action} add={add} bell={bell} onMenu={onMenu} /> : undefined,
   };
 }
 
 /**
- * An in-page header, for screens without a native header (the map, sheets, the gallery's preview).
- * Same anatomy as `screenHeader`: caps title, then the actions.
+ * An in-page header, for screens without a native header (the Tonight map, the gallery's preview).
+ * Same anatomy as `screenHeader`: caps title, an optional `tag` after it (DEMO NIGHT), then the actions.
  */
-export function ScreenHeader({ title, action, bell, onMenu }: { title: string; action?: HeaderAction; bell?: boolean; onMenu?: () => void }) {
+export function ScreenHeader({ title, tag, action, add, bell, onMenu }: { title: string; tag?: ReactNode } & Omit<HeaderProps, 'title' | 'content'>) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 52, gap: SPACING.sm }}>
-      <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
+      <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flexShrink: 1 }}>
         {title}
       </DsText>
-      <HeaderActions action={action} bell={bell} onMenu={onMenu} />
+      {tag}
+      <View style={{ flex: 1 }} />
+      <HeaderActions action={action} add={add} bell={bell} onMenu={onMenu} />
     </View>
   );
 }
@@ -83,8 +109,8 @@ export function ScreenHeader({ title, action, bell, onMenu }: { title: string; a
 export type Stat = { value: string; unit?: string; label: string; tone?: 'live' };
 
 /**
- * 2–4 numbers in a row, one height. Fixed sets: build = bhp, bhp/tonne, mods; event = starts in,
- * going, stop n of m; person = builds, events, rep. Replaces inline caps stat lines.
+ * 2–4 numbers in a row, one height. Fixed sets (Redesign 2): build = bhp, Class, Mods; person (Me) =
+ * Meets, Hosted, Trophies. Replaces inline caps stat lines.
  * No sodium numbers: a stat isn't something to tap. `live` (white) for a running countdown.
  */
 export function StatBlock({ stats }: { stats: Stat[] }) {

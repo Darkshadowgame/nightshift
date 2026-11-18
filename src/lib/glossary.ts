@@ -25,11 +25,11 @@ import type { SpotKind } from './types';
  */
 
 /**
- * The one label for how you relate to an event: card, hero, HUD, Find and the map card.
- * "You can go" only means something on a limited invite: on one open to anyone it says nothing (REVIEW-9).
+ * The one label for how you relate to an event: card, hero, HUD, search and the map card.
+ * Being invited says nothing (Redesign 2: "You can go" and "Invited" are cut); only the opposite
+ * shows, as `NOT_OPEN`. `filter` is kept for callers that still pass it.
  */
-export function roleLabel(role: Role, filter?: { everyone: boolean }): string {
-  if (role === 'invited' && filter?.everyone) return '';
+export function roleLabel(role: Role, _filter?: { everyone: boolean }): string {
   switch (role) {
     case 'host':
       return 'Hosting';
@@ -38,8 +38,7 @@ export function roleLabel(role: Role, filter?: { everyone: boolean }): string {
     case 'requested':
       return 'Requested';
     case 'invited':
-      // "Invited" read as a personal invite to a first-timer (REVIEW-8): it means your build fits the invite.
-      return 'You can go';
+      return '';
     case 'public':
       return 'Public';
     case 'declined':
@@ -67,6 +66,9 @@ export function roleTone(role: Role): Tone {
       return 'muted';
   }
 }
+
+/** On an event your build can't join (the only invite wording a card shows). */
+export const NOT_OPEN = 'Not open to your car';
 
 /** Buttons and sentences about going. */
 export const GOING = {
@@ -111,6 +113,91 @@ export const LOCATION = {
   setting: 'When the location shows',
 } as const;
 
+/** Before the meet point shows, a meet is "Around Tamworth". */
+export function aroundArea(area: string): string {
+  return `Around ${area}`;
+}
+
+/**
+ * Who the location line is for (Redesign 2, 4.11):
+ * - `notGoing`: "Location shows at 21:30 to people going."
+ * - `hidden` (you're going): "Location shows at 21:30 (in 20 min)."
+ * - `shown`: "Leisure park car park, Tamworth."
+ * - `rolling` (shown, a rolling meet): "Now at Leisure park car park. Next location when the host moves on."
+ * - `host` (before it shows): "People going see it at 21:30 (1 h before)."
+ */
+export type LocationState = 'notGoing' | 'hidden' | 'shown' | 'rolling' | 'host';
+
+export type LocationLineInput = {
+  state: LocationState;
+  /** When it shows, "21:30" (notGoing, hidden, host). */
+  time?: string;
+  /** Minutes until it shows: adds "(in 20 min)" when under 60 (hidden only: one countdown per screen). */
+  minutesTo?: number | null;
+  /** The meet point's name (shown, rolling). */
+  point?: string;
+  /** The town after the point (shown). */
+  town?: string;
+  /** How long before the start it shows (host): "(1 h before)". */
+  leadMinutes?: number;
+};
+
+/** The one sentence about where a meet is. Never stop, unlock, locked, rough area, reveal. */
+export function locationSentence({ state, time, minutesTo, point, town, leadMinutes }: LocationLineInput): string {
+  const at = time ?? 'the start';
+  switch (state) {
+    case 'notGoing':
+      return `Location shows at ${at} to people going.`;
+    case 'hidden':
+      return minutesTo != null && minutesTo > 0 && minutesTo < 60 ? `Location shows at ${at} (in ${Math.ceil(minutesTo)} min).` : `Location shows at ${at}.`;
+    case 'shown':
+      return `${[point ?? 'Meet point', town].filter(Boolean).join(', ')}.`;
+    case 'rolling':
+      return `Now at ${point ?? 'the meet point'}. Next location when the host moves on.`;
+    case 'host':
+      return leadMinutes ? `People going see it at ${at} (${leadText(leadMinutes)} before).` : `People going see it at ${at}.`;
+  }
+}
+
+/** The demo's one tag and its explanation (Redesign 2, 3.1). */
+export const DEMO_NIGHT = {
+  tag: 'Demo night',
+  title: 'Demo night',
+  body: 'The demo always runs on a Friday night, so you can try everything. Nothing leaves this phone.',
+  checkIn: 'Checked in (demo: no location check)',
+} as const;
+
+/** The one explanation of class, behind a tap on the badge. */
+export const CLASS_EXPLAINER = "Class is your build's power for its weight. S is the quickest.";
+
+/**
+ * Words that never appear on a first-level screen (Redesign 2, 4.12, with the owner's decisions in
+ * section 9: rep and levels stay as one line on Me and the "+150 rep" moment after check-in;
+ * whp, bhp/tonne and "claimed" stay on the Power and dyno page). `__tests__/glossary.test.ts`
+ * scans the strings in src/app and src/components for them.
+ */
+export const BANNED_WORDS: { word: string; re: RegExp; allowIn?: RegExp }[] = [
+  { word: 'stop', re: /\bstops?\b/i },
+  { word: 'unlock', re: /\bunlock(s|ed|ing)?\b/i },
+  { word: 'locked', re: /\blocked\b/i },
+  { word: 'rough area', re: /\brough area\b/i },
+  { word: 'Sample area', re: /\bSample area\b/i },
+  { word: 'Sample (tag)', re: /^Sample$/ },
+  { word: 'rep', re: /\brep\b/i, allowIn: /\(tabs\)\/me\.tsx$|components\/(Rep|LadderSheet)\.tsx$|event\/\[id\]\.tsx$/ },
+  { word: 'level', re: /\blevels?\b/i, allowIn: /\(tabs\)\/me\.tsx$|components\/(Rep|LadderSheet)\.tsx$/ },
+  { word: 'Legend', re: /\bLegend\b/, allowIn: /\(tabs\)\/me\.tsx$|components\/(Rep|LadderSheet)\.tsx$/ },
+  { word: 'whp', re: /\bwhp\b/i, allowIn: /dyno|power/i },
+  { word: 'bhp/tonne', re: /bhp\s*(\/|per)\s*tonne/i, allowIn: /dyno|power/i },
+  { word: 'car scale', re: /\bcar scale\b/i },
+  { word: 'claimed', re: /\bclaimed\b/i, allowIn: /dyno|power/i },
+  { word: 'invited', re: /\binvited\b/i },
+  { word: 'you can go', re: /\byou can go\b/i },
+  { word: 'Find', re: /\bFind\b/ },
+  { word: 'Where to?', re: /\bWhere to\?/i },
+  { word: '+ Host', re: /\+ ?Host\b/ },
+  { word: 'Count it without directions', re: /Count it without directions/i },
+];
+
 /** Kinds of place, singular and plural. Venues are "meet spots" everywhere in the UI. */
 export const PLACE_NAMES: Record<SpotKind, { one: string; many: string }> = {
   drive: { one: 'Drive', many: 'Drives' },
@@ -149,6 +236,7 @@ export const MEET_BAN = 'Meet ban';
 export const NAVIGATE = 'Navigate';
 
 export const ONLY_ON_PHONE = 'Only on this phone';
+/** @deprecated Redesign 2 cuts "Sample" tags on cards: the Tonight header carries DEMO_NIGHT instead. */
 export const SAMPLE = 'Sample';
 
 /**
@@ -161,7 +249,7 @@ export function title(text: string): string {
 }
 
 export const SCREEN_TITLES = {
-  hostEvent: 'Host an event',
+  hostEvent: 'Host a meet',
   editEvent: 'Edit event',
   changePlan: 'Change the plan',
   addBuild: 'Add a car or bike',

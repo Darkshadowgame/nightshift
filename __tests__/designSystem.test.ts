@@ -143,3 +143,128 @@ describe('date picker helpers (REVIEW-10 #11)', () => {
     expect(nov.flat().filter(Boolean)).toHaveLength(30);
   });
 });
+
+describe('Redesign 2 tokens (5.6)', () => {
+  const theme = require('../src/theme');
+  it('adds the hero type: display face, 30/34, not caps', () => {
+    expect(TYPE_SCALE.hero).toMatchObject({ fontSize: 30, lineHeight: 34, scale: 'chrome' });
+    expect((TYPE_SCALE.hero as { caps?: boolean }).caps).toBeFalsy();
+  });
+  it('shouts less in chrome', () => {
+    expect(TYPE_SCALE.label.letterSpacing).toBe(1.0);
+    expect(TYPE_SCALE.eyebrow.letterSpacing).toBe(1.5);
+  });
+  it('keeps sodium for the primary and "selected" only', () => {
+    expect(COLOR.action.primary).toBe(theme.C.sodium);
+    expect(COLOR.action.selected).toBe(theme.C.sodium);
+    expect(COLOR.action.link).toBe(theme.C.chalk);
+    expect(COLOR.badge).toEqual({ bg: COLOR.state.liveDot, fg: '#ffffff' });
+  });
+  it('has one fade over photos, the bar shadow, morph and stagger timings, and photo shapes', () => {
+    expect(COLOR.surface.photoFade).toEqual(['rgba(11,15,23,0)', 'rgba(11,15,23,0.9)']);
+    expect(theme.ELEVATION.bar).toEqual({ boxShadow: '0px -2px 12px rgba(0,0,0,0.45)' });
+    expect(theme.MOTION.morph).toBe(260);
+    expect(theme.MOTION.stagger).toBe(30);
+    expect(theme.ASPECT).toEqual({ event: 16 / 9, build: 4 / 3, post: 4 / 5 });
+  });
+  it('has dropped the deprecated RADIUS and SPACE', () => {
+    expect(theme.RADIUS).toBeUndefined();
+    expect(theme.SPACE).toBeUndefined();
+  });
+  it('makes eyebrows fog by default', () => {
+    const { typeStyle } = require('../src/components/ds/Text');
+    expect(typeStyle('eyebrow').color).toBe(COLOR.text.secondary);
+  });
+});
+
+describe('new component helpers', () => {
+  const { rgba, stripFaces } = require('../src/components/ds/logic');
+  it('turns a hex into rgba', () => {
+    expect(rgba('#ff9a2e', 0.5)).toBe('rgba(255,154,46,0.5)');
+    expect(rgba('#fff', 1)).toBe('rgba(255,255,255,1)');
+  });
+  it('shows up to six faces and counts the rest', () => {
+    expect(stripFaces([1, 2, 3])).toEqual({ shown: [1, 2, 3], more: 0 });
+    expect(stripFaces([1, 2, 3, 4, 5, 6, 7, 8, 9])).toEqual({ shown: [1, 2, 3, 4, 5, 6], more: 3 });
+  });
+});
+
+describe('time wording (4.10, when.ts)', () => {
+  const w = require('../src/lib/when');
+  // Friday 20 Nov 2026.
+  const at = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m);
+  const fri2110 = at(20, 21, 10);
+  const fri1230 = at(20, 12, 30);
+  it('says Today before 17:00 and Tonight from 17:00 and into the small hours', () => {
+    expect(w.whenLabel(at(20, 14), fri1230)).toBe('Today 14:00');
+    expect(w.whenLabel(at(20, 22), fri1230)).toBe('Tonight 22:00');
+    expect(w.whenLabel(at(21, 0, 30), fri2110)).toBe('Tonight 00:30');
+    expect(w.whenLabel(at(21, 1), fri1230)).toBe('Tonight 01:00');
+  });
+  it('says Tomorrow, a weekday within 6 days, then the date', () => {
+    expect(w.whenLabel(at(21, 20), fri2110)).toBe('Tomorrow 20:00');
+    expect(w.whenLabel(at(22, 10), fri2110)).toBe('Sun 10:00');
+    expect(w.whenLabel(at(26, 10), fri2110)).toBe('Thu 10:00');
+    expect(w.whenLabel(at(28, 10), fri2110)).toBe('Sat 28 Nov, 10:00');
+  });
+  it('says live and ended', () => {
+    expect(w.liveLabel(at(20, 23))).toBe('Live · until 23:00');
+    expect(w.endedLabel(at(20, 20), fri2110)).toBe('Ended 20:00');
+    expect(w.endedLabel(at(18, 23), fri2110)).toBe('Ended Wed');
+    expect(w.eventTimeLabel(at(20, 20, 30), at(20, 23), fri2110)).toBe('Live · until 23:00');
+    expect(w.eventTimeLabel(at(20, 22), at(21, 0, 30), fri2110)).toBe('Tonight 22:00');
+    expect(w.timeRange(at(20, 22), at(21, 0, 30), fri2110)).toBe('Tonight 22:00–00:30');
+  });
+  it('only counts down under an hour, in brackets', () => {
+    expect(w.clockWithCountdown(at(20, 21, 30), fri2110)).toBe('21:30 (in 20 min)');
+    expect(w.clockWithCountdown(at(20, 22, 30), fri2110)).toBe('22:30');
+    expect(w.countdown(at(20, 21, 0), fri2110)).toBe('');
+  });
+  it('lists days for the date sheet', () => {
+    const days = w.dayOptions(fri2110, 4);
+    expect(days.map((d: { label: string }) => d.label)).toEqual(['Today', 'Tomorrow', 'Sun 22', 'Mon 23']);
+    expect(days[2].key).toBe('2026-11-22');
+    expect(w.dayOptions(fri2110, 3, true).map((d: { label: string }) => d.label)).toEqual(['Today', 'Yesterday', 'Wed 18']);
+    expect(w.dayLabelShort(at(28, 9), fri2110)).toBe('Sat 28 Nov');
+  });
+});
+
+describe('numbers and units (4.9, format.ts)', () => {
+  const f = require('../src/lib/format');
+  it('says where a distance is from', () => {
+    expect(f.distanceText(2)).toBe('2 mi');
+    expect(f.distanceText(2.34)).toBe('2.3 mi');
+    expect(f.distanceText(0.4)).toBe('under 1 mi');
+    expect(f.distanceText(2, 'home')).toBe('2 mi from home');
+    expect(f.distanceText(6.2, 'about')).toBe('about 6 mi');
+    expect(f.distanceText(14.6)).toBe('15 mi');
+  });
+  it('sums up who is going without class codes', () => {
+    expect(f.goingSummary(9, 7, 2)).toBe('9 going · 7 cars, 2 bikes');
+    expect(f.goingSummary(4, 4, 0)).toBe('4 going · 4 cars');
+    expect(f.goingSummary(1, 0, 1)).toBe('1 going · 1 bike');
+    expect(f.goingSummary(0)).toBe('0 going');
+  });
+});
+
+describe('the app clock', () => {
+  const c = require('../src/lib/appClock');
+  afterEach(() => c.setClockOffset(0));
+  it('is the real clock until shifted', () => {
+    expect(Math.abs(c.appNowMs() - Date.now())).toBeLessThan(50);
+    c.setClockOffset(3_600_000);
+    expect(Math.abs(c.appNow().getTime() - (Date.now() + 3_600_000))).toBeLessThan(50);
+  });
+  it('can be set to read a given time, and tells listeners', () => {
+    const seen: number[] = [];
+    const off = c.onClockChange((ms: number) => seen.push(ms));
+    const friday = c.weekdayAt(new Date(2026, 10, 18, 9), 5, 21, 10);
+    expect(friday.getDay()).toBe(5);
+    expect([friday.getHours(), friday.getMinutes()]).toEqual([21, 10]);
+    c.setClockTo(friday);
+    expect(Math.abs(c.appNowMs() - friday.getTime())).toBeLessThan(50);
+    off();
+    c.setClockOffset(5);
+    expect(seen).toHaveLength(1);
+  });
+});

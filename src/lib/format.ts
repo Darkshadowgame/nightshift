@@ -1,27 +1,24 @@
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+import { whenLabel } from './when';
 
 function hhmm(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function sameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-/** "Tonight 22:30", "Tomorrow 06:00", "Sat 23:00", "Sat 14 Dec 09:00". */
+/**
+ * "Tonight 22:30", "Today 14:00", "Tomorrow 06:00", "Sat 23:00", "Sat 14 Dec, 09:00" (when.ts
+ * `whenLabel`, Redesign 2 4.10); "Started 22:00" for the day after a start. Prefer `eventTimeLabel`
+ * (when.ts) for events: it says "Live · until 23:00" and "Ended 23:00".
+ */
 export function formatWhen(iso: string, now: Date): string {
   const d = new Date(iso);
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
   if (d.getTime() < now.getTime() && now.getTime() - d.getTime() < 86_400_000) return `Started ${hhmm(d)}`;
-  if (sameDay(d, now)) return `${d.getHours() >= 17 || d.getHours() < 5 ? 'Tonight' : 'Today'} ${hhmm(d)}`;
-  if (sameDay(d, tomorrow)) return `Tomorrow ${hhmm(d)}`;
-  const days = (d.getTime() - now.getTime()) / 86_400_000;
-  if (days > 0 && days < 6.5) return `${DAYS[d.getDay()]} ${hhmm(d)}`;
-  return `${DAYS[d.getDay()]} ${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${hhmm(d)}`;
+  return whenLabel(d, now);
 }
 
-/** "in 25 min", "in 3 h", "12 min ago". */
+/**
+ * "in 25 min", "in 3 h", "12 min ago". Not for screens' countdowns: those are `clockWithCountdown`
+ * (when.ts), which only goes relative under an hour ("21:30 (in 20 min)").
+ */
 export function formatRelative(iso: string, now: Date): string {
   const diff = new Date(iso).getTime() - now.getTime();
   const mins = Math.round(Math.abs(diff) / 60_000);
@@ -60,4 +57,22 @@ export function sentToast(invited: string, isPublic: boolean, openToAll = false)
   if (invited === '1') return 'Invites sent to 1 person nearby whose car or bike fits';
   if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invites sent to ${invited} people nearby whose car or bike fits`;
   return 'Invites sent';
+}
+
+/**
+ * A distance in the one wording (Redesign 2, 4.9). `from`: `you` (a GPS fix) gives "2 mi";
+ * `home` gives "2 mi from home"; `about` (a hidden meet, measured to its area) gives "about 6 mi".
+ * Under 1 mi is "under 1 mi"; under 10 one decimal is dropped when it's .0. Never "from the map's centre".
+ */
+export function distanceText(miles: number, from: 'you' | 'home' | 'about' = 'you'): string {
+  const n = miles < 1 ? null : miles < 10 ? Number(miles.toFixed(1)) : Math.round(miles);
+  if (from === 'about') return n == null ? 'about 1 mi' : `about ${Math.round(miles)} mi`;
+  const base = n == null ? 'under 1 mi' : `${n} mi`;
+  return from === 'home' ? `${base} from home` : base;
+}
+
+/** "9 going · 7 cars, 2 bikes" (Redesign 2, 4.9: no class codes). Leaves out a zero kind; a bare count when nothing's known. */
+export function goingSummary(going: number, cars = 0, bikes = 0): string {
+  const mix = [cars ? plural(cars, 'car') : null, bikes ? plural(bikes, 'bike') : null].filter(Boolean).join(', ');
+  return mix && cars + bikes > 0 ? `${going.toLocaleString('en-GB')} going · ${mix}` : `${going.toLocaleString('en-GB')} going`;
 }

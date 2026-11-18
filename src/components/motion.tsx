@@ -80,7 +80,7 @@ export function PulseRing({ live, size, pad, children }: { live: boolean; colour
 // plain 150 ms fade.
 // ---------------------------------------------------------------------------
 
-export function FadeUp({ index = 0, stagger = 40, children, style }: { index?: number; stagger?: number; children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function FadeUp({ index = 0, stagger = MOTION.stagger, children, style }: { index?: number; stagger?: number; children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const reduced = useReducedMotion();
   const p = useSharedValue(0);
   useEffect(() => {
@@ -253,7 +253,7 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
     <Modal transparent animationType="none" visible onRequestClose={finish}>
       <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel={`Class up: ${from} to ${to}. Tap to continue.`}>
         <Animated.View style={[StyleSheet.absoluteFill, st.scrim, back]}>
-          <DsText v="eyebrow" tone="action">
+          <DsText v="eyebrow" tone="brand">
             Class up
           </DsText>
           <View style={{ width: 120, height: 120, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>

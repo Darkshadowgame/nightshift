@@ -29,7 +29,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
       <View style={st.top}>
         {/* The masthead is a drawing: it scales with the cover, not the text size. */}
         <DsText v="display" numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false} style={{ fontSize: width * 0.14, lineHeight: width * 0.17, letterSpacing: -1 }}>
-          Night<DsText v="display" tone="action" allowFontScaling={false} style={{ fontSize: width * 0.14, letterSpacing: -1 }}>shift</DsText>
+          Night<DsText v="display" tone="brand" allowFontScaling={false} style={{ fontSize: width * 0.14, letterSpacing: -1 }}>shift</DsText>
         </DsText>
         <DsText v="tag" tone="primary">
           {issue} · {event?.areaName ?? 'UK'}

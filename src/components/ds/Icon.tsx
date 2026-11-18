@@ -6,7 +6,7 @@ import { COLOR } from '../../theme';
  * Unicode stand-ins (›, ✕, ✓, ···, ⚠) in components. Decorative: the control
  * that holds an icon carries the accessibility label.
  */
-export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit';
+export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share';
 
 export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: IconName; size?: number; colour?: string }) {
   const p = { stroke: colour, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -62,6 +62,23 @@ export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: I
         <>
           <Path d="M3.5 8.5h3.8l1.7-2.5h6l1.7 2.5h3.8V19h-17z" {...p} />
           <Circle cx={12} cy={13.3} r={3.4} {...p} />
+        </>
+      ) : null}
+      {name === 'pin' ? (
+        <>
+          <Path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" {...p} />
+          <Circle cx={12} cy={10} r={2.3} {...p} />
+        </>
+      ) : null}
+      {name === 'calendar' ? (
+        <>
+          <Path d="M4.5 6.5h15V20h-15zM4.5 10.5h15M8.5 4v4M15.5 4v4" {...p} />
+        </>
+      ) : null}
+      {name === 'share' ? (
+        <>
+          <Path d="M12 15V4M8 8l4-4 4 4" {...p} />
+          <Path d="M6 12v8h12v-8" {...p} />
         </>
       ) : null}
       {name === 'comment' ? <Path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z" {...p} /> : null}

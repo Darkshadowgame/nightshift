@@ -26,7 +26,7 @@ export function Wordmark({ compact, short }: { compact?: boolean; short?: boolea
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
         <Image source={MARK} style={{ width: compact ? 36 : 48, height: compact ? 36 : 48, borderRadius: RADII.control }} accessibilityIgnoresInvertColors aria-hidden />
         <DsText v="display" accessibilityRole="header" accessibilityLabel="Nightshift">
-          Night<DsText v="display" tone="action">shift</DsText>
+          Night<DsText v="display" tone="brand">shift</DsText>
         </DsText>
       </View>
       {compact ? null : (

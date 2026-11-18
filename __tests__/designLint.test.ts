@@ -65,3 +65,94 @@ describe('design-system lint', () => {
     expect(FONT_SIZE.test('fontSize: size * 0.4')).toBe(false);
   });
 });
+
+/**
+ * Redesign 2 lints (4.4 selectors, 5.4 one accent). Ratchets: `KNOWN_*` are the files other
+ * packages are still moving over; any other file breaking the rule fails.
+ */
+function filesMatching(rule: RegExp): string[] {
+  const out = new Set<string>();
+  for (const dir of SCANNED) {
+    for (const file of sourceFiles(join(ROOT, dir))) {
+      const hit = readFileSync(file, 'utf8')
+        .split('\n')
+        .some((line) => rule.test(line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '')));
+      if (hit) out.add(relative(ROOT, file).split('\\').join('/'));
+    }
+  }
+  return [...out].sort();
+}
+
+/** Sodium straight from the palette: the primary button and "selected" states live in the design system. */
+const SODIUM = /\bBRAND\b|\bC\.sodium\b|COLOR\.action\.(primary|selected)\b|STATE\.selected\b/;
+const KNOWN_SODIUM = new Set([
+  // Map pins and drawings (the Events layer is sodium by design).
+  'src/components/BuildArt.tsx',
+  'src/components/DriveMap.tsx',
+  'src/components/NightMap.tsx',
+  'src/components/NightMap.web.tsx',
+  'src/components/DriveMap.web.tsx',
+  'src/components/webmap/GridMap.web.tsx',
+  'src/components/MapPicker.tsx',
+  // WP-A's own: the trophy cover ribbon, the class-up and wordmark moments, the gallery.
+  'src/components/Cover.tsx',
+  'src/components/motion.tsx',
+  'src/app/dev/components.tsx',
+  // Still to move over (WP-B, C, D).
+  'src/app/build/edit.tsx',
+  'src/app/chat/new.tsx',
+  'src/app/drive.tsx',
+  'src/app/event/plan.tsx',
+  'src/app/forum/[id].tsx',
+  'src/app/signin.tsx',
+  'src/app/welcome.tsx',
+  'src/components/AwardsSection.tsx',
+  'src/components/BringPicker.tsx',
+  'src/components/Community.tsx',
+  'src/components/CropEditor.tsx',
+  'src/components/DriveHud.tsx',
+  'src/components/EventForm.tsx',
+  'src/components/NoticeBell.tsx',
+  'src/components/PhotoManager.tsx',
+  'src/components/SearchSelect.tsx',
+  'src/components/Stars.tsx',
+  'src/components/VehiclePicker.tsx',
+]);
+
+/** A typed date: the one picker is DateTimeSheet (4.4). */
+const TYPED_DATE = /YYYY-MM-DD|placeholder="(DD|MM|YYYY)/;
+const KNOWN_TYPED_DATE = new Set(['src/components/TrackPanel.tsx']);
+
+/** A hand-made radio (the radio face is ChoiceGroup / SegmentedControl in the design system). */
+const RADIO = /role="radio"/;
+const KNOWN_RADIO = new Set([
+  'src/app/dev/components.tsx',
+  'src/app/build/edit.tsx',
+  'src/components/AddModSheet.tsx',
+  'src/components/AwardsSection.tsx',
+  'src/components/BringPicker.tsx',
+  'src/components/DriveHud.tsx',
+  'src/components/VehiclePicker.tsx',
+]);
+
+describe('Redesign 2 lint', () => {
+  it('uses sodium only through the design system (one accent, 5.4)', () => {
+    expect(filesMatching(SODIUM).filter((f) => !KNOWN_SODIUM.has(f) && f !== 'src/app/(tabs)/_layout.tsx')).toEqual([]);
+  });
+  it('never types a date (4.4)', () => {
+    expect(filesMatching(TYPED_DATE).filter((f) => !KNOWN_TYPED_DATE.has(f))).toEqual([]);
+  });
+  it('never hand-makes a radio (4.4)', () => {
+    expect(filesMatching(RADIO).filter((f) => !KNOWN_RADIO.has(f))).toEqual([]);
+  });
+  it('badges are red, never sodium (4.8)', () => {
+    const tabs = readFileSync(join(ROOT, 'src/app/(tabs)/_layout.tsx'), 'utf8');
+    expect(tabs).toMatch(/tabBarBadgeStyle: \{ backgroundColor: COLOR\.badge\.bg/);
+  });
+  it('catches what it should', () => {
+    expect(SODIUM.test('colour={BRAND}')).toBe(true);
+    expect(SODIUM.test('COLOR.action.primary')).toBe(true);
+    expect(SODIUM.test('COLOR.action.primaryText')).toBe(false);
+    expect(TYPED_DATE.test('placeholder="YYYY-MM-DD"')).toBe(true);
+  });
+});

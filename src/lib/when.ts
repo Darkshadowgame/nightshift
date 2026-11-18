@@ -146,3 +146,137 @@ export function pickedDayChoice(day: string, now: Date): DayChoice {
   today.setHours(12, 0, 0, 0);
   return { label: dayName(date), days: Math.round((date.getTime() - today.getTime()) / 86_400_000), date: date.toISOString() };
 }
+
+// ---------------------------------------------------------------------------
+// Time wording (Redesign 2, 4.10). Every time the app shows comes from here.
+//   24-hour clock: "21:30".
+//   Today before 17:00: "Today 14:00". From 17:00, and after midnight until 05:00: "Tonight 22:00".
+//   Tomorrow: "Tomorrow 20:00". Within 6 days: "Sat 10:00". Beyond: "Sat 28 Nov, 10:00".
+//   Live: "Live · until 23:00". Ended: "Ended 23:00" (today) or "Ended Fri".
+//   Relative only under 60 minutes, in brackets after a clock time: "21:30 (in 20 min)".
+//   One countdown per screen. Never "In 2 days", "Next week", "2h 40m", or a countdown on a card.
+// ---------------------------------------------------------------------------
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY_MS = 86_400_000;
+
+const toDate = (d: Date | string | number) => (d instanceof Date ? d : new Date(d));
+
+/** "21:30". */
+export function clock(d: Date | string | number): string {
+  const x = toDate(d);
+  return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Whole calendar days from `now`'s day to `d`'s day (0 today, 1 tomorrow, -1 yesterday). */
+export function dayDiff(d: Date | string | number, now: Date): number {
+  const a = toDate(d);
+  const da = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const db = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((da - db) / DAY_MS);
+}
+
+/** The night a time belongs to: times before 05:00 count as the night before. Days from now's night. */
+function nightDiff(d: Date, now: Date): number {
+  const shift = (x: Date) => new Date(x.getTime() - SMALL_HOURS_END * 3_600_000);
+  return dayDiff(shift(d), shift(now));
+}
+
+const isNightHour = (h: number) => h >= 17 || h < SMALL_HOURS_END;
+
+/**
+ * The day word for a time, without the clock: "Tonight", "Today", "Tomorrow", "Sat", "Sat 28 Nov".
+ * The small hours after tonight are still "Tonight" ("Tonight 01:00").
+ */
+export function dayWord(d: Date | string | number, now: Date): string {
+  const x = toDate(d);
+  const days = dayDiff(x, now);
+  // Small hours belong to the night before: Fri 22:00 → Sat 01:00 is "Tonight 01:00".
+  if (x.getHours() < SMALL_HOURS_END && nightDiff(x, now) === 0) return 'Tonight';
+  if (days === 0) return isNightHour(x.getHours()) ? 'Tonight' : 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days > 1 && days <= 6) return WEEKDAYS[x.getDay()];
+  return `${WEEKDAYS[x.getDay()]} ${x.getDate()} ${MONTHS_SHORT[x.getMonth()]}`;
+}
+
+/** "Tonight 22:00", "Today 14:00", "Tomorrow 20:00", "Sat 10:00", "Sat 28 Nov, 10:00". */
+export function whenLabel(d: Date | string | number, now: Date): string {
+  const word = dayWord(d, now);
+  return `${word}${/\d/.test(word) ? ',' : ''} ${clock(d)}`;
+}
+
+/** "Tonight 22:00–00:30" (an end on another day keeps just its clock). */
+export function timeRange(start: Date | string | number, end: Date | string | number | null | undefined, now: Date): string {
+  return end ? `${whenLabel(start, now)}–${clock(end)}` : whenLabel(start, now);
+}
+
+/** "Live · until 23:00". */
+export function liveLabel(end: Date | string | number): string {
+  return `Live · until ${clock(end)}`;
+}
+
+/** "Ended 23:00" (today, or tonight's small hours) or "Ended Fri" / "Ended Fri 13 Nov". */
+export function endedLabel(end: Date | string | number, now: Date): string {
+  const x = toDate(end);
+  if (dayDiff(x, now) === 0 || nightDiff(x, now) === 0) return `Ended ${clock(x)}`;
+  const days = -dayDiff(x, now);
+  return days > 0 && days <= 6 ? `Ended ${WEEKDAYS[x.getDay()]}` : `Ended ${WEEKDAYS[x.getDay()]} ${x.getDate()} ${MONTHS_SHORT[x.getMonth()]}`;
+}
+
+/** "(in 20 min)" when `at` is under 60 minutes away, else "". Never "in 2 h" or "in 2 days". */
+export function countdown(at: Date | string | number, now: Date): string {
+  const mins = Math.ceil((toDate(at).getTime() - now.getTime()) / 60_000);
+  return mins > 0 && mins < 60 ? `(in ${mins} min)` : '';
+}
+
+/** "21:30 (in 20 min)", or "21:30" when it's an hour or more away. The one countdown on a screen. */
+export function clockWithCountdown(at: Date | string | number, now: Date): string {
+  const c = countdown(at, now);
+  return c ? `${clock(at)} ${c}` : clock(at);
+}
+
+/** An event's one time phrase: before the start "Tonight 22:00", live "Live · until 23:00", after "Ended 23:00". */
+export function eventTimeLabel(start: Date | string | number, end: Date | string | number, now: Date): string {
+  const t = now.getTime();
+  if (t < toDate(start).getTime()) return whenLabel(start, now);
+  if (t < toDate(end).getTime()) return liveLabel(end);
+  return endedLabel(end, now);
+}
+
+export type DayOption = { key: string; label: string; date: Date };
+
+/** A local "YYYY-MM-DD". */
+export function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * The days for DateTimeSheet: `count` days from today ("Today", "Tomorrow", "Sat 21", …), or
+ * with `past` the `count` days up to today, newest first. Each `date` is noon local.
+ */
+export function dayOptions(now: Date, count = 14, past = false): DayOption[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (past ? -i : i), 12);
+    const label = i === 0 ? 'Today' : i === 1 ? (past ? 'Yesterday' : 'Tomorrow') : `${WEEKDAYS[d.getDay()]} ${d.getDate()}`;
+    return { key: dayKey(d), label, date: d };
+  });
+}
+
+/** The day of a date for a field: "Today", "Tomorrow", "Yesterday", "Sat 21 Nov". */
+export function dayLabelShort(d: Date | string | number, now: Date): string {
+  const x = toDate(d);
+  const days = dayDiff(x, now);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days === -1) return 'Yesterday';
+  return `${WEEKDAYS[x.getDay()]} ${x.getDate()} ${MONTHS_SHORT[x.getMonth()]}`;
+}
+
+/** `d` moved to the nearest `step` minutes (down), seconds cleared. */
+export function snapMinutes(d: Date, step = 15): Date {
+  const x = new Date(d);
+  x.setSeconds(0, 0);
+  x.setMinutes(Math.floor(x.getMinutes() / step) * step);
+  return x;
+}

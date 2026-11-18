@@ -106,7 +106,7 @@ function Gate() {
         <Stack.Screen name="events" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: title(T.settings) }} />
         <Stack.Screen name="help" options={{ title: title(T.help) }} />
-        <Stack.Screen name="post/[id]" options={{ title: title(T.post) }} />
+        <Stack.Screen name="post/[id]" options={{ title: '' }} />
         <Stack.Screen name="post/new" options={{ title: title(T.newPost), presentation: 'modal' }} />
         <Stack.Screen name="forum/[id]" options={{ title: '' }} />
         <Stack.Screen name="forum/new" options={{ title: title(T.newThread), presentation: 'modal' }} />
@@ -167,7 +167,7 @@ export default function RootLayout() {
       <StoreProvider>
         <RoadsProvider>
           <CommunityProvider>
-            {/* Toasts sit above the tab bar. */}
+            {/* Toasts sit just above the ActionBar when a screen has one, else above the tab bar (Redesign 2, 4.7). */}
             <ToastProvider>
               <StatusBar style="light" />
               <Gate />

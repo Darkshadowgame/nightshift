@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import {
+  ActionBar,
   Avatar,
   BuildThumb,
   Button,
@@ -11,13 +12,21 @@ import {
   ClassBadge,
   ConfirmBody,
   ConfirmSheet,
+  DateTimeField,
   DsText,
   EmptyState,
   EntityCard,
+  HeaderActions,
   ErrorState,
+  GoingStrip,
+  Hero,
   IconButton,
   ListRow,
   LoadingState,
+  LocationLine,
+  PaintArt,
+  PhotoCard,
+  Press,
   RowDivider,
   ScreenHeader,
   SearchField,
@@ -34,9 +43,14 @@ import {
   screenHeader,
   useToast,
 } from '../../components/ds';
-import { BuildArt } from '../../components/BuildArt';
+import { PhotoCredit } from '../../components/PhotoCredit';
+import { appNow } from '../../lib/appClock';
+import { goingSummary } from '../../lib/format';
+import { DEMO_NIGHT } from '../../lib/glossary';
+import { samplePhoto } from '../../lib/photoSource';
 import { CLASS_LETTERS } from '../../lib/types';
-import { COLOR, RADII, SPACING, TYPE_SCALE, type TypeToken } from '../../theme';
+import { eventTimeLabel, timeRange } from '../../lib/when';
+import { ASPECT, COLOR, RADII, SPACING, TYPE_SCALE, type TypeToken } from '../../theme';
 
 /**
  * Developer gallery of the v2 design system: every component in every state.
@@ -52,8 +66,22 @@ export default function ComponentsGallery() {
 }
 
 const noop = () => {};
-// A local image so the gallery shows the photo states offline.
-const PHOTO = require('../../../assets/icon.png');
+// Bundled sample photos (src/data/samplePhotos.ts), so the gallery shows the photo states offline.
+const PHOTO = samplePhoto('b-dan-0')?.image ?? require('../../../assets/icon.png');
+const BUILD_PHOTO = samplePhoto('b-kez-0')?.image ?? PHOTO;
+const PLACE_PHOTO = samplePhoto('ph-mam-nick')?.image ?? PHOTO;
+const POST_PHOTO = samplePhoto('b-bex-0')?.image ?? PHOTO;
+const PEOPLE = [
+  { id: '1', handle: 'dan_r', photo: PHOTO },
+  { id: '2', handle: 'em_i30n' },
+  { id: '3', name: 'Kez Ward', handle: 'kez_fk8', photo: BUILD_PHOTO },
+  { id: '4', handle: 'tomtom_gr' },
+  { id: '5', handle: 'bex_gti', photo: POST_PHOTO },
+  { id: '6', handle: 'aimee_r1' },
+  { id: '7', handle: 'sully' },
+  { id: '8', handle: 'raf' },
+  { id: '9', handle: 'ash' },
+];
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -78,8 +106,8 @@ function Swatch({ name, colour }: { name: string; colour: string }) {
   );
 }
 
-function Swatches({ label, colours }: { label: string; colours: Record<string, string> | readonly string[] }) {
-  const entries = Array.isArray(colours) ? colours.map((c, i) => [`${i + 1}`, c] as const) : Object.entries(colours);
+function Swatches({ label, colours }: { label: string; colours: Record<string, string | readonly string[]> | readonly string[] }) {
+  const entries = Array.isArray(colours) ? colours.map((c, i) => [`${i + 1}`, c] as const) : Object.entries(colours).filter((e): e is [string, string] => typeof e[1] === 'string');
   return (
     <View style={{ gap: SPACING.sm }}>
       <DsText v="label">{label}</DsText>
@@ -104,15 +132,140 @@ function Gallery() {
   const [sheet, setSheet] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const now = appNow();
+  const [start, setStart] = useState<Date | null>(() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + ((7 - d.getDay()) % 7 || 7));
+    d.setHours(10, 0, 0, 0);
+    return d;
+  });
+  const [runDay, setRunDay] = useState<Date | null>(null);
+  const [going, setGoing] = useState(false);
+  const [demo, setDemo] = useState(false);
+  const liveStart = new Date(now.getTime() - 40 * 60_000);
+  const liveEnd = new Date(now.getTime() + 100 * 60_000);
+  const later = new Date(now.getTime() + 3 * 3_600_000);
+  const goNow = () => {
+    setGoing(true);
+    toast({ message: "You're going with your Fiesta ST", action: { label: 'Change', onPress: noop } });
+  };
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       <Stack.Screen options={screenHeader({ title: 'Components', onMenu: () => setSheet(true) })} />
-      <ScrollView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl * 2 }}>
-        <DsText v="secondary">Design system v2. Development builds only. See docs/DESIGN-SYSTEM.md.</DsText>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xl }}>
+        <DsText v="secondary">Design system v2 with the Redesign 2 foundation. Development builds only. See docs/DESIGN-SYSTEM.md.</DsText>
+
+        <Group title="Tab header (T1, T2)">
+          <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
+            <ScreenHeader
+              title="Tonight"
+              tag={
+                <Press onPress={() => setDemo(true)} label={`${DEMO_NIGHT.tag}. What's this?`}>
+                  <Tag label={DEMO_NIGHT.tag} tone="info" />
+                </Press>
+              }
+              add={{ label: 'Host a meet', onPress: noop }}
+              bell
+            />
+          </View>
+          <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
+            <ScreenHeader title="Me" bell />
+          </View>
+          <Caption>Caps title; "+" (Tonight, Community, Garage only) then the bell. Never a text action. The DEMO NIGHT tag opens a Sheet.</Caption>
+        </Group>
+
+        <Group title="PhotoCard: events">
+          <PhotoCard
+            kind="event"
+            photo={PHOTO}
+            titleOnPhoto
+            live
+            eyebrow="Meet"
+            layerColour={COLOR.layer.event}
+            title="Car park meet-up"
+            meta={[eventTimeLabel(liveStart, liveEnd, now), '2 mi', '9 going'].join(' · ')}
+            tag={going ? { label: 'Going', tone: 'success' } : null}
+            action={going ? { label: 'Open', onPress: noop } : { label: "I'm going", tier: 'primary', haptic: 'success', onPress: goNow }}
+            overlay={<PhotoCredit overlay photoRef="b-dan-0" corner="topRight" />}
+            onPress={noop}
+          />
+          <Caption>The Tonight map's pick card: title on the photo, the screen's one primary. Once going: Open (secondary) and the Going tag.</Caption>
+          <PhotoCard kind="event" eyebrow="Rolling meet" layerColour={COLOR.layer.event} title="Late rolling meet" meta={[timeRange(later, new Date(later.getTime() + 9_000_000), now), 'about 6 mi', '4 going'].join(' · ')} onPress={noop} />
+          <Caption>No photo: the area-circle drawing in the layer colour, never grey. Meta under the photo in lists.</Caption>
+          <PhotoCard kind="event" eyebrow="Cruise" layerColour={COLOR.layer.event} photo={PLACE_PHOTO} title="Friday night cruise" meta="Tomorrow 20:00 · about 9 mi" detail="Not open to your car" onPress={noop} />
+          <PhotoCard kind="event" eyebrow="Meet" layerColour={COLOR.layer.event} title="Last week's meet" meta="Ended Fri · 23 went" tag={{ label: 'Ended' }} finished onPress={noop} />
+        </Group>
+
+        <Group title="PhotoCard: builds and posts">
+          <PhotoCard kind="build" photo={BUILD_PHOTO} titleOnPhoto classLetter="A" title="Honda Civic Type R FK8" meta="306 bhp · 3 mods" tag={{ label: '✓ Dyno', tone: 'success' }} action={{ label: 'Add a mod', onPress: noop }} onPress={noop} />
+          <PhotoCard kind="build" paint={COLOR.paint[2]} titleOnPhoto classLetter="B" title="Ford Fiesta ST Mk8" meta="197 bhp · stock" onPress={noop} />
+          <PhotoCard kind="build" paint={COLOR.paint[1]} vehicle="bike" titleOnPhoto classLetter="C" title="Yamaha MT-07" meta="73 bhp · stock" onPress={noop} />
+          <Caption>4:3, title on the gradient with the ClassBadge. No photo: the silhouette on the build's paint colour.</Caption>
+          <PhotoCard kind="build" size="sm" paint={COLOR.paint[3]} classLetter="B" title="Ford Fiesta ST Mk8" meta="197 bhp" />
+          <Caption>size="sm": the picked build in onboarding.</Caption>
+          <PhotoCard kind="post" photo={POST_PHOTO} title="@bex_gti" meta="Volkswagen Golf GTI · 2 h" detail="Fresh wheels on for Friday. Who's coming to the car park meet?" onPress={noop} />
+        </Group>
+
+        <Group title="Hero (T3)">
+          <View style={{ marginTop: SPACING.screen }}>
+            <Hero
+              bleed
+              photo={PHOTO}
+              eyebrow="Rolling meet"
+              layerColour={COLOR.layer.event}
+              title="Late rolling meet"
+              meta={`${timeRange(later, new Date(later.getTime() + 9_000_000), now)} · Around Tamworth`}
+              tag={{ label: 'Going', tone: 'success' }}
+              overlay={<PhotoCredit overlay photoRef="b-dan-0" corner="topRight" />}
+            />
+          </View>
+          <Hero
+            media={<PaintArt paint={COLOR.paint[0]} />}
+            aspect={ASPECT.build}
+            classLetter="A"
+            eyebrow="Build"
+            title="Honda Civic Type R FK8"
+            meta="306 bhp · 3 mods"
+          />
+          <Hero eyebrow="Crew" title="Midlands Night Crew" meta={['12 members', 'Around Birmingham']} />
+          <Caption>photo: title on the gradient in the hero type. media: words under it. Neither: words only (replaces DetailHero). `bleed` runs the photo edge to edge inside PAGE.</Caption>
+        </Group>
+
+        <Group title="Location line (the status line)">
+          <LocationLine state="notGoing" time="21:30" />
+          <LocationLine state="hidden" time="21:30" minutesTo={20} />
+          <LocationLine state="shown" point="Leisure park car park" town="Tamworth" note="Check-in opens at 21:30." />
+          <LocationLine state="rolling" point="Ventura retail park" />
+          <LocationLine state="host" time="21:30" leadMinutes={60} />
+          <LocationLine done text="You're checked in. Voting is open until 23:00 tomorrow." />
+          <Caption>The 4.11 words only. The one countdown on a screen ("(in 20 min)", under an hour only).</Caption>
+        </Group>
+
+        <Group title="Going strip">
+          <GoingStrip people={PEOPLE} summary={goingSummary(9, 7, 2)} onPress={noop} />
+          <GoingStrip people={PEOPLE.slice(0, 3)} summary={goingSummary(3, 3, 0)} />
+          <GoingStrip people={[]} summary="Be the first to go" />
+        </Group>
+
+        <Group title="Action bar (T3, T4)">
+          <Caption>Pinned after the ScrollView (see the bottom of this screen). Inline here with inset off.</Caption>
+          <ActionBar inset={false} primary={{ label: 'Check in', onPress: noop, haptic: 'success' }} secondary={{ label: 'Navigate', onPress: noop }} />
+          <ActionBar inset={false} status="Location at 21:30" secondary={{ label: 'Remind me', onPress: () => toast({ message: "We'll remind you at 21:30" }) }} />
+          <ActionBar inset={false} primary={{ label: 'Try the demo', onPress: noop }} secondary={{ label: 'Sign in', onPress: noop }} />
+          <ActionBar inset={false} secondary={{ label: 'See photos', onPress: noop }} />
+          <Caption>Never a disabled primary: a status pill and a secondary that helps.</Caption>
+        </Group>
+
+        <Group title="Date and time">
+          <DateTimeField label="Starts" value={start} onChange={setStart} minDate={now} />
+          <DateTimeField label="Date of the run" mode="date" past value={runDay} onChange={setRunDay} maxDate={now} placeholder="Pick a day" />
+          <Caption>DateTimeSheet: 14 days, then Another day (month calendar); hours 00–23 and minutes in 15s. Never a typed date.</Caption>
+        </Group>
 
         <Group title="Colour roles">
-          <Swatches label="Action" colours={{ primary: COLOR.action.primary, selectedTint: COLOR.action.selectedTint, destructive: COLOR.action.destructive }} />
+          <Swatches label="Action" colours={{ primary: COLOR.action.primary, link: COLOR.action.link, selectedTint: COLOR.action.selectedTint, destructive: COLOR.action.destructive }} />
+          <Swatches label="Badge" colours={COLOR.badge} />
           <Swatches label="Text" colours={COLOR.text} />
           <Swatches label="Surface" colours={COLOR.surface} />
           <Swatches label="State" colours={COLOR.state} />
@@ -154,14 +307,13 @@ function Gallery() {
           </View>
         </Group>
 
-        <Group title="Screen header">
-          <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
-            <ScreenHeader title="Events" action={{ label: '+ New', onPress: noop }} bell />
+        <Group title="Pushed header (T3)">
+          <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md, flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton icon="back" label="Go back" onPress={noop} />
+            <View style={{ flex: 1 }} />
+            <HeaderActions action={{ label: 'Share', onPress: noop }} onMenu={() => setSheet(true)} />
           </View>
-          <View style={{ backgroundColor: COLOR.surface.card, borderRadius: RADII.card, paddingHorizontal: SPACING.md }}>
-            <ScreenHeader title="Garage" action={{ label: '+ New', onPress: noop }} />
-          </View>
-          <Caption>Title, at most one text action, the bell, a ··· menu. Detail screens: no title, a menu.</Caption>
+          <Caption>Back (from the root layout) on the left; at most one text action (Share) and ··· on the right. No title on detail screens.</Caption>
         </Group>
 
         <Group title="Buttons">
@@ -207,7 +359,7 @@ function Gallery() {
             <Chip label="BMW" raw on onPress={noop} />
             <Chip label="Tonight" count={4} on onPress={noop} />
           </View>
-          <Caption>Off: outline. On: tint, border and a tick. Nothing on = no filter.</Caption>
+          <Caption>Off: outline. On: tint, sodium border and bold sodium text. Nothing on = no filter.</Caption>
         </Group>
 
         <Group title="Segmented control (one view)">
@@ -286,25 +438,26 @@ function Gallery() {
             <Tag label="Going" tone="success" />
             <Tag label="Hosting" tone="selected" />
             <Tag label="Requested" tone="warning" />
-            <Tag label="You can go" tone="info" />
+            <Tag label="Checked in" tone="success" />
+            <Tag label="✓ Dyno" tone="success" />
             <Tag label="Declined" tone="danger" />
             <Tag label="Live" tone="live" />
-            <Tag label="Sample" />
+            <Tag label={DEMO_NIGHT.tag} tone="info" />
             <Tag label="Golf R" raw />
           </View>
         </Group>
 
         <Group title="List rows">
           <View>
-            <ListRow leading={{ avatar: { name: 'Sam Patel', handle: 'sam_p' } }} title="@sam_p" subtitle="Golf R · Class A" meta="3.2 mi · Level 2" onPress={noop} />
+            <ListRow leading={{ avatar: { name: 'Sam Patel', handle: 'sam_p' } }} title="@sam_p" subtitle="Golf R · Class A" meta="3 mi" onPress={noop} />
             <RowDivider inset />
             <ListRow leading={{ avatar: { handle: 'night_owl' } }} title="@night_owl" subtitle="Wants to connect" trailing={<Button label="Accept" tier="secondary" size="sm" onPress={noop} />} chevron={false} />
             <RowDivider inset />
-            <ListRow leading={{ pin: 'rolling', colour: COLOR.layer.event }} title="NightRunners late one" subtitle="Rolling meet" meta={metaLine(['Tonight 22:30', '7 going', '3.2 mi'])} trailing={<Tag label="Going" tone="success" />} onPress={noop} />
+            <ListRow leading={{ pin: 'rolling', colour: COLOR.layer.event }} title="NightRunners late one" subtitle="Rolling meet" meta={metaLine(['Tonight 22:30', '7 going', '3 mi'])} trailing={<Tag label="Going" tone="success" />} onPress={noop} />
             <RowDivider inset />
             <ListRow leading={{ pin: 'drive', colour: COLOR.layer.drive }} title="Snake Pass" subtitle="Drive · Derbyshire" meta="24 mi" onPress={noop} />
             <RowDivider inset />
-            <ListRow leading={{ classBadge: 'A' }} title="Volkswagen Golf R" meta="583 bhp · 4 mods" onPress={noop} />
+            <ListRow leading={{ classBadge: 'A' }} title="Volkswagen Golf R" meta="330 bhp · 4 mods" onPress={noop} />
             <RowDivider inset />
             <ListRow leading={{ icon: 'bell' }} title="Coffee and cars starts in 30 min" subtitle="2 min ago" unread onPress={noop} />
             <RowDivider />
@@ -314,80 +467,38 @@ function Gallery() {
           </View>
         </Group>
 
-        <Group title="Entity cards">
-          <EntityCard
-            kind="event"
-            eyebrow="Rolling meet"
-            layerColour={COLOR.layer.event}
-            mark={{ pin: 'rolling', colour: COLOR.layer.event }}
-            title="NightRunners late one"
-            status={{ label: 'Live', tone: 'live' }}
-            sample
-            meta={metaLine(['Ends 01:30', '7 going', '3.2 mi'])}
-            detail="Starts at Tamworth services, then 2 more meet points"
-            chips={[{ label: 'Cars' }, { label: 'Class S A', raw: true }]}
-            action={{ label: 'Check in', onPress: noop }}
-            onPress={noop}
-          />
-          <EntityCard
-            kind="place"
-            eyebrow="Drive"
-            layerColour={COLOR.layer.drive}
-            mark={{ pin: 'drive', colour: COLOR.layer.drive }}
-            title="Snake Pass"
-            meta={metaLine(['Derbyshire', '24 mi'])}
-            detail="A57, 15 miles of moorland bends"
-            onPress={noop}
-          />
-          <EntityCard
-            kind="build"
-            eyebrow="Build"
-            mark={{ classBadge: 'A' }}
-            title="Volkswagen Golf R (Mk7.5)"
-            media={<BuildArt kind="car" colour={COLOR.paint[2]} height={150} />}
-            meta="583 bhp · 410 bhp/t · 4 mods"
-            status={{ label: 'Dyno verified', tone: 'success' }}
-            onPress={noop}
-          />
-          <EntityCard
-            kind="person"
-            eyebrow="Person"
-            mark={{ avatar: { name: 'Sam Patel', handle: 'sam_p' } }}
-            title="@sam_p"
-            meta={metaLine(['Level 2', '3.2 mi'])}
-            detail="Golf R, ZX-6R"
-            action={{ label: 'Connect', onPress: noop }}
-          />
-          <EntityCard kind="event" eyebrow="Meet" layerColour={COLOR.layer.event} mark={{ pin: 'meet', colour: COLOR.layer.event }} title="Coffee and cars, October" meta="Sun 12 Oct · 23 went" status={{ label: 'Finished' }} finished onPress={noop} />
+        <Group title="Entity card (deprecated)">
+          <EntityCard kind="place" eyebrow="Drive" layerColour={COLOR.layer.drive} mark={{ pin: 'drive', colour: COLOR.layer.drive }} title="Snake Pass" meta={metaLine(['Derbyshire', '24 mi'])} detail="A57, 15 miles of moorland bends" onPress={noop} />
+          <Caption>Browse surfaces move to PhotoCard. Kept until the screens move over.</Caption>
         </Group>
 
         <Group title="Stat block">
           <StatBlock
             stats={[
-              { value: '583', unit: 'bhp', label: 'Power' },
-              { value: '410', label: 'bhp per tonne' },
-              { value: '4', label: 'Mods' },
+              { value: '306', unit: 'bhp', label: 'Power' },
+              { value: 'A', label: 'Class' },
+              { value: '3', label: 'Mods' },
             ]}
           />
           <StatBlock
             stats={[
-              { value: '1:42', unit: 'h', label: 'Ends in', tone: 'live' },
-              { value: '7', label: 'Going' },
-              { value: '2/3', label: 'Point' },
+              { value: '3', label: 'Meets' },
+              { value: '1', label: 'Hosted' },
+              { value: '1', label: 'Trophies' },
             ]}
           />
         </Group>
 
         <Group title="Search field">
-          <SearchField value="" onChangeText={noop} placeholder="Events, places or people" />
+          <SearchField value="" onChangeText={noop} placeholder="Search meets, places, people" />
           <SearchField value={query} onChangeText={setQuery} placeholder="Search" />
           <SearchField value="B79 7" onChangeText={noop} loading />
-          <SearchField onOpen={noop} placeholder="Where to?" floating />
+          <SearchField onOpen={noop} placeholder="Search meets, places…" floating />
         </Group>
 
         <Group title="Empty">
           <EmptyState variant="inline" title="No comments yet." action={{ label: 'Write one', onPress: noop }} />
-          <EmptyState glyph="calendar" title="Nothing on near you tonight" body="Events within 25 mi show up here." action={{ label: 'Host an event', onPress: noop }} />
+          <EmptyState glyph="calendar" title="Nothing yet" body="Say you're going to a meet and we'll remind you." action={{ label: 'See tonight', onPress: noop }} />
         </Group>
 
         <Group title="Loading">
@@ -396,7 +507,7 @@ function Gallery() {
         </Group>
 
         <Group title="Error">
-          <ErrorState title="Couldn't load shops." onRetry={noop} />
+          <ErrorState title="Couldn't load photos." onRetry={noop} />
           <ErrorState variant="block" title="Couldn't load events" body="Check your connection and try again." onRetry={noop} />
         </Group>
 
@@ -426,7 +537,11 @@ function Gallery() {
           </View>
         </Group>
       </ScrollView>
+      <ActionBar primary={{ label: 'Show a toast', onPress: () => toast({ message: 'Saved' }), haptic: 'success' }} secondary={{ label: 'Open the sheet', onPress: () => setSheet(true) }} />
 
+      <Sheet visible={demo} title={DEMO_NIGHT.title} onClose={() => setDemo(false)}>
+        <DsText v="body">{DEMO_NIGHT.body}</DsText>
+      </Sheet>
       <Sheet visible={sheet} title="Event options" onClose={() => setSheet(false)}>
         <SheetOption label="Share" onPress={() => setSheet(false)} />
         <SheetOption label="Edit" onPress={() => setSheet(false)} />
@@ -443,6 +558,6 @@ function Gallery() {
         }}
         onCancel={() => setConfirm(false)}
       />
-    </>
+    </View>
   );
 }

@@ -2,7 +2,8 @@
  * Late-night city palette. The app is dark only, by design.
  *
  * Colour has fixed roles (REVIEW-5 B2). Pick by role, not by hue:
- *   BRAND / ACTION  sodium: primary buttons, links, section eyebrows, unread, selected chips.
+ *   BRAND / ACTION  sodium: the one primary button and "selected" (segment, chip, tab). Nothing else
+ *                   (Redesign 2, 5.4): links are chalk, eyebrows fog, badges red.
  *   LAYER           map layers and place identity only (pins, place headers, the layer bar).
  *   STATE           live, success, warning, danger, info: never a layer colour.
  *   CLASS           the S–D ramp for class badges: its own metals, not layer or state hexes.
@@ -30,7 +31,7 @@ export const C = {
   ink: '#2a1300',
 };
 
-/** The one brand and action colour: primary buttons, links, eyebrows, unread, selected chips. */
+/** The one brand and action colour: the primary button and selected states (and the wordmark). */
 export const BRAND = C.sodium;
 
 /** Map layers and place identity. Only on the map, the layer bar, the key and a place's own header. */
@@ -130,12 +131,6 @@ export const DRIVE_TYPE = { banner: 38, speed: 44, readout: 22, body: 17 } as co
  */
 export const FONT_SCALE = { chrome: 1.3, drive: 1.2 } as const;
 
-/** @deprecated v1 names. Use `RADII` (v2): `RADIUS.card` (8) is `RADII.control`, `RADIUS.sheet` (12) is `RADII.card`. */
-export const RADIUS = { tag: 4, card: 8, sheet: 12, pill: 999 } as const;
-
-/** @deprecated v1 names, kept so screens compile until they migrate. Use `SPACING` (v2). `section: 20` is off-scale (v2 uses 24). */
-export const SPACE = { screen: 16, section: 20, inCard: 8, between: 12, bottom: 40 } as const;
-
 // ===========================================================================
 // Design system v2 tokens (docs/DESIGN-SYSTEM.md). New code uses only these.
 // ===========================================================================
@@ -191,7 +186,8 @@ export const COLOR = {
   action: {
     primary: C.sodium,
     onPrimary: C.ink,
-    link: C.sodium,
+    /** Text links and tertiary buttons: chalk (Redesign 2, 5.4). Sodium is only the primary and "selected". */
+    link: C.chalk,
     selected: C.sodium,
     selectedTint: tint(C.sodium),
     disabledBorder: line(C.sodium),
@@ -220,6 +216,8 @@ export const COLOR = {
     /** Inputs and anything that must read as a control: 3:1 or better. */
     borderStrong: SURFACE.borderStrong,
     skeleton: C.kerb,
+    /** The one gradient over photos (transparent → asphalt at 90%), bottom to top under titles. */
+    photoFade: ['rgba(11,15,23,0)', 'rgba(11,15,23,0.9)'],
   },
   state: {
     live: STATE.live,
@@ -230,6 +228,8 @@ export const COLOR = {
     info: STATE.info,
   },
   classMetal: CLASS,
+  /** Number badges (unread messages, requests, notices): red, never sodium (Redesign 2, 4.8). */
+  badge: { bg: STATE.liveDot, fg: '#ffffff' },
   layer: LAYER,
   avatar: { bg: C.kerb, fg: C.chalk, border: C.kerbHi },
   /** Chat bubbles: yours a solid blue, theirs the raised grey (REVIEW-10: yours read as grey too). */
@@ -282,6 +282,8 @@ export const TYPE_SCALE = {
   display: { fontFamily: F.displayItalic, fontSize: 28, lineHeight: 32, caps: true, scale: 'chrome' },
   /** Screen header titles. */
   heading: { fontFamily: F.display, fontSize: 17, lineHeight: 22, caps: true, scale: 'chrome' },
+  /** Titles on photos (Hero, the sign-in tagline): upright, as typed, never caps. */
+  hero: { fontFamily: F.display, fontSize: 30, lineHeight: 34, scale: 'chrome' },
   /** Hero titles of user content (an event, a build, a place), as typed. */
   titleLg: { fontFamily: F.displayMed, fontSize: 24, lineHeight: 29, scale: 'body' },
   /** Content titles in rows and cards, as typed. */
@@ -293,9 +295,9 @@ export const TYPE_SCALE = {
   /** One-line facts: "Tonight 22:30 · 7 going · 3.2 mi". Keeps its case, tabular figures. */
   meta: { fontFamily: F.label, fontSize: 13, lineHeight: 17, letterSpacing: 0.4, scale: 'chrome', tabular: true },
   /** Field labels, stat labels. */
-  label: { fontFamily: F.label, fontSize: 12, lineHeight: 16, letterSpacing: 1.4, caps: true, scale: 'chrome' },
-  /** Section titles and an entity's kind. */
-  eyebrow: { fontFamily: F.labelBold, fontSize: 12, lineHeight: 16, letterSpacing: 2, caps: true, scale: 'chrome' },
+  label: { fontFamily: F.label, fontSize: 12, lineHeight: 16, letterSpacing: 1.0, caps: true, scale: 'chrome' },
+  /** Section titles and an entity's kind. Fog (`text.secondary`) by default; a layer colour only for an event's or place's kind. */
+  eyebrow: { fontFamily: F.labelBold, fontSize: 12, lineHeight: 16, letterSpacing: 1.5, caps: true, scale: 'chrome' },
   button: { fontFamily: F.labelBold, fontSize: 15, lineHeight: 19, letterSpacing: 2, caps: true, scale: 'chrome' },
   buttonSm: { fontFamily: F.labelBold, fontSize: 13, lineHeight: 17, letterSpacing: 1.4, caps: true, scale: 'chrome' },
   buttonLg: { fontFamily: F.labelBold, fontSize: 18, lineHeight: 22, letterSpacing: 2, caps: true, scale: 'chrome' },
@@ -335,6 +337,8 @@ export const ELEVATION = {
   float: { boxShadow: '0px 3px 10px rgba(0,0,0,0.4)' },
   /** Bottom sheets. */
   sheet: { boxShadow: '0px -4px 16px rgba(0,0,0,0.5)' },
+  /** The ActionBar pinned to the bottom of a detail screen or form. */
+  bar: { boxShadow: '0px -2px 12px rgba(0,0,0,0.45)' },
 } as const;
 
 /** Press feedback: one for controls, one for cards. */
@@ -344,7 +348,20 @@ export const PRESS = {
 } as const;
 
 /** Motion timings (ms). Reduced motion turns movement into a short fade of `fast`. */
-export const MOTION = { fast: 150, base: 220, sheet: 280, toast: 3200 } as const;
+export const MOTION = {
+  fast: 150,
+  base: 220,
+  sheet: 280,
+  toast: 3200,
+  /** A button turning into a tag ("I'm going" → Going). */
+  morph: 260,
+  /** The gap between list items fading up on first render. */
+  stagger: 30,
+} as const;
+
+/** Photo shapes (width / height) for PhotoCard and Hero: events 16:9, builds 4:3, posts 4:5. */
+export const ASPECT = { event: 16 / 9, build: 4 / 3, post: 4 / 5 } as const;
+export type AspectKind = keyof typeof ASPECT;
 
 /** Minimum tap target. */
 export const HIT = 44;

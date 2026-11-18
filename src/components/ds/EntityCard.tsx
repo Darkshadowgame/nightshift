@@ -14,6 +14,9 @@ export type EntityTag = { label: string; tone?: TagTone; raw?: boolean };
 const KIND_LABEL: Record<EntityKind, string> = { person: 'Person', build: 'Build', event: 'Event', place: 'Place' };
 
 /**
+ * @deprecated on browse surfaces: Redesign 2 replaces it with `PhotoCard` (photo first). Kept for
+ * screens that haven't moved yet. `sample` no longer draws a tag (Sample tags are cut).
+ *
  * One anatomy for a person, a build, an event and a place on a browse surface (Events, Find,
  * the map sheet, People, a crew). Top to bottom:
  *
@@ -77,7 +80,6 @@ export function EntityCard({
     meta,
     detail,
     tags: [status?.label, ...(chips ?? []).map((c) => c.label)].filter((x): x is string => !!x),
-    sample,
   });
 
   const content = (
@@ -93,7 +95,6 @@ export function EntityCard({
           <DsText v="eyebrow" numberOfLines={1} style={{ color: eyebrowColour, flexShrink: 1 }}>
             {eyebrow ?? KIND_LABEL[kind]}
           </DsText>
-          {sample ? <Tag label="Sample" accessibilityLabel="Sample, for the demo" /> : null}
           <View style={{ flex: 1 }} />
           {status ? <Tag label={status.label} tone={status.tone} raw={status.raw} /> : null}
         </View>

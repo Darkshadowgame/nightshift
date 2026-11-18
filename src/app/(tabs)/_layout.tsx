@@ -12,8 +12,11 @@ function icon(glyph: Glyph) {
 /**
  * Four tabs (docs/SPEC.md, "What's on tonight near me, and go with my car"):
  * Tonight (the map and the list of what's on), Community, Garage and Me.
- * One header on every tab (REVIEW-9 decision 12): caps title, "+ New" where you can make
- * something, and the bell. Tab names read out in the same case ("Community, 5 new").
+ * One header on every tab (Redesign 2, 4.1): caps title on the left; on the right "+" (only on
+ * Tonight, Community and Garage) then the bell, always in that order, never a text action.
+ * Screens add their "+" with `screenHeader({ add })` / `HeaderActions add`. The one number badge
+ * is on Community (unread messages plus requests), red (`COLOR.badge`), never sodium (4.8).
+ * Tab names read out in the same case ("Community, 5 new").
  */
 export default function TabsLayout() {
   // Unread messages and connection requests waiting for you.
@@ -47,7 +50,7 @@ export default function TabsLayout() {
           tabBarIcon: icon('community'),
           tabBarAccessibilityLabel: badge > 0 ? `Community, ${badge} new` : 'Community',
           tabBarBadge: badge > 0 ? (badge > 99 ? '99+' : badge) : undefined,
-          tabBarBadgeStyle: { backgroundColor: COLOR.action.primary, color: COLOR.action.onPrimary, fontFamily: TYPE_SCALE.tag.fontFamily },
+          tabBarBadgeStyle: { backgroundColor: COLOR.badge.bg, color: COLOR.badge.fg, fontFamily: TYPE_SCALE.tag.fontFamily },
         }}
       />
       <Tabs.Screen name="garage" options={{ ...screenHeader({ title: 'Garage', bell: true }), tabBarIcon: icon('car'), tabBarAccessibilityLabel: 'Garage' }} />
