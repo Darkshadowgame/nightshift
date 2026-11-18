@@ -540,6 +540,8 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 
 ### 4.4 Selectors *(replaces rules 8, 22 and the R10 list)*
 * Switch the view below: `SegmentedControl`, 2 to 4 options, **one per screen, never nested**.
+  *Exception (owner features, 19 Nov 2026):* a settings-style panel (the Tonight Layers sheet) may have one
+  `SegmentedControl` per labelled section (When, Map style). Reviewers must not count it.
 * One of many in a form or setting: `ChoiceGroup` (pills up to 5 options, list beyond).
 * Many of many (filters): `ChipGroup`. Nothing picked means everything.
 * A date or time: `DateTimeSheet`, everywhere (host flow, dyno run, track day). Never a typed date.
