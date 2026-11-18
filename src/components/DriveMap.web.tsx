@@ -77,8 +77,9 @@ export function DriveMap(props: DriveMapProps) {
         last = now;
         const t = latest.current;
         const following = !!t.focus && t.following;
-        // Turn the map: towards your heading (heading-up) while following, north-up otherwise.
-        rot = easeAngle(rot, following ? t.mapHeading : 0, dt);
+        // Turn the map: towards your heading (heading-up) while following, north-up otherwise. The
+        // first frame that follows you turns straight there, so the route never starts off sideways.
+        rot = following && !cam ? t.mapHeading : easeAngle(rot, following ? t.mapHeading : 0, dt);
         const deg = ((rot % 360) + 360) % 360;
         if (turn.current) {
           turn.current.style.transform = `translate(-50%, -50%) rotate(${-deg}deg)`;
@@ -143,16 +144,18 @@ export function DriveMap(props: DriveMapProps) {
     }
   }, [lf, panEnabled]);
 
-  // The route.
+  // The route still to drive (drive.tsx passes only the way ahead): one line, its points updated.
+  const line = useRef<Leaflet.Polyline | null>(null);
   useEffect(() => {
-    if (!lf || route.length < 2) return;
-    const line = lf.L.polyline(
-      route.map((p) => [p.lat, p.lng] as [number, number]),
-      { color: BRAND, weight: 8, lineCap: 'round', lineJoin: 'round', interactive: false },
-    ).addTo(lf.map);
+    if (!lf) return;
+    line.current = lf.L.polyline([], { color: BRAND, weight: 8, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(lf.map);
     return () => {
-      line.remove();
+      line.current?.remove();
+      line.current = null;
     };
+  }, [lf]);
+  useEffect(() => {
+    line.current?.setLatLngs(route.length >= 2 ? route.map((p) => [p.lat, p.lng] as [number, number]) : []);
   }, [lf, route]);
 
   const specs = useMemo<MarkerSpec[]>(() => {

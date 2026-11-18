@@ -592,17 +592,20 @@ export default function TonightScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       <View style={[st.top, { paddingTop: insets.top }]}>
-        <ScreenHeader title="Tonight"
-          tag={
-            demo ? (
-              <Press onPress={() => setDemoInfo(true)} label={`${DEMO_NIGHT.tag}: what this means`} role="button" style={{ minHeight: 44, justifyContent: 'center' }}>
-                <Tag label={DEMO_NIGHT.tag} tone="info" />
-              </Press>
-            ) : undefined
-          }
-          add={{ label: 'Host a meet', onPress: () => router.push('/event/new') }}
-          bell
-        />
+        {/* The actions flush right, where the navigator header puts every other tab's (Review 15 problem 14). */}
+        <View style={st.headerRow}>
+          <ScreenHeader title="Tonight"
+            tag={
+              demo ? (
+                <Press onPress={() => setDemoInfo(true)} label={`${DEMO_NIGHT.tag}: what this means`} role="button" style={{ minHeight: 44, justifyContent: 'center' }}>
+                  <Tag label={DEMO_NIGHT.tag} tone="info" />
+                </Press>
+              ) : undefined
+            }
+            add={{ label: 'Host a meet', onPress: () => router.push('/event/new') }}
+            bell
+          />
+        </View>
         <View style={st.searchRow}>
           <View style={{ flex: 1 }}>
             <SearchField onOpen={() => router.push('/search')} placeholder="Search meets, places…" accessibilityLabel="Search meets, places, people and addresses" />
@@ -682,6 +685,7 @@ export default function TonightScreen() {
               onHeaderLayout={setHeaderH}
               header={sheetHeader}
               toastAnchor={anchorHeight}
+              hidden={demoInfo || showLayers || !!bringFor}
             >
               {/* Read = push (4.5): a card in the sheet opens the event page, exactly as in List. */}
               {sections((v) => openEvent(v.event.id))}
@@ -716,6 +720,8 @@ export default function TonightScreen() {
 const st = StyleSheet.create({
   top: { zIndex: 2, paddingHorizontal: SPACING.screen, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // The navigator header's right side sits flush to the edge (its height is ScreenHeader's HEADER_ROW).
+  headerRow: { marginRight: -SPACING.screen },
   list: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
   stack: { position: 'absolute', right: SPACING.md, top: 0, gap: SPACING.sm, alignItems: 'flex-end' },
   // Solid, so road names never show through the buttons (Review 14).

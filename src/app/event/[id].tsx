@@ -1,12 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { TrophiesSection, VoteSheet, voteCategories } from '../../components/AwardsSection';
+import Animated, { FadeOut } from 'react-native-reanimated';
+import { TrophiesSection, VoteProgress, VoteSheet, voteCategories } from '../../components/AwardsSection';
 import { bhpLine, BringSheet, shortBuildName } from '../../components/BringPicker';
-import { isStaffNow, openModerate, openReport } from '../../components/Community';
+import { isStaffNow, openModerate, openReport, personMark } from '../../components/Community';
 import { CheckInCelebration, MediaFrame, NotFoundState, TextField } from '../../components/Detail';
 import {
   ActionBar,
+  Avatar,
   Button,
   ConfirmSheet,
   displayHandle,
@@ -47,7 +49,7 @@ import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LAB
 import { myEventStatus, newlyUnlocked, roleOf } from '../../lib/eventView';
 import { formatTime, goingSummary, plural } from '../../lib/format';
 import { aroundArea, GOING, MEET_POINT } from '../../lib/glossary';
-import { describeFilter } from '../../lib/invites';
+import { inviteRows } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
 import { planForEvent } from '../../lib/navPlan';
 import { askPermission, notificationsSupported } from '../../lib/notify';
@@ -57,9 +59,12 @@ import { photoSource } from '../../lib/photoSource';
 import { REP } from '../../lib/rep';
 import { eventSharePayload } from '../../lib/share';
 import { useStore } from '../../lib/store';
-import type { Build, LatLng } from '../../lib/types';
+import type { Build, LatLng, User } from '../../lib/types';
 import { clock, endedLabel, timeRange } from '../../lib/when';
-import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../../theme';
+import { COLOR, EVENT_COLOURS, MOTION, RADII, SPACING } from '../../theme';
+
+/** How long the "+150 rep" moment stays after check-in before it folds away. */
+const REP_MOMENT_MS = 6000;
 
 /** The event map's height, and the room the ActionBar takes at the bottom (for scrolling the map into view). */
 const MAP_H = 180;
@@ -92,6 +97,12 @@ export default function EventScreen() {
   const errorAt = (at: ErrorAt) => (error?.at === at ? error.text : null);
   const [busy, setBusy] = useState(false);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
+  // "+150 rep" is a moment, not page content (Review 15 decision 7): it shows once, then folds away.
+  useEffect(() => {
+    if (!justCheckedIn) return;
+    const t = setTimeout(() => setJustCheckedIn(false), REP_MOMENT_MS);
+    return () => clearTimeout(t);
+  }, [justCheckedIn]);
   const [reminded, setReminded] = useState(false);
   const [unlock, setUnlock] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -211,8 +222,11 @@ export default function EventScreen() {
   // The demo (Review 14): once you've voted and closed the vote sheet, voting is closed for you and
   // the results show now, said once ("Results are in." and the results), never "Results tomorrow".
   const votedAny = votes.some((v) => v.eventId === ev.id && v.voterId === me);
-  const resultsIn = store.backend === 'local' && votedAny && voteCat === null && !ev.cancelled && phase !== 'over';
-  const status = statusLine(ev, state, { me, crews, builds, users, votes, now, resultsIn });
+  const demo = store.backend === 'local';
+  const resultsIn = demo && votedAny && voteCat === null && !ev.cancelled && phase !== 'over';
+  const cats = voteCategories(ev, builds, me, now);
+  // The demo never promises a time it won't keep (Review 15 decision 2): "Vote for 3 trophies.", then "Results are in."
+  const status = statusLine(ev, state, { me, crews, builds, users, votes, now, resultsIn, demo: demo && phase !== 'over', trophies: cats.length });
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -333,33 +347,29 @@ export default function EventScreen() {
   // ---------------------------------------------------------------------------
   // The ActionBar, by state (3.5 table).
   // ---------------------------------------------------------------------------
-  const cats = voteCategories(ev, builds, me, now);
   const voted = (cat: string) => votes.find((v) => v.eventId === ev.id && v.voterId === me && v.category === cat)?.buildId;
   const votedCats = cats.filter((c) => !!voted(c));
   const toVote = cats.filter((c) => !voted(c));
   const firstUnvoted = cats.find((c) => !votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)) ?? cats[0];
+  // "1 of 3 voted · Best car next": always clear which trophies still need your vote (Review 15).
+  const voteProgress = <VoteProgress cats={cats} voted={(c) => !!voted(c)} onVote={setVoteCat} />;
   const addPhoto: ActionBarButton = { label: 'Add a photo', onPress: () => flow.pick(), busy: flow.busy };
   let primary: ActionBarButton | null = null;
   let secondary: ActionBarButton | null = null;
-  // No status pill that repeats the status line (C5, Review 12): the line says when the location
-  // shows; the ActionBar only adds what's new (the reminder you set).
+  // Going, location hidden (3.5, 4.3; Review 15 decision 4): no primary yet, so the bar shows a
+  // status pill ("Going · location at 21:30") and Remind me. "Can't make it" is never a button: it's in ···.
   let pill: string | null = null;
-  /** Going (not hosting) and nothing to do yet: "Can't make it" is the bar's secondary (Review 11). */
-  const leaveInBar = going && !host && (state.kind === 'waiting' || state.kind === 'navigate');
-  const leaveButton: ActionBarButton = { label: GOING.leave, onPress: () => setConfirmLeave(true) };
   const canRemind = state.kind === 'waiting' && !state.placing && new Date(state.at) > now && !reminded;
   switch (state.kind) {
     case 'join':
       primary = { label: state.request ? 'Ask to go' : "I'm going", onPress: state.request ? () => (mine.length > 1 ? setBring('go') : commitGoing(defaultPick?.id)) : imGoing, busy, haptic: 'success' };
       break;
     case 'waiting':
-      if (leaveInBar) secondary = leaveButton;
-      else if (canRemind) secondary = { label: 'Remind me', onPress: () => remindMe(state.at) };
-      if (reminded) pill = `Reminder at ${formatTime(state.at)}`;
+      if (canRemind) secondary = { label: 'Remind me', onPress: () => remindMe(state.at) };
+      if (going && !host) pill = state.placing ? 'Going · location soon' : reminded ? `Going · reminder at ${formatTime(state.at)}` : `Going · location at ${formatTime(state.at)}`;
       break;
     case 'navigate':
       if (navTo) primary = { label: nav.label, onPress: nav.open };
-      if (leaveInBar) secondary = leaveButton;
       break;
     case 'checkin':
       primary = { label: 'Check in', onPress: doCheckIn, busy, haptic: 'success' };
@@ -428,11 +438,11 @@ export default function EventScreen() {
   const canEdit = host && canEditEvent(ev, now).ok;
   const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
   const requests = ev.requests ?? [];
+  const invite = inviteRows(ev.filter);
 
   type MenuOption = { label: string; detail?: string; destructive?: boolean; onPress: () => void };
   const menuOptions: MenuOption[] = ([
-    going && !host && !closed && !leaveInBar ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
-    leaveInBar && canRemind && state.kind === 'waiting' ? { label: `Remind me at ${formatTime(state.at)}`, onPress: () => (setMenu(false), remindMe(state.at)) } : null,
+    going && !host && !closed ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
     (going || host) && !closed && mine.length > 0 ? { label: 'Change what you’re bringing', onPress: () => (setMenu(false), setBring('change')) } : null,
     ev.requests?.includes(me) ? { label: GOING.cancelRequest, onPress: () => (setMenu(false), attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.")) } : null,
     navTo ? { label: 'Open in another app', onPress: () => (setMenu(false), nav.openOther()) } : null,
@@ -452,7 +462,8 @@ export default function EventScreen() {
   const map = (
     <>
       <NightMap
-        pins={anyVisible ? mapPins : []}
+        // While "Location shown" plays, its own pin is the only one (no second pin under it, Review 15).
+        pins={anyVisible && !unlock ? mapPins : []}
         paths={mapPaths}
         // The area in a quiet grey: colour is for the pin (accent rule, Review 13).
         circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour: COLOR.text.secondary }]}
@@ -510,7 +521,9 @@ export default function EventScreen() {
             ) : null}
           </View>
           {justCheckedIn ? (
-            <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up." />
+            <Animated.View exiting={FadeOut.duration(MOTION.base)}>
+              <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up." />
+            </Animated.View>
           ) : null}
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
@@ -524,7 +537,7 @@ export default function EventScreen() {
 
         {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (
           <View onLayout={(l) => (trophiesAt.current = l.nativeEvent.layout.y)}>
-            <TrophiesSection event={ev} preview={resultsIn && now < votingCloses(ev)} />
+            <TrophiesSection event={ev} preview={resultsIn && now < votingCloses(ev)} progress={resultsIn ? voteProgress : null} />
           </View>
         ) : null}
 
@@ -578,12 +591,7 @@ export default function EventScreen() {
               {toVote.length > 0 ? (
                 <View>
                   <RowDivider inset />
-                  <ListRow
-                    leading={{ icon: 'plus', colour: COLOR.text.secondary }}
-                    title={`${toVote.length} more to vote`}
-                    subtitle={toVote.map((c) => categoryInfo(c).label).join(', ')}
-                    onPress={() => setVoteCat(toVote[0])}
-                  />
+                  {voteProgress}
                 </View>
               ) : null}
             </View>
@@ -592,7 +600,7 @@ export default function EventScreen() {
 
         {going || host ? (
           <Section title="Chat">
-            <ChatLines lines={chatPage.items} earlier={chatOpen ? chatPage.earlier : 0} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} />
+            <ChatLines lines={chatPage.items} earlier={chatOpen ? chatPage.earlier : 0} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} users={users} />
             {!chatOpen && messages.length > 2 ? <Button tier="tertiary" size="sm" label={`See all ${messages.length} messages`} onPress={() => setChatOpen(true)} style={{ alignSelf: 'flex-start' }} /> : null}
             {!closed ? (
               <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
@@ -652,7 +660,9 @@ export default function EventScreen() {
                 <DsText v="caption">{`Everyone going sees the next ${MEET_POINT.one}; ${plural(audience, 'person')} checked in here get a notice.`}</DsText>
               </View>
             ) : null}
-            <DsText v="secondary">{`${plural(requests.length, 'request')} · ${describeFilter(ev.filter)}`}</DsText>
+            {requests.length === 0 && !ev.filter.everyone ? <DsText v="secondary">No requests to go yet.</DsText> : null}
+            {/* The host form's two rows, word for word (Review 15 decision 1). Said here for hosts, in About for everyone else. */}
+            <InviteRows rows={invite} />
           </Section>
         ) : null}
 
@@ -663,7 +673,7 @@ export default function EventScreen() {
             title={`Hosted by ${hostLine}`}
             onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
           />
-          <DsText v="secondary">{`Open to: ${describeFilter(ev.filter)}`}</DsText>
+          {host && !closed ? null : <InviteRows rows={invite} />}
           {earlier.map((x) => (
             <ListRow
               key={x.id}
@@ -776,6 +786,22 @@ export default function EventScreen() {
   );
 }
 
+/** Who can come, then who we'll tell: the host form's two rows (`inviteRows`), never "Anyone within 25 mi". */
+function InviteRows({ rows }: { rows: { come: string; tell: string } }) {
+  return (
+    <View style={{ gap: SPACING.xxs }}>
+      <DsText v="secondary">
+        <DsText v="secondary" tone="primary">Who can come: </DsText>
+        {rows.come}
+      </DsText>
+      <DsText v="secondary">
+        <DsText v="secondary" tone="primary">Who we'll tell: </DsText>
+        {rows.tell}
+      </DsText>
+    </View>
+  );
+}
+
 /** One square photo in the event's Photos grid. */
 function PhotoTile({ photoRef }: { photoRef: string }) {
   return <Image source={photoSource(photoRef)} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />;
@@ -784,7 +810,7 @@ function PhotoTile({ photoRef }: { photoRef: string }) {
 type Line = { id: string; userId: string; text: string; at: string; system?: boolean };
 
 /** Chat lines: a system line is a quiet caption; a person is their handle and the time, then the text. */
-function ChatLines({ lines, earlier, onEarlier, me, label }: { lines: readonly Line[]; earlier: number; onEarlier: () => void; me: string; label: (uid: string) => string }) {
+function ChatLines({ lines, earlier, onEarlier, me, label, users }: { lines: readonly Line[]; earlier: number; onEarlier: () => void; me: string; label: (uid: string) => string; users: readonly User[] }) {
   if (lines.length === 0) return <EmptyState variant="inline" title="No messages yet. Say hello." />;
   return (
     <View style={{ gap: SPACING.md }}>
@@ -803,9 +829,14 @@ function ChatLines({ lines, earlier, onEarlier, me, label }: { lines: readonly L
             feedback="none"
             style={{ gap: SPACING.xxs }}
           >
-            <DsText v="meta">
-              {label(m.userId)} · {formatTime(m.at)}
-            </DsText>
+            {/* A person is always avatar + @handle (K3, Review 15): the group chat's sender row. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+              <Avatar {...personMark(users.find((u) => u.id === m.userId))} size="sm" />
+              <DsText v="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {label(m.userId)}
+              </DsText>
+              <DsText v="meta">· {formatTime(m.at)}</DsText>
+            </View>
             <DsText v="body">{m.text}</DsText>
           </Press>
         ),

@@ -99,8 +99,8 @@ export function normaliseFilter(filter: InviteFilter): InviteFilter {
 }
 
 /**
- * The invite in one line. An invite open to everyone still has a radius, so it
- * says so ("Anyone within 100 mi") rather than "everyone welcome".
+ * The invite in one line, for logs and labels only. Never shown to people: it reads the radius as
+ * a limit on who may come ("Anyone within 25 mi"). Screens use `inviteRows` (Review 15 decision 1).
  */
 export function describeFilter(filter: InviteFilter): string {
   if (filter.everyone) return `Anyone within ${filter.radiusMiles} mi`;
@@ -119,7 +119,7 @@ export function describeFilter(filter: InviteFilter): string {
  * The host form's two plain rows (Review 14 decision 1, fourth review running): who may come, and
  * apart from it, who we'll tell. The radius only ever appears in the second, so it reads as the
  * invite's reach, never a limit on who may come. `people` is the count as the form has it: "18",
- * "fewer than 3", "…" or "?".
+ * "fewer than 3", "…" or "?". Without it (the posted meet's page, Review 15) the count is left off.
  *
  *   Who can come: Everyone
  *   Who we'll tell: drivers within 25 mi · about 18 people
@@ -127,10 +127,11 @@ export function describeFilter(filter: InviteFilter): string {
  *   Who can come: Bikes · Class A–S
  *   Who we'll tell: matching drivers within 10 mi · 7 people
  */
-export function inviteRows(filter: InviteFilter, people: string): { come: string; tell: string } {
-  const n = /^\d+$/.test(people) ? Number(people) : null;
-  const count = n === null ? `${people} people` : n === 1 ? (filter.everyone ? 'about 1 person' : '1 person') : filter.everyone ? `about ${n} people` : `${n} people`;
-  if (filter.everyone) return { come: 'Everyone', tell: `drivers within ${filter.radiusMiles} mi · ${count}` };
+export function inviteRows(filter: InviteFilter, people?: string): { come: string; tell: string } {
+  const n = people !== undefined && /^\d+$/.test(people) ? Number(people) : null;
+  const count = people === undefined ? null : n === null ? `${people} people` : n === 1 ? (filter.everyone ? 'about 1 person' : '1 person') : filter.everyone ? `about ${n} people` : `${n} people`;
+  const reach = (who: string) => [`${who} within ${filter.radiusMiles} mi`, count].filter(Boolean).join(' · ');
+  if (filter.everyone) return { come: 'Everyone', tell: reach('drivers') };
   const parts: string[] = [];
   if (filter.cars && !filter.bikes) parts.push('Cars');
   else if (filter.bikes && !filter.cars) parts.push('Bikes');
@@ -138,7 +139,7 @@ export function inviteRows(filter: InviteFilter, people: string): { come: string
   if (filter.classes.length > 0) parts.push(`Class ${classRange(filter.classes)}`);
   if (filter.minMods > 0) parts.push(`${filter.minMods}+ mods`);
   if (filter.brands.length > 0) parts.push(filter.brands.join(', '));
-  return { come: parts.join(' · '), tell: `matching drivers within ${filter.radiusMiles} mi · ${count}` };
+  return { come: parts.join(' · '), tell: reach('matching drivers') };
 }
 
 const ORDER = 'SABCD';

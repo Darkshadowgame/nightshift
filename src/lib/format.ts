@@ -77,10 +77,18 @@ export function distanceText(miles: number, from: 'you' | 'home' | 'about' = 'yo
 /** Where every distance is measured from: your GPS fix while location is on, else your home. */
 export type DistanceOrigin = { at: LatLng; from: 'you' | 'home' };
 
-/** The one origin: `here` (a GPS fix) when there is one, else `home`; null with neither. */
+/** Further than this from home, the GPS fix isn't "near you": Tonight is about home's area (Review 15 problem 11). */
+export const AWAY_FROM_HOME_MILES = 30;
+
+/**
+ * The one origin: `here` (a GPS fix) when there is one, else `home`; null with neither. A fix far
+ * from home (on holiday, a London phone on a Tamworth demo) measures from home, said "from home",
+ * so the map, "Around Tamworth" and the distances agree.
+ */
 export function distanceOrigin(here: LatLng | null | undefined, home: LatLng | null | undefined): DistanceOrigin | null {
-  if (here) return { at: here, from: 'you' };
-  if (home && (home.lat !== 0 || home.lng !== 0)) return { at: home, from: 'home' };
+  const hasHome = !!home && (home.lat !== 0 || home.lng !== 0);
+  if (here && !(hasHome && milesBetween(here, home!) > AWAY_FROM_HOME_MILES)) return { at: here, from: 'you' };
+  if (hasHome) return { at: home!, from: 'home' };
   return null;
 }
 
@@ -102,4 +110,20 @@ export function meetDistance(event: { area: LatLng }, origin: DistanceOrigin | n
 export function goingSummary(going: number, cars = 0, bikes = 0): string {
   const mix = [cars ? plural(cars, 'car') : null, bikes ? plural(bikes, 'bike') : null].filter(Boolean).join(', ');
   return mix && cars + bikes > 0 ? `${going.toLocaleString('en-GB')} going · ${mix}` : `${going.toLocaleString('en-GB')} going`;
+}
+
+/** A display-italic character's width, in ems, rounded up; and the room kept for larger text (1.3x). */
+const CHAR_EM = 0.56;
+const TEXT_ROOM = 1.3;
+
+/**
+ * The cover's title: make and model each kept whole (no break inside "i30 N" or "Land Rover"), so it
+ * reads "Hyundai / i30 N" over two lines at most, never "Hyundai i30 / N" (Review 15 decision 3).
+ * The size shrinks until the longer piece fits on its line, with room for 1.3x text.
+ */
+export function coverTitle(make: string, model: string, room: number, max: number): { text: string; size: number } {
+  const whole = (t: string) => t.trim().replace(/\s+/g, '\u00a0').replace(/-/g, '\u2011');
+  const longest = Math.max(make.trim().length, model.trim().length, 1);
+  const size = Math.max(14, Math.min(max, Math.floor(room / (longest * CHAR_EM * TEXT_ROOM))));
+  return { text: `${whole(make)} ${whole(model)}`, size };
 }

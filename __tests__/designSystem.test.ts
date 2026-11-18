@@ -244,7 +244,10 @@ describe('numbers and units (4.9, format.ts)', () => {
     const home = { lat: 52.63, lng: -1.7 };
     const ev = { area: { lat: 52.66, lng: -1.7 } };
     expect(f.distanceOrigin(null, home)).toEqual({ at: home, from: 'home' });
-    expect(f.distanceOrigin({ lat: 1, lng: 1 }, home).from).toBe('you');
+    expect(f.distanceOrigin({ lat: 52.6, lng: -1.65 }, home).from).toBe('you');
+    // A fix far from home (London, with a Tamworth home) measures from home (Review 15 problem 11).
+    expect(f.distanceOrigin({ lat: 51.5072, lng: -0.1276 }, home)).toEqual({ at: home, from: 'home' });
+    expect(f.distanceOrigin({ lat: 1, lng: 1 }, null).from).toBe('you');
     expect(f.distanceOrigin(null, { lat: 0, lng: 0 })).toBeNull();
     const o = f.distanceOrigin(null, home);
     expect(f.meetDistance(ev, o)).toBe('2 mi from home');

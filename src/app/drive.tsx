@@ -73,6 +73,7 @@ import {
   routeBox,
   routePoints,
   secondsBetween,
+  routeAhead,
   snapToRoute,
   spokenDistance,
   stopAlongs,
@@ -249,6 +250,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const noDirections = Platform.OS !== 'ios' || !navDirectionsAvailable;
   // The demo's simulated drive; signed in, the server judges real fixes only.
   const simulate = store.backend === 'local' && (settings.simulateGps || noDirections);
+  const simulateRef = useRef(simulate);
+  simulateRef.current = simulate;
   const cameraAlerts = settings.navCameraAlerts !== false;
   /** Road reports (Waze-style, the owner's decision 6): on unless turned off in this view's ··· menu. */
   const reportsOn = settings.roadReports !== false;
@@ -472,6 +475,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       setOsmRoad((prev) => (prev?.wayId === info?.wayId ? prev : info));
       return;
     }
+    // The demo drive is driven for you on a baked road: no live road lookups (a busy Overpass
+    // answers 429/502, a console error in the preview; Review 15).
+    if (simulateRef.current) return;
     if (roadLoading.current || !lookupDue(false, roadLookupAt.current, realNowMs())) return;
     roadLoading.current = true;
     roadLookupAt.current = realNowMs();
@@ -729,6 +735,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   // Which way the map faces: GPS course when moving, else the compass, else the route (heading.ts), eased.
   useEffect(() => {
     let shown: number | null = null;
+    // The first real direction of travel (GPS course or the route) is taken at once, not eased in
+    // from where the map started: otherwise the route leaves the arrow sideways (Review 15 problem 13).
+    let travelling = false;
     const t = setInterval(() => {
       const f = fixRef.current;
       const fresh = f && realNowMs() - fixAt.current < 3000;
@@ -738,7 +747,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         compass: compassRef.current,
         route: snapRef.current,
       });
-      const next = smoothHeading(shown, pick.heading);
+      const real = pick.source === 'gps' || pick.source === 'route';
+      const next = smoothHeading(real && !travelling ? null : shown, pick.heading);
+      if (real) travelling = true;
       if (next != null && next !== shown) {
         shown = next;
         setHeading(next);
@@ -957,6 +968,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   // Less on the map: cameras only on the route ahead (within 2 miles), reports on the route and the few nearest you.
   const along = progress?.snap.along ?? 0;
   const alongBucket = Math.floor(along / 250);
+  // Only the way ahead is drawn (Review 15 problem 13), redrawn every 20 m.
+  const aheadStep = Math.floor(along / 20);
+  const routeLine = useMemo(() => (route ? routeAhead(route, aheadStep * 20) : []), [route, aheadStep]);
   const mapCameras = useMemo(
     () =>
       active
@@ -1065,7 +1079,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       <View style={{ flex: 1 }}>
         <DriveMap
-          route={route?.coords ?? []}
+          route={routeLine}
           stops={mapStops}
           cameras={cameraAlerts ? mapCameras : []}
           reports={mapReports}

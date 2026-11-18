@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { ART, RADII, SPACING } from '../theme';
+import { ART, COLOR, RADII, SPACING } from '../theme';
 import { DsText } from './ds/Text';
 
 export type Glyph =
@@ -60,7 +60,8 @@ export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rollin
 /**
  * Game-style hexagon badge with a glyph, as on the concept board. `count`
  * adds a small number badge (a group of places when zoomed out); `badge` a
- * short text one ("P" on partners, so the label is on the map too).
+ * short text one ("P" on partners, so the label is on the map too). Both are chalk, never the
+ * pin's sodium: a number badge in colour means "waiting for you" (4.8), and a group isn't.
  * Memoised: map markers re-render only when what they draw changes.
  */
 export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string }) {
@@ -79,7 +80,7 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
       <View
         style={{
           position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
-          backgroundColor: colour, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: COLOR.text.primary, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
         }}
       >
         <DsText v="tag" style={{ color: INK, lineHeight: 13, letterSpacing: 0 }}>

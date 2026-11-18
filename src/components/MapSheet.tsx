@@ -49,6 +49,7 @@ export function MapSheet({
   header,
   onHeaderLayout,
   toastAnchor,
+  hidden,
   children,
 }: {
   y: SharedValue<number>;
@@ -70,15 +71,20 @@ export function MapSheet({
    * null when the sheet isn't on screen. Toasts then never cover the card's I'm going.
    */
   toastAnchor?: number | null;
+  /**
+   * Another sheet is open (Demo night, Map layers, What are you bringing?): this one slides away
+   * first and comes back when it closes. Never a sheet on a sheet, never two grab handles (4.5).
+   */
+  hidden?: boolean;
   children: ReactNode;
 }) {
   const reduced = useReducedMotion();
   const anchor = useToastAnchor();
   const anchorId = useId();
   useEffect(() => {
-    anchor(anchorId, toastAnchor ?? null);
+    anchor(anchorId, hidden ? null : (toastAnchor ?? null));
     return () => anchor(anchorId, null);
-  }, [anchor, anchorId, toastAnchor]);
+  }, [anchor, anchorId, toastAnchor, hidden]);
   const tops = detentTops(height, peek, top);
   const live = useRef({ tops, detent, reduced, scrollY: 0, start: 0 });
   live.current.tops = tops;
@@ -97,10 +103,10 @@ export function MapSheet({
   }
   // Move when the detent or the screen changes (a pin tapped, the screen rotated, text size changed).
   useEffect(() => {
-    const to = tops[detent];
-    y.value = reduced ? to : withSpring(to, SPRING);
+    const to = hidden ? height + 24 : tops[detent];
+    y.value = reduced ? to : hidden ? withTiming(to, { duration: 180 }) : withSpring(to, SPRING);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detent, tops.peek, tops.half, tops.full, reduced]);
+  }, [detent, tops.peek, tops.half, tops.full, reduced, hidden, height]);
 
   const pan = useMemo(
     () =>
@@ -132,7 +138,7 @@ export function MapSheet({
   const cycle = () => snap(ORDER[(i + 1) % ORDER.length]);
 
   return (
-    <Animated.View style={[st.sheet, { height: height - top }, style]} {...pan.panHandlers}>
+    <Animated.View style={[st.sheet, { height: height - top }, style]} pointerEvents={hidden ? 'none' : 'auto'} aria-hidden={hidden || undefined} {...pan.panHandlers}>
       <View onLayout={(e: LayoutChangeEvent) => onHeaderLayout?.(e.nativeEvent.layout.height)}>
         <Pressable
           onPress={cycle}

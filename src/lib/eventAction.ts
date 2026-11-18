@@ -1,4 +1,4 @@
-import { canVote, categoriesFor, results, votingCloses, categoryInfo, type Vote } from './awards';
+import { canVote, categoriesFor, results, votingCloses, type Vote } from './awards';
 import { broughtBuild } from './bringing';
 import { classOf } from './classes';
 import { canSeeStop, checkInOpensAt, checkInWindowOpen, endTime, hasRequested, isHost, isPublicType, phaseOf, revealTime } from './events';
@@ -24,15 +24,18 @@ import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from '.
  * | navigate    | "Leisure park car park, Tamworth."           | "Check-in opens at 21:00 (in 20 min)." | Navigate                   |
  * | checkin     | "Leisure park car park, Tamworth."           | ("You're 2 mi away." with a fix)     | Check in + Navigate          |
  * | checkedIn   | "Leisure park car park, Tamworth."           | "Voting opens at 20:30." (if early)  | Navigate / Add a photo       |
- * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00."      | Vote + Add a photo           |
+ * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00." (demo: "Vote for 3 trophies.") | Vote + Add a photo |
  * | voted       | "Leisure park car park, Tamworth."           | "Results tomorrow 23:00." (demo: "Results are in.") | Add a photo   |
- * | ended       | "Ended. Best in show: @dan_r's BMW M4."      |                                      | See photos (secondary)       |
+ * | ended       | "Results are in." (the winner: on the cover) |                                      | See photos (secondary)       |
  * | cancelled   | "Cancelled by the host."                     |                                      | nothing                      |
  *
  * "Check-in is open" is never said: the ActionBar's Check in says it. Each fact once (C5): being
  * going or checked in is the hero's status tag (`myEventStatus`) and the toast, never the place
  * line too. Once the meet point is shown it stays named, checked in or not.
  */
+/** Results out (or, in the demo, as soon as you've voted). The winners themselves are on the cover. */
+export const RESULTS_IN = 'Results are in.';
+
 export type EventPrimary =
   /** Not going yet. `request`: not open to you, so a host has to say yes ("Ask to go"). */
   | { kind: 'join'; request: boolean }
@@ -122,7 +125,7 @@ function townOf(event: NightEvent): string | undefined {
 export function statusLine(
   event: NightEvent,
   state: EventPrimary,
-  ctx: { me: string; crews: Crew[]; builds: Build[]; users: User[]; votes: Vote[]; now: Date; milesAway?: number | null; resultsIn?: boolean },
+  ctx: { me: string; crews: Crew[]; builds: Build[]; users: User[]; votes: Vote[]; now: Date; milesAway?: number | null; resultsIn?: boolean; demo?: boolean; trophies?: number },
 ): { text: string; note?: string; done?: boolean } {
   const { now } = ctx;
   const current = event.type === 'rolling' ? event.currentStop : 0;
@@ -163,16 +166,15 @@ export function statusLine(
       return { text: place, note: now < new Date(event.startsAt) ? `Voting opens at ${clock(event.startsAt)}.` : undefined };
     }
     case 'vote':
+      // The demo has one honest state each side of voting (Review 15 decision 2): never a time it won't keep.
+      if (ctx.demo) return { text: shownSentence(), note: `Vote for ${plural(Math.max(1, ctx.trophies ?? 1), 'trophy', 'trophies')}.` };
       return { text: shownSentence(), note: `Voting closes ${untilText(votingCloses(event), now)}.` };
     case 'voted':
-      return { text: shownSentence(), note: ctx.resultsIn ? 'Results are in.' : `Results ${untilText(votingCloses(event), now)}.` };
+      return { text: shownSentence(), note: ctx.resultsIn || ctx.demo ? RESULTS_IN : `Results ${untilText(votingCloses(event), now)}.` };
     case 'ended': {
       if (now < votingCloses(event)) return { text: `Ended. Results ${untilText(votingCloses(event), now)}.` };
-      const best = results(ctx.votes, event, ctx.builds, now).find((a) => a.category === 'best-in-show');
-      if (!best) return { text: 'Ended.' };
-      const b = ctx.builds.find((x) => x.id === best.buildId);
-      const who = best.ownerId === ctx.me ? 'you' : `@${ctx.users.find((u) => u.id === best.ownerId)?.handle ?? 'someone'}`;
-      return { text: `Ended. ${categoryInfo('best-in-show').label}: ${who === 'you' ? 'your' : `${who}'s`} ${b ? `${b.make} ${b.model}` : 'build'}.` };
+      // The winner is said once, on the trophy cover (Review 15 decision 2): the line only says they're in.
+      return { text: results(ctx.votes, event, ctx.builds, now).length > 0 ? RESULTS_IN : 'Ended.' };
     }
   }
 }

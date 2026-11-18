@@ -32,6 +32,9 @@ describe('inviteRows (Review 14 decision 1: who can come apart from who we tell)
     expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toEqual({ come: 'Everyone', tell: 'drivers within 25 mi · about 18 people' });
     expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1').tell).toBe('drivers within 25 mi · about 1 person');
     expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3').tell).toBe('drivers within 10 mi · fewer than 3 people');
+    // The posted meet (Review 15 decision 1): the same two rows, no count.
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 })).toEqual({ come: 'Everyone', tell: 'drivers within 25 mi' });
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }).tell).toBe('matching drivers within 10 mi');
   });
   it('limited: the limits, never the radius, say who can come', () => {
     const r = inviteRows({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7');

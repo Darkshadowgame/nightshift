@@ -4,7 +4,7 @@ import { photoSource } from '../lib/photoSource';
 import Svg, { Path, Rect, TSpan, Text as SvgText } from 'react-native-svg';
 import { categoryInfo, type Award } from '../lib/awards';
 import { classOf } from '../lib/classes';
-import { plural } from '../lib/format';
+import { coverTitle, plural } from '../lib/format';
 import { powerText } from '../lib/dyno';
 import { modCount } from '../lib/modGroups';
 import type { Build, NightEvent, User } from '../lib/types';
@@ -19,6 +19,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
   const pic = useBuildPicture(build);
   const date = new Date(award.at);
   const issue = `${date.toLocaleString('en-GB', { month: 'short' }).toUpperCase()} ${date.getFullYear()}`;
+  const title = coverTitle(build.make, build.model, width - 2 * SPACING.md - BADGE_SM - SPACING.sm, width * 0.1);
   return (
     <View style={[st.cover, { width, height: h }]} accessibilityLabel={`Cover: ${categoryInfo(award.category).label}, ${build.make} ${build.model}`}>
       {pic ? (
@@ -32,7 +33,8 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
       <View style={st.top}>
         {/* The masthead is a drawing (SVG text): it scales with the cover, never with the text size, so it's never cut. */}
         <Svg width={width - 2 * SPACING.md} height={width * 0.17} accessibilityLabel="Nightshift">
-          <SvgText x={0} y={width * 0.135} fontFamily={F.displayItalic} fontSize={width * 0.14} letterSpacing={-1} fill={COLOR.text.primary}>
+          {/* textLength pins its width (Review 15): at any text size it fills the same box, never "NIGHTSHIF". */}
+          <SvgText x={0} y={width * 0.135} fontFamily={F.displayItalic} fontSize={width * 0.14} letterSpacing={-1} textLength={width * MASTHEAD_SHARE} lengthAdjust="spacingAndGlyphs" fill={COLOR.text.primary}>
             NIGHT
             <TSpan fill={COLOR.action.primary}>SHIFT</TSpan>
           </SvgText>
@@ -50,8 +52,8 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
           <ClassBadge letter={classOf(build)} size="sm" />
-          <DsText v="hero" numberOfLines={2} allowFontScaling={false} style={{ flexShrink: 1, fontFamily: F.displayItalic, fontSize: width * 0.1, lineHeight: width * 0.12 }}>
-            {build.make} {build.model}
+          <DsText v="hero" numberOfLines={2} allowFontScaling={false} style={{ flexShrink: 1, fontFamily: F.displayItalic, fontSize: title.size, lineHeight: Math.round(title.size * 1.2) }}>
+            {title.text}
           </DsText>
         </View>
         <DsText v="meta" tone="primary">
@@ -67,6 +69,10 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
   );
 }
 
+/** The class badge's width at size "sm" (ds ClassBadge). */
+const BADGE_SM = 22;
+/** The masthead's width as a share of the cover's: its natural width at 0.14 × the cover (Review 15). */
+const MASTHEAD_SHARE = 0.78;
 export function Trophy({ colour = COLOR.action.primary, size = 34 }: { colour?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 40 40">

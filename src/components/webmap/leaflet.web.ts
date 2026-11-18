@@ -132,7 +132,10 @@ export function makeMap(L: L, el: HTMLElement, opts: { zoomSnap?: number; onTile
     map,
     remove: () => {
       window.removeEventListener('online', online);
-      map.remove();
+      // A zoom animation ends on a 250 ms timer Leaflet never clears: removing the map before it
+      // fires throws "_leaflet_pos" (Review 15). Wait for it to end first.
+      if ((map as unknown as { _animatingZoom?: boolean })._animatingZoom) setTimeout(() => map.remove(), 300);
+      else map.remove();
     },
   };
 }

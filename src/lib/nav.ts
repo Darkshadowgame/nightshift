@@ -241,6 +241,18 @@ export function pointAlong(route: NavRoute, along: number): { at: LatLng; bearin
   return { at: { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t }, bearing: bearing(a, b) };
 }
 
+/**
+ * The part of the route still to drive, from `along` to the end (Review 15 problem 13): the map
+ * draws only the way ahead, so the line always leaves the arrow forwards, never trails behind it.
+ */
+export function routeAhead(route: NavRoute, along: number): LatLng[] {
+  const { coords, cum } = route;
+  if (coords.length < 2 || along <= 0) return coords;
+  const here = pointAlong(route, along).at;
+  const rest = coords.filter((_, i) => cum[i] > along);
+  return rest.length > 0 ? [here, ...rest] : [];
+}
+
 // ---------------------------------------------------------------------------
 // Where am I on the route?
 // ---------------------------------------------------------------------------

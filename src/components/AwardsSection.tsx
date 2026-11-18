@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { canVote, categoriesFor, categoryInfo, eligibleFor, previewResults, results, votingCloses, type AwardCategory } from '../lib/awards';
@@ -28,7 +28,7 @@ import { PhotoCredit } from './PhotoCredit';
  * you had no part in never looks decided (Review 13). When the real results show is said once, in
  * the status line.
  */
-export function TrophiesSection({ event, preview }: { event: NightEvent; preview?: boolean }) {
+export function TrophiesSection({ event, preview, progress }: { event: NightEvent; preview?: boolean; progress?: ReactNode }) {
   const { builds, users, votes, me } = useStore();
   const now = useNow();
   if (event.cancelled || (!preview && now < votingCloses(event))) return null;
@@ -36,13 +36,13 @@ export function TrophiesSection({ event, preview }: { event: NightEvent; preview
   const awards = preview ? previewResults(votes, event, builds, me, now).filter((a) => mine(a.category)) : results(votes, event, builds, now);
   if (preview && awards.length === 0) return null;
   const handle = (uid: string) => (uid === me ? 'You' : displayHandle(users.find((u) => u.id === uid)?.handle ?? 'unknown'));
+  // The winner is said once (Review 15 decision 2): the cover's trophy has no row as well.
+  const onCover = awards.filter((a) => categoryInfo(a.category).cover && builds.some((b) => b.id === a.buildId)).slice(0, 1);
+  const rows = awards.filter((a) => !onCover.includes(a));
   return (
     <Section title={preview ? 'Demo results' : 'Trophies'}>
       {awards.length === 0 ? <DsText v="secondary">Not enough votes for any trophies at this one.</DsText> : null}
-      {awards
-        .filter((a) => categoryInfo(a.category).cover)
-        .slice(0, 1)
-        .map((a) => {
+      {onCover.map((a) => {
           const b = builds.find((x) => x.id === a.buildId);
           if (!b) return null;
           return (
@@ -51,8 +51,9 @@ export function TrophiesSection({ event, preview }: { event: NightEvent; preview
             </RevealIn>
           );
         })}
+      {progress}
       <View>
-        {awards.map((a, i) => {
+        {rows.map((a, i) => {
           const b = builds.find((x) => x.id === a.buildId);
           const info = categoryInfo(a.category);
           return (
@@ -71,6 +72,24 @@ export function TrophiesSection({ event, preview }: { event: NightEvent; preview
         })}
       </View>
     </Section>
+  );
+}
+
+/**
+ * Which trophies still need your vote (Review 15 decision 2): "1 of 3 voted · Best car next", tap to
+ * vote in it. Nothing once every trophy has your vote, or before the first.
+ */
+export function VoteProgress({ cats, voted, onVote }: { cats: readonly AwardCategory[]; voted: (c: AwardCategory) => boolean; onVote: (c: AwardCategory) => void }) {
+  const done = cats.filter(voted).length;
+  const next = cats.find((c) => !voted(c));
+  if (!next || done === 0) return null;
+  return (
+    <ListRow
+      leading={{ icon: 'plus', colour: COLOR.text.secondary }}
+      title={`${done} of ${cats.length} voted · ${categoryInfo(next).label} next`}
+      onPress={() => onVote(next)}
+      accessibilityHint={`Vote for ${categoryInfo(next).label.toLowerCase()}`}
+    />
   );
 }
 
