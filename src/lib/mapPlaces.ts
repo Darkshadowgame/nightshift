@@ -194,3 +194,21 @@ export function nearestPoints(points: readonly LatLng[], from: LatLng, limit = 6
   if (points.length <= limit) return [...points];
   return [...points].sort((a, b) => milesBetween(from, a) - milesBetween(from, b)).slice(0, limit);
 }
+
+/**
+ * Cull anything else the map draws (events) to the view plus the same margin
+ * as places: each one is kept if any of its points (an event's shown stop or
+ * area, or every stop of a cruise's route) is in the box, or `keep` says so
+ * (the selected one). Off-screen markers still cost a live view each on
+ * iPhone, so a busy weekend across the UK shouldn't draw them all at once.
+ */
+export function inViewOnly<T>(
+  items: readonly T[],
+  points: (item: T) => readonly (LatLng | null | undefined)[],
+  centre: LatLng,
+  span: number,
+  keep?: (item: T) => boolean,
+): T[] {
+  const box = viewBox(centre, span * MARGIN);
+  return items.filter((x) => (keep?.(x) ?? false) || points(x).some((p) => !!p && inBox(p, box)));
+}

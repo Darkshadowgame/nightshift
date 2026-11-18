@@ -1,4 +1,4 @@
-import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, MIXED_SPAN, maxClusterKm, medoid, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
+import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, MIXED_SPAN, maxClusterKm, medoid, inViewOnly, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
 import { landmassOf } from '../src/lib/landmass';
 import { bundledSpots } from '../src/lib/placeStore';
 import type { LatLng, Spot } from '../src/lib/types';
@@ -164,5 +164,34 @@ describe('groups stay on land (medoid, landmass, radius cap)', () => {
     expect(medoid(list).id).toBe('c');
     expect(maxClusterKm(0.5)).toBeCloseTo(13.875);
     expect(maxClusterKm(100)).toBe(120);
+  });
+});
+
+describe('events culled to the view', () => {
+  const ev = (id: string, ...at: LatLng[]) => ({ id, at });
+  const points = (e: { at: LatLng[] }) => e.at;
+
+  test('keeps what is in the view (with a margin) and drops the rest of the country', () => {
+    const near = ev('near', { lat: 52.7, lng: -1.6 });
+    // Just off the top of a 0.5° view, inside the margin.
+    const edge = ev('edge', { lat: TAMWORTH.lat + 0.4, lng: TAMWORTH.lng });
+    const far = ev('far', { lat: 57.1, lng: -2.1 });
+    expect(inViewOnly([near, edge, far], points, TAMWORTH, 0.5).map((e) => e.id)).toEqual(['near', 'edge']);
+  });
+
+  test('a cruise stays if any stop on its route is in view', () => {
+    const cruise = ev('cruise', { lat: 55, lng: -3 }, { lat: 52.64, lng: -1.7 });
+    expect(inViewOnly([cruise], points, TAMWORTH, 0.3)).toHaveLength(1);
+  });
+
+  test('the selected one always stays; missing points are ignored', () => {
+    const far = { id: 'far', at: [null, { lat: 57.1, lng: -2.1 }] as (LatLng | null)[] };
+    expect(inViewOnly([far], (e) => e.at, TAMWORTH, 0.3)).toEqual([]);
+    expect(inViewOnly([far], (e) => e.at, TAMWORTH, 0.3, (e) => e.id === 'far')).toEqual([far]);
+  });
+
+  test('zoomed right out over the UK: everything stays', () => {
+    const all = [ev('a', { lat: 50.2, lng: -5.3 }), ev('b', { lat: 58.4, lng: -3.1 }), ev('c', { lat: 54.6, lng: -5.9 })];
+    expect(inViewOnly(all, points, { lat: 54.5, lng: -3 }, 9)).toHaveLength(3);
   });
 });

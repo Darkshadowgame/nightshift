@@ -163,6 +163,9 @@ export function useRoadRep(userId: string): RoadRep {
   return useRoads().rep[userId] ?? NO_ROAD_REP;
 }
 
+/** The one empty list a turned-off layer returns (the same array every render, so memos downstream hold). */
+const NO_REPORTS: RoadReport[] = [];
+
 /** Snap a centre to about 2 km, so a moving phone doesn't re-read on every fix. */
 function areaKey(c: LatLng | null): string {
   return c ? `${Math.round(c.lat / 0.02)}:${Math.round(c.lng / 0.02)}` : '';
@@ -180,7 +183,7 @@ export function useRoadReports(opts: { centre: LatLng | null; radiusMi: number; 
 } {
   const { service, version } = useRoads();
   const { centre, radiusMi, context, enabled, refreshMs = 60_000 } = opts;
-  const [reports, setReports] = useState<RoadReport[]>([]);
+  const [reports, setReports] = useState<RoadReport[]>(NO_REPORTS);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const centreRef = useRef(centre);
@@ -202,7 +205,8 @@ export function useRoadReports(opts: { centre: LatLng | null; radiusMi: number; 
   useEffect(() => {
     const at = centreRef.current;
     if (!enabled || !service || !at) {
-      if (!enabled) setReports([]);
+      // Keep the same empty list: a new [] would re-render the map and redo its pins.
+      if (!enabled) setReports((r) => (r.length ? NO_REPORTS : r));
       return;
     }
     let live = true;
@@ -222,5 +226,5 @@ export function useRoadReports(opts: { centre: LatLng | null; radiusMi: number; 
     };
   }, [enabled, service, key, radiusMi, context, version, tick]);
 
-  return { reports: enabled ? reports : [], error };
+  return { reports: enabled ? reports : NO_REPORTS, error };
 }

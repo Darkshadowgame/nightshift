@@ -279,15 +279,19 @@ export function useCommunityQuery<T>(fn: (s: CommunityService) => Promise<T>, de
  * The map's Posts layer: posts with a place in view (last 30 days), re-read when
  * the view moves to a new ~2 km square or anything changes.
  */
+/** The one empty list a turned-off Posts layer returns (the same array every render). */
+const NO_PINS: import('./communityService').PostPin[] = [];
+
 export function usePostPins(centre: { lat: number; lng: number }, span: number, enabled: boolean) {
   const { service, version } = useCommunity();
-  const [pins, setPins] = useState<import('./communityService').PostPin[]>([]);
+  const [pins, setPins] = useState<import('./communityService').PostPin[]>(NO_PINS);
   const key = `${Math.round(centre.lat / 0.02)}:${Math.round(centre.lng / 0.02)}:${Math.round(Math.log2(Math.max(span, 0.001)))}`;
   const ref = useRef({ centre, span });
   ref.current = { centre, span };
   useEffect(() => {
     if (!enabled || !service) {
-      setPins([]);
+      // Keep the same empty list: a new [] would re-render the map and redo its pins.
+      setPins((p) => (p.length ? NO_PINS : p));
       return;
     }
     let live = true;
@@ -302,5 +306,5 @@ export function usePostPins(centre: { lat: number; lng: number }, span: number, 
       live = false;
     };
   }, [enabled, service, version, key]);
-  return enabled ? pins : [];
+  return enabled ? pins : NO_PINS;
 }

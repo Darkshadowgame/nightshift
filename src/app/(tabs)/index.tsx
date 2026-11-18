@@ -12,7 +12,7 @@ import { MapWidgetSlot } from '../../components/MapWidgetSlot';
 import Svg, { Path } from 'react-native-svg';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { feel } from '../../lib/feel';
-import { nearestPoints, placesForView, regionKey } from '../../lib/mapPlaces';
+import { inViewOnly, nearestPoints, placesForView, regionKey } from '../../lib/mapPlaces';
 import { NightMap } from '../../components/NightMap';
 import type { MapCircle, MapPath, MapPin, MapPolygon, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { NoticeBell } from '../../components/NoticeBell';
@@ -327,7 +327,16 @@ export default function MapScreen() {
         paths.push({ id: `ol:${id}`, coords: outline.path, colour: SPOT_COLOURS.track, width: 3 });
     }
     if (layers.events) {
-      for (const v of views) {
+      // Only the events in (or near) the view: off-screen markers still cost a live view each on iPhone.
+      const selEvent = selected?.startsWith('ev:') ? selected.slice(3) : null;
+      const inView = inViewOnly(
+        views,
+        (v) => (v.shownStop >= 0 ? (v.event.type === 'cruise' ? v.event.stops.map((x) => x.at) : [v.event.stops[v.shownStop].at ?? v.event.area]) : [v.event.area]),
+        snapped.centre,
+        snapped.span,
+        (v) => v.event.id === selEvent,
+      );
+      for (const v of inView) {
         const e = v.event;
         const colour = EVENT_COLOURS[e.type];
         if (v.shownStop >= 0) {
@@ -360,7 +369,7 @@ export default function MapScreen() {
     }
     return { pins: orderPins(pins), paths, circles, polygons };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [views, shown, placeView, cams, region.span, shopView, roadReports, postPins]);
+  }, [views, shown, placeView, cams, region.span, shopView, roadReports, postPins, snapped.key, selected]);
 
   /** A count pin: zoom in on it. */
   function zoomCluster(id: string) {
@@ -649,7 +658,7 @@ export default function MapScreen() {
         onSelect={onSelectPin2}
         onPressMap={onMapPress}
         showsUser={located}
-        compass={{ x: -2, y: PILL + 12 }}
+        compass={COMPASS}
       />
 
       {/* Top: one search pill and the bell. */}
@@ -862,6 +871,8 @@ export default function MapScreen() {
 
 /** Search pill and map buttons: big enough for a thumb (48 pt). */
 const PILL = 52;
+/** Where the map's compass sits. One object for the module: a new one each render would re-render the memoised map. */
+const COMPASS = { x: -2, y: PILL + 12 };
 const BUTTON = 48;
 
 function MapButton({ onPress, label, lit, children }: { onPress: () => void; label: string; lit?: boolean; children: ReactNode }) {
