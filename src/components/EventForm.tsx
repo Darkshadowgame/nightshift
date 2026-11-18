@@ -152,20 +152,24 @@ export function EventForm({
   }, [draftKey, editing, me]);
   const navigation = useNavigation();
   const [leaveAction, setLeaveAction] = useState<{ type: string } | null>(null);
-  usePreventRemove(!editing && step >= 1, ({ data }) => {
-    if (finished.current) {
-      navigation.dispatch(data.action);
-      return;
-    }
-    setLeaveAction(data.action);
+  /** Leaving is allowed (sent, kept or discarded); `action` is the navigation to finish once the guard is off. */
+  const [exit, setExit] = useState<{ action: { type: string } | null } | null>(null);
+  usePreventRemove(!editing && step >= 1 && !exit, ({ data }) => {
+    // Dispatching from inside the guard would be stopped again (and loop): turn it off first.
+    if (finished.current) setExit({ action: data.action });
+    else setLeaveAction(data.action);
   });
+  useEffect(() => {
+    if (exit?.action) navigation.dispatch(exit.action as never);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exit]);
   function leave(keep: boolean) {
     const action = leaveAction;
     setLeaveAction(null);
     finished.current = true;
     if (keep) saveHostDraft(me, { ...draftNow, savedAt: new Date().toISOString() });
     else clearHostDraft(me);
-    if (action) navigation.dispatch(action as never);
+    setExit({ action });
   }
 
   const chosen = startFrom(dayChoices[Math.min(day, dayChoices.length - 1)], time, now);
@@ -354,11 +358,13 @@ export function EventForm({
     setError(null);
     setSaving(true);
     finished.current = true;
+    setExit({ action: null });
     try {
       await onSubmit(event, { invited: peopleCount });
       if (!editing) clearHostDraft(me);
     } catch (e) {
       finished.current = false;
+      setExit(null);
       setError(e instanceof Error ? e.message : "Couldn't save.");
     } finally {
       setSaving(false);
