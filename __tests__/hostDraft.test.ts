@@ -1,3 +1,4 @@
+jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
 import { draftSummary, restoredDay, worthKeeping, type HostDraft } from '../src/lib/hostDraft';
 import { DEFAULT_FILTER } from '../src/lib/invites';
 import { defaultStart, EVENING_TIMES, pickedDayChoice, quickDays, startFrom } from '../src/lib/when';
