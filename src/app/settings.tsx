@@ -27,7 +27,8 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 /**
  * Settings (Redesign 2, 3.11; T5): Account → Privacy → Profile → Notifications → Directions →
- * About → Demo (demo only) → Staff (staff only). Privacy sits second so "Show me in People near
+ * About → Demo → Staff (staff only). Signed in, Demo offers "Try the demo" (auth.tryDemo: the session
+ * stays, nothing from the demo goes to the account); in the demo, Account has "Back to my account". Privacy sits second so "Show me in People near
  * you" is on the first screen (REVIEW-12 #6). "Directions open in" is a setting, so it's a
  * ChoiceGroup of pills, never a SegmentedControl (4.4). The driving view's own settings (map heading,
  * icon, voice, cameras) live in its ··· menu; map layers live in the map's Layers sheet. The
@@ -75,7 +76,13 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
       <Group title="Account">
-        {demo ? (
+        {demo && auth.accountWaiting ? (
+          <ListRow
+            title="Back to my account"
+            subtitle={`You're trying the demo. ${auth.email ? `${auth.email} is` : 'Your account is'} just as you left it.`}
+            onPress={() => auth.backToAccount()}
+          />
+        ) : demo ? (
           <ListRow title="Sign in or create an account" subtitle="You're trying the demo. It stays here for later." onPress={() => auth.leaveDemo()} />
         ) : (
           <View>
@@ -199,6 +206,14 @@ export default function SettingsScreen() {
                 toast({ message: on ? 'Busy night on' : 'Back to the normal demo night' });
               }}
             />
+          </View>
+        </Group>
+      ) : auth.status === 'signedIn' ? (
+        <Group title="Demo">
+          <View>
+            <ListRow title="Try the demo" subtitle="See the app full of sample meets and people. Your account is untouched." onPress={() => auth.tryDemo()} />
+            <RowDivider />
+            <ListRow title="Try the busy demo" subtitle="The demo with Busy night on: many more sample meets, people and posts." onPress={() => auth.tryDemo({ busy: true })} />
           </View>
         </Group>
       ) : null}

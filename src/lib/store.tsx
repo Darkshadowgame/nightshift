@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 import { ME, seededStops } from '../data/seed';
-import { accountKey, clearAccountCache, useAuth } from './auth';
+import { accountKey, clearAccountCache, DEMO_BUSY_ON_START_KEY, useAuth } from './auth';
 import type { AwardCategory } from './awards';
 import { supabase } from './backend/client';
 import { fetchFeedbackStatus, sendPendingFeedback, type AppInfo } from './backend/feedback';
@@ -297,8 +297,12 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
           // Unreadable storage: start from the demo scene.
           savedState.current = null;
         }
+        // Settings › Try the busy demo (auth.tryDemo): Busy night on as the demo opens. Read once.
+        const busyOnStart = !!(await AsyncStorage.getItem(DEMO_BUSY_ON_START_KEY).catch(() => null));
+        if (busyOnStart) await AsyncStorage.removeItem(DEMO_BUSY_ON_START_KEY).catch(() => {});
         if (!live) return;
-        set(() => next ?? fresh());
+        const start = next ?? fresh();
+        set(() => (busyOnStart && !start.settings?.busyNight ? setBusyNight(start, true, appNow()) : start));
         loaded.current = true;
         setReady(true);
         return;

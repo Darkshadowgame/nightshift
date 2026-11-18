@@ -119,6 +119,8 @@ export default function Welcome() {
       <View style={[st.header, { paddingTop: insets.top + SPACING.xs }]}>
         {step === 2 ? (
           <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={() => setStep(1)} />
+        ) : demo && auth.accountWaiting ? (
+          <IconButton icon="back" label="Back to my account" colour={COLOR.text.primary} onPress={() => auth.backToAccount()} />
         ) : demo ? (
           <IconButton icon="back" label="Back to sign-in" colour={COLOR.text.primary} onPress={() => auth.leaveDemo()} />
         ) : (

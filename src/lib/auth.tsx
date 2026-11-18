@@ -17,11 +17,19 @@ export { authMessage, emailProblem, isReviewEmail };
  *   that used the app before accounts existed stay here, with their data.
  * - `signedIn`: a Supabase session (email one-time code or sign-in link),
  *   kept in AsyncStorage and refreshed by supabase-js.
+ *
+ * A signed-in person can also try the demo (Settings › Demo › Try the demo): the status is
+ * `demo` and the store runs on the phone only, but the session stays on the phone untouched
+ * (`accountWaiting`), so "Back to my account" needs no sign-in.
  */
 export type AuthStatus = 'loading' | 'signedOut' | 'demo' | 'signedIn';
 
 /** What the person picked last time: the demo, or an account. */
 const MODE_KEY = 'nightshift.mode';
+/** Set while a signed-in person is trying the demo: their session is still on the phone. */
+const ACCOUNT_WAITING_KEY = 'nightshift.mode.accountWaiting';
+/** Read once by the demo store as it loads: start the demo with Busy night on (store.tsx). */
+export const DEMO_BUSY_ON_START_KEY = 'nightshift.demo.busyOnStart';
 
 interface Auth {
   status: AuthStatus;
@@ -38,6 +46,16 @@ interface Auth {
   startDemo(): Promise<void>;
   /** Back to the sign-in screen. The demo's data stays on the phone. */
   leaveDemo(): Promise<void>;
+  /** In the demo with a signed-in account behind it (tryDemo): "Back to my account" applies. */
+  accountWaiting: boolean;
+  /**
+   * Signed in: switch to the demo without signing out. The session stays on the phone, the
+   * account's data and cache are untouched, and the demo keeps its own data on the phone.
+   * `busy`: start the demo with Busy night on.
+   */
+  tryDemo(opts?: { busy?: boolean }): Promise<void>;
+  /** From tryDemo: back to the signed-in account. Signed out instead if the session has gone. */
+  backToAccount(): Promise<void>;
   signOut(): Promise<void>;
 }
 
@@ -55,6 +73,7 @@ async function hasDemoSave(): Promise<boolean> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [session, setSession] = useState<Session | null>(null);
+  const [accountWaiting, setAccountWaiting] = useState(false);
   const mode = useRef<string | null>(null);
 
   const applyLink = useCallback(async (link: AuthLink): Promise<void> => {
@@ -93,7 +112,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       if (!live) return;
-      if (saved === 'demo') return setStatus('demo');
+      if (saved === 'demo') {
+        const [waiting, hasSession] = await Promise.all([
+          AsyncStorage.getItem(ACCOUNT_WAITING_KEY).catch(() => null),
+          AsyncStorage.getItem('nightshift.auth').catch(() => null),
+        ]);
+        if (!live) return;
+        setAccountWaiting(!!waiting && !!hasSession);
+        return setStatus('demo');
+      }
       // Phones that used Nightshift before accounts existed keep their demo.
       if (!saved && (await hasDemoSave())) {
         await AsyncStorage.setItem(MODE_KEY, 'demo').catch(() => {});
@@ -194,7 +221,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async leaveDemo() {
         mode.current = null;
+        await AsyncStorage.multiRemove([MODE_KEY, ACCOUNT_WAITING_KEY]).catch(() => {});
+        setAccountWaiting(false);
+        setStatus('signedOut');
+      },
+      accountWaiting: status === 'demo' && accountWaiting,
+      async tryDemo(opts) {
+        if (status !== 'signedIn') return;
+        mode.current = 'demo';
+        // Only the mode changes: the session, its cache and its outbox stay as they are.
+        await AsyncStorage.multiSet([
+          [MODE_KEY, 'demo'],
+          [ACCOUNT_WAITING_KEY, '1'],
+          ...(opts?.busy ? ([[DEMO_BUSY_ON_START_KEY, '1']] as [string, string][]) : []),
+        ]).catch(() => {});
+        setAccountWaiting(true);
+        setStatus('demo');
+      },
+      async backToAccount() {
+        let s: Session | null = null;
+        try {
+          s = (await supabase().auth.getSession()).data.session;
+        } catch {
+          s = null;
+        }
+        await AsyncStorage.removeItem(ACCOUNT_WAITING_KEY).catch(() => {});
+        setAccountWaiting(false);
+        if (s) return signedIn(s);
+        // The session ran out while in the demo: sign in again.
+        mode.current = null;
         await AsyncStorage.removeItem(MODE_KEY).catch(() => {});
+        setSession(null);
         setStatus('signedOut');
       },
       async signOut() {
@@ -206,12 +263,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (uid) await clearAccountCache(uid);
         mode.current = null;
-        await AsyncStorage.multiRemove([MODE_KEY, 'nightshift.auth']).catch(() => {});
+        await AsyncStorage.multiRemove([MODE_KEY, ACCOUNT_WAITING_KEY, 'nightshift.auth']).catch(() => {});
+        setAccountWaiting(false);
         setSession(null);
         setStatus('signedOut');
       },
     }),
-    [status, session, applyLink, signedIn],
+    [status, session, accountWaiting, applyLink, signedIn],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
