@@ -55,8 +55,8 @@ export default function ConnectionsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }}>
       {error ? <ErrorState title={error} /> : null}
+      {incoming.length ? (
       <Section title={`Requests (${incoming.length})`}>
-        {incoming.length === 0 ? <EmptyState variant="inline" title="No requests waiting." /> : null}
         <View>
           {incoming.map((id, i) => (
             <Person
@@ -72,8 +72,9 @@ export default function ConnectionsScreen() {
             />
           ))}
         </View>
-        {incoming.length ? <DsText v="caption">They aren't told if you decline, and can't ask again for 30 days.</DsText> : null}
+        <DsText v="caption">They aren't told if you decline, and can't ask again for 30 days.</DsText>
       </Section>
+      ) : null}
 
       <Section title={`Connections (${connected.length})`}>
         {connected.length === 0 ? <EmptyState glyph="community" title="No connections yet" body="Meet people at an event, open their profile and tap Connect. Once they accept, you can message each other." action={MEET_ACTION} /> : null}

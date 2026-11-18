@@ -90,7 +90,7 @@ export default function NewThread() {
     <View style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
       {/* "Sell or find a part" opens a listing, so the header says so (REVIEW-9). */}
-      <Stack.Screen options={{ title: screenTitle(listing ? 'For sale or wanted' : SCREEN_TITLES.newThread) }} />
+      <Stack.Screen options={{ title: screenTitle(sellOnly ? 'Sell a part' : listing ? 'For sale or wanted' : SCREEN_TITLES.newThread) }} />
       {/* "Sell a part" / "Sell or find a part" open a listing: no board picker there (REVIEW-10). */}
       {sellOnly ? null : (
         <View style={{ gap: SPACING.xs }}>
