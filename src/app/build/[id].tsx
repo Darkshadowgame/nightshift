@@ -99,7 +99,7 @@ export default function BuildScreen() {
         <StatBar label="Looks" value={0.3 + count(LOOKS) * 0.15} />
         <StatBar label="Sound" value={0.25 + count(SOUND) * 0.2} />
         <Txt v="caption">
-          Class {letter} from {Math.round(figure)} {b.kind === 'bike' ? 'bhp per tonne' : 'weight-adjusted bhp'}. {b.dynoBhp ? 'Dyno verified.' : 'Upload a dyno sheet to verify.'}
+          Class {letter} from {Math.round(figure)} {b.kind === 'bike' ? 'bhp per tonne' : 'weight-adjusted bhp'}. {b.dynoBhp ? 'Dyno verified.' : b.ownerId === me ? 'Upload a dyno sheet to verify.' : 'Not dyno verified.'}
         </Txt>
       </Card>
 
