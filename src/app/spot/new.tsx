@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Callout, Field, MediaFrame, PAGE, TextField } from '../../components/Detail';
+import { Button, DsText, ErrorState, Press, Section, SegmentedControl } from '../../components/ds';
 import { MapPicker } from '../../components/MapPicker';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { photoUri } from '../../lib/photos';
 import { NightMap } from '../../components/NightMap';
 import type { MapPin } from '../../components/mapTypes';
-import { Button, Card, Chip, InlineError, Row, Section, Txt, s as ui } from '../../components/ui';
 import { ZoneNotice } from '../../components/ZoneCard';
 import { BAN_ZONES } from '../../data/seed';
 import { draftBanZone, draftProblem, longGap, MAX_POINT_GAP_MILES, pathMiles, type SpotDraft } from '../../lib/spots';
@@ -15,7 +16,8 @@ import { nameForPlace } from '../../lib/location';
 import { shouldAutoName } from '../../lib/placeNames';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
-import { C, RADIUS, SPOT_COLOURS, STATE, SURFACE } from '../../theme';
+import { plural } from '../../lib/format';
+import { COLOR, RADII, SPACING, SPOT_COLOURS } from '../../theme';
 
 
 /** Suggest a drive (checkpoints along the road) or a photo spot (one point), chosen on the full-screen map picker. */
@@ -76,7 +78,7 @@ export default function SuggestPlace() {
       const { id } = await suggestSpot(draft);
       router.replace({ pathname: '/spot/[id]', params: { id } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save your suggestion.');
+      setError(e instanceof Error ? e.message : "Couldn't save your suggestion.");
     }
   }
 
@@ -88,155 +90,131 @@ export default function SuggestPlace() {
     id: `p${i}`,
     at: p,
     glyph: kind,
-    colour: kind === 'photo' || i === 0 || i === points.length - 1 ? colour : C.fog,
+    colour: kind === 'photo' || i === 0 || i === points.length - 1 ? colour : COLOR.text.secondary,
     title: kind === 'photo' ? 'Photo spot' : i === 0 ? 'Start' : `Point ${i + 1}`,
     size: kind === 'photo' || i === 0 || i === points.length - 1 ? 34 : 24,
   }));
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
-      <Row gap={6}>
-        <Chip label="Drive" on={kind === 'drive'} colour={SPOT_COLOURS.drive} onPress={() => pick('drive')} />
-        <Chip label="Photo spot" on={kind === 'photo'} colour={SPOT_COLOURS.photo} onPress={() => pick('photo')} />
-      </Row>
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
+      <SegmentedControl
+        accessibilityLabel="What are you suggesting?"
+        options={[
+          { key: 'drive', label: 'Drive' },
+          { key: 'photo', label: 'Photo spot' },
+        ]}
+        value={kind}
+        onChange={pick}
+      />
 
-      <Txt v="muted">
+      <DsText v="secondary">
         {kind === 'drive'
           ? 'A great road to drive within the speed limits. Drives are never timed or ranked. Draw it on the map from start to finish: each point becomes a checkpoint.'
           : 'Somewhere that looks good in photos, with space to pull fully off the road.'}
-      </Txt>
+      </DsText>
 
+      <Press onPress={() => setPicking(true)} feedback="card" label={points.length ? 'Preview of the place. Open the map to change it' : 'Open the map to choose the place'}>
+        <MediaFrame height={200} style={points.length ? { borderColor: colour } : undefined}>
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <NightMap
+              pins={pins}
+              paths={
+                kind === 'drive' && points.length > 1
+                  ? [{ id: 'draft', coords: points, colour }, ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: COLOR.state.danger, dashed: true }] : [])]
+                  : []
+              }
+              centre={view.centre}
+              span={view.span}
+              follow
+            />
+          </View>
+          {points.length === 0 ? (
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.scrim }]}>
+              <DsText v="buttonSm">Tap to open the map</DsText>
+            </View>
+          ) : null}
+        </MediaFrame>
+      </Press>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+        <DsText v="meta" style={{ flex: 1 }}>
+          {kind === 'drive' ? `${plural(points.length, 'point')}${points.length > 1 ? ` · ${miles.toFixed(1)} mi` : ''}` : points.length ? 'Placed' : 'Not placed'}
+        </DsText>
+        {kind === 'drive' && points.length ? <Button label="Undo point" tier="tertiary" size="sm" onPress={() => setPoints((p) => p.slice(0, -1))} /> : null}
+        {points.length ? <Button label="Clear" tier="tertiary" size="sm" onPress={() => setPoints([])} /> : null}
+      </View>
       <Button
-        label={
-          kind === 'drive'
-            ? points.length ? 'Carry on drawing on the map' : 'Draw the drive on the map'
-            : points.length ? 'Move it on the map' : 'Choose on the map'
-        }
+        label={kind === 'drive' ? (points.length ? 'Carry on drawing on the map' : 'Draw the drive on the map') : points.length ? 'Move it on the map' : 'Choose on the map'}
+        tier="secondary"
+        block
         onPress={() => setPicking(true)}
         accessibilityHint="Opens a full-screen map with a crosshair"
       />
 
-      <Pressable
-        onPress={() => setPicking(true)}
-        accessibilityRole="button"
-        accessibilityLabel={points.length ? 'Preview of the place. Open the map to change it' : 'Open the map to choose the place'}
-        style={{ height: 200, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: points.length ? colour : C.kerb }}
-      >
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <NightMap
-            pins={pins}
-            paths={
-              kind === 'drive' && points.length > 1
-                ? [
-                    { id: 'draft', coords: points, colour },
-                    ...(gap ? [{ id: 'gap', coords: [points[gap.index], points[gap.index + 1]], colour: STATE.danger, dashed: true }] : []),
-                  ]
-                : []
-            }
-            centre={view.centre}
-            span={view.span}
-            follow
-          />
-        </View>
-        {points.length === 0 ? (
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: SURFACE.scrim }]}>
-            <Txt v="label" style={{ color: C.chalk }}>Tap to open the map</Txt>
-          </View>
-        ) : null}
-      </Pressable>
-
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Txt v="mono">
-          {kind === 'drive'
-            ? `${points.length} POINT${points.length === 1 ? '' : 'S'}${points.length > 1 ? ` · ${miles.toFixed(1)} MI` : ''}`
-            : points.length
-              ? 'PLACED'
-              : 'NOT PLACED'}
-        </Txt>
-        <Row gap={6}>
-          {kind === 'drive' && points.length ? <Chip label="Undo point" onPress={() => setPoints((p) => p.slice(0, -1))} /> : null}
-          {points.length ? <Chip label="Clear" onPress={() => setPoints([])} /> : null}
-        </Row>
-      </Row>
-
       {kind === 'drive' ? (
         gap ? (
-          <Card accent={STATE.warning}>
-            <Txt>
-              Points {gap.index + 1} and {gap.index + 2} are {gap.miles.toFixed(1)} mi apart (red line). Add points along the road in
-              between, at least every {MAX_POINT_GAP_MILES} mi, so the drive follows the road and the pace check is fair.
-            </Txt>
-            <Txt v="muted">New points go on the end, so Undo back to point {gap.index + 1} and add the missing ones in order.</Txt>
-          </Card>
+          <Callout tone="warning" title={`Points ${gap.index + 1} and ${gap.index + 2} are ${gap.miles.toFixed(1)} mi apart (red line).`}>
+            {`Add points along the road in between, at least every ${MAX_POINT_GAP_MILES} mi, so the drive follows the road and the pace check is fair. New points go on the end, so undo back to point ${gap.index + 1} and add the missing ones in order.`}
+          </Callout>
         ) : (
-          <Txt v="muted">Add a checkpoint at least every {MAX_POINT_GAP_MILES} mi along the road.</Txt>
+          <DsText v="caption">Add a checkpoint at least every {MAX_POINT_GAP_MILES} mi along the road.</DsText>
         )
       ) : null}
 
       {zone ? (
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: SPACING.xs }}>
           <ZoneNotice zone={zone} subject={name.trim() || 'This place'} />
-          <Txt v="muted">You can still suggest it, but think twice about sending people here at night.</Txt>
+          <DsText v="caption">You can still suggest it, but think twice about sending people here at night.</DsText>
         </View>
       ) : null}
 
       {kind === 'photo' ? (
         <Section title="Photo with a car or bike">
           {flow.view ?? (
-            <Card>
-              <Txt v="muted">
-                Photo spots are for car and bike photos, so add one taken here with a car or bike in it. You can crop it, and number
-                plates are blurred before it's saved. It shows on the spot while it waits for approval.
-              </Txt>
-              {photo ? (
-                <Image source={{ uri: photoUri(photo) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb }} />
-              ) : null}
-              <Row style={{ flexWrap: 'nowrap' }}>
-                <Button label={photo ? 'Retake' : 'Camera'} kind="secondary" style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
-                <Button label="Library" kind="secondary" style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
-              </Row>
-            </Card>
+            <View style={{ gap: SPACING.md }}>
+              <DsText v="secondary">
+                Photo spots are for car and bike photos, so add one taken here with a car or bike in it. You can crop it, and number plates are blurred before it's saved. It
+                shows on the spot while it waits for approval.
+              </DsText>
+              {photo ? <Image source={{ uri: photoUri(photo) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border }} /> : null}
+              <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                <Button label={photo ? 'Retake' : 'Camera'} tier="secondary" style={{ flex: 1 }} block onPress={() => flow.pick(true)} disabled={flow.busy} />
+                <Button label="Library" tier="secondary" style={{ flex: 1 }} block onPress={() => flow.pick(false)} disabled={flow.busy} />
+              </View>
+            </View>
           )}
         </Section>
       ) : null}
 
       <Section title="Details">
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder={kind === 'drive' ? 'Name, e.g. Snake Pass (A57)' : 'Name, e.g. Ladybower viaduct'}
-          placeholderTextColor={C.fog}
-          style={ui.input}
-          maxLength={40}
-        />
-        {autoName.current && name === autoName.current ? (
-          <Txt v="caption">Named from the map. Edit it to the name people know it by.</Txt>
-        ) : null}
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder={kind === 'drive' ? 'What makes it good? Where to start?' : 'Best time of day, where to park'}
-          placeholderTextColor={C.fog}
-          style={[ui.input, { minHeight: 80, textAlignVertical: 'top' }]}
-          multiline
-          maxLength={240}
-        />
+        <Field label="Name" hint={autoName.current && name === autoName.current ? 'Named from the map. Edit it to the name people know it by.' : null}>
+          <TextField value={name} onChangeText={setName} placeholder={kind === 'drive' ? 'e.g. Snake Pass (A57)' : 'e.g. Ladybower viaduct'} maxLength={40} accessibilityLabel="Name" />
+        </Field>
+        <Field label="What makes it good">
+          <TextField
+            value={description}
+            onChangeText={setDescription}
+            placeholder={kind === 'drive' ? 'What makes it good? Where to start?' : 'Best time of day, where to park'}
+            multiline
+            multilineHeight={88}
+            maxLength={240}
+            accessibilityLabel="What makes it good"
+          />
+        </Field>
       </Section>
 
-      <Card>
-        <Txt v="muted">
-          Suggestions are checked before they go on the map. You get +50 rep once it's approved, then more each time someone else{' '}
-          {kind === 'drive' ? 'drives it' : 'checks in there'}, scaled by their ratings. You can't rate your own.
-        </Txt>
-      </Card>
+      <DsText v="caption">
+        Suggestions are checked before they go on the map. You get +50 rep once it's approved, then more each time someone else {kind === 'drive' ? 'drives it' : 'checks in there'}, scaled by
+        their ratings. You can't rate your own.
+      </DsText>
 
-      <Button label={kind === 'drive' ? 'Suggest this drive' : 'Suggest this spot'} onPress={submit} />
-      <InlineError message={error} />
+      <Button label={kind === 'drive' ? 'Suggest this drive' : 'Suggest this spot'} size="lg" block haptic="success" onPress={submit} />
+      {error ? <ErrorState title={error} /> : null}
 
       <MapPicker
         visible={picking}
         mode={kind === 'drive' ? 'path' : 'point'}
-        title={kind === 'drive' ? 'DRAW THE DRIVE' : 'PLACE THE PHOTO SPOT'}
+        title={kind === 'drive' ? 'Draw the drive' : 'Place the photo spot'}
         hint={
           kind === 'drive'
             ? 'Move the map so the crosshair is on the road, then add checkpoints from start to finish.'

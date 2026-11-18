@@ -262,7 +262,7 @@ function AddTime({
       feel.success();
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save that time.');
+      setError(e instanceof Error ? e.message : "Couldn't save that time.");
     }
   }
 

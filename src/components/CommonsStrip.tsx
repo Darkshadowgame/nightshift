@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { Image, Linking, ScrollView } from 'react-native';
 import type { CommonsPhoto } from '../lib/commons';
 import { nearbyCommonsPhotos } from '../lib/commonsClient';
 import type { LatLng } from '../lib/types';
-import { C } from '../theme';
-import { Section, Txt } from './ui';
+import { COLOR, RADII, SPACING } from '../theme';
+import { DsText, LoadingState, Press, Section } from './ds';
 
 type State = { step: 'loading' } | { step: 'done'; photos: CommonsPhoto[] } | { step: 'offline' };
 
@@ -33,34 +33,33 @@ export function CommonsStrip({ at, radiusM, placeName }: { at: LatLng; radiusM: 
   return (
     <Section title={state.step === 'done' ? `Nearby photos (${state.photos.length})` : 'Nearby photos'}>
       {state.step === 'loading' ? (
-        <View style={{ height: 60, justifyContent: 'center' }}>
-          <ActivityIndicator color={C.fog} />
-        </View>
+        <LoadingState variant="inline" label="Finding nearby photos" />
       ) : state.step === 'offline' ? (
-        <Txt v="caption">Couldn't load nearby photos just now. They'll show when you have a signal.</Txt>
+        <DsText v="caption">Couldn't load nearby photos just now. They'll show when you have a signal.</DsText>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
           {state.photos.map((p) => (
-            <Pressable
+            <Press
               key={p.page}
               onPress={() => Linking.openURL(p.page).catch(() => {})}
-              accessibilityRole="link"
-              accessibilityLabel={`${p.title}. Photo by ${p.author}, ${p.licence}. Opens Wikimedia Commons`}
-              style={({ pressed }) => [{ width: 168, gap: 4 }, pressed && { opacity: 0.8 }]}
+              role="link"
+              feedback="card"
+              label={`${p.title}. Photo by ${p.author}, ${p.licence}. Opens Wikimedia Commons`}
+              style={{ width: 168, gap: SPACING.xs }}
             >
               <Image
                 source={{ uri: p.thumb }}
-                style={{ width: 168, height: 118, borderRadius: 6, borderWidth: 1, borderColor: C.kerb, backgroundColor: C.tarmac }}
+                style={{ width: 168, height: 118, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }}
                 resizeMode="cover"
               />
-              <Txt v="micro" style={{ textTransform: 'none' }} numberOfLines={2}>
+              <DsText v="caption" numberOfLines={2}>
                 {p.author} · {p.licence}
-              </Txt>
-            </Pressable>
+              </DsText>
+            </Press>
           ))}
         </ScrollView>
       )}
-      <Txt v="caption">From Wikimedia Commons, credited to each photographer. Tap one for its licence and the full picture.</Txt>
+      <DsText v="caption">From Wikimedia Commons, credited to each photographer. Tap one for its licence and the full picture.</DsText>
     </Section>
   );
 }

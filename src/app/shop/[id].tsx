@@ -1,11 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
+import { DetailHero, MediaFrame, NotFoundState, PAGE } from '../../components/Detail';
+import { Button, DsText, EmptyState, LoadingState, Section } from '../../components/ds';
 import { NightMap } from '../../components/NightMap';
 import { NavLaunch } from '../../components/NavLaunch';
-import { Pin } from '../../components/Pin';
 import { SuggestMissing } from '../../components/SuggestMissing';
-import { Button, Card, NotFound, Row, Section, Tag, Txt } from '../../components/ui';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { formatOpeningHours, openState, parseOpeningHours } from '../../lib/openingHours';
 import { demoPartners, partnerBadge, type Partner } from '../../lib/partners';
@@ -16,7 +16,7 @@ import { formatPhone, phoneLink, safeWebLink, SHOP_CAVEAT, websiteLabel } from '
 import { useStore } from '../../lib/store';
 import { useNow } from '../../lib/clock';
 import type { LatLng } from '../../lib/types';
-import { BRAND, C, PARTNER_COLOUR, RADIUS, SHOP_COLOUR, STATE } from '../../theme';
+import { COLOR, PARTNER_COLOUR, SHOP_COLOUR, SPACING } from '../../theme';
 
 /** What the screen shows: an OpenStreetMap listing or a partner. */
 interface Listing {
@@ -57,15 +57,15 @@ export default function ShopScreen() {
   // The header stays blank, like every detail screen: the eyebrow says Shop or Partner, once.
   if (!listing && isShop && !shopIdx && !failed) {
     return (
-      <View style={{ flex: 1, padding: 16 }}>
-        <Txt v="muted">Loading the listing…</Txt>
+      <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
+        <LoadingState variant="inline" label="Loading the listing" />
       </View>
     );
   }
 
   if (!listing) {
     return (
-      <NotFound
+      <NotFoundState
         what="Shop"
         message={
           failed
@@ -85,92 +85,73 @@ export default function ShopScreen() {
   const web = safeWebLink(listing.website);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 48 }}>
-      <View style={{ gap: 6 }}>
-        <Row>
-          {p ? (
-            <Tag label={`★ ${partnerBadge(p)}`} colour={PARTNER_COLOUR} />
-          ) : (
-            <Txt v="eyebrow" style={{ color: SHOP_COLOUR }}>Shop</Txt>
-          )}
-        </Row>
-        <Txt v="h1">{listing.name}</Txt>
-        <Row gap={10}>
-          {listing.categories.map((c) => (
-            <Row key={c} gap={4}>
-              <Pin glyph={c} colour={colour} size={18} />
-              <Txt v="mono" style={{ color: C.chalk }}>{CATEGORY_LABELS[c].toUpperCase()}</Txt>
-            </Row>
-          ))}
-        </Row>
-        {listing.brand ? <Txt v="muted">{listing.brand}</Txt> : null}
-        {state ? (
-          <Txt v="label" style={{ color: state.open ? STATE.success : C.fog }} accessibilityLiveRegion="polite">
-            {state.label}
-          </Txt>
-        ) : null}
-        {p?.description ? <Txt v="muted">{p.description}</Txt> : null}
-      </View>
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
+      <DetailHero
+        kind={p ? partnerBadge(p) : 'Shop'}
+        colour={colour}
+        glyph={p ? 'partner' : (listing.categories[0] ?? 'shop')}
+        sample={!!p?.demo}
+        status={state ? { label: state.open ? 'Open' : 'Closed', tone: state.open ? 'success' : 'neutral' } : null}
+        title={listing.name}
+        lines={[listing.categories.map((c) => CATEGORY_LABELS[c]).join(' · '), state?.label, listing.brand]}
+      >
+        {p?.description ? <DsText v="secondary">{p.description}</DsText> : null}
+      </DetailHero>
 
-      {p ? (
-        <Card accent={PARTNER_COLOUR}>
-          <Txt v="label" style={{ color: PARTNER_COLOUR }}>{p.demo ? 'Sample partner offer' : 'Partner offer'}</Txt>
-          {p.offer ? <Txt>{p.offer}</Txt> : <Txt v="muted">No offer listed right now.</Txt>}
-          {p.link && safeWebLink(p.link) && !p.demo ? <Button label="See the offer" kind="secondary" onPress={() => open(p.link!)} /> : null}
-          <Txt v="caption">
-            {p.demo
-              ? 'A made-up business to show how partners look. It isn’t real and neither is the offer.'
-              : 'Partners pay Nightshift to be highlighted on the map. They are always marked Partner.'}
-          </Txt>
-        </Card>
+      <NavLaunch target={{ kind: 'place', name: listing.name, lat: listing.at.lat, lng: listing.at.lng }} to={listing.at} kind="primary" />
+      {web || listing.phone ? (
+        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+          {web && !p?.demo ? (
+            <Button label="Website" tier="secondary" style={{ flex: 1 }} block onPress={() => open(web)} accessibilityLabel={`Open the website, ${websiteLabel(web).split('/')[0]}`} />
+          ) : null}
+          {listing.phone ? <Button label={`Call ${formatPhone(listing.phone)}`} tier="secondary" style={{ flex: 1 }} block onPress={() => open(phoneLink(listing.phone!))} /> : null}
+        </View>
       ) : null}
 
-      <View style={{ height: 200, borderRadius: RADIUS.sheet, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
+      <MediaFrame height={180}>
         <NightMap
           pins={[{ id: 'shop', at: listing.at, glyph: p ? 'partner' : (listing.categories[0] ?? 'shop'), colour, title: listing.name, size: 34 }]}
           centre={listing.at}
           span={0.012}
           credit={p ? undefined : '© OpenStreetMap contributors'}
         />
-      </View>
+      </MediaFrame>
 
-      <Section title="Get there">
-        <NavLaunch target={{ kind: 'place', name: listing.name, lat: listing.at.lat, lng: listing.at.lng }} to={listing.at} kind="primary" />
-        {web || listing.phone ? (
-          <Row style={{ flexWrap: 'nowrap' }}>
-            {web && !p?.demo ? (
-              <View style={{ flex: 1 }}>
-                <Button label="Website" kind="secondary" onPress={() => open(web)} accessibilityLabel={`Open the website, ${websiteLabel(web).split('/')[0]}`} />
-              </View>
-            ) : null}
-            {listing.phone ? (
-              <View style={{ flex: 1 }}>
-                <Button label={`Call ${formatPhone(listing.phone)}`} kind="secondary" onPress={() => open(phoneLink(listing.phone!))} />
-              </View>
-            ) : null}
-          </Row>
-        ) : null}
-      </Section>
+      {p ? (
+        <Section title={p.demo ? 'Sample partner offer' : 'Partner offer'}>
+          {p.offer ? <DsText v="body">{p.offer}</DsText> : <EmptyState variant="inline" title="No offer listed right now." />}
+          {p.link && safeWebLink(p.link) && !p.demo ? <Button label="See the offer" tier="tertiary" size="sm" onPress={() => open(p.link!)} /> : null}
+          <DsText v="caption">
+            {p.demo ? 'A made-up business to show how partners look. It isn’t real and neither is the offer.' : 'Partners pay Nightshift to be highlighted on the map. They are always marked Partner.'}
+          </DsText>
+        </Section>
+      ) : null}
 
       <Section title="Opening hours">
-        <Card>
-          {hours ? (
-            formatOpeningHours(hours).map((line) => (
-              <Row key={line.days} style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-                <Txt v="mono" style={{ color: C.chalk }}>{line.days.toUpperCase()}</Txt>
-                <Txt v="mono" style={{ color: line.hours === 'Closed' ? C.fog : C.chalk }}>{line.hours.toUpperCase()}</Txt>
-              </Row>
-            ))
-          ) : listing.hours ? (
-            <>
-              <Txt selectable>{listing.hours}</Txt>
-              <Txt v="caption">Shown as listed: the app couldn’t read these hours, so it can’t say if it’s open now.</Txt>
-            </>
-          ) : (
-            <Txt v="muted">No opening hours listed. Check with them before you go.</Txt>
-          )}
-          {hours?.holidays ? null : hours ? <Txt v="caption">Bank holidays may differ.</Txt> : null}
-        </Card>
+        {hours ? (
+          <View style={{ gap: SPACING.xs }}>
+            {formatOpeningHours(hours).map((line) => (
+              <View key={line.days} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: SPACING.md }}>
+                <DsText v="meta" style={{ color: COLOR.text.primary }}>
+                  {line.days}
+                </DsText>
+                <DsText v="meta" style={line.hours === 'Closed' ? undefined : { color: COLOR.text.primary }}>
+                  {line.hours}
+                </DsText>
+              </View>
+            ))}
+            {hours.holidays ? null : <DsText v="caption">Bank holidays may differ.</DsText>}
+          </View>
+        ) : listing.hours ? (
+          <>
+            <DsText v="body" selectable>
+              {listing.hours}
+            </DsText>
+            <DsText v="caption">Shown as listed: the app couldn’t read these hours, so it can’t say if it’s open now.</DsText>
+          </>
+        ) : (
+          <EmptyState variant="inline" title="No opening hours listed. Check with them before you go." />
+        )}
       </Section>
 
       <SuggestMissing
@@ -182,11 +163,10 @@ export default function ShopScreen() {
       />
 
       {p ? null : (
-        <Pressable onPress={() => open('https://www.openstreetmap.org/copyright')} accessibilityRole="link" hitSlop={12}>
-          <Txt v="caption">
-            {SHOP_CAVEAT} © OpenStreetMap contributors, ODbL. <Txt v="caption" style={{ color: BRAND }}>Licence ›</Txt>
-          </Txt>
-        </Pressable>
+        <View style={{ gap: SPACING.xs }}>
+          <DsText v="caption">{SHOP_CAVEAT} © OpenStreetMap contributors, ODbL.</DsText>
+          <Button tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} label="Licence ›" onPress={() => open('https://www.openstreetmap.org/copyright')} />
+        </View>
       )}
     </ScrollView>
   );

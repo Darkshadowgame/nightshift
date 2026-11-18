@@ -1,28 +1,27 @@
 import * as Location from 'expo-location';
-import { ReportLink } from '../../components/Community';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Platform, ScrollView, View } from 'react-native';
 import { navDirectionsAvailable } from '../../../modules/nav-directions';
+import { openReport } from '../../components/Community';
 import { CommonsStrip } from '../../components/CommonsStrip';
-import { NightMap } from '../../components/NightMap';
+import { Callout, CheckInCelebration, DetailHero, MediaFrame, NotFoundState, PAGE } from '../../components/Detail';
+import { Button, displayHandle, DsText, EmptyState, ErrorState, ListRow, screenHeader, Section, Sheet, SheetOption, StatBlock, Tag, type Stat } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
-import { Pin } from '../../components/Pin';
 import { NavLaunch } from '../../components/NavLaunch';
+import { NightMap } from '../../components/NightMap';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { Stars } from '../../components/Stars';
 import { TrackPanel } from '../../components/TrackPanel';
-import { UserLink } from '../../components/UserLink';
-import { Button, Card, InlineError, NotFound, Row, Section, Tag, Txt } from '../../components/ui';
 import { ZoneNotice } from '../../components/ZoneCard';
-import { BAN_ZONES } from '../../data/seed';
 import { SYSTEM_AUTHOR } from '../../data/places';
+import { BAN_ZONES } from '../../data/seed';
 import { radiusFor } from '../../lib/commons';
-import { trackOutline } from '../../lib/tracks';
-import { driveTier } from '../../lib/rep';
-import { feel } from '../../lib/feel';
-import { ONLY_ON_PHONE, PLACE_NAMES, WHERE } from '../../lib/glossary';
+import { plural } from '../../lib/format';
+import { NAVIGATE, ONLY_ON_PHONE, PLACE_NAMES, WHERE } from '../../lib/glossary';
+import { preciseFix } from '../../lib/location';
 import { photoUri } from '../../lib/photos';
+import { driveTier } from '../../lib/rep';
 import {
   advanceRun,
   averageStars,
@@ -39,10 +38,10 @@ import {
   statsOf,
   type DriveRun,
 } from '../../lib/spots';
-import { preciseFix } from '../../lib/location';
 import { useStore } from '../../lib/store';
+import { trackOutline } from '../../lib/tracks';
 import type { LatLng, Spot } from '../../lib/types';
-import { BRAND, C, LAYER, RADIUS, SPOT_COLOURS, STATE } from '../../theme';
+import { COLOR, LAYER, RADII, SPACING, SPOT_COLOURS } from '../../theme';
 
 /** A drive, photo spot or track: details, start a drive or check in, then rate it. */
 export default function SpotScreen() {
@@ -50,7 +49,7 @@ export default function SpotScreen() {
   const { spots } = useStore();
   const spot = spots.find((x) => x.id === id);
   // The header stays blank: the kind is the eyebrow under it, once.
-  if (!spot) return <NotFound what="Place" message="This place is no longer on Nightshift." />;
+  if (!spot) return <NotFoundState what="Place" message="This place is no longer on Nightshift." />;
   return <SpotDetail spot={spot} />;
 }
 
@@ -63,6 +62,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
   const [rateError, setRateError] = useState<string | null>(null);
   const [justDone, setJustDone] = useState(false);
   const [rated, setRated] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   const author = spot.authorId ? users.find((u) => u.id === spot.authorId) : undefined;
   const mine = spot.authorId === me;
@@ -86,7 +86,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
           id: `cp${i}`,
           at: p,
           glyph: 'drive' as const,
-          colour: run && i < run.passed ? STATE.success : i === 0 || i === checkpoints.length - 1 ? colour : C.fog,
+          colour: run && i < run.passed ? COLOR.state.success : i === 0 || i === checkpoints.length - 1 ? colour : COLOR.text.secondary,
           title: i === 0 ? 'Start' : i === checkpoints.length - 1 ? 'Finish' : `Checkpoint ${i + 1}`,
           size: i === 0 || i === checkpoints.length - 1 ? 34 : 24,
         }))
@@ -98,107 +98,105 @@ function SpotDetail({ spot }: { spot: Spot }) {
       await store.rateSpot(spot.id, n);
       setRated(true);
     } catch (e) {
-      setRateError(e instanceof Error ? e.message : 'Could not save your rating.');
+      setRateError(e instanceof Error ? e.message : "Couldn't save your rating.");
     }
   }
 
   const canRateNow = canRate(spot, me);
   const mineStars = myRating(spot, me);
+  const canReport = !!spot.authorId && !mine && spot.authorId !== SYSTEM_AUTHOR;
+  const photoCount = (spot.photo ? 1 : 0) + spot.completions.filter((c) => c.photo).length;
+
+  // One fixed set per kind: a drive's length, checkpoints and who's driven it; a photo spot's check-ins, rating and photos.
+  const stats: Stat[] =
+    spot.kind === 'drive'
+      ? [
+          { label: 'Length', value: driveMiles(spot).toFixed(1), unit: 'mi' },
+          { label: 'Checkpoints', value: String(checkpoints.length) },
+          { label: 'Driven by', value: String(people) },
+        ]
+      : spot.kind === 'photo'
+        ? [
+            { label: 'Checked in', value: String(people) },
+            { label: 'Rating', value: count ? average.toFixed(1) : '–', unit: count ? '/ 5' : undefined },
+            { label: 'Photos', value: String(photoCount) },
+          ]
+        : [];
+
+  const navTarget = { kind: 'spot' as const, id: spot.id };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 18, paddingBottom: 48 }}>
-      <View style={{ gap: 6 }}>
-        <Row>
-          <Txt v="eyebrow" style={{ color: colour }}>{PLACE_NAMES[spot.kind].one}</Txt>
-          {pending ? <Tag label="Waiting for approval" tone="warning" /> : null}
-        </Row>
-        <Txt v="h1">{spot.name}</Txt>
-        <Txt v="mono" style={{ color: C.chalk }}>
-          {[
-            spot.kind === 'drive' ? `${driveMiles(spot).toFixed(1)} MI · ${checkpoints.length} CHECKPOINTS · NEVER TIMED` : null,
-            !isInfoOnly(spot.kind) ? `${spot.kind === 'drive' ? 'DRIVEN' : 'CHECKED IN'} BY ${people}` : null,
-            spot.region ? spot.region.toUpperCase() : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </Txt>
-        {spot.kind === 'drive' ? <DriveTierChip spot={spot} done={done} /> : null}
+    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
+      <Stack.Screen options={screenHeader({ onMenu: canReport ? () => setMenu(true) : undefined })} />
+      <DetailHero
+        kind={PLACE_NAMES[spot.kind].one}
+        colour={colour}
+        glyph={spot.kind}
+        status={pending ? { label: 'Waiting for approval', tone: 'warning' } : done && !isInfoOnly(spot.kind) ? { label: spot.kind === 'drive' ? 'Driven' : 'Checked in', tone: 'success' } : null}
+        title={spot.name}
+        lines={[spot.region, spot.kind === 'drive' ? 'Never timed: pass or fail' : null]}
+      >
+        {spot.kind === 'drive' ? <DriveTierTag spot={spot} done={done} /> : null}
         {count > 0 ? (
-          <Row>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
             <Stars value={average} size={18} />
-            <Txt v="mono">{average.toFixed(1)} FROM {count} RATING{count > 1 ? 'S' : ''}</Txt>
-          </Row>
+            <DsText v="meta">
+              {average.toFixed(1)} from {plural(count, 'rating')}
+            </DsText>
+          </View>
         ) : !isInfoOnly(spot.kind) ? (
-          <Txt v="muted">No ratings yet.</Txt>
+          <DsText v="meta">No ratings yet</DsText>
+        ) : null}
+        <DsText v="secondary">{spot.description}</DsText>
+        {author ? (
+          <Button tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} label={`Suggested by ${mine ? 'you' : displayHandle(author.handle)} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: author.id } })} />
+        ) : spot.authorId === SYSTEM_AUTHOR ? (
+          <DsText v="caption">Added by Nightshift</DsText>
         ) : null}
         {spot.phoneOnly && (spot.phoneOnly.completions > 0 || spot.phoneOnly.stars) ? (
-          <Row gap={6}>
-            <Tag label={ONLY_ON_PHONE} tone="muted" />
-            <Txt v="caption" style={{ flexShrink: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
+            <Tag label={ONLY_ON_PHONE} />
+            <DsText v="caption" style={{ flexShrink: 1 }}>
               {[
-                spot.phoneOnly.completions > 0
-                  ? `You ${spot.kind === 'drive' ? 'finished it' : 'checked in'} ${spot.phoneOnly.completions}× before signing in`
-                  : null,
-                spot.phoneOnly.stars ? `rated it ${spot.phoneOnly.stars}★` : null,
+                spot.phoneOnly.completions > 0 ? `You ${spot.kind === 'drive' ? 'finished it' : 'checked in'} ${spot.phoneOnly.completions}× before signing in` : null,
+                spot.phoneOnly.stars ? `rated it ${spot.phoneOnly.stars} stars` : null,
               ]
                 .filter(Boolean)
                 .join(', ')}
               . Not counted in rep.
-            </Txt>
-          </Row>
+            </DsText>
+          </View>
         ) : null}
-        <Txt v="muted">{spot.description}</Txt>
-        {author ? (
-          <UserLink id={author.id} style={{ alignSelf: 'flex-start' }} label={`Open @${author.handle}`}>
-            <Txt v="label" style={{ color: BRAND }}>Suggested by <Txt v="label" style={{ color: BRAND, textTransform: 'none' }}>{mine ? 'you' : `@${author.handle}`}</Txt> ›</Txt>
-          </UserLink>
-        ) : spot.authorId === SYSTEM_AUTHOR ? (
-          <Txt v="label" style={{ color: C.fog }}>Added by Nightshift</Txt>
-        ) : null}
-      </View>
+      </DetailHero>
+
+      {stats.length ? <StatBlock stats={stats} /> : null}
 
       {spot.warnings?.length ? (
-        <Card accent={STATE.warning}>
-          <Txt v="label" style={{ color: STATE.warning }}>Before you go</Txt>
-          {spot.warnings.map((w) => (
-            <Txt key={w} v="muted">{w}</Txt>
-          ))}
-        </Card>
+        <Callout tone="warning" title="Before you go">
+          <View style={{ gap: SPACING.xs }}>
+            {spot.warnings.map((w) => (
+              <DsText key={w} v="secondary">
+                {w}
+              </DsText>
+            ))}
+          </View>
+        </Callout>
       ) : null}
-
-      <View style={{ height: 240, borderRadius: RADIUS.sheet, overflow: 'hidden', borderWidth: 1, borderColor: C.kerb }}>
-        <NightMap
-          pins={pins}
-          paths={paths}
-          centre={framed.length ? midpoint(framed) : spot.at}
-          span={framed.length ? Math.max(spot.kind === 'drive' ? 0.08 : 0.012, spanOf(framed) * 1.6) : 0.05}
-          showsUser={!!run}
-          credit={spot.kind === 'drive' || outline ? '© OpenStreetMap contributors' : undefined}
-        />
-      </View>
-
       {zones.map((zone) => (
-        <ZoneNotice key={zone.id} zone={zone} />
+        <ZoneNotice key={zone.id} zone={zone} subject="This place" />
       ))}
 
-      {/* A drive's one action is in its panel: "Navigate the drive" (which also counts it). On a photo spot, checking in is the main thing. */}
-      {!pending && spot.kind !== 'drive' ? (
-        <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} label="Start navigation" kind={spot.kind === 'photo' ? 'secondary' : 'primary'} />
-      ) : null}
-
       {pending ? (
-        <Card>
-          <Txt>{mine ? 'Thanks. Your suggestion is waiting for approval.' : 'This place is waiting for approval.'}</Txt>
-          {mine ? (
-            <Txt v="muted">
-              {store.backend === 'local'
-                ? "In the demo, suggestions are approved after about 10 seconds. You'll get +50 rep when it's live."
-                : "Someone from Nightshift checks each suggestion. You'll get +50 rep when it's live."}
-            </Txt>
-          ) : null}
-        </Card>
+        <Callout tone="info" title={mine ? 'Thanks. Your suggestion is waiting for approval.' : 'This place is waiting for approval.'}>
+          {mine
+            ? store.backend === 'local'
+              ? "In the demo, suggestions are approved after about 10 seconds. You'll get +50 rep when it's live."
+              : "Someone from Nightshift checks each suggestion. You'll get +50 rep when it's live."
+            : undefined}
+        </Callout>
       ) : null}
 
+      {/* One primary per place: a drive's Navigate (which also counts it), a photo spot's Check in, Navigate everywhere else. */}
       {!pending && spot.kind === 'drive' ? (
         <DrivePanel
           spot={spot}
@@ -210,7 +208,6 @@ function SpotDetail({ spot }: { spot: Spot }) {
           }}
         />
       ) : null}
-
       {!pending && spot.kind === 'photo' ? (
         <VisitPanel
           spot={spot}
@@ -220,58 +217,66 @@ function SpotDetail({ spot }: { spot: Spot }) {
           }}
         />
       ) : null}
+      {!pending && isInfoOnly(spot.kind) ? <NavLaunch target={navTarget} to={spot.at} kind="primary" /> : null}
+
+      <MediaFrame height={220}>
+        <NightMap
+          pins={pins}
+          paths={paths}
+          centre={framed.length ? midpoint(framed) : spot.at}
+          span={framed.length ? Math.max(spot.kind === 'drive' ? 0.08 : 0.012, spanOf(framed) * 1.6) : 0.05}
+          showsUser={!!run}
+          credit={spot.kind === 'drive' || outline ? '© OpenStreetMap contributors' : undefined}
+        />
+      </MediaFrame>
 
       {spot.kind === 'track' ? (
         <>
           <TrackPanel spot={spot} outline={outline} />
-          <Card>
-            <Txt>Tracks are the only place times count. Look for track days on the Events tab.</Txt>
-            <Button label="See events" kind="secondary" onPress={() => router.push('/events')} />
-          </Card>
+          <Callout tone="neutral" title="Tracks are the only place times count." right={<Button tier="tertiary" size="sm" label="Events ›" onPress={() => router.push('/events')} />}>
+            Look for track days on the Events tab.
+          </Callout>
         </>
       ) : null}
 
       {spot.kind === 'venue' ? (
-        <Card>
-          <Txt>A place that welcomes meets. Check its own opening times and rules before you go, and keep it clean.</Txt>
-        </Card>
+        <Callout tone="neutral" title="A place that welcomes meets">
+          Check its own opening times and rules before you go, and keep it clean.
+        </Callout>
       ) : null}
 
       {!isInfoOnly(spot.kind) && !pending ? (
         <Section title="Rating">
-          <Card accent={justDone && !rated ? BRAND : undefined}>
-            {mine ? (
-              <Txt v="muted">You suggested this, so you can't rate it. You earn rep each time someone else {spot.kind === 'drive' ? 'drives it' : 'checks in here'}.</Txt>
-            ) : canRateNow.ok ? (
-              <>
-                <Txt>
-                  {rated
-                    ? 'Thanks, rating saved.'
-                    : justDone
-                      ? `How was it? Rate the ${spot.kind === 'drive' ? 'drive' : 'spot'}.`
-                      : mineStars
-                        ? 'Your rating. Tap to change it.'
-                        : 'Rate it from 1 to 5 stars.'}
-                </Txt>
-                <Stars value={mineStars ?? 0} onRate={rate} size={34} />
-                <Txt v="caption">One rating each. A new one replaces your old one.</Txt>
-              </>
-            ) : (
-              <Txt v="muted">{canRateNow.reason}</Txt>
-            )}
-            <InlineError message={rateError} />
-          </Card>
+          {mine ? (
+            <DsText v="secondary">You suggested this, so you can't rate it. You earn rep each time someone else {spot.kind === 'drive' ? 'drives it' : 'checks in here'}.</DsText>
+          ) : canRateNow.ok ? (
+            <View style={{ gap: SPACING.sm }}>
+              <DsText v={justDone && !rated ? 'bodyStrong' : 'body'}>
+                {rated ? 'Thanks, rating saved.' : justDone ? `How was it? Rate the ${spot.kind === 'drive' ? 'drive' : 'spot'}.` : mineStars ? 'Your rating. Tap to change it.' : 'Rate it from 1 to 5 stars.'}
+              </DsText>
+              <Stars value={mineStars ?? 0} onRate={rate} size={34} />
+              <DsText v="caption">One rating each. A new one replaces your old one.</DsText>
+            </View>
+          ) : (
+            <DsText v="secondary">{canRateNow.reason}</DsText>
+          )}
+          {rateError ? <ErrorState title={rateError} /> : null}
         </Section>
       ) : null}
 
       <Photos spot={spot} />
 
-      {done && !justDone && !isInfoOnly(spot.kind) ? (
-        <Txt v="caption" style={{ textAlign: 'center' }}>
-          You've {spot.kind === 'drive' ? 'finished this drive' : 'checked in here'}.
-        </Txt>
-      ) : null}
-      {spot.authorId && !mine && spot.authorId !== SYSTEM_AUTHOR ? <ReportLink target="spot" id={spot.id} userId={spot.authorId} what="place" /> : null}
+      <Sheet visible={menu} title="Place options" onClose={() => setMenu(false)}>
+        <View>
+          <SheetOption
+            label="Report this place"
+            onPress={() => {
+              setMenu(false);
+              openReport('spot', spot.id, spot.authorId, 'place');
+            }}
+          />
+        </View>
+      </Sheet>
     </ScrollView>
   );
 }
@@ -342,12 +347,11 @@ function DrivePanel({
       .finishDrive(spot.id, run)
       .then((verdict) => {
         if (verdict.ok) {
-          feel.success();
           setPassed(true);
           onFinished();
         } else setError(verdict.reason);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Could not record the drive.'));
+      .catch((e) => setError(e instanceof Error ? e.message : "Couldn't record the drive."));
   }, [run, checkpoints.length, spot.id, store, stop, setRun, onFinished]);
 
   /** Count the checkpoints with GPS here, without directions. */
@@ -395,7 +399,7 @@ function DrivePanel({
       watch.current = sub;
     } catch {
       setRun(null);
-      setError('Could not read your location. Try again with a clear view of the sky.');
+      setError("Couldn't read your location. Try again with a clear view of the sky.");
     }
   }
 
@@ -423,60 +427,47 @@ function DrivePanel({
 
   if (!run) {
     return (
-      <Section title="Drive it">
-        <Card accent={passed ? STATE.success : undefined}>
-          {passed ? (
-            <Txt>Drive complete. Every checkpoint passed.{done && spot.authorId !== store.me ? ' Rep added if this was your first time.' : ''}</Txt>
-          ) : null}
-          <NavLaunch
-            target={{ kind: 'spot', id: spot.id }}
-            to={checkpoints.length ? checkpoints[0] : spot.at}
-            label={done || passed ? 'Navigate it again' : 'Navigate the drive'}
-            kind="primary"
-          />
-          <Txt v="caption">
-            {ownNav
-              ? `Turn by turn through all ${checkpoints.length} checkpoints. Passing every one in order counts the drive.`
-              : `Pass all ${checkpoints.length} checkpoints in order to count the drive.`}{' '}
-            Drives are never timed or ranked: you only get pass or fail. Stick to the speed limits, as a run that's too quick doesn't count.
-          </Txt>
-          {simGps ? (
-            <Button label="Simulate the drive" kind="secondary" onPress={simulate} />
-          ) : !ownNav ? (
-            <Button
-              label="Count without directions"
-              kind="secondary"
-              onPress={start}
-              accessibilityHint="Counts the checkpoints with GPS while you drive, with no directions"
-            />
-          ) : null}
-          <InlineError message={error} />
-        </Card>
-      </Section>
+      <View style={{ gap: SPACING.md }}>
+        {passed ? (
+          <CheckInCelebration play title="Drive complete" body={`Every checkpoint passed.${done && spot.authorId !== store.me ? ' Rep added if this was your first time.' : ''}`} />
+        ) : null}
+        <NavLaunch target={{ kind: 'spot', id: spot.id }} to={checkpoints.length ? checkpoints[0] : spot.at} label={done || passed ? 'Navigate it again' : NAVIGATE} kind="primary" />
+        <DsText v="caption">
+          {ownNav
+            ? `Turn by turn through all ${checkpoints.length} checkpoints. Passing every one in order counts the drive.`
+            : `Pass all ${checkpoints.length} checkpoints in order to count the drive.`}{' '}
+          Drives are never timed or ranked: you only get pass or fail. Stick to the speed limits, as a run that's too quick doesn't count.
+        </DsText>
+        {simGps ? (
+          <Button label="Simulate the drive" tier="secondary" block onPress={simulate} />
+        ) : !ownNav ? (
+          <Button label="Count it without directions" tier="secondary" block onPress={start} accessibilityHint="Counts the checkpoints with GPS while you drive, with no directions" />
+        ) : null}
+        {error ? <ErrorState title={error} /> : null}
+      </View>
     );
   }
 
   return (
-    <Section title="Driving" right={<Txt v="mono" scale="chrome" style={{ color: BRAND }}>{run.passed}/{checkpoints.length} PASSED</Txt>}>
-      <Card accent={LAYER.drive}>
+    <Section title="Driving" right={<Tag label={`${run.passed} of ${checkpoints.length} passed`} tone="live" />}>
+      <View>
         {checkpoints.map((_, i) => (
-          <Row key={i} style={{ flexWrap: 'nowrap' }} gap={10}>
-            <Pin glyph="drive" colour={i < run.passed ? STATE.success : i === run.passed ? LAYER.drive : C.fog} size={24} />
-            <Txt style={{ flex: 1, color: i < run.passed ? STATE.success : i === run.passed ? C.chalk : C.fog }}>
-              {i === 0 ? 'Start' : i === checkpoints.length - 1 ? 'Finish' : `Checkpoint ${i + 1}`}
-            </Txt>
-            <Txt v="mono" style={{ color: i < run.passed ? STATE.success : C.fog }}>{i < run.passed ? 'PASSED' : i === run.passed ? 'NEXT' : ''}</Txt>
-          </Row>
+          <ListRow
+            key={i}
+            leading={{ pin: 'drive', colour: i < run.passed ? COLOR.state.success : i === run.passed ? LAYER.drive : COLOR.text.secondary }}
+            title={i === 0 ? 'Start' : i === checkpoints.length - 1 ? 'Finish' : `Checkpoint ${i + 1}`}
+            trailing={i < run.passed ? <Tag label="Passed" tone="success" /> : i === run.passed ? <Tag label="Next" /> : undefined}
+          />
         ))}
-        <Txt v="caption">
-          {simGps
-            ? `Demo: skip the GPS check is on (${WHERE.demoSkipGps}), so the app walks the checkpoints for you at a legal pace.`
-            : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
-        </Txt>
-        {simulating ? <Button label="Driving…" kind="secondary" onPress={simulate} busy /> : null}
-        <Button label="Stop" kind="secondary" onPress={cancel} />
-        <InlineError message={error} />
-      </Card>
+      </View>
+      <DsText v="caption">
+        {simGps
+          ? `Demo: skip the GPS check is on (${WHERE.demoSkipGps}), so the app walks the checkpoints for you at a legal pace.`
+          : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
+      </DsText>
+      {simulating ? <Button label="Driving" tier="secondary" block busy onPress={simulate} /> : null}
+      <Button label="Stop" tier="secondary" block onPress={cancel} />
+      {error ? <ErrorState title={error} /> : null}
     </Section>
   );
 }
@@ -507,7 +498,7 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
           setError(
             fix.reason === 'denied'
               ? `Checking in here needs your location. Allow it for Nightshift in Settings${store.backend === 'local' ? ` (or, for testing, ${WHERE.demoSkipGps}: skip the GPS check)` : ''}.`
-              : 'Could not read your location. Try again outside.',
+              : "Couldn't read your location. Try again outside.",
           );
           return;
         }
@@ -518,7 +509,7 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
       if (!ok.ok) setError(ok.reason);
       else setStep('photo');
     } catch {
-      setError('Could not read your location. Try again outside.');
+      setError("Couldn't read your location. Try again outside.");
     } finally {
       setBusy(false);
     }
@@ -528,11 +519,10 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
     setError(null);
     try {
       await store.visitSpot(spot.id, photo, visitFix.current);
-      feel.success();
       setStep('done');
       onVisited();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the check-in.');
+      setError(e instanceof Error ? e.message : "Couldn't save the check-in.");
     }
   }
 
@@ -542,34 +532,39 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
 
   if (flow.view) return flow.view;
 
+  if (step === 'done') {
+    return (
+      <View style={{ gap: SPACING.md }}>
+        <CheckInCelebration play title={`Checked in at ${spot.name}`} body={spot.authorId !== store.me ? 'Rep added if this was your first time here.' : undefined} />
+        <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} kind="secondary" />
+        <Button label="Check in again" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => setStep('idle')} />
+      </View>
+    );
+  }
+
   return (
-    <Section title="Check in">
-      <Card accent={step === 'done' ? STATE.success : undefined}>
-        {step === 'idle' ? (
-          <>
-            <Txt v="muted">
-              Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved.
-            </Txt>
-            <Button label={busy ? 'Checking…' : 'Check in here'} onPress={checkIn} busy={busy} />
-          </>
-        ) : step === 'photo' ? (
-          <>
-            <Txt>You're here. Add a photo?</Txt>
-            <Row style={{ flexWrap: 'nowrap' }}>
-              <Button label="Camera" kind="secondary" style={{ flex: 1 }} onPress={() => pickPhoto(true)} disabled={busy || flow.busy} />
-              <Button label="Library" kind="secondary" style={{ flex: 1 }} onPress={() => pickPhoto(false)} disabled={busy || flow.busy} />
-            </Row>
-            <Button label="Skip the photo" kind="secondary" onPress={() => save()} disabled={busy || flow.busy} />
-          </>
-        ) : (
-          <>
-            <Txt>Checked in.{spot.authorId !== store.me ? ' Rep added if this was your first time here.' : ''}</Txt>
-            <Button label="Check in again" kind="secondary" onPress={() => setStep('idle')} />
-          </>
-        )}
-        <InlineError message={error} />
-      </Card>
-    </Section>
+    <View style={{ gap: SPACING.md }}>
+      {step === 'idle' ? (
+        <>
+          <Button label="Check in here" size="lg" block busy={busy} onPress={checkIn} accessibilityHint="Checks you are within 0.2 mi of the spot" />
+          {error ? <ErrorState title={error} /> : null}
+          <DsText v="caption">Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved.</DsText>
+          <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} kind="secondary" />
+        </>
+      ) : (
+        <>
+          <Callout tone="success" title="You're here. Add a photo?">
+            Plates are blurred before anything is saved.
+          </Callout>
+          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+            <Button label="Camera" style={{ flex: 1 }} block onPress={() => pickPhoto(true)} disabled={busy || flow.busy} />
+            <Button label="Library" tier="secondary" style={{ flex: 1 }} block onPress={() => pickPhoto(false)} disabled={busy || flow.busy} />
+          </View>
+          <Button label="Skip the photo" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => save()} disabled={busy || flow.busy} />
+          {error ? <ErrorState title={error} /> : null}
+        </>
+      )}
+    </View>
   );
 }
 
@@ -587,13 +582,13 @@ function Photos({ spot }: { spot: Spot }) {
       {members.length || spot.kind === 'photo' ? (
         <Section title={members.length ? `Photos (${members.length})` : 'Photos'}>
           {members.length ? (
-            <Row gap={8}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {members.map((m) => (
-                <Image key={m.key} source={{ uri: photoUri(m.ref) }} style={{ width: 104, height: 104, borderRadius: RADIUS.card, borderWidth: 1, borderColor: C.kerb }} />
+                <Image key={m.key} source={{ uri: photoUri(m.ref) }} style={{ width: 104, height: 104, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }} />
               ))}
-            </Row>
+            </View>
           ) : (
-            <Txt v="caption">No photos yet. Check in here with your car or bike to add the first.</Txt>
+            <EmptyState variant="inline" title="No photos yet. Check in here with your car or bike to add the first." />
           )}
         </Section>
       ) : null}
@@ -604,11 +599,11 @@ function Photos({ spot }: { spot: Spot }) {
 }
 
 /** "Long drive · +175 rep": what finishing this drive for the first time is worth (rep.ts driveTier). */
-function DriveTierChip({ spot, done }: { spot: Spot; done: boolean }) {
+function DriveTierTag({ spot, done }: { spot: Spot; done: boolean }) {
   const tier = driveTier(spot.miles);
   return (
     <Tag
-      tone="brand"
+      tone={done ? 'success' : 'neutral'}
       label={`${tier.label} · +${tier.rep} rep${done ? ' earned' : ''}`}
       accessibilityLabel={`${tier.label}. ${done ? `${tier.rep} rep earned` : `${tier.rep} rep the first time you finish it`}`}
     />

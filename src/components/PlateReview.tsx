@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Image, Pressable, View, type LayoutChangeEvent } from 'react-native';
 import type { PlateBox } from '../../modules/plate-redactor';
-import { BRAND, STATE } from '../theme';
-import { Button, Card, Row, Txt } from './ui';
+import { COLOR, RADII, SPACING } from '../theme';
+import { Button, DsText } from './ds';
 
 export interface PendingPhoto {
   uri: string;
@@ -46,16 +46,18 @@ export function PlateReview({
   }
 
   return (
-    <Card accent={BRAND}>
-      <Txt v="h3">{recheck ? 'Add more plate blur' : 'Check the number plates'}</Txt>
-      <Txt v="muted">
+    <View style={{ gap: SPACING.md, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card }}>
+      <DsText v="title" accessibilityRole="header">
+        {recheck ? 'Add more plate blur' : 'Check the number plates'}
+      </DsText>
+      <DsText v="secondary">
         {recheck
           ? `Blur already in this photo stays. ${photo.boxes.length > 0 ? `We found ${photo.boxes.length} more to cover. ` : ''}Tap any plate that still shows to cover it, or a box to remove it.`
           : photo.boxes.length > 0
           ? `We found ${photo.boxes.length} plate${photo.boxes.length > 1 ? 's' : ''}. Tap a box to remove it, or tap a missed plate to cover it.`
           : "We didn't find a plate. Check the photo and tap any plate to cover it before saving."}
-      </Txt>
-      <View style={{ width: '100%', aspectRatio: aspect, borderRadius: 6, overflow: 'hidden' }} onLayout={onLayout}>
+      </DsText>
+      <View style={{ width: '100%', aspectRatio: aspect, borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media }} onLayout={onLayout}>
         <Pressable style={{ flex: 1 }} onPress={(e) => addAt(e.nativeEvent.locationX, e.nativeEvent.locationY)} accessibilityLabel="Photo. Tap to add a blur box">
           <Image source={{ uri: photo.uri }} style={{ width: '100%', height: '100%' }} />
         </Pressable>
@@ -70,18 +72,26 @@ export function PlateReview({
               top: b.y * frame.h,
               width: b.w * frame.w,
               height: b.h * frame.h,
-              backgroundColor: 'rgba(17,24,39,0.85)',
+              backgroundColor: COLOR.surface.media,
+              opacity: 0.9,
               borderWidth: 2,
-              borderColor: STATE.danger,
+              borderColor: COLOR.state.danger,
             }}
           />
         ))}
       </View>
-      <Txt v="caption">We try to blur plates automatically, but check before saving. The original photo isn't kept.</Txt>
-      <Row style={{ flexWrap: 'nowrap' }}>
-        <Button label={busy ? 'Blurring…' : recheck ? (boxes.length ? `Blur ${boxes.length} and save` : 'Nothing to add') : `Blur ${boxes.length} and add`} onPress={() => onDone(boxes)} busy={busy} style={{ flex: 1 }} />
-        <Button label="Cancel" kind="secondary" onPress={onCancel} />
-      </Row>
-    </Card>
+      <DsText v="caption">We try to blur plates automatically, but check before saving. The original photo isn't kept.</DsText>
+      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+        <Button
+          label={recheck ? (boxes.length ? `Blur ${boxes.length} and save` : 'Nothing to add') : `Blur ${boxes.length} and add`}
+          onPress={() => onDone(boxes)}
+          busy={busy}
+          haptic="success"
+          block
+          style={{ flex: 1 }}
+        />
+        <Button label="Cancel" tier="secondary" onPress={onCancel} />
+      </View>
+    </View>
   );
 }
