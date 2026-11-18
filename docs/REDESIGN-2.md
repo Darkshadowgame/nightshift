@@ -581,6 +581,10 @@ stop, unlock, locked, rough area, Sample area, Sample (as a tag), rep, level, Le
 car scale, claimed, invited, you can go, Find, Where to?, + Host, Count it without directions.
 `__tests__/glossary.test.ts` greps `src/app` and `src/components` for them.
 
+**Exception (owner decision, section 9.1):** "rep" and "level" are allowed in exactly three places:
+the one level line on Me, the ladder sheet it opens, and the "+150 rep" moment after check-in.
+Reviewers must not count those as breaks.
+
 ---
 
 ## 5. Look upgrade
