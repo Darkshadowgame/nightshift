@@ -7,8 +7,27 @@ import type { BanZone, LatLng, ZoneSourceKind } from './types';
  * (borough- or city-wide orders). Pure: the screens and the store share it.
  */
 
+/** Each ring's bounding box, worked out once (the rings are module data): most points are nowhere near most zones. */
+const ringBoxes = new WeakMap<readonly LatLng[], { s: number; n: number; w: number; e: number }>();
+function ringBox(ring: readonly LatLng[]) {
+  let b = ringBoxes.get(ring);
+  if (!b) {
+    b = { s: Infinity, n: -Infinity, w: Infinity, e: -Infinity };
+    for (const q of ring) {
+      if (q.lat < b.s) b.s = q.lat;
+      if (q.lat > b.n) b.n = q.lat;
+      if (q.lng < b.w) b.w = q.lng;
+      if (q.lng > b.e) b.e = q.lng;
+    }
+    ringBoxes.set(ring, b);
+  }
+  return b;
+}
+
 /** Ray casting on lat/lng: fine at council scale (a few miles), well away from the poles. */
 export function pointInPolygon(p: LatLng, ring: readonly LatLng[]): boolean {
+  const b = ringBox(ring);
+  if (p.lat < b.s || p.lat > b.n || p.lng < b.w || p.lng > b.e) return false;
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const a = ring[i];
@@ -20,6 +39,8 @@ export function pointInPolygon(p: LatLng, ring: readonly LatLng[]): boolean {
 
 export function inZone(p: LatLng, z: BanZone): boolean {
   if (z.polygons?.length) return z.polygons.some((ring) => pointInPolygon(p, ring));
+  // A degree of latitude is about 69 miles: far north or south of the circle, skip the trigonometry.
+  if (Math.abs(p.lat - z.centre.lat) * 68 > z.radiusMiles) return false;
   return milesBetween(z.centre, p) <= z.radiusMiles;
 }
 

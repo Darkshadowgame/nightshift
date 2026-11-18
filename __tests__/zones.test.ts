@@ -2,7 +2,8 @@ import { BAN_ZONES } from '../src/data/banZones';
 import { PLACES } from '../src/data/places';
 import { bundledSpots } from '../src/lib/placeStore';
 import { inZone, pointInPolygon, zoneInfo, zoneKind, zonesAt, zoneShapes } from '../src/lib/zones';
-import type { BanZone } from '../src/lib/types';
+import type { BanZone, LatLng } from '../src/lib/types';
+import { milesBetween } from '../src/lib/geo';
 
 const byId = (id: string) => BAN_ZONES.find((z) => z.id === id)!;
 const ids = (p: { lat: number; lng: number }) => zonesAt(p, BAN_ZONES).map((z) => z.id);
@@ -96,5 +97,35 @@ describe('the zone info card', () => {
     expect(zoneKind(byId('bz-felixstowe'))).toBe('pspo');
     expect(zoneInfo(byId('bz-westminster')).hours).toBe('18:00–07:00');
     for (const z of BAN_ZONES) expect(zoneInfo(z).bans.length).toBeGreaterThan(20);
+  });
+});
+
+describe('quick rejections give the same answers', () => {
+  // The plain versions, without the bounding-box and latitude shortcuts.
+  const naiveRing = (p: LatLng, ring: readonly LatLng[]) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i];
+      const b = ring[j];
+      if (a.lat > p.lat !== b.lat > p.lat && p.lng < ((b.lng - a.lng) * (p.lat - a.lat)) / (b.lat - a.lat) + a.lng) inside = !inside;
+    }
+    return inside;
+  };
+  const naive = (p: LatLng, z: BanZone) =>
+    z.polygons?.length ? z.polygons.some((r) => naiveRing(p, r)) : milesBetween(z.centre, p) <= z.radiusMiles;
+
+  test('every bundled place point, and a grid over the UK, against every zone', () => {
+    const points: LatLng[] = bundledSpots().flatMap((s) => [s.at, ...(s.path ?? [])]);
+    for (let lat = 49.9; lat < 59; lat += 0.13) for (let lng = -8; lng < 2; lng += 0.13) points.push({ lat, lng });
+    // Points right on a circle's edge, north and south.
+    for (const z of BAN_ZONES) if (!z.polygons?.length) for (const d of [-1, 1]) points.push({ lat: z.centre.lat + (d * z.radiusMiles) / 69.05, lng: z.centre.lng });
+    let hits = 0;
+    for (const p of points)
+      for (const z of BAN_ZONES) {
+        const want = naive(p, z);
+        if (want) hits++;
+        expect(inZone(p, z)).toBe(want);
+      }
+    expect(hits).toBeGreaterThan(50);
   });
 });
