@@ -130,6 +130,16 @@ Pure helpers in `ds/logic.ts` (tested in `__tests__/designSystem.test.ts`): `ini
 
 ---
 
+## Detail screens (events, places, shops, zones, crews)
+
+`src/components/Detail.tsx` holds the detail anatomy until the design system's own `Hero`, `Field` and
+`Notice` land: `DetailHero` (kind eyebrow in the layer colour, title, meta lines, one status tag),
+`MediaFrame` (map or photo), `Callout` (a tinted message with its tone's icon), `CheckInCelebration`
+(the burst and a success buzz, the same on events and photo spots), `Field`, `TextField` and
+`NotFoundState`. Order on every detail page: hero → `StatBlock` → one primary → media → Sections →
+everything else in the `···` Sheet. The event page's primary comes from `eventPrimary()`
+(`src/lib/eventAction.ts`): I'm going (with your build) → Navigate → Check in → Vote.
+
 ## Next (after sign-off)
 
 `Hero`, `Field` and `Notice` (§8.1 of the review), then migrate screens in the review's build order,

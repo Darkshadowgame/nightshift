@@ -370,7 +370,9 @@ export default function EventScreen() {
     const label = request ? GOING.request : GOING.join;
     const fits = goWith ? goesWith(goWith) : undefined;
     const note = request
-      ? `Your builds or home area don't match this invite (${describeFilter(ev.filter)}). A host can still say yes.`
+      ? mine.length === 0
+        ? `The invite is for ${describeFilter(ev.filter).replace(/^Cars and bikes/, 'cars and bikes').replace(/^Cars/, 'cars').replace(/^Bikes/, 'bikes')}. With nothing in your garage, a host has to say yes.`
+        : `Your builds or home area don't match this invite (${describeFilter(ev.filter)}). A host can still say yes.`
       : goWith && !fits
         ? `The ${goWith.make} ${goWith.model} doesn't match the invite, so a host has to say yes.`
         : null;
