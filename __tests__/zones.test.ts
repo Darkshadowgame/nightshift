@@ -92,7 +92,7 @@ describe('the zone info card', () => {
     expect(bc.forHosts).toMatch(/only warns/);
     expect(bc.details).not.toMatch(/^Sample/);
     // Worked out from the note when the zone doesn't say.
-    expect(zoneKind(byId('bz-medway'))).toBe('dispersal');
+    expect(zoneKind(byId('bz-sheerness'))).toBe('dispersal');
     expect(zoneKind(byId('bz-felixstowe'))).toBe('pspo');
     expect(zoneInfo(byId('bz-westminster')).hours).toBe('18:00–07:00');
     for (const z of BAN_ZONES) expect(zoneInfo(z).bans.length).toBeGreaterThan(20);

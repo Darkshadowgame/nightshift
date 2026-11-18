@@ -1,6 +1,7 @@
 import type { BanZone } from '../lib/types';
 import {
-  BRAINTREE, BRECKLAND, BRENT, BROADLAND, EAST_CAMBRIDGESHIRE, MILTON_KEYNES, SANDWELL, SOUTH_NORFOLK, SOUTHEND, STEVENAGE, WALSALL, WOLVERHAMPTON,
+  BRAINTREE, BRECKLAND, BRENT, BROADLAND, DARTFORD, EAST_CAMBRIDGESHIRE, GRAVESHAM, MEDWAY, MILTON_KEYNES, SANDWELL, SOUTH_NORFOLK, SOUTHEND, STEVENAGE,
+  TONBRIDGE_MALLING, WALSALL, WALTHAM_FOREST, WOLVERHAMPTON,
 } from './zoneBoundaries';
 import { banZones as NORTH_ENGLAND_BAN_ZONES } from './regions/northEngland';
 import { banZones as SOUTH_WEST_SOUTH_BAN_ZONES } from './regions/southWestSouth';
@@ -75,14 +76,22 @@ const BASE_BAN_ZONES: BanZone[] = [
     source: 'https://www.kentonline.co.uk/sevenoaks/news/boy-racers-face-fines-over-noisy-car-cruising-events-304087/',
   },
   {
-    id: 'bz-medway', name: 'Medway', centre: { lat: 51.38, lng: 0.53 }, radiusMiles: 4,
-    note: `${CHECK} Kent Police have used 48-hour dispersal orders against planned car meets here. Not a standing order, but expect them.`,
-    source: 'https://www.kentonline.co.uk/medway/news/police-take-action-to-stop-boy-racers-267107/',
+    id: 'bz-medway', name: 'Medway (whole area)', centre: { lat: 51.4, lng: 0.55 }, radiusMiles: 7,
+    polygons: MEDWAY,
+    kind: 'pspo',
+    bans: 'Car cruising and anti-social use of motor vehicles: convoys, racing, stunts (wheel spins, burnouts), revving, and recording or gathering to watch them.',
+    note: `${CHECK} Medway nuisance-vehicles PSPO (made 2023), in force from 1 Apr 2024 for three years (to about Mar 2027); a renewal went to scrutiny in Aug 2026. Almost 50 fixed penalties were issued after a racing gathering at Hoo in Jun 2026. Kent Police also use 48-hour dispersal orders here.`,
+    source: 'https://www.medway.gov.uk/pspo',
+    checked: '2026-11-17',
   },
   {
-    id: 'bz-dartford', name: 'Dartford', centre: { lat: 51.445, lng: 0.215 }, radiusMiles: 2,
-    note: `${CHECK} Kent Police have used dispersal orders against car meets here. Not a standing order, but expect them.`,
-    source: 'https://www.kentonline.co.uk/dartford/news/this-is-good-progress-but-it-needs-to-happen-every-week-243773/',
+    id: 'bz-dartford', name: 'Dartford (borough-wide)', centre: { lat: 51.43, lng: 0.24 }, radiusMiles: 4,
+    polygons: DARTFORD,
+    kind: 'pspo',
+    bans: 'Entering or gathering to display, race or watch motor vehicles; speeding, convoys, racing, stunts, horns, revving and anything a reasonable person would call car cruising. £100 fixed penalty.',
+    note: `${CHECK} Borough-wide nuisance-vehicles PSPO (first made May 2022 for three years; the council now lists a "Nuisance Vehicle Order 2025", so renewed in 2025, probably to about 2028). Enforced at Crossways Boulevard and Bluewater; Kent Police also use dispersal orders here.`,
+    source: 'https://www.dartford.gov.uk/community-safety/public-space-protection-order',
+    checked: '2026-11-17',
   },
   {
     id: 'bz-sheerness', name: 'Sheerness', centre: { lat: 51.44, lng: 0.76 }, radiusMiles: 1.5,
@@ -175,6 +184,33 @@ const BASE_BAN_ZONES: BanZone[] = [
     bans: 'Anti-social car cruising and street racing in public places, including excessive noise and dangerous speeds. £100 fixed penalty.',
     note: `${CHECK} Car cruise and street racing PSPO since 2020, extended in Jan 2026 for three years (to about Jan 2029) and widened to more anti-social vehicle use.`,
     source: 'https://www.milton-keynes.gov.uk/community-safety-safermk-partnership/public-space-protection-orders-pspo/car-cruising-pspo',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-gravesham', name: 'Gravesham (borough-wide)', centre: { lat: 51.4, lng: 0.38 }, radiusMiles: 6,
+    polygons: GRAVESHAM,
+    kind: 'pspo',
+    bans: 'Revving and horns, repeated hard acceleration, racing, stunts (doughnuts, handbrake turns, drifting, burnouts, wheelies), loud music, obstruction including convoys, and off-road riding. £100 fixed penalty.',
+    note: `${CHECK} Gravesham nuisance-vehicles PSPO 2026, the whole borough, 1 Jul 2026 for three years (to about Jun 2029).`,
+    source: 'https://www.gravesham.gov.uk/downloads/file/1147/nuisance-vehicles-pspo',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-tonbridge-malling', name: 'Tonbridge and Malling (borough-wide)', centre: { lat: 51.27, lng: 0.38 }, radiusMiles: 8,
+    polygons: TONBRIDGE_MALLING,
+    kind: 'pspo',
+    bans: 'Attending a meet of two or more vehicles as owner, driver, passenger or spectator and joining in car cruising: racing, stunts, revving, horns, loud music, danger or obstruction. £100 fixed penalty.',
+    note: `${CHECK} Tonbridge and Malling PSPO 2026 (borough-wide measures), from 1 Apr 2026, normally for three years (to about Mar 2029). Hotspots have included Blue Bell Hill, Leybourne and Larkfield.`,
+    source: 'https://www.tmbc.gov.uk/downloads/file/3074/public-space-protection-order-2026',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-waltham-forest', name: 'Waltham Forest (borough-wide)', centre: { lat: 51.59, lng: -0.01 }, radiusMiles: 4,
+    polygons: WALTHAM_FOREST,
+    kind: 'pspo',
+    bans: 'Attending an unauthorised car meet as a driver, passenger or spectator, and anti-social driving such as racing, speeding and revving.',
+    note: `${CHECK} Car-meets PSPO for the whole borough, in force since Oct 2024 (three years, so to about Oct 2027; expiry not confirmed on the council page). Hotspots: Hoe Street and Lea Bridge (Argall Way).`,
+    source: 'https://www.walthamforest.gov.uk/neighbourhoods/crime-and-community-safety/public-space-protection-orders',
     checked: '2026-11-17',
   },
 ];

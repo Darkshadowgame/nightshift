@@ -1,5 +1,5 @@
 import type { BanZone } from '../../lib/types';
-import { ASHFIELD, BASSETLAW, BIRMINGHAM, COVENTRY, DUDLEY, GEDLING_PSPO, NEWCASTLE_UNDER_LYME, WEST_NORTHAMPTONSHIRE } from '../zoneBoundaries';
+import { ASHFIELD, BASSETLAW, BIRMINGHAM, CANNOCK_CHASE, COVENTRY, DUDLEY, GEDLING_PSPO, NEWCASTLE_UNDER_LYME, WEST_NORTHAMPTONSHIRE } from '../zoneBoundaries';
 import type { PlaceSeed } from '../places';
 
 /**
@@ -535,6 +535,15 @@ export const banZones: BanZone[] = [
     bans: 'Taking part in car cruising as a driver or passenger, or gathering to watch: speeding, revving, convoys, racing, stunts, horns, loud music and obstruction.',
     note: `${CHECK} Car Cruising PSPO 2025 for the whole council area, from 25 Jun 2025 for three years (to about Jun 2028). Silverstone events are not the target.`,
     source: 'https://www.westnorthants.gov.uk/personal-safety-and-community-support/public-spaces-protection-orders-pspos/pspos-force-across-west',
+    checked: '2026-11-17',
+  },
+  {
+    id: 'bz-mw-cannock-chase', name: 'Cannock Chase district', centre: { lat: 52.71, lng: -1.98 }, radiusMiles: 6,
+    polygons: CANNOCK_CHASE,
+    kind: 'pspo',
+    bans: 'Engaging in, helping with or causing anti-social behaviour with a motor vehicle in any publicly accessible place in the district, at any time. Used against car cruises.',
+    note: `${CHECK} Cannock Chase District PSPO 2025 (clause 6B, anti-social use of motorised vehicles, 24 hours a day), in force from about 31 Jan 2025 for up to three years (to about Jan 2028). The council and police issued 25 PSPO warnings after a car cruise in Oct 2025.`,
+    source: 'https://cannockchasedc.gov.uk/node/8719',
     checked: '2026-11-17',
   },
 ];

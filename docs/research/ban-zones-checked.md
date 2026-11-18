@@ -2,7 +2,7 @@
 
 What was checked for car-meet, car-cruising, street-racing and nuisance-vehicle orders
 (PSPOs, "persons unknown" injunctions and repeated police dispersal orders), all on
-**17 Nov 2026**. "Added" means it is in `src/data/banZones.ts` or a region file under
+**17 Nov 2026** (a second sweep ran 17–18 Nov). "Added" means it is in `src/data/banZones.ts` or a region file under
 `src/data/regions/`. "No order" means nothing current was found. That is not a
 guarantee: several council sites block automated reading, and the shared web-search
 budget ran out partway through, so rows marked *(low)* need a recheck.
@@ -48,14 +48,19 @@ named roads or sites.
 | Sevenoaks (Halstead) | From 1 May 2024 | `bz-halstead` note | ~Apr 2027 | [Sevenoaks](https://www.sevenoaks.gov.uk/pspohalsted) |
 | Wirral (Bromborough), West Lancs (Pimbo) | Both renewed Jul 2025 | notes | ~2028 | [Wirral](https://wirralview.com/node/11868), [West Lancs](https://www.westlancs.gov.uk/pspo) |
 | Basingstoke | No PSPO; no dispersals found in 2026 | `bz-sws-basingstoke` note | dispersals 2024, 2025 | [Basingstoke PSPOs](https://www.basingstoke.gov.uk/pspo) |
+| Cannock Chase | District PSPO 2025, clause 6B anti-social use of motor vehicles, district-wide, 24/7; used after an Oct 2025 car cruise | `bz-mw-cannock-chase` (outline) | ~31 Jan 2025, ~Jan 2028 | [Cannock Chase](https://cannockchasedc.gov.uk/node/8719) |
+| Waltham Forest | Car-meets PSPO, whole borough (resolved: the 2024 proposal and order cover the entire borough) | `bz-waltham-forest` (outline) | Oct 2024, ~Oct 2027 (expiry inferred) | [Waltham Forest](https://www.walthamforest.gov.uk/neighbourhoods/crime-and-community-safety/public-space-protection-orders), [Echo](https://walthamforestecho.co.uk/2024/04/09/council-consults-on-planned-car-meets-crackdown/) |
+| Tonbridge and Malling | PSPO 2026, borough-wide car-cruising clause (owner, driver, passenger or spectator) | `bz-tonbridge-malling` (outline) | 1 Apr 2026, ~Mar 2029 | [TMBC order](https://www.tmbc.gov.uk/downloads/file/3074/public-space-protection-order-2026) |
+| Gravesham | Nuisance Vehicles PSPO 2026, whole borough (revving, racing, stunts, convoys) | `bz-gravesham` (outline) | 1 Jul 2026 to ~Jun 2029 | [Gravesham order](https://www.gravesham.gov.uk/downloads/file/1147/nuisance-vehicles-pspo) |
+| Dartford | Nuisance Vehicles PSPO, whole borough; was a dispersal circle. 2022 order (3 years) now listed as "Nuisance Vehicle Order 2025" (medium) | `bz-dartford` (now outline) | renewed 2025, ~2028 | [Dartford](https://www.dartford.gov.uk/community-safety/public-space-protection-order) |
+| Medway | Nuisance Vehicles PSPO, whole of Medway; was a dispersal circle. Renewal at scrutiny Aug 2026 | `bz-medway` (now outline) | 1 Apr 2024, ~Mar 2027 | [Medway](https://www.medway.gov.uk/pspo) |
 
 ## Found but not mapped
 
 | Council | Result | Source |
 |---|---|---|
-| Waltham Forest | Car-meet PSPO since Oct 2024; area and expiry not confirmed (the restrictions PDF wasn't readable) | [Waltham Forest](https://www.walthamforest.gov.uk/neighbourhoods/crime-and-community-safety/public-space-protection-orders) |
-| Central Bedfordshire | District-wide PSPO approved Oct 2026; signs spring 2027, enforcement summer 2027. Add then | [Hits Radio](https://www.hellorayo.co.uk/hits-radio/beds-bucks-herts/news/new-powers-approved-to-tackle-street-racing-and-car-cruising-across-central-bedfordshire) |
-| Bolsover | District-wide PSPO from 25 Sep 2023 (three years); renewal consulted Aug 2026, outcome not found | [Bolsover bulletin](https://content.govdelivery.com/accounts/UKBDC/bulletins/427379d) |
+| Central Bedfordshire | District-wide PSPO approved Oct 2026; signs spring 2027, enforcement summer 2027. No sealed order or start date published yet (rechecked 17 Nov). Add then | [Hits Radio](https://www.hellorayo.co.uk/hits-radio/beds-bucks-herts/news/new-powers-approved-to-tackle-street-racing-and-car-cruising-across-central-bedfordshire) |
+| Bolsover | District-wide PSPO from 25 Sep 2023 (three years, so ended ~Sep 2026 unless renewed); renewal consulted Aug 2026; still no decision found and the council site blocks automated reading. Enforced at Doe Lea after a Mar 2026 event | [Bolsover bulletin](https://content.govdelivery.com/accounts/UKBDC/bulletins/427379d) |
 | Carmarthenshire | North Dock, Llanelli vehicle PSPO proposed (consulted Sep–Oct 2026, drafted as 2027) | [Carmarthenshire](https://www.carmarthenshire.gov.wales/council-democracy/have-your-say/proposed-vehicle-anti-social-behaviour-pspo-north-dock/) |
 | Newham | Motor Vehicle Nuisance PSPO 18 Jan 2023 to 18 Jan 2026; not renewed (a car-parks PSPO remains) | [Newham](https://newham.gov.uk/community-parks-leisure/public-spaces-protection-order-pspo) |
 | Castle Point | Roscommon Way, Canvey PSPO from Sep 2022; probably lapsed Sep 2025 *(low)* | [Hits Radio](https://www.hellorayo.co.uk/greatest-hits/essex/news/canvey-island-boy-racers-face-pound100-fines) |
@@ -68,30 +73,43 @@ named roads or sites.
 | Greater Manchester | One-off force-wide dispersal 17–19 Jan 2026; Sussex-wide one 9–11 Jan 2026 | [Roch Valley Radio](https://www.rochvalleyradio.com/news/local-news/police-issue-dispersal-order-across-greater-manchester-to-prevent-dangerous-car-meets/) |
 | Somerset | Cheddar Gorge temporary road-closure order (Aug 2025), not a PSPO; status unknown | [Somerset](https://www.somerset.gov.uk/environment-and-food-safety/public-spaces-protection-orders) |
 | Rushcliffe, Nottingham | Ratcliffe-on-Soar/A453 traffic order only discussed; undated city-wide 24-hour dispersals *(low)* | [Notts TV](https://nottstv.com/traffic-rules-considered-to-curb-dangerous-car-meets-around-ratcliffe-power-station/) |
+| Trafford (recheck) | Whole-borough order ran to Aug 2026; still no renewal found, council site blocks automated reading. Zone kept with "may have lapsed" note | [Trafford decision](https://democratic.trafford.gov.uk/ieDecisionDetails.aspx?ID=878) |
+| Tamworth | Borough-wide nuisance-vehicle PSPO (2016, renewed 2019 and 2022, to ~2025); no longer on the council's PSPO list, so probably lapsed *(medium)* | [Tamworth](https://community.tamworth.gov.uk/index.php/community-safety/public-space-protection-orders) |
+| Lichfield | Burntwood car-cruising injunction (7pm–7am), made indefinite in 2012; no current source found *(low)* | [Express & Star](https://www.expressandstar.com/news/2012/07/31/courts-make-roads-ban-on-boy-racers-indefinite) |
+| North East Lincolnshire | Borough-wide nuisance-vehicles PSPO recommended to Cabinet 16 Sep 2026, aimed at off-road and electric motorbikes in parks, not car meets | [NE Lincs report](https://www.nelincs.gov.uk/assets/uploads/2026/05/9.-PSPO-Report.pdf) |
+| North Lincolnshire | Heap & Farmer (2025) count it as a car-cruising PSPO from Oct 2021 (Scunthorpe, Brigg), renewed Oct 2024; clauses unseen (site blocks bots) *(low)* | [N Lincs](https://www.northlincs.gov.uk/planning-and-environment/public-spaces-protection-order-pspo) |
+| Buckinghamshire | A40/A413 PSPO (9 May 2026) is pony-and-trap racing only; Designated Car Parks PSPO (3 Oct 2025) has driver clauses, sites and wording unseen | [Bucks](https://www.buckinghamshire.gov.uk/community-and-safety/community-safety/anti-social-behaviour/public-space-protection-orders/) |
+| Herefordshire | Garrick multi-storey car park PSPO (1 May 2022, three years); renewal not found | [Herefordshire](https://www.herefordshire.gov.uk/community-1/safer-stronger-communities/9) |
+| Wigan (recheck) | Borough-wide car-cruising PSPO consulted to 31 Jan 2025; still shown as proposed | [Wigan](https://www.wigan.gov.uk/Council/Consultations/Current/Public-Space-Protection-Orders.aspx) |
+| Swale | Kent Police section 34 dispersal orders (Rushenden, Iwade) and seizures; no PSPO found | [KentOnline](https://www.kentonline.co.uk/sheerness/news/dispersal-order-to-stop-planned-race-meet-300812/) |
+| Croydon | Coulsdon (Redlands estate) meets Jan 2026; police seizures promised, no order | [Inside Croydon](https://insidecroydon.com/2026/01/15/police-prepared-to-seize-vehicles-involved-in-coulsdon-meets/) |
 
 ## No order found
 
 | Area | Councils (all checked 17 Nov 2026) |
 |---|---|
-| North of England | York, Harrogate (North Yorkshire), Bury, Warrington, Cheshire West and Chester, St Helens, Cumberland, Westmorland and Furness, Northumberland |
-| Midlands | Derby, Telford & Wrekin (police operations at Stafford Park, no order), Charnwood, Hinckley & Bosworth, Blaby, Oadby & Wigston, Leicester, Mansfield, Newark & Sherwood, North Northamptonshire |
+| North of England | Salford (Quays, alcohol and dog orders only); *(low, one search each)* Sefton (town-centre PSPO only), Blackburn, Blackpool, Preston, Burnley (town-centre PSPO only), Hull, East Riding, Liverpool, Knowsley, Middlesbrough, Stockton, Hartlepool, Darlington, Durham, Newcastle, Gateshead, North and South Tyneside, Bolton, Oldham, York, Harrogate (North Yorkshire), Bury, Warrington, Cheshire West and Chester, St Helens, Cumberland, Westmorland and Furness, Northumberland |
+| Midlands | *(low, one search each)* Stoke-on-Trent (police action only), Warwick, Rugby, Nuneaton & Bedworth (town-centre PSPO only), Worcestershire districts, Shropshire, Rutland, East Staffordshire, Lincoln (car-park PSPO only), other Lincolnshire districts; Derby, Telford & Wrekin (police operations at Stafford Park, no order), Charnwood, Hinckley & Bosworth, Blaby, Oadby & Wigston, Leicester, Mansfield, Newark & Sherwood, North Northamptonshire |
 | South West | Cornwall, Somerset (no PSPO), Dorset, BCP (one-off dispersals only), Wiltshire (outside Swindon), Torbay, East Devon; *(low)* Exeter, Teignbridge, Stroud, Tewkesbury, Forest of Dean |
 | Thames Valley and Oxfordshire | Oxford, Cherwell, West Oxfordshire (A40 order is for pony-and-trap racing), Bracknell Forest, West Berkshire, Windsor & Maidenhead, Reading (Cradock Road meets, no order), Slough, Isle of Wight; *(low)* South Oxfordshire, Vale of White Horse |
 | Hampshire | Southampton, Portsmouth, Basingstoke & Deane (no PSPO), Fareham, Eastleigh, Gosport, Havant, Test Valley, New Forest, Winchester, Rushmoor, Hart, East Hampshire |
 | Surrey | Epsom & Ewell, Guildford, Reigate & Banstead, Runnymede, Spelthorne, Surrey Heath, Tandridge (a Caterham pavement-parking PSPO only), Waverley, Woking |
 | Sussex | Brighton & Hove (open-spaces vehicle PSPO proposed, not about meets), Worthing, Adur, Arun, Chichester, Hastings, Lewes, Rother, Wealden |
-| London and East | Havering, Redbridge, Hillingdon, Ealing, Hounslow, Bromley, Bexley, Greenwich, Barnet, Haringey, Tower Hamlets, Barking & Dagenham, Basildon, Hertfordshire districts other than Stevenage, Cambridge, Huntingdonshire, Fenland; *(low)* Luton, Bedford, Chelmsford, Tendring, Harlow, Epping Forest |
+| London and East | *(low, one search each)* Maidstone, Ashford, Canterbury, Thanet, Dover, Folkestone & Hythe, Ipswich (alcohol PSPO only), West Suffolk, Mid Suffolk, Babergh, Lowestoft (town PSPO, clauses unseen); Havering, Redbridge, Hillingdon, Ealing, Hounslow, Bromley, Bexley, Greenwich, Barnet, Haringey, Tower Hamlets, Barking & Dagenham, Basildon, Hertfordshire districts other than Stevenage, Cambridge, Huntingdonshire, Fenland; *(low)* Luton, Bedford, Chelmsford, Tendring, Harlow, Epping Forest |
 | Wales | Swansea *(PSPO page unreadable)*, Cardiff (old Cardiff Bay dispersals), Newport, Neath Port Talbot, Bridgend, Vale of Glamorgan, Rhondda Cynon Taf, Caerphilly, Wrexham *(clauses unseen)*, Flintshire, Conwy, Denbighshire, Gwynedd, Powys, Carmarthenshire (proposed only) |
 | Scotland | Perth & Kinross, Stirling, Glasgow, Edinburgh, Dundee, Fife, Falkirk, West Lothian, North and South Lanarkshire, Highland |
 | Northern Ireland | Derry City & Strabane, Newry Mourne & Down (Donard Park barriers only), Belfast, Antrim & Newtownabbey, Lisburn & Castlereagh, Armagh Banbridge & Craigavon, Mid Ulster; Causeway Coast & Glens stays a PSNI operation area |
 
 ## Not yet checked
 
-The search budget ran out before these: Lincolnshire districts, Stoke and the other
-Staffordshire districts (Cannock Chase had a 2025 enforcement story), Warwickshire,
-Worcestershire, Herefordshire, Shropshire, South Yorkshire (Sheffield and Rotherham
-were checked earlier), Hull and East Riding, North and North East Lincolnshire,
-Lancashire, Merseyside (except Wirral and St Helens), the rest of Greater Manchester,
-Tees Valley (except Redcar), Durham, Tyneside, the rest of Kent and Suffolk,
-Buckinghamshire (an A40/A413 PSPO 2026 and a car-parks PSPO are listed; clauses
-unseen), Croydon (Coulsdon meets, no order found) and Rutland.
+Second sweep (17–18 Nov 2026) covered the list above until the shared web-search
+budget ran out again. Still open, or searched only once with thin results:
+Manchester, Rochdale, Tameside (police mooted a borough-wide order in 2020), Knowsley
+and Liverpool council pages, Hull and East Riding council pages, the Tees Valley and
+Tyneside council pages, Durham, Lincolnshire districts one by one (South Kesteven,
+East Lindsey, Boston, South Holland, West Lindsey, North Kesteven), Staffordshire
+Moorlands and East Staffordshire, Warwickshire district pages (Stratford-on-Avon's
+old order lapsed), Tunbridge Wells, the remaining London boroughs (Lambeth, Southwark,
+Lewisham, Merton, Sutton, Kingston, Wandsworth, Hammersmith & Fulham, Camden, Islington,
+Hackney, Harrow, Richmond, City), and Heap & Farmer's Supplementary Table 1 (the full
+2024 list of 69 car-cruising PSPOs), which would settle most of these in one go.
