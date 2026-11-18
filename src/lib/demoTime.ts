@@ -1,15 +1,92 @@
 import { seed, SEED_EVENT_IDS, type SceneOptions } from '../data/seed';
+import { clockOffset, setClockOffset, weekdayAt } from './appClock';
 import type { Vote } from './awards';
 import { endTime } from './events';
 import type { ChatMessage, NightEvent, Spot } from './types';
 
 /**
- * Keeps the demo scene fresh. The seed is laid out relative to when it was made
- * (a rolling meet live now, a crew meet in 30 minutes, a cruise in two days at
- * 22:30). Saved data keeps absolute times, so a day later the demo looks dead.
- * On load, seeded events are moved back into place; events made on the phone
- * are never touched.
+ * The demo night (Redesign 2, 3.1): a virtual clock and a scene that stays fresh.
+ *
+ * The demo always runs on a Friday night. When the demo starts, the app's clock (appClock.ts) is
+ * set to read Friday 21:10, whatever the real time, and it moves on in real time from there. The
+ * sample events (seed.ts) are laid out round that moment, so a tester at lunchtime and one in the
+ * evening see the same night. Signed-in people use the real clock.
+ *
+ * Saved data keeps absolute times, so on a later visit seeded events are moved back into place;
+ * events made on the phone are never touched.
  */
+
+// ---------------------------------------------------------------------------
+// The virtual clock
+// ---------------------------------------------------------------------------
+
+/** Friday (5) at 21:10: where every demo night starts. */
+export const DEMO_START = { weekday: 5, hour: 21, minute: 10 } as const;
+/** A night lasts this long; opened again after that, the demo starts the night over at 21:10. */
+export const DEMO_NIGHT_MS = 110 * 60_000;
+/** Where the clock offset is kept between launches (AsyncStorage in the app). */
+export const DEMO_CLOCK_KEY = 'nightshift.demoClock';
+
+/** The Friday 21:10 a demo started at `realNow` runs on: this week's (today's if it's Friday). */
+export function demoStartFor(realNow: number): Date {
+  return weekdayAt(new Date(realNow), DEMO_START.weekday, DEMO_START.hour, DEMO_START.minute);
+}
+
+/** The offset that makes the app's clock read Friday 21:10 at `realNow`. */
+export function freshDemoOffset(realNow: number): number {
+  return demoStartFor(realNow).getTime() - realNow;
+}
+
+/**
+ * The offset to use on launch: the saved one while its night is still on (the clock reads no later
+ * than 23:00 that night), else a fresh night. `saved` is what `startDemoClock` kept last time.
+ */
+export function demoOffsetOnLaunch(saved: { offset: number; start: number } | null, realNow: number): { offset: number; start: number; fresh: boolean } {
+  if (saved && Number.isFinite(saved.offset) && Number.isFinite(saved.start)) {
+    const virtual = realNow + saved.offset;
+    if (virtual >= saved.start && virtual - saved.start <= DEMO_NIGHT_MS) return { ...saved, fresh: false };
+  }
+  const offset = freshDemoOffset(realNow);
+  return { offset, start: realNow + offset, fresh: true };
+}
+
+type Storage = { getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> };
+
+/** Demo mode starting: set the app's clock to the demo night (kept, or a fresh Friday 21:10). */
+export async function startDemoClock(storage: Storage, realNow = Date.now()): Promise<{ fresh: boolean }> {
+  let saved: { offset: number; start: number } | null = null;
+  try {
+    const raw = await storage.getItem(DEMO_CLOCK_KEY);
+    saved = raw ? (JSON.parse(raw) as { offset: number; start: number }) : null;
+  } catch {
+    saved = null;
+  }
+  const next = demoOffsetOnLaunch(saved, realNow);
+  setClockOffset(next.offset);
+  if (next.fresh) await storage.setItem(DEMO_CLOCK_KEY, JSON.stringify({ offset: next.offset, start: next.start })).catch(() => {});
+  return { fresh: next.fresh };
+}
+
+/** "Restart the demo night" and "Reset everything": the clock goes back to Friday 21:10. */
+export function restartDemoClock(storage: Storage, realNow = Date.now()): void {
+  const offset = freshDemoOffset(realNow);
+  setClockOffset(offset);
+  storage.setItem(DEMO_CLOCK_KEY, JSON.stringify({ offset, start: realNow + offset })).catch(() => {});
+}
+
+/** Signed in or signed out: the real clock. */
+export function stopDemoClock(): void {
+  setClockOffset(0);
+}
+
+/** A real-time date for something on the app's clock (phone notifications fire on the real clock). */
+export function toRealTime(d: Date): Date {
+  return new Date(d.getTime() - clockOffset());
+}
+
+// ---------------------------------------------------------------------------
+// Keeping the scene fresh
+// ---------------------------------------------------------------------------
 
 /** Re-anchor the demo when it's older than this, even if it's been used. */
 export const REFRESH_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -34,10 +111,10 @@ export function isUntouchedDemo(slice: DemoSlice, anchor: Date, scene: SceneOpti
   return pick(slice) === pick({ events: original.events, chat: original.chat, votes: original.votes });
 }
 
-/** Older saves have no anchor: the seed starts the live rolling meet 45 minutes before it, so work back from that. */
+/** Older saves have no anchor: the seed starts the live meet about 40 minutes before it, so work back from that. */
 export function inferAnchor(events: NightEvent[]): Date | null {
-  const live = events.find((e) => e.id === 'ev-rolling-live');
-  return live ? new Date(new Date(live.startsAt).getTime() + 45 * 60_000) : null;
+  const live = events.find((e) => e.id === 'ev-meet-now');
+  return live ? new Date(new Date(live.startsAt).getTime() + 40 * 60_000) : null;
 }
 
 export function needsRefresh(slice: DemoSlice, anchor: Date, now: Date, scene: SceneOptions = {}): boolean {
@@ -73,7 +150,9 @@ export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date, scene: Sc
   const wholeDays = Math.round(age / DAY_MS) * DAY_MS;
   const deltas = new Map<string, number>();
 
-  const events = slice.events.map((e) => {
+  // Sample events the seed no longer makes (older demo nights) go.
+  const kept = slice.events.filter((e) => !SEED_IDS.has(e.id) || fresh.has(e.id));
+  const events = kept.map((e) => {
     if (!SEED_IDS.has(e.id)) return e;
     if (untouched.has(e.id) && fresh.has(e.id)) {
       deltas.set(e.id, new Date(fresh.get(e.id)!.startsAt).getTime() - new Date(e.startsAt).getTime());
@@ -96,8 +175,8 @@ export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date, scene: Sc
     };
   });
 
-  const chat = slice.chat.map((m) => (SEED_IDS.has(m.eventId) ? { ...m, at: shift(m.at, age) } : m));
-  const votes = slice.votes.map((v) => {
+  const chat = slice.chat.filter((m) => !SEED_IDS.has(m.eventId) || fresh.has(m.eventId)).map((m) => (SEED_IDS.has(m.eventId) ? { ...m, at: shift(m.at, age) } : m));
+  const votes = slice.votes.filter((v) => !SEED_IDS.has(v.eventId) || fresh.has(v.eventId)).map((v) => {
     const d = deltas.get(v.eventId);
     return d ? { ...v, at: shift(v.at, d) } : v;
   });

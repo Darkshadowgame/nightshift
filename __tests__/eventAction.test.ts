@@ -1,4 +1,4 @@
-import { eventPrimary, mixLine, whenLine } from '../src/lib/eventAction';
+import { eventPrimary, mixLine, openToLine, statusLine, statusPill, untilText, whenLine } from '../src/lib/eventAction';
 import { classRange, DEFAULT_FILTER, fromVehicleSelection, vehicleSelection } from '../src/lib/invites';
 import type { Build, Crew, NightEvent } from '../src/lib/types';
 
@@ -16,8 +16,8 @@ const build = (id: string, ownerId: string, kind: 'car' | 'bike', bhp: number, m
   mods: Array.from({ length: mods }, (_, i) => ({ id: `${id}${i}`, category: 'engine' as const, name: `Mod ${i}` })),
 });
 
-describe('eventPrimary: the one action, by state', () => {
-  test('not going: I\'m going when invited, Request to go when not', () => {
+describe('eventPrimary: the one state, by the 3.5 table', () => {
+  test("not going: I'm going when open to you, Ask to go when not", () => {
     expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(-300))).toEqual({ kind: 'join', request: false });
     expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'public', crews, [], at(-300))).toEqual({ kind: 'join', request: false });
     expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'none', crews, [], at(-300))).toEqual({ kind: 'join', request: true });
@@ -25,40 +25,57 @@ describe('eventPrimary: the one action, by state', () => {
     expect(eventPrimary({ ...event, going: ['host'], declined: ['me'] }, 'me', 'declined', crews, [], at(-300)).kind).toBe('declined');
   });
 
-  test('going, before the location shows: no disabled button, a state line saying when', () => {
-    const p = eventPrimary(event, 'me', 'going', crews, [], at(-120));
-    expect(p).toEqual({
-      kind: 'waiting',
-      at: at(-60).toISOString(),
-      line: expect.stringMatching(/^Location shows at \d\d:\d\d$/),
-      detail: 'In 1h. Shown to people going, 1 h before. Until then you see the area.',
-    });
-    expect(JSON.stringify(p)).not.toMatch(/unlock|stop/i);
+  test('going, before the location shows: waiting, with when it shows; the line has the one countdown', () => {
+    const p = eventPrimary(event, 'me', 'going', crews, [], at(-80));
+    expect(p).toEqual({ kind: 'waiting', at: at(-60).toISOString() });
+    const line = statusLine(event, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-80) }).text;
+    expect(line).toMatch(/^Location shows at \d\d:\d\d \(in 20 min\)\.$/);
+    expect(statusPill(p)).toMatch(/^Location at \d\d:\d\d$/);
+    expect(JSON.stringify(p) + line).not.toMatch(/unlock|stop/i);
   });
 
-  test('going, the location is shown, before check-in opens: Navigate', () => {
+  test('not going and hidden: says who sees it and when', () => {
+    const p = eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(-120));
+    expect(statusLine({ ...event, going: ['host'] }, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-120) }).text).toMatch(/^Location shows at \d\d:\d\d to people going\.$/);
+  });
+
+  test('not open to your car: why, and Ask to go', () => {
+    const narrow = { ...event, going: ['host'], filter: { ...DEFAULT_FILTER, everyone: false, classes: ['S' as const, 'A' as const] } };
+    const p = eventPrimary(narrow, 'me', 'none', crews, [], at(-300));
+    expect(statusLine(narrow, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-300) }).text).toBe('Open to Class A and up. Ask a host to let you in.');
+    expect(openToLine({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true })).toBe('Open to bikes only.');
+  });
+
+  test('going, the location is shown, before check-in opens: Navigate, and when check-in opens', () => {
     const p = eventPrimary(event, 'me', 'going', crews, [], at(-50));
-    expect(p).toEqual({ kind: 'navigate', hint: 'Check-in opens in 20m, 30 minutes before the start.' });
+    expect(p).toEqual({ kind: 'navigate', opensAt: at(-30).toISOString() });
+    const line = statusLine(event, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-50) }).text;
+    expect(line).toMatch(/^Spot, Midlands\. Check-in opens at \d\d:\d\d \(in 20 min\)\.$/);
   });
 
   test('check-in opens 30 minutes before the start', () => {
     expect(eventPrimary(event, 'me', 'going', crews, [], at(-20))).toEqual({ kind: 'checkin', stopIndex: 0 });
   });
 
-  test('checked in: Vote while voting is open, and after the end until it closes', () => {
+  test('checked in: Vote while voting is open, then Voted; Ended once it closes', () => {
     const b = [build('a', 'me', 'car', 300), build('b', 'host', 'car', 400)];
     const done = { ...event, checkIns: { me: ['s'] } };
     expect(eventPrimary(done, 'me', 'going', crews, b, at(10)).kind).toBe('vote');
     expect(eventPrimary(done, 'me', 'going', crews, b, at(200)).kind).toBe('vote');
+    const v = [{ eventId: 'e', voterId: 'me', category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }];
+    const voted = eventPrimary(done, 'me', 'going', crews, b, at(30), v);
+    expect(voted.kind).toBe('voted');
+    expect(statusLine(done, voted, { me: 'me', crews, builds: b, users: [], votes: v, now: at(30) }).text).toMatch(/^You voted\. Results at \d\d:\d\d (tomorrow|on \w+)\.$/);
     // Before the start, voting isn't open yet: just checked in.
     expect(eventPrimary(done, 'me', 'going', crews, b, at(-10))).toEqual({ kind: 'checkedIn', stopIndex: 0 });
-    // Voting closed: nothing left.
-    expect(eventPrimary(done, 'me', 'going', crews, b, at(180 + 25 * 60)).kind).toBe('none');
+    expect(eventPrimary(done, 'me', 'going', crews, b, at(180 + 25 * 60)).kind).toBe('ended');
   });
 
-  test('cancelled and finished-without-you have no primary', () => {
-    expect(eventPrimary({ ...event, cancelled: true }, 'me', 'going', crews, [], at(-20)).kind).toBe('none');
-    expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(200)).kind).toBe('none');
+  test('cancelled and finished-without-you', () => {
+    const c = eventPrimary({ ...event, cancelled: true }, 'me', 'going', crews, [], at(-20));
+    expect(c.kind).toBe('cancelled');
+    expect(statusLine(event, c, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-20) }).text).toBe('Cancelled by the host.');
+    expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(200)).kind).toBe('ended');
   });
 
   test('a rolling meet: a late joiner goes straight to the meet point it is at now', () => {
@@ -68,15 +85,20 @@ describe('eventPrimary: the one action, by state', () => {
     };
     expect(eventPrimary(rolling, 'me', 'going', crews, [], at(30))).toEqual({ kind: 'checkin', stopIndex: 1 });
     expect(eventPrimary({ ...rolling, checkIns: { me: ['s1'] } }, 'me', 'going', crews, [], at(30))).toEqual({ kind: 'checkin', stopIndex: 1 });
+    const line = statusLine(rolling, { kind: 'checkin', stopIndex: 1 }, { me: 'me', crews, builds: [], users: [], votes: [], now: at(30) }).text;
+    expect(line).toBe('Now at Two. Next location when the host moves on. Check-in is open.');
+  });
+
+  test('untilText', () => {
+    expect(untilText(at(60 * 24), at(0))).toMatch(/^\d\d:\d\d tomorrow$/);
   });
 });
 
 describe('whenLine', () => {
   test('relative and absolute', () => {
-    expect(whenLine(event, at(-130)).relative).toBe('Starts in 2h 10m');
-    expect(whenLine(event, at(30))).toEqual({ relative: 'Live now, ends in 2h 30m', absolute: expect.stringMatching(/^\d\d:\d\d–\d\d:\d\d$/) });
     expect(whenLine(event, at(300)).relative).toBe('Finished');
     expect(whenLine({ ...event, cancelled: true }, at(-30)).relative).toBe('Cancelled');
+    expect(whenLine(event, at(30)).absolute).toMatch(/^\d\d:\d\d–\d\d:\d\d$/);
   });
 });
 

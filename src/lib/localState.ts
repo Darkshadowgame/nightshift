@@ -1,3 +1,4 @@
+import { appNow } from './appClock';
 import { DEMO_HOME, ME, sampleHomes, samplePhotoRefs, seed, SEED_EVENT_IDS, type SeedState } from '../data/seed';
 import { splitSavedSpots, type ProgressMap } from './placeStore';
 import { SCHEMA_VERSION } from './persist';
@@ -75,7 +76,7 @@ export interface Persisted extends SeedState {
 
 
 export function fresh(): Persisted {
-  const now = new Date();
+  const now = appNow();
   return {
     ...seed(now), schemaVersion: SCHEMA_VERSION, placeProgress: {}, settings: DEFAULT_SETTINGS, notices: [], onboarded: false, unlockSeen: {}, seededAt: now.toISOString(),
     scene: { home: DEMO_HOME, names: {} }, realGpsDefault: true,
@@ -213,7 +214,7 @@ export function migrate(parsed: Persisted): Persisted {
   };
   // Sample events added since this save was made (e.g. the invite a few hours away).
   const have = new Set(next.events.map((e) => e.id));
-  const sceneBase = parsed.scene ? seed(new Date(), parsed.scene).events : base.events;
+  const sceneBase = parsed.scene ? seed(appNow(), parsed.scene).events : base.events;
   const added = sceneBase.filter((e) => SEED_EVENT_IDS.includes(e.id) && !have.has(e.id));
   if (added.length) next = { ...next, events: [...next.events, ...added] };
   // In-app reminders used to be keyed by time, so the demo moving its times added repeats.
@@ -223,7 +224,7 @@ export function migrate(parsed: Persisted): Persisted {
     // drop the old Midlands sample places (keep your own) and draw the scene round your home once.
     const mine = next.spots.filter((x) => x.authorId === ME);
     const home = next.users.find((u) => u.id === ME)?.home ?? DEMO_HOME;
-    next = redrawScene({ ...next, spots: mine }, home, new Date());
+    next = redrawScene({ ...next, spots: mine }, home, appNow());
   }
   // Saved before "new events near you": what's already there isn't new.
   if (!parsed.nearby) next = { ...next, nearby: { known: next.events.map((e) => e.id), unseen: [] } };

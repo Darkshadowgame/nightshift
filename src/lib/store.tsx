@@ -14,7 +14,8 @@ import { createSupabaseRepository, type SupabaseRepository } from './backend/rem
 import { ClockProvider } from './clock';
 import { alertProblem, travelProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, type AlertMode } from './discover';
 import { isPublicType, type PlanChange } from './events';
-import { isSeedEvent, restartDemo } from './demoTime';
+import { isSeedEvent, restartDemo, restartDemoClock, startDemoClock, stopDemoClock, toRealTime } from './demoTime';
+import { appNow, appNowMs } from './appClock';
 import { isUuid, mergeStatuses, sentEntry, type FeedbackContext, type PendingFeedback, type SentFeedback } from './feedbackQueue';
 import { newId } from './ids';
 import { createLocalRepository } from './localRepository';
@@ -267,11 +268,14 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
 
   // Load: the demo's slices, or the signed-in person's cache, then the server.
   useEffect(() => {
+    // The demo runs on its own Friday night (demoTime.ts); everyone else on the real clock.
+    if (mode.kind !== 'demo') stopDemoClock();
     if (mode.kind === 'none') return;
     let live = true;
     (async () => {
       if (mode.kind === 'demo') {
         let next: Persisted | null = null;
+        await startDemoClock(AsyncStorage);
         try {
           let saved = joinSlices(await AsyncStorage.multiGet(SLICE_KEYS)) as Persisted | null;
           if (saved) savedState.current = saved;
@@ -284,7 +288,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
           }
           if (saved) {
             // Freshen before migrating, so "is this still the untouched demo?" compares like with like.
-            const freshened = freshen(saved, new Date());
+            const freshened = freshen(saved, appNow());
             next = everyLoad(needsMigration(saved) ? migrate(freshened) : freshened);
           }
         } catch {
@@ -454,7 +458,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
     const pending = state.spots.filter((x) => x.status === 'pending');
     if (pending.length === 0) return;
     const due = Math.min(...pending.map((x) => new Date(x.createdAt).getTime() + DEMO_APPROVAL_MS));
-    const t = setTimeout(() => set((s) => ({ ...s, spots: approveDue(s.spots, new Date()) })), Math.max(0, due - Date.now()) + 50);
+    const t = setTimeout(() => set((s) => ({ ...s, spots: approveDue(s.spots, appNow()) })), Math.max(0, due - appNowMs()) + 50);
     return () => clearTimeout(t);
   }, [demo, state.spots, set]);
 
@@ -463,7 +467,8 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
   const remindersOn = state.settings.reminders;
   useEffect(() => {
     if (!ready || mode.kind === 'none') return;
-    const wanted = remindersOn ? upcomingReminders(allEvents, me, allCrews, new Date()) : [];
+    // Phone notifications fire on the real clock: the demo's Friday-night times are moved back to it.
+    const wanted = remindersOn ? upcomingReminders(allEvents, me, allCrews, appNow()).map((r) => ({ ...r, at: toRealTime(r.at) })) : [];
     const t = setTimeout(() => {
       syncReminders(wanted).catch(() => {});
     }, 400);
@@ -476,7 +481,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
   const signedUpBefore = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (!ready || !onboarded) return;
-    const nowDate = new Date();
+    const nowDate = appNow();
     const signedUp = new Set(allEvents.filter((e) => isSignedUp(e, me, allCrews)).map((e) => e.id));
     const before = signedUpBefore.current;
     signedUpBefore.current = signedUp;
@@ -509,7 +514,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
   const notifiedFor = useRef<object | null>(null);
   useEffect(() => {
     if (!demo || !ready || !onboarded || !nearby) return;
-    const nowDate = new Date();
+    const nowDate = appNow();
     const who = { me: ME, crews: allCrews, users: allUsers, builds: allBuilds };
     // REVIEW-10 #13: the sample events are already on Tonight, so they never arrive as "new near
     // you" (five notices copying the list on a first open), and nothing you're going to is news.
@@ -652,11 +657,13 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
         if (!demo) return;
         // Photo files go too: nothing would point at them any more.
         deletePhotos(allPhotos(latest.current));
+        restartDemoClock(AsyncStorage);
         set(() => fresh());
       },
       restartDemoEvents: () => {
         if (!demo) return;
-        const nowDate = new Date();
+        restartDemoClock(AsyncStorage);
+        const nowDate = appNow();
         set((s) => restartDemoScene(s, nowDate));
       },
       refreshReminders: () => setReminderTick((n) => n + 1),

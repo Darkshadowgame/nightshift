@@ -1,3 +1,4 @@
+import { appNow } from './appClock';
 import { eventArea } from './area';
 import { isCrewHost } from './crews';
 import { milesBetween } from './geo';
@@ -42,7 +43,7 @@ export function isHost(event: NightEvent, userId: string, crews: Crew[]): boolea
  * until the start (canChangeVehicle()). Changing to a build the invite doesn't
  * cover puts a going person back to asking a host.
  */
-export function rsvp(event: NightEvent, userId: string, eligible: boolean, buildId?: string, now: Date = new Date()): NightEvent {
+export function rsvp(event: NightEvent, userId: string, eligible: boolean, buildId?: string, now: Date = appNow()): NightEvent {
   const going = event.going.includes(userId);
   const asked = !!event.requests?.includes(userId);
   const current = event.vehicles?.[userId];

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useStore } from '../lib/store';
-import { BRAND, C, RADII, SPACING, SURFACE } from '../theme';
+import { C, COLOR, RADII, SPACING, SURFACE } from '../theme';
 import { DsText } from './ds/Text';
 
 export function BellIcon({ colour = C.chalk, size = 22 }: { colour?: string; size?: number }) {
@@ -14,7 +14,7 @@ export function BellIcon({ colour = C.chalk, size = 22 }: { colour?: string; siz
   );
 }
 
-/** Bell with an unread count. Opens the notifications list. */
+/** Bell with an unread count (Redesign 2, 4.8: a chalk bell, a red badge, never sodium). Opens the notifications list. */
 export function NoticeBell({ boxed, size = 44 }: { boxed?: boolean; size?: number }) {
   const { notices } = useStore();
   const unread = notices.filter((n) => !n.read).length;
@@ -31,17 +31,17 @@ export function NoticeBell({ boxed, size = 44 }: { boxed?: boolean; size?: numbe
         pressed && { opacity: 0.8 },
       ]}
     >
-      <BellIcon colour={unread > 0 ? BRAND : C.chalk} />
+      <BellIcon colour={C.chalk} />
       {unread > 0 ? (
         <View
           style={{
             // Inside the bell's own box, so it never touches the screen edge (REVIEW-8, large text).
             position: 'absolute', top: boxed ? -5 : 2, right: boxed ? -6 : 2, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
-            backgroundColor: BRAND, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: COLOR.badge.bg, alignItems: 'center', justifyContent: 'center',
           }}
         >
           {/* A fixed mark, like an avatar: it doesn't grow with the text size. */}
-          <DsText v="tag" tone="onAction" style={{ letterSpacing: 0 }} allowFontScaling={false}>
+          <DsText v="tag" style={{ letterSpacing: 0, color: COLOR.badge.fg }} allowFontScaling={false}>
             {unread > 9 ? '9+' : unread}
           </DsText>
         </View>

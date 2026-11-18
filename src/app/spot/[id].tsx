@@ -1,27 +1,49 @@
 import * as Location from 'expo-location';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Platform, ScrollView, View, type ImageSourcePropType } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Image, Platform, ScrollView, View } from 'react-native';
 import { navDirectionsAvailable } from '../../../modules/nav-directions';
 import { openReport } from '../../components/Community';
 import { CommonsStrip } from '../../components/CommonsStrip';
-import { Callout, CheckInCelebration, DetailHero, MediaFrame, NotFoundState, PAGE } from '../../components/Detail';
-import { Button, displayHandle, DsText, EmptyState, ErrorState, ListRow, screenHeader, Section, Sheet, SheetOption, StatBlock, Tag, type Stat } from '../../components/ds';
+import { Callout, CheckInCelebration, MediaFrame, NotFoundState } from '../../components/Detail';
+import {
+  ActionBar,
+  Button,
+  displayHandle,
+  DsText,
+  EmptyState,
+  ErrorState,
+  Hero,
+  ListRow,
+  PAGE_WITH_BAR,
+  screenHeader,
+  Section,
+  Sheet,
+  SheetOption,
+  StatBlock,
+  Tag,
+  type ActionBarButton,
+  type Stat,
+} from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
-import { NavLaunch } from '../../components/NavLaunch';
+import { useNavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
 import { usePhotoFlow } from '../../components/PhotoFlow';
+import { PhotoCredit } from '../../components/PhotoCredit';
 import { Stars } from '../../components/Stars';
 import { TrackPanel } from '../../components/TrackPanel';
 import { ZoneNotice } from '../../components/ZoneCard';
 import { SYSTEM_AUTHOR } from '../../data/places';
 import { BAN_ZONES } from '../../data/seed';
+import { appNow } from '../../lib/appClock';
 import { radiusFor } from '../../lib/commons';
 import { plural } from '../../lib/format';
 import { ONLY_ON_PHONE, PLACE_NAMES } from '../../lib/glossary';
 import { preciseFix } from '../../lib/location';
+import { targetParams } from '../../lib/navPlan';
 import { photoUri } from '../../lib/photos';
-import { driveTier, REP } from '../../lib/rep';
+import { samplePhoto } from '../../lib/photoSource';
+import { driveTier } from '../../lib/rep';
 import {
   advanceRun,
   averageStars,
@@ -42,15 +64,23 @@ import { useStore } from '../../lib/store';
 import { trackOutline } from '../../lib/tracks';
 import type { LatLng, Spot } from '../../lib/types';
 import { COLOR, LAYER, RADII, SPACING, SPOT_COLOURS } from '../../theme';
-import { samplePhoto } from '../../lib/photoSource';
-import { PhotoCredit } from '../../components/PhotoCredit';
 
-/** A drive, photo spot or track: details, start a drive or check in, then rate it. */
+/** What a panel puts on the page and in the ActionBar (one primary, at most one secondary). */
+interface Panel {
+  body: ReactNode;
+  bar: { primary?: ActionBarButton | null; secondary?: ActionBarButton | null; status?: string | null } | null;
+}
+
+/**
+ * A drive, photo spot, track or meet spot (T3 detail, Redesign 2 3.14): Hero (the photo first) →
+ * facts → map → sections → ActionBar. A drive's one primary is Start (it navigates and counts the
+ * drive); a photo spot's is Check in; anything else, Navigate.
+ */
 export default function SpotScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { spots } = useStore();
   const spot = spots.find((x) => x.id === id);
-  // The header stays blank: the kind is the eyebrow under it, once.
+  // The header stays blank: the Hero carries the kind and the name.
   if (!spot) return <NotFoundState what="Place" message="This place is no longer on Nightshift." />;
   return <SpotDetail spot={spot} />;
 }
@@ -128,163 +158,154 @@ function SpotDetail({ spot }: { spot: Spot }) {
           ]
         : [];
 
-  const navTarget = { kind: 'spot' as const, id: spot.id };
+  const finished = useCallback(() => {
+    setJustDone(true);
+    setRated(false);
+  }, []);
+  const nav = useNavLaunch({ target: { kind: 'spot', id: spot.id }, to: spot.kind === 'drive' && checkpoints.length ? checkpoints[0] : spot.at, toName: spot.kind === 'drive' ? 'the start' : spot.name });
+  const drive = useDrivePanel(spot, run, setRun, finished, nav);
+  const visit = useVisitPanel(spot, finished, nav);
+  const panel: Panel | null = pending
+    ? null
+    : spot.kind === 'drive'
+      ? drive
+      : spot.kind === 'photo'
+        ? visit
+        : { body: null, bar: { primary: { label: nav.label, onPress: nav.open } } };
+
+  const map = (
+    <MediaFrame height={placePhoto ? 200 : 220}>
+      <NightMap
+        pins={pins}
+        paths={paths}
+        centre={framed.length ? midpoint(framed) : spot.at}
+        span={framed.length ? Math.max(spot.kind === 'drive' ? 0.08 : 0.012, spanOf(framed) * 1.6) : 0.05}
+        showsUser={!!run}
+        credit={spot.kind === 'drive' || outline ? '© OpenStreetMap contributors' : undefined}
+      />
+    </MediaFrame>
+  );
+
+  const doneTag = pending
+    ? { label: 'Waiting for approval', tone: 'warning' as const }
+    : done && !isInfoOnly(spot.kind)
+      ? { label: spot.kind === 'drive' ? 'Driven' : 'Checked in', tone: 'success' as const }
+      : null;
 
   return (
-    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
       <Stack.Screen options={screenHeader({ onMenu: canReport ? () => setMenu(true) : undefined })} />
-      <DetailHero
-        kind={PLACE_NAMES[spot.kind].one}
-        colour={colour}
-        glyph={spot.kind}
-        status={pending ? { label: 'Waiting for approval', tone: 'warning' } : done && !isInfoOnly(spot.kind) ? { label: spot.kind === 'drive' ? 'Driven' : 'Checked in', tone: 'success' } : null}
-        title={spot.name}
-        lines={[spot.region, spot.kind === 'drive' ? 'Never timed: pass or fail' : null]}
-      >
-        {spot.kind === 'drive' ? <DriveTierTag spot={spot} done={done} /> : null}
-        {count > 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-            <Stars value={average} size={18} />
-            <DsText v="meta">
-              {average.toFixed(1)} from {plural(count, 'rating')}
-            </DsText>
-          </View>
-        ) : !isInfoOnly(spot.kind) ? (
-          <DsText v="meta">No ratings yet</DsText>
-        ) : null}
-        <DsText v="secondary">{spot.description}</DsText>
-        {author ? (
-          <Button tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} label={`Suggested by ${mine ? 'you' : displayHandle(author.handle)} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: author.id } })} />
-        ) : spot.authorId === SYSTEM_AUTHOR ? (
-          <DsText v="caption">Added by Nightshift</DsText>
-        ) : null}
-        {spot.phoneOnly && (spot.phoneOnly.completions > 0 || spot.phoneOnly.stars) ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
-            <Tag label={ONLY_ON_PHONE} />
-            <DsText v="caption" style={{ flexShrink: 1 }}>
-              {[
-                spot.phoneOnly.completions > 0 ? `You ${spot.kind === 'drive' ? 'finished it' : 'checked in'} ${spot.phoneOnly.completions}× before signing in` : null,
-                spot.phoneOnly.stars ? `rated it ${spot.phoneOnly.stars} stars` : null,
-              ]
-                .filter(Boolean)
-                .join(', ')}
-              . Not counted in rep.
-            </DsText>
-          </View>
-        ) : null}
-      </DetailHero>
-
-      {stats.length ? <StatBlock stats={stats} /> : null}
-
-      {spot.warnings?.length ? (
-        <Callout tone="warning" title="Before you go">
-          <View style={{ gap: SPACING.xs }}>
-            {spot.warnings.map((w) => (
-              <DsText key={w} v="secondary">
-                {w}
+      <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
+        {/* The photo first (a photo of the place from Wikimedia Commons, credited through the ⓘ); else the map. */}
+        <Hero
+          bleed
+          photo={placePhoto ? placePhoto.image : null}
+          media={placePhoto ? undefined : map}
+          eyebrow={PLACE_NAMES[spot.kind].one}
+          layerColour={colour}
+          glyph={spot.kind}
+          title={spot.name}
+          tag={doneTag}
+          meta={[spot.region, spot.kind === 'drive' ? `${driveTier(spot.miles).label} · never timed, pass or fail` : null]}
+          overlay={placePhoto ? <PhotoCredit photoRef={spot.id} kind="place" overlay corner="topRight" /> : undefined}
+        >
+          {count > 0 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+              <Stars value={average} size={18} />
+              <DsText v="meta">
+                {average.toFixed(1)} from {plural(count, 'rating')}
               </DsText>
-            ))}
-          </View>
-        </Callout>
-      ) : null}
-      {__DEV__ && spot.devNotes?.length ? <DsText v="caption">{`Data notes (development builds only): ${spot.devNotes.join(' ')}`}</DsText> : null}
-      {zones.map((zone) => (
-        <ZoneNotice key={zone.id} zone={zone} subject="This place" />
-      ))}
-
-      {pending ? (
-        <Callout tone="info" title={mine ? 'Thanks. Your suggestion is waiting for approval.' : 'This place is waiting for approval.'}>
-          {mine
-            ? store.backend === 'local'
-              ? "In the demo, suggestions are approved after about 10 seconds. You'll get +50 rep when it's live."
-              : "Someone from Nightshift checks each suggestion. You'll get +50 rep when it's live."
-            : undefined}
-        </Callout>
-      ) : null}
-
-      {/* One primary per place: a drive's Navigate (which also counts it), a photo spot's Check in, Navigate everywhere else. */}
-      {!pending && spot.kind === 'drive' ? (
-        <DrivePanel
-          spot={spot}
-          run={run}
-          setRun={setRun}
-          onFinished={() => {
-            setJustDone(true);
-            setRated(false);
-          }}
-        />
-      ) : null}
-      {!pending && spot.kind === 'photo' ? (
-        <VisitPanel
-          spot={spot}
-          onVisited={() => {
-            setJustDone(true);
-            setRated(false);
-          }}
-        />
-      ) : null}
-      {!pending && isInfoOnly(spot.kind) ? <NavLaunch target={navTarget} to={spot.at} kind="primary" /> : null}
-
-      {/* A photo of the place itself, from Wikimedia Commons, credited (REVIEW-8: "a photo spot with no photo"). */}
-      {placePhoto ? (
-        <View>
-          <Image
-            source={placePhoto.image as ImageSourcePropType}
-            style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }}
-            resizeMode="cover"
-            accessibilityLabel={`Photo: ${placePhoto.title}`}
-            accessibilityIgnoresInvertColors
-          />
-          <PhotoCredit photoRef={spot.id} kind="place" overlay />
-        </View>
-      ) : null}
-
-      <MediaFrame height={220}>
-        <NightMap
-          pins={pins}
-          paths={paths}
-          centre={framed.length ? midpoint(framed) : spot.at}
-          span={framed.length ? Math.max(spot.kind === 'drive' ? 0.08 : 0.012, spanOf(framed) * 1.6) : 0.05}
-          showsUser={!!run}
-          credit={spot.kind === 'drive' || outline ? '© OpenStreetMap contributors' : undefined}
-        />
-      </MediaFrame>
-
-      {spot.kind === 'track' ? (
-        <>
-          <TrackPanel spot={spot} outline={outline} />
-          <Callout tone="neutral" title="Tracks are the only place times count." right={<Button tier="tertiary" size="sm" label="Events ›" onPress={() => router.push('/events')} />}>
-            Look for track days in Events.
-          </Callout>
-        </>
-      ) : null}
-
-      {spot.kind === 'venue' ? (
-        <Callout tone="neutral" title="A place that welcomes meets">
-          Check its own opening times and rules before you go, and keep it clean.
-        </Callout>
-      ) : null}
-
-      {!isInfoOnly(spot.kind) && !pending ? (
-        <Section title="Rating">
-          {mine ? (
-            <DsText v="secondary">You suggested this, so you can't rate it. You earn rep each time someone else {spot.kind === 'drive' ? 'drives it' : 'checks in here'}.</DsText>
-          ) : canRateNow.ok ? (
-            <View style={{ gap: SPACING.sm }}>
-              <DsText v={justDone && !rated ? 'bodyStrong' : 'body'}>
-                {rated ? 'Thanks, rating saved.' : justDone ? `How was it? Rate the ${spot.kind === 'drive' ? 'drive' : 'spot'}.` : mineStars ? 'Your rating. Tap to change it.' : 'Rate it from 1 to 5 stars.'}
-              </DsText>
-              <Stars value={mineStars ?? 0} onRate={rate} size={34} />
-              <DsText v="caption">One rating each. A new one replaces your old one.</DsText>
             </View>
-          ) : (
-            <DsText v="secondary">{canRateNow.reason}</DsText>
-          )}
-          {rateError ? <ErrorState title={rateError} /> : null}
-        </Section>
-      ) : null}
+          ) : !isInfoOnly(spot.kind) ? (
+            <DsText v="meta">No ratings yet</DsText>
+          ) : null}
+          <DsText v="secondary">{spot.description}</DsText>
+          {author ? (
+            <Button tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} label={`Suggested by ${mine ? 'you' : displayHandle(author.handle)} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: author.id } })} />
+          ) : spot.authorId === SYSTEM_AUTHOR ? (
+            <DsText v="caption">Added by Nightshift</DsText>
+          ) : null}
+          {spot.phoneOnly && (spot.phoneOnly.completions > 0 || spot.phoneOnly.stars) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
+              <Tag label={ONLY_ON_PHONE} />
+              <DsText v="caption" style={{ flexShrink: 1 }}>
+                {[
+                  spot.phoneOnly.completions > 0 ? `You ${spot.kind === 'drive' ? 'finished it' : 'checked in'} ${spot.phoneOnly.completions}× before signing in` : null,
+                  spot.phoneOnly.stars ? `rated it ${spot.phoneOnly.stars} stars` : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                .
+              </DsText>
+            </View>
+          ) : null}
+        </Hero>
 
-      <Photos spot={spot} />
+        {stats.length ? <StatBlock stats={stats} /> : null}
+
+        {spot.warnings?.length ? (
+          <Callout tone="warning" title="Before you go">
+            <View style={{ gap: SPACING.xs }}>
+              {spot.warnings.map((w) => (
+                <DsText key={w} v="secondary">
+                  {w}
+                </DsText>
+              ))}
+            </View>
+          </Callout>
+        ) : null}
+        {zones.map((zone) => (
+          <ZoneNotice key={zone.id} zone={zone} subject="This place" />
+        ))}
+
+        {pending ? (
+          <Callout tone="info" title={mine ? 'Thanks. Your suggestion is waiting for approval.' : 'This place is waiting for approval.'}>
+            {mine ? (store.backend === 'local' ? 'In the demo, suggestions are approved after about 10 seconds.' : 'Someone from Nightshift checks each suggestion before it goes on the map.') : undefined}
+          </Callout>
+        ) : null}
+
+        {panel?.body}
+
+        {placePhoto ? map : null}
+
+        {spot.kind === 'track' ? (
+          <>
+            <TrackPanel spot={spot} outline={outline} />
+            <Callout tone="neutral" title="Tracks are the only place times count.">
+              Look for track days on Tonight.
+            </Callout>
+          </>
+        ) : null}
+
+        {spot.kind === 'venue' ? (
+          <Callout tone="neutral" title="A place that welcomes meets">
+            Check its own opening times and rules before you go, and keep it clean.
+          </Callout>
+        ) : null}
+
+        {!isInfoOnly(spot.kind) && !pending ? (
+          <Section title="Rating">
+            {mine ? (
+              <DsText v="secondary">You suggested this, so you can't rate it.</DsText>
+            ) : canRateNow.ok ? (
+              <View style={{ gap: SPACING.sm }}>
+                <DsText v={justDone && !rated ? 'bodyStrong' : 'body'}>
+                  {rated ? 'Thanks, rating saved.' : justDone ? `How was it? Rate the ${spot.kind === 'drive' ? 'drive' : 'spot'}.` : mineStars ? 'Your rating. Tap to change it.' : 'Rate it from 1 to 5 stars.'}
+                </DsText>
+                <Stars value={mineStars ?? 0} onRate={rate} size={34} />
+                <DsText v="caption">One rating each. A new one replaces your old one.</DsText>
+              </View>
+            ) : (
+              <DsText v="secondary">{canRateNow.reason}</DsText>
+            )}
+            {rateError ? <ErrorState title={rateError} /> : null}
+          </Section>
+        ) : null}
+
+        <Photos spot={spot} />
+      </ScrollView>
+      {panel?.bar ? <ActionBar {...panel.bar} /> : null}
+      {nav.sheet}
 
       <Sheet visible={menu} title="Place options" onClose={() => setMenu(false)}>
         <View>
@@ -297,41 +318,40 @@ function SpotDetail({ spot }: { spot: Spot }) {
           />
         </View>
       </Sheet>
-    </ScrollView>
+    </View>
   );
 }
+
+type Nav = ReturnType<typeof useNavLaunch>;
 
 // ---------------------------------------------------------------------------
 // Drives
 // ---------------------------------------------------------------------------
 
-function DrivePanel({
-  spot,
-  run,
-  setRun,
-  onFinished,
-}: {
-  spot: Spot;
-  run: DriveRun | null;
-  setRun: (r: DriveRun | null | ((r: DriveRun | null) => DriveRun | null)) => void;
-  onFinished: () => void;
-}) {
+/**
+ * A drive's one primary is **Start**: it opens the driving view, which navigates and counts the
+ * drive as you pass the checkpoints (drive.tsx; the demo drives it for you). Without Nightshift's
+ * directions (signed in on the web preview, an older install, another directions app chosen),
+ * Start counts the checkpoints here on GPS, and directions go in the secondary. The one other way
+ * to count it (on GPS with no directions; in the demo, driven for you on this page) is the secondary.
+ */
+function useDrivePanel(
+  spot: Spot,
+  run: DriveRun | null,
+  setRun: (r: DriveRun | null | ((r: DriveRun | null) => DriveRun | null)) => void,
+  onFinished: () => void,
+  nav: Nav,
+): Panel {
   const store = useStore();
   const { settings } = store;
   const [error, setError] = useState<string | null>(null);
   // The demo never needs you to be there: the app drives the checkpoints for you at a legal pace.
   // Signed in, GPS counts them and the server checks the run again.
   const demo = store.backend === 'local';
-  const simGps = demo;
   const checkpoints = spot.path ?? [];
   const miles = driveMiles(spot);
-  /**
-   * "Navigate the drive" opens the driving view, which counts the drive as you
-   * pass the checkpoints (drive.tsx). Without Nightshift's own directions (the
-   * web preview, an older install, or another directions app chosen in
-   * Settings), the checkpoints can still be counted here, without directions.
-   */
-  const ownNav = Platform.OS === 'ios' && navDirectionsAvailable && (settings.directionsApp ?? 'nightshift') === 'nightshift';
+  /** The driving view counts the drive: in the demo everywhere, signed in with Nightshift's own directions on the iPhone. */
+  const driveView = demo || (Platform.OS === 'ios' && navDirectionsAvailable && (settings.directionsApp ?? 'nightshift') === 'nightshift');
   const watch = useRef<Location.LocationSubscription | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [simulating, setSimulating] = useState(false);
@@ -339,9 +359,6 @@ function DrivePanel({
   const runRef = useRef(run);
   runRef.current = run;
   const done = hasCompleted(spot, store.me);
-  /** Finished before this screen opened: rep is for the first finish only. */
-  const [doneBefore] = useState(done);
-  const firstFinish = !doneBefore;
 
   /** Set once the screen has closed, so a watch that starts late is removed at once. */
   const closed = useRef(false);
@@ -352,7 +369,7 @@ function DrivePanel({
     };
   }, []);
 
-  const stop = useCallback(() => {
+  const end = useCallback(() => {
     watch.current?.remove();
     watch.current = null;
     timers.current.forEach(clearTimeout);
@@ -360,12 +377,12 @@ function DrivePanel({
     setSimulating(false);
   }, []);
 
-  useEffect(() => stop, [stop]);
+  useEffect(() => end, [end]);
 
   // When the last checkpoint is passed, judge the run. Only pass or fail comes back.
   useEffect(() => {
     if (!run || run.passed < checkpoints.length) return;
-    stop();
+    end();
     setRun(null);
     store
       .finishDrive(spot.id, run)
@@ -376,10 +393,10 @@ function DrivePanel({
         } else setError(verdict.reason);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't record the drive."));
-  }, [run, checkpoints.length, spot.id, store, stop, setRun, onFinished]);
+  }, [run, checkpoints.length, spot.id, store, end, setRun, onFinished]);
 
   /** Count the checkpoints with GPS here, without directions. */
-  async function start() {
+  async function countOnGps() {
     // Tapping twice must not leave an old GPS watch running.
     watch.current?.remove();
     watch.current = null;
@@ -390,30 +407,25 @@ function DrivePanel({
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) {
         setRun(null);
-        setError(
-          'Drives need your location to pass the checkpoints. Allow it for Nightshift in Settings.',
-        );
+        setError('Drives need your location to pass the checkpoints. Allow it for Nightshift in Settings.');
         return;
       }
-      const sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, distanceInterval: 25 },
-        (loc) => {
-          const r = runRef.current;
-          if (!r) return;
-          const t = loc.timestamp || Date.now();
-          if (runExpired(r, miles, t)) {
-            stop();
-            setRun(null);
-            setError("That took longer than a drive allows, so it doesn't count. Start again when you're ready.");
-            return;
-          }
-          const next = advanceRun(r, checkpoints, { lat: loc.coords.latitude, lng: loc.coords.longitude }, t);
-          if (next !== r) {
-            runRef.current = next;
-            setRun(next);
-          }
-        },
-      );
+      const sub = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 25 }, (loc) => {
+        const r = runRef.current;
+        if (!r) return;
+        const t = loc.timestamp || Date.now();
+        if (runExpired(r, miles, t)) {
+          end();
+          setRun(null);
+          setError("That took longer than a drive allows, so it doesn't count. Start again when you're ready.");
+          return;
+        }
+        const next = advanceRun(r, checkpoints, { lat: loc.coords.latitude, lng: loc.coords.longitude }, t);
+        if (next !== r) {
+          runRef.current = next;
+          setRun(next);
+        }
+      });
       // The screen closed (or the run was cancelled) while the watch was starting: turn GPS off again.
       if (closed.current || !runRef.current) {
         sub.remove();
@@ -427,14 +439,14 @@ function DrivePanel({
     }
   }
 
-  /** Demo: walk the checkpoints as if driven at a steady, legal pace, so the same checks run. */
+  /** Demo: pass the checkpoints here as if driven at a steady, legal pace, so the same checks run. */
   function simulate() {
     setError(null);
     setPassed(false);
     setSimulating(true);
     const from = run ?? NEW_RUN;
     if (!run) setRun(NEW_RUN);
-    const times = simulatedTimes(checkpoints, miles, Date.now());
+    const times = simulatedTimes(checkpoints, miles, appNow().getTime());
     const offset = from.passed > 0 && from.startedAt !== undefined ? from.startedAt - times[0] : 0;
     timers.current = checkpoints.slice(from.passed).map((p, k) =>
       setTimeout(() => {
@@ -445,79 +457,69 @@ function DrivePanel({
   }
 
   function cancel() {
-    stop();
+    end();
     setRun(null);
   }
 
-  if (!run) {
-    // One primary, "Start the drive" (REVIEW-8): Nightshift's own directions count it as you go; without
-    // them (the web preview, another directions app) the checkpoints are counted here; the demo drives it for you.
-    const startLabel = done || passed ? 'Drive it again' : 'Start the drive';
-    return (
-      <View style={{ gap: SPACING.md }}>
-        {passed ? (
-          <CheckInCelebration
-            play
-            title="Drive complete"
-            body={`Every checkpoint passed.${spot.authorId === store.me ? '' : firstFinish ? ` +${driveTier(spot.miles).rep} rep.` : ' Rep is for the first finish only.'}`}
-          />
-        ) : null}
-        {ownNav && !simGps ? (
-          <NavLaunch target={{ kind: 'spot', id: spot.id }} to={checkpoints.length ? checkpoints[0] : spot.at} toName="the start" label={startLabel} kind="primary" />
-        ) : (
-          <>
-            <Button
-              label={startLabel}
-              size="lg"
-              block
-              onPress={simGps ? simulate : start}
-              accessibilityHint={simGps ? 'Demo: drives the checkpoints for you at a legal pace' : 'Counts the checkpoints with GPS while you drive'}
-            />
-            <NavLaunch target={{ kind: 'spot', id: spot.id }} to={checkpoints.length ? checkpoints[0] : spot.at} toName="the start" label="Directions to the start" kind="secondary" />
-          </>
-        )}
-        <DsText v="caption">
-          {`Pass all ${checkpoints.length} checkpoints in order to count it. Stick to the speed limits: a run that's too quick doesn't count.${simGps ? ' Demo: location check skipped, the app drives it for you.' : ''}`}
-        </DsText>
-        {error ? <ErrorState title={error} /> : null}
-      </View>
-    );
+  if (run) {
+    return {
+      body: (
+        <Section title="Driving" right={<Tag label={`${run.passed} of ${checkpoints.length} passed`} tone="live" />}>
+          <View>
+            {checkpoints.map((_, i) => (
+              <ListRow
+                key={i}
+                leading={{ pin: 'drive', colour: i < run.passed ? COLOR.state.success : i === run.passed ? LAYER.drive : COLOR.text.secondary }}
+                title={i === 0 ? 'Start' : i === checkpoints.length - 1 ? 'Finish' : `Checkpoint ${i + 1}`}
+                trailing={i < run.passed ? <Tag label="Passed" tone="success" /> : i === run.passed ? <Tag label="Next" /> : undefined}
+              />
+            ))}
+          </View>
+          <DsText v="caption">
+            {simulating
+              ? 'Demo: the app drives the checkpoints for you at a legal pace.'
+              : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
+          </DsText>
+          {error ? <ErrorState title={error} /> : null}
+        </Section>
+      ),
+      bar: { status: simulating ? 'Driving it for you…' : `${run.passed} of ${checkpoints.length} passed`, secondary: { label: 'Cancel the drive', onPress: cancel } },
+    };
   }
 
-  return (
-    <Section title="Driving" right={<Tag label={`${run.passed} of ${checkpoints.length} passed`} tone="live" />}>
-      <View>
-        {checkpoints.map((_, i) => (
-          <ListRow
-            key={i}
-            leading={{ pin: 'drive', colour: i < run.passed ? COLOR.state.success : i === run.passed ? LAYER.drive : COLOR.text.secondary }}
-            title={i === 0 ? 'Start' : i === checkpoints.length - 1 ? 'Finish' : `Checkpoint ${i + 1}`}
-            trailing={i < run.passed ? <Tag label="Passed" tone="success" /> : i === run.passed ? <Tag label="Next" /> : undefined}
-          />
-        ))}
+  const startLabel = done || passed ? 'Drive it again' : 'Start';
+  const openDriveView = () => router.push({ pathname: '/drive', params: targetParams({ kind: 'spot', id: spot.id }) });
+  return {
+    body: (
+      <View style={{ gap: SPACING.md }}>
+        {passed ? <CheckInCelebration play title="Drive complete" body="Every checkpoint passed. It counts." /> : null}
+        <DsText v="caption">{`Pass all ${checkpoints.length} checkpoints in order to count it. Stick to the speed limits: a run that's too quick doesn't count.`}</DsText>
+        {error ? <ErrorState title={error} /> : null}
       </View>
-      <DsText v="caption">
-        {simGps
-          ? 'Demo: location check skipped, so the app drives the checkpoints for you at a legal pace.'
-          : `Keep the app open. Each checkpoint counts when you're within ${CHECKPOINT_RADIUS_MILES} mi. Eyes on the road.`}
-      </DsText>
-      {simulating ? <Button label="Driving" tier="secondary" block busy onPress={simulate} /> : null}
-      <Button label="Stop" tier="secondary" block onPress={cancel} />
-      {error ? <ErrorState title={error} /> : null}
-    </Section>
-  );
+    ),
+    bar: driveView
+      ? {
+          primary: { label: startLabel, onPress: openDriveView, accessibilityHint: 'Directions to the start, then through every checkpoint. Counts the drive as you go.' },
+          secondary: demo
+            ? { label: 'Simulate the drive', onPress: simulate, accessibilityHint: 'Demo: drives the checkpoints for you here at a legal pace' }
+            : { label: 'Count it on GPS only', onPress: countOnGps, accessibilityHint: 'Counts the checkpoints with GPS while you use another app for directions' },
+        }
+      : {
+          primary: { label: startLabel, onPress: countOnGps, accessibilityHint: 'Counts the checkpoints with GPS while you drive' },
+          secondary: { label: nav.label === 'Navigate' ? 'Directions to the start' : nav.label, onPress: nav.openOther },
+        },
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Photo spots
 // ---------------------------------------------------------------------------
 
-function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) {
+function useVisitPanel(spot: Spot, onVisited: () => void, nav: Nav): Panel {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
   // The demo never blocks a check-in on distance; signed in, the server always checks where you are.
   const simGps = store.backend === 'local';
-  const visitedBefore = useRef(hasCompleted(spot, store.me)).current;
   const [step, setStep] = useState<'idle' | 'photo' | 'done'>('idle');
   const [busy, setBusy] = useState(false);
   /** The fix the distance check used, sent with the check-in (signed in, the server checks it again). */
@@ -531,11 +533,7 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
       if (!simGps) {
         const fix = await preciseFix();
         if (!fix.ok) {
-          setError(
-            fix.reason === 'denied'
-              ? 'Checking in here needs your location. Allow it for Nightshift in Settings.'
-              : "Couldn't read your location. Try again outside.",
-          );
+          setError(fix.reason === 'denied' ? 'Checking in here needs your location. Allow it for Nightshift in Settings.' : "Couldn't read your location. Try again outside.");
           return;
         }
         pos = fix.at;
@@ -564,51 +562,53 @@ function VisitPanel({ spot, onVisited }: { spot: Spot; onVisited: () => void }) 
 
   // Pick → crop → plate check → save (PhotoFlow.tsx).
   const flow = usePhotoFlow({ onPhoto: (ref) => save(ref), onError: setError, cameraDenied: 'Allow camera access to take a photo here.' });
-  const pickPhoto = (camera: boolean) => flow.pick(camera);
 
-  if (flow.view) return flow.view;
+  if (flow.view) return { body: flow.view, bar: null };
 
+  const navButton = { label: nav.label, onPress: nav.open };
   if (step === 'done') {
-    return (
-      <View style={{ gap: SPACING.md }}>
-        <CheckInCelebration
-          play={false}
-          title={`Checked in at ${spot.name}`}
-          body={spot.authorId === store.me ? undefined : visitedBefore ? 'Rep is for your first visit only.' : `+${REP.photoSpot} rep for your first visit.`}
-        />
-        <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} kind="secondary" />
-        <Button label="Check in again" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => setStep('idle')} />
-      </View>
-    );
+    return {
+      body: (
+        <View style={{ gap: SPACING.md }}>
+          <CheckInCelebration play={false} title={`Checked in at ${spot.name}`} />
+          <Button label="Check in again" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => setStep('idle')} />
+        </View>
+      ),
+      bar: { secondary: navButton },
+    };
   }
-
-  return (
-    <View style={{ gap: SPACING.md }}>
-      {step === 'idle' ? (
-        <>
-          <Button label="Check in here" size="lg" block busy={busy} onPress={checkIn} accessibilityHint={simGps ? undefined : 'Checks you are within 0.2 mi of the spot'} />
-          {error ? <ErrorState title={error} /> : null}
-          <DsText v="caption">
-            {simGps
-              ? 'Demo: location check skipped. Add a photo after if you like; plates are blurred before anything is saved.'
-              : "Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved."}
-          </DsText>
-          <NavLaunch target={{ kind: 'spot', id: spot.id }} to={spot.at} kind="secondary" />
-        </>
-      ) : (
-        <>
+  if (step === 'photo') {
+    return {
+      body: (
+        <View style={{ gap: SPACING.md }}>
           {/* The same check-in moment as an event's (the burst, the tick, the buzz). */}
           <CheckInCelebration play title={`You're at ${spot.name}`} body="Add a photo? Plates are blurred before anything is saved." />
-          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-            <Button label="Camera" style={{ flex: 1 }} block onPress={() => pickPhoto(true)} disabled={busy || flow.busy} />
-            <Button label="Library" tier="secondary" style={{ flex: 1 }} block onPress={() => pickPhoto(false)} disabled={busy || flow.busy} />
-          </View>
           <Button label="Skip the photo" tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => save()} disabled={busy || flow.busy} />
           {error ? <ErrorState title={error} /> : null}
-        </>
-      )}
-    </View>
-  );
+        </View>
+      ),
+      bar: {
+        primary: { label: 'Take a photo', onPress: () => flow.pick(true), busy: busy || flow.busy },
+        secondary: { label: 'Choose from your photos', onPress: () => flow.pick(false) },
+      },
+    };
+  }
+  return {
+    body: (
+      <View style={{ gap: SPACING.sm }}>
+        {error ? <ErrorState title={error} /> : null}
+        <DsText v="caption">
+          {simGps
+            ? 'Demo: no location check. Add a photo after if you like; plates are blurred before anything is saved.'
+            : "Check in when you're here (within 0.2 mi), then add a photo if you like. Plates are blurred before anything is saved."}
+        </DsText>
+      </View>
+    ),
+    bar: {
+      primary: { label: 'Check in here', onPress: checkIn, busy, haptic: 'success', accessibilityHint: simGps ? undefined : 'Checks you are within 0.2 mi of the spot' },
+      secondary: navButton,
+    },
+  };
 }
 
 /** People's own photos from check-ins first (plate-blurred), then public photos taken nearby. */
@@ -638,18 +638,6 @@ function Photos({ spot }: { spot: Spot }) {
       {/* Suggestions waiting for approval don't ask Commons yet. */}
       {!pending ? <CommonsStrip at={at} radiusM={radius} placeName={spot.name} /> : null}
     </>
-  );
-}
-
-/** "Long drive · +175 rep": what finishing this drive for the first time is worth (rep.ts driveTier). */
-function DriveTierTag({ spot, done }: { spot: Spot; done: boolean }) {
-  const tier = driveTier(spot.miles);
-  return (
-    <Tag
-      tone={done ? 'success' : 'neutral'}
-      label={`${tier.label} · +${tier.rep} rep${done ? ' earned' : ''}`}
-      accessibilityLabel={`${tier.label}. ${done ? `${tier.rep} rep earned` : `${tier.rep} rep the first time you finish it`}`}
-    />
   );
 }
 

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { feel } from '../lib/feel';
 import { C, ELEVATION, RADII, SPACING, SURFACE } from '../theme';
+import { useToastAnchor } from './ds';
 
 /**
  * The map's bottom sheet (MAP-REDESIGN.md): three detents, peek, half and
@@ -47,6 +48,7 @@ export function MapSheet({
   label,
   header,
   onHeaderLayout,
+  toastAnchor,
   children,
 }: {
   y: SharedValue<number>;
@@ -63,9 +65,20 @@ export function MapSheet({
   /** Always visible: drawn under the grabber, and draggable. */
   header: ReactNode;
   onHeaderLayout?: (h: number) => void;
+  /**
+   * How far above the screen's bottom toasts should sit (the lowered sheet plus the tab bar), or
+   * null when the sheet isn't on screen. Toasts then never cover the card's I'm going.
+   */
+  toastAnchor?: number | null;
   children: ReactNode;
 }) {
   const reduced = useReducedMotion();
+  const anchor = useToastAnchor();
+  const anchorId = useId();
+  useEffect(() => {
+    anchor(anchorId, toastAnchor ?? null);
+    return () => anchor(anchorId, null);
+  }, [anchor, anchorId, toastAnchor]);
   const tops = detentTops(height, peek, top);
   const live = useRef({ tops, detent, reduced, scrollY: 0, start: 0 });
   live.current.tops = tops;

@@ -1,4 +1,4 @@
-import { etaClock, formatDistance, formatDuration, metresBetween, mphOf, type Manoeuvre, type NavRoute, type NavStop, type Progress } from './nav';
+import { etaClock, formatDistance, formatDuration, metresBetween, mphOf, type Manoeuvre, type NavRoute, type NavStop, type Progress, type RawRouteLike } from './nav';
 import { mphLimit, type SpeedValue } from './speedLimit';
 import type { LatLng } from './types';
 
@@ -218,4 +218,40 @@ export function nameLookupDue(last: { at: LatLng; t: number } | null, at: LatLng
   const elapsed = now - last.t;
   if (elapsed < 5000) return false;
   return elapsed >= NAME_EVERY_MS || metresBetween(last.at, at) >= NAME_EVERY_M;
+}
+
+// ---------------------------------------------------------------------------
+// The web preview's demo drive
+// ---------------------------------------------------------------------------
+
+/** The demo drive's pace on the web preview, where there are no Apple directions (m/s, about 30 mph). */
+export const DEMO_ROUTE_SPEED = 13.4;
+
+/**
+ * A route without Apple's directions (the web preview's demo drive): straight lines through the
+ * points, a point every ~60 m so the simulated drive moves smoothly, one "Head towards" step at the
+ * start of each leg and an arrival at the end. Same shape as Apple's, so buildRoute() reads it.
+ */
+export function straightRoute(points: LatLng[], names: string[] = [], spacingM = 60): RawRouteLike {
+  const coords: number[] = [];
+  const steps: RawRouteLike['steps'] = [];
+  const legs: RawRouteLike['legs'] = [];
+  let total = 0;
+  const push = (p: LatLng) => coords.push(p.lat, p.lng);
+  if (points.length) push(points[0]);
+  for (let k = 0; k + 1 < points.length; k++) {
+    const a = points[k];
+    const b = points[k + 1];
+    const d = metresBetween(a, b);
+    const startIndex = coords.length / 2 - 1;
+    const name = names[k];
+    steps.push({ text: name ? `Head towards ${name}` : 'Head off', distance: d, lat: a.lat, lng: a.lng, index: startIndex, leg: k });
+    const n = Math.max(1, Math.ceil(d / spacingM));
+    for (let i = 1; i <= n; i++) push({ lat: a.lat + ((b.lat - a.lat) * i) / n, lng: a.lng + ((b.lng - a.lng) * i) / n });
+    const endIndex = coords.length / 2 - 1;
+    steps.push({ text: 'Arrive at your destination', distance: 0, lat: b.lat, lng: b.lng, index: endIndex, leg: k });
+    legs.push({ endIndex, distance: d, time: d / DEMO_ROUTE_SPEED });
+    total += d;
+  }
+  return { coords, distance: total, time: total / DEMO_ROUTE_SPEED, steps, legs };
 }

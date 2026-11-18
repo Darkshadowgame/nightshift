@@ -39,34 +39,25 @@ function choices(toName?: string): { id: DirectionsApp | 'other'; label: string;
   ];
 }
 
-/**
- * "Navigate": Nightshift's own driving view by default, with a sheet to open Apple Maps, Google
- * Maps, Waze or the share sheet instead. "Always use this" remembers the choice
- * (Me › Settings › Navigation changes it back). `to` is where other apps are sent (one point: for a
- * rolling meet, the meet point it's at now, the one Check in names), `toName` what it's called and
- * `otherAppsNote` the line under the choices.
- * `kind`: secondary unless navigating is the main thing the screen is for (one primary per screen).
- * `disabled` + `hint` keep the button's shape and say why ("Location shows at 21:30").
- */
-export function NavLaunch({
-  target,
-  to,
-  toName,
-  otherAppsNote,
-  label = NAVIGATE,
-  kind = 'secondary',
-  disabled,
-  hint,
-}: {
+export interface NavLaunchOptions {
   target: NavTarget;
+  /** Where other apps are sent (one point). */
   to: LatLng;
   toName?: string;
   otherAppsNote?: string;
-  label?: string;
-  kind?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  disabled?: boolean;
-  hint?: string;
-}) {
+}
+
+/**
+ * Navigate without its own button, for an `ActionBar` primary or secondary (Redesign 2: the
+ * screen's one primary lives in the bar). `label` is what the button should say ("Navigate", or
+ * "Directions in Waze" when another app is the saved choice), `open()` goes, `openOther()` opens
+ * the choice of apps, and `sheet` (render it anywhere on the screen) is that choice, with its error.
+ *
+ *   const nav = useNavLaunch({ target, to, toName });
+ *   <ActionBar primary={{ label: nav.label, onPress: nav.open }} />
+ *   {nav.sheet}
+ */
+export function useNavLaunch({ target, to, toName, otherAppsNote }: NavLaunchOptions, label: string = NAVIGATE) {
   const { settings, setSettings } = useStore();
   const [choosing, setChoosing] = useState(false);
   const [always, setAlways] = useState(false);
@@ -93,34 +84,9 @@ export function NavLaunch({
     await go(app);
   }
 
-  return (
-    <View style={{ gap: SPACING.xs }}>
-      <Button
-        label={preferred === 'nightshift' ? label : `Directions in ${appLabel(preferred)}`}
-        tier={kind === 'primary' ? 'primary' : 'secondary'}
-        size={kind === 'primary' ? 'lg' : 'md'}
-        block
-        disabled={disabled}
-        hint={hint}
-        onPress={() => go(preferred)}
-        accessibilityHint={preferred === 'nightshift' ? 'Opens turn-by-turn navigation in Nightshift' : undefined}
-      />
-      {disabled ? null : (
-        <View style={{ alignItems: 'center' }}>
-          <Button
-            tier="tertiary"
-            size="sm"
-            label="Open in another app ›"
-            accessibilityLabel="Open directions in another app"
-            onPress={() => {
-              setAlways(false);
-              setChoosing(true);
-            }}
-          />
-        </View>
-      )}
+  const sheet = (
+    <>
       {error ? <ErrorState title={error} /> : null}
-
       <Sheet visible={choosing} title="Get directions with" onClose={() => setChoosing(false)}>
         <View>
           {choices(toName).map((c) => (
@@ -128,8 +94,66 @@ export function NavLaunch({
           ))}
         </View>
         <SwitchRow label="Always use this" value={always} onValueChange={setAlways} />
-        <DsText v="caption">{`${otherAppsNote ?? (toName ? `Other apps get ${toName} only.` : 'Other apps go straight there.')} Change it any time in ${menuPath('Me', 'Settings', 'Navigation')}.`}</DsText>
+        <DsText v="caption">{`${otherAppsNote ?? (toName ? `Other apps get ${toName} only.` : 'Other apps go straight there.')} Change it any time in ${menuPath('Me', 'Settings', 'Directions')}.`}</DsText>
       </Sheet>
+    </>
+  );
+
+  return {
+    label: preferred === 'nightshift' ? label : `Directions in ${appLabel(preferred)}`,
+    /** Opens the saved choice (Nightshift's driving view by default). */
+    open: () => go(preferred),
+    /** The choice of apps, as a Sheet. */
+    openOther: () => {
+      setAlways(false);
+      setChoosing(true);
+    },
+    sheet,
+    error,
+  };
+}
+
+/**
+ * "Navigate" as a button on the page: Nightshift's own driving view by default, with a link to
+ * open Apple Maps, Google Maps, Waze or the share sheet instead (useNavLaunch). On detail screens
+ * prefer `useNavLaunch` with the ActionBar.
+ * `kind`: secondary unless navigating is the main thing the screen is for (one primary per screen).
+ */
+export function NavLaunch({
+  target,
+  to,
+  toName,
+  otherAppsNote,
+  label = NAVIGATE,
+  kind = 'secondary',
+  disabled,
+  hint,
+}: NavLaunchOptions & {
+  label?: string;
+  kind?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  disabled?: boolean;
+  hint?: string;
+}) {
+  const nav = useNavLaunch({ target, to, toName, otherAppsNote }, label);
+  const preferred = useStore().settings.directionsApp ?? 'nightshift';
+  return (
+    <View style={{ gap: SPACING.xs }}>
+      <Button
+        label={nav.label}
+        tier={kind === 'primary' ? 'primary' : 'secondary'}
+        size={kind === 'primary' ? 'lg' : 'md'}
+        block
+        disabled={disabled}
+        hint={hint}
+        onPress={nav.open}
+        accessibilityHint={preferred === 'nightshift' ? 'Opens turn-by-turn navigation in Nightshift' : undefined}
+      />
+      {disabled ? null : (
+        <View style={{ alignItems: 'center' }}>
+          <Button tier="tertiary" size="sm" label="Open in another app ›" accessibilityLabel="Open directions in another app" onPress={nav.openOther} />
+        </View>
+      )}
+      {nav.sheet}
     </View>
   );
 }

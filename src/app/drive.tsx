@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,12 +15,15 @@ import {
   MapButton,
   RecentreGlyph,
   ReportButton,
+  NavIconChoices,
   SpeakerGlyph,
   SubLine,
 } from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
-import { buzz, Button, DsText } from '../components/ds';
+import { buzz, Button, ChoiceGroup, DsText, Icon, Sheet, SwitchRow } from '../components/ds';
+import { VoicePicker } from '../components/VoicePicker';
+import { appNow } from '../lib/appClock';
 import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
@@ -38,6 +41,7 @@ import {
   recentreDue,
   roadOnRoute,
   shownLimit,
+  straightRoute,
   tripSummary,
   type MapOrientation,
 } from '../lib/driveView';
@@ -105,7 +109,7 @@ import {
   type Via,
 } from '../lib/roadReports';
 import { useRoadReports, useRoads } from '../lib/roadStore';
-import { advanceRun, NEW_RUN, runExpired, driveMiles, type DriveRun } from '../lib/spots';
+import { advanceRun, NEW_RUN, runExpired, driveMiles, simulatedRun, type DriveRun } from '../lib/spots';
 import { useStore } from '../lib/store';
 import { speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
@@ -139,7 +143,7 @@ export default function DriveScreen() {
       return spot ? planForSpot(spot) : null;
     }
     const ev = store.events.find((e) => e.id === t.id);
-    return ev ? planForEvent(ev, store.me, store.crews, new Date()) : null;
+    return ev ? planForEvent(ev, store.me, store.crews, appNow()) : null;
   });
   const insets = useSafeAreaInsets();
 
@@ -156,7 +160,8 @@ export default function DriveScreen() {
       </View>
     );
   }
-  if (Platform.OS !== 'ios' || !navDirectionsAvailable) return <NeedsApp plan={plan} />;
+  // The demo drives the route for you, so testers on the web preview see the driving view too (WP-E).
+  if (Platform.OS !== 'ios' || !navDirectionsAvailable) return store.backend === 'local' ? <DriveSession plan={plan} /> : <NeedsApp plan={plan} />;
   return <DriveSession plan={plan} />;
 }
 
@@ -207,14 +212,27 @@ interface Hud {
 }
 
 function DriveSession({ plan }: { plan: NavPlan }) {
-  useKeepAwake('drive');
+  // Keep the screen on while driving. On web the wake lock can refuse or not be ready yet: never an error on screen.
+  useEffect(() => {
+    activateKeepAwakeAsync('drive').catch(() => undefined);
+    return () => {
+      Promise.resolve()
+        .then(() => deactivateKeepAwake('drive'))
+        .catch(() => undefined);
+    };
+  }, []);
   const insets = useSafeAreaInsets();
   const store = useStore();
   const { settings, setSettings } = store;
   const stops = plan.stops;
+  /** No Apple directions in this build (the web preview): straight lines between the points, driven for you. */
+  const noDirections = Platform.OS !== 'ios' || !navDirectionsAvailable;
   // The demo's simulated drive; signed in, the server judges real fixes only.
-  const simulate = settings.simulateGps && store.backend === 'local';
+  const simulate = store.backend === 'local' && (settings.simulateGps || noDirections);
   const cameraAlerts = settings.navCameraAlerts !== false;
+  /** Road reports (Waze-style, the owner's decision 6): on unless turned off in this view's ··· menu. */
+  const reportsOn = settings.roadReports !== false;
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [phase, setPhase] = useState<'locating' | 'routing' | 'driving' | 'arrived' | 'error'>('locating');
   const [legsDone, setLegsDone] = useState<{ done: number; total: number } | null>(null);
@@ -271,7 +289,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   // Road reports: read around you (re-read every couple of km, every minute and on any change).
   const roads = useRoads();
   const [reportCentre, setReportCentre] = useState<LatLng | null>(null);
-  const { reports: roadReports } = useRoadReports({ centre: reportCentre, radiusMi: 15, context: 'driving', enabled: true, refreshMs: 60_000 });
+  const { reports: roadReports } = useRoadReports({ centre: reportCentre, radiusMi: 15, context: 'driving', enabled: reportsOn, refreshMs: 60_000 });
   const routeReports = useRef<RouteReport[]>([]);
   const announced = useRef(new Set<string>());
   const asked = useRef(new Set<string>());
@@ -307,7 +325,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       else setNotice('Off the route. Finding a new way…');
       setLegsDone({ done: 0, total: points.length - 1 });
       try {
-        const raw = await fetchRoute(points, { onProgress: (done, total) => setLegsDone({ done, total }) });
+        const raw = noDirections
+          ? straightRoute(points, legStops.map((i) => (i >= 0 ? stops[i].name : '')))
+          : await fetchRoute(points, { onProgress: (done, total) => setLegsDone({ done, total }) });
         if (!raw || closed.current) return;
         const r = dropViaArrivals(buildRoute(raw, legStops.map((i) => (i >= 0 ? stops[i].name : ''))), legStops);
         const box = routeBox(r);
@@ -348,7 +368,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         setLegsDone(null);
       }
     },
-    [stops, say, cameraAlerts],
+    [stops, say, cameraAlerts, noDirections],
   );
 
   /**
@@ -386,24 +406,36 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   const arrive = useCallback(
     (i: number) => {
-      const stop = stops[i];
+      const point = stops[i];
       nextRef.current = i + 1;
       setNext(i + 1);
-      const last = i === stops.length - 1;
-      if (stop.role === 'checkpoint') {
-        say(i === 0 ? "You're at the start. Follow the line through the checkpoints." : last ? `Finish. That's the end of ${plan.title}.` : `Checkpoint ${i + 1} of ${stops.length}.`);
+      const total = stops.length;
+      const last = i === total - 1;
+      if (point.role === 'checkpoint') {
+        say(i === 0 ? "You're at the start. Follow the line through the checkpoints." : last ? `Finish. That's the end of ${plan.title}.` : `Checkpoint ${i + 1} of ${total}.`);
       } else if (last) {
-        say(`You've arrived at ${stop.name}.`);
+        say(`You've arrived at ${point.name}.`);
       } else {
-        say(`You've reached ${stop.name}.${stop.checkIn ? ' Check in once you have parked.' : ''}`);
+        say(`You've reached ${point.name}.${point.checkIn ? ' Check in once you have parked.' : ''}`);
       }
-      if (stop.checkIn) setCheckInAt(i);
+      if (point.checkIn) setCheckInAt(i);
       if (last) {
         setPhase('arrived');
         feel.success();
+        // The demo's drive, driven for you: count it at a legal pace (the same check as on the road).
+        if (plan.driveId && simulate && !runDone.current) {
+          const spot = store.spots.find((s) => s.id === plan.driveId);
+          if (spot?.path?.length) {
+            runDone.current = true;
+            store
+              .finishDrive(spot.id, simulatedRun(spot.path, driveMiles(spot), Date.now()))
+              .then((verdict) => setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed. It counts.' : verdict.reason))
+              .catch((e) => setDriveNote(e instanceof Error ? e.message : "Couldn't record the drive."));
+          }
+        }
       }
     },
-    [stops, say, plan.title],
+    [stops, say, plan.title, plan.driveId, simulate, store],
   );
 
   /**
@@ -504,7 +536,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       // Road reports ahead: said once each (after any turn instruction), shown for a few seconds.
       if (snap.off < 60) {
-        const nowDate = new Date();
+        const nowDate = appNow();
         const ahead = spoke ? null : reportAlertDue(routeReports.current, snap.along, announced.current);
         if (ahead) {
           announced.current.add(ahead.report.id);
@@ -742,10 +774,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
     /** Demo: skip the GPS check (Me) drives the route for you, four times faster than life, at Apple's pace for each leg. */
     async function startSim() {
-      const here = await currentPosition(true);
+      // The web preview starts just short of the first point, wherever the browser is.
+      const here = noDirections ? null : await currentPosition(true);
       // Closed (or sent to the background) while finding you: don't start a timer nothing will stop.
       if (closed.current || AppState.currentState !== 'active') return;
-      let origin: LatLng = here.ok ? here.at : { lat: stops[0].at.lat - 0.01, lng: stops[0].at.lng };
+      let origin: LatLng = here?.ok ? here.at : { lat: stops[0].at.lat - 0.01, lng: stops[0].at.lng };
       let along = 0;
       let gen = 0;
       let t = Date.now();
@@ -826,21 +859,21 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   }
 
   async function doCheckIn(i: number) {
-    const stop = stops[i];
+    const point = stops[i];
     const ev = store.events.find((e) => e.id === plan.eventId);
-    if (!ev || stop.eventStop === undefined) return;
+    if (!ev || point.eventStop === undefined) return;
     // "Skip the GPS check" is the demo's only: signed in, the server always checks the distance.
     const skip = simulate;
     const at = fixRef.current?.at ?? null;
-    const res = canCheckIn(ev, stop.eventStop, store.me, store.crews, new Date(), at, skip);
+    const res = canCheckIn(ev, point.eventStop, store.me, store.crews, appNow(), at, skip);
     if (!res.ok) {
       setNotice(res.reason);
       return;
     }
     try {
-      await store.checkIn(ev.id, stop.eventStop, undefined, at);
+      await store.checkIn(ev.id, point.eventStop, undefined, at);
       buzz('success');
-      setCheckedIn((c) => [...c, stop.id]);
+      setCheckedIn((c) => [...c, point.id]);
       setCheckInAt(null);
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Couldn't check in.");
@@ -893,7 +926,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         id: s.id,
         at: s.at,
         glyph: s.role === 'checkpoint' ? 'drive' : plan.eventId ? 'cruise' : 'destination',
-        colour: i < next ? COLOR.text.secondary : i === next ? COLOR.action.primary : COLOR.text.primary,
+        colour: i < next ? COLOR.text.secondary : i === next ? (plan.eventId ? COLOR.layer.event : COLOR.layer.drive) : COLOR.text.primary,
       })),
     [stops, next, plan.eventId],
   );
@@ -938,7 +971,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   const banner = phase === 'driving' && route && progress ? bannerFor(route, progress) : null;
   let status: { arrow: string; title: string; distance?: string } | null = null;
-  if (phase === 'arrived') status = { arrow: ARROWS.arrive, title: `You've arrived at ${stops[stops.length - 1].name}` };
+  const finish = stops[stops.length - 1].name;
+  if (phase === 'arrived') status = { arrow: ARROWS.arrive, title: `You've arrived at ${finish}` };
   else if (phase === 'routing')
     status = { arrow: '…', title: legsDone && legsDone.total > 1 ? `Planning the route… ${legsDone.done} of ${legsDone.total} legs` : 'Planning the route…' };
   else if (phase === 'error') status = { arrow: '!', title: "Couldn't start navigation" };
@@ -990,9 +1024,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       {plan.driveId ? (
         <SubLine colour={driveNote?.startsWith('Drive complete') ? COLOR.state.success : undefined}>
           {driveNote ??
-            (simulate ? "Demo drive: it doesn't count. Simulate the drive on its page to count it." : 'Pass every checkpoint in order and the drive counts.')}
+            (simulate ? 'Demo drive: it counts when you reach the finish.' : 'Pass every checkpoint in order and the drive counts.')}
         </SubLine>
       ) : null}
+      {simulate ? <SubLine>Demo drive · 4× speed</SubLine> : null}
     </>
   );
 
@@ -1021,15 +1056,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           onLongPress={onLongPress}
         />
         <View pointerEvents="box-none" style={st.overlayTop}>
-          <View pointerEvents="none" style={{ flex: 1, gap: SPACING.xs, alignItems: 'flex-start' }}>
+          {/* On web the map's tile credit sits top left (WP-E), so alerts start under it; the demo label is in the bottom bar. */}
+          <View pointerEvents="none" style={{ flex: 1, gap: SPACING.xs, alignItems: 'flex-start', paddingTop: Platform.OS === 'web' ? SPACING.xl : 0 }}>
             {alertPill ? <AlertPill text={alertPill} /> : null}
-            {simulate ? (
-              <View style={st.demo}>
-                <DsText v="driveLabel" tone="action">
-                  Demo drive · 4× speed
-                </DsText>
-              </View>
-            ) : null}
           </View>
           <View style={{ gap: SPACING.sm }}>
             <MapButton
@@ -1041,6 +1070,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             <MapButton onPress={toggleVoice} label={muted ? 'Voice off. Turn voice on' : 'Voice on. Mute'} active={muted}>
               <SpeakerGlyph muted={muted} />
             </MapButton>
+            <MapButton onPress={() => setMenuOpen(true)} label="Driving options">
+              <View aria-hidden>
+                <Icon name="more" size={28} />
+              </View>
+            </MapButton>
             {pannedAt != null ? (
               <MapButton onPress={() => setPannedAt(null)} label="Recentre on me" active>
                 <RecentreGlyph />
@@ -1049,7 +1083,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           </View>
         </View>
         <View pointerEvents="box-none" style={st.overlayBottom}>
-          <ReportButton onPress={openReport} />
+          {reportsOn ? <ReportButton onPress={openReport} /> : <View />}
           {credits ? (
             <View pointerEvents="none" style={st.credit}>
               <DsText v="tag" tone="secondary" numberOfLines={2} style={{ textAlign: 'right', textTransform: 'none' }}>
@@ -1102,6 +1136,35 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
       <DriveBar bottom={insets.bottom} road={roadName} speedMph={speedMph} over={over} limit={limit} trip={trip} sub={subLines} onEnd={end} />
       {gridOpen ? <ReportGrid onPick={pickReport} onClose={() => setGridOpen(false)} bottom={insets.bottom} /> : null}
+      <Sheet visible={menuOpen} title="Driving options" onClose={() => setMenuOpen(false)}>
+        <View style={{ gap: SPACING.lg }}>
+          <ChoiceGroup
+            label="The map"
+            value={orientation}
+            onChange={(o) => setSettings({ navMap: o })}
+            options={[
+              { key: 'heading', label: 'Heading up' },
+              { key: 'north', label: 'North up' },
+            ]}
+          />
+          <View style={{ gap: SPACING.sm }}>
+            <DsText v="label">Your icon on the map</DsText>
+            <NavIconChoices value={settings.navIcon} onChange={(v) => setSettings({ navIcon: v })} />
+          </View>
+          <SwitchRow
+            label="Spoken directions"
+            value={!muted}
+            onValueChange={(on) => {
+              setSettings({ navVoice: on });
+              setMuted(!on);
+              if (!on) stopSpeaking();
+            }}
+          />
+          {!muted ? <VoicePicker /> : null}
+          <SwitchRow label="Speed camera alerts" hint="Fixed and average speed cameras on your route" value={cameraAlerts} onValueChange={(on) => setSettings({ navCameraAlerts: on })} />
+          <SwitchRow label="Road reports" hint="Police, hazards and closures from other drivers" value={reportsOn} onValueChange={(on) => setSettings({ roadReports: on })} />
+        </View>
+      </Sheet>
       <IconPickerSheet
         visible={iconOpen}
         value={settings.navIcon}
@@ -1120,6 +1183,5 @@ const st = StyleSheet.create({
   overlayTop: { position: 'absolute', top: SPACING.sm, left: SPACING.sm, right: SPACING.sm, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   overlayBottom: { position: 'absolute', left: SPACING.sm, right: SPACING.sm, bottom: SPACING.sm, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: SPACING.sm },
   credit: { flexShrink: 1, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs, marginLeft: 'auto' },
-  demo: { backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs },
-  notice: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: 80, backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, padding: SPACING.md, borderWidth: 1, borderColor: COLOR.action.primary },
+  notice: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: 80, backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, padding: SPACING.md, borderWidth: 1, borderColor: COLOR.surface.borderStrong },
 });

@@ -1,24 +1,28 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { SectionList, StyleSheet, View } from 'react-native';
 import { Button, DsText, EmptyState, ListRow, RowDivider } from '../components/ds';
-import { formatRelative } from '../lib/format';
 import { useStore, type Notice } from '../lib/store';
 import { useNow } from '../lib/clock';
-import { SPACING, COLOR, RADII } from '../theme';
+import { clock, dayDiff, dayWord } from '../lib/when';
+import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 
-const KIND_LABEL: Record<NonNullable<Notice['kind']>, string> = {
-  reveal: 'Location shown',
-  soon: 'Starting soon',
-  moved: 'Moved on',
-  host: 'You moved the meet on',
-  nearby: 'New near you',
-  connection: 'Connection',
-};
+/** When a notice came: "21:30" today, "Yesterday", "Fri", "Fri 13 Nov". */
+function noticeTime(iso: string, now: Date): string {
+  const d = new Date(iso);
+  const days = dayDiff(d, now);
+  if (days === 0) return clock(d);
+  if (days === -1) return 'Yesterday';
+  return dayWord(d, now);
+}
 
-/** Under the bell (Tonight and Community): reminders and news about your events, newest first. */
+/**
+ * Notifications (Redesign 2, 3.13, template T1 pushed from the bell): Today, then Earlier. One row
+ * each (the event's pin or the person, one sentence, the time), opening the event or the person.
+ * The demo starts with none.
+ */
 export default function NotificationsScreen() {
-  const { notices, events, markNoticesRead, settings } = useStore();
+  const { notices, events, users, markNoticesRead, settings } = useStore();
   const now = useNow();
   // Keep "new" marked while the list is open; mark it all read on the way out.
   const [unreadIds] = useState(() => new Set(notices.filter((n) => !n.read).map((n) => n.id)));
@@ -28,12 +32,32 @@ export default function NotificationsScreen() {
     }, [markNoticesRead]),
   );
 
+  const today = notices.filter((n) => dayDiff(new Date(n.at), now) === 0);
+  const earlier = notices.filter((n) => dayDiff(new Date(n.at), now) !== 0);
+  const sections = [
+    ...(today.length ? [{ title: 'Today', data: today }] : []),
+    ...(earlier.length ? [{ title: 'Earlier', data: earlier }] : []),
+  ];
+
+  if (notices.length === 0) {
+    return (
+      <View style={[st.page, { flex: 1 }]}>
+        <EmptyState
+          variant="block"
+          title="Nothing yet. Say you're going to a meet and we'll remind you."
+          action={{ label: 'See tonight', onPress: () => router.navigate({ pathname: '/', params: { view: 'list' } }) }}
+        />
+      </View>
+    );
+  }
+
   return (
-    <FlatList
-      data={notices}
+    <SectionList
+      sections={sections}
       keyExtractor={(n) => n.id}
       contentContainerStyle={st.page}
       ItemSeparatorComponent={RowDivider}
+      stickySectionHeadersEnabled={false}
       ListHeaderComponent={
         !settings.reminders ? (
           <View style={st.notice}>
@@ -42,22 +66,22 @@ export default function NotificationsScreen() {
           </View>
         ) : undefined
       }
-      ListEmptyComponent={
-        <EmptyState
-          title="Nothing yet"
-          body="Say you're going to an event and you'll get a reminder when its location shows and 30 minutes before the start."
-          action={{ label: 'See tonight', onPress: () => router.navigate({ pathname: '/', params: { view: 'list' } }) }}
-        />
-      }
-      renderItem={({ item: n }) => {
+      renderSectionHeader={({ section }) => (
+        <DsText v="eyebrow" accessibilityRole="header" style={{ marginTop: SPACING.lg, marginBottom: SPACING.xs }}>
+          {section.title}
+        </DsText>
+      )}
+      renderItem={({ item: n }: { item: Notice }) => {
         const fresh = unreadIds.has(n.id);
         if (n.kind === 'connection' && n.userId) {
           const userId = n.userId;
+          const u = users.find((x) => x.id === userId);
           return (
             <ListRow
+              leading={{ avatar: { name: u?.name, handle: u?.handle } }}
               unread={fresh}
               title={n.text}
-              meta={`${KIND_LABEL.connection} · ${formatRelative(n.at, now)}`}
+              meta={noticeTime(n.at, now)}
               onPress={() => router.push({ pathname: '/user/[id]', params: { id: userId } })}
               accessibilityHint="Opens their profile"
             />
@@ -66,9 +90,10 @@ export default function NotificationsScreen() {
         const event = events.find((e) => e.id === n.eventId);
         return (
           <ListRow
+            leading={{ pin: event?.type ?? 'meet', colour: event ? EVENT_COLOURS[event.type] : COLOR.text.secondary }}
             unread={fresh}
             title={n.text}
-            meta={`${n.kind ? KIND_LABEL[n.kind] : 'Update'} · ${formatRelative(n.at, now)}${event ? '' : ' · this event has gone'}`}
+            meta={event ? noticeTime(n.at, now) : `${noticeTime(n.at, now)} · This event has gone`}
             onPress={event ? () => router.push({ pathname: '/event/[id]', params: { id: n.eventId } }) : undefined}
             accessibilityHint={event ? 'Opens the event' : undefined}
           />
@@ -79,6 +104,6 @@ export default function NotificationsScreen() {
 }
 
 const st = StyleSheet.create({
-  page: { padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1 },
+  page: { padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1, backgroundColor: COLOR.surface.bg },
   notice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, padding: SPACING.md, marginBottom: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.raisedHi, backgroundColor: COLOR.surface.raised },
 });

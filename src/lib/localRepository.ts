@@ -1,3 +1,4 @@
+import { appNow } from './appClock';
 import { BAN_ZONES, ME } from '../data/seed';
 import { castVote as applyVote } from './awards';
 import { canGoWith, chosenBuild, ownBuilds } from './bringing';
@@ -88,7 +89,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
     },
     async editEvent(edited) {
       const event = eventOf(edited.id);
-      const nowDate = new Date();
+      const nowDate = appNow();
       const ok = canEditEvent(event, nowDate);
       if (!ok.ok) throw new Error(ok.reason);
       const next = applyEventEdit(event, edited, ME, nowDate, newId('pc'));
@@ -97,7 +98,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
     },
     async changePlan(eventId, change) {
       const event = eventOf(eventId);
-      const nowDate = new Date();
+      const nowDate = appNow();
       const result = applyPlanChange(event, change, ME, nowDate, BAN_ZONES, () => newId(`${eventId}-x`));
       const msg = planChangedMessage(eventId, ME, nowDate, newId('c'));
       set((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? result.event : e)), chat: [...s.chat, msg] }));
@@ -108,10 +109,10 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       if (problem) throw new Error(problem);
       set((s) => {
         const users = s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u));
-        const next = { ...s, onboarded: true, onboardedAt: s.onboardedAt ?? new Date().toISOString(), users };
+        const next = { ...s, onboarded: true, onboardedAt: s.onboardedAt ?? appNow().toISOString(), users };
         // A new home area: the sample scene moves with it.
         const home = users.find((u) => u.id === ME)!.home;
-        return sameHome(s.scene?.home, home) ? next : redrawScene(next, home, new Date());
+        return sameHome(s.scene?.home, home) ? next : redrawScene(next, home, appNow());
       });
     },
     async setTravelPrefs({ travelMiles, alerts }) {
@@ -138,7 +139,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       const pick = buildId ?? (!already && own.length === 1 ? own[0].id : undefined);
       const build = pick ? own.find((b) => b.id === pick) : chosenBuild(event, ME, state.builds);
       const eligible = canGoWith(event, ME, state.crews, state.users, state.builds, build);
-      const nowDate = new Date();
+      const nowDate = appNow();
       const next = rsvp(event, ME, eligible, pick, nowDate); // throws with the reason (a host said no, checked in...)
       updateEvent(eventId, (e) => rsvp(e, ME, eligible, pick, nowDate));
       return next.going.includes(ME) ? 'going' : next.requests?.includes(ME) ? 'requested' : 'none';
@@ -161,7 +162,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
     },
     async moveOn(eventId) {
       const event = eventOf(eventId);
-      const nowDate = new Date();
+      const nowDate = appNow();
       const next = applyMoveOn(event, nowDate);
       const stop = next.stops[next.currentStop];
       // In the demo you're the host and may also be checked in: then you get the
@@ -177,16 +178,16 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       set((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? next : e)), notices: [notice, ...s.notices] }));
     },
     async cancelEvent(eventId) {
-      const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text: 'Hosts cancelled the event', at: new Date().toISOString(), system: true };
+      const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text: 'Hosts cancelled the event', at: appNow().toISOString(), system: true };
       set((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? { ...e, cancelled: true } : e)), chat: [...s.chat, msg] }));
     },
     async sendChat(eventId, text) {
-      const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text, at: new Date().toISOString() };
+      const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text, at: appNow().toISOString() };
       set((s) => ({ ...s, chat: [...s.chat, msg] }));
     },
     async vote(eventId, category, buildId) {
       const state = get();
-      const votes = applyVote(state.votes, eventOf(eventId), state.builds, ME, category, buildId, new Date());
+      const votes = applyVote(state.votes, eventOf(eventId), state.builds, ME, category, buildId, appNow());
       set((s) => ({ ...s, votes }));
     },
     async finishDrive(spotId, run) {
@@ -195,18 +196,18 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       const verdict = judgeRun(run, spot.path, driveMiles(spot), spot.limitMph);
       if (!verdict.ok) return verdict;
       try {
-        recordCompletion(spot, ME, new Date());
+        recordCompletion(spot, ME, appNow());
       } catch (e) {
         return { ok: false, reason: e instanceof Error ? e.message : "Couldn't record the drive." };
       }
-      updateSpot(spotId, (x) => recordCompletion(x, ME, new Date()));
+      updateSpot(spotId, (x) => recordCompletion(x, ME, appNow()));
       return { ok: true };
     },
     async visitSpot(spotId, photo) {
       const spot = ctx.spots().find((x) => x.id === spotId);
       if (!spot) throw new Error('Spot not found.');
-      recordCompletion(spot, ME, new Date(), photo);
-      updateSpot(spotId, (x) => recordCompletion(x, ME, new Date(), photo));
+      recordCompletion(spot, ME, appNow(), photo);
+      updateSpot(spotId, (x) => recordCompletion(x, ME, appNow(), photo));
     },
     async rateSpot(spotId, stars) {
       const spot = ctx.spots().find((x) => x.id === spotId);
@@ -215,7 +216,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       updateSpot(spotId, () => rated);
     },
     async suggestSpot(draft) {
-      const { spot, warning } = makeSpot(draft, ME, new Date(), newId('sp'), ctx.spots(), BAN_ZONES);
+      const { spot, warning } = makeSpot(draft, ME, appNow(), newId('sp'), ctx.spots(), BAN_ZONES);
       set((s) => ({ ...s, spots: [...s.spots, spot] }));
       return { id: spot.id, warning };
     },

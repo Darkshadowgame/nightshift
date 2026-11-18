@@ -6,7 +6,7 @@ import { ZoneCard } from '../../components/ZoneCard';
 import { BAN_ZONES } from '../../data/seed';
 import { COLOR } from '../../theme';
 
-/** One meet ban, explained (from a place page, a host step or a stop warning). */
+/** One meet ban, explained (T3: the card carries the title). Reached from the host flow's meet-ban warning and place pages. */
 export default function ZoneScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const zone = BAN_ZONES.find((z) => z.id === id);
@@ -17,7 +17,7 @@ export default function ZoneScreen() {
       {zone ? (
         <ZoneCard zone={zone} />
       ) : (
-        <EmptyState glyph="area" title="Meet ban not found" body="This area is no longer listed." action={{ label: 'Go back', onPress: () => (router.canGoBack() ? router.back() : router.replace('/')) }} />
+        <EmptyState glyph="area" title="Meet ban not found" body="This area is no longer listed." action={{ label: 'See Tonight', onPress: () => router.replace('/') }} />
       )}
     </ScrollView>
   );

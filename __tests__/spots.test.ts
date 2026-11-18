@@ -16,6 +16,7 @@ import {
   rateSpot,
   recordCompletion,
   runExpired,
+  simulatedRun,
   simulatedTimes,
   statsOf,
   visibleSpots,
@@ -73,6 +74,12 @@ describe('drives', () => {
 
   test('a far-off position does not pass a checkpoint', () => {
     expect(advanceRun(NEW_RUN, PATH, { lat: 53.5, lng: -1.929 }, t0).passed).toBe(0);
+  });
+
+  test('the demo drives it for you, and the same check passes it', () => {
+    const run = simulatedRun(PATH, MILES, t0);
+    expect(run.passed).toBe(PATH.length);
+    expect(judgeRun(run, PATH, MILES)).toEqual({ ok: true });
   });
 
   test('a run at a steady legal pace passes', () => {

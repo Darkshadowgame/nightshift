@@ -14,6 +14,7 @@ import {
   roadFromInstruction,
   roadOnRoute,
   shownLimit,
+  straightRoute,
   tripSummary,
 } from '../src/lib/driveView';
 import { buildRoute, progressOn, snapToRoute, type RawRouteLike } from '../src/lib/nav';
@@ -130,5 +131,21 @@ describe('map', () => {
     expect(nameLookupDue({ at: p, t: 0 }, at(52.602, -1.7), 6000)).toBe(true);
     expect(nameLookupDue({ at: p, t: 0 }, p, 10_000)).toBe(false);
     expect(nameLookupDue({ at: p, t: 0 }, p, 15_000)).toBe(true);
+  });
+});
+
+describe('the web preview demo drive', () => {
+  const pts = [at(52.6, -1.7), at(52.61, -1.69), at(52.62, -1.71)];
+  const r = buildRoute(straightRoute(pts, ['Start', 'Finish']), ['Start', 'Finish']);
+  it('runs through every point, one leg each, ending on the last point', () => {
+    expect(r.legs).toHaveLength(2);
+    expect(r.coords[0]).toEqual(pts[0]);
+    expect(r.coords[r.legs[0].endIndex]).toEqual(pts[1]);
+    expect(r.coords[r.coords.length - 1]).toEqual(pts[2]);
+    expect(r.length).toBeGreaterThan(2000);
+  });
+  it('says where to head and when you arrive', () => {
+    expect(r.steps[0].text).toBe('Head towards Start');
+    expect(r.steps.filter((s) => s.kind === 'arrive')).toHaveLength(2);
   });
 });

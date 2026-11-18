@@ -1,5 +1,5 @@
 import { bundledSpots } from '../src/lib/placeStore';
-import { DEMO_HOME, NEAR_YOU, sampleHomes, seed, seededStops } from '../src/data/seed';
+import { DEMO_HOME, DEMO_TOWN, sampleHomes, sceneAreaName, seed, seededStops } from '../src/data/seed';
 import { areaGivesAway } from '../src/lib/area';
 import { isPublicType } from '../src/lib/events';
 import { milesBetween } from '../src/lib/geo';
@@ -22,11 +22,14 @@ describe('moving the sample scene', () => {
 
   test('sample meets are drawn round your home, not the Midlands', () => {
     const s = seed(NOW, { home: LEEDS });
-    for (const id of ['ev-rolling-live', 'ev-rolling-host', 'ev-meet-soon', 'ev-meet-tam', 'ev-past-snowdome']) {
+    for (const id of ['ev-meet-now', 'ev-rolling-late', 'ev-meet-soon', 'ev-meet-tam', 'ev-past-snowdome']) {
       const e = s.events.find((x) => x.id === id)!;
       for (const st of e.stops) expect(milesBetween(st.at!, LEEDS)).toBeLessThan(15);
-      expect(e.areaName).toBe(NEAR_YOU);
+      expect(e.areaName).toBe(sceneAreaName(LEEDS));
     }
+    // Never "Sample area": the demo home is Tamworth, anywhere else its region until the geocoder names the town.
+    expect(sceneAreaName(DEMO_HOME)).toBe(DEMO_TOWN);
+    expect(sceneAreaName(LEEDS)).toBe('Yorkshire');
     const homes = sampleHomes(LEEDS);
     for (const u of s.users) expect(milesBetween(u.home, LEEDS)).toBeLessThan(35);
     expect(homes.size).toBe(s.users.length);
@@ -45,9 +48,9 @@ describe('moving the sample scene', () => {
     const s = seed(NOW, { home: LEEDS });
     const cruise = s.events.find((e) => e.id === 'ev-cruise-peak')!;
     const ride = s.events.find((e) => e.id === 'ev-bike-cat')!;
-    expect(cruise.title).toMatch(/^Night cruise: /);
-    expect(ride.title).not.toBe(cruise.title.replace('Night cruise', 'Sunrise ride'));
-    const drive = bundledSpots().find((x) => cruise.title.endsWith(x.name))!;
+    expect(cruise.title).toMatch(/night cruise$/);
+    expect(ride.title).not.toContain(cruise.description!.split(',')[0]);
+    const drive = bundledSpots().find((x) => cruise.description!.startsWith(`${x.name},`))!;
     expect(drive.kind).toBe('drive');
     expect(cruise.stops[0].at).toEqual(drive.path![0]);
     const show = s.events.find((e) => e.id === 'ev-show-don')!;
@@ -59,18 +62,18 @@ describe('moving the sample scene', () => {
     const seeded = seededStops(LEEDS);
     const todo = stopsToName(s.events, seeded, {});
     expect(todo.map((t) => t.id)).toContain('rl-1');
-    const live = s.events.find((e) => e.id === 'ev-rolling-live')!;
+    const live = s.events.find((e) => e.id === 'ev-rolling-late')!;
     expect(live.stops[0].name).toBe('Retail park car park');
-    const edited = s.events.map((e) => (e.id === 'ev-rolling-live' ? { ...e, stops: e.stops.map((st, i) => (i === 1 ? { ...st, name: 'My spot' } : st)) } : e));
-    const names = { 'rl-1': 'Birstall Retail Park, Leeds', 'rl-2': 'Somewhere', 'pc-1': 'A57, Glossop', 'area:ev-rolling-live': 'Leeds' };
-    const out = applySceneNames(edited, names, seeded).find((e) => e.id === 'ev-rolling-live')!;
+    const edited = s.events.map((e) => (e.id === 'ev-rolling-late' ? { ...e, stops: e.stops.map((st, i) => (i === 1 ? { ...st, name: 'My spot' } : st)) } : e));
+    const names = { 'rl-1': 'Birstall Retail Park, Leeds', 'rl-2': 'Somewhere', 'pc-1': 'A57, Glossop', 'area:ev-rolling-late': 'Leeds' };
+    const out = applySceneNames(edited, names, seeded).find((e) => e.id === 'ev-rolling-late')!;
     expect(out.stops[0].name).toBe('Birstall Retail Park, Leeds');
     expect(out.stops[1].name).toBe('My spot');
     expect(out.areaName).toBe('Leeds');
     const cruise = applySceneNames(edited, names, seeded).find((e) => e.id === 'ev-cruise-peak')!;
     expect(cruise.stops[0].name).toBe('Start: A57, Glossop');
     // seeding with the names gives the same result, so "untouched demo" still compares like with like
-    expect(seed(NOW, { home: LEEDS, names }).events.find((e) => e.id === 'ev-rolling-live')!.stops[0].name).toBe('Birstall Retail Park, Leeds');
+    expect(seed(NOW, { home: LEEDS, names }).events.find((e) => e.id === 'ev-rolling-late')!.stops[0].name).toBe('Birstall Retail Park, Leeds');
   });
 
   test('helpers', () => {

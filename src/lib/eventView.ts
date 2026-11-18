@@ -48,10 +48,13 @@ export function viewEvent(event: NightEvent, me: string, crews: Crew[], users: U
   return { event, role, phase, shownStop };
 }
 
+/**
+ * Every event, as this user sees it, soonest first. Events not open to you stay in (Redesign 2: they
+ * say "Not open to your car" instead of disappearing).
+ */
 export function viewEvents(events: NightEvent[], me: string, crews: Crew[], users: User[], builds: Build[], now: Date): EventView[] {
   return events
     .map((event) => viewEvent(event, me, crews, users, builds, now))
-    .filter((v) => v.role !== 'none')
     .sort((a, b) => new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime());
 }
 

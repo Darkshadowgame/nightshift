@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
-import { DetailHero, MediaFrame, NotFoundState, PAGE } from '../../components/Detail';
-import { Button, DsText, EmptyState, LoadingState, Section } from '../../components/ds';
+import { NotFoundState } from '../../components/Detail';
+import { ActionBar, Button, DsText, EmptyState, Hero, LoadingState, PAGE_WITH_BAR, Section } from '../../components/ds';
 import { NightMap } from '../../components/NightMap';
-import { NavLaunch } from '../../components/NavLaunch';
+import { useNavLaunch } from '../../components/NavLaunch';
 import { SuggestMissing } from '../../components/SuggestMissing';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
 import { formatOpeningHours, openState, parseOpeningHours } from '../../lib/openingHours';
@@ -35,7 +35,10 @@ function open(url: string) {
   Linking.openURL(url).catch(() => {});
 }
 
-/** A shop from the Shops layer: what it is, opening hours, website and phone, directions, and "suggest an edit". */
+/**
+ * A shop or partner (T3 detail; the Shops layer is gone from the map, the page stays for old links):
+ * Hero with the map → hours → offer → ActionBar (Navigate, and Website or Call).
+ */
 export default function ShopScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { users, me } = useStore();
@@ -54,6 +57,9 @@ export default function ShopScreen() {
     return s ? { ...s } : null;
   }, [id, home, shopIdx]);
 
+  const at = listing?.at ?? { lat: 0, lng: 0 };
+  const nav = useNavLaunch({ target: { kind: 'place', name: listing?.name ?? '', lat: at.lat, lng: at.lng }, to: at });
+
   // The header stays blank, like every detail screen: the eyebrow says Shop or Partner, once.
   if (!listing && isShop && !shopIdx && !failed) {
     return (
@@ -71,7 +77,7 @@ export default function ShopScreen() {
           failed
             ? "Couldn't load the shop listings just now. Try again in a moment."
             : isLegacyShopId(id ?? '')
-              ? 'This link is from an older version of the app and no longer points at a shop. Find it on the map with the Shops layer.'
+              ? 'This link is from an older version of the app and no longer points at a shop.'
               : 'This shop is no longer on the map. The listings are refreshed from OpenStreetMap with app updates.'
         }
       />
@@ -84,37 +90,37 @@ export default function ShopScreen() {
   const state = hours ? openState(hours, now) : null;
   const web = safeWebLink(listing.website);
 
+  const glyph = p ? 'partner' : (listing.categories[0] ?? 'shop');
+  const website = web && !p?.demo ? web : null;
+  const second = website
+    ? { label: 'Website', onPress: () => open(website), accessibilityLabel: `Open the website, ${websiteLabel(website).split('/')[0]}` }
+    : listing.phone
+      ? { label: `Call ${formatPhone(listing.phone)}`, onPress: () => open(phoneLink(listing.phone!)) }
+      : null;
+
   return (
-    <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE}>
-      <DetailHero
-        kind={p ? partnerBadge(p) : 'Shop'}
-        colour={colour}
-        glyph={p ? 'partner' : (listing.categories[0] ?? 'shop')}
-        status={state ? { label: state.open ? 'Open' : 'Closed', tone: state.open ? 'success' : 'neutral' } : null}
+    <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+    <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
+      <Hero
+        bleed
+        media={
+          <NightMap
+            pins={[{ id: 'shop', at: listing.at, glyph, colour, title: listing.name, size: 34 }]}
+            centre={listing.at}
+            span={0.012}
+            credit={p ? undefined : '© OpenStreetMap contributors'}
+          />
+        }
+        eyebrow={p ? partnerBadge(p) : 'Shop'}
+        layerColour={colour}
+        glyph={glyph}
+        tag={state ? { label: state.open ? 'Open' : 'Closed', tone: state.open ? 'success' : 'neutral' } : null}
         title={listing.name}
-        lines={[listing.categories.map((c) => CATEGORY_LABELS[c]).join(' · '), state?.label, listing.brand]}
+        meta={[listing.categories.map((c) => CATEGORY_LABELS[c]).join(' · '), state?.label, listing.brand]}
       >
         {p?.description ? <DsText v="secondary">{p.description}</DsText> : null}
-      </DetailHero>
-
-      <NavLaunch target={{ kind: 'place', name: listing.name, lat: listing.at.lat, lng: listing.at.lng }} to={listing.at} kind="primary" />
-      {web || listing.phone ? (
-        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-          {web && !p?.demo ? (
-            <Button label="Website" tier="secondary" style={{ flex: 1 }} block onPress={() => open(web)} accessibilityLabel={`Open the website, ${websiteLabel(web).split('/')[0]}`} />
-          ) : null}
-          {listing.phone ? <Button label={`Call ${formatPhone(listing.phone)}`} tier="secondary" style={{ flex: 1 }} block onPress={() => open(phoneLink(listing.phone!))} /> : null}
-        </View>
-      ) : null}
-
-      <MediaFrame height={180}>
-        <NightMap
-          pins={[{ id: 'shop', at: listing.at, glyph: p ? 'partner' : (listing.categories[0] ?? 'shop'), colour, title: listing.name, size: 34 }]}
-          centre={listing.at}
-          span={0.012}
-          credit={p ? undefined : '© OpenStreetMap contributors'}
-        />
-      </MediaFrame>
+        {website && listing.phone ? <Button label={`Call ${formatPhone(listing.phone)}`} tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} onPress={() => open(phoneLink(listing.phone!))} /> : null}
+      </Hero>
 
       {p ? (
         <Section title={p.demo ? 'Sample partner offer' : 'Partner offer'}>
@@ -168,5 +174,8 @@ export default function ShopScreen() {
         </View>
       )}
     </ScrollView>
+    <ActionBar primary={{ label: nav.label, onPress: nav.open }} secondary={second} />
+    {nav.sheet}
+    </View>
   );
 }

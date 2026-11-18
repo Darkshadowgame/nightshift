@@ -7,6 +7,7 @@ import { nearestRegion } from '../lib/profile';
 import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
 import { PLACES, type PlaceSeed } from './places';
 import { SAMPLE_PHOTOS } from './samplePhotos';
+import { appNow } from '../lib/appClock';
 
 /**
  * Demo scene for Phase 1: made-up sample people and events, drawn round the
@@ -202,13 +203,6 @@ function at(now: Date, dayOffset: number, hour: number, minute = 0): string {
   return d.toISOString();
 }
 
-/** The most recent Sunday at least `minDaysBack` days ago, at this time of day. */
-function lastSunday(now: Date, minDaysBack: number, hour: number, minute = 0): string {
-  let back = now.getDay(); // days since Sunday
-  if (back < minDaysBack) back += 7;
-  return at(now, -back, hour, minute);
-}
-
 function minutesFrom(now: Date, minutes: number): string {
   return new Date(now.getTime() + minutes * 60_000).toISOString();
 }
@@ -224,47 +218,46 @@ function tonightAt(now: Date, hour: number, minute = 0, addDays = 0): Date {
   return d;
 }
 
-/** The next Saturday or Sunday morning at 10:00 that is still to come. */
-function weekendMorning(now: Date): Date {
-  for (let i = 0; i < 8; i++) {
+/**
+ * The demo night (Redesign 2, 3.1). The demo runs on a virtual clock that starts on a Friday at
+ * 21:10 (demoTime.ts), and the sample events are laid out round that moment:
+ *
+ * | Event                         | Time                         | Why it's there                          |
+ * |-------------------------------|------------------------------|-----------------------------------------|
+ * | Car park meet-up (meet)       | live, 20:30–23:00, shown     | going, check in and vote work at once   |
+ * | Late rolling meet             | 22:00–00:30, location 21:30  | the location countdown, then Move on    |
+ * | Saturday night cruise         | tomorrow 20:00, Class S, A   | "Not open to your car" for slow builds  |
+ * | Sunday coffee and cars (meet) | Sun 10:00                    | a daytime meet in This week             |
+ * | Last week's meet              | ended a week ago             | results, trophies and photos            |
+ *
+ * Laid out relative to `now`, so `seed(now)` works at any time (tests, older saves): the live meet
+ * started 40 minutes ago (to the 5 minutes) and runs two and a half hours.
+ */
+export function demoTimes(now: Date): Record<'meetNow' | 'rollingLate' | 'cruise' | 'coffee' | 'lastWeek', { start: Date; end: Date }> {
+  const start = new Date(Math.floor((now.getTime() - 40 * MIN) / (5 * MIN)) * 5 * MIN);
+  const meetNow = { start, end: new Date(start.getTime() + 150 * MIN) };
+  const lateStart = new Date(start.getTime() + 90 * MIN);
+  const cruiseStart = tonightAt(now, 20, 0, 1);
+  const coffee = nextSunday(now);
+  const DAY = 7 * 24 * 60 * MIN;
+  return {
+    meetNow,
+    rollingLate: { start: lateStart, end: new Date(lateStart.getTime() + 150 * MIN) },
+    cruise: { start: cruiseStart, end: new Date(cruiseStart.getTime() + 150 * MIN) },
+    coffee: { start: coffee, end: new Date(coffee.getTime() + 180 * MIN) },
+    lastWeek: { start: new Date(start.getTime() - DAY), end: new Date(meetNow.end.getTime() - DAY) },
+  };
+}
+
+/** The next Sunday at 10:00 that is at least an hour away. */
+function nextSunday(now: Date): Date {
+  for (let i = 0; i < 9; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     d.setHours(10, 0, 0, 0);
-    if ((d.getDay() === 6 || d.getDay() === 0) && d.getTime() > now.getTime() + 60 * MIN) return d;
+    if (d.getDay() === 0 && d.getTime() > now.getTime() + 60 * MIN) return d;
   }
-  return tonightAt(now, 10, 0, 3);
-}
-
-/** An evening slot tonight, or the same slot tomorrow once tonight's has ended. */
-function eveningSlot(now: Date, from: [number, number], to: [number, number]): { start: Date; end: Date } {
-  const start = tonightAt(now, from[0], from[1]);
-  const end = tonightAt(now, to[0], to[1]);
-  if (end.getTime() > now.getTime()) return { start, end };
-  return { start: tonightAt(now, from[0], from[1], 1), end: tonightAt(now, to[0], to[1], 1) };
-}
-
-/** Daytime by the demo's clock: 07:00 to 17:59. Otherwise the always-on meet is a night one. */
-export function isDaytime(now: Date): boolean {
-  return now.getHours() >= 7 && now.getHours() < 18;
-}
-
-/**
- * When the sample events run (REVIEW-9 decision 3, REVIEW-10 decision 1): the always-on demo meet
- * is live whatever the time, started half an hour ago (to the 5 minutes) and on for four hours, so
- * going, check-in and voting can be tried at lunchtime too. The other meets keep real evening
- * times (tonight 19:00 to 23:00, or tomorrow once tonight's has ended); coffee and cars is a
- * weekend morning.
- */
-export function demoTimes(now: Date): Record<'meetNow' | 'rollingLive' | 'rollingHost' | 'coffee', { start: Date; end: Date }> {
-  const start = new Date(Math.floor((now.getTime() - 30 * MIN) / (5 * MIN)) * 5 * MIN);
-  const meetNow = { start, end: new Date(start.getTime() + 240 * MIN) };
-  const coffee = weekendMorning(now);
-  return {
-    meetNow,
-    rollingLive: eveningSlot(now, [19, 30], [23, 0]),
-    rollingHost: eveningSlot(now, [21, 0], [24, 30]),
-    coffee: { start: coffee, end: new Date(coffee.getTime() + 180 * MIN) },
-  };
+  return tonightAt(now, 10, 0, 7);
 }
 
 /** How far the sample rolling meet has got: moved on to its second meet point 35 minutes in. */
@@ -273,12 +266,16 @@ function rollingProgress(now: Date, start: Date): { live: boolean; movedOn: bool
   return { live: m >= 0, movedOn: m >= 35 };
 }
 
-/** Seed event ids: everything else in the events list was made on the phone. */
+/**
+ * Seed event ids: everything else in the events list was made on the phone. The ones after
+ * `ev-past-snowdome` are no longer seeded (older saves may still hold them; a refresh drops them).
+ */
 export const SEED_EVENT_IDS = [
-  'ev-meet-now', 'ev-rolling-live', 'ev-rolling-host', 'ev-meet-soon', 'ev-cruise-peak', 'ev-meet-tam', 'ev-bike-cat', 'ev-past-snowdome', 'ev-show-don', 'ev-track-curb',
+  'ev-meet-now', 'ev-rolling-late', 'ev-cruise-peak', 'ev-meet-soon', 'ev-meet-tam', 'ev-bike-cat', 'ev-show-don', 'ev-past-snowdome',
+  'ev-rolling-live', 'ev-rolling-host', 'ev-track-curb',
 ];
 
-/** Rough areas are worked out the same way as for events made in the app: fuzzed, never on a stop. */
+/** Rough areas are worked out the same way as for events made in the app: fuzzed, never on a meet point. */
 function withAreas(list: NightEvent[]): NightEvent[] {
   return list.map((e) => {
     const placed = e.stops.flatMap((st) => (st.at ? [st.at] : []));
@@ -286,8 +283,13 @@ function withAreas(list: NightEvent[]): NightEvent[] {
   });
 }
 
-/** Neutral area name until the geocoder names the town (not "Near you": it reads as a place in notices). */
-export const NEAR_YOU = 'Sample area';
+/** The demo's own town: the sample scene is drawn round Tamworth unless you set another home. */
+export const DEMO_TOWN = 'Tamworth';
+
+/** The area name sample meets use until the geocoder names the town: Tamworth for the demo home, else your region. */
+export function sceneAreaName(home: LatLng): string {
+  return Math.abs(home.lat - DEMO_HOME.lat) < 0.02 && Math.abs(home.lng - DEMO_HOME.lng) < 0.02 ? DEMO_TOWN : nearestRegion(home);
+}
 
 /** Start, halfway and finish of a real drive, for the sample cruises. */
 function driveStops(prefix: string, d: PlaceSeed) {
@@ -300,119 +302,91 @@ function driveStops(prefix: string, d: PlaceSeed) {
 }
 
 const isCircuit = (p: PlaceSeed) => p.kind === 'track' && p.trackType === 'circuit';
-// Sprint courses and hill climbs only: not kart tracks or oval stadiums.
-const isSprint = (p: PlaceSeed) => p.kind === 'track' && (p.trackType === 'sprint' || p.trackType === 'hillclimb');
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/** Sample events: meets moved onto your area, cruises on the nearest real drives, shows and track days at the nearest real venues. */
+/** Sample events: the demo night's five, plus a few later in the week so This week and Later aren't empty. */
 function events(now: Date, home: LatLng): NightEvent[] {
   const t = demoTimes(now);
   const iso = (d: Date, plusMin = 0) => new Date(d.getTime() + plusMin * MIN).toISOString();
-  const roll = rollingProgress(now, t.rollingLive.start);
+  const roll = rollingProgress(now, t.rollingLate.start);
   const here = (lat: number, lng: number) => translate({ lat, lng }, DEMO_HOME, home);
+  const area = sceneAreaName(home);
   const [d1, d2] = nearest(PLACES.filter((p) => p.kind === 'drive'), home, 2);
   const [circuit] = nearest(PLACES.filter(isCircuit), home, 1);
-  const [sprint] = nearest(PLACES.filter(isSprint), home, 1);
+  const meetGoing = ['em', 'dan', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash', 'liv'];
+  const lastGoing = ['tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'];
   return withAreas([
     {
-      // The first thing a new demo user is pointed at ("Start here"): the demo meet that is always
-      // on now (REVIEW-10 decision 1). A Sunday-style daytime meet by day, a car park meet by night.
-      id: 'ev-meet-now', type: 'meet', title: isDaytime(now) ? 'Demo: Sunday-style daytime meet' : 'Demo: car park meet-up',
-      description: `Demo meet, always on now so you can try it any time: say you're going, check in, then vote for the best builds. Open to any car or bike.`,
+      // The "Start here" pick: live, open to anyone, location shown. Going, check in and vote work at once.
+      id: 'ev-meet-now', type: 'meet', title: 'Car park meet-up',
+      description: 'Park up at the far end, no revving, leave it clean. Open to any car or bike.',
       startsAt: iso(t.meetNow.start), endsAt: iso(t.meetNow.end),
-      area: home, areaName: NEAR_YOU,
+      area: home, areaName: area,
       stops: [{ id: 'mn-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['em'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
-      // Enough builds that each trophy shows a different few (REVIEW-9 decision 8).
-      going: ['em', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash'],
-      checkIns: Object.fromEntries(['em', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash'].map((u) => [u, ['mn-1']])),
+      // Enough cars and bikes that each trophy shows a different few.
+      going: meetGoing,
+      checkIns: Object.fromEntries(meetGoing.map((u) => [u, ['mn-1']])),
     },
     {
-      id: 'ev-rolling-live', type: 'rolling', title: 'Rolling meet',
-      description: 'Three meet points, all planned in advance. The hosts move it on, and everyone going sees where it is now.',
-      startsAt: iso(t.rollingLive.start), endsAt: iso(t.rollingLive.end),
-      area: home, areaName: NEAR_YOU,
+      // Later tonight: the location shows at 21:30 (20 minutes into the demo), then the host moves it on.
+      id: 'ev-rolling-late', type: 'rolling', title: 'Late rolling meet',
+      description: 'Three meet points, planned in advance. The host moves it on, and everyone going sees where it is now.',
+      startsAt: iso(t.rollingLate.start), endsAt: iso(t.rollingLate.end),
+      area: home, areaName: area,
       stops: [
-        { id: 'rl-1', name: 'Retail park car park', at: here(52.6842, -1.8105), ...(roll.live ? { revealedAt: iso(t.rollingLive.start, -60) } : {}) },
-        { id: 'rl-2', name: 'Shopping park car park', at: here(52.6205, -1.7265), ...(roll.movedOn ? { revealedAt: iso(t.rollingLive.start, 35) } : {}) },
+        { id: 'rl-1', name: 'Retail park car park', at: here(52.6842, -1.8105) },
+        { id: 'rl-2', name: 'Shopping park car park', at: here(52.6205, -1.7265), ...(roll.movedOn ? { revealedAt: iso(t.rollingLate.start, 35) } : {}) },
         { id: 'rl-3', name: 'Business park car park', at: here(52.5156, -1.7072), note: 'Planned, hidden until you move on' },
       ],
-      // Open to any car or bike: one a brand-new demo user can say they're going to and check in at.
-      currentStop: roll.movedOn ? 1 : 0, revealMinutesBefore: 60, hostIds: ['dan'], filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
-      going: ['dan', 'kez', 'tom', 'em', 'aimee', 'jord'],
-      checkIns: roll.movedOn
-        ? { dan: ['rl-1', 'rl-2'], tom: ['rl-1', 'rl-2'], em: ['rl-1'], aimee: ['rl-1'] }
-        : roll.live ? { dan: ['rl-1'], tom: ['rl-1'] } : {},
+      currentStop: roll.movedOn ? 1 : 0, revealMinutesBefore: 30, hostIds: ['dan'],
+      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
+      going: ['dan', 'kez', 'tom', 'aimee'],
+      checkIns: roll.movedOn ? { dan: ['rl-1', 'rl-2'], tom: ['rl-1', 'rl-2'] } : roll.live ? { dan: ['rl-1'], tom: ['rl-1'] } : {},
     },
     {
-      id: 'ev-rolling-host', type: 'rolling', title: 'NightRunners late one',
-      description: 'Crew-run rolling meet. NightRunners hosts move it on.',
-      startsAt: iso(t.rollingHost.start), endsAt: iso(t.rollingHost.end),
-      area: home, areaName: NEAR_YOU,
-      stops: [
-        { id: 'rh-1', name: 'Leisure centre car park', at: here(52.6302, -1.6962) },
-        { id: 'rh-2', name: 'Country park car park', at: here(52.5711, -1.6745), note: 'Planned, hidden until you move on' },
-      ],
-      currentStop: 0, revealMinutesBefore: 60, hostIds: ['mo'], crewId: 'nr',
-      filter: { ...DEFAULT_FILTER, classes: ['S', 'A', 'B'], minMods: 3, radiusMiles: 25 },
-      going: ['mo', 'dan', 'aimee', 'priya', 'cal'], checkIns: {},
-      requests: ['ash'],
+      // Class S and A only: a stock hot hatch sees "Not open to your car".
+      id: 'ev-cruise-peak', type: 'cruise', title: `${WEEKDAY_NAMES[t.cruise.start.getDay()]} night cruise`,
+      description: `${d1.name}, start to finish with a regroup halfway. Speed limits all the way.`,
+      startsAt: iso(t.cruise.start), endsAt: iso(t.cruise.end), area: d1.at, areaName: d1.region, routeMiles: Math.round(d1.miles ?? 20),
+      stops: driveStops('pc', d1),
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['dan'],
+      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], minMods: 0, radiusMiles: 100 },
+      going: ['dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
     },
     {
-      // A weekend morning one you aren't going to yet: tap Going to try the reminders and the reveal.
-      id: 'ev-meet-soon', type: 'meet', title: 'Coffee and cars',
+      id: 'ev-meet-soon', type: 'meet', title: 'Sunday coffee and cars',
       description: 'Open to any car or bike nearby. Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: iso(t.coffee.start), endsAt: iso(t.coffee.end),
-      area: home, areaName: NEAR_YOU,
+      area: home, areaName: area,
       stops: [{ id: 'ms-1', name: 'Town centre car park', at: here(52.6333, -1.6951) }],
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
-      // Open to anyone nearby, car or not.
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
       going: ['tom', 'em', 'jord', 'bex'], checkIns: {},
     },
     {
-      id: 'ev-cruise-peak', type: 'cruise', title: `Night cruise: ${d1.name}`,
-      description: `${d1.name}, start to finish with a regroup halfway. Speed limits all the way.`,
-      startsAt: at(now, 2, 22, 30), area: d1.at, areaName: d1.region, routeMiles: Math.round(d1.miles ?? 20),
-      stops: driveStops('pc', d1),
-      currentStop: 0, revealMinutesBefore: 60, hostIds: ['dan'], crewId: 'nr',
-      filter: { ...DEFAULT_FILTER, classes: ['S', 'A'], minMods: 3, radiusMiles: 100 },
-      going: ['dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
-      requests: ['jord', 'nina'],
-    },
-    {
-      // This week's open one: A and B class, no mod minimum, so a typical hot hatch (a stock Civic
-      // Type R, a Golf GTI, an i30 N) is invited from the first run.
-      id: 'ev-meet-tam', type: 'meet', title: 'Late hot hatch meet',
-      description: 'Hot hatches, A and B class, stock or modified. Arranged with the site. Park up, no revving, leave it clean.',
-      startsAt: at(now, 5, 23, 0), area: home, areaName: NEAR_YOU,
+      // Later in the week: A and B class, so a typical hot hatch can go.
+      id: 'ev-meet-tam', type: 'meet', title: 'Hot hatch meet',
+      description: 'Hot hatches, A and B class, stock or modified. Arranged with the site.',
+      startsAt: at(now, 5, 20, 0), endsAt: at(now, 5, 23, 0), area: home, areaName: area,
       stops: [{ id: 'mt-1', name: 'Shopping park car park', at: here(52.6205, -1.7265) }],
-      currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'], crewId: 'ts',
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'],
       filter: { ...DEFAULT_FILTER, cars: true, bikes: false, classes: ['A', 'B'], minMods: 0, radiusMiles: 25 },
       going: ['kez', 'cal', 'priya', 'em', 'bex'], checkIns: {},
     },
     {
       id: 'ev-bike-cat', type: 'cruise', title: `Sunrise ride: ${d2.name}`,
       description: 'Bikes only. Breakfast at the finish.',
-      startsAt: at(now, 6, 6, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
+      startsAt: at(now, 6, 7, 0), endsAt: at(now, 6, 10, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
       stops: driveStops('bc', d2),
-      currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'], crewId: 'pk',
+      currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'],
       filter: { ...DEFAULT_FILTER, cars: false, bikes: true, classes: ['S', 'A', 'B'], minMods: 0, radiusMiles: 100 },
       going: ['aimee', 'sully', 'liv', 'gaz'], checkIns: {},
     },
     {
-      id: 'ev-past-snowdome', type: 'meet', title: 'Sunday night meet',
-      description: 'Sunday night meet. Voting has closed, trophies are out.',
-      startsAt: lastSunday(now, 2, 19, 0), endsAt: lastSunday(now, 2, 22, 0), area: home, areaName: NEAR_YOU,
-      stops: [{ id: 'ps-1', name: 'Leisure centre car park', at: here(52.6302, -1.6962) }],
-      currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
-      filter: { ...DEFAULT_FILTER, minMods: 2, radiusMiles: 30 },
-      going: ['tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'],
-      checkIns: Object.fromEntries(['tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'].map((u) => [u, ['ps-1']])),
-    },
-    {
       id: 'ev-show-don', type: 'show', title: 'Modified show day',
-      description: 'Sample event: show-and-shine, club stands and a trade area. Real shows are booked through the venue.',
+      description: 'Show-and-shine, club stands and a trade area. Tickets through the venue.',
       startsAt: at(now, 12, 9, 0), endsAt: at(now, 12, 17, 0), area: circuit.at, areaName: circuit.name,
       stops: [{ id: 'sd-1', name: circuit.name, at: circuit.at }],
       currentStop: 0, revealMinutesBefore: 0, hostIds: ['cal'],
@@ -420,13 +394,15 @@ function events(now: Date, home: LatLng): NightEvent[] {
       going: ['cal', 'jord', 'nina', 'bex', 'em'], checkIns: {},
     },
     {
-      id: 'ev-track-curb', type: 'trackday', title: `${sprint.name} evening`,
-      description: 'Sample event: an evening run by the venue. Helmets required, noise limits apply. Book through the venue.',
-      startsAt: at(now, 9, 17, 30), endsAt: at(now, 9, 21, 0), area: sprint.at, areaName: sprint.name,
-      stops: [{ id: 'tc-1', name: sprint.name, at: sprint.at }],
-      currentStop: 0, revealMinutesBefore: 0, hostIds: ['tom'],
-      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 100 },
-      going: ['tom', 'ash', 'nina'], checkIns: {},
+      // Ended a week ago, voting closed: results, trophies and photos.
+      id: 'ev-past-snowdome', type: 'meet', title: "Last week's meet",
+      description: 'Same car park, last Friday. Voting has closed and the trophies are out.',
+      startsAt: iso(t.lastWeek.start), endsAt: iso(t.lastWeek.end), area: home, areaName: area,
+      stops: [{ id: 'ps-1', name: 'Leisure park car park', at: here(52.6105, -1.6720) }],
+      currentStop: 0, revealMinutesBefore: 60, hostIds: ['tom'],
+      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
+      going: lastGoing,
+      checkIns: Object.fromEntries(lastGoing.map((u) => [u, ['ps-1']])),
     },
   ]);
 }
@@ -442,33 +418,23 @@ function chat(now: Date): ChatMessage[] {
   const m = (id: string, eventId: string, userId: string, text: string, minsAgo: number): ChatMessage => ({
     id, eventId, userId, text, at: minutesFrom(now, -minsAgo),
   });
-  const roll = rollingProgress(now, demoTimes(now).rollingLive.start);
   return [
-    ...(roll.movedOn
-      ? [
-          m('c1', 'ev-rolling-live', 'dan', 'Moving on in 5. Check in here first if you want your vote counted.', 16),
-          m('c2', 'ev-rolling-live', 'tom', 'Here, parked at the far end.', 8),
-          m('c3', 'ev-rolling-live', 'em', 'Stuck at the lights, 5 mins.', 6),
-        ]
-      : [
-          m('c1', 'ev-rolling-live', 'dan', 'Same plan as last time: first meet point, then we move on. Check in at each one.', 90),
-          m('c2', 'ev-rolling-live', 'tom', 'In. Bringing the Yaris.', 60),
-          m('c3', 'ev-rolling-live', 'em', 'Might be a bit late, finishing work.', 30),
-        ]),
+    m('c1', 'ev-meet-now', 'em', "We're at the far end by the lights. Plenty of room.", 25),
+    m('c2', 'ev-meet-now', 'jord', 'Here. Parked next to the white Golf.', 12),
+    m('c3', 'ev-rolling-late', 'dan', 'First meet point shows at half nine. Check in at each one.', 40),
     m('c4', 'ev-cruise-peak', 'mo', 'Fuel up before the start, nothing open after.', 300),
     m('c5', 'ev-cruise-peak', 'aimee', 'Bringing the R1, will sit at the back.', 120),
   ];
 }
 
+/** Last week's three trophies: Best in show, Best car, Best bike (Redesign 2: no other trophies). */
 function votes(now: Date): Vote[] {
-  const when = lastSunday(now, 2, 21, 30);
+  const when = new Date(demoTimes(now).lastWeek.end.getTime() - 20 * MIN).toISOString();
   const v = (voterId: string, category: Vote['category'], buildId: string): Vote => ({ eventId: 'ev-past-snowdome', voterId, category, buildId, at: when });
   return [
     v('tom', 'best-in-show', 'b-dan-0'), v('kez', 'best-in-show', 'b-dan-0'), v('em', 'best-in-show', 'b-dan-0'), v('priya', 'best-in-show', 'b-dan-0'), v('jord', 'best-in-show', 'b-aimee-0'),
     v('tom', 'best-car', 'b-mo-0'), v('aimee', 'best-car', 'b-mo-0'), v('sully', 'best-car', 'b-mo-0'), v('priya', 'best-car', 'b-kez-0'),
     v('tom', 'best-bike', 'b-aimee-0'), v('dan', 'best-bike', 'b-aimee-0'), v('mo', 'best-bike', 'b-aimee-0'),
-    v('dan', 'cleanest', 'b-em-0'), v('kez', 'cleanest', 'b-em-0'), v('mo', 'cleanest', 'b-em-0'),
-    v('tom', 'sound', 'b-kez-0'), v('em', 'sound', 'b-kez-0'), v('jord', 'sound', 'b-kez-0'),
   ];
 }
 
@@ -490,7 +456,7 @@ export function sampleHomes(home: LatLng): Map<string, LatLng> {
   return new Map(PEOPLE.map((p) => [p.id, translate({ lat: p.home[0], lng: p.home[1] }, DEMO_HOME, home)]));
 }
 
-export function seed(now: Date = new Date(), scene: SceneOptions = {}): SeedState {
+export function seed(now: Date = appNow(), scene: SceneOptions = {}): SeedState {
   const home = scene.home ?? DEMO_HOME;
   const homes = sampleHomes(home);
   const region = nearestRegion(home);

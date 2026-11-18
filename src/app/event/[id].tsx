@@ -1,91 +1,80 @@
-import { modCount } from '../../lib/modGroups';
-import { carShape } from '../../lib/buildShape';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Share, View } from 'react-native';
-import { AwardsSection } from '../../components/AwardsSection';
-import { BringPicker, BuildOption } from '../../components/BringPicker';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, Share, View } from 'react-native';
+import { TrophiesSection, VoteSheet, voteCategories } from '../../components/AwardsSection';
+import { bhpLine, BringSheet, shortBuildName } from '../../components/BringPicker';
 import { isStaffNow, openModerate, openReport } from '../../components/Community';
-import { Callout, CheckInCelebration, DetailHero, MediaFrame, NotFoundState, PAGE, TextField } from '../../components/Detail';
+import { CheckInCelebration, MediaFrame, NotFoundState, TextField } from '../../components/Detail';
 import {
-  Avatar,
-  BuildThumb,
+  ActionBar,
+  AreaArt,
   Button,
-  Card,
   ConfirmSheet,
   displayHandle,
   DsText,
   EmptyState,
   ErrorState,
+  GoingStrip,
+  Hero,
   ListRow,
+  LocationLine,
+  PAGE_WITH_BAR,
   Press,
   RowDivider,
   screenHeader,
   Section,
   Sheet,
   SheetOption,
-  StatBlock,
-  SwitchRow,
-  Tag,
-  type Stat,
   useToast,
+  type ActionBarButton,
 } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { UnlockReveal } from '../../components/motion';
-import { NavLaunch } from '../../components/NavLaunch';
+import { useNavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
-import { allAwards, hasLegend } from '../../lib/awards';
+import { PhotoCredit } from '../../components/PhotoCredit';
+import { usePhotoFlow } from '../../components/PhotoFlow';
+import { eventPhotoRef, roleTag } from '../../components/TonightCards';
+import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
-import { broughtBuild, buildLine, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
+import { categoryInfo } from '../../lib/awards';
+import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
-import { useCommunity } from '../../lib/communityStore';
-import { isSeedEvent } from '../../lib/demoTime';
-import { eventPrimary, mixLine, whenLine } from '../../lib/eventAction';
-import {
-  canChangePlan,
-  canChangeVehicle,
-  canCheckIn,
-  canEditEvent,
-  canSeeStop,
-  EVENT_LABELS,
-  isHost,
-  isPublicType,
-  moveOnAudience,
-  phaseOf,
-  revealTime,
-  shareText,
-} from '../../lib/events';
+import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
+import { eventPrimary, goingMix, statusLine, statusPill } from '../../lib/eventAction';
+import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime, shareText } from '../../lib/events';
 import { newlyUnlocked, roleOf } from '../../lib/eventView';
-import { formatRelative, formatTime, formatWhen, plural } from '../../lib/format';
-import { GOING, LOCATION, MEET_POINT, roleLabel } from '../../lib/glossary';
-import { countdown } from '../../lib/hud';
+import { formatTime, formatWhen, goingSummary, plural } from '../../lib/format';
+import { aroundArea, DEMO_NIGHT, GOING, MEET_POINT } from '../../lib/glossary';
 import { describeFilter } from '../../lib/invites';
 import { preciseFix } from '../../lib/location';
 import { planForEvent } from '../../lib/navPlan';
 import { askPermission, notificationsSupported } from '../../lib/notify';
-import { REP } from '../../lib/rep';
 import { lastPage, PAGE as LIST_PAGE } from '../../lib/paging';
+import { photoSource } from '../../lib/photoSource';
+import { REP } from '../../lib/rep';
 import { useStore } from '../../lib/store';
 import type { Build, LatLng } from '../../lib/types';
-import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
-import { photoSource } from '../../lib/photoSource';
+import { clock, endedLabel, timeRange } from '../../lib/when';
+import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../../theme';
 
-/** Where an error shows: under the control that caused it (REVIEW-5 M10). */
-type ErrorAt = 'checkin' | 'going' | 'request' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'change';
+/** Where an error shows: under the control that caused it. */
+type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
 
 /**
- * An event: the heart of the app. One hierarchy, top to bottom:
- * header (kind, name, when, where, hosts) → one primary action by state (I'm going with your
- * build → Navigate → Check in → Vote) → host tools (hosts only) → who's going → stops →
- * chat → votes and trophies. Everything else (share, edit, can't make it, report) is in ···.
+ * An event (Redesign 2, 3.5, template T3). One fixed order in every state:
+ * Hero → status line (the one countdown) → who's going → map → photos → vote → chat → hosting →
+ * about → ActionBar (the one primary). Everything else is in ··· (Can't make it, Open in another
+ * app, Report; hosts: Edit, Change the plan, Plan changes, Cancel).
  */
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const store = useStore();
   const { events, me, crews, users, builds, chat, settings, votes } = store;
   const now = useNow();
-  const awardsSoFar = useMemo(() => allAwards(votes, events, builds, now), [votes, events, builds, now]);
+  const toast = useToast();
+  const community = useCommunity();
   const e = events.find((x) => x.id === id);
   const [message, setMessage] = useState('');
   const [error, setErrorState] = useState<{ at: ErrorAt; text: string } | null>(null);
@@ -94,21 +83,20 @@ export default function EventScreen() {
   const [busy, setBusy] = useState(false);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
   const [reminded, setReminded] = useState(false);
-  const toast = useToast();
   const [unlock, setUnlock] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
+  const [changesOpen, setChangesOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  /** Hosts: show the map as invited people see it before the reveal. */
-  const [asGuest, setAsGuest] = useState(false);
-  /** Which vehicle picker is open: changing it, or at check-in. Going picks inline without opening anything. */
-  const [picking, setPicking] = useState<null | 'change' | 'checkin'>(null);
-  const [picked, setPicked] = useState<string | undefined>();
+  const [goingOpen, setGoingOpen] = useState(false);
+  const [voteOpen, setVoteOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  /** The "What are you bringing?" sheet: before I'm going, to change it, or at check-in. */
+  const [bring, setBring] = useState<null | 'go' | 'change' | 'checkin'>(null);
   /** At check-in: the build they turned up in, if it isn't the one they said. */
   const [checkInPick, setCheckInPick] = useState<string | undefined>();
-  const [voteOpen, setVoteOpen] = useState(false);
   const scroll = useRef<{ scrollTo: (o: { y: number; animated?: boolean }) => void } | null>(null);
-  const votesAt = useRef(0);
+  const photosAt = useRef(0);
 
   // "Location shown": the first time this person can see a meet point, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -122,12 +110,10 @@ export default function EventScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshKey, e?.id]);
 
-  const { blocked } = useCommunity();
-  // Lines from people you blocked are hidden (the server leaves them out too).
+  const { blocked } = community;
   const messages = useMemo(() => chat.filter((m) => m.eventId === id && !blocked.has(m.userId)), [chat, id, blocked]);
-  // The newest messages, more on request: a long meet chat would otherwise redraw every line on each keystroke here.
   const [chatShown, setChatShown] = useState(LIST_PAGE * 2);
-  const chatPage = lastPage(messages, chatShown);
+  const chatPage = lastPage(messages, chatOpen ? chatShown : 2);
 
   // Signed in: live chat, who's going, check-ins and the meet moving on, while this screen is open.
   const remote = store.remote;
@@ -136,11 +122,29 @@ export default function EventScreen() {
     return remote.watchEvent(id);
   }, [remote, id]);
 
-  // The default build to go with: picked inline, before tapping "I'm going".
-  const defaultPick = e ? defaultBuild(e, me, builds, events)?.id : undefined;
-  const [goPick, setGoPick] = useState<string | undefined>(undefined);
+  // Photos from the meet: posts placed at the meet point while it was on (and the day after).
+  const meetPoint = e ? (e.stops[e.type === 'rolling' ? e.currentStop : 0]?.at ?? null) : null;
+  const posts = useCommunityQuery(
+    (s) => (meetPoint ? s.postsInBox({ south: meetPoint.lat - 0.004, north: meetPoint.lat + 0.004, west: meetPoint.lng - 0.006, east: meetPoint.lng + 0.006 }) : Promise.resolve([])),
+    [meetPoint?.lat, meetPoint?.lng],
+  );
 
-  /** Run an action and show its reason if it's refused. */
+  const flow = usePhotoFlow({
+    onPhoto: (ref) => postPhoto(ref),
+    onError: (m) => setError('photo', m),
+    plates: 'ifFound',
+  });
+
+  // Navigate: through the meet points you can see (a rolling meet: only the one it's at now).
+  const navPlan = e && phaseOf(e, now) !== 'over' && phaseOf(e, now) !== 'cancelled' ? planForEvent(e, me, crews, now) : null;
+  const navTo = navPlan ? (navPlan.stops.find((s) => s.checkIn) ?? navPlan.stops[0]) : null;
+  const nav = useNavLaunch({
+    target: { kind: 'event', id: e?.id ?? '' },
+    to: navTo?.at ?? e?.area ?? { lat: 0, lng: 0 },
+    toName: navTo?.name,
+    otherAppsNote: e?.type === 'rolling' && navTo ? `Other apps go to ${navTo.name}, the ${MEET_POINT.one} it's at now.` : undefined,
+  });
+
   async function attempt(at: ErrorAt, run: () => Promise<unknown>, fallback: string): Promise<boolean> {
     setErrorState(null);
     try {
@@ -159,8 +163,6 @@ export default function EventScreen() {
   const host = isHost(ev, me, crews);
   const role = roleOf(ev, me, crews, users, builds);
   const going = ev.going.includes(me);
-  const requested = !!ev.requests?.includes(me);
-  const requests = ev.requests ?? [];
   const phase = phaseOf(ev, now);
   const closed = phase === 'over' || phase === 'cancelled';
   const crew = ev.crewId ? crews.find((c) => c.id === ev.crewId) : undefined;
@@ -172,54 +174,50 @@ export default function EventScreen() {
   const handleOf = (uid: string) => users.find((u) => u.id === uid)?.handle ?? uid;
   const userLabel = (uid: string) => (uid === me ? 'You' : displayHandle(handleOf(uid)));
   const openUser = (uid: string) => router.push({ pathname: '/user/[id]', params: { id: uid } });
+  const skipGps = store.backend === 'local';
 
-  // The vehicle you're bringing (see bringing.ts).
+  // The vehicle you're bringing (bringing.ts).
   const mine = ownBuilds(me, builds);
   const chosen = chosenBuild(ev, me, builds);
   const bringing = broughtBuild(ev, me, builds);
-  const goesWith = (b?: Build) => canGoWith(ev, me, crews, users, builds, b);
-  const pickedBuild = mine.find((b) => b.id === picked);
-  const canChange = (going || requested) && mine.length > 0 && (mine.length > 1 || !chosen) && canChangeVehicle(ev, me, now).ok;
-  // At check-in: what you've just picked, else what you said, else the same build "You're bringing" shows (bringing.ts).
   const atCheckIn = checkInBuild(ev, me, builds, checkInPick);
-  const goWith = mine.find((b) => b.id === (goPick ?? defaultPick)) ?? mine[0];
+  const defaultPick = defaultBuild(ev, me, builds, events) ?? mine[0];
+  const goesWith = (b?: Build) => canGoWith(ev, me, crews, users, builds, b);
 
-  const primary = eventPrimary(ev, me, role, crews, builds, now);
-  const canPreview = host && !isPublicType(ev.type) && !closed;
-  const guestView = canPreview && asGuest;
-  // Seeing as a guest: every stop shows locked, as for invited people before the reveal.
-  const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: !guestView && canSeeStop(ev, i, me, crews, now) }));
-  const mapPins: MapPin[] = visibleStops
-    .filter((x) => x.visible && x.st.at)
-    .map((x) => ({
-      id: x.st.id,
-      at: x.st.at!,
-      glyph: ev.type,
-      colour: x.i === current ? colour : COLOR.text.secondary,
-      title: x.st.name,
-      size: x.i === current ? 40 : 30,
-      live: x.i === current && phase === 'live',
-    }));
-  const mapPaths: MapPath[] = ev.type === 'cruise' && mapPins.length > 1 ? [{ id: 'route', coords: mapPins.map((p) => p.at), colour, dashed: true }] : [];
-  const anyVisible = mapPins.length > 0;
-  // Navigate: through the stops you can see (a rolling meet: only the one it's at now).
-  const navPlan = !closed && !guestView ? planForEvent(ev, me, crews, now) : null;
-  // Other apps take one point: the meet point Check in names (a rolling meet's current one), else the first.
-  const navTo = navPlan ? (navPlan.stops.find((s) => s.checkIn) ?? navPlan.stops[0]) : null;
-  const navToNote = navTo
-    ? ev.type === 'rolling'
-      ? `Other apps go to ${navTo.name}, the ${MEET_POINT.one} it's at now. Come back here when it moves on.`
-      : navPlan!.stops.length > 1
-        ? `Other apps get ${navTo.name} only, not the rest of the route.`
-        : undefined
-    : undefined;
-  const mapCentre = anyVisible ? (mapPins.find((p) => p.id === currentStop?.id)?.at ?? mapPins[0]?.at ?? ev.area) : ev.area;
-  const areaMiles = areaRadius(ev);
-  const currentVisible = visibleStops[current]?.visible;
+  const state = eventPrimary(ev, me, role, crews, builds, now, votes);
+  const status = statusLine(ev, state, { me, crews, builds, users, votes, now });
 
-  // The demo never blocks a check-in on distance (there's no way to be at a sample meet point).
-  // Signed in, the distance check always runs, here and again on the server.
-  const skipGps = store.backend === 'local';
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
+  async function commitGoing(buildId?: string, passenger = false) {
+    setErrorState(null);
+    const wasGoing = going;
+    setBring(null);
+    setBusy(true);
+    try {
+      const result = await store.setGoing(ev.id, true, buildId);
+      if (result === 'going' && !wasGoing && settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
+      const b = mine.find((x) => x.id === buildId);
+      if (result === 'requested') toast({ message: 'Asked the host. You’ll hear when they say yes.' });
+      else if (!wasGoing) {
+        toast({
+          message: b ? `You're going with your ${shortBuildName(b)}` : passenger ? "You're going as a passenger" : "You're going",
+          action: mine.length > 0 ? { label: 'Change', onPress: () => setBring('change') } : undefined,
+        });
+      } else if (b) toast({ message: `Bringing your ${shortBuildName(b)}` });
+    } catch (err) {
+      setError('going', err instanceof Error ? err.message : "Couldn't change that.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** I'm going: one build goes straight in; two or more ask which; none offers Add your car or a passenger seat. */
+  function imGoing() {
+    if (mine.length === 1) return commitGoing(mine[0].id);
+    setBring('go');
+  }
 
   async function doCheckIn() {
     setErrorState(null);
@@ -227,664 +225,279 @@ export default function EventScreen() {
     try {
       let pos: LatLng | null = null;
       if (!skipGps) {
-        // Real GPS: one precise fix, used for the distance check and never stored.
         const fix = await preciseFix();
         if (!fix.ok) {
-          setError(
-            'checkin',
-            fix.reason === 'denied'
-              ? 'Check-in needs your location. Allow it for Nightshift in Settings.'
-              : "Couldn't read your location. Try again outside.",
-          );
+          setError('checkin', fix.reason === 'denied' ? 'Check-in needs your location. Allow it for Nightshift in Settings.' : "Couldn't read your location. Try again outside.");
           return;
         }
         pos = fix.at;
       }
-      const result = canCheckIn(ev, current, me, crews, new Date(), pos, skipGps);
-      if (!result.ok) setError('checkin', result.reason);
-      else {
-        try {
-          // Only send a build when it's news: a different one, or the first pick on record before the first check-in.
-          const news = !!atCheckIn && (chosen ? atCheckIn.id !== chosen.id : myCheckIns.length === 0);
-          await store.checkIn(ev.id, current, news ? atCheckIn!.id : undefined, pos);
-        } catch (err) {
-          setError('checkin', err instanceof Error ? err.message : "Couldn't check in.");
-          return;
-        }
-        setCheckInPick(undefined);
-        setJustCheckedIn(true); // The celebration buzzes success.
-      }
-    } catch {
-      setError('checkin', "Couldn't read your location. Try again outside.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function commitGoing(buildId?: string) {
-    setErrorState(null);
-    const wasGoing = going;
-    setBusy(true);
-    try {
-      const result = await store.setGoing(ev.id, true, buildId);
-      setPicking(null);
-      // First Going is the moment reminders make sense, so ask then (iOS only asks once).
-      // Once they answer, schedule again: the first sync ran while the prompt was still up.
-      if (result === 'going' && !wasGoing && settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
-      // Say it worked (REVIEW-8: the button just changed, with no confirmation).
-      if (result === 'going' && !wasGoing) toast({ message: "You're going. Check in when you get there." });
+      const result = canCheckIn(ev, current, me, crews, appNow(), pos, skipGps);
+      if (!result.ok) return setError('checkin', result.reason);
+      const news = !!atCheckIn && (chosen ? atCheckIn.id !== chosen.id : myCheckIns.length === 0);
+      await store.checkIn(ev.id, current, news ? atCheckIn!.id : undefined, pos);
+      setCheckInPick(undefined);
+      setJustCheckedIn(true);
+      toast({ message: skipGps ? DEMO_NIGHT.checkIn : 'Checked in' });
     } catch (err) {
-      setError(picking === 'change' ? 'change' : 'going', err instanceof Error ? err.message : "Couldn't change that.");
+      setError('checkin', err instanceof Error ? err.message : "Couldn't check in.");
     } finally {
       setBusy(false);
     }
   }
 
-  /** "Remind me" while the location is hidden: turn reminders on, ask once, and say when. */
   async function remindMe(at: string) {
     const time = formatTime(at);
     if (!settings.reminders) store.setSettings({ reminders: true });
     const allowed = notificationsSupported ? await askPermission().catch(() => false) : false;
     store.refreshReminders();
     setReminded(true);
-    toast({
-      message: allowed
-        ? `We'll remind you at ${time}.`
-        : notificationsSupported
-          ? `Allow notifications for Nightshift in Settings to get it on your lock screen. It'll be in Notifications at ${time}.`
-          : `It'll be in Notifications at ${time}.`,
-    });
+    toast({ message: allowed || !notificationsSupported ? `We'll remind you at ${time}` : `Allow notifications in Settings to get it at ${time}` });
   }
 
   async function doShare() {
     setMenu(false);
     try {
-      await Share.share({ message: shareText(ev, formatWhen(ev.startsAt, new Date())), title: ev.title });
+      await Share.share({ message: shareText(ev, formatWhen(ev.startsAt, appNow())), title: ev.title });
     } catch {
       setError('menu', "Couldn't open the share sheet.");
     }
   }
 
-  function openVotes() {
-    setVoteOpen(true);
-    setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, votesAt.current - SPACING.lg), animated: true }), 50);
+  async function postPhoto(ref: string) {
+    if (!currentStop?.at) return;
+    setErrorState(null);
+    try {
+      await community.run((s) =>
+        s.createPost({ body: `At ${ev.title}`, photos: [ref], at: currentStop.at, placeName: currentStop.name, visibility: 'public', buildId: bringing?.id }),
+      );
+      posts.reload();
+      toast({ message: 'Photo posted' });
+      setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, photosAt.current - SPACING.lg), animated: true }), 100);
+    } catch (err) {
+      setError('photo', err instanceof Error ? err.message : "Couldn't post that photo.");
+    }
   }
 
-  const canEdit = host && canEditEvent(ev, now).ok;
-  const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
-  const when = whenLine(ev, now);
-  const unlockAt = revealTime(ev);
-  const where = currentVisible && currentStop
-    ? ev.type === 'cruise'
-      ? ev.stops[0].name
-      : `At ${currentStop.name}`
-    : ev.areaName;
-  const checkedIn = Object.values(ev.checkIns).filter((x) => x.length > 0).length;
-  const roleText = roleLabel(role, ev.filter);
-  const status =
-    phase === 'live'
-      ? { label: 'Live', tone: 'live' as const }
-      : phase === 'cancelled'
-        ? { label: 'Cancelled', tone: 'danger' as const }
-        : phase === 'over'
-          ? { label: 'Finished', tone: 'neutral' as const }
-          : roleText
-            ? { label: roleText, tone: role === 'host' ? ('selected' as const) : role === 'going' ? ('success' as const) : role === 'requested' ? ('warning' as const) : role === 'declined' ? ('danger' as const) : ('info' as const) }
-            : null;
+  function leave() {
+    setConfirmLeave(false);
+    const was = chosen?.id;
+    attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.").then((ok) => {
+      if (ok) toast({ message: `You're not going to ${ev.title}`, action: { label: 'Undo', onPress: () => store.setGoing(ev.id, true, was).catch(() => {}) } });
+    });
+  }
 
-  const stats: Stat[] = closed
-    ? []
-    : [
-        phase === 'live' ? { label: 'Ends in', value: countdown(ev.endsAt ?? new Date(new Date(ev.startsAt).getTime() + 3 * 3600_000).toISOString(), now), tone: 'live' } : { label: 'Starts in', value: countdown(ev.startsAt, now) },
-        phase === 'live' ? { label: 'Checked in', value: `${checkedIn}/${ev.going.length}` } : { label: 'Going', value: String(ev.going.length) },
-        // The location is said once, in the Meet point card below (REVIEW-10 decision 7), not in a tile.
-        ...(ev.type === 'rolling' || ev.type === 'cruise'
-          ? [{ label: ev.type === 'cruise' ? 'Points' : 'Point', value: ev.type === 'cruise' ? String(ev.stops.length) : `${ev.currentStop + 1} of ${ev.stops.length}` }]
-          : []),
-      ];
+  // Photos: posts at the meet point during the meet, then the builds that checked in.
+  const from = new Date(ev.startsAt).getTime() - 30 * 60_000;
+  const to = endTime(ev).getTime() + 24 * 3_600_000;
+  // Your own photos at the meet point always show (posts may be stamped on the real clock in the demo).
+  const postPhotos = (posts.data ?? []).filter((p) => p.photo && (p.authorId === me || (new Date(p.createdAt).getTime() >= from && new Date(p.createdAt).getTime() <= to)));
+  const buildPhotos = Object.entries(ev.checkIns)
+    .filter(([, s]) => s.length > 0)
+    .map(([uid]) => broughtBuild(ev, uid, builds))
+    .filter((b): b is Build => !!b && b.photos.length > 0);
+  function shownPhotosCount() {
+    return postPhotos.length + buildPhotos.length;
+  }
+  const showPhotos = phase === 'live' || phase === 'over';
+  const canAddPhoto = myCheckIns.length > 0 && !closed;
+  const tiles = [
+    ...postPhotos.map((p) => ({ key: `p:${p.id}`, ref: p.photo!, open: () => router.push({ pathname: '/post/[id]', params: { id: p.id } }), label: `Photo by ${userLabel(p.authorId)}`, kind: 'car' as const })),
+    ...buildPhotos.map((b) => ({ key: `b:${b.id}`, ref: b.photos[0], open: () => router.push({ pathname: '/build/[id]', params: { id: b.id } }), label: `${b.make} ${b.model}`, kind: b.kind })),
+  ].slice(0, 9);
 
   // ---------------------------------------------------------------------------
-  // The location, said once (REVIEW-10 decision 7): the place and Directions once you can see it,
-  // otherwise when it shows and who to.
+  // The ActionBar, by state (3.5 table).
   // ---------------------------------------------------------------------------
-  const pointLabel = ev.type === 'cruise' ? 'Start' : ev.type === 'show' ? 'Venue' : ev.type === 'trackday' ? 'Circuit' : 'Meet point';
-  const showDirections = !!navTo && primary.kind !== 'navigate';
-  const locationCard = closed ? null : currentVisible && currentStop ? (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
-        <View style={{ flex: 1, gap: SPACING.xxs }}>
-          <DsText v="label">{ev.type === 'rolling' ? `${pointLabel} ${ev.currentStop + 1} of ${ev.stops.length}` : pointLabel}</DsText>
-          <DsText v="title" numberOfLines={2}>
-            {(ev.type === 'cruise' ? ev.stops[0]?.name : currentStop.name) || pointLabel}
-          </DsText>
-        </View>
-        {showDirections && navTo ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navTo.at} toName={navTo.name} otherAppsNote={navToNote} kind="secondary" label="Directions" /> : null}
-      </View>
-    </Card>
-  ) : !isPublicType(ev.type) ? (
-    <Card>
-      <View style={{ gap: SPACING.xxs }} accessibilityRole="text">
-        <DsText v="label">{pointLabel}</DsText>
-        <DsText v="bodyStrong">
-          {going || host
-            ? !currentStop?.at
-              ? 'The host is still placing it'
-              : unlockAt > now
-                ? `${LOCATION.showsAt(formatTime(unlockAt.toISOString()))}, in ${countdown(unlockAt, now)}`
-                : ev.type === 'rolling'
-                  ? 'Shows when the hosts move on'
-                  : 'Hidden for now'
-            : `${LOCATION.toGoing}. Say you're going to see it.`}
-        </DsText>
-        <DsText v="secondary">
-          {going || host
-            ? `${LOCATION.toGoing}. Until then you see the area, ${ev.areaName}.`
-            : unlockAt > now
-              ? `${LOCATION.lead(ev.revealMinutesBefore)}. Until then everyone sees the area, ${ev.areaName}.`
-              : `Until then you see the area, ${ev.areaName}.`}
-        </DsText>
-      </View>
-    </Card>
-  ) : null;
+  const cats = voteCategories(ev, builds, me, now);
+  const firstUnvoted = cats.find((c) => !votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)) ?? cats[0];
+  const addPhoto: ActionBarButton = { label: 'Add a photo', onPress: () => flow.pick(), busy: flow.busy };
+  let primary: ActionBarButton | null = null;
+  let secondary: ActionBarButton | null = null;
+  let pill: string | null = statusPill(state);
+  switch (state.kind) {
+    case 'join':
+      primary = { label: state.request ? 'Ask to go' : "I'm going", onPress: state.request ? () => (mine.length > 1 ? setBring('go') : commitGoing(defaultPick?.id)) : imGoing, busy, haptic: 'success' };
+      break;
+    case 'waiting':
+      if (!state.placing && new Date(state.at) > now && !reminded) secondary = { label: 'Remind me', onPress: () => remindMe(state.at) };
+      if (reminded) pill = `Reminder at ${formatTime(state.at)}`;
+      break;
+    case 'navigate':
+      if (navTo) primary = { label: nav.label, onPress: nav.open };
+      break;
+    case 'checkin':
+      primary = { label: 'Check in', onPress: doCheckIn, busy, haptic: 'success' };
+      if (navTo) secondary = { label: nav.label, onPress: nav.open };
+      break;
+    case 'checkedIn':
+      if (navTo && phase !== 'live') secondary = { label: nav.label, onPress: nav.open };
+      else if (phase === 'live') secondary = addPhoto;
+      break;
+    case 'vote':
+      primary = { label: firstUnvoted ? `Vote for ${categoryInfo(firstUnvoted).label.toLowerCase()}` : 'Vote', onPress: () => setVoteOpen(true) };
+      secondary = addPhoto;
+      break;
+    case 'voted':
+      primary = addPhoto;
+      break;
+    case 'ended':
+      secondary = shownPhotosCount() > 0 ? { label: 'See photos', onPress: () => scroll.current?.scrollTo({ y: Math.max(0, photosAt.current - SPACING.lg), animated: true }) } : null;
+      break;
+    default:
+      break;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pieces
+  // ---------------------------------------------------------------------------
+  const photoRef = eventPhotoRef(ev, builds);
+  const placeShown = currentStop?.at && canSeeStop(ev, current, me, crews, now);
+  const where = placeShown ? ev.areaName : aroundArea(ev.areaName);
+  const time =
+    phase === 'cancelled'
+      ? `Cancelled · ${timeRange(ev.startsAt, ev.endsAt, now)}`
+      : phase === 'over'
+        ? endedLabel(endTime(ev), now)
+        : phase === 'live'
+          ? `Until ${clock(endTime(ev))}`
+          : timeRange(ev.startsAt, ev.endsAt, now);
+  const meta = [time, where, ev.routeMiles ? `${ev.routeMiles} mi route` : null].filter(Boolean).join(' · ');
+  const heroTag = myCheckIns.length > 0 ? { label: 'Checked in', tone: 'success' as const } : roleTag(role, ev.filter) ?? null;
+
+  const goingPeople = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
+    const u = users.find((x) => x.id === uid);
+    return { id: uid, name: u?.name, handle: u?.handle };
+  });
+  const mix = goingMix(ev, builds);
+
+  // Map: the area circle until the meet point shows, then the pin(s).
+  const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: canSeeStop(ev, i, me, crews, now) }));
+  const mapPins: MapPin[] = visibleStops
+    .filter((x) => x.visible && x.st.at)
+    .map((x) => ({ id: x.st.id, at: x.st.at!, glyph: ev.type, colour: x.i === current ? colour : COLOR.text.secondary, title: x.st.name, size: x.i === current ? 40 : 30, live: x.i === current && phase === 'live' }));
+  const mapPaths: MapPath[] = ev.type === 'cruise' && mapPins.length > 1 ? [{ id: 'route', coords: mapPins.map((p) => p.at), colour, dashed: true }] : [];
+  const anyVisible = mapPins.length > 0;
+  const mapCentre = anyVisible ? (mapPins.find((p) => p.id === currentStop?.id)?.at ?? mapPins[0].at) : ev.area;
+  const areaMiles = areaRadius(ev);
 
   const hostIds = ev.hostIds;
   const hostLine = [crew ? `${crew.name} crew` : null, hostIds.map((h) => (h === me ? 'you' : userLabel(h))).join(', ')].filter(Boolean).join(' with ');
+  const canEdit = host && canEditEvent(ev, now).ok;
+  const canPlan = host && canChangePlan(ev, now).ok && phase !== 'upcoming';
+  const requests = ev.requests ?? [];
 
-  // ---------------------------------------------------------------------------
-  // The primary action, by state.
-  // ---------------------------------------------------------------------------
-  const bringingRow =
-    (going || requested) && picking !== 'change' ? (
-      <View style={{ gap: SPACING.xs }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <DsText v="label">{going ? "You're bringing" : 'You asked with'}</DsText>
-          {canChange ? (
-            <Button
-              tier="tertiary"
-              size="sm"
-              label="Change"
-              accessibilityLabel="Change vehicle"
-              onPress={() => {
-                setErrorState(null);
-                setPicked(bringing?.id ?? defaultPick);
-                setPicking('change');
-              }}
-            />
-          ) : null}
-        </View>
-        {bringing ? (
-          <BuildOption build={bringing} on={false} fits={fitsInvite(ev, bringing)} />
-        ) : (
-          <EmptyState variant="inline" title="No car or bike (passenger)" action={mine.length === 0 ? { label: 'Add a car or bike', onPress: () => router.push('/build/edit') } : undefined} />
-        )}
-        {errorAt('change') ? <ErrorState title={errorAt('change')!} /> : null}
-      </View>
-    ) : null;
-
-  const changePicker =
-    picking === 'change' ? (
-      <BringPicker
-        title="Change vehicle"
-        builds={mine}
-        picked={picked}
-        fits={(b) => fitsInvite(ev, b)}
-        onPick={setPicked}
-        busy={busy}
-        confirmLabel={goesWith(pickedBuild) ? 'Bring this one' : going ? 'Change and request again' : GOING.request}
-        note={
-          !pickedBuild || goesWith(pickedBuild)
-            ? null
-            : going
-              ? `The ${pickedBuild.make} ${pickedBuild.model} doesn't match the invite, so you'd go back to asking a host.`
-              : `The ${pickedBuild.make} ${pickedBuild.model} doesn't match the invite, so a host has to say yes.`
-        }
-        onConfirm={() => commitGoing(picked)}
-        onCancel={() => setPicking(null)}
-      />
-    ) : null;
-
-  function joinBlock(request: boolean) {
-    const label = request ? GOING.request : GOING.join;
-    const fits = goWith ? goesWith(goWith) : undefined;
-    const note = request
-      ? mine.length === 0
-        ? `The invite is for ${describeFilter(ev.filter).replace(/^Cars and bikes/, 'cars and bikes').replace(/^Cars/, 'cars').replace(/^Bikes/, 'bikes')}. With nothing in your garage, a host has to say yes.`
-        : `Your builds or home area don't match this invite (${describeFilter(ev.filter)}). A host can still say yes.`
-      : goWith && !fits
-        ? `The ${goWith.make} ${goWith.model} doesn't match the invite, so a host has to say yes.`
-        : null;
-    if (mine.length === 0) {
-      return (
-        <View style={{ gap: SPACING.md }}>
-          <Callout tone="info" title="What are you bringing?">
-            Your garage is empty. Add your car or bike so the hosts know what's coming, or go along as a passenger.
-          </Callout>
-          <Button label={label} size="lg" block busy={busy} onPress={() => commitGoing()} />
-          <Button label="Add a car or bike" tier="secondary" block onPress={() => router.push('/build/edit')} />
-          {note ? <DsText v="caption">{note}</DsText> : null}
-        </View>
-      );
-    }
-    return (
-      <View style={{ gap: SPACING.md }}>
-        {mine.length > 1 ? (
-          <View accessibilityRole="radiogroup" accessibilityLabel="What are you bringing?" style={{ gap: SPACING.sm }}>
-            <DsText v="label">What are you bringing?</DsText>
-            {mine.map((b) => (
-              <BuildOption key={b.id} build={b} on={b.id === goWith?.id} fits={goesWith(b)} onPress={() => setGoPick(b.id)} />
-            ))}
-          </View>
-        ) : (
-          <View style={{ gap: SPACING.xs }}>
-            <DsText v="label">Going with</DsText>
-            <BuildOption build={mine[0]} on={false} fits={goesWith(mine[0])} />
-          </View>
-        )}
-        <Button
-          label={!request && goWith && !goesWith(goWith) ? GOING.request : label}
-          size="lg"
-          block
-          busy={busy}
-          haptic="success"
-          onPress={() => commitGoing(goWith?.id)}
-        />
-        {note ? <DsText v="caption">{note}</DsText> : null}
-        {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
-      </View>
-    );
-  }
-
-  const checkInLine = atCheckIn ? (
-    picking === 'checkin' ? (
-      <BringPicker
-        title="What did you turn up in?"
-        builds={mine}
-        picked={picked}
-        fits={goesWith}
-        lockUnfit
-        onPick={setPicked}
-        confirmLabel="Check in with this one"
-        onConfirm={() => {
-          setCheckInPick(picked);
-          setPicking(null);
-        }}
-        onCancel={() => setPicking(null)}
-      />
-    ) : (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-        <DsText v="secondary" numberOfLines={2} style={{ flex: 1 }}>
-          With the {buildLine(atCheckIn)}
-        </DsText>
-        {mine.length > 1 ? (
-          <Button
-            tier="tertiary"
-            size="sm"
-            label="Something else?"
-            accessibilityLabel="Turned up in something else? Change the vehicle"
-            onPress={() => {
-              setErrorState(null);
-              setPicked(atCheckIn.id);
-              setPicking('checkin');
-            }}
-          />
-        ) : null}
-      </View>
-    )
-  ) : null;
-
-  const checkedInTitle = currentStop ? `Checked in at ${currentStop.name}` : 'Checked in';
-  // Checking in promises rep: say it landed (REVIEW-9). Rep is per event, so only on the first check-in.
-  const repLine = myCheckIns.length === 1 && !host ? `+${REP.attended} rep. ` : '';
-  const checkedInBody =
-    repLine +
-    (ev.type === 'rolling' && nextStop
-      ? 'When the hosts move on, the next meet point shows here and you get a notice.'
-      : phase === 'live'
-        ? 'Vote for trophies from the builds that turned up.'
-        : 'Voting for trophies opens when it starts.');
-
-  let primaryBlock: ReactNode = null;
-  switch (primary.kind) {
-    case 'join':
-      primaryBlock = picking === 'change' ? changePicker : joinBlock(primary.request);
-      break;
-    case 'requested':
-      primaryBlock = (
-        <View style={{ gap: SPACING.md }}>
-          <Callout tone="warning" title={`${GOING.requestSent}. A host will say yes or no.`}>
-            {`If they say yes, you'll see the ${MEET_POINT.one} with everyone else going.${role === 'invited' && mine.length > 1 ? ' Bring a build the invite covers and you can go straight in.' : ''}`}
-          </Callout>
-          {changePicker ?? bringingRow}
-          <Button
-            label={GOING.cancelRequest}
-            tier="secondary"
-            block
-            onPress={() => attempt('request', () => store.setGoing(ev.id, false), "Couldn't change that.")}
-          />
-          {errorAt('request') ? <ErrorState title={errorAt('request')!} /> : null}
-        </View>
-      );
-      break;
-    case 'declined':
-      primaryBlock = <Callout tone="neutral">A host said no to this one. Keep an eye out for the next.</Callout>;
-      break;
-    case 'waiting':
-      // Locked: a plain state line and a secondary Remind me, never a greyed-out primary (REVIEW-7 problem 5).
-      // The location card above says when it shows; here only Remind me (REVIEW-10 decision 7).
-      primaryBlock = (
-        <View style={{ gap: SPACING.md }}>
-          {new Date(primary.at) > now ? (
-            reminded ? (
-              <DsText v="caption" accessibilityLiveRegion="polite">
-                Reminder on for {formatTime(primary.at)}.
-              </DsText>
-            ) : (
-              <Button label="Remind me" tier="secondary" block onPress={() => remindMe(primary.at)} />
-            )
-          ) : null}
-          {changePicker ?? bringingRow}
-        </View>
-      );
-      break;
-    case 'navigate':
-      primaryBlock = (
-        <View style={{ gap: SPACING.md }}>
-          {navTo ? <NavLaunch target={{ kind: 'event', id: ev.id }} to={navTo.at} toName={navTo.name} otherAppsNote={navToNote} kind="primary" /> : null}
-          <DsText v="caption">{primary.hint}</DsText>
-          {changePicker ?? bringingRow}
-        </View>
-      );
-      break;
-    case 'checkin':
-      primaryBlock = (
-        <View style={{ gap: SPACING.md }}>
-          <Button
-            label={`Check in at ${currentStop?.name ?? `the ${MEET_POINT.one}`}`}
-            size="lg"
-            block
-            busy={busy}
-            onPress={doCheckIn}
-            accessibilityHint={skipGps ? undefined : `Checks you are within half a mile of the ${MEET_POINT.one}`}
-          />
-          <DsText v="caption">{`Checking in earns ${REP.attended} rep and lets you vote for the best builds.${skipGps ? ' Demo: location check skipped.' : ''}`}</DsText>
-          {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
-          {checkInLine}
-        </View>
-      );
-      break;
-    case 'checkedIn':
-      primaryBlock = <CheckInCelebration play={justCheckedIn} title={checkedInTitle} body={checkedInBody} />;
-      break;
-    case 'vote':
-      primaryBlock = (
-        <View style={{ gap: SPACING.md }}>
-          {!closed && myCheckIns.includes(currentStop?.id ?? '') ? <CheckInCelebration play={justCheckedIn} title={checkedInTitle} body={checkedInBody} /> : null}
-          <Button label="Vote for trophies" size="lg" block onPress={openVotes} />
-        </View>
-      );
-      break;
-    default:
-      primaryBlock = phase === 'cancelled' ? <Callout tone="danger" title="This event was cancelled.">Everyone going was told, and their reminders stopped.</Callout> : null;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Menu: everything that isn't the primary.
-  // ---------------------------------------------------------------------------
   type MenuOption = { label: string; detail?: string; destructive?: boolean; onPress: () => void };
   const menuOptions: MenuOption[] = ([
-    canEdit ? { label: 'Edit event', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
-    going && !host && !closed ? { label: GOING.leave, detail: 'Takes you off the going list and cancels your reminders', destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
-    host && !closed ? { label: 'Cancel event', destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
-    !host ? { label: 'Report this event', onPress: () => (setMenu(false), openReport('event', ev.id, undefined, 'event')) } : null,
+    going && !host && !closed ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
+    (going || host) && !closed && mine.length > 0 ? { label: 'Change what you’re bringing', onPress: () => (setMenu(false), setBring('change')) } : null,
+    ev.requests?.includes(me) ? { label: GOING.cancelRequest, onPress: () => (setMenu(false), attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.")) } : null,
+    navTo ? { label: 'Open in another app', onPress: () => (setMenu(false), nav.openOther()) } : null,
+    canEdit ? { label: 'Edit', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
+    canPlan ? { label: 'Change the plan', onPress: () => (setMenu(false), router.push({ pathname: '/event/plan', params: { id: ev.id } })) } : null,
+    host && (ev.changes?.length ?? 0) > 0 ? { label: 'Plan changes', onPress: () => (setMenu(false), setChangesOpen(true)) } : null,
+    host && !closed ? { label: 'Cancel', destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
+    !host ? { label: 'Report', onPress: () => (setMenu(false), openReport('event', ev.id, undefined, 'event')) } : null,
   ] as (MenuOption | null)[]).filter((x): x is MenuOption => !!x);
 
-  const awards = (
-    <View onLayout={(l) => (votesAt.current = l.nativeEvent.layout.y)}>
-      <AwardsSection event={ev} expanded={voteOpen} onExpand={() => setVoteOpen(true)} />
-    </View>
-  );
+  const voted = (cat: string) => votes.find((v) => v.eventId === ev.id && v.voterId === me && v.category === cat)?.buildId;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      {/* Share is the host's main job after posting, so it's in the header, not the menu (REVIEW-9). */}
       <Stack.Screen options={screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) })} />
-      <ScrollView ref={scroll as never} contentContainerStyle={PAGE} keyboardShouldPersistTaps="handled">
-        <DetailHero
-          kind={EVENT_LABELS[ev.type]}
-          colour={colour}
-          glyph={ev.type}
-          sample={isSeedEvent(ev.id)}
-          status={status}
+      <ScrollView ref={scroll as never} contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled">
+        <Hero
+          bleed
+          photo={photoRef ? photoSource(photoRef) : null}
+          media={
+            photoRef ? undefined : (
+              <View style={{ aspectRatio: 16 / 9 }}>
+                <AreaArt colour={colour} />
+              </View>
+            )
+          }
+          overlay={photoRef ? <PhotoCredit photoRef={photoRef} overlay corner="topRight" /> : undefined}
+          eyebrow={EVENT_LABELS[ev.type]}
+          layerColour={colour}
+          live={phase === 'live'}
           title={ev.title}
-          lines={[stats.length ? when.absolute : `${when.relative} · ${when.absolute}`, `${where}${ev.routeMiles ? ` · ${ev.routeMiles} mi` : ''}`]}
-        >
-          <Press
-            onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
-            label={`Hosted by ${hostLine}`}
-            role={crew || (hostIds[0] && hostIds[0] !== me) ? 'link' : 'text'}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: 44 }}
-          >
-            <View style={{ flexDirection: 'row' }}>
-              {hostIds.slice(0, 3).map((h, i) => {
-                const u = users.find((x) => x.id === h);
-                return (
-                  <View key={h} style={{ marginLeft: i ? -SPACING.sm : 0 }}>
-                    <Avatar name={u?.name} handle={u?.handle} size="sm" />
-                  </View>
-                );
-              })}
-            </View>
-            <DsText v="secondary" numberOfLines={2} style={{ flex: 1 }}>
-              Hosted by {hostLine}
-            </DsText>
-          </Press>
-          {ev.description ? <DsText v="secondary">{ev.description}</DsText> : null}
-        </DetailHero>
+          meta={meta}
+          tag={heroTag}
+        />
 
-        {stats.length ? <StatBlock stats={stats} /> : null}
-        {locationCard}
-
-        {primaryBlock ? <View style={{ gap: SPACING.md }}>{primaryBlock}</View> : null}
-        {/* Leaving is one tap away, not only in the ··· menu (REVIEW-8). */}
-        {going && !host && !closed && (primary.kind === 'navigate' || primary.kind === 'checkin' || primary.kind === 'waiting') ? (
-          <Button label={GOING.leave} tier="tertiary" size="sm" style={{ alignSelf: 'center' }} onPress={() => setConfirmLeave(true)} />
-        ) : null}
-        {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
-
-        {closed ? awards : null}
-
-        {host && !closed ? (
-          <Section title="Hosting">
-            {requests.length > 0 ? (
-              <View style={{ gap: SPACING.sm }}>
-                <DsText v="bodyStrong">
-                  {plural(requests.length, 'request')} to go
-                </DsText>
-                <DsText v="secondary">They don't match the invite. Say yes and they see the {MEET_POINT.one} with everyone going.</DsText>
-                {requests.map((uid, i) => {
-                  const b = broughtBuild(ev, uid, builds);
-                  const u = users.find((x) => x.id === uid);
-                  return (
-                    <View key={uid} style={{ gap: SPACING.xs }}>
-                      {i > 0 ? <RowDivider /> : null}
-                      <ListRow
-                        leading={{ avatar: { name: u?.name, handle: u?.handle } }}
-                        title={userLabel(uid)}
-                        subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)} · ${plural(modCount(b.mods), 'mod')}` : 'No car or bike'}
-                        meta={b && !fitsInvite(ev, b) ? "Doesn't match the invite" : undefined}
-                        onPress={() => openUser(uid)}
-                      />
-                      <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                        <Button
-                          label="Say yes"
-                          tier="secondary"
-                          size="sm"
-                          haptic="success"
-                          style={{ flex: 1 }}
-                          block
-                          accessibilityLabel={`Say yes to ${userLabel(uid)}`}
-                          onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, true), "Couldn't approve that.")}
-                        />
-                        <Button
-                          label="Decline"
-                          tier="destructive"
-                          size="sm"
-                          style={{ flex: 1 }}
-                          block
-                          accessibilityLabel={`Decline ${userLabel(uid)}`}
-                          onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, false), "Couldn't decline that.")}
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
-                {errorAt('answer') ? <ErrorState title={errorAt('answer')!} /> : null}
-              </View>
-            ) : null}
-            {ev.type === 'rolling' && phase === 'live' ? (
-              nextStop?.at ? (
-                <View style={{ gap: SPACING.xs }}>
-                  <Button label={`Move on to ${nextStop.name}`} tier="secondary" block haptic="warning" onPress={() => attempt('moveon', () => store.moveOn(ev.id), "Couldn't move on.")} />
-                  {errorAt('moveon') ? <ErrorState title={errorAt('moveon')!} /> : null}
-                  <DsText v="caption">{`Everyone going sees the next ${MEET_POINT.one}. ${audience === 1 ? 'The 1 person checked in here also gets a notice.' : `The ${audience} people checked in here also get a notice.`}`}</DsText>
-                </View>
-              ) : (
-                <DsText v="secondary">This is the last planned {MEET_POINT.one}.</DsText>
-              )
-            ) : null}
-            <View>
-              {canPlan ? <ListRow leading={{ icon: 'plus' }} title="Change the plan" subtitle="Rename, move, add or remove meet points" onPress={() => router.push({ pathname: '/event/plan', params: { id: ev.id } })} /> : null}
-              {canEdit ? <ListRow leading={{ icon: 'edit' }} title="Edit event" subtitle="Name, time, meet points and the invite" onPress={() => router.push({ pathname: '/event/edit', params: { id: ev.id } })} /> : null}
-            </View>
-            <DsText v="secondary">Invite: {describeFilter(ev.filter)}</DsText>
-            {canPreview ? (
-              <View style={{ gap: SPACING.xs }}>
-                <SwitchRow label="See as a guest" hint="The map as invited people see it before the location shows" value={asGuest} onValueChange={setAsGuest} />
-                {guestView ? (
-                  <DsText v="caption" accessibilityLiveRegion="polite">
-                    Invited people see a circle about {Math.round(areaMiles * 2)} mi across, never centred on your {MEET_POINT.one}. {LOCATION.toGoing},{' '}
-                    {LOCATION.lead(ev.revealMinutesBefore).replace(/^Location shows /, '')}
-                    {ev.type === 'rolling' ? ', and each later one when you move on' : ''}.
-                  </DsText>
-                ) : null}
-              </View>
-            ) : null}
-            {(ev.changes?.length ?? 0) > 0 ? (
-              <View style={{ gap: SPACING.sm }}>
-                <DsText v="label">Plan changes (hosts only)</DsText>
-                {[...(ev.changes ?? [])].reverse().map((c) => (
-                  <View key={c.id} style={{ gap: SPACING.xxs }}>
-                    <DsText v="meta">
-                      {userLabel(c.by)} · {formatTime(c.at)}
-                    </DsText>
-                    <DsText v="body">{c.text}</DsText>
-                    {c.banZone ? (
-                      <DsText v="caption" tone="warning">
-                        In the {c.banZone} meet ban
-                      </DsText>
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </Section>
-        ) : null}
-
-        <Section title={`Going (${ev.going.length})`}>
-          {mixLine(ev, builds) ? <DsText v="secondary">{mixLine(ev, builds)}</DsText> : null}
-          {ev.going.length > 0 ? (
-            <Press onPress={() => router.push('/help')} role="link" label="What class means, in How Nightshift works" style={{ minHeight: 32, justifyContent: 'center' }}>
-              <DsText v="caption">Class S to D is a build's power for its weight. More in How Nightshift works ›</DsText>
-            </Press>
+        <View style={{ gap: SPACING.md }}>
+          <LocationLine text={status.text} done={status.done} />
+          {justCheckedIn ? (
+            <CheckInCelebration play title={`Checked in at ${currentStop?.name ?? `the ${MEET_POINT.one}`}`} body={`+${REP.attended} rep. Vote for the best builds that turned up.`} />
           ) : null}
-          {ev.going.length === 0 ? (
-            <EmptyState variant="inline" title="Nobody yet. Share it to get people along." action={{ label: 'Share', onPress: doShare }} />
-          ) : (
+          {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
+          {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
+          {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
+          <GoingStrip people={goingPeople} summary={goingSummary(ev.going.length, mix.cars, mix.bikes)} onPress={ev.going.length ? () => setGoingOpen(true) : undefined} />
+        </View>
+
+        <MediaFrame height={180}>
+          <NightMap
+            pins={anyVisible ? mapPins : []}
+            paths={mapPaths}
+            circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour }]}
+            centre={mapCentre}
+            span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.06) : Math.max(0.12, (areaMiles * 2.6) / 69)}
+            follow
+          />
+          {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
+        </MediaFrame>
+
+        {showPhotos && (tiles.length > 0 || canAddPhoto) ? (
+          <View onLayout={(l) => (photosAt.current = l.nativeEvent.layout.y)}>
+            <Section title="Photos" right={canAddPhoto ? <Button tier="tertiary" size="sm" label="+ Add a photo" onPress={() => flow.pick()} /> : undefined}>
+              {tiles.length === 0 ? (
+                <EmptyState variant="inline" title="No photos yet. Add the first one." />
+              ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
+                  {tiles.map((t) => (
+                    <Press key={t.key} onPress={t.open} label={t.label} feedback="card" style={{ width: '32%', flexGrow: 1, maxWidth: '33%', aspectRatio: 1, borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media }}>
+                      <PhotoTile photoRef={t.ref} />
+                      <PhotoCredit photoRef={t.ref} kind={t.kind} overlay />
+                    </Press>
+                  ))}
+                </View>
+              )}
+              {errorAt('photo') ? <ErrorState title={errorAt('photo')!} /> : null}
+            </Section>
+          </View>
+        ) : null}
+
+        {cats.length > 0 && (state.kind === 'vote' || state.kind === 'voted') ? (
+          <Section title="Vote">
             <View>
-              {ev.going.map((uid, i) => {
-                const u = users.find((x) => x.id === uid);
-                const b = broughtBuild(ev, uid, builds);
-                const checked = (ev.checkIns[uid] ?? []).length;
+              {cats.map((c, i) => {
+                const pick = voted(c);
+                const b = pick ? builds.find((x) => x.id === pick) : undefined;
                 return (
-                  <View key={uid}>
+                  <View key={c}>
                     {i > 0 ? <RowDivider inset /> : null}
                     <ListRow
-                      leading={{ avatar: { name: u?.name, handle: u?.handle } }}
-                      title={userLabel(uid)}
-                      subtitle={b ? `${b.make} ${b.model} · Class\u00a0${classOf(b)}` : 'No car or bike yet'}
-                      meta={[hostIds.includes(uid) ? 'Hosting' : null, checked > 0 ? `Checked in${ev.stops.length > 1 ? ` ×${checked}` : ''}` : null].filter(Boolean).join(' · ') || undefined}
-                      trailing={b ? <BuildThumb photo={b.photos[0] ? photoSource(b.photos[0]) : null} kind={b.kind} shape={carShape(b)} size={30} /> : undefined}
-                      onPress={() => openUser(uid)}
+                      leading={{ icon: pick ? 'success' : 'plus', colour: pick ? COLOR.state.success : COLOR.text.secondary }}
+                      title={categoryInfo(c).label}
+                      subtitle={b ? `You voted: ${b.make} ${b.model}` : 'Not voted yet'}
+                      onPress={() => setVoteOpen(true)}
+                      accessibilityHint={pick ? 'Change your vote' : 'Vote'}
                     />
                   </View>
                 );
               })}
             </View>
-          )}
-        </Section>
+          </Section>
+        ) : null}
 
-        <Section title={ev.type === 'cruise' ? 'Route' : ev.type === 'rolling' ? 'Meet points' : 'Meet point'}>
-          <MediaFrame height={200}>
-            <NightMap
-              pins={anyVisible ? mapPins : [{ id: 'area', at: ev.area, glyph: 'locked', colour, title: ev.areaName }]}
-              paths={mapPaths}
-              circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaRadius(ev), colour }]}
-              centre={mapCentre}
-              span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.12) : Math.max(0.12, (areaMiles * 2.6) / 69)}
-              follow
-            />
-            {unlock ? <UnlockReveal glyph={ev.type} colour={colour} title={unlock} onDone={() => setUnlock(null)} /> : null}
-          </MediaFrame>
-          <View>
-            {visibleStops.map(({ st, i, visible }) => {
-              const done = myCheckIns.includes(st.id);
-              const isCurrent = ev.type === 'rolling' && i === ev.currentStop;
-              const stopName = (n: number) => (ev.type === 'rolling' ? `Meet point ${n + 1}` : ev.type === 'cruise' ? (n === 0 ? 'Start' : n === ev.stops.length - 1 ? 'Finish' : `Regroup ${n}`) : pointLabel);
-              const title = visible
-                ? st.name
-                : !st.at
-                  ? 'Not placed yet'
-                  : ev.type === 'rolling' && i > ev.currentStop
-                    ? 'Shows when the hosts move on'
-                    : ev.type === 'rolling' && i < ev.currentStop
-                      ? 'Already left'
-                      : // Said once in the card at the top (REVIEW-10 decision 7); the lock says hidden here.
-                        stopName(i);
-              return (
-                <View key={st.id}>
-                  {i > 0 ? <RowDivider inset /> : null}
-                  <ListRow
-                    leading={{ pin: visible ? ev.type : 'locked', colour: isCurrent ? colour : visible ? COLOR.text.primary : COLOR.text.secondary }}
-                    title={title}
-                    meta={
-                      [
-                        isCurrent ? 'Here now' : null,
-                        st.revealedAt && host ? `Moved on ${formatRelative(st.revealedAt, now)}` : null,
-                        host && st.note ? st.note : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || undefined
-                    }
-                    trailing={done ? <Tag label="Checked in" tone="success" /> : undefined}
-                  />
-                </View>
-              );
-            })}
-          </View>
-          {!host ? <DsText v="caption">Invite: {describeFilter(ev.filter)}</DsText> : null}
-        </Section>
+        <TrophiesSection event={ev} />
 
-        <Section title="Chat">
-          {closed && (host || going) ? (
-            <View style={{ gap: SPACING.md }}>
-              <ChatLines lines={chatPage.items} earlier={chatPage.earlier} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} />
-              <DsText v="caption">{phase === 'cancelled' ? 'Chat closed when the event was cancelled.' : 'Chat closed when the event finished.'}</DsText>
-            </View>
-          ) : !host && !going ? (
-            <DsText v="secondary">Chat is for the hosts and people going. It can carry details of where to park, so it opens once you're in.</DsText>
-          ) : (
-            <View style={{ gap: SPACING.md }}>
-              <ChatLines lines={chatPage.items} earlier={chatPage.earlier} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} />
+        {going || host ? (
+          <Section title="Chat">
+            <ChatLines lines={chatPage.items} earlier={chatOpen ? chatPage.earlier : 0} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} />
+            {!chatOpen && messages.length > 2 ? <Button tier="tertiary" size="sm" label={`See all ${messages.length} messages`} onPress={() => setChatOpen(true)} style={{ alignSelf: 'flex-start' }} /> : null}
+            {!closed ? (
               <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
                 <TextField
                   value={message}
@@ -895,31 +508,120 @@ export default function EventScreen() {
                   returnKeyType="send"
                   onSubmitEditing={() => {
                     const text = message.trim();
-                    if (text) attempt('chat', () => store.sendChat(ev.id, text), "Couldn't send that.");
+                    if (text) attempt('chat', () => store.sendChat(ev.id, text), "Couldn't send that.").then((ok) => ok && toast({ message: 'Sent' }));
                     setMessage('');
                   }}
                 />
-                <Button
-                  label="Send"
-                  tier="secondary"
-                  size="md"
-                  haptic="success"
-                  disabled={!message.trim()}
+                {message.trim() ? (
+                  <Button
+                    label="Send"
+                    tier="secondary"
+                    size="md"
+                    haptic="success"
+                    onPress={() => {
+                      const text = message.trim();
+                      if (text) attempt('chat', () => store.sendChat(ev.id, text), "Couldn't send that.").then((ok) => ok && toast({ message: 'Sent' }));
+                      setMessage('');
+                    }}
+                  />
+                ) : null}
+              </View>
+            ) : null}
+            {errorAt('chat') ? <ErrorState title={errorAt('chat')!} /> : null}
+          </Section>
+        ) : null}
+
+        {host && !closed ? (
+          <Section title="Hosting">
+            {requests.map((uid, i) => {
+              const b = broughtBuild(ev, uid, builds);
+              const u = users.find((x) => x.id === uid);
+              return (
+                <View key={uid} style={{ gap: SPACING.xs }}>
+                  {i > 0 ? <RowDivider /> : null}
+                  <ListRow leading={{ avatar: { name: u?.name, handle: u?.handle } }} title={userLabel(uid)} subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'No car or bike'} meta="Asked to go" onPress={() => openUser(uid)} />
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                    <Button label="Say yes" tier="secondary" size="sm" haptic="success" style={{ flex: 1 }} block accessibilityLabel={`Say yes to ${userLabel(uid)}`} onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, true), "Couldn't approve that.")} />
+                    <Button label="Say no" tier="tertiary" size="sm" style={{ flex: 1 }} block accessibilityLabel={`Say no to ${userLabel(uid)}`} onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, false), "Couldn't decline that.")} />
+                  </View>
+                </View>
+              );
+            })}
+            {errorAt('answer') ? <ErrorState title={errorAt('answer')!} /> : null}
+            {ev.type === 'rolling' && phase === 'live' && nextStop?.at ? (
+              <View style={{ gap: SPACING.xs }}>
+                <Button label={`Move on to ${nextStop.name}`} tier="secondary" block haptic="warning" onPress={() => attempt('moveon', () => store.moveOn(ev.id), "Couldn't move on.")} />
+                {errorAt('moveon') ? <ErrorState title={errorAt('moveon')!} /> : null}
+                <DsText v="caption">{`Everyone going sees the next ${MEET_POINT.one}; ${plural(audience, 'person')} checked in here get a notice.`}</DsText>
+              </View>
+            ) : null}
+            <DsText v="secondary">{`${plural(requests.length, 'request')} · ${describeFilter(ev.filter)}`}</DsText>
+          </Section>
+        ) : null}
+
+        <Section title="About">
+          {ev.description ? <DsText v="body">{ev.description}</DsText> : null}
+          <ListRow
+            leading={{ avatar: { name: users.find((u) => u.id === hostIds[0])?.name, handle: users.find((u) => u.id === hostIds[0])?.handle } }}
+            title={`Hosted by ${hostLine}`}
+            onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
+          />
+          <DsText v="secondary">{`Open to: ${describeFilter(ev.filter)}`}</DsText>
+        </Section>
+      </ScrollView>
+
+      <ActionBar primary={primary} secondary={secondary} status={primary ? null : pill} />
+
+      {nav.sheet}
+      {flow.view}
+
+      <BringSheet
+        visible={bring !== null}
+        title={bring === 'checkin' ? 'What did you turn up in?' : 'What are you bringing?'}
+        builds={mine}
+        picked={bring === 'checkin' ? atCheckIn?.id : bring === 'change' ? bringing?.id : undefined}
+        fits={(b) => goesWith(b) && fitsInvite(ev, b)}
+        lockUnfit={bring === 'checkin'}
+        onPick={(bid) => {
+          if (bring === 'checkin') {
+            setCheckInPick(bid);
+            setBring(null);
+          } else commitGoing(bid);
+        }}
+        onAddCar={() => {
+          setBring(null);
+          router.push('/build/edit');
+        }}
+        onPassenger={() => commitGoing(undefined, true)}
+        onClose={() => setBring(null)}
+      />
+
+      <VoteSheet event={ev} visible={voteOpen} onClose={() => setVoteOpen(false)} />
+
+      <Sheet visible={goingOpen} title={goingSummary(ev.going.length, mix.cars, mix.bikes)} onClose={() => setGoingOpen(false)}>
+        <View>
+          {ev.going.map((uid, i) => {
+            const u = users.find((x) => x.id === uid);
+            const b = broughtBuild(ev, uid, builds);
+            const checked = (ev.checkIns[uid] ?? []).length > 0;
+            return (
+              <View key={uid}>
+                {i > 0 ? <RowDivider inset /> : null}
+                <ListRow
+                  leading={{ avatar: { name: u?.name, handle: u?.handle } }}
+                  title={userLabel(uid)}
+                  subtitle={b ? `Class ${classOf(b)} · ${b.make} ${b.model} · ${bhpLine(b)}` : 'Passenger'}
+                  meta={[hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null].filter(Boolean).join(' · ') || undefined}
                   onPress={() => {
-                    const text = message.trim();
-                    if (text) attempt('chat', () => store.sendChat(ev.id, text), "Couldn't send that.");
-                    setMessage('');
+                    setGoingOpen(false);
+                    openUser(uid);
                   }}
                 />
               </View>
-              {errorAt('chat') ? <ErrorState title={errorAt('chat')!} /> : null}
-              <DsText v="caption">{store.backend === 'supabase' ? 'Everyone going and the hosts see the chat, live.' : 'Demo: chat stays on this phone.'}</DsText>
-            </View>
-          )}
-        </Section>
-
-        {!closed ? awards : null}
-      </ScrollView>
+            );
+          })}
+        </View>
+      </Sheet>
 
       <Sheet visible={menu} title="Event options" onClose={() => setMenu(false)}>
         <View>
@@ -928,43 +630,57 @@ export default function EventScreen() {
           ))}
         </View>
       </Sheet>
+
+      <Sheet visible={changesOpen} title="Plan changes" onClose={() => setChangesOpen(false)}>
+        <View style={{ gap: SPACING.md }}>
+          {[...(ev.changes ?? [])].reverse().map((c) => (
+            <View key={c.id} style={{ gap: SPACING.xxs }}>
+              <DsText v="meta">{`${userLabel(c.by)} · ${formatTime(c.at)}`}</DsText>
+              <DsText v="body">{c.text}</DsText>
+            </View>
+          ))}
+        </View>
+      </Sheet>
+
       <ConfirmSheet
         visible={confirmCancel}
         title="Cancel event"
-        message={`Cancel ${ev.title}? Everyone going will see it as cancelled and their reminders stop.${errorAt('cancel') ? `\n\n${errorAt('cancel')}` : ''}`}
+        message={`Cancel ${ev.title}? Everyone going sees it as cancelled and gets no more reminders.${errorAt('cancel') ? `\n\n${errorAt('cancel')}` : ''}`}
         verb="Cancel"
         onCancel={() => setConfirmCancel(false)}
         onConfirm={() => {
           attempt('cancel', () => store.cancelEvent(ev.id), "Couldn't cancel it.").then((ok) => {
             if (!ok) return;
             setConfirmCancel(false);
-            router.back();
+            toast({ message: 'Cancelled' });
           });
         }}
       />
       <ConfirmSheet
         visible={confirmLeave}
         title={GOING.leave}
-        message={`Take yourself off ${ev.title}? Your reminders for it stop. You can say you're going again while it's open.`}
+        message={`Take yourself off ${ev.title}? You won't get its reminders.`}
         verb="Leave"
         onCancel={() => setConfirmLeave(false)}
-        onConfirm={() => {
-          setConfirmLeave(false);
-          attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.");
-        }}
+        onConfirm={leave}
       />
     </KeyboardAvoidingView>
   );
 }
 
+/** One square photo in the event's Photos grid. */
+function PhotoTile({ photoRef }: { photoRef: string }) {
+  return <Image source={photoSource(photoRef)} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />;
+}
+
 type Line = { id: string; userId: string; text: string; at: string; system?: boolean };
 
-/** Chat lines: a system line is a quiet caption; a person is their handle (as typed) and the time, then the text. */
+/** Chat lines: a system line is a quiet caption; a person is their handle and the time, then the text. */
 function ChatLines({ lines, earlier, onEarlier, me, label }: { lines: readonly Line[]; earlier: number; onEarlier: () => void; me: string; label: (uid: string) => string }) {
-  if (lines.length === 0) return <EmptyState variant="inline" title="No messages yet." />;
+  if (lines.length === 0) return <EmptyState variant="inline" title="No messages yet. Say hello." />;
   return (
     <View style={{ gap: SPACING.md }}>
-      {earlier > 0 ? <Button tier="tertiary" size="sm" label={`Show ${earlier} earlier ›`} onPress={onEarlier} /> : null}
+      {earlier > 0 ? <Button tier="tertiary" size="sm" label={`Show ${earlier} earlier`} onPress={onEarlier} /> : null}
       {lines.map((m) =>
         m.system ? (
           <DsText key={m.id} v="caption" style={{ textAlign: 'center' }}>
@@ -979,7 +695,7 @@ function ChatLines({ lines, earlier, onEarlier, me, label }: { lines: readonly L
             feedback="none"
             style={{ gap: SPACING.xxs }}
           >
-            <DsText v="meta" style={m.userId === me ? undefined : { color: COLOR.text.primary }}>
+            <DsText v="meta">
               {label(m.userId)} · {formatTime(m.at)}
             </DsText>
             <DsText v="body">{m.text}</DsText>

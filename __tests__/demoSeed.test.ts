@@ -11,7 +11,7 @@ const hatch = (model: string, stockBhp: number, weightKg: number): Build => ({
 });
 
 describe('demo seed', () => {
-  test('a stock hot hatch is invited to something this week', () => {
+  test('a stock hot hatch is invited to something later this week', () => {
     const week = s.events.filter((e) => {
       const t = new Date(e.startsAt).getTime();
       return t > now.getTime() + 6 * 3_600_000 && t < now.getTime() + 7 * 86_400_000;

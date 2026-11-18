@@ -21,7 +21,8 @@ import type { Spot } from '../lib/types';
 import { ONLY_ON_PHONE } from '../lib/glossary';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Field, TextField } from './Detail';
-import { buzz, Button, ChipGroup, ChoiceGroup, ClassBadge, displayHandle, DsText, EmptyState, ErrorState, ListRow, RowDivider, Section, Tag } from './ds';
+import { buzz, Button, ChipGroup, ChoiceGroup, ClassBadge, DateTimeField, displayHandle, DsText, EmptyState, ErrorState, ListRow, RowDivider, Section, Tag } from './ds';
+import { appNow } from '../lib/appClock';
 import { usePhotoFlow } from './PhotoFlow';
 
 /** Track screen: the circuit's details and records, then the app's own track times. */
@@ -129,8 +130,17 @@ function RecordRow({ r }: { r: LapRecord }) {
 // Track times: entered by hand after a track day, with proof, shown per class
 // ---------------------------------------------------------------------------
 
+/** A day as the lap's year-month-day key (local), and back. */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function dayOf(key: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+}
+
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return dayKey(appNow());
 }
 
 function TrackTimes({ spot }: { spot: Spot }) {
@@ -239,7 +249,7 @@ function AddTime({
   const [error, setError] = useState<string | null>(null);
   const set = (patch: Partial<LapDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const record = outrightRecord(spot.id, draft.layout);
-  const ctx = { track: spot, layouts, vehicles, builds, me, now: new Date(), fastestMs: record ? recordMs(record.time) : null };
+  const ctx = { track: spot, layouts, vehicles, builds, me, now: appNow(), fastestMs: record ? recordMs(record.time) : null };
 
   // Pick → crop → plate check → save (PhotoFlow.tsx).
   const flow = usePhotoFlow({ onPhoto: (ref) => set({ proof: ref }), onError: setError, cameraDenied: 'Allow camera access to photograph the timing sheet.' });
@@ -265,9 +275,7 @@ function AddTime({
         Add a track time
       </DsText>
       {layouts.length > 1 ? <ChoiceGroup label="Layout" options={layouts.map((l) => ({ key: l, label: l }))} value={draft.layout} onChange={(l) => set({ layout: l })} /> : null}
-      <Field label="Track day date">
-        <TextField value={draft.on} onChangeText={(on) => set({ on: on.trim() })} placeholder="YYYY-MM-DD" autoCorrect={false} maxLength={10} accessibilityLabel="Track day date, year month day" />
-      </Field>
+      <DateTimeField label="Track day date" mode="date" past maxDate={appNow()} value={dayOf(draft.on)} onChange={(d) => set({ on: dayKey(d) })} />
       <Field label="Best time from the timing sheet">
         <TextField
           value={draft.time}

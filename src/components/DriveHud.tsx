@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import type { BannerInfo, MapOrientation, NavIcon as NavIconChoice, ShownLimit } from '../lib/driveView';
 import { NAV_ICON_COLOURS, NAV_ICON_SHAPES, navIconOf } from '../lib/driveView';
 import { ARROWS, formatDistance } from '../lib/nav';
 import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, tint } from '../theme';
-import { DsText, Press, Sheet } from './ds';
+import { ChoiceGroup, DsText, Press, Sheet } from './ds';
 import { NavIcon } from './NavIcon';
 
 /**
@@ -180,7 +180,7 @@ export function SubLine({ children, colour }: { children: ReactNode; colour?: st
 /** A big round button over the map (56 pt). */
 export function MapButton({ onPress, label, children, active }: { onPress: () => void; label: string; children: ReactNode; active?: boolean }) {
   return (
-    <Press onPress={onPress} haptic="tap" label={label} hitSlop={6} style={[st.mapButton, active && { borderColor: COLOR.action.selected }]}>
+    <Press onPress={onPress} haptic="tap" label={label} hitSlop={6} style={[st.mapButton, active && { borderColor: COLOR.text.primary }]}>
       {children}
     </Press>
   );
@@ -219,7 +219,7 @@ export function SpeakerGlyph({ muted }: { muted: boolean }) {
 export function RecentreGlyph() {
   return (
     <Svg width={26} height={26} viewBox="0 0 24 24">
-      <Path d="M12 2 19 21 12 17 5 21Z" fill={COLOR.action.primary} />
+      <Path d="M12 2 19 21 12 17 5 21Z" fill={COLOR.text.primary} />
     </Svg>
   );
 }
@@ -254,40 +254,21 @@ export function NavIconChoices({ value, onChange }: { value: Partial<NavIconChoi
   const icon = navIconOf(value);
   return (
     <View style={{ gap: SPACING.md }}>
-      <View style={st.choiceRow}>
-        {NAV_ICON_SHAPES.map((s) => (
-          <Press
-            key={s.id}
-            onPress={() => onChange({ shape: s.id, colour: icon.colour })}
-            haptic="select"
-            role="radio"
-            state={{ checked: icon.shape === s.id }}
-            label={s.label}
-            style={[st.choice, icon.shape === s.id && { borderColor: COLOR.action.selected }]}
-          >
-            <NavIcon shape={s.id} colour={icon.hex} size={48} />
-            <DsText v="label" tone="primary" numberOfLines={2} style={{ textAlign: 'center' }}>
-              {s.label}
-            </DsText>
-          </Press>
-        ))}
+      <View style={st.preview} aria-hidden>
+        <NavIcon shape={icon.shape} colour={icon.hex} size={56} />
       </View>
-      <View style={st.choiceRow}>
-        {NAV_ICON_COLOURS.map((c) => (
-          <Press
-            key={c.id}
-            onPress={() => onChange({ shape: icon.shape, colour: c.id })}
-            haptic="select"
-            role="radio"
-            state={{ checked: icon.colour === c.id }}
-            label={c.label}
-            hitSlop={4}
-            style={[st.swatchRing, icon.colour === c.id && { borderColor: COLOR.action.selected }]}
-          >
-            <View style={[st.swatch, { backgroundColor: c.hex }]} />
-          </Press>
-        ))}
-      </View>
+      <ChoiceGroup
+        label="Shape"
+        value={icon.shape}
+        onChange={(shape) => onChange({ shape, colour: icon.colour })}
+        options={NAV_ICON_SHAPES.map((x) => ({ key: x.id, label: x.label }))}
+      />
+      <ChoiceGroup
+        label="Colour"
+        value={icon.colour}
+        onChange={(colour) => onChange({ shape: icon.shape, colour })}
+        options={NAV_ICON_COLOURS.map((c) => ({ key: c.id, label: c.label }))}
+      />
     </View>
   );
 }
@@ -304,10 +285,10 @@ export function IconPickerSheet({ visible, value, onChange, onClose }: { visible
 const st = StyleSheet.create({
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md,
-    backgroundColor: COLOR.surface.card, borderBottomWidth: 3, borderBottomColor: COLOR.action.primary,
+    backgroundColor: COLOR.surface.card, borderBottomWidth: 1, borderBottomColor: COLOR.surface.borderStrong,
   },
-  /** The turn arrow: brand, never the Drives layer's blue. */
-  arrow: { color: COLOR.action.primary, width: 72, textAlign: 'center' },
+  /** The turn arrow: chalk, big (sodium is only the primary button and selected states). */
+  arrow: { color: COLOR.text.primary, width: 72, textAlign: 'center' },
   then: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
 
   bar: { backgroundColor: COLOR.surface.card, paddingHorizontal: SPACING.md, paddingTop: SPACING.md, gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border },
@@ -327,8 +308,5 @@ const st = StyleSheet.create({
   pill: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.control, borderWidth: 2, borderColor: COLOR.state.warning, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
   report: { height: 58, minWidth: 120, paddingHorizontal: SPACING.lg, borderRadius: RADII.pill, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center' },
 
-  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  choice: { width: 92, minHeight: 76, alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, borderWidth: 2, borderColor: COLOR.surface.raisedHi, borderRadius: RADII.control, backgroundColor: COLOR.surface.bg },
-  swatchRing: { width: 48, height: 48, borderRadius: RADII.pill, borderWidth: 3, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  swatch: { width: 34, height: 34, borderRadius: RADII.pill, borderWidth: 1, borderColor: COLOR.surface.raisedHi },
+  preview: { alignSelf: 'center', width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: RADII.card, backgroundColor: COLOR.surface.bg },
 });

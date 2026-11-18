@@ -127,6 +127,12 @@ export function simulatedTimes(checkpoints: LatLng[], miles: number, startMs: nu
   });
 }
 
+/** The demo's drive, driven for you: every checkpoint passed at a steady, legal pace (simulatedTimes), so judgeRun() passes it. */
+export function simulatedRun(checkpoints: LatLng[], miles: number, startMs: number): DriveRun {
+  const times = simulatedTimes(checkpoints, miles, startMs);
+  return checkpoints.reduce((run, p, i) => advanceRun(run, checkpoints, p, times[i]), NEW_RUN);
+}
+
 export function dayOf(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
