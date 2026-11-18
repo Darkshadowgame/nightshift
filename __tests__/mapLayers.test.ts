@@ -46,3 +46,15 @@ describe('Tonight focus (REVIEW-9 decision 13; owner decision 18 Nov 2026)', () 
     expect(setLayer({}, 'cameras', true)).toEqual({ cameras: true });
   });
 });
+
+import { upgradeSettings } from '../src/lib/settings';
+
+describe('shops and cameras start off (owner, 18 Nov 2026)', () => {
+  it('turns both off once for a save that had them on, then respects the choice', () => {
+    const once = upgradeSettings({ shops: true, cameras: true, moreLayersOff: true, eventsOnlyMap: true }, true);
+    expect(once.shops).toBe(false);
+    expect(once.cameras).toBe(false);
+    const later = upgradeSettings({ ...once, shops: true }, true);
+    expect(later.shops).toBe(true);
+  });
+});

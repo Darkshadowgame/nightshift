@@ -37,6 +37,8 @@ export interface Settings {
   moreLayersOff?: boolean;
   /** Set once Tonight's map went to Events only by default (REVIEW-9, 18 Nov 2026). */
   eventsOnlyMap?: boolean;
+  /** Shops and Speed cameras came back as optional layers (18 Nov 2026): reset to off once (owner: shops off by default). */
+  layersBackOff?: boolean;
   /** Where "Start navigation" goes. Nightshift's own driving view unless you chose "Always use" another app. */
   directionsApp: DirectionsApp;
   /** Driving view: spoken instructions. */
@@ -79,7 +81,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   simulateGps: false, cruiseMode: false, hideHomeZone: true, pttStrangers: false, reminders: true, cameras: false, trackVehicles: ['car', 'bike'],
-  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true, eventsOnlyMap: true,
+  shops: false, shopCategories: [...ALL_CATEGORIES], shopPartnersOnly: false, moreLayersOff: true, eventsOnlyMap: true, layersBackOff: true,
   directionsApp: 'nightshift', navVoice: true, navCameraAlerts: true, mapLayers: { ...DEFAULT_LAYERS },
 };
 
@@ -101,5 +103,7 @@ export function upgradeSettings(saved: Partial<Settings> | undefined, upgraded: 
   if (!saved?.eventsOnlyMap) {
     next = { ...next, mapLayers: { ...DEFAULT_LAYERS, events: next.mapLayers.events }, shops: false, cameras: false, eventsOnlyMap: true };
   }
+  // Shops and Speed cameras returned as optional layers: once, both off, whatever an older save said.
+  if (!saved?.layersBackOff) next = { ...next, shops: false, cameras: false, layersBackOff: true };
   return upgraded ? next : { ...next, simulateGps: false };
 }

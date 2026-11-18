@@ -180,6 +180,8 @@ describe('the virtual clock', () => {
   });
 
   test('startDemoClock sets the app clock and keeps the offset; phone notifications go back to real time', async () => {
+    // Pin the real clock to the night it starts, or this fails late in the evening (Friday rolls into Saturday).
+    jest.useFakeTimers({ now: WED_EVENING, doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'queueMicrotask'] });
     const store = new Map<string, string>();
     const storage = { getItem: async (k: string) => store.get(k) ?? null, setItem: async (k: string, v: string) => void store.set(k, v) };
     expect((await startDemoClock(storage, WED_EVENING)).fresh).toBe(true);
@@ -188,5 +190,6 @@ describe('the virtual clock', () => {
     expect(shown.getDay()).toBe(5);
     expect(Math.abs(toRealTime(shown).getTime() - Date.now())).toBeLessThan(5_000);
     expect((await startDemoClock(storage, WED_EVENING + 60_000)).fresh).toBe(false);
+    jest.useRealTimers();
   });
 });
