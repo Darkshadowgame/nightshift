@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+import { STAND_IN_PHOTOS } from './standInPhotos';
+
 /**
  * Real photos for the demo's sample builds, posts and photo spots, from
  * Wikimedia Commons. Free licences only (CC0, public domain, CC BY, CC BY-SA),
@@ -101,6 +103,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     title: 'Subaru Impreza WRX STI (GR, 2008)',
     author: 'IFCAR',
     licence: 'Public domain',
+    edited: 'Shop sign blurred',
   },
   'b-raf-0': {
     image: require('../../assets/sample-photos/b-raf-0.jpg'),
@@ -110,6 +113,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
     similar: 'YZF-R6 2018 model year (same generation)',
+    edited: 'Dealer sign blurred',
   },
   'b-cal-0': {
     image: require('../../assets/sample-photos/b-cal-0.jpg'),
@@ -152,6 +156,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Vauxford',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+    edited: 'Dealer sign blurred',
   },
   'b-tom-0': {
     image: require('../../assets/sample-photos/b-tom-0.jpg'),
@@ -392,3 +397,6 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
   },
 };
+
+// Stand-ins for demo builds with no photo of their own (standInPhotos.ts), credited the same way.
+for (const s of STAND_IN_PHOTOS) SAMPLE_PHOTOS[s.key] = s.photo;

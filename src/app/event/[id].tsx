@@ -304,7 +304,7 @@ export default function EventScreen() {
         s.createPost({ body: `At ${ev.title}`, photos: [ref], at: currentStop.at, placeName: currentStop.name, visibility: 'public', buildId: bringing?.id }),
       );
       posts.reload();
-      toast({ message: 'Photo posted' });
+      toast({ message: 'Photo posted here and in Community' });
       setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, photosAt.current - SPACING.lg), animated: true }), 100);
     } catch (err) {
       setError('photo', err instanceof Error ? err.message : "Couldn't post that photo.");

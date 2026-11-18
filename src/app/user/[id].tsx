@@ -5,6 +5,8 @@ import { ScrollView, View } from 'react-native';
 import { BuildRow, buildLine, buildMeta, moderateOptions, openBuild, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { PostList } from '../../components/CommunityFeed';
 import { PaintedArt } from '../../components/BuildArt';
+import { useIsDemo } from '../../components/BuildBits';
+import { buildPicture } from '../../lib/similarPhoto';
 import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PhotoCard, RowDivider, Section, metaLine, useToast, type ActionBarButton } from '../../components/ds';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { allAwards, categoryInfo } from '../../lib/awards';
@@ -60,6 +62,8 @@ export default function UserScreen() {
     }
   }
 
+  const demo = useIsDemo();
+
   useLayoutEffect(() => {
     // Detail screens keep a blank title: the Hero carries the handle. Yours has no menu.
     nav.setOptions({ headerRight: p && !isMe ? () => <HeaderActions onMenu={() => setMenu(true)} /> : undefined });
@@ -68,7 +72,8 @@ export default function UserScreen() {
   if (!p) return <NotFoundState what="Profile" message="This person isn't on Nightshift any more." />;
   const cover = coverBuild(p.builds);
   const handle = `@${p.handle}`;
-  const coverPhoto = cover?.photos[0];
+  const coverPic = cover ? buildPicture(cover, demo) : null;
+  const coverPhoto = coverPic?.ref;
 
   const options: SheetOption[] = [
     ...(state === 'incoming' ? [{ label: CONNECT.decline, onPress: () => void act(() => community.run((s) => s.answerConnection(id, false))) }] : []),
@@ -114,7 +119,7 @@ export default function UserScreen() {
           classLetter={cover ? classOf(cover) : undefined}
           meta={cover ? undefined : 'No car or bike yet'}
           tag={!isMe && state === 'connected' ? { label: CONNECT.connected, tone: 'success' } : null}
-          overlay={coverPhoto ? <PhotoCredit photoRef={coverPhoto} kind={cover?.kind} overlay corner="topRight" /> : null}
+          overlay={coverPhoto ? <PhotoCredit photoRef={coverPhoto} kind={cover?.kind} standIn={coverPic?.standIn} overlay corner="topRight" /> : null}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingTop: SPACING.xs }}>
             <Avatar {...personMark(p)} size="md" label={`${handle}'s picture`} />
@@ -131,11 +136,13 @@ export default function UserScreen() {
         <Section title={`Also in the garage (${others.length})`}>
           {
             <View style={{ gap: SPACING.md }}>
-              {others.map((b) => (
+              {others.map((b) => {
+                const pic = buildPicture(b, demo);
+                return (
                 <PhotoCard
                   key={b.id}
                   kind="build"
-                  photo={b.photos[0] ? photoSource(b.photos[0]) : null}
+                  photo={pic ? photoSource(pic.ref) : null}
                   paint={b.colour}
                   vehicle={b.kind}
                   shape={carShape(b)}
@@ -143,10 +150,11 @@ export default function UserScreen() {
                   classLetter={classOf(b)}
                   meta={buildMeta(b)}
                   titleOnPhoto
-                  overlay={b.photos[0] ? <PhotoCredit photoRef={b.photos[0]} kind={b.kind} overlay corner="topRight" /> : null}
+                  overlay={pic ? <PhotoCredit photoRef={pic.ref} kind={b.kind} standIn={pic.standIn} overlay corner="topRight" /> : null}
                   onPress={() => openBuild(b.id)}
                 />
-              ))}
+                );
+              })}
             </View>
           }
         </Section>

@@ -7,6 +7,7 @@ import { carShape } from '../lib/buildShape';
 import { classOf } from '../lib/classes';
 import { useNow } from '../lib/clock';
 import { photoSource } from '../lib/photoSource';
+import { buildPicture } from '../lib/similarPhoto';
 import { useStore } from '../lib/store';
 import type { NightEvent } from '../lib/types';
 import { COLOR, MOTION, SPACING } from '../theme';
@@ -97,7 +98,8 @@ export function buildTitle(make: string, model: string): string {
  * any time. Never your own build. `onClose(voted)`: whether a vote was cast while it was open.
  */
 export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: (voted: boolean) => void }) {
-  const { builds, users, votes, me, vote } = useStore();
+  const { builds, users, votes, me, vote, backend } = useStore();
+  const demo = backend === 'local';
   const now = useNow();
   const toast = useToast();
   const cats = voteCategories(event, builds, me, now);
@@ -180,12 +182,13 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
         <View style={{ gap: SPACING.sm }}>
           {options.map((b) => {
             const owner = users.find((u) => u.id === b.ownerId);
+            const pic = buildPicture(b, demo);
             return (
               <View key={b.id}>
                 <PhotoCard
                   kind="build"
                   size="sm"
-                  photo={b.photos[0] ? photoSource(b.photos[0]) : null}
+                  photo={pic ? photoSource(pic.ref) : null}
                   paint={b.colour}
                   vehicle={b.kind}
                   shape={carShape(b)}
@@ -194,7 +197,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
                   meta={`${displayHandle(owner?.handle ?? 'unknown')} · ${bhpLine(b)}`}
                   // Under the name, not a tag beside it: the name keeps the row's width (1.3x text).
                   detail={myVote === b.id ? '✓ Your vote' : undefined}
-                  overlay={<PhotoCredit photoRef={b.photos[0]} kind={b.kind} overlay />}
+                  overlay={<PhotoCredit photoRef={pic?.ref} kind={b.kind} standIn={pic?.standIn} overlay />}
                   onPress={() => pick(b.id)}
                   accessibilityHint={`Votes for ${label.toLowerCase()}`}
                 />

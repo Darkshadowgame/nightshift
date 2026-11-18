@@ -81,7 +81,7 @@ export default function BuildScreen() {
           classLetter={letter}
           title={`${b.make} ${b.model}`}
           meta={[b.nickname, kindLine]}
-          overlay={photo ? <PhotoCredit photoRef={photo} kind={b.kind} similar={pic?.similar} overlay corner="topRight" /> : null}
+          overlay={photo ? <PhotoCredit photoRef={photo} kind={b.kind} standIn={pic?.standIn} overlay corner="topRight" /> : null}
         />
 
         <View style={{ gap: SPACING.sm }}>

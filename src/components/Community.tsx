@@ -18,6 +18,7 @@ import { ASPECT, COLOR, RADII, SPACING } from '../theme';
 import { Avatar, BuildThumb, Button, ClassBadge, DsText, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
 import { photoSource } from '../lib/photoSource';
 import { PhotoCredit } from './PhotoCredit';
+import { useBuildPicture } from './BuildBits';
 import { powerText } from '../lib/dyno';
 import { DynoBadge } from './DynoBadge';
 
@@ -76,9 +77,10 @@ export function openBuild(id: string) {
  * "bhp · mods". Framed so it reads as something you can open.
  */
 export function BuildRow({ build, onPress }: { build: Build; onPress?: () => void }) {
+  const pic = useBuildPicture(build);
   const body = (
     <>
-      <BuildThumb photo={build.photos[0] ? photoSource(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={36} />
+      <BuildThumb photo={pic ? photoSource(pic.ref) : null} kind={build.kind} shape={carShape(build)} size={36} />
       <ClassBadge letter={classOf(build)} size="sm" decorative />
       <View style={{ flex: 1, gap: SPACING.xxs }}>
         <DsText v="body" numberOfLines={1}>
@@ -121,6 +123,7 @@ export function useTileWidth(): number {
  */
 export function BuildTile({ build, width, trophies = 0 }: { build: Build; width: number; trophies?: number; /** Ignored: no sample tags on cards (Redesign 2). */ sample?: boolean }) {
   const thumbHeight = Math.round((width * 3) / 4);
+  const pic = useBuildPicture(build);
   return (
     <Press
       onPress={() => openBuild(build.id)}
@@ -129,11 +132,11 @@ export function BuildTile({ build, width, trophies = 0 }: { build: Build; width:
       style={{ width, gap: SPACING.xs }}
     >
       <View>
-        <BuildThumb photo={build.photos[0] ? photoSource(build.photos[0]) : null} kind={build.kind} shape={carShape(build)} size={thumbHeight} />
+        <BuildThumb photo={pic ? photoSource(pic.ref) : null} kind={build.kind} shape={carShape(build)} size={thumbHeight} />
         <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm }}>
           <ClassBadge letter={classOf(build)} size="sm" decorative />
         </View>
-        <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay />
+        <PhotoCredit photoRef={pic?.ref} kind={build.kind} standIn={pic?.standIn} overlay />
       </View>
       <DsText v="bodyStrong" numberOfLines={2}>
         {build.make} {build.model}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { creditLine, samplePhoto } from '../lib/photoSource';
+import type { StandInMatch } from '../lib/similarPhoto';
 import { COLOR, RADII, SPACING } from '../theme';
 import { Button, DsText, Icon, Press, Sheet } from './ds';
 
@@ -15,21 +16,22 @@ export function PhotoCredit({
   kind = 'car',
   overlay,
   corner = 'bottomRight',
-  similar: standIn,
+  standIn,
 }: {
   photoRef: string | undefined | null;
   kind?: 'car' | 'bike' | 'place';
   overlay?: boolean;
   /** Where the ⓘ sits on the photo. */
   corner?: 'bottomRight' | 'topRight';
-  /** A stand-in for a build with no photo yet (similarPhoto.ts): always labelled "similar". */
-  similar?: boolean;
+  /** A stand-in for a build with no photo yet (similarPhoto.ts): how close it is, said in the credit. */
+  standIn?: StandInMatch | null;
 }) {
   const [open, setOpen] = useState(false);
   const found = samplePhoto(photoRef);
   if (!found) return null;
-  const p = standIn && !found.similar ? { ...found, similar: found.title } : found;
-  const line = creditLine(p, kind);
+  // A stand-in of the same model and generation isn't "similar": it says it's not your car instead.
+  const p = standIn === 'model' ? { ...found, similar: undefined } : standIn && !found.similar ? { ...found, similar: found.title } : found;
+  const line = `${creditLine(p, kind)}${standIn === 'model' ? ` · same model, not your ${kind}` : ''}`;
   const openCommons = () => Linking.openURL(p.page).catch(() => {});
   if (!overlay) {
     return (
@@ -66,7 +68,11 @@ export function PhotoCredit({
         <View style={{ gap: SPACING.sm }}>
           <DsText v="bodyStrong">{p.title}</DsText>
           <DsText v="body">{`By ${p.author} · ${p.licence}`}</DsText>
-          {similar ? <DsText v="secondary">{standIn ? `${similar}. Add your own photo from the build page.` : similar}</DsText> : null}
+          {standIn === 'model' ? (
+            <DsText v="secondary">{`Not your ${kind}: a photo of the same model. Add your own photo from the build page.`}</DsText>
+          ) : similar ? (
+            <DsText v="secondary">{standIn ? `${similar}. Add your own photo from the build page.` : similar}</DsText>
+          ) : null}
           {p.edited ? <DsText v="secondary">{p.edited}</DsText> : null}
           <DsText v="caption">A sample photo from Wikimedia Commons, used under its free licence. The demo's people and builds are made up.</DsText>
           <Button label="Open on Wikimedia Commons" tier="secondary" block onPress={openCommons} />

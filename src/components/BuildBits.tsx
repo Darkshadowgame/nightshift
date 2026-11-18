@@ -29,9 +29,13 @@ export function powerLine(b: Build, now: Date, withMods = true): string {
  * What a build shows as its picture on this phone: its photo; in the demo, a similar licensed sample
  * photo (labelled "similar" behind the ⓘ); else nothing, and it's drawn in its paint.
  */
-export function useBuildPicture(build: Pick<Build, 'photos' | 'make' | 'model' | 'kind'>) {
-  const { backend } = useStore();
-  return buildPicture(build, backend === 'local');
+export function useBuildPicture(build: Pick<Build, 'photos' | 'make' | 'model' | 'kind'> & { year?: number | null }) {
+  return buildPicture(build, useIsDemo());
+}
+
+/** In the demo (local data), builds without a photo show a stand-in (similarPhoto.ts). */
+export function useIsDemo(): boolean {
+  return useStore().backend === 'local';
 }
 
 /**
@@ -59,7 +63,7 @@ export function BuildCard({ build, now, onPress, action, aspect }: { build: Buil
       action={action}
       onPress={onPress}
       accessibilityHint="Opens the build"
-      overlay={pic ? <PhotoCredit photoRef={pic.ref} kind={build.kind} similar={pic.similar} overlay corner="topRight" /> : null}
+      overlay={pic ? <PhotoCredit photoRef={pic.ref} kind={build.kind} standIn={pic.standIn} overlay corner="topRight" /> : null}
     />
   );
 }

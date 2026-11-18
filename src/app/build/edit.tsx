@@ -238,8 +238,10 @@ export default function EditBuild() {
               { key: 'bike', label: 'Bike' },
             ]}
           />
+          {/* K2 / 4.4: one selector for the job, the search; Make and Model sit behind "Enter it yourself", as in onboarding. A free-typed build keeps them open so you see what's saved. */}
           <VehiclePicker
             editableBelow
+            searchFirst={!existing || !!vehicleId}
             kind={kind}
             make={make}
             model={model}

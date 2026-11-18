@@ -73,7 +73,7 @@ export default function NewPost() {
         <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
       </Field>
 
-      <Field label="Place (optional)" hint={at ? 'It shows on the map\'s Posts layer for 30 days.' : 'Posts with a place show on the map. Never your home: places within about 1 km of your home area can\'t be shared.'}>
+      <Field label="Place (optional)" hint={at ? 'It shows on the map\'s Posts layer for 30 days.' : 'Posts with a place show on the map. Never your home: places within about half a mile of your home area can\'t be shared.'}>
         {at ? (
           <View style={{ gap: SPACING.sm, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card }}>
             <TextInput

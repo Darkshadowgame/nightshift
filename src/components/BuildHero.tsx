@@ -6,6 +6,7 @@ import { photoSource } from '../lib/photoSource';
 import type { Build } from '../lib/types';
 import { COLOR, RADII, SPACING, outline } from '../theme';
 import { BuildArt, DEFAULT_PAINT } from './BuildArt';
+import { useBuildPicture } from './BuildBits';
 import { ClassBadge, DsText, Tag } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
@@ -17,10 +18,11 @@ import { PhotoCredit } from './PhotoCredit';
 export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build: Build; height?: number; aspect?: number; trophies?: number; tag?: string }) {
   const letter = classOf(build);
   const metal = COLOR.classMetal[letter];
+  const pic = useBuildPicture(build);
   return (
     <View style={[st.wrap, aspect ? { aspectRatio: aspect } : { height }]}>
-      {build.photos[0] ? (
-        <Image source={photoSource(build.photos[0])} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+      {pic ? (
+        <Image source={photoSource(pic.ref)} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
       ) : (
         <BuildArt kind={build.kind} shape={carShape(build)} paint={build.colour || DEFAULT_PAINT} height={height ?? 160} />
       )}
@@ -51,7 +53,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
           ) : null}
         </View>
       ) : null}
-      <PhotoCredit photoRef={build.photos[0]} kind={build.kind} overlay />
+      <PhotoCredit photoRef={pic?.ref} kind={build.kind} standIn={pic?.standIn} overlay />
     </View>
   );
 }

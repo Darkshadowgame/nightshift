@@ -10,17 +10,19 @@ import { modCount } from '../lib/modGroups';
 import type { Build, NightEvent, User } from '../lib/types';
 import { COLOR, F, RADII, SPACING } from '../theme';
 import { BuildArt } from './BuildArt';
+import { useBuildPicture } from './BuildBits';
 import { ClassBadge, displayHandle, DsText } from './ds';
 
 /** The "cover shoot" reward: the winning build as a stylised magazine-style cover. */
 export function Cover({ award, build, owner, event, width = 260 }: { award: Award; build: Build; owner?: User; event?: NightEvent; width?: number }) {
   const h = width * 1.3;
+  const pic = useBuildPicture(build);
   const date = new Date(award.at);
   const issue = `${date.toLocaleString('en-GB', { month: 'short' }).toUpperCase()} ${date.getFullYear()}`;
   return (
     <View style={[st.cover, { width, height: h }]} accessibilityLabel={`Cover: ${categoryInfo(award.category).label}, ${build.make} ${build.model}`}>
-      {build.photos[0] ? (
-        <Image source={photoSource(build.photos[0])} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      {pic ? (
+        <Image source={photoSource(pic.ref)} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
           <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={h * 0.55} />
