@@ -1,4 +1,4 @@
-import { autoVoiceId, bestVoice, VOICE_HOW_TO, languageLabel, sortVoices, speechRate, voiceDetail, voiceToUse, type VoiceInfo } from '../src/lib/voices';
+import { autoVoiceId, bestVoice, languageLabel, newNaturalVoice, sortVoices, speechRate, spokenContentStep, voiceDetail, voiceGuideSteps, voiceReadyMessage, voiceToUse, type VoiceInfo } from '../src/lib/voices';
 
 const v = (identifier: string, language: string, quality: VoiceInfo['quality'], name = identifier): VoiceInfo => ({ identifier, name, language, quality });
 const daniel = v('daniel', 'en-GB', 'default', 'Daniel');
@@ -67,8 +67,45 @@ describe('automatic voice', () => {
     expect(voiceDetail({ ...serena, gender: 'female' })).toBe('English (UK) · Premium · Female');
     expect(voiceDetail({ ...daniel, gender: 'unspecified' })).toBe('English (UK) · Basic');
   });
-  test('the how-to names the iOS 26 path and the older one', () => {
-    expect(VOICE_HOW_TO).toMatch(/Accessibility › Read & Speak › Voices › English › English \(UK\)/);
-    expect(VOICE_HOW_TO).toMatch(/Spoken Content/);
+  test('the guide is one step per line, ending on the Premium download', () => {
+    const steps = voiceGuideSteps('ios', '26.1');
+    expect(steps).toEqual(['Open the Settings app.', 'Accessibility.', 'Read & Speak.', 'Voices.', 'English.', 'English (UK).', 'Tap a voice marked Premium (e.g. Jamie or Serena) to download it.']);
+  });
+});
+
+describe('the Read & Speak step follows the iOS version', () => {
+  test('iOS 26 and later: Read & Speak', () => {
+    expect(spokenContentStep('ios', '26.0')).toBe('Read & Speak');
+    expect(spokenContentStep('ios', '27.2.1')).toBe('Read & Speak');
+  });
+  test('before iOS 26: Spoken Content', () => {
+    expect(spokenContentStep('ios', '18.6')).toBe('Spoken Content');
+    expect(spokenContentStep('ios', '17.0')).toBe('Spoken Content');
+    expect(voiceGuideSteps('ios', '18.6')[2]).toBe('Spoken Content.');
+  });
+  test('unknown (web, Android, odd version): the current name first, the old one after', () => {
+    expect(spokenContentStep('web', undefined)).toBe('Read & Speak (on older iOS: Spoken Content)');
+    expect(spokenContentStep('android', 34)).toBe('Read & Speak (on older iOS: Spoken Content)');
+    expect(spokenContentStep('ios', '')).toBe('Read & Speak (on older iOS: Spoken Content)');
+  });
+});
+
+describe('a voice downloaded in the Settings app', () => {
+  const jamie = v('jamie', 'en-GB', 'premium', 'Jamie');
+  test('a new British Premium voice is found', () => {
+    expect(newNaturalVoice([daniel], [daniel, jamie])?.identifier).toBe('jamie');
+    expect(voiceReadyMessage(jamie)).toBe('Jamie (Premium) is ready');
+  });
+  test('a new Enhanced voice counts too, and Premium wins when both arrive', () => {
+    expect(newNaturalVoice([daniel], [daniel, danielPlus])?.identifier).toBe('daniel-enh');
+    expect(newNaturalVoice([daniel], [daniel, danielPlus, jamie])?.identifier).toBe('jamie');
+  });
+  test('nothing new, a Basic voice, or another accent: nothing to say', () => {
+    expect(newNaturalVoice([daniel, serena], [daniel, serena])).toBeNull();
+    expect(newNaturalVoice([], [daniel])).toBeNull();
+    expect(newNaturalVoice([daniel], [daniel, ava, moira])).toBeNull();
+  });
+  test('the list before was never read: no claim that anything is new', () => {
+    expect(newNaturalVoice(null, [daniel, jamie])).toBeNull();
   });
 });

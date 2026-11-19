@@ -87,9 +87,47 @@ export function voiceDetail(v: VoiceInfo): string {
   return `${languageLabel(v.language)} · ${QUALITY_LABELS[v.quality]}${g}`;
 }
 
-/** How to get a better voice, for the picker (iOS 26 renamed Spoken Content to Read & Speak). */
-export const VOICE_HOW_TO =
-  'For a more natural voice: iPhone Settings › Accessibility › Read & Speak › Voices › English › English (UK), and download a Premium voice (e.g. Jamie or Serena). Then pick it here. Before iOS 26, Read & Speak is called Spoken Content.';
+/**
+ * iOS 26 renamed Spoken Content to Read & Speak. `version` is Platform.Version ("26.1" on iOS).
+ * Off iOS (web, Android) we can't tell, so both names, the current one first.
+ */
+export function spokenContentStep(os: string, version: string | number | undefined): string {
+  const major = os === 'ios' ? parseInt(String(version ?? ''), 10) : NaN;
+  if (Number.isNaN(major)) return 'Read & Speak (on older iOS: Spoken Content)';
+  return major >= 26 ? 'Read & Speak' : 'Spoken Content';
+}
+
+/**
+ * The "Get a natural voice" guide, one step per line. Apps can only open their own page in the
+ * Settings app (the Accessibility deep links are private and get apps rejected), so the user walks it.
+ */
+export function voiceGuideSteps(os: string, version: string | number | undefined): string[] {
+  return [
+    'Open the Settings app.',
+    'Accessibility.',
+    `${spokenContentStep(os, version)}.`,
+    'Voices.',
+    'English.',
+    'English (UK).',
+    'Tap a voice marked Premium (e.g. Jamie or Serena) to download it.',
+  ];
+}
+
+/**
+ * After coming back from the Settings app: the best British Premium or Enhanced voice that wasn't
+ * installed before. Null when nothing new (or the list before wasn't known, so we can't tell).
+ */
+export function newNaturalVoice<V extends VoiceInfo>(before: V[] | null, after: V[], language = NAV_LANGUAGE): V | null {
+  if (!before) return null;
+  const had = new Set(before.map((v) => v.identifier));
+  const fresh = after.filter((v) => !had.has(v.identifier) && v.quality !== 'default' && sameLanguage(v.language, language));
+  return [...fresh].sort(byQuality)[0] ?? null;
+}
+
+/** "Jamie (Premium) is ready". */
+export function voiceReadyMessage(v: VoiceInfo): string {
+  return `${v.name} (${QUALITY_LABELS[v.quality]}) is ready`;
+}
 
 /** Speech rates (AVSpeechUtterance, 0–1; 0.5 is the system's normal). */
 export type SpeechRate = 'slower' | 'normal' | 'faster';
