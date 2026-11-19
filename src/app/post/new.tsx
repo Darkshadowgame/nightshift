@@ -12,6 +12,8 @@ import { postPickerStart } from '../../lib/picker';
 import { locationProblem, POST_LIMITS, postProblem, VISIBILITY, type PostVisibility } from '../../lib/posts';
 import { useStore } from '../../lib/store';
 import type { LatLng } from '../../lib/types';
+import { ComposerVideo } from '../../components/Video';
+import type { VideoDraft } from '../../lib/videoRules';
 import { COLOR, POST_COLOUR, RADII, SPACING } from '../../theme';
 
 /** New post: words, photos (plate-blurred), an optional place on the map, who sees it, and a linked build. */
@@ -23,6 +25,7 @@ export default function NewPost() {
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const limits = useMediaLimits();
+  const [video, setVideo] = useState<VideoDraft | null>(null);
   const [at, setAt] = useState<LatLng | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [visibility, setVisibility] = useState<PostVisibility>('public');
@@ -32,12 +35,12 @@ export default function NewPost() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
-  const guard = useDiscardGuard(!!body.trim() || photos.length > 0 || !!at, 'this post');
+  const guard = useDiscardGuard(!!body.trim() || photos.length > 0 || !!video || !!at, 'this post');
 
   async function submit() {
     setError(null);
-    const draft = { body, photos, at, placeName, visibility, buildId };
-    if (!body.trim() && !photos.length) return setError('Write something or add a photo first.');
+    const draft = { body, photos, video, at, placeName, visibility, buildId };
+    if (!body.trim() && !photos.length && !video) return setError('Write something or add a photo first.');
     const p = postProblem(draft, home);
     if (p) return setError(p);
     setBusy(true);
@@ -73,6 +76,12 @@ export default function NewPost() {
       <Field label="Photos">
         <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.photos} />
       </Field>
+
+      {limits.video ? (
+        <Field label="Video (optional)">
+          <ComposerVideo video={video} onChange={setVideo} onError={setError} />
+        </Field>
+      ) : null}
 
       <Field label="Place (optional)" hint={at ? 'It shows on the map\'s Posts layer for 30 days.' : 'Posts with a place show on the map. Never your home: places within about half a mile of your home area can\'t be shared.'}>
         {at ? (

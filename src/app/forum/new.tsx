@@ -23,6 +23,8 @@ import {
 } from '../../lib/forum';
 import { REGIONS } from '../../lib/profile';
 import { useStore } from '../../lib/store';
+import { ComposerVideo } from '../../components/Video';
+import type { VideoDraft } from '../../lib/videoRules';
 import { COLOR, SPACING } from '../../theme';
 
 /**
@@ -42,6 +44,7 @@ export default function NewThread() {
   const [body, setBody] = useState(params.body ?? '');
   const [photos, setPhotos] = useState<string[]>([]);
   const limits = useMediaLimits();
+  const [video, setVideo] = useState<VideoDraft | null>(null);
   const [buildId, setBuildId] = useState<string | undefined>(mine.some((b) => b.id === params.buildId) ? params.buildId : undefined);
   const [kind, setKind] = useState<ListingKind>('sale');
   const [price, setPrice] = useState('');
@@ -55,7 +58,7 @@ export default function NewThread() {
   const listing = board === 'for_sale';
   const pence = parsePrice(price);
   const toast = useToast();
-  const guard = useDiscardGuard(!!title.trim() || body.trim() !== (params.body ?? '').trim() || photos.length > 0 || !!price.trim(), listing ? 'this listing' : 'this thread');
+  const guard = useDiscardGuard(!!title.trim() || body.trim() !== (params.body ?? '').trim() || photos.length > 0 || !!video || !!price.trim(), listing ? 'this listing' : 'this thread');
 
   async function submit() {
     setError(null);
@@ -67,6 +70,7 @@ export default function NewThread() {
       title,
       body,
       photos,
+      video,
       buildId,
       ...(listing
         ? { listing: { kind, ...(pence != null ? { pricePence: pence } : {}), ...(ono && pence != null ? { ono: true } : {}), ...(kind === 'sale' && condition ? { condition } : {}), ...(handover ? { handover } : {}) } }
@@ -153,6 +157,11 @@ export default function NewThread() {
       <Field label="Photos">
         <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.photos} />
       </Field>
+      {limits.video ? (
+        <Field label="Video (optional)">
+          <ComposerVideo video={video} onChange={setVideo} onError={setError} />
+        </Field>
+      ) : null}
       <BuildChooser builds={mine} value={buildId} onChange={setBuildId} />
       <View style={{ gap: SPACING.sm }}>
         {error ? <ErrorState title={error} /> : null}

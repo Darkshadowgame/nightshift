@@ -16,6 +16,9 @@ const TARGETS: ReportTarget[] = ['thread', 'reply', 'message', 'post', 'comment'
  * Nightshift team; three different people reporting a post hides it until
  * someone looks.
  */
+/** Things that can show a photo or video: "Shows a number plate" is offered on these. */
+const PLATE_TARGETS: ReadonlySet<string> = new Set(['post', 'comment', 'thread', 'reply', 'message', 'build']);
+
 export default function ReportScreen() {
   const p = useLocalSearchParams<{ target: string; id: string; user?: string; what?: string }>();
   const { users } = useStore();
@@ -72,7 +75,7 @@ export default function ReportScreen() {
 
   const reasons = (
     <>
-      <ChoiceGroup label="Reason" layout="list" options={REPORT_REASONS.filter((r) => r.key !== 'fake_dyno' || target === 'build').map((r) => ({ key: r.key, label: r.label }))} value={reason} onChange={setReason} />
+      <ChoiceGroup label="Reason" layout="list" options={REPORT_REASONS.filter((r) => (r.key !== 'fake_dyno' || target === 'build') && (r.key !== 'number_plate' || PLATE_TARGETS.has(target))).map((r) => ({ key: r.key, label: r.label }))} value={reason} onChange={setReason} />
       <TextField
         value={note}
         onChangeText={setNote}

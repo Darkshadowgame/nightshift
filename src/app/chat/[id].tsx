@@ -4,11 +4,11 @@ import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react
 import { at, mainBuild, openProfile, openReport, OptionsSheet, PersonRow, personMark, type SheetOption } from '../../components/Community';
 import { ownBuilds } from '../../lib/bringing';
 import { INPUT } from '../../components/ComposerParts';
-import { ActionBar, Avatar, Button, DsText, ErrorState, FitImage, HeaderActions, IconButton, LoadingState, Press, screenHeader, useToast } from '../../components/ds';
+import { ActionBar, Avatar, Button, DsText, ErrorState, FitImage, HeaderActions, IconButton, LoadingState, Press, screenHeader, Sheet, useToast } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { ShareCardView, SharePicker } from '../../components/SharePicker';
 import { useNow } from '../../lib/clock';
-import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
+import { useCommunity, useCommunityQuery, useMediaLimits } from '../../lib/communityStore';
 import { clock, dayLabelShort } from '../../lib/when';
 import { conversationTitle, MESSAGE_MAX, messageProblem, otherMember, seenLabel, shareHref, type Message, type ShareCard } from '../../lib/messages';
 import { photoUri } from '../../lib/photos';
@@ -16,6 +16,9 @@ import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { PhotoViewer } from '../../components/PhotoGallery';
+import { ComposerVideo, VideoBox } from '../../components/Video';
+import { pickVideo } from '../../lib/videoPick';
+import { videoProblem, type VideoDraft } from '../../lib/videoRules';
 import { MEDIA_LIMITS } from '../../lib/mediaLimits';
 
 /** The toast's height and its gap above the composer, at 1.3x text too. */
@@ -46,16 +49,16 @@ export default function ChatScreen() {
   const handleOf = (uid: string) => users.find((u) => u.id === uid)?.handle;
   const other = conv ? otherMember(conv, community.me) : undefined;
 
-  const send = async (m: { body: string; photo?: string; share?: ShareCard }) => {
+  const send = async (m: { body: string; photo?: string; share?: ShareCard; video?: VideoDraft }) => {
     setError(null);
-    const p = messageProblem(m.body, m.photo, m.share);
+    const p = messageProblem(m.body, m.photo, m.share, m.video);
     if (p) return setError(p);
     setBusy(true);
     try {
       await community.run((s) => s.send(id, m));
-      if (!m.photo && !m.share) setText('');
+      if (!m.photo && !m.share && !m.video) setText('');
       // Every done action gets a toast (4.7): "sent" is on the list.
-      toast({ message: m.photo ? 'Photo sent' : m.share ? 'Shared' : 'Sent' });
+      toast({ message: m.photo ? 'Photo sent' : m.video ? 'Video sent' : m.share ? 'Shared' : 'Sent' });
       setToastRoom(true);
       if (roomTimer.current) clearTimeout(roomTimer.current);
       roomTimer.current = setTimeout(() => setToastRoom(false), 3600);
@@ -94,6 +97,27 @@ export default function ChatScreen() {
   };
   const flow = usePhotoFlow({ onError: setError, onPhoto: (ref) => void batch.current.push(ref), onFinish: () => void sendPhotos() });
   const [viewing, setViewing] = useState<{ photos: string[]; start: number } | null>(null);
+  const limits = useMediaLimits();
+  // A clip waiting for its plate tick before it's sent.
+  const [clip, setClip] = useState<VideoDraft | null>(null);
+  const pickClip = async (camera: boolean) => {
+    setError(null);
+    try {
+      const got = await pickVideo(camera);
+      if (!got) return;
+      if ('problem' in got) return setError(got.problem);
+      setClip(got.draft);
+    } catch {
+      setError("Couldn't open that video. Try another one.");
+    }
+  };
+  const sendClip = async () => {
+    const v = clip;
+    const p = videoProblem(v);
+    if (!v || p) return setError(p);
+    setClip(null);
+    await send({ body: '', video: v });
+  };
 
   // While this chat is on screen: no phone notifications for it, and it's read.
   useEffect(() => {
@@ -154,7 +178,7 @@ export default function ChatScreen() {
     !!a && !!b && !a.system && !b.system && a.senderId === b.senderId && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < 10 * 60_000 && dayLabelShort(a.createdAt, now) === dayLabelShort(b.createdAt, now);
 
   /** Photos on their own sent together (one message each) show as one grid bubble. */
-  const photoOnly = (m: Message) => !!m.photo && !m.body && !m.share && !m.system;
+  const photoOnly = (m: Message) => !!m.photo && !m.body && !m.share && !m.video && !m.system;
   const items: { key: string; msgs: Message[] }[] = [];
   for (const m of rows) {
     const last = items[items.length - 1];
@@ -194,7 +218,7 @@ export default function ChatScreen() {
             }}
             feedback="none"
             role="text"
-            label={`${mine ? 'You' : at(sender)}, ${clock(m.createdAt)}: ${group.length > 1 ? `${group.length} photos. ` : m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
+            label={`${mine ? 'You' : at(sender)}, ${clock(m.createdAt)}: ${group.length > 1 ? `${group.length} photos. ` : m.photo ? 'photo. ' : ''}${m.video ? 'video. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
             hint={mine ? undefined : 'Long press to report or block'}
             style={{ alignSelf: side, maxWidth: '82%', gap: SPACING.xs, alignItems: side }}
           >
@@ -218,6 +242,7 @@ export default function ChatScreen() {
                 <FitImage source={photoUri(m.photo)} frameAspect={1} style={{ width: 220, height: 220, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo" />
               </Press>
             ) : null}
+            {m.video ? <VideoBox video={m.video} aspect={1} width={220} rounded /> : null}
             {m.share ? <ShareCardView card={m.share} onPress={() => router.push(shareHref(m.share!) as never)} /> : null}
             {m.body ? (
               <View
@@ -294,6 +319,12 @@ export default function ChatScreen() {
                 setMenu([
                   { label: 'Take a photo', onPress: () => void flow.pick(true) },
                   { label: 'Choose photos', detail: `Up to ${MEDIA_LIMITS.chatPhotos} at once`, onPress: () => void flow.pick(false, MEDIA_LIMITS.chatPhotos) },
+                  ...(limits.video
+                    ? [
+                        { label: 'Film a video', detail: 'Up to 30 seconds', onPress: () => void pickClip(true) },
+                        { label: 'Choose a video', detail: 'Up to 30 seconds and 25 MB', onPress: () => void pickClip(false) },
+                      ]
+                    : []),
                   { label: 'Share a build, event or place', onPress: () => setSharing(true) },
                 ])
               }
@@ -322,6 +353,13 @@ export default function ChatScreen() {
       <SharePicker visible={sharing} onPick={(c) => void send({ body: '', share: c })} onClose={() => setSharing(false)} />
       <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
       <PhotoViewer photos={viewing?.photos ?? []} start={viewing?.start ?? null} onClose={() => setViewing(null)} />
+      <Sheet visible={!!clip} title="Send a video" onClose={() => setClip(null)}>
+        <View style={{ gap: SPACING.md }}>
+          <ComposerVideo video={clip} onChange={setClip} onError={setError} />
+          {error ? <ErrorState title={error} /> : null}
+          <Button label="Send video" haptic="success" busy={busy} disabled={!clip?.noPlates} onPress={() => void sendClip()} />
+        </View>
+      </Sheet>
     </KeyboardAvoidingView>
   );
 }

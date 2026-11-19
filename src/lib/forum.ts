@@ -1,5 +1,6 @@
 import { textProblem } from './moderation';
 import { REGIONS } from './profile';
+import { videoProblem, type VideoDraft, type VideoRef } from './videoRules';
 
 /**
  * The forum (Community › Forum): boards, threads, replies, "Helpful" and one
@@ -39,6 +40,8 @@ export interface ForumThread {
   body: string;
   /** Photo refs: stored photo names on the phone, signed URLs from the server. */
   photos: string[];
+  /** One clip with its cover (build 16+). */
+  video?: VideoRef;
   buildId?: string;
   createdAt: string;
   lastActivityAt: string;
@@ -58,6 +61,7 @@ export interface ForumReply {
   authorId: string;
   body: string;
   photos: string[];
+  video?: VideoRef;
   buildId?: string;
   createdAt: string;
   helpfulCount: number;
@@ -72,6 +76,7 @@ export interface ThreadDraft {
   title: string;
   body: string;
   photos: string[];
+  video?: VideoDraft | null;
   buildId?: string;
   /** For sale and wanted only; ignored on other boards. */
   listing?: ListingDraft;
@@ -190,6 +195,8 @@ export function threadProblem(d: ThreadDraft): string | null {
   if (d.body.trim().length > LIMITS.body) return 'Keep it to 5,000 characters or fewer.';
   if (d.board === 'local' && !REGIONS.some((r) => r.name === d.region)) return 'Pick a region for the Local board.';
   if (d.photos.length > LIMITS.photos) return 'Up to 10 photos a post.';
+  const v = videoProblem(d.video);
+  if (v) return v;
   if (d.board === 'for_sale' && d.listing) {
     const l = listingProblem(d.listing);
     if (l) return l;

@@ -81,6 +81,8 @@ export type ReportReason =
   | 'other'
   /** Builds only: the dyno sheet behind the "Dyno proven" badge looks fake or edited. */
   | 'fake_dyno'
+  /** A readable number plate: videos can't be blurred (20261121110000_number_plate_reason.sql). */
+  | 'number_plate'
   /** Only raised by Nightshift itself: someone whose posts are nearly all selling. */
   | 'sell_only';
 
@@ -96,6 +98,7 @@ export const REPORT_REASONS: readonly { key: ReportReason; label: string }[] = [
   { key: 'scam', label: 'Scam or fraud' },
   { key: 'spam', label: 'Spam' },
   { key: 'underage', label: 'Someone under 18' },
+  { key: 'number_plate', label: 'Shows a number plate' },
   { key: 'fake_dyno', label: 'Fake or edited dyno sheet' },
   { key: 'other', label: 'Something else' },
 ];

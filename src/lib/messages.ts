@@ -3,6 +3,7 @@ import type { NightEvent, Spot, Build } from './types';
 import { classOf } from './classes';
 import { powerText } from './dyno';
 import { modCount } from './modGroups';
+import { videoProblem, type VideoDraft, type VideoRef } from './videoRules';
 import { clock, dayDiff, SMALL_HOURS_END, whenLabel } from './when';
 
 /**
@@ -33,6 +34,8 @@ export interface Message {
   body: string;
   /** Photo ref: a stored name on the phone, a signed URL from the server. */
   photo?: string;
+  /** One clip with its cover (build 16+). */
+  video?: VideoRef;
   share?: ShareCard;
   system?: boolean;
   createdAt: string;
@@ -75,7 +78,8 @@ export function conversationTitle(c: Conversation, me: string, handleOf: (id: st
 export function previewLine(c: Conversation, me: string, handleOf: (id: string) => string | undefined): string {
   const l = c.last;
   if (!l) return c.kind === 'group' ? 'New group' : 'Say hello';
-  const what = l.kind === 'photo' ? 'Photo' : l.kind === 'share' ? 'Shared a card' : l.body;
+  // A text line with no words is a video (my_conversations() has no kind for it yet).
+  const what = l.kind === 'photo' ? 'Photo' : l.kind === 'share' ? 'Shared a card' : l.body || (l.kind === 'text' ? 'Video' : l.body);
   if (l.kind === 'system' || !l.senderId) return what;
   if (l.senderId === me) return `You: ${what}`;
   if (c.kind === 'group') return `@${handleOf(l.senderId) ?? 'someone'}: ${what}`;
@@ -99,9 +103,11 @@ export function seenLabel(c: Conversation, messages: Message[], me: string): str
   return c.kind === 'direct' ? 'Seen' : `Seen by ${readers.length}`;
 }
 
-export function messageProblem(body: string, photo?: string, share?: ShareCard): string | null {
+export function messageProblem(body: string, photo?: string, share?: ShareCard, video?: VideoDraft | null): string | null {
   const b = body.trim();
-  if (!b && !photo && !share) return 'Write a message first.';
+  if (!b && !photo && !share && !video) return 'Write a message first.';
+  const v = videoProblem(video);
+  if (v) return v;
   if (b.length > MESSAGE_MAX) return 'Keep it to 2,000 characters or fewer.';
   return null;
 }

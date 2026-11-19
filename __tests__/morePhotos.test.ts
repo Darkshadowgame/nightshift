@@ -10,7 +10,7 @@ describe('more photos (20261121100000_more_photos.sql)', () => {
     expect(POST_LIMITS.photos).toBe(10);
     expect(LIMITS.photos).toBe(10);
     expect(POST_LIMITS.commentPhotos).toBe(4);
-    expect(MEDIA_LIMITS).toEqual({ photos: 10, commentPhotos: 4, chatPhotos: 10 });
+    expect(MEDIA_LIMITS).toEqual({ photos: 10, commentPhotos: 4, chatPhotos: 10, video: true });
     expect(postProblem({ body: '', photos: photos(10), visibility: 'public' }, null)).toBeNull();
     expect(postProblem({ body: '', photos: photos(11), visibility: 'public' }, null)).toBe('Up to 10 photos a post.');
     expect(threadProblem({ board: 'advice', title: 'Help please', body: '', photos: photos(11) })).toBe('Up to 10 photos a post.');

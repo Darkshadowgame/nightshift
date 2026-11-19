@@ -821,6 +821,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       };
       await clearFolder('photos', false);
       await clearFolder('messages', true);
+      await clearFolder('videos', true);
       await rpc('delete_my_account');
     },
   };

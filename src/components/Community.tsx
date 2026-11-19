@@ -19,6 +19,7 @@ import { Avatar, BuildThumb, Button, ClassBadge, DsText, FitImage, Icon, IconBut
 import { photoSource } from '../lib/photoSource';
 import { PhotoCredit } from './PhotoCredit';
 import { PhotoGallery, PhotoViewer } from './PhotoGallery';
+import { VideoBox } from './Video';
 import { useBuildPicture } from './BuildBits';
 import { powerText } from '../lib/dyno';
 import { DynoBadge } from './DynoBadge';
@@ -270,6 +271,7 @@ export function PostCard({
           : { backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' }
       }
     >
+      {post.video ? <VideoBox video={post.video} aspect={ASPECT.post} /> : null}
       {photos.length ? pictures : null}
       {open ? null : <PhotoViewer photos={photos} start={viewing} onClose={() => setViewing(null)} />}
       <View style={{ paddingHorizontal: full ? SPACING.screen : SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.sm }}>

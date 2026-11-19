@@ -74,7 +74,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#0b0f17"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "scheme": "nightshift",
     "backgroundColor": "#0b0f17",

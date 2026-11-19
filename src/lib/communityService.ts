@@ -37,6 +37,7 @@ import { reportProblem, type BanScope, type ReportReason, type ReportTarget, typ
 import { canSee, commentProblem, feedFor, postProblem, postsInBox, snapPlace, withLike, type FeedScope, type Post, type PostComment, type PostDraft } from './posts';
 import type { LatLng, User } from './types';
 import { MEDIA_LIMITS, type MediaLimits } from './mediaLimits';
+import { videoProblem, type VideoDraft } from './videoRules';
 
 /**
  * Community behind one interface, like road reports (roadService.ts): the demo
@@ -92,7 +93,7 @@ export interface CommunityService {
   threads(q: ThreadQuery): Promise<ForumThread[]>;
   thread(id: string): Promise<{ thread: ForumThread; replies: ForumReply[] } | null>;
   createThread(d: ThreadDraft): Promise<string>;
-  reply(threadId: string, body: string, photos: string[], buildId?: string): Promise<void>;
+  reply(threadId: string, body: string, photos: string[], buildId?: string, video?: VideoDraft | null): Promise<void>;
   helpful(replyId: string, on: boolean): Promise<void>;
   markSolved(threadId: string, replyId: string | null): Promise<void>;
   /** For sale and wanted: the author marks it sold (or found), or back on sale. */
@@ -119,7 +120,7 @@ export interface CommunityService {
   setAdmin(conversationId: string, userId: string, admin: boolean): Promise<void>;
   renameGroup(conversationId: string, name: string): Promise<void>;
   leave(conversationId: string): Promise<void>;
-  send(conversationId: string, m: { body: string; photo?: string; share?: ShareCard }): Promise<void>;
+  send(conversationId: string, m: { body: string; photo?: string; share?: ShareCard; video?: VideoDraft | null }): Promise<void>;
   markRead(conversationId: string): Promise<void>;
   // Safety
   report(target: ReportTarget, id: string, reason: ReportReason, note: string): Promise<void>;
@@ -513,18 +514,18 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       if (p) throw new Error(p);
       const t: ForumThread = {
         id: newId('ft'), board: d.board, region: d.board === 'local' ? d.region : undefined, authorId: ME, title: d.title.trim(), body: d.body.trim(),
-        photos: d.photos, buildId: d.buildId, createdAt: iso(), lastActivityAt: iso(), replyCount: 0,
+        photos: d.photos, ...(d.video ? { video: { url: d.video.uri, poster: d.video.poster } } : {}), buildId: d.buildId, createdAt: iso(), lastActivityAt: iso(), replyCount: 0,
         ...(d.board === 'for_sale' ? { listing: cleanListing(d.listing ?? { kind: 'sale' }) } : {}),
       };
       update((s) => ({ ...s, threads: [t, ...s.threads] }));
       return t.id;
     },
-    async reply(threadId, body, photos, buildId) {
-      const p = replyProblem(body);
+    async reply(threadId, body, photos, buildId, video) {
+      const p = replyProblem(body) ?? videoProblem(video);
       if (p) throw new Error(p);
       const s = ctx.get();
       if (!s.threads.some((t) => t.id === threadId)) throw new Error("That thread isn't there any more.");
-      const r: ForumReply = { id: newId('fr'), threadId, authorId: ME, body: body.trim(), photos, buildId, createdAt: iso(), helpfulCount: 0, helpfulByMe: false };
+      const r: ForumReply = { id: newId('fr'), threadId, authorId: ME, body: body.trim(), photos, ...(video ? { video: { url: video.uri, poster: video.poster } } : {}), buildId, createdAt: iso(), helpfulCount: 0, helpfulByMe: false };
       ctx.set({
         ...s,
         replies: [...s.replies, r],
@@ -615,7 +616,7 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       const p = postProblem(d, me()?.home ?? null);
       if (p) throw new Error(p);
       const post: Post = {
-        id: newId('po'), authorId: ME, body: d.body.trim(), photos: d.photos, at: d.at ? snapPlace(d.at) : undefined,
+        id: newId('po'), authorId: ME, body: d.body.trim(), photos: d.photos, ...(d.video ? { video: { url: d.video.uri, poster: d.video.poster } } : {}), at: d.at ? snapPlace(d.at) : undefined,
         placeName: d.at ? d.placeName?.trim() || undefined : undefined, visibility: d.visibility, buildId: d.buildId, ...(d.eventId ? { eventId: d.eventId } : {}), createdAt: iso(),
         likeCount: 0, commentCount: 0, likedByMe: false,
       };
@@ -754,11 +755,11 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       }));
     },
     async send(conversationId, m) {
-      const p = messageProblem(m.body, m.photo, m.share);
+      const p = messageProblem(m.body, m.photo, m.share, m.video);
       if (p) throw new Error(p);
       const c = (await this.conversations()).find((x) => x.id === conversationId);
       if (!c || !c.canSend) throw new Error("You can only message people you're connected with.");
-      addMessage(conversationId, { senderId: ME, body: m.body.trim(), photo: m.photo, share: m.share });
+      addMessage(conversationId, { senderId: ME, body: m.body.trim(), photo: m.photo, share: m.share, ...(m.video ? { video: { url: m.video.uri, poster: m.video.poster } } : {}) });
       // A sample person in the chat answers after a moment (labelled Sample).
       const who = c.memberIds.filter((id) => id !== ME && isSample(id));
       if (who.length) {

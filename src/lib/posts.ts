@@ -1,6 +1,7 @@
 import { milesBetween } from './geo';
 import { textProblem } from './moderation';
 import type { LatLng } from './types';
+import { videoProblem, type VideoDraft, type VideoRef } from './videoRules';
 
 /**
  * Feed posts (Community › Feed): text and up to 10 plate-blurred photos, an
@@ -25,6 +26,8 @@ export interface Post {
   body: string;
   /** Photo refs: stored names on the phone, signed URLs from the server. */
   photos: string[];
+  /** One clip with its cover (build 16+). */
+  video?: VideoRef;
   at?: LatLng;
   placeName?: string;
   visibility: PostVisibility;
@@ -55,6 +58,7 @@ export interface PostComment {
 export interface PostDraft {
   body: string;
   photos: string[];
+  video?: VideoDraft | null;
   at?: LatLng | null;
   placeName?: string;
   visibility: PostVisibility;
@@ -79,7 +83,9 @@ export function locationProblem(at: LatLng, home: LatLng | null): string | null 
 
 export function postProblem(d: PostDraft, home: LatLng | null): string | null {
   const body = d.body.trim();
-  if (!body && d.photos.length === 0) return 'Write something or add a photo.';
+  if (!body && d.photos.length === 0 && !d.video) return 'Write something or add a photo.';
+  const v = videoProblem(d.video);
+  if (v) return v;
   if (body.length > POST_LIMITS.body) return 'Keep it to 2,000 characters or fewer.';
   if (d.photos.length > POST_LIMITS.photos) return 'Up to 10 photos a post.';
   if (d.at) {

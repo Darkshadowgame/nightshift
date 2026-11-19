@@ -13,6 +13,8 @@ import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { PhotoGallery, PhotoViewer } from '../../components/PhotoGallery';
+import { ComposerVideo, VideoBox } from '../../components/Video';
+import { videoProblem, type VideoDraft } from '../../lib/videoRules';
 import { ListingCard, soldWord } from '../../components/ListingCard';
 
 /** A thread (T3): the question, replies (Helpful, Solved), and the reply field in the bottom bar. ··· has report, block, sold and delete. */
@@ -26,6 +28,7 @@ export default function ThreadScreen() {
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const limits = useMediaLimits();
+  const [video, setVideo] = useState<VideoDraft | null>(null);
   const [buildId, setBuildId] = useState<string | undefined>();
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -76,13 +79,14 @@ export default function ThreadScreen() {
 
   async function send() {
     setError(null);
-    const p = replyProblem(body);
+    const p = replyProblem(body) ?? videoProblem(video);
     if (p) return setError(p);
     setBusy(true);
     try {
-      await community.run((s) => s.reply(thread!.id, body, photos, buildId));
+      await community.run((s) => s.reply(thread!.id, body, photos, buildId, video));
       setBody('');
       setPhotos([]);
+      setVideo(null);
       setBuildId(undefined);
       setMore(false);
     } catch (e) {
@@ -166,6 +170,7 @@ export default function ThreadScreen() {
             {thread.body}
           </DsText>
         ) : null}
+        {thread.video ? <VideoBox video={thread.video} aspect={16 / 9} rounded /> : null}
         {linked ? <BuildRow build={linked} onPress={() => openBuild(linked.id)} /> : null}
       </View>
 
@@ -216,6 +221,7 @@ export default function ThreadScreen() {
                   <PhotoGallery photos={r.photos} aspect={4 / 3} label="in the reply" onOpen={(i) => open(r.photos, i)} />
                 </View>
               ) : null}
+              {r.video ? <VideoBox video={r.video} aspect={16 / 9} rounded /> : null}
               {rb ? <BuildRow build={rb} onPress={() => openBuild(rb.id)} /> : null}
               <Press
                 onPress={() => (own ? setError("You can't mark your own reply as helpful.") : act(() => community.run((s) => s.helpful(r.id, !r.helpfulByMe))))}
@@ -249,10 +255,11 @@ export default function ThreadScreen() {
           more ? (
             <>
               <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.photos} />
+              {limits.video ? <ComposerVideo video={video} onChange={setVideo} onError={setError} /> : null}
               <BuildChooser builds={builds.filter((b) => b.ownerId === me)} value={buildId} onChange={setBuildId} />
             </>
           ) : (
-            <Button label="Add photos or a build" tier="tertiary" size="sm" onPress={() => setMore(true)} style={{ alignSelf: 'flex-start' }} />
+            <Button label={limits.video ? 'Add photos, a video or a build' : 'Add photos or a build'} tier="tertiary" size="sm" onPress={() => setMore(true)} style={{ alignSelf: 'flex-start' }} />
           )
         }
       />

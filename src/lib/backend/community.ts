@@ -10,6 +10,7 @@ import { duplicateProblem, rememberSent, reportProblem, SPAM_PROBLEMS, type BanS
 import { photoUri } from '../photos';
 import { isMissingColumn, MEDIA_LIMITS, OLD_MEDIA_LIMITS, photoLimitProblem, type MediaLimits } from '../mediaLimits';
 import { commentProblem, postProblem, type Post, type PostComment, type PostVisibility } from '../posts';
+import { extensionFor, videoProblem, type VideoDraft, type VideoRef } from '../videoRules';
 import type { LatLng } from '../types';
 import { isUuid } from './mapping';
 import { isNetworkError, OFFLINE } from './outbox';
@@ -46,6 +47,9 @@ export interface ThreadRow {
   condition?: ListingCondition | null;
   handover?: Handover | null;
   sold_at?: string | null;
+  /** Only once 20261121110100_videos.sql is applied. */
+  video_path?: string | null;
+  video_poster?: string | null;
 }
 
 export interface ReplyRow {
@@ -58,6 +62,9 @@ export interface ReplyRow {
   created_at: string;
   helpful_count: number;
   hidden_at: string | null;
+  /** Only once 20261121110100_videos.sql is applied. */
+  video_path?: string | null;
+  video_poster?: string | null;
 }
 
 export interface PostRow {
@@ -114,6 +121,9 @@ export interface MessageRow {
   share: ShareCard | null;
   system: boolean;
   created_at: string;
+  /** Only once 20261121110100_videos.sql is applied. */
+  video_path?: string | null;
+  video_poster?: string | null;
 }
 
 type Signed = (path: string) => string;
@@ -381,7 +391,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
   }
 
   /** Signed links for paths in a bucket; paths that fail are dropped. */
-  async function signer(bucket: 'photos' | 'messages', paths: string[]): Promise<Signed> {
+  async function signer(bucket: 'photos' | 'messages' | 'videos', paths: string[]): Promise<Signed> {
     const unique = Array.from(new Set(paths.filter(Boolean)));
     const map = new Map<string, string>();
     if (unique.length) {
@@ -414,18 +424,28 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
   const clean = (ps: string[]) => ps.filter(Boolean);
 
   async function threadsWithPhotos(rows: ThreadRow[]): Promise<ForumThread[]> {
-    const sign = await signer('photos', rows.flatMap((r) => r.photos ?? []));
+    const [sign, videos] = await Promise.all([signer('photos', rows.flatMap((r) => r.photos ?? [])), videosFor(rows)]);
     return rows.map((r) => {
       const t = threadFromRow(r, sign);
-      return { ...t, photos: clean(t.photos) };
+      const video = videos.get(r.id);
+      return { ...t, photos: clean(t.photos), ...(video ? { video } : {}) };
     });
   }
 
   async function postsWithPhotos(rows: PostRow[]): Promise<Post[]> {
-    const sign = await signer('photos', rows.flatMap((r) => r.photos ?? []));
+    // feed_posts() doesn't return the video columns: read them for these posts directly (granted, 20261121110100_videos.sql).
+    const ids = rows.map((r) => r.id).filter(isUuid);
+    const vrows =
+      ids.length && (await mediaLimits()).video
+        ? await call<{ id: string; video_path: string | null; video_poster: string | null }[]>(
+            () => client.from('posts').select('id,video_path,video_poster').in('id', ids).not('video_path', 'is', null) as unknown as PromiseLike<Result<{ id: string; video_path: string | null; video_poster: string | null }[]>>,
+          ).catch(() => [])
+        : [];
+    const [sign, videos] = await Promise.all([signer('photos', rows.flatMap((r) => r.photos ?? [])), videosFor(vrows ?? [])]);
     return rows.map((r) => {
       const p = postFromRow(r, sign);
-      return { ...p, photos: clean(p.photos) };
+      const video = videos.get(r.id);
+      return { ...p, photos: clean(p.photos), ...(video ? { video } : {}) };
     });
   }
 
@@ -435,22 +455,50 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
    * check (offline) keeps the old limits and asks again next time.
    */
   let limits: Promise<MediaLimits> | null = null;
+  /** Does the server have this column? Null when it couldn't say (offline). */
+  const hasColumn = (table: string, column: string): Promise<boolean | null> =>
+    Promise.resolve(client.from(table).select(column).limit(0)).then(
+      (res) => (!res.error ? true : isMissingColumn(res.error) ? false : null),
+      () => null,
+    );
   function mediaLimits(): Promise<MediaLimits> {
     if (!limits) {
-      limits = Promise.resolve(client.from('post_comments').select('photos').limit(0)).then(
-        (res) => {
-          if (!res.error) return MEDIA_LIMITS;
-          if (!isMissingColumn(res.error)) limits = null;
-          return OLD_MEDIA_LIMITS;
-        },
-        () => {
-          limits = null;
-          return OLD_MEDIA_LIMITS;
-        },
-      );
+      limits = Promise.all([hasColumn('post_comments', 'photos'), hasColumn('messages', 'video_path')]).then(([photos, video]) => {
+        if (photos === null || video === null) limits = null;
+        return { ...(photos ? MEDIA_LIMITS : OLD_MEDIA_LIMITS), video: !!video };
+      });
     }
     return limits;
   }
+
+  /** Upload a clip and its cover to `videos` ({uid}/{folder}/…); the RPC arguments for them. */
+  async function uploadVideo(folder: string, v: VideoDraft | null | undefined): Promise<Record<string, unknown>> {
+    if (!v) return {};
+    if (!(await mediaLimits()).video) throw new Error('Videos need the next app update on the server. Try again later.');
+    const name = uuid();
+    const path = `${uid}/${folder}/${name}.${extensionFor(v.mime)}`;
+    const poster = `${uid}/${folder}/${name}.jpg`;
+    const clip = await (await fetch(v.uri)).arrayBuffer();
+    await call(() => client.storage.from('videos').upload(path, clip, { contentType: v.mime, upsert: false }) as unknown as PromiseLike<Result<unknown>>);
+    const cover = await (await fetch(v.poster)).arrayBuffer();
+    await call(() => client.storage.from('videos').upload(poster, cover, { contentType: 'image/jpeg', upsert: false }) as unknown as PromiseLike<Result<unknown>>);
+    return { p_video_path: path, p_video_poster: poster, p_video_no_plates: v.noPlates };
+  }
+
+  /** Signed links for the clips and covers on these rows, by row id. */
+  async function videosFor(rows: { id: string; video_path?: string | null; video_poster?: string | null }[]): Promise<Map<string, VideoRef>> {
+    const withVideo = rows.filter((r) => r.video_path && r.video_poster);
+    const out = new Map<string, VideoRef>();
+    if (!withVideo.length) return out;
+    const sign = await signer('videos', withVideo.flatMap((r) => [r.video_path!, r.video_poster!]));
+    for (const r of withVideo) {
+      const url = sign(r.video_path!);
+      const poster = sign(r.video_poster!);
+      if (url && poster) out.set(r.id, { url, poster });
+    }
+    return out;
+  }
+  const videoCols = async () => ((await mediaLimits()).video ? ',video_path,video_poster' : '');
 
   const svc: CommunityService = {
     kind: 'supabase',
@@ -507,8 +555,9 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     },
 
     async threads(q) {
+      const vcols = await videoCols();
       const rows = await call<ThreadRow[]>(() => {
-        let x = client.from('forum_threads').select(THREAD_COLS);
+        let x = client.from('forum_threads').select(THREAD_COLS + vcols);
         if (q.board !== 'all') x = x.eq('board', q.board);
         if (q.board === 'local' && q.region) x = x.eq('region', q.region);
         if (q.query?.trim()) x = x.ilike('title', ilikePattern(q.query));
@@ -518,9 +567,10 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     },
     async thread(id) {
       if (!isUuid(id)) return null;
+      const vcols = await videoCols();
       const [threads, replies] = await Promise.all([
-        call<ThreadRow[]>(() => client.from('forum_threads').select(THREAD_COLS).eq('id', id) as unknown as PromiseLike<Result<ThreadRow[]>>),
-        call<ReplyRow[]>(() => client.from('forum_replies').select(REPLY_COLS).eq('thread_id', id).order('created_at').limit(500) as unknown as PromiseLike<Result<ReplyRow[]>>),
+        call<ThreadRow[]>(() => client.from('forum_threads').select(THREAD_COLS + vcols).eq('id', id) as unknown as PromiseLike<Result<ThreadRow[]>>),
+        call<ReplyRow[]>(() => client.from('forum_replies').select(REPLY_COLS + vcols).eq('thread_id', id).order('created_at').limit(500) as unknown as PromiseLike<Result<ReplyRow[]>>),
       ]);
       if (!threads?.length) return null;
       const ids = (replies ?? []).map((r) => r.id);
@@ -528,13 +578,18 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
         ? await call<{ reply_id: string }[]>(() => client.from('forum_helpful').select('reply_id').in('reply_id', ids) as unknown as PromiseLike<Result<{ reply_id: string }[]>>)
         : [];
       const mine = new Set((helpful ?? []).map((h) => h.reply_id));
-      const sign = await signer('photos', [...(threads[0].photos ?? []), ...(replies ?? []).flatMap((r) => r.photos ?? [])]);
+      const [sign, videos] = await Promise.all([
+        signer('photos', [...(threads[0].photos ?? []), ...(replies ?? []).flatMap((r) => r.photos ?? [])]),
+        videosFor([threads[0], ...(replies ?? [])]),
+      ]);
       const thread = threadFromRow(threads[0], sign);
+      const tv = videos.get(thread.id);
       return {
-        thread: { ...thread, photos: clean(thread.photos) },
+        thread: { ...thread, photos: clean(thread.photos), ...(tv ? { video: tv } : {}) },
         replies: (replies ?? []).map((r) => {
           const x = replyFromRow(r, mine, sign);
-          return { ...x, photos: clean(x.photos) };
+          const rv = videos.get(r.id);
+          return { ...x, photos: clean(x.photos), ...(rv ? { video: rv } : {}) };
         }),
       };
     },
@@ -543,19 +598,22 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       if (p) throw new Error(p);
       return guarded('thread', null, `${d.title.trim()} ${d.body.trim()}`, async () => {
         const photos = await uploadAll('forum', d.photos);
+        const video = await uploadVideo('forum', d.video);
         return rpc<string>('create_thread', {
+          ...video,
           p_board: d.board, p_region: d.board === 'local' ? d.region ?? null : null, p_title: d.title.trim(), p_body: d.body.trim(), p_photos: photos,
           p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
           ...(d.board === 'for_sale' ? listingParams(cleanListing(d.listing ?? { kind: 'sale' })) : {}),
         });
       });
     },
-    async reply(threadId, body, photos, buildId) {
-      const p = replyProblem(body) ?? photoLimitProblem(photos.length, (await mediaLimits()).photos, 'post');
+    async reply(threadId, body, photos, buildId, video) {
+      const p = replyProblem(body) ?? videoProblem(video) ?? photoLimitProblem(photos.length, (await mediaLimits()).photos, 'post');
       if (p) throw new Error(p);
       await guarded('reply', threadId, body.trim(), async () => {
         const paths = await uploadAll('forum', photos);
-        await rpc('reply_thread', { p_thread_id: threadId, p_body: body.trim(), p_photos: paths, p_build_id: buildId && isUuid(buildId) ? buildId : null });
+        const v = await uploadVideo('forum', video);
+        await rpc('reply_thread', { p_thread_id: threadId, p_body: body.trim(), p_photos: paths, p_build_id: buildId && isUuid(buildId) ? buildId : null, ...v });
       });
     },
     async helpful(replyId, on) {
@@ -624,7 +682,9 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       if (p) throw new Error(p);
       return guarded('post', null, d.body.trim(), async () => {
         const photos = await uploadAll('posts', d.photos);
+        const video = await uploadVideo('posts', d.video);
         return rpc<string>('create_post', {
+          ...video,
           p_body: d.body.trim(), p_photos: photos, p_lat: d.at?.lat ?? null, p_lng: d.at?.lng ?? null, p_place_name: d.at ? d.placeName?.trim() || null : null,
           p_visibility: d.visibility, p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
         });
@@ -664,18 +724,23 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     },
     async messages(conversationId) {
       if (!isUuid(conversationId)) return { messages: [], readUpTo: {} };
+      const vcols = await videoCols();
       const [rows, members] = await Promise.all([
         call<MessageRow[]>(() =>
-          client.from('messages').select(MESSAGE_COLS).eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(300) as unknown as PromiseLike<Result<MessageRow[]>>,
+          client.from('messages').select(MESSAGE_COLS + vcols).eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(300) as unknown as PromiseLike<Result<MessageRow[]>>,
         ),
         call<{ user_id: string; last_read_at: string }[]>(() =>
           client.from('conversation_members').select('user_id,last_read_at').eq('conversation_id', conversationId) as unknown as PromiseLike<Result<{ user_id: string; last_read_at: string }[]>>,
         ),
       ]);
       const list = (rows ?? []).reverse();
-      const sign = await signer('messages', list.map((m) => m.photo_path ?? ''));
+      const [sign, videos] = await Promise.all([signer('messages', list.map((m) => m.photo_path ?? '')), videosFor(list)]);
       return {
-        messages: list.map((m) => messageFromRow(m, sign)),
+        messages: list.map((m) => {
+          const msg = messageFromRow(m, sign);
+          const video = videos.get(m.id);
+          return video ? { ...msg, video } : msg;
+        }),
         readUpTo: Object.fromEntries((members ?? []).map((m) => [m.user_id, m.last_read_at])),
       };
     },
@@ -703,7 +768,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       await rpc('leave_conversation', { p_conversation_id: conversationId });
     },
     async send(conversationId, m) {
-      const p = messageProblem(m.body, m.photo, m.share);
+      const p = messageProblem(m.body, m.photo, m.share, m.video);
       if (p) throw new Error(p);
       await guarded('message', conversationId, m.body.trim(), async () => {
         let path: string | null = null;
@@ -711,7 +776,8 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
           path = `${uid}/${conversationId}/${uuid()}.jpg`;
           await upload('messages', path, m.photo);
         }
-        await rpc('send_message', { p_conversation_id: conversationId, p_body: m.body.trim(), p_photo_path: path, p_share: m.share ?? null });
+        const video = await uploadVideo(conversationId, m.video);
+        await rpc('send_message', { p_conversation_id: conversationId, p_body: m.body.trim(), p_photo_path: path, p_share: m.share ?? null, ...video });
       });
     },
     async markRead(conversationId) {

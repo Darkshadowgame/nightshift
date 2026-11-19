@@ -1068,6 +1068,27 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
 * To apply: `pg_dump` of `public` first, `db push --remote --dry-run`, `db push --remote --yes`, then the full
   pgTAP suite and `scripts/supabase-smoke.mjs`.
 
+### 7a-14. Ready, not applied (19 Nov 2026, video, branch `native-media`, build 16)
+
+* **`20261121110000_number_plate_reason.sql`**: report reason `number_plate` ("Shows a number plate"); its
+  own file because a new enum value can't be used in the transaction that adds it.
+* **`20261121110100_videos.sql`**: private bucket `videos` (25 MiB a file, `video/mp4`, `video/quicktime`,
+  `image/jpeg` for the cover); `{uid}/posts/…` and `{uid}/forum/…` readable by any signed-in user,
+  `{uid}/{conversation}/…` only by that chat's members, uploads only into your own folder (and a chat you're
+  in). `video_path` and `video_poster` (always both) on `posts`, `forum_threads`, `forum_replies` and
+  `messages`; a post or message can be just a video. `create_post()`, `create_thread()`, `reply_thread()` and
+  `send_message()` take `p_video_path`, `p_video_poster`, `p_video_no_plates` (defaults keep the old calls
+  working) and refuse a video without the plate tick (`private.check_video()`). `feed_posts()` is unchanged:
+  the app reads a post's video columns directly (granted). The app asks whether `messages.video_path`
+  exists and hides video until it does.
+* pgTAP `videos_test.sql` (32) passed in a rolled-back transaction on the hosted database with all three new
+  migrations applied inside it (there the reports used `personal_info`, since `number_plate` can't be used in
+  the transaction that adds it); the other 20 files (887) passed with them applied too.
+* **Storage:** the free plan has 1 GB of file storage (5 GB egress a month). About 40 clips at the 25 MB cap
+  fit in 1 GB (a 30 s 720p clip is usually 15–25 MB; a 10–15 s clip 5–10 MB, so 100–200 of those). On
+  19 Nov 2026 storage held 2 files, 548 kB. Each view downloads the clip, so 200 views of a 25 MB clip is the
+  month's 5 GB.
+
 ### 7c. The smoke test
 
 ```bash

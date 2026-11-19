@@ -11,11 +11,13 @@ export interface MediaLimits {
   commentPhotos: number;
   /** Photos sent in one go in a chat (one message each). */
   chatPhotos: number;
+  /** One video per post, thread, reply or message (20261121110100_videos.sql, build 16+). */
+  video: boolean;
 }
 
-export const MEDIA_LIMITS: MediaLimits = { photos: 10, commentPhotos: 4, chatPhotos: 10 };
+export const MEDIA_LIMITS: MediaLimits = { photos: 10, commentPhotos: 4, chatPhotos: 10, video: true };
 /** Before the migration: what the server has always taken. */
-export const OLD_MEDIA_LIMITS: MediaLimits = { photos: 4, commentPhotos: 0, chatPhotos: 10 };
+export const OLD_MEDIA_LIMITS: MediaLimits = { photos: 4, commentPhotos: 0, chatPhotos: 10, video: false };
 
 /** "Up to 10 photos a post." The same words as the server. */
 export function photoLimitProblem(count: number, limit: number, what: 'post' | 'comment'): string | null {

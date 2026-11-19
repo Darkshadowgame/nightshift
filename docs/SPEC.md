@@ -582,7 +582,7 @@ connection requests.
 
 * **Feed:** posts with text and up to 10 photos (the same plate-review flow as builds; pick several
   at once and each is checked in turn, "Photo 2 of 5"; on the post they swipe, "1/5", and a tap opens
-  them full screen), a linked build, and an optional place picked on the full-screen map (never within about 1 km of your home
+  them full screen), one video (build 16+; see "Video and number plates"), a linked build, and an optional place picked on the full-screen map (never within about 1 km of your home
   area: the phone warns and the server refuses). **Public** (everyone signed in) or
   **Connections**. Likes and comments (a comment can carry up to 4 photos, same plate check). "Near you" shows public posts placed within your travel
   distance or by people living within it; "Connections" shows theirs. Posts with a place show on
@@ -609,7 +609,8 @@ connection requests.
   ledger's "Answers marked solved").
 * **Messages:** 1-to-1 and groups (a name, up to 50 people, admins add, remove and rename; when the
   last admin leaves, the longest-standing member takes over). Only your connections can be added.
-  Text, photos (plate review) and shared cards (a build, an event with its rough area only, or a
+  Text, photos (plate review; up to 10 at once, one message each, shown as one grid), a video
+  (build 16+, with the plate tick; see "Video and number plates") and shared cards (a build, an event with its rough area only, or a
   place). **Seen** under your last message ("Seen by 3" in groups). Live by Realtime; a phone
   notification while the app is open and that chat isn't on screen (no push without the paid
   Apple account). Someone who disconnects or blocks can't be messaged 1-to-1; the chat says so.
@@ -839,6 +840,17 @@ Owner's request: "Obviously you need to use real maps and location."
   blue dot and distance checks and is never stored.
 * Plates: no plate field at all. Photos are the owner's responsibility until
   automatic blurring arrives (Phase 2).
+* **Video and number plates (confirmed by the owner, 18 Nov 2026; build 16+):** plates can't
+  be blurred automatically in a video, so the rule that plates are always blurred becomes, for
+  video only:
+  * Before a video is shared (a feed post, forum thread or reply, or a chat message: one clip
+    each, up to 30 seconds, 720p, 25 MB, with a cover picture), the poster must tick **"No
+    readable number plates in this video (I've checked)"**. The app won't send it without the
+    tick and the server refuses it too (`private.check_video()`).
+  * Anyone can report it with the reason **"Shows a number plate"**; three different people's
+    reports hide it until staff look, like any report.
+  * Photos are unchanged: every photo still goes through the plate review and is saved
+    pixelated.
 * Meet-ban zones (PSPOs): a small sample is included. Pinning a meet or rolling
   meet stop inside one shows a warning. The full list is a later data task.
 * Cruises never record speed or arrival order.
