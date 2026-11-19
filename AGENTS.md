@@ -39,3 +39,19 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Every UI change is checked against the scorecard (owner rule, 19 Nov 2026)
+
+The owner's target is clarity, coherence and look all 8+ on the fixed scorecard in `docs/REDESIGN-2.md`.
+Before building a feature or screen change:
+
+1. Read REDESIGN-2.md sections 4 (rulebook), 7 (scorecard), 8 (8+ criteria) and 9 (owner decisions).
+2. Design it to the rules up front: one primary per screen and never a disabled primary; nothing opens
+   by itself over a toast or a motion moment; each fact said once (C5); nothing clipped at 1.3x text;
+   no banned words (4.12); sheets vs pushes (4.5); one selector pattern per job (4.4).
+3. If the owner's request needs an exception, add a dated owner-decision note to REDESIGN-2 section 9
+   in the same change. Never leave it for a review to find.
+4. Run the automated scorecard (`npm run scorecard`, or `scorecard:quick` for small changes) and
+   `npx tsc --noEmit` and `npx jest` before pushing. Don't push a UI change that fails it.
+
+Do NOT run `npx expo lint` in this repo: there is no ESLint config and it rewrites package.json.
