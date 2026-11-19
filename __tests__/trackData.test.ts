@@ -85,6 +85,13 @@ describe('photo spots are car and bike photo locations', () => {
     expect(photoEvidence({ ...base, description: 'A view.', sources: ['https://www.bestbikingroads.com/x'] })?.kind).toBe('source');
     expect(photoEvidence({ ...base, id: 'ph-hartside', description: 'Viewpoint and café.' })?.kind).toBe('known');
   });
+  test('local knowledge of the car scene counts, labelled as such and nothing personal', () => {
+    const base = { id: 'x', warnings: [] as string[], description: 'Seafront car park.' };
+    expect(photoEvidence({ ...base, sources: ['Local car scene (owner-reported, Nov 2026)'] })?.kind).toBe('local');
+    // Only the exact label: no names or reasons slipped into it.
+    expect(photoEvidence({ ...base, sources: ['Local car scene (owner-reported by someone, Nov 2026)'] })).toBeNull();
+    expect(photoEvidence({ ...base, sources: ['Local car scene'] })).toBeNull();
+  });
   test('scenic-only bundled spots are hidden, vetted ones stay', () => {
     expect(UNVETTED_PHOTO_SPOTS.has('ph-hartside')).toBe(false);
     expect(UNVETTED_PHOTO_SPOTS.has('l-p-westminster-bridge')).toBe(false);

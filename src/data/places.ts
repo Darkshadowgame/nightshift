@@ -898,7 +898,7 @@ const REGIONAL: PlaceSeed[] = [
     description: 'Riverside around the O2 with Canary Wharf across the water; O2 car parks. Skyline views at night.',
     warnings: ['Private estate in parts; Blackwall/Silvertown tunnels tolled in the day; ULEZ.'],
     at: { lat: 51.5029, lng: 0.0032 },
-    sources: ['https://www.greenwichpeninsula.co.uk/'],
+    sources: ['https://www.greenwichpeninsula.co.uk/', 'https://www.fromthemurkydepths.co.uk/2020/08/31/car-cruise-converges-on-greenwich-as-police-close-streets/'],
   },
   {
     id: 'l-p-royal-victoria-dock', kind: 'photo', area: 'London', vehicles: ['car', 'bike'], name: 'Royal Victoria Dock', region: 'London',

@@ -65,6 +65,8 @@ describe('bundled UK places', () => {
 
   test('closed venues and duplicates of the bundled tracks are left out', () => {
     expect(PLACES.some((p) => /rockingham/i.test(p.name))).toBe(false);
+    // The Ponderosa on the Horseshoe Pass closed for good in March 2025 (MCN, Shropshire Star).
+    expect(PLACES.some((p) => /ponderosa/i.test(p.name) && /horseshoe/i.test(p.name))).toBe(false);
     expect(PLACES.filter((p) => /snetterton/i.test(p.name))).toHaveLength(1);
     expect(PLACES.filter((p) => p.kind === 'venue').length).toBeGreaterThan(10);
     const rykas = PLACES.find((p) => p.name.startsWith("Ryka's"))!;

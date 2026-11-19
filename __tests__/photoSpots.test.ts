@@ -5,7 +5,7 @@
  */
 import { PLACES, UK_AREAS } from '../src/data/places';
 import { places as SWEEP } from '../src/data/regions/photoSpots';
-import { photoEvidence, UNVETTED_PHOTO_SPOTS } from '../src/data/photoVetting';
+import { LOCAL_SCENE_SOURCE, photoEvidence, UNVETTED_PHOTO_SPOTS } from '../src/data/photoVetting';
 import { BAN_ZONES } from '../src/data/banZones';
 import { bundledSpots } from '../src/lib/placeStore';
 import { inZone } from '../src/lib/zones';
@@ -17,6 +17,9 @@ const METRES_PER_MILE = 1609.344;
 
 /** Every nation and English region has at least this many photo spots on the map. */
 const MIN_PER_AREA = 8;
+/** Where the car scene is busiest (second sweep, Nov 2026): at least this many each. */
+const MIN_BUSY_AREA = 15;
+const BUSY_AREAS = ['London', 'North East', 'North West', 'West Midlands', 'East Midlands', 'Yorkshire and the Humber', 'South East', 'Wales', 'Scotland'];
 
 describe('photo spots', () => {
   test('every one has a source, an area and the vehicles it suits, and is in the UK', () => {
@@ -29,10 +32,10 @@ describe('photo spots', () => {
     }
   });
 
-  test('the sweep: a web source and an OpenStreetMap parking link each, and evidence of cars or bikes there', () => {
+  test('the sweep: a web source (or the labelled local-scene source) and an OpenStreetMap parking link each, and evidence of cars or bikes there', () => {
     expect(SWEEP.length).toBeGreaterThanOrEqual(150);
     for (const p of SWEEP) {
-      expect(p.sources.some((s) => /^https:\/\//.test(s) && !/openstreetmap\.org/.test(s))).toBe(true);
+      expect(p.sources.some((s) => (/^https:\/\//.test(s) && !/openstreetmap\.org/.test(s)) || LOCAL_SCENE_SOURCE.test(s))).toBe(true);
       expect(p.sources.some((s) => /^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/.test(s))).toBe(true);
       expect(photoEvidence(p)).not.toBeNull();
     }
@@ -67,9 +70,10 @@ describe('photo spots', () => {
     }
   });
 
-  test(`every nation and English region has at least ${MIN_PER_AREA} photo spots on the map`, () => {
+  test(`every nation and English region has at least ${MIN_PER_AREA} photo spots on the map, and the busiest car-scene areas at least ${MIN_BUSY_AREA}`, () => {
     const shown = PHOTOS.filter((p) => !UNVETTED_PHOTO_SPOTS.has(p.id));
-    const short = UK_AREAS.filter((a) => shown.filter((p) => p.area === a).length < MIN_PER_AREA);
-    expect(short).toEqual([]);
+    const count = (a: string) => shown.filter((p) => p.area === a).length;
+    expect(UK_AREAS.filter((a) => count(a) < MIN_PER_AREA)).toEqual([]);
+    expect(BUSY_AREAS.filter((a) => count(a) < MIN_BUSY_AREA)).toEqual([]);
   });
 });

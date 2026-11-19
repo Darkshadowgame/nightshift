@@ -276,13 +276,6 @@ export const places: PlaceSeed[] = [
     sources: ['https://en.wikipedia.org/wiki/Beaumont_Park_Stadium', 'https://en.wikipedia.org/wiki/Leicester_Lions'],
   },
   {
-    id: 'mw-v-ponderosa', kind: 'venue', name: 'Ponderosa Café, Horseshoe Pass', region: 'North Wales',
-    description: 'Family-run café at the summit of the Horseshoe Pass (A542) above Llangollen, about 1,400 ft up. One of the best-known biker meeting spots in North Wales, busy with bikes of every age in summer (Devitt).',
-    warnings: ['The pass is heavily policed (see the Horseshoe Pass drive); car park fills on sunny weekends; position is the pass summit. Café\'s own site couldn\'t be checked.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],
-    at: { lat: 53.0199, lng: -3.2022 },
-    sources: ['https://www.devittinsurance.com/guides/biker-cafes/wales/ponderosa-cafe/'],
-  },
-  {
     id: 'mw-v-cm-the-hill', kind: 'venue', name: 'Caffeine & Machine: The Hill, Ettington', region: 'Warwickshire',
     description: 'C&M\'s first permanent home at Houndshill House on the A422 near Stratford-upon-Avon: café, restaurant and rooms for car and bike people. Open daily from 8am; events are listed on its What\'s on page (Caffeine & Machine). Devitt calls it a hang-out for bikers, car enthusiasts and cyclists alike.',
     warnings: ['C&M asks visitors to arrive via M40 J15 and the A429 to spare the villages; position is the postcode centre; check the "What\'s on" page before you go.', 'Medium confidence: the position is approximate or the details are not confirmed for 2026. Check before you go.'],

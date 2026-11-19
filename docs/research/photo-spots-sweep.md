@@ -23,21 +23,35 @@ Photo spots per nation and English region. "Shown" means the spot has evidence o
 
 | Area | Before: all | Before: shown | After: all | After: shown | New |
 |---|---:|---:|---:|---:|---:|
-| North East | 8 | 0 | 16 | 9 | 8 |
+| North East | 8 | 0 | 27 | 20 | 19 |
 | North West | 7 | 1 | 33 | 28 | 26 |
 | Yorkshire and the Humber | 11 | 3 | 43 | 36 | 32 |
-| East Midlands | 4 | 1 | 15 | 12 | 11 |
-| West Midlands | 1 | 0 | 10 | 10 | 9 |
-| East of England | 15 | 4 | 29 | 18 | 14 |
-| London | 12 | 1 | 17 | 8 | 5 |
+| East Midlands | 4 | 1 | 27 | 24 | 23 |
+| West Midlands | 1 | 0 | 21 | 21 | 20 |
+| East of England | 15 | 4 | 30 | 19 | 15 |
+| London | 12 | 1 | 27 | 18 | 15 |
 | South East | 21 | 3 | 54 | 36 | 33 |
 | South West | 15 | 2 | 33 | 23 | 18 |
 | Wales | 6 | 5 | 31 | 30 | 25 |
 | Scotland | 7 | 2 | 35 | 33 | 28 |
 | Northern Ireland | 4 | 1 | 10 | 9 | 6 |
-| **Total** | **111** | **23** | **326** | **252** | **215** |
+| **Total** | **111** | **23** | **371** | **297** | **260** |
 
-The test requires at least 8 shown spots in every area. The thinnest are London, the North East, Northern Ireland and the West Midlands. The West Midlands and East Midlands are the obvious next sweep (Birmingham, Merry Hill, Tamworth, Telford, Derby and Leicester were not reached).
+The test requires at least 8 shown spots in every area, and at least 15 in the busiest car-scene areas (London, the North East, North West, both Midlands, Yorkshire, the South East, Wales and Scotland).
+
+A second sweep (same evidence rules) lifted the thin areas:
+- **West Midlands:** Cannock, Hednesford and bike nights across Staffordshire, Worcestershire and Warwickshire.
+- **East Midlands:** Skegness, Lincoln, Grantham, Nottingham, Leicester and Willingham Woods.
+- **London:** Beckton, Hayes, Crayford, Leyton, Elmers End, New Malden, Crystal Palace, Exhibition Road, Berkeley Square and Chelsea Bridge.
+- **North East:** Durham, Prudhoe, Middleton-in-Teesdale, Amble, North Shields, South Shields, Seaburn, Seahouses and the A19.
+
+Birmingham city centre, Merry Hill, Tamworth, Telford, Derby (Pride Park) and Leicester's Fosse Park still have no source tying meets or shoots to a public car park, so they are not in. The Derby and Telford meets are on roads or in private office car parks.
+
+## Local knowledge
+
+A spot the owner names as a known car-scene spot can use the source "Local car scene (owner-reported, <Mon YYYY>)". The vetting rule accepts exactly that label (`LOCAL_SCENE_SOURCE` in `photoVetting.ts`), and nothing about who reported it or why is recorded. It still needs a real OSM public car park.
+
+So far there is one: Gorleston-on-Sea, at the Pier Gardens car park on the seafront.
 
 ## Fixes to existing spots
 
@@ -57,7 +71,7 @@ The test requires at least 8 shown spots in every area. The thinnest are London,
 Most rejections fall into five groups:
 
 1. **No evidence of cars or bikes there.** Good views or busy seafronts, but no source showing meets, shoots or bikers' stops. Left out:
-   - England: Gorleston-on-Sea seafront, Mablethorpe, Felixstowe Landguard, Margate, Dover, Gravesend, Worthing, Weston Shore, Hayling Island, Westfield Stratford and White City, Otterspool, Crosby, New Brighton, Pier Head and Albert Dock, MediaCityUK, Castlefield, Morecambe, Tynemouth, Seaburn and Roker, Newcastle Quayside, the Tees Transporter, White Rose Centre, Leeds Dock, Park Hill, Hull Marina, Robin Hood's Bay, Blue Bank, Rosedale Chimney top, Fort Dunlop, Star City, Merry Hill, Resorts World and the NEC, Long Mynd, the Malvern Hills, Plymouth Hoe, the Bournemouth and Weymouth seafronts.
+   - England: Mablethorpe, Felixstowe Landguard, Margate, Dover, Gravesend, Worthing, Weston Shore, Hayling Island, Westfield Stratford and White City, Otterspool, Crosby, New Brighton, Pier Head and Albert Dock, MediaCityUK, Castlefield, Morecambe, Tynemouth, Seaburn and Roker, Newcastle Quayside, the Tees Transporter, White Rose Centre, Leeds Dock, Park Hill, Hull Marina, Robin Hood's Bay, Blue Bank, Rosedale Chimney top, Fort Dunlop, Star City, Merry Hill, Resorts World and the NEC, Long Mynd, the Malvern Hills, Plymouth Hoe, the Bournemouth and Weymouth seafronts.
    - Wales: Porthcawl, Barry Island, Aberavon, Mumbles, Rhyl and Prestatyn, Llyn Ogwen, Llanberis, Llyn Brenig, Rhigos.
    - Scotland and Northern Ireland: Braehead, the Kelpies, the Glasgow and Edinburgh waterfronts, Dundee, Ayr, Largs and Troon, Titanic Quarter, Cave Hill.
 2. **Anti-social driving but not meets or photos.** Revving, racing or speeding reports with no meet or shoot. Left out: Lee-on-the-Solent, Exmouth Maer Road, Cathedral Retail Park (Wakefield), Lowestoft Gateway, Tilgate Park, Seaton Carew.
@@ -73,7 +87,8 @@ Most rejections fall into five groups:
    - The Dark Hedges are closed to traffic.
    - Fuel forecourts and main roads named in injunction exhibits were left out.
 5. **Already in the app.**
-   - Ace Cafe, Ryka's, Ponderosa: meet venues. The Ponderosa reportedly closed in 2025, which should be checked.
+   - Ace Cafe, Ryka's, Caffeine & Machine: meet venues already.
+   - The Ponderosa Café on the Horseshoe Pass closed for good in March 2025 (MCN: https://motorcyclenews.com/news/2025/march/ponderosa-cafe-closure; Shropshire Star, 12 Mar 2025), so its venue entry has been removed. The viewpoint parking just below the summit is a photo spot instead. The Ponderosa on the Glenshane Pass in Northern Ireland is a different place and stays.
    - Spots within 200 m of an existing spot were merged.
 
 Motorway hard shoulders were never considered. No spot is on a private driveway or in front of a house.
