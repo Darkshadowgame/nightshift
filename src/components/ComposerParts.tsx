@@ -69,7 +69,7 @@ export function ComposerPhotos({
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
           {photos.map((p, i) => (
             <View key={p}>
-              <FitImage source={photoUri(p)} frameAspect={1} style={{ width: size, height: size, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel={`Photo ${i + 1} of ${photos.length} to post`} />
+              <FitImage fit="cover" source={photoUri(p)} frameAspect={1} style={{ width: size, height: size, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel={`Photo ${i + 1} of ${photos.length} to post`} />
               <Press
                 onPress={() => onChange(photos.filter((x) => x !== p))}
                 label={`Remove photo ${i + 1}`}

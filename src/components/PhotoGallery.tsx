@@ -183,7 +183,7 @@ export function PhotoThumbs({ photos, size = 72, onOpen, label }: { photos: stri
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
       {photos.map((p, i) => (
         <Press key={p} onPress={() => onOpen(i)} feedback="card" label={`Open photo ${i + 1} of ${photos.length} ${label}`}>
-          <FitImage source={photoSource(p)} frameAspect={1} style={{ width: size, height: size, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} />
+          <FitImage fit="cover" source={photoSource(p)} frameAspect={1} style={{ width: size, height: size, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} />
         </Press>
       ))}
     </View>

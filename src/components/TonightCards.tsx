@@ -36,6 +36,8 @@ export function statusTag(status: MyEventStatus | null | undefined): EntityTag |
  * fallback) the area drawing in the layer colour. Returns the stored photo ref, for credits.
  */
 export function eventPhotoRef(e: NightEvent, builds: Build[]): string | null {
+  // A sample meet's own night photo (Review 19: night photos for night meets, one photo per screen).
+  if (e.photo) return e.photo;
   for (const h of e.hostIds) {
     const b = builds.find((x) => x.ownerId === h && x.photos.length > 0);
     if (b) return b.photos[0];

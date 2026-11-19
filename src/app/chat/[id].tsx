@@ -16,7 +16,10 @@ import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { PhotoViewer } from '../../components/PhotoGallery';
+import { StackTabBar } from '../../components/StackTabBar';
 import { MEDIA_LIMITS } from '../../lib/mediaLimits';
+
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** The toast's height and its gap above the composer, at 1.3x text too. */
 const TOAST_ROOM = 76;
@@ -25,7 +28,8 @@ const TOAST_ROOM = 76;
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const nav = useNavigation();
-  const { users, builds } = useStore();
+  const { users, builds, backend } = useStore();
+  const demo = backend === 'local';
   const community = useCommunity();
   const toast = useToast();
   const now = useNow();
@@ -35,6 +39,7 @@ export default function ChatScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [typing, setTyping] = useState(false);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
   /** While the "Sent" toast shows, the newest message sits above it, never under it (Review 14). */
   const [toastRoom, setToastRoom] = useState(false);
@@ -149,6 +154,13 @@ export default function ChatScreen() {
           { label: `Block @${handleOf(m.senderId) ?? 'them'}`, danger: true, onPress: () => openReport('block', m.senderId!, m.senderId!) },
         ];
 
+  // The demo runs on its own Friday-night clock (demoTime.ts): its day says so, so a 21:13 stamp
+  // at lunchtime makes sense (Review 19 #36).
+  const dayLine = (d: string) => {
+    const label = dayLabelShort(d, now);
+    return demo && label === 'Today' ? `Demo night · ${WEEKDAY_SHORT[new Date(d).getDay()]}` : label;
+  };
+
   /** Messages from one person within 10 minutes run together: one name, one time under the last. */
   const sameRun = (a?: Message, b?: Message) =>
     !!a && !!b && !a.system && !b.system && a.senderId === b.senderId && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < 10 * 60_000 && dayLabelShort(a.createdAt, now) === dayLabelShort(b.createdAt, now);
@@ -179,7 +191,7 @@ export default function ChatScreen() {
       <View style={{ gap: SPACING.xs, marginTop: firstOfRun ? SPACING.sm : 0 }}>
         {newDay ? (
           <DsText v="label" style={{ textAlign: 'center', marginVertical: SPACING.sm }}>
-            {dayLabelShort(m.createdAt, now)}
+            {dayLine(m.createdAt)}
           </DsText>
         ) : null}
         {m.system ? (
@@ -283,7 +295,8 @@ export default function ChatScreen() {
         keyboardShouldPersistTaps="handled"
       />
       {/* The composer is the ActionBar (as on post and thread pages), so the "Sent" toast sits above it, never over Send. */}
-      <ActionBar>
+      {/* The tab bar stays under the composer (Review 19 #35), out of the way while you type. */}
+      <ActionBar footer={typing ? undefined : <StackTabBar />}>
         {error ? <ErrorState title={error} /> : null}
         {conv.canSend ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm }}>
@@ -307,6 +320,8 @@ export default function ChatScreen() {
               numberOfLines={1}
               maxLength={MESSAGE_MAX}
               accessibilityLabel="Message"
+              onFocus={() => setTyping(true)}
+              onBlur={() => setTyping(false)}
               style={[INPUT, { flex: 1, maxHeight: 120 }]}
             />
             <Button label="Send" size="md" haptic="success" onPress={() => void send({ body: text })} busy={busy} />
@@ -335,7 +350,7 @@ function PhotoGrid({ photos, onOpen, onLongPress }: { photos: string[]; onOpen: 
     <View style={{ width: 220, flexDirection: 'row', flexWrap: 'wrap', gap, borderRadius: RADII.card, overflow: 'hidden' }}>
       {photos.map((p, i) => (
         <Press key={p} onPress={() => onOpen(i)} onLongPress={() => onLongPress(i)} feedback="card" label={`Open photo ${i + 1} of ${photos.length}`}>
-          <FitImage source={photoUri(p)} frameAspect={1} style={{ width: cell, height: cell, backgroundColor: COLOR.surface.media }} />
+          <FitImage fit="cover" source={photoUri(p)} frameAspect={1} style={{ width: cell, height: cell, backgroundColor: COLOR.surface.media }} />
         </Press>
       ))}
     </View>

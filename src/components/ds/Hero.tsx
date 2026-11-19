@@ -36,6 +36,8 @@ export function Hero({
   tag,
   classLetter,
   leading,
+  trailing,
+  titleSub,
   titleOnPhoto = true,
   overlay,
   bleed,
@@ -59,6 +61,10 @@ export function Hero({
   classLetter?: ClassLetter;
   /** People: their Avatar before the @handle (K3: a person is always avatar + @handle). */
   leading?: ReactNode;
+  /** Beside the title (a person's Connected tag, next to their @handle: Review 19 #34). */
+  trailing?: ReactNode;
+  /** One quiet line in the title's block (a person's real name under their @handle). */
+  titleSub?: string;
   titleOnPhoto?: boolean;
   overlay?: ReactNode;
   bleed?: boolean;
@@ -96,9 +102,19 @@ export function Hero({
       {leading ?? null}
       {classLetter ? <ClassBadge letter={classLetter} size={onPhoto ? 'md' : 'sm'} /> : null}
       {/* On a photo, three lines at most: at 1.3x text a long title never climbs out of the picture (Review 13). */}
-      <DsText v={onPhoto ? 'hero' : 'titleLg'} accessibilityRole="header" numberOfLines={onPhoto ? 3 : undefined} style={{ flexShrink: 1 }}>
-        {title}
-      </DsText>
+      <View style={{ flexShrink: 1, gap: SPACING.xxs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
+          <DsText v={onPhoto ? 'hero' : 'titleLg'} accessibilityRole="header" numberOfLines={onPhoto ? 3 : undefined} style={{ flexShrink: 1 }}>
+            {title}
+          </DsText>
+          {trailing ?? null}
+        </View>
+        {titleSub ? (
+          <DsText v="secondary" numberOfLines={1} style={onPhoto ? { color: COLOR.text.primary } : undefined}>
+            {titleSub}
+          </DsText>
+        ) : null}
+      </View>
     </View>
   );
 

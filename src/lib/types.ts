@@ -194,6 +194,11 @@ export interface NightEvent {
    * (either way) and, for hosts, the people asking to go.
    */
   invitedBy?: Record<string, string>;
+  /**
+   * The event's own picture, a photo ref (`sample:` for the demo's night photos). Sample meets only
+   * for now: without it the card shows the host's build photo (TonightCards `eventPhotoRef`).
+   */
+  photo?: string;
 }
 
 export interface PlanChangeLog {

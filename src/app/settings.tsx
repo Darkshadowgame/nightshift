@@ -1,3 +1,4 @@
+import { BUSY_REQUESTS } from '../data/busyNight';
 import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -216,7 +217,8 @@ export default function SettingsScreen() {
               value={!!settings.busyNight}
               onValueChange={(on) => {
                 store.setBusyNight(on);
-                toast({ message: on ? 'Busy night on' : 'Back to the normal demo night' });
+                // Names the Community badge it brings, so the number isn't a surprise (Review 19).
+                toast({ message: on ? `Busy night on · ${BUSY_REQUESTS} people want to connect` : 'Back to the normal demo night' });
               }}
             />
             <RowDivider />

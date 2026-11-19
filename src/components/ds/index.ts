@@ -8,7 +8,7 @@ export { DsText, typeStyle, maxScale, type TextTone } from './Text';
 export { Icon, type IconName } from './Icon';
 export { Press, buzz, type Haptic } from './Press';
 export { Button, IconButton, type ButtonTier, type ButtonSize } from './Button';
-export { Avatar, AVATAR_SIZE, ClassBadge, BuildLine, BuildThumb, Tag, type AvatarSize, type Photo, type TagTone } from './Marks';
+export { Avatar, AvatarPhotoContext, AVATAR_SIZE, ClassBadge, BuildLine, BuildThumb, Tag, type AvatarSize, type Photo, type TagTone } from './Marks';
 export { ListRow, RowDivider, type Leading } from './ListRow';
 export { EntityCard, type EntityTag } from './EntityCard';
 export { PhotoCard, PaintArt, AreaArt, type PhotoCardKind, type CardAction } from './PhotoCard';

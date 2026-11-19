@@ -14,6 +14,7 @@ import { router, Stack, usePathname, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { AvatarPhotos } from '../components/AvatarPhotos';
 import { ConnectionToasts, ModerationGate } from '../components/ModerationGate';
 import { OfflinePill } from '../components/OfflinePill';
 import { IconButton, ToastProvider } from '../components/ds';
@@ -177,12 +178,14 @@ export default function RootLayout() {
       <StoreProvider>
         <RoadsProvider>
           <CommunityProvider>
+            <AvatarPhotos>
             {/* Toasts sit just above the ActionBar when a screen has one, else above the tab bar (Redesign 2, 4.7). */}
             <ToastProvider screenKey={pathname}>
               <StatusBar style="light" />
               <Gate />
               <OfflinePill />
             </ToastProvider>
+            </AvatarPhotos>
           </CommunityProvider>
         </RoadsProvider>
       </StoreProvider>

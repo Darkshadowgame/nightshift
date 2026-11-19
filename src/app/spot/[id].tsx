@@ -628,7 +628,7 @@ function Photos({ spot }: { spot: Spot }) {
           {members.length ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {members.map((m) => (
-                <FitImage key={m.key} source={photoUri(m.ref)} frameAspect={1} style={{ width: 104, height: 104, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }} />
+                <FitImage key={m.key} fit="cover" source={photoUri(m.ref)} frameAspect={1} style={{ width: 104, height: 104, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.media }} />
               ))}
             </View>
           ) : (

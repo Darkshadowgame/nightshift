@@ -10,6 +10,9 @@ import { useStore } from '../lib/store';
 import { CLASS_LETTERS, type ClassLetter, type VehicleKind } from '../lib/types';
 import { SPACING } from '../theme';
 import { PersonNearRow } from './Community';
+import { PeopleStrip } from './PeopleStrip';
+import { useNow } from '../lib/clock';
+import { atYourMeets } from '../lib/people';
 import { Button, Card, ChipGroup, DsText, EmptyState, ErrorState, ListRow, LoadingState, RowDivider, Section, ChoiceGroup, Sheet, metaLine, selectionSummary } from './ds';
 
 const DISTANCES = [10, 25, 50, 100] as const;
@@ -26,7 +29,8 @@ let notNow = false;
  * (avatar, @handle, build and class, rough distance); filters sit in a sheet behind Filter.
  */
 export function CommunityPeople() {
-  const { users, builds, me } = useStore();
+  const { users, builds, me, events } = useStore();
+  const now = useNow();
   const community = useCommunity();
   const meUser = users.find((u) => u.id === me);
   const travel = meUser?.travelMiles ?? 25;
@@ -62,6 +66,8 @@ export function CommunityPeople() {
   const incoming = community.incoming;
   const connected = idsIn(community.connections, 'connected').filter((id) => !community.blocked.has(id));
   const filtered = isFiltered(filter);
+  // Who's going to the meets you're going to (Review 19 #54): faces to connect with, opted in or not.
+  const meetPeople = useMemo(() => atYourMeets(me, events, users, now).filter((u) => !community.blocked.has(u.id)), [me, events, users, now, community.blocked]);
   const clear = () => {
     setKinds([]);
     setClasses([]);
@@ -161,6 +167,12 @@ export function CommunityPeople() {
         />
         <RowDivider />
       </View>
+
+      {meetPeople.length ? (
+        <Section title="At your meets">
+          <PeopleStrip people={meetPeople} label="People going to your meets" />
+        </Section>
+      ) : null}
 
       <Section title="People near you">
         {nearBody}

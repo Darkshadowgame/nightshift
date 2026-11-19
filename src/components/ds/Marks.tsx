@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { Image, Text, View, type ImageSourcePropType } from 'react-native';
 import type { ClassLetter, VehicleKind } from '../../lib/types';
 import { COLOR, F, RADII, SPACING, outline } from '../../theme';
@@ -12,10 +13,17 @@ export type Photo = string | ImageSourcePropType;
 const src = (p: Photo) => (typeof p === 'string' ? { uri: p } : p);
 
 export type AvatarSize = 'sm' | 'md' | 'lg';
+
+/**
+ * A person's default picture, by handle: their main build's photo (Review 19 #33, "car-photo
+ * avatars"). Provided once at the root (AvatarPhotos.tsx); without it, or for someone with no
+ * photo, the Avatar shows initials.
+ */
+export const AvatarPhotoContext = createContext<((handle: string) => Photo | null) | null>(null);
 export const AVATAR_SIZE: Record<AvatarSize, number> = { sm: 28, md: 40, lg: 76 };
 
 /**
- * A person: their photo, or their initials in chalk on kerb. Never sodium (a person isn't an
+ * A person: their photo (by default their main build's, AvatarPhotoContext), or their initials in chalk on kerb. Never sodium (a person isn't an
  * action) and never a class badge (a class belongs to a build). Always leading in a row.
  * Decorative by default, because the row next to it says the name; pass `label` when it stands alone.
  */
@@ -32,13 +40,15 @@ export function Avatar({
   size?: AvatarSize;
   label?: string;
 }) {
+  const lookup = useContext(AvatarPhotoContext);
   const dim = AVATAR_SIZE[size];
   const frame = { width: dim, height: dim, borderRadius: dim / 2 };
+  const pic = photo ?? (handle && lookup ? lookup(handle) : null);
   const a11y = label
     ? { accessible: true, accessibilityRole: 'image' as const, accessibilityLabel: label }
     : { 'aria-hidden': true };
-  if (photo) {
-    return <Image source={src(photo)} style={[frame, { backgroundColor: COLOR.surface.media }]} accessibilityIgnoresInvertColors {...a11y} />;
+  if (pic) {
+    return <Image source={src(pic)} resizeMode="cover" style={[frame, { backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.avatar.border }]} accessibilityIgnoresInvertColors {...a11y} />;
   }
   const text = initials(name, handle);
   return (
@@ -108,7 +118,7 @@ export function BuildLine({ letter, name, power }: { letter: ClassLetter; name: 
 /** A build's thumbnail: its first photo, or its silhouette. 4:3, control radius. Separate from Avatar on purpose. */
 export function BuildThumb({ photo, kind = 'car', shape, size = 56, label }: { photo?: Photo | null; kind?: VehicleKind; shape?: CarShape; size?: number; label?: string }) {
   const frame = { width: Math.round((size * 4) / 3), height: size, borderRadius: RADII.control, overflow: 'hidden' as const, backgroundColor: COLOR.surface.media };
-  if (photo) return <FitImage source={photo} frameAspect={4 / 3} style={frame} accessibilityLabel={label} />;
+  if (photo) return <FitImage fit="cover" source={photo} frameAspect={4 / 3} style={frame} accessibilityLabel={label} />;
   return (
     <View style={frame} accessibilityLabel={label} accessible={!!label} accessibilityRole={label ? 'image' : undefined}>
       <BuildArt kind={kind} shape={shape} colour={COLOR.text.secondary} height={size} />

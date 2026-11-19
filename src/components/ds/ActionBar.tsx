@@ -58,6 +58,7 @@ export function ActionBar({
   statusIcon = 'calendar',
   children,
   inset = true,
+  footer,
 }: {
   primary?: ActionBarButton | null;
   secondary?: ActionBarButton | null;
@@ -67,6 +68,8 @@ export function ActionBar({
   statusIcon?: IconName | null;
   children?: ReactNode;
   inset?: boolean;
+  /** Drawn under the bar (a pushed screen's tab bar, StackTabBar): it takes the home-indicator inset, and toasts sit above both. */
+  footer?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -86,9 +89,9 @@ export function ActionBar({
     <>
     {/* Room for the toast while one shows, so it floats over empty space, not the page's last line. */}
     {!inSheet && clearance ? <View pointerEvents="none" style={{ height: clearance }} /> : null}
+    <View onLayout={inSheet ? undefined : (e) => anchor(id, e.nativeEvent.layout.height)}>
     <View
       testID={inSheet ? 'sheet-action-bar' : 'action-bar'}
-      onLayout={inSheet ? undefined : (e) => anchor(id, e.nativeEvent.layout.height)}
       style={inSheet ? { gap: SPACING.sm } : [
         {
           backgroundColor: COLOR.surface.bg,
@@ -96,7 +99,7 @@ export function ActionBar({
           borderTopColor: COLOR.surface.border,
           paddingHorizontal: SPACING.screen,
           paddingTop: SPACING.md,
-          paddingBottom: (inset ? insets.bottom : 0) + SPACING.md,
+          paddingBottom: (inset && !footer ? insets.bottom : 0) + SPACING.md,
           gap: SPACING.sm,
         },
         ELEVATION.bar,
@@ -119,6 +122,8 @@ export function ActionBar({
           ) : null}
         </>
       )}
+    </View>
+    {inSheet ? null : footer}
     </View>
     </>
   );

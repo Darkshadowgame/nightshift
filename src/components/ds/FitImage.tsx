@@ -105,7 +105,8 @@ export function usePhotoAspect(source: ImageSourcePropType): [number | null | un
  *   `contain`, centred over a blurred, darkened copy of itself filling the frame (as iOS Photos and
  *   Instagram do), so there are no bare bars.
  *
- * Bundled photos (samples, stand-ins) always fill: they're picked to suit their frames.
+ * Bundled photos (samples, stand-ins) always fill: they're picked to suit their frames. So does
+ * any photo with `fit="cover"` (grid and strip tiles).
  * Fills its parent by default (absolute); `style` sizes it instead. Give `frameAspect` when the
  * frame's shape is known, else it's measured. Hidden for the moment its shape is being read, so it
  * never jumps from cropped to whole.
@@ -116,8 +117,16 @@ export function FitImage({
   style,
   accessibilityLabel,
   onError,
+  fit = 'auto',
 }: {
   source: Photo;
+  /**
+   * `cover` for tiles in photo grids and strips (thumbnails, an event's Photos, a composer's row):
+   * they always fill, so a user's photo never sits letterboxed among full-bleed tiles (Review 19,
+   * owner decision). `auto` (the default) is for heroes and single-photo views: a photo far off the
+   * frame's shape is shown whole over a blurred copy.
+   */
+  fit?: 'auto' | 'cover';
   frameAspect?: number;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
@@ -133,7 +142,7 @@ export function FitImage({
         if (width > 0 && height > 0) setMeasured(width / height);
       };
   // Bundled photos (the demo's samples and stand-ins) are chosen to fill their frames: always cover.
-  const bundled = isBundled(src);
+  const bundled = isBundled(src) || fit === 'cover';
   // Hidden until both shapes are known (the frame's is measured on first layout without `frameAspect`).
   const ready = bundled || (aspect !== undefined && (aspect === null || !!(frameAspect ?? measured)));
   const mode = ready && !bundled ? fitMode(aspect, frameAspect ?? measured) : 'cover';

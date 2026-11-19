@@ -75,7 +75,7 @@ export function PhotoManager({
               hint="Shows crop, plate, order and delete actions"
               style={[st.thumb, p === sel && st.thumbOn]}
             >
-              <FitImage source={photoUri(p)} frameAspect={4 / 3} style={st.img} />
+              <FitImage fit="cover" source={photoUri(p)} frameAspect={4 / 3} style={st.img} />
               {i === 0 ? (
                 <View style={st.cover}>
                   <Tag label="Cover" />

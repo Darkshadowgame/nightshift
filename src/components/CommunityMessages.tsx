@@ -6,7 +6,8 @@ import { idsIn } from '../lib/connections';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
 import { ConversationRow, MEET_ACTION } from './Community';
-import { DsText, EmptyState, RowDivider } from './ds';
+import { DsText, EmptyState, RowDivider, Section } from './ds';
+import { PeopleStrip } from './PeopleStrip';
 
 /**
  * Community › Messages: your 1-to-1 and group chats, newest first, with unread counts. Only
@@ -19,6 +20,8 @@ export function CommunityMessages() {
   const now = useNow();
   const connected = idsIn(community.connections, 'connected');
   const list = community.conversations;
+  // Your connections as car photos under the chats (Review 19 #54): one tap to their profile and Message.
+  const friends = connected.filter((id) => !community.blocked.has(id)).flatMap((id) => users.filter((u) => u.id === id));
 
   if (list.length === 0) {
     return connected.length === 0 ? (
@@ -38,6 +41,11 @@ export function CommunityMessages() {
           </View>
         ))}
       </View>
+      {friends.length ? (
+        <Section title="Your connections">
+          <PeopleStrip people={friends} label="Your connections" />
+        </Section>
+      ) : null}
       <DsText v="caption" style={{ textAlign: 'center' }}>
         Don't share your address or anyone else's. Report anything that isn't right from the chat's menu.
       </DsText>

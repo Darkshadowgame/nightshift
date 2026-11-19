@@ -7,8 +7,9 @@ import { PostList } from '../../components/CommunityFeed';
 import { PaintedArt } from '../../components/BuildArt';
 import { useIsDemo } from '../../components/BuildBits';
 import { buildPicture } from '../../lib/similarPhoto';
-import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PhotoCard, RowDivider, Section, metaLine, useToast, type ActionBarButton } from '../../components/ds';
+import { ActionBar, Avatar, DsText, EmptyState, ErrorState, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, PhotoCard, RowDivider, Section, Tag, metaLine, useToast, type ActionBarButton } from '../../components/ds';
 import { PhotoCredit } from '../../components/PhotoCredit';
+import { StackTabBar } from '../../components/StackTabBar';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
@@ -120,13 +121,12 @@ export default function UserScreen() {
           title={handle}
           leading={<Avatar {...personMark(p)} size="md" label={`${handle}'s picture`} />}
           meta={cover ? undefined : 'No car or bike yet'}
-          tag={!isMe && state === 'connected' ? { label: CONNECT.connected, tone: 'success' } : null}
+          // The tag sits next to the @handle, and the real name in the same block (Review 19 #34).
+          trailing={!isMe && state === 'connected' ? <Tag label={CONNECT.connected} tone="success" /> : undefined}
+          titleSub={isMe ? `${p.name} (you)` : p.name}
           overlay={coverPhoto ? <PhotoCredit photoRef={coverPhoto} kind={cover?.kind} standIn={coverPic?.standIn} overlay corner="topRight" /> : null}
         >
           {/* K3: a person is avatar + @handle (on the photo); the class badge belongs to the build row. */}
-          <DsText v="secondary" numberOfLines={1}>
-            {isMe ? `${p.name} (you)` : p.name}
-          </DsText>
           {cover ? <BuildRow build={cover} onPress={() => openBuild(cover.id)} /> : null}
           {blocked ? <DsText v="secondary">You blocked {handle}. Their posts and messages are hidden from you.</DsText> : null}
           {error ? <ErrorState title={error} /> : null}
@@ -201,7 +201,8 @@ export default function UserScreen() {
           Nightshift never shows where anyone lives or where they are.
         </DsText>
       </ScrollView>
-      <ActionBar primary={primary} secondary={secondary} status={status} statusIcon={null} />
+      {/* A tab is one tap away on a profile, however deep it was opened (Review 19 #35). */}
+      <ActionBar primary={primary} secondary={secondary} status={status} statusIcon={null} footer={<StackTabBar />} />
       <OptionsSheet visible={menu} title="Profile options" options={options} onClose={() => setMenu(false)} />
     </View>
   );

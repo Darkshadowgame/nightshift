@@ -110,7 +110,7 @@ export default function BuildScreen() {
           <Section title="Photos">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {b.photos.slice(1).map((p) => (
-                <FitImage key={p} source={photoSource(p)} frameAspect={1} style={{ width: '31%', aspectRatio: 1, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" />
+                <FitImage key={p} fit="cover" source={photoSource(p)} frameAspect={1} style={{ width: '31%', aspectRatio: 1, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo of the build" />
               ))}
             </View>
           </Section>

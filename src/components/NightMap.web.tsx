@@ -171,6 +171,14 @@ export function NightMap(props: NightMapProps) {
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={(e) => setTall(e.nativeEvent.layout.height > 420)}>
       <div ref={box} style={{ position: 'absolute', inset: 0 }} />
+      {/* A small map's edges fade into its frame, so a road label cut by the edge never shows as a
+          white sliver (Review 19 #5, #21). Over the tiles, under the pins. */}
+      {tall ? null : (
+        <div
+          aria-hidden
+          style={{ position: 'absolute', inset: 0, zIndex: 450, pointerEvents: 'none', boxShadow: `inset 0 0 0 1px ${ART.mapBg}, inset 0 10px 8px -6px ${ART.mapBg}, inset 0 -10px 8px -6px ${ART.mapBg}, inset 10px 0 8px -6px ${ART.mapBg}, inset -10px 0 8px -6px ${ART.mapBg}` }}
+        />
+      )}
       {portals}
       <Credit credit={credit} tiles={tiles} top={tall} />
     </View>

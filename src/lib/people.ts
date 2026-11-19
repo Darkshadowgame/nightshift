@@ -57,3 +57,25 @@ export function publicProfile(
     ]).size,
   };
 }
+
+/**
+ * People going to the meets you're going to (or host) that haven't ended (Review 19 #54): the
+ * soonest meet's people first, each once, never you. For Community › People's "At your meets" row.
+ */
+export function atYourMeets(me: string, events: readonly NightEvent[], users: readonly User[], now: Date, max = 12): User[] {
+  const mine = events
+    .filter((e) => !e.cancelled && (e.going.includes(me) || e.hostIds.includes(me)) && phaseOf(e, now) !== 'over')
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const seen = new Set<string>([me]);
+  const out: User[] = [];
+  for (const e of mine) {
+    for (const id of [...e.hostIds, ...e.going]) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const u = users.find((x) => x.id === id);
+      if (u) out.push(u);
+      if (out.length >= max) return out;
+    }
+  }
+  return out;
+}

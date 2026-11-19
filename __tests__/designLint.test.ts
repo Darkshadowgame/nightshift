@@ -121,7 +121,8 @@ const KNOWN_RADIO = new Set([
 
 describe('Redesign 2 lint', () => {
   it('uses sodium only through the design system (one accent, 5.4)', () => {
-    expect(filesMatching(SODIUM).filter((f) => !KNOWN_SODIUM.has(f) && f !== 'src/app/(tabs)/_layout.tsx')).toEqual([]);
+    // The tab bars (the real one and its copy on pushed person screens) light the selected tab.
+    expect(filesMatching(SODIUM).filter((f) => !KNOWN_SODIUM.has(f) && f !== 'src/app/(tabs)/_layout.tsx' && f !== 'src/components/StackTabBar.tsx')).toEqual([]);
   });
   it('never types a date (4.4)', () => {
     expect(filesMatching(TYPED_DATE).filter((f) => !KNOWN_TYPED_DATE.has(f))).toEqual([]);

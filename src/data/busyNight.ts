@@ -32,6 +32,8 @@ import { allVariants } from './vehicles';
  */
 
 export const BUSY_PREFIX = 'bz-';
+/** People asking to connect with you on the busy night: the Community badge's number when it's switched on. */
+export const BUSY_REQUESTS = 3;
 /** Is this id (person, build, event, post, thread, chat…) part of the busy scene? */
 export function isBusyId(id: string | null | undefined): boolean {
   return !!id && (id.startsWith(BUSY_PREFIX) || id.startsWith(`b-${BUSY_PREFIX}`) || id.startsWith(`ev-${BUSY_PREFIX}`) || id.startsWith(`demo-rr-${BUSY_PREFIX}`));
@@ -486,7 +488,7 @@ export function busyCommunity(now: Date, home: LatLng, region: string, events: r
   // Connections: a handful you're already connected with, and some asking to connect.
   const connections: ConnectionRow[] = [
     ...BUSY_PEOPLE.slice(0, 6).map((u, i) => ({ from: i % 2 ? ME : u, to: i % 2 ? u : ME, status: 'accepted' as const, createdAt: ago((10 + i) * DAY), answeredAt: ago((9 + i) * DAY) })),
-    ...BUSY_PEOPLE.slice(20, 25).map((u, i) => ({ from: u, to: ME, status: 'pending' as const, createdAt: ago((1 + i * 5) * HOUR) })),
+    ...BUSY_PEOPLE.slice(20, 20 + BUSY_REQUESTS).map((u, i) => ({ from: u, to: ME, status: 'pending' as const, createdAt: ago((1 + i * 5) * HOUR) })),
   ];
 
   // Posts: about their build (with its stand-in photo when it's the same model), some with a place.
@@ -533,13 +535,14 @@ export function busyCommunity(now: Date, home: LatLng, region: string, events: r
   THREAD_SPECS.forEach(([board, title, body], i) => thread(`${BUSY_PREFIX}ft${i + 1}`, board, title, body, (3 + i * 7) * HOUR, board === 'local' ? { region } : {}));
   LISTING_SPECS.forEach(([title, body, listing], i) => thread(`${BUSY_PREFIX}fs${i + 1}`, 'for_sale', title, body, (2 + i * 5) * HOUR, { listing }));
 
-  // Chats: two groups you're in, and a 1-to-1 with someone you're connected with.
+  // Chats: two groups you're in, and a 1-to-1 with someone you're connected with. Already read, so the
+  // Community badge only counts the requests, which the switch's toast names (Review 19, Busy night).
   const friends = BUSY_PEOPLE.slice(0, 6);
   const conversations: Conversation[] = [];
   const messages: Message[] = [];
   const conv = (id: string, kind: Conversation['kind'], memberIds: string[], name: string | undefined, lines: [string, string][]) => {
     const last = ago(lines.length * 7 * MIN);
-    conversations.push({ id, kind, ...(name ? { name } : {}), memberIds, adminIds: kind === 'group' ? [memberIds[0]] : [], lastMessageAt: last, unread: 0, canSend: true, sample: true, readUpTo: { [ME]: ago(2 * HOUR) } });
+    conversations.push({ id, kind, ...(name ? { name } : {}), memberIds, adminIds: kind === 'group' ? [memberIds[0]] : [], lastMessageAt: last, unread: 0, canSend: true, sample: true, readUpTo: { [ME]: last } });
     lines.forEach(([sender, body], n) => messages.push({ id: `${id}-m${n}`, conversationId: id, senderId: sender, body, createdAt: ago((lines.length - n) * 9 * MIN), sample: true }));
   };
   conv(`${BUSY_PREFIX}cv-cruise`, 'group', [friends[0], ME, friends[1], friends[2], friends[3]], 'Saturday cruise crew', [
