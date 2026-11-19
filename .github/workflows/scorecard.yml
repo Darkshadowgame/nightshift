@@ -39,4 +39,5 @@ jobs:
           path: |
             e2e/scorecard/.out
             !e2e/scorecard/.out/web
+          include-hidden-files: true
           retention-days: 14
