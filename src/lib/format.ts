@@ -93,9 +93,13 @@ export const AWAY_FROM_HOME_MILES = 30;
  * The one origin: `here` (a GPS fix) when there is one, else `home`; null with neither. A fix far
  * from home (on holiday, a London phone on a Tamworth demo) measures from home, said "from home",
  * so the map, "Around Tamworth" and the distances agree.
+ *
+ * `demo`: the demo's own start point (its home, where its drives start) counts as you (Review 18),
+ * so Tonight, the event page, Search, Me and the route preview all measure from the same place.
  */
-export function distanceOrigin(here: LatLng | null | undefined, home: LatLng | null | undefined): DistanceOrigin | null {
+export function distanceOrigin(here: LatLng | null | undefined, home: LatLng | null | undefined, demo = false): DistanceOrigin | null {
   const hasHome = !!home && (home.lat !== 0 || home.lng !== 0);
+  if (demo && hasHome) return { at: home!, from: 'you' };
   if (here && !(hasHome && milesBetween(here, home!) > AWAY_FROM_HOME_MILES)) return { at: here, from: 'you' };
   if (hasHome) return { at: home!, from: 'home' };
   return null;

@@ -77,6 +77,8 @@ export interface FilterResult {
   hiddenByFilters: number;
   /** Passed the other filters but not open to your car (Only ones I can go to). */
   hiddenByCar: number;
+  /** Shown and inside When (Tonight: live or starting before 05:00): the count line's number. Yours outside it show but aren't counted. */
+  shownInWhen: number;
 }
 
 /** The events to show, and how many each kind of filter hid. Keeps the input order. */
@@ -85,14 +87,16 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
   const shown: EventView[] = [];
   let hiddenByFilters = 0;
   let hiddenByCar = 0;
+  let shownInWhen = 0;
   for (const v of views) {
-    if (isMine(v)) {
-      shown.push(v);
-      continue;
-    }
     const start = new Date(v.event.startsAt).getTime();
     const live = v.phase === 'live';
     const inWhen = filter.when === 'all' || live || start < (filter.when === 'tonight' ? ends.tonight : ends.week);
+    if (isMine(v)) {
+      shown.push(v);
+      if (inWhen) shownInWhen++;
+      continue;
+    }
     const inType = filter.types.length === 0 || (filter.types as EventType[]).includes(v.event.type);
     if (!eventsOn || !inWhen || !inType) {
       hiddenByFilters++;
@@ -104,8 +108,9 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
       continue;
     }
     shown.push(v);
+    shownInWhen++;
   }
-  return { shown, hiddenByFilters, hiddenByCar };
+  return { shown, hiddenByFilters, hiddenByCar, shownInWhen };
 }
 
 /** Is anything narrowing the events (so the Layers button can say so)? */
@@ -122,15 +127,19 @@ export interface FilterLine {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * The line over Tonight's sheet and list: "12 meets tonight · 18 hidden by filters · Show all", or
- * "9 meets tonight · 4 not open to your car · Show". Null when nothing is hidden.
+ * The line over Tonight's sheet and list, one line at 375 wide (Review 18): "12 meets tonight · 18
+ * hidden · Show all", or "9 meets tonight · 4 not for your car · Show"; both kinds hidden at once
+ * are one number ("21 hidden"). The count is only the meets inside When (a Sunday meet you're going
+ * to shows, but isn't "tonight"). Null when nothing is hidden.
  */
 export function filterLine(result: FilterResult, filter: EventFilter, eventsOn: boolean, hasCar: boolean): FilterLine | null {
   const { hiddenByCar: car, hiddenByFilters: other } = result;
   if (car === 0 && other === 0) return null;
   const when = filter.when === 'tonight' ? ' tonight' : filter.when === 'week' ? ' this week' : '';
-  const parts = [`${plural(result.shown.length, 'meet', 'meets')}${when}`];
-  if (car > 0) parts.push(hasCar ? `${car} not open to your car` : `${car} need a car`);
-  if (other > 0) parts.push(eventsOn ? `${other} hidden by filters` : `${other} hidden, Events off`);
+  const parts = [`${plural(result.shownInWhen, 'meet', 'meets')}${when}`];
+  if (!eventsOn) parts.push(`${car + other} hidden, Events off`);
+  else if (car > 0 && other > 0) parts.push(`${car + other} hidden`);
+  else if (car > 0) parts.push(hasCar ? `${car} not for your car` : `${car} need a car`);
+  else parts.push(`${other} hidden`);
   return { text: parts.join(' · '), action: other > 0 ? { label: 'Show all', clears: 'all' } : { label: 'Show', clears: 'car' } };
 }

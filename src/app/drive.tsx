@@ -289,6 +289,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const [chosen, setChosen] = useState<number | null>(null);
   /** One route: Start counts down from 5 and starts by itself, until anything on the preview is touched. */
   const [autoFrom, setAutoFrom] = useState<number | null>(null);
+  /** Allowed to count down, waiting for the route to be drawn (Review 18: never while it's still loading). */
+  const autoArmed = useRef(false);
   const screenReader = useRef(false);
   useEffect(() => {
     // The web can't tell (react-native-web always answers yes): there, treat it as off.
@@ -455,7 +457,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         if (reason === 'start') {
           // Show the whole route (and any others) first; Start drives it.
           setChosen(null);
-          setAutoFrom(autoStartAllowed({ routes: options.length, screenReader: screenReader.current, touched: false }) ? realNowMs() : null);
+          autoArmed.current = autoStartAllowed({ routes: options.length, screenReader: screenReader.current, touched: false });
+          setAutoFrom(null);
           setPreview({ options, legStops });
           setPhase('preview');
           return;
@@ -1035,8 +1038,14 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const pickedOption = preview?.options[picked] ?? null;
   const overview = useMemo(
     () => (preview ? { routes: preview.options.map((o) => o.route.coords), selected: picked, onSelect: (i: number) => {
+      autoArmed.current = false;
       setAutoFrom(null);
       setChosen(i);
+    }, onShown: () => {
+      // The route is on screen: now the 5 seconds start.
+      if (!autoArmed.current) return;
+      autoArmed.current = false;
+      setAutoFrom(realNowMs());
     } } : null),
     [preview, picked],
   );
@@ -1046,12 +1055,16 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     const option = p.options[picked] ?? p.options[0];
     previewRef.current = null;
     setPreview(null);
+    autoArmed.current = false;
     setAutoFrom(null);
     lastRoute.current = realNowMs();
     activate(option.route, p.legStops, 'start');
   };
 
-  const stopAuto = useCallback(() => setAutoFrom(null), []);
+  const stopAuto = useCallback(() => {
+    autoArmed.current = false;
+    setAutoFrom(null);
+  }, []);
   // Start by itself once the 5 seconds are up (ticks four times a second while counting).
   const [autoNow, setAutoNow] = useState(0);
   useEffect(() => {
@@ -1366,7 +1379,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           cards={previewCards}
           chosen={picked}
           onChoose={(i) => {
-            setAutoFrom(null);
+            stopAuto();
             setChosen(i);
           }}
           countdown={countdown}
@@ -1375,7 +1388,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           advisories={pickedOption.advisories}
           onStart={startDriving}
           onCancel={() => {
-            setAutoFrom(null);
+            stopAuto();
             end();
           }}
         />

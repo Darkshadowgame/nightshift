@@ -1026,3 +1026,7 @@ clashed, the owner's earlier decisions stand:
    posts with locations people can see on the map).
 8. **Forum and For sale:** reachable from one row at the top of the Feed (as planned); the owner asked
    for a forum, so it must stay one tap from Community.
+9. **Route preview auto-start (owner decision, 19 Nov 2026):** with one route, the route preview
+   starts the driving view by itself, like Waze. It stays, and reviewers must not count it as a
+   break. It must read clearly: the countdown starts only once the route is drawn, the button says
+   "Starting in 5" (counting down), and "Tap anywhere to stop" shows under it; any touch stops it.

@@ -51,7 +51,8 @@ import { DEFAULT_EVENT_FILTER, filterEvents, filterLine, NO_EVENT_FILTER, whenEn
 import { EVENT_LABELS } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
-import { distanceOrigin, distanceText } from '../../lib/format';
+import { distanceText } from '../../lib/format';
+import { useDistanceOrigin } from '../../lib/useDistanceOrigin';
 import { milesBetween } from '../../lib/geo';
 import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
@@ -97,7 +98,9 @@ const BUTTON = 48;
 /** One object for the module: a new one each render would re-render the memoised map. */
 const COMPASS = { x: -2, y: SPACING.md };
 /** The pick card's photo shape: wider than 16:9 so the peek stays about a third of the screen. */
-const PEEK_ASPECT = 2.4;
+const PEEK_ASPECT = 3;
+/** At peek, this much of what's under the first card shows (the next section's title and the top of its card), so it's clear there's more (Review 18). */
+const NEXT_PEEK = 64;
 /** How long Show where I am waits for a fix before it says it couldn't find you. */
 const LOCATE_WAIT_MS = 6000;
 
@@ -199,7 +202,7 @@ export default function TonightScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
   /** Every distance on Tonight: from you while location is on, else from home (format.ts `meetDistance`). */
-  const origin = useMemo(() => distanceOrigin(here, meUser?.home), [here, meUser?.home]);
+  const origin = useDistanceOrigin(here);
 
   // ---------------------------------------------------------------------------
   // Events: one set everywhere (live now, tonight to 5am, this week, later).
@@ -388,8 +391,8 @@ export default function TonightScreen() {
   const [headerH, setHeaderH] = useState(260);
   const sheetY = useSharedValue(screen.height);
   const sheetTop = SPACING.sm;
-  const peekCap = Math.max(160, Math.round(Math.min(screen.height * 0.45, (box.h || screen.height) - 2 * BUTTON - SPACING.xl)));
-  const peek = Math.min(headerH, peekCap);
+  const peekCap = Math.max(160, Math.round(Math.min(screen.height * 0.5, (box.h || screen.height) - 2 * BUTTON - SPACING.xl)));
+  const peek = Math.min(headerH + NEXT_PEEK, peekCap);
   const tops = detentTops(box.h, peek, sheetTop);
 
   /** Where an event or place is on the map. */

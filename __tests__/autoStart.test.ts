@@ -20,8 +20,8 @@ describe('route preview auto-start', () => {
     expect(autoStartDue(null, t0 + 60_000)).toBe(false);
   });
   test('the button says the count, then plain Start', () => {
-    expect(startLabel(5)).toBe('Start · 5');
-    expect(startLabel(1)).toBe('Start · 1');
+    expect(startLabel(5)).toBe('Starting in 5');
+    expect(startLabel(1)).toBe('Starting in 1');
     expect(startLabel(0)).toBe('Start');
     expect(startLabel(null)).toBe('Start');
   });

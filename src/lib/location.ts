@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import { placeSearchAvailable, resolvePlace, searchPlaces as appleSuggestions, type PlaceSuggestion } from '../../modules/nav-directions';
 import { inUk, MIN_QUERY, placeLabel, searchQuery, tidyHits, townLabel, type PlaceHit } from './placeNames';
@@ -40,6 +41,27 @@ export function locationHelp(reason: 'denied' | 'unavailable', web = Platform.OS
     : "Couldn't find where you are just now. Check Location Services is on in Settings, then try again.";
 }
 
+/**
+ * The latest fix any screen read, so every screen measures distances from the same place (Review
+ * 18): Tonight finds you, then Search and Me use the same fix. Kept in memory only, never stored.
+ */
+let lastFix: LatLng | null = null;
+const fixListeners = new Set<() => void>();
+function rememberFix(at: LatLng) {
+  lastFix = at;
+  fixListeners.forEach((f) => f());
+}
+export function useLastFix(): LatLng | null {
+  return useSyncExternalStore(
+    (f) => {
+      fixListeners.add(f);
+      return () => fixListeners.delete(f);
+    },
+    () => lastFix,
+    () => lastFix,
+  );
+}
+
 /** Ask for when-in-use location if needed, then read where the phone is (gives up after POSITION_TIMEOUT_MS). */
 export async function currentPosition(ask = true): Promise<Position> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -47,7 +69,9 @@ export async function currentPosition(ask = true): Promise<Position> {
     timer = setTimeout(() => done({ ok: false, reason: 'unavailable' }), POSITION_TIMEOUT_MS);
   });
   try {
-    return await Promise.race([readPosition(ask), timeout]);
+    const p = await Promise.race([readPosition(ask), timeout]);
+    if (p.ok) rememberFix(p.at);
+    return p;
   } finally {
     clearTimeout(timer);
   }

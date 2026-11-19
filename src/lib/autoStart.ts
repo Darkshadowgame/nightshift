@@ -5,6 +5,8 @@
  * - Two or more routes: never; you pick.
  * - VoiceOver (or any screen reader) on: never; you press Start.
  * - Any touch on the preview (the map, a card, Not now) cancels it for good; Start stays.
+ * - It only starts counting once the route is drawn on the map (Review 18), and says so:
+ *   "Starting in 5", with "Tap anywhere to stop" under it.
  */
 
 export const AUTO_START_MS = 5000;
@@ -31,7 +33,10 @@ export function autoStartDue(startedAt: number | null, now: number, total = AUTO
   return startedAt != null && now - startedAt >= total;
 }
 
-/** "Start · 5" while counting, else "Start". */
+/** "Starting in 5" while counting, else "Start". */
 export function startLabel(left: number | null): string {
-  return left != null && left > 0 ? `Start · ${left}` : 'Start';
+  return left != null && left > 0 ? `Starting in ${left}` : 'Start';
 }
+
+/** Under the countdown: how to stay on the preview. */
+export const AUTO_START_HINT = 'Tap anywhere to stop';

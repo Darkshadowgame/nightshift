@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, ScrollView, StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
-import { startLabel } from '../lib/autoStart';
+import { AUTO_START_HINT, startLabel } from '../lib/autoStart';
 import type { RouteCard } from '../lib/routeChoice';
 import { COLOR, RADII, ROAD_COLOUR, SPACING } from '../theme';
 import { ActionBar, ChoiceGroup, DsText } from './ds';
@@ -33,7 +33,7 @@ export function RoutePreview({
   onTouch?: () => void;
   /** "18 min". */
   time: string;
-  /** "7.2 mi". */
+  /** "7.2 mi": the driving distance (said "7.2 mi drive", a different fact from a meet's distance). */
   distance: string;
   /** "21:42". */
   eta: string;
@@ -68,10 +68,10 @@ export function RoutePreview({
   return (
     <View style={st.panel} onTouchStart={onTouch}>
       <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={st.body}>
-        <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance}. Arrive at ${eta}.`}>
+        <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance} drive. Arrive at ${eta}.`}>
           <DsText v="driveReadout">{time}</DsText>
           <DsText v="driveBody" tone="secondary">
-            {distance} · Arrive {eta}
+            {distance} drive · Arrive {eta}
           </DsText>
         </View>
         <DsText v="caption">{trafficNote}</DsText>
@@ -104,9 +104,16 @@ export function RoutePreview({
           ))}
         </View>
       </ScrollView>
-      {counting && !reduced ? (
-        <View style={st.track} aria-hidden>
-          <Animated.View style={[st.bar, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+      {counting ? (
+        <View style={st.counting}>
+          {reduced ? null : (
+            <View style={st.track} aria-hidden>
+              <Animated.View style={[st.bar, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+            </View>
+          )}
+          <DsText v="caption" style={{ textAlign: 'center' }}>
+            {AUTO_START_HINT}
+          </DsText>
         </View>
       ) : null}
       <ActionBar
@@ -127,7 +134,8 @@ const st = StyleSheet.create({
   body: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, gap: SPACING.sm },
   summary: { flexDirection: 'row', alignItems: 'baseline', gap: SPACING.sm, flexWrap: 'wrap' },
   trouble: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  track: { height: 4, marginHorizontal: SPACING.screen, marginTop: SPACING.sm, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raised, overflow: 'hidden' },
+  counting: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.sm, gap: SPACING.xs },
+  track: { height: 4, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raised, overflow: 'hidden' },
   bar: { height: 4, borderRadius: RADII.pill, backgroundColor: COLOR.text.primary },
   dot: { width: 10, height: 10, borderRadius: RADII.pill, backgroundColor: ROAD_COLOUR },
 });

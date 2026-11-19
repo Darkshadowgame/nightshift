@@ -168,6 +168,9 @@ export function DriveMap(props: DriveMapProps) {
     const padX = square && view ? Math.max(0, (square.clientWidth - view.clientWidth) / 2) : 0;
     const padY = square && view ? Math.max(0, (square.clientHeight - view.clientHeight) / 2) : 0;
     lf.map.fitBounds(lf.L.latLngBounds(all.map((p) => [p.lat, p.lng] as [number, number])), { padding: [padX + 36, padY + 36], animate: false });
+    // Drawn and fitted: the next frame shows it (the auto-start countdown waits for this).
+    const frame = requestAnimationFrame(() => overview.onShown?.());
+    return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lf, fitKey]);
 

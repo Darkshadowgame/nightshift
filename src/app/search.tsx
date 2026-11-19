@@ -28,7 +28,8 @@ import { idsIn } from '../lib/connections';
 import { ALL_TYPES, defaultFilters, describeFilters, searchEvents, travelOf, TRAVEL_CHOICES, VEHICLE_LABELS, WHEN_LABELS, type SearchFilters, type SearchHit, type Vehicles, type When } from '../lib/discover';
 import { EVENT_LABELS } from '../lib/events';
 import { viewEvent } from '../lib/eventView';
-import { distanceOrigin, distanceText, plural } from '../lib/format';
+import { distanceText, plural } from '../lib/format';
+import { useDistanceOrigin } from '../lib/useDistanceOrigin';
 import { milesBetween } from '../lib/geo';
 import { PLACE_NAMES } from '../lib/glossary';
 import { currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggestion, searchDestinations, SearchError, suggestDestinations, type PlaceSuggestion } from '../lib/location';
@@ -128,6 +129,8 @@ export default function SearchScreen() {
     };
   }, []);
   const origin = meUser.home;
+  // Distances said from the one origin, the same as Tonight and Me (Review 18); "How far" still filters from home.
+  const from = useDistanceOrigin(here);
 
   // ---- Meets: the server's search when signed in, the same search on the phone otherwise. ----
   const localHits = useMemo(() => searchEvents(events, { me, crews, users, builds }, origin, filters, now), [events, me, crews, users, builds, origin, filters, now]);
@@ -208,8 +211,8 @@ export default function SearchScreen() {
     () =>
       canAddress || !(tab === 'all' || tab === 'places')
         ? []
-        : townHits(query, origin).map((d) => ({ key: `town:${d.name}`, title: d.name, subtitle: metaLine(['Town', distanceText(milesBetween(origin, d.at), 'home')]), dest: d })),
-    [canAddress, tab, query, origin],
+        : townHits(query, origin).map((d) => ({ key: `town:${d.name}`, title: d.name, subtitle: metaLine(['Town', from ? distanceText(milesBetween(from.at, d.at), from.from) : distanceText(milesBetween(origin, d.at), 'home')]), dest: d })),
+    [canAddress, tab, query, origin, from],
   );
   useEffect(() => {
     const mine = ++seq.current;
@@ -283,7 +286,7 @@ export default function SearchScreen() {
     const role = h.view.role;
     const mine = role === 'host' || role === 'going';
     // The one event row (K3): the same as Tonight's list and Me.
-    return <EventRow key={h.view.event.id} view={h.view} now={now} origin={distanceOrigin(null, origin)} notOpen={!mine && !h.canGo} onPress={() => openEvent(h.view.event.id)} />;
+    return <EventRow key={h.view.event.id} view={h.view} now={now} origin={from} notOpen={!mine && !h.canGo} onPress={() => openEvent(h.view.event.id)} />;
   };
   const placeRow = ({ s, miles }: (typeof allPlaces)[number]) => (
     <ListRow
@@ -291,7 +294,7 @@ export default function SearchScreen() {
       leading={{ pin: s.kind, colour: SPOT_COLOURS[s.kind] }}
       title={s.name}
       subtitle={metaLine([PLACE_NAMES[s.kind].one, s.region])}
-      meta={distanceText(miles, 'home')}
+      meta={from ? distanceText(milesBetween(from.at, s.at), from.from) : distanceText(miles, 'home')}
       trailing={s.authorId === me ? <Tag label="Yours" /> : isBikeOnly(s) ? <Tag label={BIKE_ONLY_LABEL} /> : undefined}
       onPress={() => openPlace(s.id)}
     />

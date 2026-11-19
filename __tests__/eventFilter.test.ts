@@ -74,6 +74,11 @@ describe('filterEvents', () => {
     expect(r.hiddenByFilters).toBe(3);
     expect(r.shown.length + r.hiddenByCar + r.hiddenByFilters).toBe(VIEWS.length);
   });
+  test('the count is only meets inside When: meets you go to or host next week show but are is not "tonight" (Review 18)', () => {
+    const r = filterEvents(VIEWS, DEFAULT_EVENT_FILTER, true, NOW);
+    expect(r.shown.map((v) => v.event.id)).toContain('goingNextWeek');
+    expect(r.shownInWhen).toBe(r.shown.length - 2);
+  });
 });
 
 describe('filterLine', () => {
@@ -82,12 +87,12 @@ describe('filterLine', () => {
   });
   test('filters hid some: Show all', () => {
     const line = filterLine(filterEvents(VIEWS, DEFAULT_EVENT_FILTER, true, NOW), DEFAULT_EVENT_FILTER, true, true)!;
-    expect(line.text).toBe('6 meets tonight · 1 not open to your car · 3 hidden by filters');
+    expect(line.text).toBe('4 meets tonight · 4 hidden');
     expect(line.action).toEqual({ label: 'Show all', clears: 'all' });
   });
   test('only the car hid some: Show; no car says so', () => {
     const r = filterEvents(VIEWS, f({ canGoOnly: true }), true, NOW);
-    expect(filterLine(r, f({ canGoOnly: true }), true, true)).toEqual({ text: '9 meets · 1 not open to your car', action: { label: 'Show', clears: 'car' } });
+    expect(filterLine(r, f({ canGoOnly: true }), true, true)).toEqual({ text: '9 meets · 1 not for your car', action: { label: 'Show', clears: 'car' } });
     expect(filterLine(r, f({ canGoOnly: true }), true, false)!.text).toBe('9 meets · 1 need a car');
   });
   test('Events off says so', () => {

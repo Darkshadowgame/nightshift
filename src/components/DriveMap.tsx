@@ -47,7 +47,7 @@ export interface DriveMapProps {
    * The route preview before you start: every option (the chosen one drawn in the brand colour,
    * the others grey, tap one to pick it), and the map fitted to show them all.
    */
-  overview?: { routes: LatLng[][]; selected: number; onSelect?: (i: number) => void } | null;
+  overview?: { routes: LatLng[][]; selected: number; onSelect?: (i: number) => void; /** The routes are drawn and fitted on screen (the auto-start countdown waits for it). */ onShown?: () => void } | null;
   /** Following you; false while you look round the map (stopped only). */
   following: boolean;
   /** Panning and zooming allowed (only while stopped). */
@@ -155,7 +155,12 @@ export const DriveMap = memo(function DriveMap({
     // Every 8th point is plenty to fit the view.
     const pts = all.filter((_, i) => i % 8 === 0 || i === all.length - 1).map((p) => ({ latitude: p.lat, longitude: p.lng }));
     const t = setTimeout(() => map.current?.fitToCoordinates(pts, { edgePadding: { top: 60, right: 40, bottom: 60, left: 40 }, animated: true }), 50);
-    return () => clearTimeout(t);
+    // Fitted (the animation runs about half a second): the route is on screen.
+    const shown = setTimeout(() => overview.onShown?.(), 650);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(shown);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey]);
 

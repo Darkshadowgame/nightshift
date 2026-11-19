@@ -15,7 +15,7 @@ import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { endTime, isHost, phaseOf } from '../../lib/events';
 import { viewEvent } from '../../lib/eventView';
-import { distanceOrigin } from '../../lib/format';
+import { useDistanceOrigin } from '../../lib/useDistanceOrigin';
 import { SCREEN_TITLES } from '../../lib/glossary';
 import { attendedEvents, levelLabel } from '../../lib/rep';
 import { useStore } from '../../lib/store';
@@ -95,8 +95,8 @@ export default function Me() {
       : 'Check in at a meet, and the people there vote for the best builds.';
   const timeOf = (e: (typeof events)[number]) => eventTimeLabel(e.startsAt, endTime(e), now);
   const view = (e: (typeof events)[number]) => viewEvent(e, me, crews, users, builds, now);
-  // Distances from home, the same as Search (format.ts meetDistance).
-  const origin = distanceOrigin(null, user?.home);
+  // The one distance origin, the same as Tonight and Search (useDistanceOrigin, Review 18).
+  const origin = useDistanceOrigin();
 
   return (
     <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
