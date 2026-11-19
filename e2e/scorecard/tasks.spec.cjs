@@ -161,7 +161,8 @@ async function runScorecard({ base, clock, scale, outDir }) {
 
     // 2. The live meet.
     await start('t2');
-    await tap(B(/^Live, /));
+    // The live meet's card ("Meet, Car park meet-up, Live · until 23:00 · ..."), not the map cluster.
+    await tap(B(/^Live, |, Live · /));
     await L.sleep(800);
     await snap('event');
     const t2 = /^\/event\//.test(url()) && /\blive\b/i.test(await text());

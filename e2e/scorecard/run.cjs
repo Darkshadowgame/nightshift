@@ -32,8 +32,14 @@ async function main() {
   if (!web) {
     web = path.join(outDir, 'web');
     console.log('Building the web export (expo export --platform web --clear) ...');
-    const r = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear', '--output-dir', web], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', env: { ...process.env, CI: '1' } });
-    if (r.status !== 0) { console.error(r.stdout, r.stderr); throw new Error('expo export failed'); }
+    const log = path.join(outDir, 'export.log');
+    const fd = fs.openSync(log, 'w');
+    const r = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear', '--output-dir', web], { cwd: ROOT, stdio: ['ignore', fd, fd], env: { ...process.env, CI: '1' } });
+    fs.closeSync(fd);
+    if (r.status !== 0) {
+      console.error(fs.readFileSync(log, 'utf8').split('\n').slice(-40).join('\n'));
+      throw new Error(`expo export failed (exit ${r.status}${r.signal ? `, ${r.signal}` : ''}${r.error ? `, ${r.error.message}` : ''}); log in ${log}`);
+    }
   }
   const server = await L.serve(web, 0);
   const base = `http://127.0.0.1:${server.address().port}`;
