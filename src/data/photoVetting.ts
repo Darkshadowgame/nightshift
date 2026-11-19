@@ -21,7 +21,7 @@ const VEHICLE_SOURCES =
   /pistonheads|roads\.porsche|bestbikingroads|thebikerguide|evo\.co\.uk|topgear|autocar|carthrottle|motorcyclenews|bikesocial|bikerguide|driving\.co\.uk|petrolped|drivetribe|speedhunters|classicdriver/i;
 
 const VEHICLE_WORDS =
-  /\b(shots? of (your )?cars?|car (meets?|shows?|shoots?|photos?|photography)|cars and bikes|motorcycl\w*|bikers?|motorbikes?|supercars?|petrolheads?|convoy photos?)\b/i;
+  /\b(shots? of (your )?cars?|car[- ](meets?|shows?|shoots?|photos?|photography|photoshoots?|cruises?|cruising|clubs?|enthusiasts|displays?|parades?|gatherings?)|cars and bikes|classic[- ]cars?|modified[- ]cars?|drag rac\w*|motorcycl\w*|bikers?|motorbikes?|supercars?|petrolheads?|convoy photos?|bike (meets?|nights?))\b/i;
 
 /** Well-known car and bike photo locations without a car or bike source in the data yet. */
 export const KNOWN_VEHICLE_SPOTS: Record<string, string> = {
