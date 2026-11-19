@@ -520,8 +520,10 @@ export function EventForm({
               <NightMap pins={pointPins(null)} paths={routePaths} centre={preview.centre} span={preview.span} follow />
             </View>
             <MapEdgeFade />
-            {/* One solid chip, never words printed over the map's own labels (Review 19 #42, owner decision). */}
-            <View pointerEvents="none" style={[placed.length === 0 ? promptSt.centre : promptSt.corner, { zIndex: 2 }]}>
+            {/* One solid chip, never words printed over the map's own labels (Review 19 #42, owner decision).
+                The chip itself takes touches (they still go to the card's Press round it): with pointer-events
+                off, a hit test skipped the chip and found the words straight on the map (the scorecard's MAP check). */}
+            <View pointerEvents="box-none" style={[placed.length === 0 ? promptSt.centre : promptSt.corner, { zIndex: 2 }]}>
               <View style={promptSt.chip}>
                 <Icon name="pin" size={placed.length === 0 ? 18 : 14} colour={COLOR.text.primary} />
                 <DsText v={placed.length === 0 ? 'bodyStrong' : 'meta'} style={{ color: COLOR.text.primary }}>
