@@ -517,8 +517,9 @@ export default function EventScreen() {
         span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.06) : Math.max(0.12, (areaMiles * 2.6) / 69)}
         follow
       />
-      {/* A road label cut by the frame's top edge showed as a white sliver (Review 19): the edge fades into the frame. */}
+      {/* A road label cut by the frame's edge showed as a white sliver (Review 19): the top and bottom edges fade into the frame. */}
       <Gradient to="top" colours={['rgba(17,24,39,0)', COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: EDGE_FADE }} />
+      <Gradient colours={['rgba(17,24,39,0)', COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: EDGE_FADE / 2 }} />
       {unlock ? (
         <UnlockReveal
           glyph={ev.type}
