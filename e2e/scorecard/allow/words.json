@@ -1,0 +1,44 @@
+{
+  "about": "4.12 banned words the owner allows on screen (docs/REDESIGN-2.md 4.12 and section 9.1). Each entry: word (as in BANNED_WORDS), a regex the text must match, an optional regex for the URL path, sheet: true when it is only allowed inside a sheet, and why.",
+  "allow": [
+    {
+      "word": "rep",
+      "text": "^\\+\\d+ rep$",
+      "url": "^/event/",
+      "why": "The \"+150 rep\" moment after check-in (owner, 9.1)."
+    },
+    {
+      "word": "rep",
+      "text": "^\\+\\d+ rep · (Drive complete|Thanks for the report)$",
+      "url": "^/drive",
+      "why": "The rep toast in the driving view (owner, 19 Nov 2026)."
+    },
+    {
+      "word": "level",
+      "text": "^Level \\d+ · \\w+",
+      "url": "^/me$",
+      "why": "The one level line on Me (owner, 9.1)."
+    },
+    {
+      "word": "rep",
+      "text": ".",
+      "url": "^/me$",
+      "why": "The ladder sheet opened from the level line on Me (owner, 9.1).",
+      "sheet": true
+    },
+    {
+      "word": "level",
+      "text": ".",
+      "url": "^/me$",
+      "why": "The ladder sheet opened from the level line on Me (owner, 9.1).",
+      "sheet": true
+    },
+    {
+      "word": "Legend",
+      "text": ".",
+      "url": "^/me$",
+      "why": "The ladder sheet may name the levels (owner, 9.1).",
+      "sheet": true
+    }
+  ]
+}

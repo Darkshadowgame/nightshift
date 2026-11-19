@@ -31,6 +31,23 @@ npm test                # unit tests
 npx tsc --noEmit        # typecheck
 ```
 
+### Automated scorecard: run before pushing UI changes
+
+```bash
+npx playwright install chromium   # once
+npm run scorecard                 # 12:30 and 20:30, at 1.0x and 1.3x text (about 3 min)
+npm run scorecard:quick           # 20:30 at 1.0x only (about 2 min)
+```
+
+It builds a fresh web export (`expo export --clear`; pass `-- --web <dir>` to reuse one),
+serves it, and plays the ten tasks of the fixed scorecard
+([docs/REDESIGN-2.md](docs/REDESIGN-2.md) 7.3) at 375x667 at human pace, then prints a table:
+each task's pass or fail and time at each clock and text size, and the rule checks (no disabled
+primary, toasts readable for 2 s and never under a sheet, each fact once on the event page, no
+clipped text, no banned word, no console errors). Every failure names a screenshot in
+`e2e/scorecard/.out/`. It exits 1 when anything fails. The checks' allow-lists are in
+`e2e/scorecard/allow/`; each entry says why.
+
 ## Install on an iPhone
 
 1. GitHub > Actions > **Build iPhone app** > Run workflow (about 20–30 min).

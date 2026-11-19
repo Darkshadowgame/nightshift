@@ -946,6 +946,30 @@ One table of the ten tasks at each time (pass/fail, seconds, taps), TTU-1 and TT
 scores with the anchor and criteria cited, then a list of every rulebook or look-checklist exception
 with the screen and the rule. Nothing else is needed; bugs outside the tasks go to `docs/BACKLOG.md`.
 
+### 7.7 Automated scorecard: run before pushing UI changes
+Reviews 11–18 kept finding regressions that came in with new features. `e2e/scorecard/` plays this
+section's set-up and the ten tasks with Playwright, so most of them show up before a review does:
+
+* `npm run scorecard`: four runs (12:30 and 20:30, each at 1.0x and 1.3x text), about 3 minutes.
+  `npm run scorecard:quick`: 20:30 at 1.0x only, about 2 minutes; CI runs it on every push to main.
+* Set-up as 7.1: a `--clear` web export served with SPA fallback, 375x667, touch, @2x, cleared
+  storage, demo mode, location granted. 1.3x text multiplies each element's computed font size and
+  px line height once (text that inherits its size and SVG tspans are left alone, so nothing
+  compounds).
+* Human pace: about 4 s reading a sheet and 3.4 s watching a toast before the next tap. A sheet
+  that opens by itself over the next step is read, closed with Done and noted.
+* Each task passes on 7.3's "Pass when" (task 3 and 5 need their toast readable for 2 s) and fails
+  over twice its limit. Times are the script's, at human pace; they are not the tester's.
+* Rule checks, each failure with a screenshot: **4.3** no disabled primary anywhere (a busy one with
+  a spinner is fine); **4.7** every toast on screen, unfaded and uncovered by a sheet or scrim, for
+  2 s at a stretch, with no action but Undo; **C5** on the event page "Going", "Live", each HH:MM and
+  the meet point's name at most once (toasts and sheets left out); **L2** no text cut off (ellipsis
+  or line clamp) at either size; **4.12** no banned word (`BANNED_WORDS` in `glossary.ts`, minus the
+  owner exceptions above); no console errors.
+* Allow-lists, each entry with its reason: `e2e/scorecard/allow/` (`c5.json`, `overflow.json`,
+  `words.json`, `console.json`). Adding to one is a decision like an owner exception: say why.
+* It can't judge clarity, look or TTU; the human review still scores those.
+
 ---
 
 ## 8. What an 8+ looks like

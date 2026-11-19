@@ -1,0 +1,4 @@
+{
+  "about": "Console errors the scorecard ignores. Each entry: a regex for the message and why. Empty means every console error fails the run.",
+  "allow": []
+}
