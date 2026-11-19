@@ -6,7 +6,7 @@ import { BuildChooser, ComposerPhotos, Field, INPUT, useDiscardGuard } from '../
 import { ActionBar, Button, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, useToast } from '../../components/ds';
 import { SELLING_HINT, sellingHint } from '../../lib/moderation';
 import { MapPicker } from '../../components/MapPicker';
-import { useCommunity } from '../../lib/communityStore';
+import { useCommunity, useMediaLimits } from '../../lib/communityStore';
 import { lastMapView } from '../../lib/lastView';
 import { postPickerStart } from '../../lib/picker';
 import { locationProblem, POST_LIMITS, postProblem, VISIBILITY, type PostVisibility } from '../../lib/posts';
@@ -22,6 +22,7 @@ export default function NewPost() {
   const mine = builds.filter((b) => b.ownerId === me);
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const limits = useMediaLimits();
   const [at, setAt] = useState<LatLng | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [visibility, setVisibility] = useState<PostVisibility>('public');
@@ -70,7 +71,7 @@ export default function NewPost() {
       </Field>
 
       <Field label="Photos">
-        <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
+        <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.photos} />
       </Field>
 
       <Field label="Place (optional)" hint={at ? 'It shows on the map\'s Posts layer for 30 days.' : 'Posts with a place show on the map. Never your home: places within about half a mile of your home area can\'t be shared.'}>

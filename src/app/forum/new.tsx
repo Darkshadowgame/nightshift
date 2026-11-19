@@ -5,7 +5,7 @@ import { ScrollView, TextInput, View } from 'react-native';
 import { BuildChooser, ComposerPhotos, Field, INPUT, useDiscardGuard } from '../../components/ComposerParts';
 import { ActionBar, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, SwitchRow, useToast } from '../../components/ds';
 import { SELLING_HINT, sellingHint } from '../../lib/moderation';
-import { useCommunity } from '../../lib/communityStore';
+import { useCommunity, useMediaLimits } from '../../lib/communityStore';
 import { openCreated } from '../../lib/openCreated';
 import {
   BOARDS,
@@ -41,6 +41,7 @@ export default function NewThread() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState(params.body ?? '');
   const [photos, setPhotos] = useState<string[]>([]);
+  const limits = useMediaLimits();
   const [buildId, setBuildId] = useState<string | undefined>(mine.some((b) => b.id === params.buildId) ? params.buildId : undefined);
   const [kind, setKind] = useState<ListingKind>('sale');
   const [price, setPrice] = useState('');
@@ -150,7 +151,7 @@ export default function NewThread() {
         />
       </Field>
       <Field label="Photos">
-        <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
+        <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.photos} />
       </Field>
       <BuildChooser builds={mine} value={buildId} onChange={setBuildId} />
       <View style={{ gap: SPACING.sm }}>

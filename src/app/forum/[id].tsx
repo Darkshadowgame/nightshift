@@ -3,15 +3,16 @@ import { useLayoutEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { at, postedLabel, BuildRow, openBuild, moderateOptions, openProfile, openReport, OptionsSheet, personMark, type SheetOption } from '../../components/Community';
 import { BuildChooser, CommentBar, ComposerPhotos } from '../../components/ComposerParts';
-import { Avatar, Button, DsText, ErrorState, FitImage, HeaderActions, Hero, Icon, IconButton, ListRow, LoadingState, PAGE_WITH_BAR, Press, Section, Tag, metaLine } from '../../components/ds';
+import { Avatar, Button, DsText, ErrorState, HeaderActions, Hero, Icon, IconButton, ListRow, LoadingState, PAGE_WITH_BAR, Press, Section, Tag, metaLine } from '../../components/ds';
 import { useNow } from '../../lib/clock';
-import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
+import { useCommunity, useCommunityQuery, useMediaLimits } from '../../lib/communityStore';
 import { boardLabel, LIMITS, replyProblem, type ForumReply } from '../../lib/forum';
 import { plural } from '../../lib/format';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
+import { PhotoGallery, PhotoViewer } from '../../components/PhotoGallery';
 import { ListingCard, soldWord } from '../../components/ListingCard';
 
 /** A thread (T3): the question, replies (Helpful, Solved), and the reply field in the bottom bar. ··· has report, block, sold and delete. */
@@ -24,11 +25,13 @@ export default function ThreadScreen() {
   const q = useCommunityQuery((s) => s.thread(id), [id]);
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const limits = useMediaLimits();
   const [buildId, setBuildId] = useState<string | undefined>();
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
+  const [viewing, setViewing] = useState<{ photos: string[]; start: number } | null>(null);
   const thread = q.data?.thread;
 
   useLayoutEffect(() => {
@@ -109,17 +112,24 @@ export default function ThreadScreen() {
     return out;
   };
 
-  const photo = (p: string, label: string) => (
-    <FitImage key={p} source={photoUri(p)} frameAspect={4 / 3} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel={label} />
-  );
+  const open = (photos: string[], i: number) => setViewing({ photos, start: i });
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
     <ScrollView contentContainerStyle={PAGE_WITH_BAR} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
       <View style={{ gap: SPACING.md }}>
+        {/* One photo: the title sits on it. More: swipe through them ("1/5"), the title under. A tap opens them full screen. */}
         <Hero
           bleed
-          photo={thread.photos[0] ? { uri: photoUri(thread.photos[0]) } : null}
+          photo={thread.photos.length === 1 ? { uri: photoUri(thread.photos[0]) } : null}
+          media={thread.photos.length > 1 ? <PhotoGallery photos={thread.photos} aspect={4 / 3} label="in the thread" onOpen={(i) => open(thread.photos, i)} /> : undefined}
+          overlay={
+            thread.photos.length === 1 ? (
+              <Press onPress={() => open(thread.photos, 0)} label="Open the photo" feedback="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
+                <View />
+              </Press>
+            ) : undefined
+          }
           aspect={4 / 3}
           eyebrow={thread.listing ? thread.region : metaLine([boardLabel(thread.board), thread.region])}
           title={thread.title}
@@ -156,7 +166,6 @@ export default function ThreadScreen() {
             {thread.body}
           </DsText>
         ) : null}
-        {thread.photos.slice(1).map((p) => photo(p, 'Photo in the thread'))}
         {linked ? <BuildRow build={linked} onPress={() => openBuild(linked.id)} /> : null}
       </View>
 
@@ -202,7 +211,11 @@ export default function ThreadScreen() {
               <DsText v="body" selectable>
                 {r.body}
               </DsText>
-              {r.photos.map((p) => photo(p, 'Photo in the reply'))}
+              {r.photos.length ? (
+                <View style={{ borderRadius: RADII.control, overflow: 'hidden' }}>
+                  <PhotoGallery photos={r.photos} aspect={4 / 3} label="in the reply" onOpen={(i) => open(r.photos, i)} />
+                </View>
+              ) : null}
               {rb ? <BuildRow build={rb} onPress={() => openBuild(rb.id)} /> : null}
               <Press
                 onPress={() => (own ? setError("You can't mark your own reply as helpful.") : act(() => community.run((s) => s.helpful(r.id, !r.helpfulByMe))))}
@@ -235,7 +248,7 @@ export default function ThreadScreen() {
         extra={
           more ? (
             <>
-              <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} />
+              <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.photos} />
               <BuildChooser builds={builds.filter((b) => b.ownerId === me)} value={buildId} onChange={setBuildId} />
             </>
           ) : (
@@ -244,6 +257,7 @@ export default function ThreadScreen() {
         }
       />
       <OptionsSheet visible={!!menu} title="Options" options={menu ?? []} onClose={() => setMenu(null)} />
+      <PhotoViewer photos={viewing?.photos ?? []} start={viewing?.start ?? null} onClose={() => setViewing(null)} />
     </KeyboardAvoidingView>
   );
 }

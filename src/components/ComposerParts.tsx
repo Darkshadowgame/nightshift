@@ -31,22 +31,48 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 /**
- * Photos for a post, thread, reply or message: every one goes through the same
- * pick → crop → plate check → saved-without-metadata flow as build photos.
+ * Photos for a post, thread, reply or comment: every one goes through the same
+ * pick → crop → plate check → saved-without-metadata flow as build photos. Library
+ * picks several at once (up to what's left of `max`), then checks them one by one.
  */
-export function ComposerPhotos({ photos, onChange, onError, max = 4 }: { photos: string[]; onChange: (p: string[]) => void; onError: (m: string | null) => void; max?: number }) {
-  const flow = usePhotoFlow({ onError, onPhoto: (ref, replaces) => onChange(replaces ? photos.map((p) => (p === replaces ? ref : p)) : [...photos, ref].slice(0, max)) });
+export function ComposerPhotos({
+  photos,
+  onChange,
+  onError,
+  max = 4,
+  size = 84,
+}: {
+  photos: string[];
+  onChange: (p: string[]) => void;
+  onError: (m: string | null) => void;
+  max?: number;
+  /** Thumbnail size: smaller in the comment bar. */
+  size?: number;
+}) {
+  // Several photos arrive one after another: always add to the latest list.
+  const latest = useRef(photos);
+  latest.current = photos;
+  const flow = usePhotoFlow({
+    onError,
+    onPhoto: (ref, replaces) => {
+      const now = latest.current;
+      const next = replaces ? now.map((p) => (p === replaces ? ref : p)) : [...now, ref].slice(0, max);
+      latest.current = next;
+      onChange(next);
+    },
+  });
   if (flow.view) return <>{flow.view}</>;
+  const left = max - photos.length;
   return (
     <View style={{ gap: SPACING.sm }}>
       {photos.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
-          {photos.map((p) => (
+          {photos.map((p, i) => (
             <View key={p}>
-              <FitImage source={photoUri(p)} frameAspect={1} style={{ width: 84, height: 84, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo to post" />
+              <FitImage source={photoUri(p)} frameAspect={1} style={{ width: size, height: size, borderRadius: RADII.control, backgroundColor: COLOR.surface.media }} accessibilityLabel={`Photo ${i + 1} of ${photos.length} to post`} />
               <Press
                 onPress={() => onChange(photos.filter((x) => x !== p))}
-                label="Remove this photo"
+                label={`Remove photo ${i + 1}`}
                 hitSlop={8}
                 style={{ position: 'absolute', right: -SPACING.sm, top: -SPACING.sm, width: 28, height: 28, borderRadius: RADII.pill, backgroundColor: COLOR.surface.bg, borderWidth: 1, borderColor: COLOR.surface.borderStrong, alignItems: 'center', justifyContent: 'center' }}
               >
@@ -56,14 +82,15 @@ export function ComposerPhotos({ photos, onChange, onError, max = 4 }: { photos:
           ))}
         </View>
       ) : null}
-      {photos.length < max ? (
+      {left > 0 ? (
         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
           <Button label="Camera" icon="camera" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(true)} disabled={flow.busy} />
-          <Button label="Library" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(false)} disabled={flow.busy} />
+          <Button label={left > 1 ? 'Library' : 'Library (1 more)'} tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(false, left)} disabled={flow.busy} />
         </View>
       ) : null}
       <DsText v="caption">
-        {plateRedactorAvailable ? 'Number plates are found and blurred before anything is shared; check the boxes when asked.' : 'Photos are saved without location data.'} Up to {max}.
+        {plateRedactorAvailable ? 'Number plates are found and blurred before anything is shared; check the boxes when asked.' : 'Photos are saved without location data.'}{' '}
+        {photos.length ? `${photos.length} of ${max}.` : `Up to ${max}${max > 1 ? '; pick several at once from the library' : ''}.`}
       </DsText>
     </View>
   );

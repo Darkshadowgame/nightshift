@@ -15,6 +15,8 @@ import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
+import { PhotoViewer } from '../../components/PhotoGallery';
+import { MEDIA_LIMITS } from '../../lib/mediaLimits';
 
 /** The toast's height and its gap above the composer, at 1.3x text too. */
 const TOAST_ROOM = 76;
@@ -40,7 +42,7 @@ export default function ChatScreen() {
   useEffect(() => () => {
     if (roomTimer.current) clearTimeout(roomTimer.current);
   }, []);
-  const list = useRef<FlatList<Message>>(null);
+  const list = useRef<FlatList<{ key: string; msgs: Message[] }>>(null);
   const handleOf = (uid: string) => users.find((u) => u.id === uid)?.handle;
   const other = conv ? otherMember(conv, community.me) : undefined;
 
@@ -64,7 +66,34 @@ export default function ChatScreen() {
       setBusy(false);
     }
   };
-  const flow = usePhotoFlow({ onError: setError, onPhoto: (ref) => void send({ body: '', photo: ref }) });
+  // Photos picked together are checked one by one, then sent together: one message each, shown as one grid.
+  const batch = useRef<string[]>([]);
+  const sendPhotos = async () => {
+    const refs = batch.current;
+    batch.current = [];
+    if (!refs.length) return;
+    setError(null);
+    setBusy(true);
+    let sent = 0;
+    try {
+      for (const ref of refs) {
+        await community.run((s) => s.send(id, { body: '', photo: ref }));
+        sent += 1;
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send that.");
+    } finally {
+      setBusy(false);
+    }
+    if (!sent) return;
+    toast({ message: sent === 1 ? 'Photo sent' : `${sent} photos sent` });
+    setToastRoom(true);
+    if (roomTimer.current) clearTimeout(roomTimer.current);
+    roomTimer.current = setTimeout(() => setToastRoom(false), 3600);
+    list.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+  const flow = usePhotoFlow({ onError: setError, onPhoto: (ref) => void batch.current.push(ref), onFinish: () => void sendPhotos() });
+  const [viewing, setViewing] = useState<{ photos: string[]; start: number } | null>(null);
 
   // While this chat is on screen: no phone notifications for it, and it's read.
   useEffect(() => {
@@ -124,12 +153,24 @@ export default function ChatScreen() {
   const sameRun = (a?: Message, b?: Message) =>
     !!a && !!b && !a.system && !b.system && a.senderId === b.senderId && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < 10 * 60_000 && dayLabelShort(a.createdAt, now) === dayLabelShort(b.createdAt, now);
 
-  const renderItem = ({ item: m, index }: { item: Message; index: number }) => {
-    const older = rows[index + 1];
-    const newer = rows[index - 1];
-    const newDay = !older || dayLabelShort(older.createdAt, now) !== dayLabelShort(m.createdAt, now);
+  /** Photos on their own sent together (one message each) show as one grid bubble. */
+  const photoOnly = (m: Message) => !!m.photo && !m.body && !m.share && !m.system;
+  const items: { key: string; msgs: Message[] }[] = [];
+  for (const m of rows) {
+    const last = items[items.length - 1];
+    if (last && photoOnly(m) && photoOnly(last.msgs[0]) && sameRun(m, last.msgs[0]) && last.msgs.length < MEDIA_LIMITS.chatPhotos) last.msgs.unshift(m);
+    else items.push({ key: m.id, msgs: [m] });
+  }
+
+  const renderItem = ({ item, index }: { item: { key: string; msgs: Message[] }; index: number }) => {
+    const group = item.msgs;
+    const m = group[group.length - 1];
+    const oldest = group[0];
+    const older = items[index + 1]?.msgs[items[index + 1].msgs.length - 1];
+    const newer = items[index - 1]?.msgs[0];
+    const newDay = !older || dayLabelShort(older.createdAt, now) !== dayLabelShort(oldest.createdAt, now);
     const mine = m.senderId === community.me;
-    const firstOfRun = !sameRun(older, m);
+    const firstOfRun = !sameRun(older, oldest);
     const lastOfRun = !sameRun(m, newer);
     const sender = m.senderId ? users.find((u) => u.id === m.senderId) : undefined;
     const showName = conv.kind === 'group' && !mine && !!m.senderId && firstOfRun;
@@ -153,7 +194,7 @@ export default function ChatScreen() {
             }}
             feedback="none"
             role="text"
-            label={`${mine ? 'You' : at(sender)}, ${clock(m.createdAt)}: ${m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
+            label={`${mine ? 'You' : at(sender)}, ${clock(m.createdAt)}: ${group.length > 1 ? `${group.length} photos. ` : m.photo ? 'photo. ' : ''}${m.share ? `shared ${m.share.title}. ` : ''}${m.body}`}
             hint={mine ? undefined : 'Long press to report or block'}
             style={{ alignSelf: side, maxWidth: '82%', gap: SPACING.xs, alignItems: side }}
           >
@@ -163,7 +204,20 @@ export default function ChatScreen() {
                 <DsText v="secondary">{at(sender)}</DsText>
               </Press>
             ) : null}
-            {m.photo ? <FitImage source={photoUri(m.photo)} frameAspect={1} style={{ width: 220, height: 220, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo" /> : null}
+            {group.length > 1 ? (
+              <PhotoGrid
+                photos={group.map((g) => g.photo!)}
+                onOpen={(i) => setViewing({ photos: group.map((g) => g.photo!), start: i })}
+                onLongPress={(i) => {
+                  const opts = messageMenu(group[i]);
+                  if (opts.length) setMenu(opts);
+                }}
+              />
+            ) : m.photo ? (
+              <Press onPress={() => setViewing({ photos: [m.photo!], start: 0 })} feedback="card" label="Open the photo">
+                <FitImage source={photoUri(m.photo)} frameAspect={1} style={{ width: 220, height: 220, borderRadius: RADII.card, backgroundColor: COLOR.surface.media }} accessibilityLabel="Photo" />
+              </Press>
+            ) : null}
             {m.share ? <ShareCardView card={m.share} onPress={() => router.push(shareHref(m.share!) as never)} /> : null}
             {m.body ? (
               <View
@@ -202,9 +256,9 @@ export default function ChatScreen() {
       ) : null}
       <FlatList
         ref={list}
-        data={rows}
+        data={items}
         inverted
-        keyExtractor={(m) => m.id}
+        keyExtractor={(it) => it.key}
         renderItem={renderItem}
         contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.xs }}
         ListHeaderComponent={
@@ -239,7 +293,7 @@ export default function ChatScreen() {
               onPress={() =>
                 setMenu([
                   { label: 'Take a photo', onPress: () => void flow.pick(true) },
-                  { label: 'Choose a photo', onPress: () => void flow.pick(false) },
+                  { label: 'Choose photos', detail: `Up to ${MEDIA_LIMITS.chatPhotos} at once`, onPress: () => void flow.pick(false, MEDIA_LIMITS.chatPhotos) },
                   { label: 'Share a build, event or place', onPress: () => setSharing(true) },
                 ])
               }
@@ -267,6 +321,23 @@ export default function ChatScreen() {
       </ActionBar>
       <SharePicker visible={sharing} onPick={(c) => void send({ body: '', share: c })} onClose={() => setSharing(false)} />
       <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
+      <PhotoViewer photos={viewing?.photos ?? []} start={viewing?.start ?? null} onClose={() => setViewing(null)} />
     </KeyboardAvoidingView>
+  );
+}
+
+/** Several photos in one bubble: 2 across for 2 or 4, else 3 across; tap opens them, long press reports that one. */
+function PhotoGrid({ photos, onOpen, onLongPress }: { photos: string[]; onOpen: (i: number) => void; onLongPress: (i: number) => void }) {
+  const cols = photos.length === 2 || photos.length === 4 ? 2 : 3;
+  const gap = SPACING.xxs;
+  const cell = (220 - gap * (cols - 1)) / cols;
+  return (
+    <View style={{ width: 220, flexDirection: 'row', flexWrap: 'wrap', gap, borderRadius: RADII.card, overflow: 'hidden' }}>
+      {photos.map((p, i) => (
+        <Press key={p} onPress={() => onOpen(i)} onLongPress={() => onLongPress(i)} feedback="card" label={`Open photo ${i + 1} of ${photos.length}`}>
+          <FitImage source={photoUri(p)} frameAspect={1} style={{ width: cell, height: cell, backgroundColor: COLOR.surface.media }} />
+        </Press>
+      ))}
+    </View>
   );
 }

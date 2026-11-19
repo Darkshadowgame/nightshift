@@ -2,10 +2,11 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { at, postedLabel, moderateOptions, openProfile, openReport, OptionsSheet, personMark, PostCard, type SheetOption } from '../../components/Community';
-import { CommentBar } from '../../components/ComposerParts';
-import { Avatar, DsText, EmptyState, ErrorState, HeaderActions, IconButton, LoadingState, PAGE_WITH_BAR, Press, RowDivider, Section } from '../../components/ds';
+import { CommentBar, ComposerPhotos } from '../../components/ComposerParts';
+import { PhotoThumbs, PhotoViewer } from '../../components/PhotoGallery';
+import { Avatar, Button, DsText, EmptyState, ErrorState, HeaderActions, IconButton, LoadingState, PAGE_WITH_BAR, Press, RowDivider, Section } from '../../components/ds';
 import { useNow } from '../../lib/clock';
-import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
+import { useCommunity, useCommunityQuery, useMediaLimits } from '../../lib/communityStore';
 import { commentProblem, POST_LIMITS, withLike, type PostComment } from '../../lib/posts';
 import { useStore } from '../../lib/store';
 import { COLOR, SPACING } from '../../theme';
@@ -24,6 +25,10 @@ export default function PostScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [addPhotos, setAddPhotos] = useState(false);
+  const [viewing, setViewing] = useState<{ photos: string[]; start: number } | null>(null);
+  const limits = useMediaLimits();
   const loaded = q.data?.post;
 
   useLayoutEffect(() => {
@@ -58,12 +63,14 @@ export default function PostScreen() {
 
   async function send() {
     setError(null);
-    const p = commentProblem(text);
+    const p = commentProblem(text, photos);
     if (p) return setError(p);
     setBusy(true);
     try {
-      await community.run((s) => s.comment(post.id, text));
+      await community.run((s) => s.comment(post.id, text, photos));
       setText('');
+      setPhotos([]);
+      setAddPhotos(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send that.");
     } finally {
@@ -129,9 +136,12 @@ export default function PostScreen() {
                         Hidden while it's checked. Only you can see it.
                       </DsText>
                     ) : null}
-                    <DsText v="body" selectable>
-                      {c.body}
-                    </DsText>
+                    {c.body ? (
+                      <DsText v="body" selectable>
+                        {c.body}
+                      </DsText>
+                    ) : null}
+                    {c.photos?.length ? <PhotoThumbs photos={c.photos} label="in the comment" onOpen={(i) => setViewing({ photos: c.photos!, start: i })} /> : null}
                   </View>
                   {opts.length ? <IconButton icon="more" label="More options for this comment" colour={COLOR.text.secondary} onPress={() => setMenu(opts)} /> : null}
                 </View>
@@ -142,8 +152,26 @@ export default function PostScreen() {
         {error ? <ErrorState title={error} /> : null}
       </Section>
     </ScrollView>
-      <CommentBar value={text} onChange={setText} onSend={send} busy={busy} placeholder="Add a comment" label="Your comment" maxLength={POST_LIMITS.comment} />
+      <CommentBar
+        value={text}
+        onChange={setText}
+        onSend={send}
+        busy={busy}
+        placeholder="Add a comment"
+        label="Your comment"
+        maxLength={POST_LIMITS.comment}
+        extra={
+          limits.commentPhotos > 0 ? (
+            addPhotos || photos.length ? (
+              <ComposerPhotos photos={photos} onChange={setPhotos} onError={setError} max={limits.commentPhotos} size={64} />
+            ) : (
+              <Button label="Add photos" icon="camera" tier="tertiary" size="sm" onPress={() => setAddPhotos(true)} style={{ alignSelf: 'flex-start' }} />
+            )
+          ) : undefined
+        }
+      />
       <OptionsSheet visible={!!menu} options={menu ?? []} onClose={() => setMenu(null)} />
+      <PhotoViewer photos={viewing?.photos ?? []} start={viewing?.start ?? null} onClose={() => setViewing(null)} />
     </KeyboardAvoidingView>
   );
 }

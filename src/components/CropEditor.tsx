@@ -43,6 +43,8 @@ export function CropEditor({
   onDone,
   onSkip,
   onCancel,
+  progress,
+  onStopAll,
 }: {
   uri: string;
   width?: number;
@@ -53,6 +55,10 @@ export function CropEditor({
   onDone: (box: Box, rot: Rotation, viewW: number, viewH: number) => void;
   onSkip?: () => void;
   onCancel: () => void;
+  /** One of several picked at once: "Photo 2 of 5". Cancel then skips just this one. */
+  progress?: string;
+  /** Several picked and more to come: drop this one and the rest. */
+  onStopAll?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [size, setSize] = useState<{ w: number; h: number } | null>(width && height ? { w: width, h: height } : null);
@@ -145,10 +151,17 @@ export function CropEditor({
     <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onCancel}>
       <View style={[st.screen, { paddingTop: insets.top + SPACING.sm, paddingBottom: insets.bottom + SPACING.sm }]}>
         <View style={st.header}>
-          <IconButton icon="close" label="Cancel" onPress={onCancel} />
-          <DsText v="heading" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>
-            {saved ? 'Crop or rotate' : 'Crop the photo'}
-          </DsText>
+          <IconButton icon="close" label={progress ? 'Skip this photo' : 'Cancel'} onPress={onCancel} />
+          <View style={{ flex: 1 }}>
+            {progress ? (
+              <DsText v="label" accessibilityLiveRegion="polite">
+                {progress}
+              </DsText>
+            ) : null}
+            <DsText v="heading" accessibilityRole="header" numberOfLines={1}>
+              {saved ? 'Crop or rotate' : 'Crop the photo'}
+            </DsText>
+          </View>
           <IconButton icon="more" label="More: rotate, reset" onPress={() => setMenu(true)} />
         </View>
         <DsText v="caption" style={{ paddingHorizontal: SPACING.screen }}>
@@ -251,6 +264,8 @@ export function CropEditor({
             <SheetOption label="Rotate 90°" onPress={() => { setMenu(false); rotate(); }} />
             <SheetOption label="Reset" detail="Back to the whole photo, the right way up" onPress={() => { setMenu(false); reset(); }} />
             {onSkip ? <SheetOption label="Use the whole photo" detail="Skip cropping" onPress={() => { setMenu(false); onSkip(); }} /> : null}
+            {progress ? <SheetOption label="Skip this photo" detail="Don't add it" onPress={() => { setMenu(false); onCancel(); }} /> : null}
+            {onStopAll ? <SheetOption label="Don't add the rest" detail="Photos you've already added stay" onPress={() => { setMenu(false); onStopAll(); }} /> : null}
           </View>
         </Sheet>
       </View>

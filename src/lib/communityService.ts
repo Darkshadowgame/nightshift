@@ -36,6 +36,7 @@ import { groupProblem, MAX_GROUP, messageProblem, otherMember, type Conversation
 import { reportProblem, type BanScope, type ReportReason, type ReportTarget, type StaffRole } from './moderation';
 import { canSee, commentProblem, feedFor, postProblem, postsInBox, snapPlace, withLike, type FeedScope, type Post, type PostComment, type PostDraft } from './posts';
 import type { LatLng, User } from './types';
+import { MEDIA_LIMITS, type MediaLimits } from './mediaLimits';
 
 /**
  * Community behind one interface, like road reports (roadService.ts): the demo
@@ -69,6 +70,8 @@ export interface Box {
 
 export interface CommunityService {
   readonly kind: 'local' | 'supabase';
+  /** How many photos the server takes (mediaLimits.ts): the old limits until the migration is applied. */
+  mediaLimits(): Promise<MediaLimits>;
   // People
   peopleNear(maxMiles: number): Promise<Nearby[]>;
   showInNearby(): Promise<boolean>;
@@ -102,7 +105,7 @@ export interface CommunityService {
   post(id: string): Promise<{ post: Post; comments: PostComment[] } | null>;
   createPost(d: PostDraft): Promise<string>;
   likePost(id: string, on: boolean): Promise<void>;
-  comment(postId: string, body: string): Promise<void>;
+  comment(postId: string, body: string, photos?: string[]): Promise<void>;
   deletePost(id: string): Promise<void>;
   deleteComment(id: string): Promise<void>;
   postsInBox(box: Box): Promise<PostPin[]>;
@@ -412,6 +415,9 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
 
   return {
     kind: 'local',
+    async mediaLimits() {
+      return MEDIA_LIMITS;
+    },
 
     async peopleNear(maxMiles) {
       const m = me();
@@ -619,10 +625,10 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
     async likePost(id, on) {
       update((s) => ({ ...s, posts: s.posts.map((p) => (p.id === id ? withLike(p, on) : p)) }));
     },
-    async comment(postId, body) {
-      const p = commentProblem(body);
+    async comment(postId, body, photos = []) {
+      const p = commentProblem(body, photos);
       if (p) throw new Error(p);
-      const c: PostComment = { id: newId('pc'), postId, authorId: ME, body: body.trim(), createdAt: iso() };
+      const c: PostComment = { id: newId('pc'), postId, authorId: ME, body: body.trim(), ...(photos.length ? { photos } : {}), createdAt: iso() };
       update((s) => ({ ...s, comments: [...s.comments, c], posts: s.posts.map((x) => (x.id === postId ? { ...x, commentCount: x.commentCount + 1 } : x)) }));
     },
     async deletePost(id) {

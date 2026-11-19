@@ -24,12 +24,18 @@ export function PlateReview({
   onCancel,
   busy,
   recheck,
+  progress,
+  onStopAll,
 }: {
   photo: PendingPhoto;
   onDone: (boxes: PlateBox[]) => void;
   onCancel: () => void;
   busy?: boolean;
   recheck?: boolean;
+  /** One of several picked at once: "Photo 2 of 5". Cancel then skips just this one. */
+  progress?: string;
+  /** Several picked and more to come: drop this one and the rest. */
+  onStopAll?: () => void;
 }) {
   const [boxes, setBoxes] = useState<PlateBox[]>(photo.boxes);
   const [frame, setFrame] = useState({ w: 1, h: 1 });
@@ -47,6 +53,11 @@ export function PlateReview({
 
   return (
     <View style={{ gap: SPACING.md, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card }}>
+      {progress ? (
+        <DsText v="label" accessibilityLiveRegion="polite">
+          {progress}
+        </DsText>
+      ) : null}
       <DsText v="title" accessibilityRole="header">
         {recheck ? 'Add more plate blur' : 'Check the number plates'}
       </DsText>
@@ -90,8 +101,9 @@ export function PlateReview({
           block
           style={{ flex: 1 }}
         />
-        <Button label="Cancel" tier="secondary" onPress={onCancel} />
+        <Button label={progress ? 'Skip this photo' : 'Cancel'} tier="secondary" onPress={onCancel} />
       </View>
+      {onStopAll ? <Button label="Don't add the rest" tier="tertiary" size="sm" onPress={onStopAll} style={{ alignSelf: 'center' }} /> : null}
     </View>
   );
 }

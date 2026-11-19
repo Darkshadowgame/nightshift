@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import { ME } from '../data/seed';
 import { supabase } from './backend/client';
 import { createRemoteCommunity } from './backend/community';
+import { OLD_MEDIA_LIMITS, type MediaLimits } from './mediaLimits';
 import {
   createLocalCommunity,
   emptyDemoCommunity,
@@ -374,4 +375,9 @@ export function usePostPins(centre: { lat: number; lng: number }, span: number, 
     };
   }, [enabled, service, version, key]);
   return enabled ? pins : NO_PINS;
+}
+
+/** How many photos the server takes now (mediaLimits.ts); the old limits until it has answered. */
+export function useMediaLimits(): MediaLimits {
+  return useCommunityQuery((s) => s.mediaLimits(), []).data ?? OLD_MEDIA_LIMITS;
 }

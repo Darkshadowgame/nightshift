@@ -580,10 +580,11 @@ connected people**; everyone else talks in public on the forum or under posts. A
 Events and Garage (two people icon) with four parts, and a badge for unread messages plus
 connection requests.
 
-* **Feed:** posts with text and up to 4 photos (the same plate-review flow as builds), a linked
-  build, and an optional place picked on the full-screen map (never within about 1 km of your home
+* **Feed:** posts with text and up to 10 photos (the same plate-review flow as builds; pick several
+  at once and each is checked in turn, "Photo 2 of 5"; on the post they swipe, "1/5", and a tap opens
+  them full screen), a linked build, and an optional place picked on the full-screen map (never within about 1 km of your home
   area: the phone warns and the server refuses). **Public** (everyone signed in) or
-  **Connections**. Likes and comments. "Near you" shows public posts placed within your travel
+  **Connections**. Likes and comments (a comment can carry up to 4 photos, same plate check). "Near you" shows public posts placed within your travel
   distance or by people living within it; "Connections" shows theirs. Posts with a place show on
   the map's **Posts** layer (layers panel, off by default) for 30 days.
 * **People (Cars near you):** people within your travel distance (10/25/50/100 mi), nearest first,

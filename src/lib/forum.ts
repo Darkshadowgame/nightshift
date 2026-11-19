@@ -181,7 +181,7 @@ export function cleanListing(l: ListingDraft): ListingDraft {
   };
 }
 
-export const LIMITS = { title: [4, 120], body: 5000, photos: 4 } as const;
+export const LIMITS = { title: [4, 120], body: 5000, photos: 10 } as const;
 
 export function threadProblem(d: ThreadDraft): string | null {
   const title = d.title.trim();
@@ -189,7 +189,7 @@ export function threadProblem(d: ThreadDraft): string | null {
   if (title.length > LIMITS.title[1]) return 'Keep the title to 120 characters or fewer.';
   if (d.body.trim().length > LIMITS.body) return 'Keep it to 5,000 characters or fewer.';
   if (d.board === 'local' && !REGIONS.some((r) => r.name === d.region)) return 'Pick a region for the Local board.';
-  if (d.photos.length > LIMITS.photos) return 'Up to 4 photos a post.';
+  if (d.photos.length > LIMITS.photos) return 'Up to 10 photos a post.';
   if (d.board === 'for_sale' && d.listing) {
     const l = listingProblem(d.listing);
     if (l) return l;

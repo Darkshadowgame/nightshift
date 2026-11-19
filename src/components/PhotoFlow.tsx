@@ -1,11 +1,13 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState, type ReactNode } from 'react';
 import { Image, Platform } from 'react-native';
-import { pickImageOnWeb } from '../lib/webImagePicker';
+import { pickImagesOnWeb } from '../lib/webImagePicker';
 import { isWholeImage, type AspectKey, type Box, type Rotation } from '../lib/crop';
 import { cropPhoto, discardTemp, findPlates, finishPhoto, photoUri, plateRedactorAvailable } from '../lib/photos';
 import { CropEditor } from './CropEditor';
 import { PlateReview, type PendingPhoto } from './PlateReview';
+
+type Picked = { uri: string; width?: number; height?: number };
 
 type Step =
   | { step: 'crop'; uri: string; width?: number; height?: number; saved: boolean; replaces?: string; temps: string[] }
@@ -23,22 +25,29 @@ function sizeOf(uri: string): Promise<{ width: number; height: number }> {
  * Render `view` when it isn't null (the crop editor is a full-screen modal; the
  * plate check is a card). `onPhoto` gets the stored name, and the name it
  * replaces when a saved photo was edited.
+ *
+ * `pick(false, n)` with n > 1 picks up to n from the library at once; each one then
+ * goes through crop and plate check in turn ("Photo 2 of 5"). Cancel on one skips it
+ * and goes on to the next; "Don't add the rest" ends the batch.
  */
 export function usePhotoFlow({
   onPhoto,
   onError,
+  onFinish,
   cameraDenied = 'Allow camera access to take a photo.',
   aspect = 'free',
   plates = 'always',
 }: {
   onPhoto: (ref: string, replaces?: string) => void;
   onError: (message: string | null) => void;
+  /** The flow closed: every photo of the pick is done, skipped or cancelled. */
+  onFinish?: () => void;
   cameraDenied?: string;
   aspect?: AspectKey;
   /** 'ifFound': skip the plate review when no plate is found (a dyno sheet usually has none). */
   plates?: 'always' | 'ifFound';
 }): {
-  pick: (camera?: boolean) => Promise<void>;
+  pick: (camera?: boolean, limit?: number) => Promise<void>;
   recrop: (ref: string) => void;
   recheck: (ref: string) => Promise<void>;
   busy: boolean;
@@ -46,38 +55,73 @@ export function usePhotoFlow({
 } {
   const [step, setStep] = useState<Step | null>(null);
   const [busy, setBusy] = useState(false);
+  // A batch from the library: the ones still to do, and where we are ("Photo 2 of 5").
+  const queue = useRef<Picked[]>([]);
+  const [count, setCount] = useState({ n: 0, total: 0 });
   // Async steps finish after re-renders: always call the latest handlers.
-  const cb = useRef({ onPhoto, onError });
-  cb.current = { onPhoto, onError };
+  const cb = useRef({ onPhoto, onError, onFinish });
+  cb.current = { onPhoto, onError, onFinish };
+
+  /** Start the next photo of a batch; false when there's none left. */
+  function startNext(): boolean {
+    const a = queue.current.shift();
+    if (!a) {
+      setCount({ n: 0, total: 0 });
+      return false;
+    }
+    setCount((c) => ({ ...c, n: c.n + 1 }));
+    setStep({ step: 'crop', uri: a.uri, width: a.width, height: a.height, saved: false, temps: [a.uri] });
+    return true;
+  }
 
   function end(temps: string[]) {
-    setStep(null);
     for (const t of temps) discardTemp(t);
+    if (!startNext()) {
+      setStep(null);
+      cb.current.onFinish?.();
+    }
+  }
+
+  /** Drop this photo and the rest of the batch. */
+  function stopAll(temps: string[]) {
+    for (const a of queue.current) discardTemp(a.uri);
+    queue.current = [];
+    end(temps);
+  }
+
+  function startBatch(picked: Picked[]) {
+    if (!picked.length) return;
+    queue.current = picked.slice();
+    setCount({ n: 0, total: picked.length });
+    startNext();
   }
 
   function done(ref: string, temps: string[], replaces?: string) {
-    end(temps);
     cb.current.onPhoto(ref, replaces);
+    end(temps);
   }
 
-  async function pick(camera = false) {
+  async function pick(camera = false, limit = 1) {
     cb.current.onError(null);
     try {
       if (camera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) return cb.current.onError(cameraDenied);
       }
+      const many = !camera && limit > 1;
       if (Platform.OS === 'web' && !camera) {
-        const picked = await pickImageOnWeb();
-        if (!picked) return;
-        setStep({ step: 'crop', uri: picked.uri, width: picked.width, height: picked.height, saved: false, temps: [picked.uri] });
+        startBatch(await pickImagesOnWeb(Math.max(1, limit)));
         return;
       }
-      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.9, exif: false };
+      const opts: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        quality: 0.9,
+        exif: false,
+        ...(many ? { allowsMultipleSelection: true, selectionLimit: limit, orderedSelection: true } : {}),
+      };
       const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (res.canceled) return;
-      const a = res.assets[0];
-      setStep({ step: 'crop', uri: a.uri, width: a.width, height: a.height, saved: false, temps: [a.uri] });
+      startBatch(res.assets.slice(0, Math.max(1, limit)).map((a) => ({ uri: a.uri, width: a.width, height: a.height })));
     } catch {
       cb.current.onError("Couldn't open that photo. Try another one.");
     }
@@ -172,10 +216,12 @@ export function usePhotoFlow({
     }
   }
 
+  const batch = count.total > 1 && step && !(step.step === 'crop' && step.saved) && !(step.step === 'plates' && step.recheck) ? { label: `Photo ${count.n} of ${count.total}`, more: queue.current.length > 0 } : undefined;
   let view: ReactNode | null = null;
   if (step?.step === 'crop') {
     view = (
       <CropEditor
+        key={step.uri}
         uri={step.uri}
         width={step.width}
         height={step.height}
@@ -185,10 +231,23 @@ export function usePhotoFlow({
         onDone={onCrop}
         onSkip={step.saved ? undefined : onSkip}
         onCancel={() => end(step.temps)}
+        progress={batch?.label}
+        onStopAll={batch?.more ? () => stopAll(step.temps) : undefined}
       />
     );
   } else if (step?.step === 'plates') {
-    view = <PlateReview photo={step.photo} recheck={step.recheck} onDone={onPlates} onCancel={() => end(step.temps)} busy={busy} />;
+    view = (
+      <PlateReview
+        key={step.photo.uri}
+        photo={step.photo}
+        recheck={step.recheck}
+        onDone={onPlates}
+        onCancel={() => end(step.temps)}
+        busy={busy}
+        progress={batch?.label}
+        onStopAll={batch?.more ? () => stopAll(step.temps) : undefined}
+      />
+    );
   }
 
   return { pick, recrop, recheck, busy, view };

@@ -18,6 +18,7 @@ import { ASPECT, COLOR, RADII, SPACING } from '../theme';
 import { Avatar, BuildThumb, Button, ClassBadge, DsText, FitImage, Icon, IconButton, ListRow, Press, Sheet, SheetOption, Tag, metaLine } from './ds';
 import { photoSource } from '../lib/photoSource';
 import { PhotoCredit } from './PhotoCredit';
+import { PhotoGallery, PhotoViewer } from './PhotoGallery';
 import { useBuildPicture } from './BuildBits';
 import { powerText } from '../lib/dyno';
 import { DynoBadge } from './DynoBadge';
@@ -227,29 +228,24 @@ export function PostCard({
   const open = onOpen && !full ? onOpen : undefined;
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
   const photos = post.photos.filter((p) => !broken.has(p));
-  const shown = full ? photos : photos.slice(0, 1);
+  const [viewing, setViewing] = useState<number | null>(null);
   const { events } = useStore();
   const place = postPlace(post, { events });
   // "At {event}" is the place line; a caption that only says the same is not said twice (C5).
   const body = place?.kind === 'event' && post.body.trim() === place.text ? '' : post.body;
 
-  const pictures = shown.map((p, i) => (
-    <View key={p} style={{ aspectRatio: ASPECT.post, backgroundColor: COLOR.surface.media }}>
-      {/* A photo that can't load (an old web preview link, a file that's gone) drops out instead of leaving a blank frame. */}
-      <FitImage
-        source={photoSource(p)}
-        frameAspect={ASPECT.post}
-        onError={() => setBroken((b) => new Set(b).add(p))}
-        accessibilityLabel={i === 0 ? `Photo by ${at(author)}` : 'Another photo in the post'}
-      />
-      <PhotoCredit photoRef={p} overlay corner="topRight" />
-      {i === 0 && !full && post.photos.length > 1 ? (
-        <View style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
-          <Tag label={`+${post.photos.length - 1} photos`} />
-        </View>
-      ) : null}
-    </View>
-  ));
+  // Swipe through every photo ("1/5"); a tap opens the post from the feed, or the full-screen viewer on the post's page.
+  // A photo that can't load (an old web preview link, a file that's gone) drops out instead of leaving a blank frame.
+  const pictures = (
+    <PhotoGallery
+      photos={photos}
+      aspect={ASPECT.post}
+      label={`by ${at(author)}`}
+      onOpen={open ? () => open() : (i) => setViewing(i)}
+      onBroken={(p) => setBroken((b) => new Set(b).add(p))}
+      overlay={(p) => <PhotoCredit photoRef={p} overlay corner="topRight" />}
+    />
+  );
 
   const words = (
     <View style={{ gap: SPACING.sm }}>
@@ -274,13 +270,8 @@ export function PostCard({
           : { backgroundColor: COLOR.surface.card, borderColor: COLOR.surface.border, borderWidth: 1, borderRadius: RADII.card, overflow: 'hidden' }
       }
     >
-      {shown.length ? open ? (
-        <Press onPress={open} feedback="card" label="Open the post">
-          {pictures}
-        </Press>
-      ) : (
-        <View style={{ gap: SPACING.xxs }}>{pictures}</View>
-      ) : null}
+      {photos.length ? pictures : null}
+      {open ? null : <PhotoViewer photos={photos} start={viewing} onClose={() => setViewing(null)} />}
       <View style={{ paddingHorizontal: full ? SPACING.screen : SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
           <Press onPress={() => author && openProfile(author.id)} role="link" label={`${at(author)}'s profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 }}>

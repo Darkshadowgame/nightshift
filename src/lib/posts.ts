@@ -3,7 +3,7 @@ import { textProblem } from './moderation';
 import type { LatLng } from './types';
 
 /**
- * Feed posts (Community › Feed): text and up to 4 plate-blurred photos, an
+ * Feed posts (Community › Feed): text and up to 10 plate-blurred photos, an
  * optional place picked on the map, Public or Connections only, likes and
  * comments. Posts with a place show on the map's Posts layer. Mirrors
  * create_post(), feed_posts(), like_post() and comment_post().
@@ -45,6 +45,8 @@ export interface PostComment {
   postId: string;
   authorId: string;
   body: string;
+  /** Up to 4 plate-blurred photos (20261121100000_more_photos.sql); refs like a post's. */
+  photos?: string[];
   createdAt: string;
   hidden?: boolean;
   sample?: boolean;
@@ -61,7 +63,7 @@ export interface PostDraft {
   eventId?: string;
 }
 
-export const POST_LIMITS = { body: 2000, comment: 1000, photos: 4, placeName: 80 } as const;
+export const POST_LIMITS = { body: 2000, comment: 1000, photos: 10, commentPhotos: 4, placeName: 80 } as const;
 /** No place within this of your home area (the server uses 1 km too). */
 export const HOME_CLEARANCE_KM = 1;
 const UK = { south: 49.8, north: 60.9, west: -8.7, east: 1.9 };
@@ -79,7 +81,7 @@ export function postProblem(d: PostDraft, home: LatLng | null): string | null {
   const body = d.body.trim();
   if (!body && d.photos.length === 0) return 'Write something or add a photo.';
   if (body.length > POST_LIMITS.body) return 'Keep it to 2,000 characters or fewer.';
-  if (d.photos.length > POST_LIMITS.photos) return 'Up to 4 photos a post.';
+  if (d.photos.length > POST_LIMITS.photos) return 'Up to 10 photos a post.';
   if (d.at) {
     const p = locationProblem(d.at, home);
     if (p) return p;
@@ -87,9 +89,11 @@ export function postProblem(d: PostDraft, home: LatLng | null): string | null {
   return textProblem(`${body}\n${d.at ? d.placeName ?? '' : ''}`);
 }
 
-export function commentProblem(body: string): string | null {
+export function commentProblem(body: string, photos: readonly string[] = []): string | null {
   const b = body.trim();
-  if (!b) return 'Write a comment first.';
+  if (!b && photos.length === 0) return 'Write a comment first.';
+  if (photos.length > POST_LIMITS.commentPhotos) return 'Up to 4 photos a comment.';
+  if (!b) return null;
   if (b.length > POST_LIMITS.comment) return 'Keep it to 1,000 characters or fewer.';
   return textProblem(b);
 }

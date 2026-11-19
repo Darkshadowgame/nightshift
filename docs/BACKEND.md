@@ -405,10 +405,10 @@ accepts); everyone else talks on the forum or under posts. Rules mirror
 | `connections` | requester, addressee, `pending` / `accepted` / `declined`; one row per pair | both people, **never a declined row** | `request_connection()`, `answer_connection()`, `remove_connection()`, `block_user()` |
 | `blocks` | who blocked whom | the blocker only | `block_user()`, `unblock_user()` |
 | `build_ratings` | like / pass per build per person | own rows (`build_likes()` gives counts) | `rate_build()` |
-| `forum_threads`, `forum_replies` | board (`advice`, `builds`, `cars`, `bikes`, `detailing`, `meets`, `for_sale`, `local` + region), title, body, up to 4 photo paths (`photos/{uid}/forum/…`), linked build, counts, `solved_reply_id`, `hidden_at` | signed-in users, minus hidden posts (the author still sees theirs) and **people you blocked** | `create_thread()`, `reply_thread()`, `mark_solved()`; the author deletes |
+| `forum_threads`, `forum_replies` | board (`advice`, `builds`, `cars`, `bikes`, `detailing`, `meets`, `for_sale`, `local` + region), title, body, up to 10 photo paths (`photos/{uid}/forum/…`; 4 before `20261121100000_more_photos.sql`), linked build, counts, `solved_reply_id`, `hidden_at` | signed-in users, minus hidden posts (the author still sees theirs) and **people you blocked** | `create_thread()`, `reply_thread()`, `mark_solved()`; the author deletes |
 | `forum_helpful` | "Helpful" per reply per person | own rows | `mark_helpful()` |
 | `forum_rep` | +25 per thread whose Solved reply is yours (0 over a cap) | own rows (`forum_rep_for()` for anyone) | `mark_solved()` |
-| `posts`, `post_likes`, `post_comments` | feed posts: text, up to 4 photo paths (`photos/{uid}/posts/…`), optional place (4 dp) and name, `public` / `connections`, counts, `event_id` (the meet it was made at) | `can_see_post()`: public, or connections-only for connections; never across a block; hidden only to the author. **`location` and `place_name` can't be selected directly** (only through the two RPCs below) | `create_post()`, `like_post()`, `comment_post()`; authors delete (a post's author can delete comments on it) |
+| `posts`, `post_likes`, `post_comments` | feed posts: text, up to 10 photo paths (`photos/{uid}/posts/…`; 4 before `20261121100000_more_photos.sql`); comments up to 4 (`photos/{uid}/comments/…`), optional place (4 dp) and name, `public` / `connections`, counts, `event_id` (the meet it was made at) | `can_see_post()`: public, or connections-only for connections; never across a block; hidden only to the author. **`location` and `place_name` can't be selected directly** (only through the two RPCs below) | `create_post()`, `like_post()`, `comment_post()`; authors delete (a post's author can delete comments on it) |
 | `conversations`, `conversation_members`, `messages` | 1-to-1 (`direct_key`) and group chats (name, up to 50, admins), `last_read_at` ("Seen"), text, a photo in the private `messages` bucket, a shared card (`share`: kind event/place/build, id, title, subtitle) | **members only** (staff too: no blanket read; reports carry a copy) | RPCs only (below) |
 | `reports` | target (thread, reply, message, post, comment, profile, build), reason, note, a copy of the text, status | **staff only** | `report_content()`; staff `moderate_report()` |
 | `private.rate_hits` | one row per rate-limited action (kept a day) | nobody (functions only) | the RPCs |
@@ -1053,6 +1053,20 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   (a `pg_dump` of `public` and `private` was taken first, kept off the repo).
 * **Smoke test:** 121 of 121 (adds: A adds a dyno run with its sheet, B reads it with the build, B can't
   add one to A's build; B sees the badge proven, it goes when A edits the power by hand, B can't remove it).
+
+### 7a-13. Ready, not applied (19 Nov 2026, more photos)
+
+* **`20261121100000_more_photos.sql`** (owner request: "can you post multiple photos? or comment photos?"):
+  10 photos on posts, threads and replies (was 4); `post_comments.photos` (up to 4, `{uid}/comments/…`, checked
+  like forum photos by `private.check_comment_photos()`); `comment_post(post, body, photos default '{}')` (the
+  two-argument call still works; a comment can be just photos); null paths refused. Chat needs nothing: several
+  photos are sent as one message each and the app groups them into one bubble. pgTAP `more_photos_test.sql`
+  (26) passed in a rolled-back transaction on the hosted database, and the other 20 files (887) passed with the
+  migration applied inside their own rolled-back transactions. `db push --dry-run` lists only this migration.
+  **Not pushed yet.** Until it is, the app asks the server (`post_comments.photos` missing = old server) and
+  keeps to 4 photos and no comment photos (`src/lib/mediaLimits.ts`), so nothing fails.
+* To apply: `pg_dump` of `public` first, `db push --remote --dry-run`, `db push --remote --yes`, then the full
+  pgTAP suite and `scripts/supabase-smoke.mjs`.
 
 ### 7c. The smoke test
 

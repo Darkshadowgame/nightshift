@@ -8,6 +8,7 @@ import { uuid } from '../ids';
 import { groupProblem, messageProblem, type Conversation, type Message, type ShareCard } from '../messages';
 import { duplicateProblem, rememberSent, reportProblem, SPAM_PROBLEMS, type BanScope, type ReportReason, type ReportTarget, type SentText, type StaffRole } from '../moderation';
 import { photoUri } from '../photos';
+import { isMissingColumn, MEDIA_LIMITS, OLD_MEDIA_LIMITS, photoLimitProblem, type MediaLimits } from '../mediaLimits';
 import { commentProblem, postProblem, type Post, type PostComment, type PostVisibility } from '../posts';
 import type { LatLng } from '../types';
 import { isUuid } from './mapping';
@@ -83,6 +84,8 @@ export interface CommentRow {
   post_id: string;
   author_id: string;
   body: string;
+  /** Only once 20261121100000_more_photos.sql is applied. */
+  photos?: string[] | null;
   created_at: string;
   hidden_at: string | null;
 }
@@ -192,8 +195,9 @@ export function postFromRow(r: PostRow, sign: Signed = same): Post {
   };
 }
 
-export function commentFromRow(r: CommentRow): PostComment {
-  return { id: r.id, postId: r.post_id, authorId: r.author_id, body: r.body, createdAt: r.created_at, ...(r.hidden_at ? { hidden: true } : {}) };
+export function commentFromRow(r: CommentRow, sign: Signed = same): PostComment {
+  const photos = (r.photos ?? []).map(sign).filter(Boolean);
+  return { id: r.id, postId: r.post_id, authorId: r.author_id, body: r.body, ...(photos.length ? { photos } : {}), createdAt: r.created_at, ...(r.hidden_at ? { hidden: true } : {}) };
 }
 
 export function conversationFromRow(r: ConversationRow): Conversation {
@@ -397,7 +401,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     await call(() => client.storage.from(bucket).upload(path, body, { contentType: 'image/jpeg', upsert: true }) as unknown as PromiseLike<Result<unknown>>);
   }
 
-  async function uploadAll(folder: 'forum' | 'posts', refs: string[]): Promise<string[]> {
+  async function uploadAll(folder: 'forum' | 'posts' | 'comments', refs: string[]): Promise<string[]> {
     const out: string[] = [];
     for (const ref of refs) {
       const path = `${uid}/${folder}/${uuid()}.jpg`;
@@ -425,8 +429,32 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     });
   }
 
+  /**
+   * The server's photo limits: the new ones once post_comments has `photos`
+   * (20261121100000_more_photos.sql), the old ones until then. Asked once; a failed
+   * check (offline) keeps the old limits and asks again next time.
+   */
+  let limits: Promise<MediaLimits> | null = null;
+  function mediaLimits(): Promise<MediaLimits> {
+    if (!limits) {
+      limits = Promise.resolve(client.from('post_comments').select('photos').limit(0)).then(
+        (res) => {
+          if (!res.error) return MEDIA_LIMITS;
+          if (!isMissingColumn(res.error)) limits = null;
+          return OLD_MEDIA_LIMITS;
+        },
+        () => {
+          limits = null;
+          return OLD_MEDIA_LIMITS;
+        },
+      );
+    }
+    return limits;
+  }
+
   const svc: CommunityService = {
     kind: 'supabase',
+    mediaLimits,
 
     async peopleNear(maxMiles) {
       const rows = await rpc<{ user_id: string; miles: number }[]>('people_near', { p_max_miles: Math.round(maxMiles) });
@@ -511,7 +539,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       };
     },
     async createThread(d) {
-      const p = threadProblem(d);
+      const p = threadProblem(d) ?? photoLimitProblem(d.photos.length, (await mediaLimits()).photos, 'post');
       if (p) throw new Error(p);
       return guarded('thread', null, `${d.title.trim()} ${d.body.trim()}`, async () => {
         const photos = await uploadAll('forum', d.photos);
@@ -523,7 +551,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       });
     },
     async reply(threadId, body, photos, buildId) {
-      const p = replyProblem(body);
+      const p = replyProblem(body) ?? photoLimitProblem(photos.length, (await mediaLimits()).photos, 'post');
       if (p) throw new Error(p);
       await guarded('reply', threadId, body.trim(), async () => {
         const paths = await uploadAll('forum', photos);
@@ -579,13 +607,20 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
         row = { ...plain[0], lat: null, lng: null, place_name: null, liked_by_me: (likes ?? []).length > 0, hidden: !!plain[0].hidden_at };
       }
       const [post] = await postsWithPhotos([row]);
+      const withPhotos = (await mediaLimits()).commentPhotos > 0;
       const comments = await call<CommentRow[]>(() =>
-        client.from('post_comments').select('id,post_id,author_id,body,created_at,hidden_at').eq('post_id', id).order('created_at').limit(500) as unknown as PromiseLike<Result<CommentRow[]>>,
+        client
+          .from('post_comments')
+          .select(withPhotos ? 'id,post_id,author_id,body,photos,created_at,hidden_at' : 'id,post_id,author_id,body,created_at,hidden_at')
+          .eq('post_id', id)
+          .order('created_at')
+          .limit(500) as unknown as PromiseLike<Result<CommentRow[]>>,
       );
-      return { post, comments: (comments ?? []).map(commentFromRow) };
+      const sign = await signer('photos', (comments ?? []).flatMap((c) => c.photos ?? []));
+      return { post, comments: (comments ?? []).map((c) => commentFromRow(c, sign)) };
     },
     async createPost(d) {
-      const p = postProblem(d, null);
+      const p = postProblem(d, null) ?? photoLimitProblem(d.photos.length, (await mediaLimits()).photos, 'post');
       if (p) throw new Error(p);
       return guarded('post', null, d.body.trim(), async () => {
         const photos = await uploadAll('posts', d.photos);
@@ -598,10 +633,14 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async likePost(id, on) {
       await rpc('like_post', { p_post_id: id, p_on: on });
     },
-    async comment(postId, body) {
-      const p = commentProblem(body);
+    async comment(postId, body, photos = []) {
+      const p = commentProblem(body, photos) ?? photoLimitProblem(photos.length, (await mediaLimits()).commentPhotos, 'comment');
       if (p) throw new Error(p);
-      await guarded('comment', postId, body.trim(), () => rpc('comment_post', { p_post_id: postId, p_body: body.trim() }));
+      await guarded('comment', postId, body.trim(), async () => {
+        if (!photos.length) return rpc('comment_post', { p_post_id: postId, p_body: body.trim() });
+        const paths = await uploadAll('comments', photos);
+        return rpc('comment_post', { p_post_id: postId, p_body: body.trim(), p_photos: paths });
+      });
     },
     async deletePost(id) {
       await call(() => client.from('posts').delete().eq('id', id) as unknown as PromiseLike<Result<unknown>>);
