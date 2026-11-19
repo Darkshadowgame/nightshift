@@ -71,6 +71,7 @@ const TEMPLATES: Record<string, Template> = {
   notifications: 'T1',
   'event/going': 'T1',
   'event/[id]': 'T3',
+  'event/posted': 'T3',
   'build/[id]': 'T3',
   'build/power': 'T5',
   'user/[id]': 'T3',

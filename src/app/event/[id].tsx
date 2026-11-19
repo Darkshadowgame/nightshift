@@ -494,8 +494,8 @@ export default function EventScreen() {
     canEdit ? { label: 'Edit', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
     canPlan ? { label: 'Change the plan', onPress: () => (setMenu(false), router.push({ pathname: '/event/plan', params: { id: ev.id } })) } : null,
     host && (ev.changes?.length ?? 0) > 0 ? { label: 'Plan changes', onPress: () => (setMenu(false), setChangesOpen(true)) } : null,
-    // Says what it cancels (4.5, Review 19): a bare "Cancel" in a sheet reads as "close this".
-    host && !closed ? { label: `Cancel the ${EVENT_LABELS[ev.type].toLowerCase()}`, destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
+    // Says what it cancels (Review 19, 4.5): a bare "Cancel" in a sheet reads as "close this".
+    host && !closed ? { label: `Cancel this ${EVENT_LABELS[ev.type].toLowerCase()}…`, destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
     !host ? { label: 'Report', onPress: () => (setMenu(false), openReport('event', ev.id, undefined, 'event')) } : null,
   ] as (MenuOption | null)[]).filter((x): x is MenuOption => !!x);
 

@@ -122,16 +122,17 @@ export function describeFilter(filter: InviteFilter): string {
  * "fewer than 3", "…" or "?". Without it (the posted meet's page, Review 15) the count is left off.
  *
  *   Who can come: Everyone
- *   Who we'll tell: drivers within 25 mi · about 18 people
+ *   Who we'll tell: about 18 people within 25 mi
  *
  *   Who can come: Bikes · Class A–S
- *   Who we'll tell: matching drivers within 10 mi · 7 people
+ *   Who we'll tell: 7 people who match, within 10 mi
  */
 export function inviteRows(filter: InviteFilter, people?: string): { come: string; tell: string } {
   const n = people !== undefined && /^\d+$/.test(people) ? Number(people) : null;
-  const count = people === undefined ? null : n === null ? `${people} people` : n === 1 ? (filter.everyone ? 'about 1 person' : '1 person') : filter.everyone ? `about ${n} people` : `${n} people`;
-  const reach = (who: string) => [`${who} within ${filter.radiusMiles} mi`, count].filter(Boolean).join(' · ');
-  if (filter.everyone) return { come: 'Everyone', tell: reach('drivers') };
+  // "People", never "drivers": riders are told too (Review 19 #43). The count leads: "about 18 people within 25 mi".
+  const who = people === undefined ? 'people' : n === null ? `${people} people` : n === 1 ? (filter.everyone ? 'about 1 person' : '1 person') : filter.everyone ? `about ${n} people` : `${n} people`;
+  const reach = (match: string) => `${who}${match} within ${filter.radiusMiles} mi`;
+  if (filter.everyone) return { come: 'Everyone', tell: reach('') };
   const parts: string[] = [];
   if (filter.cars && !filter.bikes) parts.push('Cars');
   else if (filter.bikes && !filter.cars) parts.push('Bikes');
@@ -139,7 +140,7 @@ export function inviteRows(filter: InviteFilter, people?: string): { come: strin
   if (filter.classes.length > 0) parts.push(`Class ${classRange(filter.classes)}`);
   if (filter.minMods > 0) parts.push(`${filter.minMods}+ mods`);
   if (filter.brands.length > 0) parts.push(filter.brands.join(', '));
-  return { come: parts.join(' · '), tell: reach('matching drivers') };
+  return { come: parts.join(' · '), tell: reach(' who match,') };
 }
 
 const ORDER = 'SABCD';

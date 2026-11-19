@@ -25,6 +25,7 @@ import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
 import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, Icon, PAGE_WITH_BAR, Press, RowDivider, Section, StepHeading, SwitchRow, TextField } from './ds';
+import { MapEdgeFade } from './MapEdgeFade';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { ZoneNotice } from './ZoneCard';
@@ -429,7 +430,8 @@ export function EventForm({
     );
   const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: typeColour, dashed: true }] : [];
   // The preview frames the meet points placed so far, or opens on home.
-  const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.9 };
+  // About 15 miles across: your own area, with its town names readable (Review 19 #42).
+  const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.22 };
   function openPicker(i: number) {
     setActiveStop(i);
     setPicking(i);
@@ -463,7 +465,7 @@ export function EventForm({
             setTitle(t);
             clearAt('name');
           }}
-          placeholder="e.g. Sunday coffee and cars"
+          placeholder="e.g. Friday night car park meet"
           maxLength={60}
           accessibilityLabel="Name"
         />
@@ -513,23 +515,20 @@ export function EventForm({
           feedback="card"
         >
           <MediaFrame height={180} style={errorAt('point') ? { borderColor: COLOR.state.danger } : undefined}>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <View style={[StyleSheet.absoluteFill, { zIndex: 0 }]} pointerEvents="none">
               {/* Only your own points: meet bans show in the picker, with their legend, and under a point that's in one (Review 13). */}
               <NightMap pins={pointPins(null)} paths={routePaths} centre={preview.centre} span={preview.span} follow />
             </View>
-            {placed.length === 0 ? (
-              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, backgroundColor: COLOR.surface.scrim }]}>
-                <Icon name="pin" size={24} colour={COLOR.text.primary} />
-                <DsText v="bodyStrong">{`Tap to place the ${cardLabel}`}</DsText>
-              </View>
-            ) : (
-              <View pointerEvents="none" style={{ position: 'absolute', left: SPACING.sm, top: SPACING.sm, flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, borderRadius: RADII.pill, backgroundColor: COLOR.surface.glass }}>
-                <Icon name="pin" size={14} colour={COLOR.text.primary} />
-                <DsText v="meta" style={{ color: COLOR.text.primary }}>
+            <MapEdgeFade />
+            {/* One solid chip, never words printed over the map's own labels (Review 19 #42, owner decision). */}
+            <View pointerEvents="none" style={[placed.length === 0 ? promptSt.centre : promptSt.corner, { zIndex: 2 }]}>
+              <View style={promptSt.chip}>
+                <Icon name="pin" size={placed.length === 0 ? 18 : 14} colour={COLOR.text.primary} />
+                <DsText v={placed.length === 0 ? 'bodyStrong' : 'meta'} style={{ color: COLOR.text.primary }}>
                   {visibleStops[cardTarget]?.at ? `Tap to move the ${cardLabel}` : `Tap to place the ${cardLabel}`}
                 </DsText>
               </View>
-            )}
+            </View>
           </MediaFrame>
         </Press>
         {errorAt('point') ? (
@@ -838,3 +837,21 @@ function ReviewRow({ label, value, onEdit }: { label: string; value: string; onE
     </View>
   );
 }
+
+const promptSt = StyleSheet.create({
+  /** Before a point is placed: the chip in the middle of the map card. */
+  centre: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: SPACING.sm },
+  /** Once placed: the chip in the top left corner, out of the point's way. */
+  corner: { position: 'absolute', left: SPACING.sm, top: SPACING.sm, right: SPACING.sm, alignItems: 'flex-start' },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADII.pill,
+    backgroundColor: COLOR.surface.raised,
+    borderWidth: 1,
+    borderColor: COLOR.surface.borderStrong,
+  },
+});

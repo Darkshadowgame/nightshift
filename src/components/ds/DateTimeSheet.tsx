@@ -5,6 +5,7 @@ import { dayKey, dayLabelShort, dayOptions, whenLabel } from '../../lib/when';
 import { COLOR, SPACING } from '../../theme';
 import { ChoiceGroup, chipFace, chipText } from './Choice';
 import { MonthCalendar } from './DateField';
+import { Button } from './Button';
 import { Field, INPUT } from './Field';
 import { Icon } from './Icon';
 import { afterMidnightLabel, localDay, parseLocalDay, shortDate, shortDay } from './logic';
@@ -40,7 +41,10 @@ export function dateTimeText(value: Date, now: Date, mode: DateTimeMode = 'datet
   return (after && afterMidnightLabel(value, after)) || whenLabel(value, now);
 }
 
-const HOURS = Array.from({ length: 24 }, (_, h) => h);
+/** Meets are in the evening: these hours show first, in one row (Review 19 #44). */
+const EVENING = [17, 18, 19, 20, 21, 22, 23];
+/** The rest of the day, behind "Show earlier hours". */
+const EARLIER = Array.from({ length: 17 }, (_, h) => h);
 
 /**
  * The one date and time picker (Redesign 2, 4.4): host flow Starts and Ends, a dyno run's date, a
@@ -48,7 +52,8 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h);
  *
  * In a Sheet: a sideways row of days (`days`, default 14: "Today", "Tomorrow", "Sat 21", …, then
  * "Another day" for the month calendar, in the same sheet), then for `mode="datetime"` the hour
- * (a 6×4 grid, 00–23) and the minutes in `stepMinutes` steps (default 15: :00 :15 :30 :45).
+ * (the evening, 17–23, in one row; "Show earlier hours" adds 00–16, leaving out any that can't be
+ * picked) and the minutes in `stepMinutes` steps (default 15: :00 :15 :30 :45).
  * Every tap calls `onChange` with the whole new Date; the Sheet closes with Done.
  *
  * Use `DateTimeField` in forms: it shows the value ("Sun 10:00", "Today") and opens this.
@@ -79,6 +84,8 @@ export function DateTimeSheet({
   // that reads Wednesday doesn't make "Today" look wrong.
   const demoDay = !nowGiven && clockOffset() !== 0 ? `The demo night is ${shortDate(now)}, so that's "Today" here.` : null;
   const [calendar, setCalendar] = useState(false);
+  // Earlier hours start open only when the value is already in them (a Sunday 10:00 meet being edited).
+  const [earlier, setEarlier] = useState(() => !!value && !EVENING.includes(value.getHours()));
   // The day row opens scrolled to the picked day (it can be two weeks along).
   const row = useRef<ComponentRef<typeof ScrollView>>(null);
   const scrolled = useRef(false);
@@ -123,6 +130,34 @@ export function DateTimeSheet({
     return (!!minDate && end < minDate) || (!!maxDate && start > maxDate);
   };
   const minutes = Array.from({ length: Math.max(1, Math.floor(60 / stepMinutes)) }, (_, i) => i * stepMinutes);
+  const hourChip = (h: number, basis: `${number}%`) => {
+    const on = !!value && value.getHours() === h;
+    const off = hourOff(h);
+    return (
+      <Press
+        key={h}
+        onPress={off ? undefined : () => pickHour(h)}
+        disabled={off}
+        haptic="select"
+        role="radio"
+        state={{ checked: on, disabled: off }}
+        label={`${String(h).padStart(2, '0')}:00`}
+        style={{
+          flexBasis: basis,
+          flexGrow: 1,
+          minHeight: 44,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...chipFace(on),
+          opacity: off ? 0.35 : 1,
+        }}
+      >
+        <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on), fontVariant: ['tabular-nums'] }}>
+          {String(h).padStart(2, '0')}
+        </DsText>
+      </Press>
+    );
+  };
 
   return (
     <Sheet visible={visible} title={title} onClose={onClose}>
@@ -204,35 +239,15 @@ export function DateTimeSheet({
         <View style={{ gap: SPACING.sm }}>
           <DsText v="label">Hour</DsText>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
-            {HOURS.map((h) => {
-              const on = !!value && value.getHours() === h;
-              const off = hourOff(h);
-              return (
-                <Press
-                  key={h}
-                  onPress={off ? undefined : () => pickHour(h)}
-                  disabled={off}
-                  haptic="select"
-                  role="radio"
-                  state={{ checked: on, disabled: off }}
-                  label={`${String(h).padStart(2, '0')}:00`}
-                  style={{
-                    flexBasis: '15%',
-                    flexGrow: 1,
-                    minHeight: 40,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    ...chipFace(on),
-                    opacity: off ? 0.35 : 1,
-                  }}
-                >
-                  <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on), fontVariant: ['tabular-nums'] }}>
-                    {String(h).padStart(2, '0')}
-                  </DsText>
-                </Press>
-              );
-            })}
+            {EVENING.map((h) => hourChip(h, '12%'))}
           </View>
+          {earlier ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
+              {EARLIER.filter((h) => !hourOff(h) || (!!value && value.getHours() === h)).map((h) => hourChip(h, '15%'))}
+            </View>
+          ) : (
+            <Button label="Show earlier hours" tier="tertiary" size="sm" onPress={() => setEarlier(true)} accessibilityHint="Adds 00:00 to 16:00" style={{ alignSelf: 'flex-start' }} />
+          )}
           <ChoiceGroup
             label="Minutes"
             options={minutes.map((m) => ({ key: String(m), label: `:${String(m).padStart(2, '0')}` }))}

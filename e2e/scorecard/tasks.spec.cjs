@@ -266,6 +266,8 @@ async function runScorecard({ base, clock, scale, outDir }) {
     await tap(B(/^Starts:/));
     await snap('starts');
     await tap(page.getByRole('radio', { name: /^Sun, Sun/ }), { inSheet: true });
+    // Evening hours show first (Review 19 #44): morning hours are behind "Show earlier hours".
+    if (!(await page.getByRole('radio', { name: '10:00', exact: true }).count())) await tap(B('Show earlier hours'), { inSheet: true });
     await tap(page.getByRole('radio', { name: '10:00', exact: true }), { inSheet: true });
     await snap('starts-picked');
     await tap(B('Done'), { inSheet: true });
@@ -291,7 +293,8 @@ async function runScorecard({ base, clock, scale, outDir }) {
 
     // 10. Not going to Sunday coffee; the Privacy switch.
     await start('t10');
-    await tap(B('Go back'));
+    // The "It's up" page has no back (Review 19 #46): Done closes it.
+    await tap((await B('Go back').count()) ? B('Go back') : B('Done', { exact: true }));
     await tap(page.getByRole('tab', { name: /^List/ }));
     const coffee = B(/Sunday coffee and cars/);
     await coffee.first().scrollIntoViewIfNeeded();

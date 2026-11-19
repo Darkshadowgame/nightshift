@@ -84,6 +84,8 @@ function Gate() {
         <Stack.Screen name="event/[id]" options={{ title: '' }} />
         <Stack.Screen name="event/new" options={{ title: title(T.hostEvent), presentation: 'modal' }} />
         <Stack.Screen name="event/edit" options={{ title: title(T.editEvent), presentation: 'modal' }} />
+        {/* "It's up" after posting: no back (it's in NO_BACK), its Done closes it (Review 19 #46). */}
+        <Stack.Screen name="event/posted" options={{ title: '', presentation: 'modal', gestureEnabled: false, headerBackVisible: false, headerLeft: () => null }} />
         <Stack.Screen name="event/plan" options={{ title: title(T.changePlan) }} />
         {/* Who's going: a list to read, so a push (4.5), not a sheet. */}
         <Stack.Screen name="event/going" options={{ title: title(T.going) }} />

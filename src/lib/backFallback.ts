@@ -50,6 +50,7 @@ export function fallbackTab(routeName: string): TabHref {
 /**
  * Routes that never get a back arrow: the entry screens and the tabs themselves. The driving view
  * hides its header (End leaves it); its not-found and "needs the app" pages show the header, so
- * they get the one back arrow, to Tonight with nothing behind (Review 11: no dead end).
+ * they get the one back arrow, to Tonight with nothing behind (Review 11: no dead end). "It's up"
+ * after posting a meet has none either: its Done closes it (Review 19 #46).
  */
-export const NO_BACK = new Set(['signin', 'welcome', '(tabs)', 'events']);
+export const NO_BACK = new Set(['signin', 'welcome', '(tabs)', 'events', 'event/posted']);

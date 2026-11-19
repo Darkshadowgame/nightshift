@@ -29,16 +29,16 @@ describe('hostLeftOut (B4)', () => {
 
 describe('inviteRows (Review 14 decision 1: who can come apart from who we tell)', () => {
   it('open: Everyone can come; the radius is only who we tell', () => {
-    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toEqual({ come: 'Everyone', tell: 'drivers within 25 mi · about 18 people' });
-    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1').tell).toBe('drivers within 25 mi · about 1 person');
-    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3').tell).toBe('drivers within 10 mi · fewer than 3 people');
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '18')).toEqual({ come: 'Everyone', tell: 'about 18 people within 25 mi' });
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 }, '1').tell).toBe('about 1 person within 25 mi');
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 10 }, 'fewer than 3').tell).toBe('fewer than 3 people within 10 mi');
     // The posted meet (Review 15 decision 1): the same two rows, no count.
-    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 })).toEqual({ come: 'Everyone', tell: 'drivers within 25 mi' });
-    expect(inviteRows({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }).tell).toBe('matching drivers within 10 mi');
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: true, radiusMiles: 25 })).toEqual({ come: 'Everyone', tell: 'people within 25 mi' });
+    expect(inviteRows({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }).tell).toBe('people who match, within 10 mi');
   });
   it('limited: the limits, never the radius, say who can come', () => {
     const r = inviteRows({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true, classes: [], minMods: 0, brands: [], radiusMiles: 10 }, '7');
-    expect(r).toEqual({ come: 'Bikes', tell: 'matching drivers within 10 mi · 7 people' });
+    expect(r).toEqual({ come: 'Bikes', tell: '7 people who match, within 10 mi' });
     expect(r.come).not.toMatch(/mi\b/);
   });
 });
