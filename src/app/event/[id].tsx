@@ -40,7 +40,6 @@ import { PhotoCredit } from '../../components/PhotoCredit';
 import { useShareLink } from '../../components/ShareLink';
 import { InviteSheet } from '../../components/InviteSheet';
 import { canInvite, INVITE_WORDS, inviterOf } from '../../lib/eventInvites';
-import { idsIn } from '../../lib/connections';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { eventPhotoRef, statusTag } from '../../components/TonightCards';
 import { appNow } from '../../lib/appClock';
@@ -74,16 +73,8 @@ const REP_MOMENT_MS = 6000;
 /** The event map's height, and the room the ActionBar takes at the bottom (for scrolling the map into view). */
 const MAP_H = 180;
 const BAR_ROOM = 140;
-/** How far the page scrolls before the hero's status tag (top left of the photo) is out of view. */
-const TAG_OUT = 36;
-/** The ActionBar line that says you're going while the tag is out of view. */
+/** The ActionBar line that says you're going. */
 const BAR_STATE_H = 32;
-
-/**
- * The demo's meets where you've finished voting (tapped Done in the vote sheet), this session: voting
- * is then over for you and the results show (Review 17). Every trophy voted does the same.
- */
-const votingDone = new Set<string>();
 
 /** Where an error shows: under the control that caused it. */
 type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
@@ -122,7 +113,7 @@ export default function EventScreen() {
   /** The trophy the vote sheet is open on (null: closed). */
   const [voteCat, setVoteCat] = useState<AwardCategory | null>(null);
   const sharer = useShareLink();
-  /** Invite connections (InviteSheet): after I'm going, and from ···. */
+  /** Invite connections (InviteSheet): from the Bring your mates row while going, and from ···. */
   const [inviting, setInviting] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   /** The "What are you bringing?" sheet: before I'm going, to change it, or at check-in. */
@@ -134,9 +125,6 @@ export default function EventScreen() {
   const mapAt = useRef(0);
   const viewH = useRef(0);
   const trophiesAt = useRef(0);
-  /** You said you're going on this visit and the page moved to the map: the ActionBar says so while the tag is out of view. */
-  const [wentHere, setWentHere] = useState(false);
-  const [tagOut, setTagOut] = useState(false);
 
   // "Location shown": the first time this person can see a meet point, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -236,11 +224,11 @@ export default function EventScreen() {
   const state = eventPrimary(ev, me, role, crews, builds, now, votes);
   const demo = store.backend === 'local';
   const cats = voteCategories(ev, builds, me, now);
-  // The demo (Review 17): voting is over for you once every trophy has your vote, or you tapped Done
-  // in the vote sheet. Only then "Results are in." and the results, said once, never "Results
-  // tomorrow". Before that the page says "1 of 3 voted · Best bike next" and nothing else.
+  // The demo (Review 18): voting is over for you once every trophy has your vote; Done only closes
+  // the sheet. Only then "Results are in." and the results, said once, never "Results tomorrow".
+  // Before that the page says "1 of 3 voted · Best bike next" and nothing else.
   const votedCount = cats.filter((c) => votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)).length;
-  const votingOver = votedCount > 0 && (votedCount === cats.length || votingDone.has(ev.id));
+  const votingOver = votedCount > 0 && votedCount === cats.length;
   const resultsIn = demo && votingOver && voteCat === null && !ev.cancelled && phase !== 'over';
   // The demo never promises a time it won't keep (Review 15 decision 2): "Vote for 3 trophies.", then "Results are in."
   const status = statusLine(ev, state, { me, crews, builds, users, votes, now, resultsIn, demo: demo && phase !== 'over', trophies: cats.length });
@@ -260,11 +248,10 @@ export default function EventScreen() {
       if (result === 'requested') toast({ message: 'Asked the host. You’ll hear when they say yes.' });
       else if (!wasGoing) {
         // Straight away and on one line (4.7, Review 14). No tap in a toast but Undo (Review 17): which
-        // car is said in the ActionBar while the tag is out of view, and changed from the ··· menu.
+        // car is said in the ActionBar, and changed from the ··· menu.
         toast({ message: passenger ? "You're going as a passenger" : "You're going" });
-        if (result === 'going') setWentHere(true);
-        // Bring your mates: offer the invite sheet when there's someone to invite.
-        if (result === 'going' && invitesLive && canInvite({ ...ev, going: [...ev.going, me] }, me, crews, now) && idsIn(community.connections, 'connected').some((u) => !community.blocked.has(u) && !ev.going.includes(u))) setInviting(true);
+        // Bring your mates is a row on the page, never a sheet that opens by itself (Review 18): the
+        // toast, the going moment and the location moment are never covered.
       } else if (b) toast({ message: `Bringing your ${shortBuildName(b)}` });
     } catch (err) {
       setError('going', err instanceof Error ? err.message : "Couldn't change that.");
@@ -426,8 +413,10 @@ export default function EventScreen() {
   }
 
   const barHasPhoto = primary === addPhoto || secondary === addPhoto;
-  const barState =
-    wentHere && tagOut && going && !pill && myEventStatus(ev, me, crews, now) === 'going' ? (bringing ? `Going with your ${shortBuildName(bringing)}` : "You're going") : null;
+  // Going is said once, in the same place on every event (C5, Review 18): the ActionBar. Its pill
+  // ("Going") while there's no primary yet, else this line over the buttons; never a tag on the photo.
+  const goingState = myEventStatus(ev, me, crews, now) === 'going';
+  const barState = going && !pill && goingState ? (bringing ? `Going with your ${shortBuildName(bringing)}` : "You're going") : null;
 
   // ---------------------------------------------------------------------------
   // Pieces
@@ -447,8 +436,8 @@ export default function EventScreen() {
           : timeRange(ev.startsAt, ev.endsAt, now);
   const meta = [time, where, ev.routeMiles ? `${ev.routeMiles} mi route` : null].filter(Boolean).join(' · ');
   // Your status, once (K3, C5): the same tag as Tonight's card and Me (myEventStatus).
-  // While the ActionBar's pill says "Going" (4.3 owns where you stand), the photo has no tag too (C5, Review 17).
-  const heroTag = pill ? null : (statusTag(myEventStatus(ev, me, crews, now)) ?? null);
+  // Going is the ActionBar's to say (4.3 owns where you stand), so the photo never has a Going tag (C5, Reviews 17 and 18).
+  const heroTag = pill || goingState ? null : (statusTag(myEventStatus(ev, me, crews, now)) ?? null);
 
   const goingPeople = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
     const u = users.find((x) => x.id === uid);
@@ -526,11 +515,6 @@ export default function EventScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         onLayout={(l) => (viewH.current = l.nativeEvent.layout.height)}
-        onScroll={(e) => {
-          const out = e.nativeEvent.contentOffset.y > TAG_OUT;
-          if (out !== tagOut) setTagOut(out);
-        }}
-        scrollEventThrottle={64}
       >
         <Hero
           bleed
@@ -573,6 +557,10 @@ export default function EventScreen() {
             summary={goingSummary(ev.going.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}
             onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
           />
+          {/* Bring your mates (Review 18): a row while you're going, never a sheet that opens by itself. */}
+          {going && !closed ? (
+            <ListRow leading={{ icon: 'share' }} title="Bring your mates" subtitle="Invite connections or share" onPress={() => setInviting(true)} />
+          ) : null}
         </View>
 
         {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (
@@ -732,7 +720,7 @@ export default function EventScreen() {
         <ActionBar>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }} accessible accessibilityLabel={barState}>
             <Icon name="success" size={18} colour={COLOR.state.success} />
-            <DsText v="secondary" tone="primary" numberOfLines={1} style={{ flex: 1 }}>
+            <DsText v="secondary" tone="primary" numberOfLines={2} style={{ flex: 1 }}>
               {barState}
             </DsText>
           </View>
@@ -770,14 +758,10 @@ export default function EventScreen() {
       <VoteSheet
         event={ev}
         category={voteCat}
-        onClose={(votedNow, done) => {
-          // Done (not a tap outside) ends your voting in the demo: the results show (Review 17).
-          if (done && demo && votes.some((v) => v.eventId === ev.id && v.voterId === me)) votingDone.add(ev.id);
+        onClose={(_votedNow, allVoted) => {
           setVoteCat(null);
-          // The demo's trophy moment (L4): straight after you vote, the results flip in here.
-          if (votedNow && store.backend === 'local') {
-            setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, trophiesAt.current - SPACING.lg), animated: true }), 350);
-          }
+          // The demo's trophy moment (L4): your last vote makes the results show; they flip in here.
+          if (allVoted && demo) setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, trophiesAt.current - SPACING.lg), animated: true }), 350);
         }}
       />
       {sharer.sheet}

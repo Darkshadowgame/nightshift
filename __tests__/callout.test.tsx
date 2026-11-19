@@ -170,8 +170,8 @@ describe('PhotoCard', () => {
     const root = render(
       <PhotoCard kind="event" live eyebrow="Meet" title="Car park meet-up" meta="Live · until 23:00 · 2 mi · 9 going" tag={{ label: 'Going', tone: 'success' }} action={{ label: 'Open', onPress: noop }} onPress={noop} />,
     );
-    expect(texts(root.container)).toEqual(['Going', 'Live · Meet', 'Car park meet-up', 'Live · until 23:00 · 2 mi · 9 going', 'Open']);
-    expect(labelled(root, 'Live, Meet, Car park meet-up, Live · until 23:00 · 2 mi · 9 going, Going')).not.toHaveLength(0);
+    expect(texts(root.container)).toEqual(['Going', 'Meet', 'Car park meet-up', 'Live · until 23:00 · 2 mi · 9 going', 'Open']);
+    expect(labelled(root, 'Meet, Car park meet-up, Live · until 23:00 · 2 mi · 9 going, Going')).not.toHaveLength(0);
   });
   it('puts a build title on the photo, with its class', () => {
     const root = render(<PhotoCard kind="build" titleOnPhoto classLetter="A" paint="#c8102e" title="Ford Fiesta ST Mk8" meta="197 bhp · 3 mods" />);

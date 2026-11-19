@@ -37,7 +37,7 @@ export type CardAction = {
  *   │░░░░░░░ photo (aspect) ░░░░│  16:9 events and places, 4:3 builds, 4:5 posts
  *   │[tag] ░░░░░░░░░░░░░░░░░░░ ⓘ│  one status tag top left; `overlay` (ⓘ credit top right, ✕)
  *   ├───────────────────────────┤
- *   │ ● LIVE · MEET             │  kind line: layer colour (events, places), live dot
+ *   │ ● MEET                    │  kind line: layer colour (events, places), live dot
  *   │ Car park meet-up          │  title, as typed, 2 lines
  *   │ Live · until 23:00 · 2 mi │  meta, one line of facts (2 lines at large text)
  *   │ [       I'M GOING       ] │  one action (secondary; primary only on the map's pick)
@@ -128,7 +128,7 @@ export function PhotoCard({
   const placeLike = kind === 'event' || kind === 'place';
   const kindColour = placeLike && !finished ? contentColour(layerColour, COLOR.text.secondary) : COLOR.text.secondary;
   const label = entityA11yLabel({
-    eyebrow: [live ? 'Live' : null, eyebrow].filter(Boolean).join(', ') || undefined,
+    eyebrow: eyebrow || undefined,
     title,
     meta,
     detail,
@@ -144,10 +144,11 @@ export function PhotoCard({
     live || eyebrow || badgeOnKindLine ? (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
         {badgeOnKindLine ? <ClassBadge letter={classLetter!} size="sm" decorative /> : null}
-        {live ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.state.liveDot }} /> : null}
-        {live || eyebrow ? (
-          <DsText v="tag" numberOfLines={1} style={{ color: live ? COLOR.state.live : kindColour, flexShrink: 1 }}>
-            {[live ? 'Live' : null, eyebrow].filter(Boolean).join(' · ')}
+        {/* Live is a dot here; the words ("Live · until 23:00") are the meta line's, said once (C5, Review 18). */}
+        {live ? <View aria-hidden style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.state.liveDot }} /> : null}
+        {eyebrow ? (
+          <DsText v="tag" numberOfLines={1} style={{ color: kindColour, flexShrink: 1 }}>
+            {eyebrow}
           </DsText>
         ) : null}
       </View>

@@ -8,7 +8,7 @@ import { SPACING } from '../theme';
 
 const VOTES_TOPIC = 'Votes and trophies';
 /** What the demo does differently, said where voting is explained (Review 17): the event page matches it. */
-const DEMO_VOTING = "In the demo, voting ends for you once you've voted for every trophy or tapped Done, and the results show straight away.";
+const DEMO_VOTING = "In the demo, voting ends for you once you've voted for every trophy, and the results show straight away. Done just closes the vote; vote for the rest when you like.";
 
 /** One idea per block, in the order you meet them on a night out. */
 const TOPICS: { title: string; lines: string[] }[] = [

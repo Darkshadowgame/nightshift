@@ -27,6 +27,8 @@ export const INVITE_WORDS = {
   goFirst: "Say you're going first, then invite your connections.",
   cap: `You can invite up to ${INVITE_CAP} people to one event.`,
   none: 'Pick someone to invite.',
+  /** Invite tapped with nobody picked (Invite is never disabled, 4.3). */
+  pickFirst: 'Pick someone first',
 } as const;
 
 export function invitesAllowed(event: Pick<NightEvent, 'allowInvites'>): boolean {

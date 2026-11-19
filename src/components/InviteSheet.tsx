@@ -9,12 +9,13 @@ import { useStore } from '../lib/store';
 import type { NightEvent } from '../lib/types';
 import { COLOR, SPACING } from '../theme';
 import { at, personMark } from './Community';
-import { Button, DsText, ErrorState, Icon, ListRow, RowDivider, SearchField, Sheet, useToast } from './ds';
+import { ActionBar, Button, DsText, ErrorState, Icon, ListRow, RowDivider, SearchField, Sheet, useToast } from './ds';
 
 /**
- * Bring your mates (eventInvites.ts): after I'm going, and from ··· › Invite connections. Your
- * connections first (search, pick several, Invite), then "Share another way", the phone's own
- * share sheet with the event's link (never the meet point). When you can't invite here (no
+ * Bring your mates (eventInvites.ts): from the event page's "Bring your mates" row while you're
+ * going, and from ··· › Invite connections. It never opens by itself (Review 18). Your connections
+ * (search, pick several), then the pinned footer: Invite, and "Share another way" beside it, the
+ * phone's own share sheet with the event's link (never the meet point). When you can't invite here (no
  * connections, the host turned invites off, or invites aren't on the server yet) the share row is
  * the only option.
  */
@@ -43,11 +44,14 @@ export function InviteSheet({ event, visible, onClose, onShareOther }: { event: 
   const shown = useMemo(() => (q ? inviteChoices(event, me, users, connected, community.blocked, crews, q) : all), [q, all, event, me, users, connected, community.blocked, crews]);
   const left = INVITE_CAP - invitedByMe(event, me).length;
 
-  const toggle = (id: string, on: boolean) => setPicked((p) => (on ? p.filter((x) => x !== id) : p.length < left ? [...p, id] : p));
+  const toggle = (id: string, on: boolean) => {
+    setError(null);
+    setPicked((p) => (on ? p.filter((x) => x !== id) : p.length < left ? [...p, id] : p));
+  };
 
   async function invite() {
     setError(null);
-    if (!picked.length) return setError(INVITE_WORDS.none);
+    if (!picked.length) return setError(INVITE_WORDS.pickFirst);
     setBusy(true);
     try {
       const fresh = await store.inviteConnections(event.id, picked, { connected, blocked: community.blocked });
@@ -67,6 +71,12 @@ export function InviteSheet({ event, visible, onClose, onShareOther }: { event: 
     }
   }
 
+  const canPick = allowed && all.length > 0;
+  const shareOther = () => {
+    onClose();
+    onShareOther();
+  };
+
   const why = !allowed
     ? event.allowInvites === false
       ? INVITE_WORDS.off
@@ -77,7 +87,7 @@ export function InviteSheet({ event, visible, onClose, onShareOther }: { event: 
 
   return (
     <Sheet visible={visible} title={INVITE_WORDS.title} onClose={onClose}>
-      {allowed && all.length > 0 ? (
+      {canPick ? (
         <View style={{ gap: SPACING.sm }}>
           <DsText v="secondary">They see the event and can ask to go. The meet point stays hidden until it's shown to people going.</DsText>
           {all.length > 6 ? <SearchField value={q} onChangeText={setQ} placeholder="Search your connections" accessibilityLabel="Search your connections" /> : null}
@@ -110,23 +120,24 @@ export function InviteSheet({ event, visible, onClose, onShareOther }: { event: 
       ) : why ? (
         <DsText v="secondary">{why}</DsText>
       ) : null}
-      {error ? <ErrorState title={error} /> : null}
-      <View>
-        {allowed && all.length > 0 ? <RowDivider /> : null}
-        <ListRow
-          leading={{ icon: 'share' }}
-          title={INVITE_WORDS.shareOther}
-          subtitle="Send the event's link. It never shows the meet point."
-          chevron={false}
-          onPress={() => {
-            onClose();
-            onShareOther();
-          }}
-        />
-      </View>
-      {allowed && all.length > 0 ? (
-        <Button block label={picked.length ? `Invite ${picked.length}` : 'Invite'} busy={busy} disabled={!picked.length} onPress={() => void invite()} accessibilityLabel={picked.length ? `Invite ${picked.length} ${picked.length === 1 ? 'person' : 'people'}` : 'Invite: pick someone first'} />
-      ) : null}
+      {/* The footer, pinned so a long list never pushes it off screen (Review 18): Invite, and "Share
+          another way" as the secondary under it. Invite is never disabled (4.3): tapped with nobody
+          picked, the footer says so. Errors show here too, next to the button that caused them. */}
+      <ActionBar>
+        {error ? <ErrorState title={error} /> : null}
+        {canPick ? (
+          <Button
+            tier="primary"
+            size="md"
+            block
+            label={picked.length ? `Invite ${picked.length}` : 'Invite'}
+            busy={busy}
+            onPress={() => void invite()}
+            accessibilityLabel={picked.length ? `Invite ${picked.length} ${picked.length === 1 ? 'person' : 'people'}` : 'Invite'}
+          />
+        ) : null}
+        <Button tier={canPick ? 'secondary' : 'primary'} size="md" block icon="share" label={INVITE_WORDS.shareOther} accessibilityHint="Sends the event's link. It never shows the meet point." onPress={shareOther} />
+      </ActionBar>
     </Sheet>
   );
 }

@@ -116,7 +116,7 @@ export function buildTitle(make: string, model: string): string {
  * `onClose(voted, done)`: whether a vote was cast while it was open, and whether it closed with the
  * header Done (you're done voting) rather than a tap outside.
  */
-export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: (voted: boolean, done?: boolean) => void }) {
+export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; /** `allVoted`: this vote was your last trophy (the demo's results then show). Done only closes. */ onClose: (voted: boolean, allVoted?: boolean) => void }) {
   const { builds, users, votes, me, vote, backend } = useStore();
   const demo = backend === 'local';
   const now = useNow();
@@ -161,7 +161,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
       const name = b ? `${b.make} ${b.model}` : 'that build';
       if (next) setFlash({ id: ++flashes.current, message: `Voted for ${name}` });
       else {
-        onClose(true);
+        onClose(true, true);
         toast({ message: `Voted for ${name}` });
       }
     } catch (e) {
@@ -170,7 +170,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   }
 
   return (
-    <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close} onDone={() => onClose(cast.current, true)}>
+    <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close}>
       <View style={{ gap: SPACING.md }}>
         <DsText v="secondary">Tap the build you think wins.</DsText>
         <View style={{ gap: SPACING.sm }}>

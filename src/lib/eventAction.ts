@@ -177,8 +177,8 @@ export function statusLine(
       if (ctx.demo) return { text: shownSentence(), note: `Vote for ${plural(Math.max(1, ctx.trophies ?? 1), 'trophy', 'trophies')}.` };
       return { text: shownSentence(), note: `Voting closes ${untilText(votingCloses(event), now)}.` };
     case 'voted':
-      // The demo (Review 17): "Results are in." only once voting is over for you (every trophy voted, or
-      // Done); until then the "1 of 3 voted · Best bike next" row says where you are, and nothing else.
+      // The demo (Review 18): "Results are in." only once voting is over for you (every trophy voted);
+      // until then the "1 of 3 voted · Best bike next" row says where you are, and nothing else.
       if (ctx.demo) return { text: shownSentence(), note: ctx.resultsIn ? RESULTS_IN : undefined };
       return { text: shownSentence(), note: ctx.resultsIn ? RESULTS_IN : `Results ${untilText(votingCloses(event), now)}.` };
     case 'ended': {

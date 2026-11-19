@@ -81,10 +81,11 @@ export function Hero({
             <Pin glyph={glyph} colour={kindColour} size={24} />
           </View>
         ) : null}
-        {live ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.state.liveDot }} /> : null}
-        {eyebrow || live ? (
-          <DsText v="eyebrow" style={{ color: live ? COLOR.state.live : kindColour }}>
-            {[live ? 'Live' : null, eyebrow].filter(Boolean).join(' · ')}
+        {/* Live is a dot here; the words ("Live · until 23:00") are the meta line's, said once (C5, Review 18). */}
+        {live ? <View aria-hidden style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR.state.liveDot }} /> : null}
+        {eyebrow ? (
+          <DsText v="eyebrow" style={{ color: kindColour }}>
+            {eyebrow}
           </DsText>
         ) : null}
       </View>
