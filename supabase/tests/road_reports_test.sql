@@ -206,15 +206,16 @@ select is((select rep from public.road_rep where user_id = 'dddddddd-0000-0000-0
 -- Open-data closures
 -- ---------------------------------------------------------------------------
 insert into public.road_closures (source, source_id, kind, description, road, direction, full_closure, geom, starts_at, ends_at) values
-  ('tfl', 'test-live', 'road_closure', 'Road closed for works', 'A1', 'Both directions', true,
+  ('tfl', 'test-live', 'road_closure', 'TEST: Road closed for works', 'A1', 'Both directions', true,
    extensions.st_geogfromtext('SRID=4326;LINESTRING(-1.8904 52.4800, -1.8904 52.4810)'), now() - interval '1 hour', now() + interval '1 day'),
-  ('tfl', 'test-ended', 'road_closure', 'Finished', 'A2', null, true,
+  ('tfl', 'test-ended', 'road_closure', 'TEST: Finished', 'A2', null, true,
    extensions.st_geogfromtext('SRID=4326;POINT(-1.8904 52.4805)'), now() - interval '2 days', now() - interval '1 day'),
-  ('national_highways', 'test-future', 'road_closure', 'Overnight', 'M6', null, true,
+  ('national_highways', 'test-future', 'road_closure', 'TEST: Overnight', 'M6', null, true,
    extensions.st_geogfromtext('SRID=4326;POINT(-1.8904 52.4805)'), now() + interval '1 day', now() + interval '2 days');
 set local role authenticated;
-select is((select count(*)::int from public.road_closures_near(52.4862, -1.8904, 5)), 1, 'closures: only the ones in force now');
-select is((select jsonb_array_length(path) from public.road_closures_near(52.4862, -1.8904, 5)), 2, 'closures: lines come back as points');
+-- Only this test's own rows: the live open-data import puts real closures in the table.
+select is((select count(*)::int from public.road_closures_near(52.4862, -1.8904, 5) where description like 'TEST:%'), 1, 'closures: only the ones in force now');
+select is((select jsonb_array_length(path) from public.road_closures_near(52.4862, -1.8904, 5) where description like 'TEST:%'), 2, 'closures: lines come back as points');
 reset role;
 
 -- ---------------------------------------------------------------------------
