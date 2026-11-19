@@ -214,7 +214,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       later();
       if (c.kind === 'accepted') {
         const who = usersRef.current.find((u) => u.id === c.userId);
-        const text = `${who ? `@${who.handle}` : 'They'} accepted. You can message now.`;
+        const text = `${who ? `@${who.handle}` : 'They'} accepted. Say hello.`;
         addNoticeRef.current({ eventId: '', kind: 'connection', userId: c.userId, at: appNow().toISOString(), text });
         setAccepted((a) => ({ userId: c.userId, text, n: (a?.n ?? 0) + 1 }));
         return;

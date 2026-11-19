@@ -13,16 +13,20 @@ export type ToastTone = 'success' | 'info' | 'danger';
 export type ToastInput = { message: string; tone?: ToastTone; action?: { label: string; onPress: () => void } };
 
 /**
- * A short confirmation after something happened ("Saved", "Request sent", "Left the group · Undo").
- * One line, 3.2 s, just above the ActionBar or the tab bar (Redesign 2, 4.7), so it never covers
+ * A short confirmation after something happened ("Saved", "Request sent", "Not going · Undo").
+ * One line at 1.0x text on a 375 wide phone (Review 19: keep the copy to about 30 characters with an
+ * action, 38 without), 3.2 s, just above the ActionBar or the tab bar (Redesign 2, 4.7), so it never covers
  * the primary. Read out by screen readers, buzzes `success` (or `warning` for danger). Not for
  * errors the user must act on: those stay under the thing that failed (ErrorState).
+ * `tone`: `success` (the green tick) only for something done; leaving, removing, cancelling and
+ * notes are `info` (a neutral mark), never the done tick (Review 19).
  *
  * It never takes a tap (Review 13): the pill lets every touch through to what's under it; only
  * its action (Undo, Change) is tappable.
  */
 export function ToastView({ message, tone = 'success', action, onDismiss }: ToastInput & { onDismiss?: () => void }) {
-  const colour = tone === 'success' ? COLOR.state.success : tone === 'danger' ? COLOR.state.danger : COLOR.state.info;
+  // Neutral for info (leaving, removing): colour is for done (green) and danger only (5.4).
+  const colour = tone === 'success' ? COLOR.state.success : tone === 'danger' ? COLOR.state.danger : COLOR.text.secondary;
   return (
     <View
       accessibilityRole="alert"

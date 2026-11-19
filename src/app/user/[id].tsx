@@ -49,7 +49,8 @@ export default function UserScreen() {
     setBusy(true);
     try {
       await fn();
-      if (done) toast({ message: done });
+      // Undoing something isn't a success: no green tick (4.7, Review 19).
+      if (done) toast({ message: done, tone: /cancelled|removed|unblocked/i.test(done) ? 'info' : undefined });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't do that.");
     } finally {

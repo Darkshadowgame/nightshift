@@ -98,7 +98,7 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
     try {
       await onSave(withRun(b, run));
       setDraft(null);
-      toast({ message: `Dyno run saved: ${runSummary(run)}` });
+      toast({ message: 'Dyno run saved' });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the dyno run.");
     } finally {
@@ -110,7 +110,7 @@ export function DynoSection({ build: b, mine, onSave }: { build: Build; mine: bo
     try {
       await onSave(withoutRun(b, id));
       setDraft(null);
-      toast({ message: 'Dyno run removed' });
+      toast({ message: 'Dyno run removed', tone: 'info' });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't remove it.");
     }

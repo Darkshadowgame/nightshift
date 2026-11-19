@@ -206,7 +206,7 @@ export default function BuildScreen() {
                         onPress: () =>
                           community
                             .run((s) => s.removeDynoBadge(latest.id, 'Fake or edited dyno sheet'))
-                            .then(() => toast({ message: 'Dyno badge removed' }))
+                            .then(() => toast({ message: 'Dyno badge removed', tone: 'info' }))
                             .catch((e) => setPhotoError(e instanceof Error ? e.message : "Couldn't remove it.")),
                       },
                     ]

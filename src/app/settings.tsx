@@ -118,7 +118,7 @@ export default function SettingsScreen() {
             setError(null);
             community
               .run((s) => s.setShowInNearby(v))
-              .then(() => toast({ message: v ? "You're shown in People near you" : "You're hidden from People near you" }))
+              .then(() => toast(v ? { message: 'Shown in People near you' } : { message: 'Hidden from People near you', tone: 'info' }))
               .catch(failed('community'));
           }}
         />
@@ -266,7 +266,7 @@ export default function SettingsScreen() {
                 const ok = await testReminder(5);
                 setAllowed(ok);
                 if (ok) refreshReminders();
-                toast(ok ? { message: 'Coming in 5 seconds. Lock the phone to see it.' } : { message: 'Notifications are not allowed yet.', tone: 'danger' });
+                toast(ok ? { message: 'Coming in 5 seconds' } : { message: 'Notifications are not allowed yet.', tone: 'danger' });
               }}
             />
           ) : null}

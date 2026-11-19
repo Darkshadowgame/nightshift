@@ -533,7 +533,7 @@ function Gallery() {
           <ToastView message="Left the group" tone="danger" action={{ label: 'Undo', onPress: noop }} />
           <View style={{ flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' }}>
             <Button label="Show toast" tier="secondary" size="sm" onPress={() => toast({ message: 'Build saved' })} />
-            <Button label="With undo" tier="secondary" size="sm" onPress={() => toast({ message: 'Post deleted', tone: 'danger', action: { label: 'Undo', onPress: noop } })} />
+            <Button label="With undo" tier="secondary" size="sm" onPress={() => toast({ message: 'Post deleted', tone: 'info', action: { label: 'Undo', onPress: noop } })} />
           </View>
         </Group>
       </ScrollView>
@@ -554,7 +554,7 @@ function Gallery() {
         verb="Leave"
         onConfirm={() => {
           setConfirm(false);
-          toast({ message: 'Left the group', tone: 'danger', action: { label: 'Undo', onPress: noop } });
+          toast({ message: 'Left the group', tone: 'info', action: { label: 'Undo', onPress: noop } });
         }}
         onCancel={() => setConfirm(false)}
       />

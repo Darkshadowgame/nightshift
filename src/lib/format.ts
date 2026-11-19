@@ -62,10 +62,11 @@ export function shortAgo(iso: string, now: Date): string {
  */
 export function sentToast(invited: string, isPublic: boolean, openToAll = false): string {
   if (isPublic) return 'Published';
-  if (openToAll) return /^\d+$/.test(invited) && invited !== '1' ? `Invites sent to ${invited} people nearby` : invited === '1' ? 'Invites sent to 1 person nearby' : 'Invites sent to people nearby';
+  // One line at 375 wide (4.7, Review 19): who, in as few words as it takes.
+  if (openToAll) return /^\d+$/.test(invited) && invited !== '1' ? `Invited ${invited} people nearby` : invited === '1' ? 'Invited 1 person nearby' : 'Invited people nearby';
   // Who: the people nearby whose car or bike fits (REVIEW-9: "Invites sent to 1 person" with no clue who).
-  if (invited === '1') return 'Invites sent to 1 person nearby whose car or bike fits';
-  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invites sent to ${invited} people nearby whose car or bike fits`;
+  if (invited === '1') return 'Invited 1 person whose car fits';
+  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invited ${invited} people whose car fits`;
   return 'Invites sent';
 }
 
