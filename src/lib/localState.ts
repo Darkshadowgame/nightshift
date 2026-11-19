@@ -122,7 +122,8 @@ export function freshen(state: Persisted, now: Date): Persisted {
     notices: retimeNearbyNotices(plain.notices, refreshed.events),
     seededAt: now.toISOString(),
   };
-  return busy ? layBusy(next, now) : next;
+  // Laid out again with the saved busy meets handed in, so going to one survives a reload (Review 18).
+  return busy ? layBusy({ ...next, events: [...next.events, ...state.events.filter((e) => isBusyId(e.id))] }, now) : next;
 }
 
 /** Lay the busy night out round the scene's home for `now` (again), without "new near you" for each of its meets. */

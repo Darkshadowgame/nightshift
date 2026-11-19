@@ -46,7 +46,7 @@ interface Community {
   connections: Record<string, ConnectionState>;
   blocked: ReadonlySet<string>;
   conversations: Conversation[];
-  /** Unread messages plus connection requests waiting for you (the tab badge). */
+  /** Chats with unread messages plus connection requests waiting for you (the tab badge): what Community shows, Chats' dots and People's first row (Review 18). */
   badge: number;
   unread: number;
   incoming: string[];
@@ -263,7 +263,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       conversations,
       unread,
       incoming,
-      badge: unread + incoming.length,
+      badge: conversations.filter((c) => c.unread > 0).length + incoming.length,
       showInNearby,
       forumRep,
       refresh,

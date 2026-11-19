@@ -15,7 +15,7 @@ import { ClockProvider } from './clock';
 import { alertProblem, travelProblem, nearbyArrivals, nearbyBatch, nearbyNotice, travelOf, type AlertMode } from './discover';
 import { isPublicType, type PlanChange } from './events';
 import { isSeedEvent, restartDemo, restartDemoClock, startDemoClock, stopDemoClock, toRealTime } from './demoTime';
-import { appNow, appNowMs } from './appClock';
+import { appNow, appNowMs, realNowMs } from './appClock';
 import { isUuid, mergeStatuses, sentEntry, type FeedbackContext, type PendingFeedback, type SentFeedback } from './feedbackQueue';
 import { newId } from './ids';
 import { createLocalRepository } from './localRepository';
@@ -219,6 +219,8 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
   const pendingSave = useRef<Persisted | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const legacySave = useRef(false);
+  /** Until when a change is saved at once, not after SAVE_DELAY_MS (going: a quick reload keeps it, Review 18). */
+  const saveNowUntil = useRef(0);
 
   const set = useCallback((fn: (s: Persisted) => Persisted) => {
     setState((s) => {
@@ -375,6 +377,10 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
     if (!loaded.current || mode.kind === 'none') return;
     pendingSave.current = state;
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (realNowMs() < saveNowUntil.current) {
+      flush();
+      return;
+    }
     saveTimer.current = setTimeout(() => {
       flush();
     }, SAVE_DELAY_MS);
@@ -610,7 +616,11 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       editEvent: async (e) => need().editEvent(e),
       changePlan: async (id, change) => need().changePlan(id, change),
       saveProfile: async (draft) => need().saveProfile(draft),
-      setGoing: async (id, going, buildId) => need().setGoing(id, going, buildId),
+      setGoing: async (id, going, buildId) => {
+        // Saved at once, not debounced: a reload straight after I'm going keeps it (Review 18).
+        saveNowUntil.current = realNowMs() + 2000;
+        return need().setGoing(id, going, buildId);
+      },
       answerRequest: async (id, userId, approve) => need().answerRequest(id, userId, approve),
       inviteConnections: async (id, userIds, ctx) => need().inviteConnections(id, userIds, ctx),
       checkIn: async (id, stop, buildId, position) => need().checkIn(id, stop, buildId, position),

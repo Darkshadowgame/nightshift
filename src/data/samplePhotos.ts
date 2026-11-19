@@ -44,7 +44,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Vauxford',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Background plates blurred',
+    edited: 'Background plates removed',
   },
   'b-aimee-0': {
     image: require('../../assets/sample-photos/b-aimee-0.jpg'),
@@ -103,7 +103,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     title: 'Subaru Impreza WRX STI (GR, 2008)',
     author: 'IFCAR',
     licence: 'Public domain',
-    edited: 'Shop sign blurred',
+    edited: 'Shop sign removed',
   },
   'b-raf-0': {
     image: require('../../assets/sample-photos/b-raf-0.jpg'),
@@ -113,7 +113,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
     similar: 'YZF-R6 2018 model year (same generation)',
-    edited: 'Dealer sign blurred',
+    edited: 'Dealer sign removed',
   },
   'b-cal-0': {
     image: require('../../assets/sample-photos/b-cal-0.jpg'),
@@ -156,7 +156,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Vauxford',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Dealer sign blurred',
+    edited: 'Dealer sign removed',
   },
   'b-tom-0': {
     image: require('../../assets/sample-photos/b-tom-0.jpg'),

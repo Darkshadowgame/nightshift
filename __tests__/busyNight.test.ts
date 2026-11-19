@@ -183,6 +183,14 @@ describe('Busy night on and off', () => {
     expect(busy.events.some((e) => isBusyId(e.id))).toBe(true);
   });
 
+  it('going to a busy meet survives the refresh on load (Review 18: a reload lost it)', () => {
+    const on = setBusyNight(normal, true, NOW);
+    const first = on.events.find((e) => isBusyId(e.id))!;
+    const going = { ...on, events: on.events.map((e) => (e.id === first.id ? { ...e, going: [...e.going, ME] } : e)) };
+    const later = new Date(NOW.getTime() + 3 * 60 * 60_000);
+    expect(freshen(going, later).events.find((e) => e.id === first.id)!.going).toContain(ME);
+  });
+
   it('the Community and road reports come out cleanly too', () => {
     const demo = seedDemoCommunity(emptyDemoCommunity(), DEMO_HOME, 'Midlands', NOW);
     const withIt = withBusyCommunity(demo, community);

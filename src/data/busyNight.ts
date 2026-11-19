@@ -9,7 +9,7 @@ import { eventArea } from '../lib/area';
 import { isPublicType } from '../lib/events';
 import { milesBetween } from '../lib/geo';
 import { meetAt } from '../lib/postPrivacy';
-import { nearestRegion } from '../lib/profile';
+import { areaNameNear, nearestRegion } from '../lib/profile';
 import { nearest, translate } from '../lib/scene';
 import { similarSample } from '../lib/similarPhoto';
 import { modelLabel, type Variant } from '../lib/vehicles';
@@ -316,7 +316,10 @@ export function busyEvents(now: Date, home: LatLng, people: BusyPeople, sampleUs
     } else {
       stops = [{ id: sp(1), name: placeName(), at: offset(home, spec.miles + rand() * 1.5, bearing) }];
     }
-    if (spec.miles > 25 && spec.type !== 'cruise') areaName = nearestRegion(stops[0].at!);
+    const placed = stops.flatMap((s) => (s.at ? [s.at] : []));
+    const ea = eventArea(placed, id, isPublicType(spec.type));
+    // A real town near the area (Review 18), not "Around Tamworth" for every busy meet.
+    if (spec.type !== 'cruise') areaName = areaNameNear(ea.area);
     // Who's going: people with a build the invite lets in, in a shuffled order.
     const fits = new Map<string, string>();
     for (const b of builds) if (!fits.has(b.ownerId) && buildMatches(b, filter)) fits.set(b.ownerId, b.id);
@@ -325,13 +328,12 @@ export function busyEvents(now: Date, home: LatLng, people: BusyPeople, sampleUs
     const host = going[0];
     const live = start.getTime() <= now.getTime();
     const checkIns: Record<string, string[]> = live ? Object.fromEntries(going.filter(() => rand() < 0.7).map((u) => [u, [stops[0].id]])) : {};
-    const placed = stops.flatMap((s) => (s.at ? [s.at] : []));
     events.push({
       id, type: spec.type, title: spec.title, description: spec.description,
       startsAt: start.toISOString(), endsAt: end.toISOString(), areaName, ...(routeMiles ? { routeMiles } : {}),
       stops, currentStop: 0, revealMinutesBefore: spec.reveal ?? 60, hostIds: host ? [host] : [],
       filter, going, checkIns, vehicles: Object.fromEntries(going.map((u) => [u, fits.get(u)!])),
-      ...eventArea(placed, id, isPublicType(spec.type)),
+      ...ea,
     });
     // A few lines of chat from people going, before now.
     const lines = 2 + Math.floor(rand() * 3);

@@ -99,7 +99,8 @@ export default function UserScreen() {
   // The toast said "Request sent"; the bar says what's left and offers the one thing that helps
   // (4.3): a status with no calendar (it isn't a time) and "Cancel request" next to it.
   else if (state === 'outgoing') {
-    status = `Waiting for ${handle} to accept`;
+    // The demo's people accept after a moment: say so, so nobody leaves before it happens (Review 18).
+    status = demo ? `Demo: ${handle} will accept in a few seconds` : `Waiting for ${handle} to accept`;
     secondary = { label: CONNECT.cancel, busy, onPress: () => void act(() => community.run((s) => s.removeConnection(id)), 'Request cancelled') };
   }
   else primary = { label: CONNECT.connect, busy, haptic: 'success', accessibilityHint: `Once ${handle} accepts, you can message each other`, onPress: () => void connect() };
