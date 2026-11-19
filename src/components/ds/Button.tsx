@@ -82,6 +82,7 @@ export function Button({
         label={accessibilityLabel ?? label}
         hint={showHint ? hint : accessibilityHint}
         state={{ busy: !!busy }}
+        testID={tier === 'primary' ? 'primary-button' : undefined}
         hitSlop={size === 'sm' || tier === 'tertiary' ? { top: 4, bottom: 4 } : undefined}
         style={[
           {

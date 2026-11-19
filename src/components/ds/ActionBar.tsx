@@ -87,6 +87,7 @@ export function ActionBar({
     {/* Room for the toast while one shows, so it floats over empty space, not the page's last line. */}
     {!inSheet && clearance ? <View pointerEvents="none" style={{ height: clearance }} /> : null}
     <View
+      testID={inSheet ? 'sheet-action-bar' : 'action-bar'}
       onLayout={inSheet ? undefined : (e) => anchor(id, e.nativeEvent.layout.height)}
       style={inSheet ? { gap: SPACING.sm } : [
         {

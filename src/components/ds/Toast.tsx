@@ -27,6 +27,7 @@ export function ToastView({ message, tone = 'success', action, onDismiss }: Toas
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
+      testID="toast"
       pointerEvents="box-none"
       style={[
         // A floating pill on the lightest surface with a shadow, so it never reads as a card in the

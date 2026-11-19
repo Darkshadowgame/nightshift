@@ -96,11 +96,12 @@ export function Sheet({ visible, title, onClose, onDone, doneLabel, hideDone, ch
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View entering={FadeIn.duration(MOTION.fast)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: COLOR.surface.scrim }}>
-          <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityRole="button" accessibilityLabel={`Close ${title}`} />
+          <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityRole="button" accessibilityLabel={`Close ${title}`} testID="sheet-scrim" />
         </Animated.View>
         <Animated.View
           entering={reduced ? FadeIn.duration(MOTION.fast) : SlideInDown.duration(MOTION.sheet)}
           accessibilityViewIsModal
+          testID="sheet"
           style={{ marginTop: insets.top + SPACING.xl, flexShrink: 1, minHeight: 0 }}
         >
           <SheetPanel title={title} onClose={onDone ?? onClose} doneLabel={doneLabel} hideDone={hideDone} bottomInset={insets.bottom}>
