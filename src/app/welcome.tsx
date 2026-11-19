@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionBar, Button, DsText, ErrorState, Field, IconButton, SegmentedControl, StepHeading, TextField, useToast } from '../components/ds';
+import { MapEdgeFade } from '../components/MapEdgeFade';
 import { MapPicker } from '../components/MapPicker';
 import { NightMap } from '../components/NightMap';
 import { VehiclePicker } from '../components/VehiclePicker';
@@ -9,7 +10,7 @@ import { DEMO_HOME } from '../data/seed';
 import { allVariants } from '../data/vehicles';
 import { useAuth } from '../lib/auth';
 import { markJustOnboarded } from '../lib/firstRun';
-import { fuzz } from '../lib/geo';
+import { fuzz, milesBetween } from '../lib/geo';
 import { newId } from '../lib/ids';
 import { currentPosition } from '../lib/location';
 import { areaNameNear, nearestRegion, regionCentre, suggestHandle } from '../lib/profile';
@@ -20,6 +21,8 @@ import { COLOR, LAYER, RADII, SPACING } from '../theme';
 
 /** Where the map starts before a home is set: the middle of England, zoomed out. */
 const UK_MIDDLE = regionCentre('Midlands');
+/** A phone this close to the demo's sample area is already on its map: home starts where it is. */
+const SAME_AREA_MILES = 3;
 /** The home circle on the map: saved to about half a mile. */
 const HOME_RADIUS_MILES = 0.6;
 
@@ -62,13 +65,32 @@ export default function Welcome() {
   const [handle, setHandle] = useState('');
   // The demo starts on the sample area, so step 2 needs nothing; tapping the map moves it.
   const [home, setHome] = useState<LatLng | null>(demo ? DEMO_HOME : null);
-  const { height: screenH } = useWindowDimensions();
+  const { height: screenH, fontScale } = useWindowDimensions();
   const small = screenH < 740;
   const [picking, setPicking] = useState(false);
+  /** Home came from the phone's location: say so, and offer only Move it (Review 19 #4). */
+  const [fromFix, setFromFix] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Step 2: when location is already allowed (no prompt), home starts where you are. The demo keeps
+  // its sample area (Redesign 2, 3.2) unless you're already in it: then it's your own spot, said so.
+  useEffect(() => {
+    if (step !== 2 || fromFix) return;
+    let live = true;
+    currentPosition(false).then((pos) => {
+      if (!live || !pos.ok) return;
+      if (demo && milesBetween(pos.at, DEMO_HOME) > SAME_AREA_MILES) return;
+      setHome(fuzz(pos.at));
+      setFromFix(true);
+    });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   function pickVariant(v: Variant) {
     setVehicleId(v.id);
@@ -89,8 +111,10 @@ export default function Welcome() {
     setLocError(null);
     const pos = await currentPosition(true);
     setLocating(false);
-    if (pos.ok) setHome(fuzz(pos.at));
-    else setLocError(pos.reason === 'denied' ? 'Location is off for Nightshift. Tap the map to choose home instead.' : "Couldn't find where you are. Tap the map to choose home instead.");
+    if (pos.ok) {
+      setHome(fuzz(pos.at));
+      setFromFix(true);
+    } else setLocError(pos.reason === 'denied' ? 'Location is off for Nightshift. Tap the map to choose home instead.' : "Couldn't find where you are. Tap the map to choose home instead.");
   }
 
   async function finish() {
@@ -170,9 +194,11 @@ export default function Welcome() {
               onPress={() => setPicking(true)}
               accessibilityRole="button"
               accessibilityLabel={home ? 'Home area set. Move it on the map' : 'Choose your home area on the map'}
-              style={[st.map, { height: small ? 170 : 220 }]}
+              // Shorter on a small phone or at large text, so the handle's hint is above the bar (Review 19 #6).
+              style={[st.map, { height: fontScale > 1.15 ? 130 : small ? 150 : 220 }]}
             >
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {/* zIndex 0 keeps the web map's own layers inside this box, under the edge fade. */}
+              <View style={[StyleSheet.absoluteFill, { zIndex: 0 }]} pointerEvents="none">
                 <NightMap
                   key={home ? `${home.lat},${home.lng}` : 'none'}
                   pins={[]}
@@ -181,24 +207,28 @@ export default function Welcome() {
                   span={home ? 0.12 : 4}
                 />
               </View>
+              <MapEdgeFade />
               {!home ? (
                 <View pointerEvents="none" style={[StyleSheet.absoluteFill, st.mapPrompt]}>
                   <DsText v="buttonSm">Tap to choose on the map</DsText>
                 </View>
               ) : null}
             </Pressable>
+            {/* Where home is, and the one way to change it, on one line: "Around Tamworth · Move it". */}
             <View style={{ gap: SPACING.xxs }}>
-              {home ? <DsText v="bodyStrong">{`Around ${areaNameNear(home)}`}</DsText> : null}
-              <DsText v="secondary">Saved to about half a mile. Never your address.</DsText>
+              {home ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: SPACING.sm }}>
+                  <DsText v="bodyStrong" style={{ flexShrink: 1 }}>{`Around ${areaNameNear(home)}`}</DsText>
+                  <Button label="Move it" tier="tertiary" size="sm" accessibilityLabel="Move your home area on the map" onPress={() => setPicking(true)} />
+                </View>
+              ) : null}
+              <DsText v="secondary">{fromFix ? 'From your location. Saved roughly, never your address.' : 'Saved roughly, never your address.'}</DsText>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
-              {home ? <Button label="Move it" tier="tertiary" size="sm" accessibilityLabel="Move your home area on the map" onPress={() => setPicking(true)} /> : null}
-              <Button label={home ? 'Use my location instead' : 'Use my location'} tier="tertiary" size="sm" busy={locating} onPress={useMyLocation} />
-            </View>
+            {fromFix ? null : <Button label={home ? 'Use my location instead' : 'Use my location'} tier="tertiary" size="sm" busy={locating} onPress={useMyLocation} style={{ alignSelf: 'flex-start' }} />}
             {locError ? <ErrorState title={locError} /> : null}
             {__DEV__ && demo && home !== DEMO_HOME ? <Button label="Developer: use the demo area" tier="tertiary" size="sm" onPress={() => setHome(DEMO_HOME)} /> : null}
 
-            <Field label="Your handle" hint="Shown on your profile, in chat and on trophies. Change it any time.">
+            <Field label="Your handle" hint="Shown on your profile and in chat. Change it any time.">
               <TextField
                 value={handle}
                 onChangeText={setHandle}
@@ -226,6 +256,7 @@ export default function Welcome() {
             setPicking(false);
             if (spot) {
               setHome(fuzz(spot.at));
+              setFromFix(false);
               setLocError(null);
               setError(null);
             }
@@ -255,7 +286,7 @@ export default function Welcome() {
 
 const st = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, paddingBottom: SPACING.xs },
-  page: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.sm, paddingBottom: SPACING.xl, gap: SPACING.lg },
+  page: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.sm, paddingBottom: SPACING.xl, gap: SPACING.md },
   map: { borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.borderStrong },
   mapPrompt: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.scrim },
 });

@@ -17,8 +17,8 @@ import { COLOR, FONT_SCALE, RADII, SPACING } from '../theme';
 const AGREED_KEY = 'nightshift.agreed';
 const TERMS_VERSION = '2026-11-17';
 
-/** The picture behind the tagline: a sample build in a car park, credited through the ⓘ. */
-const HERO_REF = 'b-kez-0';
+/** The picture behind the tagline: a meet at night, no plate in the crop, credited through the ⓘ (Review 19 #1). */
+const HERO_REF = 'hero-night-meet';
 
 /** The core loop in three short lines (Redesign 2, 3.1). */
 const PITCH: { glyph: Glyph; text: string }[] = [
@@ -116,22 +116,25 @@ export default function SignIn() {
               </FadeUp>
             ))}
           </View>
-          <View style={{ paddingHorizontal: SPACING.screen, gap: SPACING.sm }}>
-            <AgreeRow on={agreed} onChange={setAgreed} />
-            {err('demo')}
-          </View>
         </ScrollView>
-        <ActionBar
-          primary={{ label: 'Try the demo', onPress: demo, busy: busy === 'demo', accessibilityHint: 'Sample people and meets. Nothing leaves this phone.' }}
-          secondary={{
-            label: 'Sign in',
-            onPress: () => {
+        {/* The 18+ tick sits in the bar, right above the buttons it unlocks, so it's seen before
+            either is tapped (Review 19 #2). Its error shows between the two. */}
+        <ActionBar>
+          <AgreeRow on={agreed} onChange={setAgreed} />
+          {err('demo')}
+          <Button tier="primary" size="md" block label="Try the demo" onPress={demo} busy={busy === 'demo'} accessibilityHint="Sample people and meets. Nothing leaves this phone." />
+          <Button
+            tier="secondary"
+            size="md"
+            block
+            label="Sign in"
+            onPress={() => {
               setError(null);
               if (!agreed) return setError({ at: 'demo', text: TICK_FIRST });
               setStep('email');
-            },
-          }}
-        />
+            }}
+          />
+        </ActionBar>
       </View>
   );
 }

@@ -13,6 +13,7 @@ import {
   familyFor,
   findVariant,
   groupByModel,
+  isMostCommon,
   makesFor,
   modelLabel,
   modelsFor,
@@ -23,7 +24,7 @@ import {
   type Variant,
 } from '../lib/vehicles';
 import { COLOR, SPACING } from '../theme';
-import { Button, DsText, Icon, ListRow, PhotoCard, SearchField } from './ds';
+import { Button, DsText, Icon, ListRow, PhotoCard, SearchField, Tag } from './ds';
 import { FadeUp } from './motion';
 import { PhotoCredit } from './PhotoCredit';
 import { SuggestMissing } from './SuggestMissing';
@@ -126,7 +127,7 @@ export function VehiclePicker({
                   </DsText>
                 ) : null}
                 {g.variants.map((v) => (
-                  <VariantRow key={v.id} v={v} withName on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
+                  <VariantRow key={v.id} v={v} withName common={g.variants.length > 1 && isMostCommon(v)} on={v.id === vehicleId} onPress={() => { onPickVariant(v); setQuery(''); }} />
                 ))}
               </View>
             ))}
@@ -280,7 +281,7 @@ function PickedCard({ variant }: { variant: Variant }) {
 }
 
 /** One result: the class badge, the name and the engine line, a tick when it's the one picked. */
-function VariantRow({ v, on, withName, onPress }: { v: Variant; on?: boolean; withName?: boolean; onPress: () => void }) {
+function VariantRow({ v, on, withName, common, onPress }: { v: Variant; on?: boolean; withName?: boolean; common?: boolean; onPress: () => void }) {
   const line = variantLine(v);
   // In search results the generation goes in the name ("Ford Fiesta ST Mk8 facelift"), so five
   // Fiesta STs don't read as five identical rows (REVIEW-11 task 1); the line under it is the rest.
@@ -291,10 +292,10 @@ function VariantRow({ v, on, withName, onPress }: { v: Variant; on?: boolean; wi
       leading={{ classBadge: variantClass(v) }}
       title={withName ? name : line}
       subtitle={withName ? rest : undefined}
-      trailing={on ? <Icon name="check" size={18} colour={COLOR.text.primary} /> : undefined}
+      trailing={on ? <Icon name="check" size={18} colour={COLOR.text.primary} /> : common ? <Tag label="Most common" tone="neutral" /> : undefined}
       chevron={false}
       onPress={onPress}
-      accessibilityLabel={`${withName ? `${name}, ${rest}` : line}${on ? ', picked' : ''}`}
+      accessibilityLabel={`${withName ? `${name}, ${rest}` : line}${common ? ', most common' : ''}${on ? ', picked' : ''}`}
     />
   );
 }

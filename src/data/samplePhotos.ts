@@ -203,6 +203,16 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
     edited: 'Plate covered',
   },
+  // The sign-in hero (Review 19 #1): a meet at night, modified cars, cropped so no plate shows.
+  'hero-night-meet': {
+    image: require('../../assets/sample-photos/hero-night-meet.jpg'),
+    page: 'https://commons.wikimedia.org/wiki/File:Car_Meet.jpg',
+    title: 'A car meet at night',
+    author: 'Zackaryd',
+    licence: 'CC BY-SA 4.0',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+    edited: 'Cropped',
+  },
   // Photo spots
   'ph-mam-nick': {
     image: require('../../assets/sample-photos/ph-mam-nick.jpg'),

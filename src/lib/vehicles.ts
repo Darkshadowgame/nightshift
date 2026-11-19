@@ -402,6 +402,29 @@ export function findDonor(engines: DonorEngine[], variants: Variant[], id: strin
 }
 
 /**
+ * The version of a model family most of them on UK roads are, for the families people search for
+ * most, so search can put it first and say so ("Most common"). By generation, and the engine where
+ * one generation has several. Families not listed get no mark: better none than a wrong one.
+ */
+export const MOST_COMMON: Record<string, string> = {
+  'Ford|Fiesta ST': 'Mk7 ST180',
+  'Ford|Focus ST': 'Mk3 ST250',
+  'Ford|Focus RS': 'Mk3',
+  'Volkswagen|Golf GTI': 'Mk7',
+  'Volkswagen|Golf R': 'Mk7',
+  'Volkswagen|Polo GTI': 'AW',
+  'Audi|S3': '8V',
+  'Vauxhall|Corsa VXR': 'D',
+  'Hyundai|i30 N': 'PD Performance',
+  'Toyota|GR Yaris': 'Gen 1',
+};
+
+/** Whether this is the version most people have of its model family (MOST_COMMON). */
+export function isMostCommon(v: Pick<Variant, 'make' | 'model' | 'gen'>): boolean {
+  return MOST_COMMON[`${v.make}|${v.model}`] === v.gen;
+}
+
+/**
  * Search results grouped by exact model name (Review 14 decision 4), so a count only ever
  * describes the rows under it: "Fiesta ST" (5) apart from "Fiesta" (the ST-Line). The group whose
  * name the query names exactly comes first; otherwise the order of the results.
@@ -413,6 +436,8 @@ export function groupByModel(hits: Variant[], query = ''): { make: string; model
     if (g) g.variants.push(v);
     else groups.push({ make: v.make, model: v.model, variants: [v] });
   }
+  // The version most people have leads its group (Review 19 #3), so you needn't know your Mk.
+  for (const g of groups) g.variants.sort((a, b) => Number(isMostCommon(b)) - Number(isMostCommon(a)));
   const q = query.trim().toLowerCase();
   const named = (g: { make: string; model: string }) => q === g.model.toLowerCase() || q === `${g.make} ${g.model}`.toLowerCase();
   return [...groups.filter(named), ...groups.filter((g) => !named(g))];
