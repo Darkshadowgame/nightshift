@@ -31,10 +31,9 @@ import type { MapCircle, MapPadding, MapPath, MapPin, MapRegion, NightMapHandle 
 import { FadeUp } from '../../components/motion';
 import { NightMap } from '../../components/NightMap';
 import { Pin } from '../../components/Pin';
-import { PhotoCredit } from '../../components/PhotoCredit';
 import { DemoNightSheet } from '../../components/DemoNightSheet';
 import { EventRow } from '../../components/EventRow';
-import { cardDistance, cardTime, driveLength, EventEntityCard, eventPhotoRef, notOpenLine, placeDistance, statusTag } from '../../components/TonightCards';
+import { driveLength, EventEntityCard, placeDistance } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { BIKE_ONLY_BADGE, BIKE_ONLY_LABEL, isBikeOnly, passesVehicleFilter, vehicleFilter } from '../../lib/photoVehicles';
 import { DEMO_PARTNERS, PARTNERS } from '../../data/partners';
@@ -48,13 +47,12 @@ import { useNow } from '../../lib/clock';
 import { usePostPins } from '../../lib/communityStore';
 import { canJoinDirectly, viewEvents, type EventView } from '../../lib/eventView';
 import { DEFAULT_EVENT_FILTER, filterEvents, filterLine, NO_EVENT_FILTER, whenEnds } from '../../lib/eventFilter';
-import { EVENT_LABELS } from '../../lib/events';
 import { feel } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
 import { distanceText } from '../../lib/format';
 import { useDistanceOrigin } from '../../lib/useDistanceOrigin';
 import { milesBetween } from '../../lib/geo';
-import { aroundArea, DEMO_NIGHT, PLACE_NAMES } from '../../lib/glossary';
+import { aroundArea, demoClockTag, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
 import { currentPosition, locationHelp } from '../../lib/location';
@@ -81,15 +79,22 @@ const FIT_MILES = 25;
 /** Room above the fitted meets for the map credit. */
 const FIT_TOP = 28;
 
-/** The region that shows every point with room round the pins: centre and span (degrees of latitude). */
-function fitRegion(points: readonly LatLng[], fallback: LatLng): { centre: LatLng; span: number } {
+/**
+ * The region that shows every point with room round the pins: centre and span (degrees of latitude).
+ * `rightShare`: the share of the map's width on the right that the map buttons cover; the points are
+ * fitted into the rest, so no pin sits under the buttons or off the edge (Review 19).
+ */
+function fitRegion(points: readonly LatLng[], fallback: LatLng, rightShare = 0): { centre: LatLng; span: number } {
   if (points.length === 0) return { centre: fallback, span: START_SPAN };
   const lats = points.map((p) => p.lat);
   const lngs = points.map((p) => p.lng);
   const [s, n, w, e] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
+  const open = 1 - Math.min(0.4, Math.max(0, rightShare));
   // The map shows 1.2x the span across (as both maps fit it); pins need about a fifth more each way.
-  const span = Math.max(0.06, (n - s) * 1.5 + 0.02, ((e - w) * 1.3) / 1.2 + 0.02);
-  return { centre: { lat: (s + n) / 2, lng: (w + e) / 2 }, span };
+  const span = Math.max(0.06, (n - s) * 1.5 + 0.02, ((e - w) * 1.3) / 1.2 / open + 0.02);
+  // Move the middle east by half the covered strip, so the points sit in the open part.
+  const shift = (span * 1.2 * (1 - open)) / 2;
+  return { centre: { lat: (s + n) / 2, lng: (w + e) / 2 + shift }, span };
 }
 /** Count pins (places grouped when zoomed out): what each one is. */
 const CLUSTER_NAMES: Record<SpotKind, string> = { drive: 'drives', photo: 'photo spots', track: 'tracks', venue: 'meet spots' };
@@ -442,7 +447,7 @@ export default function TonightScreen() {
     if (!ready || !box.h || params.focus || !autoFit.current || (view && !view.fit)) return;
     const t = setTimeout(() => {
       if (!autoFit.current) return;
-      const r = fitRegion(fitPoints, meUser?.home ?? START);
+      const r = fitRegion(fitPoints, meUser?.home ?? START, box.w ? (BUTTON + SPACING.md * 2) / box.w : 0);
       setView((x) => (x && !x.fit ? x : { ...r, fit: true, key: (x?.key ?? 0) + 1 }));
     }, 150);
     return () => clearTimeout(t);
@@ -490,7 +495,8 @@ export default function TonightScreen() {
       const res = await store.setGoing(v.event.id, true, buildId);
       // One line at any width (4.7): Change says which car.
       toast({
-        message: res === 'requested' ? 'Asked the host. You’ll hear when they say yes.' : passenger ? "You're going as a passenger" : "You're going",
+        message: res === 'requested' ? 'Asked the host' : passenger ? "You're going as a passenger" : "You're going",
+        tone: res === 'requested' ? 'info' : undefined,
         action: res !== 'requested' && myBuilds.length > 0 ? { label: 'Change', onPress: () => setBringFor(v) } : undefined,
       });
     } catch (e) {
@@ -505,40 +511,33 @@ export default function TonightScreen() {
   }
   const openEvent = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
 
-  /** The card for an event in the sheet's top: the pick or a tapped pin. Going: Open. */
-  function eventCard(v: EventView, closable: boolean) {
+  /**
+   * An event's card, the same look on the map sheet and in List (K3, Review 19): title on the
+   * photo, I'm going when you can simply go (else no button: the card opens the event). The sheet's
+   * top card is wider (`PEEK_ASPECT`); a tapped pin's has ✕.
+   */
+  function eventCard(v: EventView, place: 'peek' | 'pin' | 'list') {
     const e = v.event;
     const going = v.role === 'going' || v.role === 'host';
-    const ref = eventPhotoRef(e, builds);
     const canGo = canJoinDirectly(v.role) && !going;
     return (
-      <PhotoCard
-        kind="event"
-        aspect={PEEK_ASPECT}
-        photo={ref ? photoSource(ref) : null}
-        titleOnPhoto
-        eyebrow={EVENT_LABELS[e.type]}
-        layerColour={EVENT_COLOURS[e.type]}
-        live={v.phase === 'live'}
-        title={e.title}
-        tag={statusTag(v.status) ?? null}
-        meta={metaLine([cardTime(e, now), cardDistance(v, origin), `${e.going.length} going`])}
-        detail={notOpenLine(v)}
+      <EventEntityCard
+        view={v}
+        now={now}
+        builds={builds}
+        origin={origin}
+        hasCar={myBuilds.length > 0}
+        demo={demo}
+        aspect={place === 'list' ? undefined : PEEK_ASPECT}
         onPress={() => openEvent(e.id)}
         overlay={
-          closable ? (
+          place === 'pin' ? (
             <View style={st.closeOnPhoto}>
               <IconButton icon="close" label="Close" variant="glass" onPress={close} />
             </View>
-          ) : ref ? (
-            <PhotoCredit photoRef={ref} overlay corner="topRight" />
           ) : undefined
         }
-        action={
-          canGo
-            ? { label: "I'm going", tier: 'secondary', haptic: 'success', busy: joining === e.id, onPress: () => imGoing(v) }
-            : { label: 'Open', tier: 'secondary', onPress: () => openEvent(e.id) }
-        }
+        action={canGo ? { label: "I'm going", tier: 'secondary', haptic: 'success', busy: joining === e.id, onPress: () => imGoing(v) } : null}
       />
     );
   }
@@ -547,7 +546,7 @@ export default function TonightScreen() {
     const key = id.slice(id.indexOf(':') + 1);
     if (id.startsWith('ev:')) {
       const v = views.find((x) => x.event.id === key);
-      return v ? eventCard(v, true) : null;
+      return v ? eventCard(v, 'pin') : null;
     }
     if (id.startsWith('sp:')) {
       const s = places.find((x) => x.id === key);
@@ -655,9 +654,9 @@ export default function TonightScreen() {
   const nothingOn = ready && views.length === 0;
   /** What the filters hid, said over the sheet and the list (nothing disappears silently). */
   const hiddenLine = ready ? filterLine(filtered, eventFilter, eventsOn, myBuilds.length > 0) : null;
-  function showHidden(clears: 'all' | 'car') {
+  function showHidden(clears: 'all' | 'reset') {
     feel.select();
-    if (clears === 'car') return setSettings({ eventFilter: { ...eventFilter, canGoOnly: false } });
+    if (clears === 'reset') return setSettings({ eventFilter: { ...DEFAULT_EVENT_FILTER } });
     setSettings({ eventFilter: { ...NO_EVENT_FILTER }, ...(eventsOn ? {} : setLayer(settings, 'events', true)) });
   }
   const filterNote = hiddenLine ? (
@@ -691,7 +690,7 @@ export default function TonightScreen() {
           <Section title="Live now">
             {live.map((v) => (
               <FadeUp key={v.event.id} index={i++}>
-                <EventEntityCard view={v} now={now} builds={builds} origin={origin} onPress={() => onOpen(v)} />
+                {eventCard(v, 'list')}
               </FadeUp>
             ))}
           </Section>
@@ -700,7 +699,7 @@ export default function TonightScreen() {
           <Section title="Tonight">
             {tonight.map((v) => (
               <FadeUp key={v.event.id} index={i++}>
-                <EventEntityCard view={v} now={now} builds={builds} origin={origin} onPress={() => onOpen(v)} />
+                {eventCard(v, 'list')}
               </FadeUp>
             ))}
           </Section>
@@ -711,7 +710,7 @@ export default function TonightScreen() {
               {week.map((v, n) => (
                 <View key={v.event.id}>
                   {n > 0 ? <RowDivider inset /> : null}
-                  <EventRow view={v} now={now} origin={origin} onPress={() => onOpen(v)} />
+                  <EventRow view={v} now={now} origin={origin} notOpen={noCar ? false : undefined} onPress={() => onOpen(v)} />
                 </View>
               ))}
             </View>
@@ -723,7 +722,7 @@ export default function TonightScreen() {
               {later.slice(0, mode === 'list' ? later.length : 5).map((v, n) => (
                 <View key={v.event.id}>
                   {n > 0 ? <RowDivider inset /> : null}
-                  <EventRow view={v} now={now} origin={origin} onPress={() => onOpen(v)} />
+                  <EventRow view={v} now={now} origin={origin} notOpen={noCar ? false : undefined} onPress={() => onOpen(v)} />
                 </View>
               ))}
             </View>
@@ -744,7 +743,7 @@ export default function TonightScreen() {
   const sheetHeader = (
     <View style={st.header}>
       {filterNote}
-      {selCard ?? (pick ? eventCard(pick, false) : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
+      {selCard ?? (pick ? eventCard(pick, 'peek') : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
     </View>
   );
 
@@ -759,8 +758,9 @@ export default function TonightScreen() {
           <ScreenHeader title="Tonight"
             tag={
               demo ? (
-                <Press onPress={() => setDemoInfo(true)} label={`${DEMO_NIGHT.tag}: what this means`} role="button" style={{ minHeight: 44, justifyContent: 'center' }}>
-                  <Tag label={DEMO_NIGHT.tag} tone="info" />
+                // The demo's clock, said once (owner decision, Review 19): the sheet explains it.
+                <Press onPress={() => setDemoInfo(true)} label={`${demoClockTag(now)}: what this means`} role="button" style={{ minHeight: 44, justifyContent: 'center' }}>
+                  <Tag label={demoClockTag(now)} tone="info" />
                 </Press>
               ) : undefined
             }

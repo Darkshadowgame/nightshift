@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import { endTime, EVENT_LABELS } from '../lib/events';
 import { STATUS_LABELS, type EventView, type MyEventStatus } from '../lib/eventView';
 import { distanceText, meetDistance, type DistanceOrigin } from '../lib/format';
 import { milesBetween } from '../lib/geo';
 import { NOT_OPEN, PLACE_NAMES } from '../lib/glossary';
 import { photoSource, sampleRef } from '../lib/photoSource';
+import { buildPicture, type BuildPicture } from '../lib/similarPhoto';
 import type { Build, NightEvent, Spot } from '../lib/types';
 import { eventTimeLabel } from '../lib/when';
 import { EVENT_COLOURS, SPOT_COLOURS, COLOR } from '../theme';
@@ -41,6 +43,22 @@ export function eventPhotoRef(e: NightEvent, builds: Build[]): string | null {
   return null;
 }
 
+/**
+ * The demo only (Review 19, Busy night): a meet whose host has no photo of their own still gets a
+ * real one, the stand-in for the host's build (similarPhoto.ts, credited as similar), never the
+ * drawn placeholder on a list card.
+ */
+export function eventStandIn(e: NightEvent, builds: Build[]): BuildPicture | null {
+  // The host's build, else the first build going (a meet with no host on file).
+  for (const h of [...e.hostIds, ...e.going]) {
+    for (const b of builds.filter((x) => x.ownerId === h)) {
+      const pic = buildPicture(b, true);
+      if (pic) return pic;
+    }
+  }
+  return null;
+}
+
 export function eventPhoto(e: NightEvent, builds: Build[]): Photo | null {
   const ref = eventPhotoRef(e, builds);
   return ref ? photoSource(ref) : null;
@@ -59,14 +77,20 @@ export function cardDistance(v: EventView, origin: DistanceOrigin | null | undef
   return meetDistance(v.event, origin ?? null, v.shownStop < 0);
 }
 
-/** "Not open to your car" on events you can't simply join (Redesign 2: only the negative shows). */
-export function notOpenLine(v: EventView): string | undefined {
+/**
+ * "Not open to your car" on events you can't simply join (Redesign 2: only the negative shows).
+ * `hasCar` false: nothing, since with no car added it isn't known yet; Tonight's one "Add your car
+ * to see what you can join" row says so once (Review 19).
+ */
+export function notOpenLine(v: EventView, hasCar = true): string | undefined {
+  if (!hasCar) return undefined;
   return v.role === 'none' || v.role === 'declined' ? NOT_OPEN : undefined;
 }
 
 /**
- * An event on a browse surface (Tonight's sheet and list, Search): the one PhotoCard anatomy.
- * Photo (the host's build) → kind line (● Meet) → title → "Live · until 23:00 · 2 mi · 9 going".
+ * An event on Tonight (the map sheet's card and the List): one PhotoCard look everywhere (K3,
+ * Review 19). Photo (the host's build) with the kind line (● Meet) and title on it → "Live · until
+ * 23:00 · 2 mi · 9 going" under it → I'm going when you can simply go (the one secondary).
  */
 export function EventEntityCard({
   view: v,
@@ -76,7 +100,10 @@ export function EventEntityCard({
   tag,
   action,
   builds,
-  titleOnPhoto,
+  aspect,
+  overlay,
+  hasCar = true,
+  demo,
 }: {
   view: EventView;
   now: Date;
@@ -88,27 +115,37 @@ export function EventEntityCard({
   action?: CardAction | null;
   /** For the host's build photo. Without it the card draws the area. */
   builds?: Build[];
-  titleOnPhoto?: boolean;
+  /** The map sheet's card is wider than 16:9 so the peek stays about a third of the screen. */
+  aspect?: number;
+  /** Over the photo instead of the credit (the map sheet's ✕). */
+  overlay?: ReactNode;
+  /** Has a car in the Garage (else "Not open to your car" isn't said). */
+  hasCar?: boolean;
+  /** The demo: a host with no photo gets the stand-in for their build (`eventStandIn`). */
+  demo?: boolean;
 }) {
   const e = v.event;
   const done = v.phase === 'over' || v.phase === 'cancelled';
-  const ref = builds ? eventPhotoRef(e, builds) : null;
+  const own = builds ? eventPhotoRef(e, builds) : null;
+  const standIn = !own && builds && demo ? eventStandIn(e, builds) : null;
+  const ref = own ?? standIn?.ref ?? null;
   return (
     <PhotoCard
       kind="event"
       photo={ref ? photoSource(ref) : null}
-      overlay={ref ? <PhotoCredit photoRef={ref} overlay corner="topRight" /> : undefined}
+      aspect={aspect}
+      overlay={overlay ?? (ref ? <PhotoCredit photoRef={ref} standIn={standIn?.standIn} overlay corner="topRight" /> : undefined)}
       eyebrow={EVENT_LABELS[e.type]}
       layerColour={EVENT_COLOURS[e.type]}
       live={v.phase === 'live'}
       title={e.title}
       tag={tag ?? statusTag(v.status) ?? null}
       meta={metaLine([cardTime(e, now), cardDistance(v, origin), `${e.going.length} going`])}
-      detail={notOpenLine(v)}
+      detail={notOpenLine(v, hasCar)}
       finished={done}
       onPress={onPress}
       action={action}
-      titleOnPhoto={titleOnPhoto}
+      titleOnPhoto
     />
   );
 }

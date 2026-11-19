@@ -113,3 +113,9 @@ export function paddedRegion(region: MapRegion, height: number, padding?: MapPad
   const lat = region.centre.lat + (((top - bottom) / 2) * span) / height;
   return { centre: { lat, lng: region.centre.lng }, span };
 }
+
+/**
+ * Room kept round the route preview's fit (Review 19): the map buttons down the right (58 pt plus
+ * their margin) and the credit chip, so the route and its destination never sit under either.
+ */
+export const OVERVIEW_PADDING = { top: 48, right: 84, bottom: 48, left: 40 } as const;

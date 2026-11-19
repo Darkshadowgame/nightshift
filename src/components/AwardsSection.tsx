@@ -22,31 +22,38 @@ import { PhotoCredit } from './PhotoCredit';
  * them (the fourth motion moment), then one row per trophy. Three trophies only, in one order: Best car,
  * Best bike, Best in show.
  *
- * `preview` (the demo only, Review 12 L4; Review 14): once you've voted and closed the vote sheet,
- * voting is closed for you and the results show as they'd look if voting closed now, with the same
- * reveal, so the trophy moment happens on the demo night. Under a "Demo results" heading, and only for the trophies you voted in: a result
- * you had no part in never looks decided (Review 13). When the real results show is said once, in
- * the status line.
+ * `preview` (the demo only; owner decision, Review 19): each trophy you vote in shows its result as
+ * soon as the vote sheet closes, with the same reveal, so the trophy moment happens inside task 6
+ * with no extra taps. Under "Demo: how Best car went", and only for the trophies you voted in: a
+ * result you had no part in never looks decided (Review 13). The trophy you voted in last is the one
+ * on the cover, so each new vote plays its own reveal; the others stay open to vote (`progress`:
+ * "2 more to vote"). Real accounts get the results at the real time.
  */
-export function TrophiesSection({ event, preview, progress }: { event: NightEvent; preview?: boolean; progress?: ReactNode }) {
+export function TrophiesSection({ event, preview, progress, delay = 0 }: { event: NightEvent; preview?: boolean; progress?: ReactNode; /** ms before the cover rises (after the page scrolls to it). */ delay?: number }) {
   const { builds, users, votes, me } = useStore();
   const now = useNow();
   if (event.cancelled || (!preview && now < votingCloses(event))) return null;
   const mine = (c: AwardCategory) => votes.some((v) => v.eventId === event.id && v.voterId === me && v.category === c);
-  const awards = preview ? previewResults(votes, event, builds, me, now).filter((a) => mine(a.category)) : results(votes, event, builds, now);
+  // Newest vote first in the demo, so the trophy you just voted in is the one that flips in.
+  const votedAt = (c: AwardCategory) => votes.findIndex((v) => v.eventId === event.id && v.voterId === me && v.category === c);
+  const awards = preview
+    ? previewResults(votes, event, builds, me, now)
+        .filter((a) => mine(a.category))
+        .sort((a, b) => votedAt(b.category) - votedAt(a.category))
+    : results(votes, event, builds, now);
   if (preview && awards.length === 0) return null;
   const handle = (uid: string) => (uid === me ? 'You' : displayHandle(users.find((u) => u.id === uid)?.handle ?? 'unknown'));
   // The winner is said once (Review 15 decision 2): the cover's trophy has no row as well.
   const onCover = awards.filter((a) => categoryInfo(a.category).cover && builds.some((b) => b.id === a.buildId)).slice(0, 1);
   const rows = awards.filter((a) => !onCover.includes(a));
   return (
-    <Section title={preview ? 'Demo results' : 'Trophies'}>
+    <Section title={preview ? (awards.length === 1 ? `Demo: how ${categoryInfo(awards[0].category).label} went` : 'Demo: how your trophies went') : 'Trophies'}>
       {awards.length === 0 ? <DsText v="secondary">Not enough votes for any trophies at this one.</DsText> : null}
       {onCover.map((a) => {
           const b = builds.find((x) => x.id === a.buildId);
           if (!b) return null;
           return (
-            <RevealIn key={a.category} id={`${event.id}:${preview ? 'preview:' : ''}${a.category}`} sparks>
+            <RevealIn key={a.category} id={`${event.id}:${preview ? 'preview:' : ''}${a.category}`} sparks delay={delay}>
               <Cover award={a} build={b} owner={users.find((u) => u.id === a.ownerId)} event={event} width={240} />
             </RevealIn>
           );
@@ -78,8 +85,8 @@ export function TrophiesSection({ event, preview, progress }: { event: NightEven
 }
 
 /**
- * Which trophies still need your vote (Review 15 decision 2): "1 of 3 voted · Best car next", tap to
- * vote in it. Nothing once every trophy has your vote, or before the first.
+ * Which trophies still need your vote (Review 15 decision 2; Review 19): "2 more to vote", with the
+ * next one under it, tap to vote in it. Nothing once every trophy has your vote, or before the first.
  */
 export function VoteProgress({ cats, voted, onVote }: { cats: readonly AwardCategory[]; voted: (c: AwardCategory) => boolean; onVote: (c: AwardCategory) => void }) {
   const done = cats.filter(voted).length;
@@ -88,7 +95,8 @@ export function VoteProgress({ cats, voted, onVote }: { cats: readonly AwardCate
   return (
     <ListRow
       leading={{ icon: 'plus', colour: COLOR.text.secondary }}
-      title={`${done} of ${cats.length} voted · ${categoryInfo(next).label} next`}
+      title={`${cats.length - done} more to vote`}
+      subtitle={`${categoryInfo(next).label} next`}
       onPress={() => onVote(next)}
       accessibilityHint={`Vote for ${categoryInfo(next).label.toLowerCase()}`}
     />

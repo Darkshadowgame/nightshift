@@ -45,7 +45,10 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
   test('not open to your car: why, and Ask to go', () => {
     const narrow = { ...event, going: ['host'], filter: { ...DEFAULT_FILTER, everyone: false, classes: ['S' as const, 'A' as const] } };
     const p = eventPrimary(narrow, 'me', 'none', crews, [], at(-300));
-    expect(statusLine(narrow, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-300) }).text).toBe('Open to Class A and up. Ask a host to let you in.');
+    const line = statusLine(narrow, p, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-300) });
+    // Its own row (Review 19): the place line only talks about the place.
+    expect(line.eligibility).toBe('Open to Class A and up. Ask a host to let you in.');
+    expect(line.text).toMatch(/^Location shows at /);
     expect(openToLine({ ...DEFAULT_FILTER, everyone: false, cars: false, bikes: true })).toBe('Open to bikes only.');
   });
 

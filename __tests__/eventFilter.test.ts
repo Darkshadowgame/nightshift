@@ -82,17 +82,17 @@ describe('filterEvents', () => {
 });
 
 describe('filterLine', () => {
-  test('nothing hidden: no line', () => {
-    expect(filterLine(filterEvents(VIEWS, NO_EVENT_FILTER, true, NOW), NO_EVENT_FILTER, true, true)).toBeNull();
+  test('everything shown after Show: a way back (Review 19)', () => {
+    expect(filterLine(filterEvents(VIEWS, NO_EVENT_FILTER, true, NOW), NO_EVENT_FILTER, true, true)).toEqual({ text: '10 meets · Filters off', action: { label: 'Reset', clears: 'reset' } });
   });
-  test('filters hid some: Show all', () => {
+  test('filters hid some: says by what, and Show', () => {
     const line = filterLine(filterEvents(VIEWS, DEFAULT_EVENT_FILTER, true, NOW), DEFAULT_EVENT_FILTER, true, true)!;
-    expect(line.text).toBe('4 meets tonight · 4 hidden');
-    expect(line.action).toEqual({ label: 'Show all', clears: 'all' });
+    expect(line.text).toBe('4 meets tonight · 4 hidden by your filters');
+    expect(line.action).toEqual({ label: 'Show', clears: 'all' });
   });
   test('only the car hid some: Show; no car says so', () => {
     const r = filterEvents(VIEWS, f({ canGoOnly: true }), true, NOW);
-    expect(filterLine(r, f({ canGoOnly: true }), true, true)).toEqual({ text: '9 meets · 1 not for your car', action: { label: 'Show', clears: 'car' } });
+    expect(filterLine(r, f({ canGoOnly: true }), true, true)).toEqual({ text: '9 meets · 1 not for your car', action: { label: 'Show', clears: 'all' } });
     expect(filterLine(r, f({ canGoOnly: true }), true, false)!.text).toBe('9 meets · 1 need a car');
   });
   test('Events off says so', () => {

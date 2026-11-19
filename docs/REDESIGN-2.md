@@ -520,6 +520,10 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
   Me has no "+": its Settings gear sits in that place, before the bell (owner decision, Review 12).
 * Every pushed screen: back on the left; on the right at most one text action (Share) and `···`.
 * Detail screens have no header title. Forms and settings have a caps title.
+  *Note (19 Nov 2026, Review 19 gap 20):* once a detail screen's hero title has scrolled out of view
+  (the event page scrolls to the map for the location moment), the header shows a compact copy of
+  it, in the content's own case, so you always know which meet this is. It never shows while the
+  hero's title is on screen, so it isn't said twice.
 
 ### 4.2 Back *(replaces rule 27)*
 * Always the root layout's back `IconButton` at the top left. Never a back button in the body.
@@ -527,6 +531,10 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 * Back from a form with changes always asks first (`ConfirmSheet`: "Discard it" / "Keep editing").
 * **Exception:** the full-screen driving view has no back arrow; its **End** button is its back
   (like every sat nav). Reviewers must not count it.
+* **Exception (19 Nov 2026, Review 19 gap 32):** the full-screen photo crop (`CropEditor`) keeps ✕ at
+  the top left. It is 4.5's Cancel on a step that loses work (the crop), like every phone's image
+  editor, and the one image-editor exception; its `···` (Rotate, Reset) is named in its first line.
+  Reviewers must not count it as a second back style.
 
 ### 4.3 Buttons *(replaces rules 6, 7)*
 * One primary per screen. On T3 and T4 it lives in the `ActionBar`, pinned above the home indicator,
@@ -1035,3 +1043,18 @@ clashed, the owner's earlier decisions stand:
    break. It must read clearly: the countdown starts only once the route is drawn, the button says
    "Starting in 5" (counting down), and "Tap anywhere to stop" shows under it; any touch stops it.
    That hint's "stop" is allowed (4.12 exception).
+10. **Review 19 fixes (owner decisions, 19 Nov 2026):**
+    * **Trophy moment (L4):** in the demo, voting in one trophy plays that trophy's result reveal as
+      soon as the vote sheet closes, under "Demo: how Best car went"; the other trophies stay open
+      ("2 more to vote"), and Vote steps down to the secondary. Inside task 6, no extra taps. Signed
+      in, results come at the real time.
+    * **Demo clock:** said once, clearly: Tonight's header tag reads "Demo · Fri 21:10" (the demo's
+      clock) and its sheet explains it. Times elsewhere stay as they are.
+    * **Count line:** "2 meets tonight · 4 hidden by your filters · Show". Show turns every filter
+      off and leaves "Filters off · Reset", so there's always a way back.
+    * **Toasts:** one line at 1.0x on a 375-wide phone; short copy ("Not going · Undo"); the green
+      tick only on success (leaving, removing and notes get a neutral mark).
+    * **Event cards:** one card look on Tonight's map sheet and list (title on the photo, I'm going
+      when you can simply go). The meet's pin glyph never changes when you go or its place shows.
+    * **Route preview:** one credit chip; the route and its destination are fitted clear of the
+      chip and the map buttons (map padding), never under them.

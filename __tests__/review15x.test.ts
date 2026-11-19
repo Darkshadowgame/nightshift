@@ -22,14 +22,17 @@ describe('the vote status line in the demo (decision 2)', () => {
     const vote = eventPrimary(event, 'me', 'going', [], builds, at(10));
     expect(vote.kind).toBe('vote');
     const before = statusLine(event, vote, { me: 'me', crews: [], builds, users: [], votes: [], now: at(10), demo: true, trophies: 3 });
-    expect(before.note).toBe('Vote for 3 trophies.');
+    // The ActionBar's Vote says it (Review 19): no line under the place.
+    expect(before.note).toBeUndefined();
     const v = [{ eventId: 'e', voterId: 'me', category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }];
     const voted = eventPrimary(event, 'me', 'going', [], builds, at(20), v);
     // Voting not over for you yet (Review 17): no "Results are in." and no "Results tomorrow 23:00";
     // the "1 of 3 voted" row says where you are.
     expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), demo: true }).note).toBeUndefined();
-    // Every trophy voted, or Done: the results are in.
-    expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), demo: true, resultsIn: true }).note).toBe(RESULTS_IN);
+    // The demo's results are their own section ("Demo: how Best car went", Review 19), never this line.
+    expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), demo: true, resultsIn: true }).note).toBeUndefined();
+    // Signed in, once results are out, the line says so.
+    expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), resultsIn: true }).note).toBe(RESULTS_IN);
   });
   test('ended with results: the winner is on the cover, not in the line', () => {
     const v = [1, 2, 3].map((n) => ({ eventId: 'e', voterId: `v${n}`, category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }));

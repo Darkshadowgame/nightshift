@@ -335,8 +335,12 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
             {!reduced ? (
               <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: RADII.pill, borderWidth: 3, borderColor: 'transparent', borderTopColor: colour }, sweepStyle]} />
             ) : null}
+            {/* The meet's own glyph, faint, then full: the pin never changes shape when the place shows
+                (K3, Review 19); the sweeping ring is the moment. */}
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, lockStyle]}>
-              <Pin glyph="area" colour={colour} size={56} />
+              <View style={{ opacity: 0.4 }}>
+                <Pin glyph={glyph} colour={colour} size={56} />
+              </View>
             </Animated.View>
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, openStyle]}>
               <Pin glyph={glyph} colour={colour} size={56} />

@@ -68,6 +68,8 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
   const filled = FILLED_GLYPHS.has(glyph);
   const svg = (
     <Svg width={size} height={size} viewBox="0 0 40 40">
+      {/* A dark halo first, so a pin reads clearly over the map's own labels (Review 19). */}
+      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={INK} stroke={INK} strokeWidth={5} strokeLinejoin="round" />
       <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={filled ? colour : INK} stroke={colour} strokeWidth={2.5} />
       <GlyphShape glyph={glyph} c={filled ? INK : colour} />
     </Svg>
@@ -75,7 +77,8 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
   if (!count && !badge) return svg;
   const label = badge ?? (count! > 99 ? '99+' : String(count));
   return (
-    <View style={{ width: size + SPACING.sm, height: size + SPACING.xs, paddingTop: SPACING.xs }}>
+    // The badge sits off the pin's top-right corner rather than over its glyph (Review 19).
+    <View style={{ width: size + SPACING.md, height: size + SPACING.sm, paddingTop: SPACING.sm }}>
       {svg}
       <View
         style={{

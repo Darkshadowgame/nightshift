@@ -6,7 +6,9 @@ import { iconRotation } from '../lib/driveView';
 import { CAMERA_FOLLOW_MS, CAMERA_JUMP_METRES, easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../lib/heading';
 import type { LatLng } from '../lib/types';
 import { ART, BRAND, C, RADII, ROAD_COLOUR } from '../theme';
-import { OTHER_ROUTE, type DriveMapProps } from './DriveMap';
+// Types only: on web './DriveMap' is this file, so values come from elsewhere.
+import type { DriveMapProps } from './DriveMap';
+import { OVERVIEW_PADDING } from './mapTypes';
 import { NavIcon } from './NavIcon';
 import { DEMO_DRIVER_LABEL, DEMO_DRIVER_SIZE, DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin } from './Pin';
@@ -24,7 +26,7 @@ import { altitudeToZoom } from './webmap/zoom.web';
  * No tilt: the web map is flat. If Leaflet can't load, the screen stays plain asphalt.
  */
 export function DriveMap(props: DriveMapProps) {
-  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, appearance = 'dark', overview } = props;
+  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, appearance = 'dark', overview, credit } = props;
   const others = useDemoDrivers(demoAround);
   const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
   const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
@@ -145,7 +147,7 @@ export function DriveMap(props: DriveMapProps) {
       if (i === overview.selected || r.length < 2) return;
       const l = lf.L.polyline(
         r.map((p) => [p.lat, p.lng] as [number, number]),
-        { color: OTHER_ROUTE, weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: !!overview.onSelect },
+        { color: ART.routeOther, weight: 7, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: !!overview.onSelect },
       ).addTo(lf.map);
       l.on('click', () => overview.onSelect?.(i));
       l.bringToBack();
@@ -167,7 +169,13 @@ export function DriveMap(props: DriveMapProps) {
     const view = outer.current;
     const padX = square && view ? Math.max(0, (square.clientWidth - view.clientWidth) / 2) : 0;
     const padY = square && view ? Math.max(0, (square.clientHeight - view.clientHeight) / 2) : 0;
-    lf.map.fitBounds(lf.L.latLngBounds(all.map((p) => [p.lat, p.lng] as [number, number])), { padding: [padX + 36, padY + 36], animate: false });
+    // Clear of the buttons down the right and the credit chip at the top left (Review 19).
+    const pad = OVERVIEW_PADDING;
+    lf.map.fitBounds(lf.L.latLngBounds(all.map((p) => [p.lat, p.lng] as [number, number])), {
+      paddingTopLeft: [padX + pad.left, padY + pad.top],
+      paddingBottomRight: [padX + pad.right, padY + pad.bottom],
+      animate: false,
+    });
     // Drawn and fitted: the next frame shows it (the auto-start countdown waits for this).
     const frame = requestAnimationFrame(() => overview.onShown?.());
     return () => cancelAnimationFrame(frame);
@@ -251,7 +259,9 @@ export function DriveMap(props: DriveMapProps) {
           </Pressable>
         </View>
       ) : null}
-      <Credit top tiles={tiles} />
+      {/* One chip: the tiles' credit and the screen's (roads, cameras), top left, clear of the route's fit. */}
+      {/* Both lines whole (Credit's own merge drops a second OpenStreetMap holder such as OSRM); short form, full on tap. */}
+      <Credit top tiles={credit ? null : tiles} credit={credit ? [tiles, credit].filter(Boolean).join(' · ') : undefined} />
     </View>
   );
 }

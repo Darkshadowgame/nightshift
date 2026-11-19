@@ -1,3 +1,4 @@
+import { OVERVIEW_PADDING } from './mapTypes';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { realNowMs } from '../lib/appClock';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -56,6 +57,12 @@ export interface DriveMapProps {
   /** Tapping your icon, or a long press next to it (stopped only): change the icon. */
   onPressYou?: () => void;
   onLongPress?: (at: LatLng) => void;
+  /**
+   * The screen's own map credit (roads, cameras): on web it joins the tile credit in the one chip
+   * (Review 19: one credit chip per map). The iPhone's Apple map keeps its own legal label, so the
+   * screen draws this one itself there.
+   */
+  credit?: string;
   /** Demo, Busy night only: made-up drivers move along the demo routes round this home area (labelled DEMO). */
   demoAround?: LatLng | null;
 }
@@ -154,7 +161,7 @@ export const DriveMap = memo(function DriveMap({
     if (all.length < 2) return;
     // Every 8th point is plenty to fit the view.
     const pts = all.filter((_, i) => i % 8 === 0 || i === all.length - 1).map((p) => ({ latitude: p.lat, longitude: p.lng }));
-    const t = setTimeout(() => map.current?.fitToCoordinates(pts, { edgePadding: { top: 60, right: 40, bottom: 60, left: 40 }, animated: true }), 50);
+    const t = setTimeout(() => map.current?.fitToCoordinates(pts, { edgePadding: { ...OVERVIEW_PADDING }, animated: true }), 50);
     // Fitted (the animation runs about half a second): the route is on screen.
     const shown = setTimeout(() => overview.onShown?.(), 650);
     return () => {

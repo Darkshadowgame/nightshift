@@ -151,8 +151,12 @@ export function locationSentence({ state, time, minutesTo, point, town, leadMinu
       return time ? `Location shows at ${time} to people going.` : 'Location shows to people going.';
     case 'hidden':
       return minutesTo != null && minutesTo > 0 && minutesTo < 60 ? `Location shows at ${at} (in ${Math.ceil(minutesTo)} min).` : `Location shows at ${at}.`;
-    case 'shown':
-      return `${[point ?? 'Meet point', town].filter(Boolean).join(', ')}.`;
+    case 'shown': {
+      // The town once (C5, Review 19): "Tamworth meet point." never "Tamworth meet point, Tamworth.".
+      const name = point ?? 'Meet point';
+      const saysTown = !!town && new RegExp(`\\b${town.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(name);
+      return `${[name, saysTown ? null : town].filter(Boolean).join(', ')}.`;
+    }
     case 'rolling':
       return `Now at ${point ?? 'the meet point'}. Next location when the host moves on.`;
     case 'host':
@@ -164,8 +168,20 @@ export function locationSentence({ state, time, minutesTo, point, town, leadMinu
 export const DEMO_NIGHT = {
   tag: 'Demo night',
   title: 'Demo night',
-  body: "The demo always runs on a Friday night, so you can try everything. Nothing leaves this phone, and check-in doesn't need you to be at the meet point.",
+  body: "The demo runs on its own clock: Friday night from 21:10, whatever time your phone says, so a meet is always on and you can try everything. Every time in the demo follows that clock. Nothing leaves this phone, and check-in doesn't need you to be at the meet point.",
 } as const;
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * Tonight's header tag in the demo (owner decision, Review 19): the demo's clock, said once,
+ * "Demo · Fri 21:10" (shown in capitals), so every time on screen makes sense at any phone time.
+ */
+export function demoClockTag(now: Date): string {
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `Demo · ${DAYS[now.getDay()]} ${hh}:${mm}`;
+}
 
 /**
  * The one explanation of class (C5, Review 14): every screen that explains Class uses this sentence,

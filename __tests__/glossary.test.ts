@@ -5,6 +5,7 @@ import {
   BANNED_WORDS,
   confirmLabels,
   DEMO_NIGHT,
+  demoClockTag,
   leadText,
   LOCATION,
   locationSentence,
@@ -64,12 +65,17 @@ describe('glossary', () => {
     expect(locationSentence({ state: 'hidden', time: '21:30', minutesTo: 20 })).toBe('Location shows at 21:30 (in 20 min).');
     expect(locationSentence({ state: 'hidden', time: '21:30', minutesTo: 95 })).toBe('Location shows at 21:30.');
     expect(locationSentence({ state: 'shown', point: 'Leisure park car park', town: 'Tamworth' })).toBe('Leisure park car park, Tamworth.');
+    // The town once (Review 19): a name that says it already doesn't get it again.
+    expect(locationSentence({ state: 'shown', point: 'Tamworth meet point', town: 'Tamworth' })).toBe('Tamworth meet point.');
+    expect(locationSentence({ state: 'shown', point: 'Tamworthy lane', town: 'Tamworth' })).toBe('Tamworthy lane, Tamworth.');
     expect(locationSentence({ state: 'rolling', point: 'Ventura retail park' })).toBe('Now at Ventura retail park. Next location when the host moves on.');
     expect(locationSentence({ state: 'host', time: '21:30', leadMinutes: 60 })).toBe('People going see it at 21:30 (1 h before).');
     expect(aroundArea('Tamworth')).toBe('Around Tamworth');
     const all = (['notGoing', 'hidden', 'shown', 'rolling', 'host'] as const).map((state) => locationSentence({ state, time: '21:30', minutesTo: 10, point: 'X', leadMinutes: 60 })).join(' ');
     for (const b of BANNED_WORDS) expect(all).not.toMatch(b.re);
     expect(DEMO_NIGHT.body).toMatch(/Friday night/);
+    expect(DEMO_NIGHT.body).toMatch(/21:10/);
+    expect(demoClockTag(new Date(2026, 10, 20, 21, 10))).toBe('Demo · Fri 21:10');
   });
 });
 

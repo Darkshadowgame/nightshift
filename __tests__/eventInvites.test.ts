@@ -78,7 +78,8 @@ describe('the invitee', () => {
     const state = eventPrimary(e, 'mo', 'none', [], [], before);
     expect(state).toEqual({ kind: 'join', request: true });
     const line = statusLine(e, state, { me: 'mo', crews: [], builds: [], users, votes: [], now: before });
-    expect(line.text).toBe('Open to bikes only. Ask a host to let you in.');
+    expect(line.eligibility).toBe('Open to bikes only. Ask a host to let you in.');
+    expect(line.text).toMatch(/^Location shows/);
     expect(line.note).toBe('Invited by @aimee_h.');
   });
 });

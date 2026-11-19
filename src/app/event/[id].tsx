@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { TrophiesSection, VoteProgress, VoteSheet, voteCategories } from '../../components/AwardsSection';
 import { bhpLine, BringSheet, shortBuildName } from '../../components/BringPicker';
@@ -16,6 +16,7 @@ import {
   EmptyState,
   ErrorState,
   GoingStrip,
+  Gradient,
   Hero,
   Icon,
   ListRow,
@@ -30,7 +31,6 @@ import {
   SwitchRow,
   useToast,
   type ActionBarButton,
-  FitImage,
 } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { UnlockReveal } from '../../components/motion';
@@ -66,6 +66,18 @@ import { useStore } from '../../lib/store';
 import type { Build, LatLng, User } from '../../lib/types';
 import { endedLabel, liveLabel, timeRange } from '../../lib/when';
 import { COLOR, EVENT_COLOURS, MOTION, RADII, SPACING } from '../../theme';
+
+/** The soft top edge on the event map, in points. */
+const EDGE_FADE = 10;
+
+/** The hero's meta line sits under its title: past this much above the hero's bottom, the title is out of view. */
+const HERO_TITLE_CLEAR = 72;
+
+/** A host's Navigate becomes the primary this close to the start (else Invite or Share is). */
+const ON_THE_DAY_HOURS = 6;
+
+/** The demo's trophy cover waits this long after the vote sheet closes, so the page has scrolled to it. */
+const REVEAL_DELAY_MS = 450;
 
 /** How long the "+150 rep" moment stays after check-in before it folds away. */
 const REP_MOMENT_MS = 6000;
@@ -125,6 +137,10 @@ export default function EventScreen() {
   const mapAt = useRef(0);
   const viewH = useRef(0);
   const trophiesAt = useRef(0);
+  /** Where the hero's title has scrolled out of view (content y), and whether it has. */
+  const heroBottom = useRef(0);
+  const [titleUp, setTitleUp] = useState(false);
+  const screenW = useWindowDimensions().width;
 
   // "Location shown": the first time this person can see a meet point, play the reveal once.
   const fresh = e ? newlyUnlocked(e, me, crews, now, store.unlockSeen[e.id] ?? []) : [];
@@ -224,13 +240,12 @@ export default function EventScreen() {
   const state = eventPrimary(ev, me, role, crews, builds, now, votes);
   const demo = store.backend === 'local';
   const cats = voteCategories(ev, builds, me, now);
-  // The demo (Review 18): voting is over for you once every trophy has your vote; Done only closes
-  // the sheet. Only then "Results are in." and the results, said once, never "Results tomorrow".
-  // Before that the page says "1 of 3 voted · Best bike next" and nothing else.
+  // The demo's trophy moment (owner decision, Review 19; L4): each trophy you vote in shows its
+  // result as soon as the vote sheet closes, under "Demo: how Best car went", with "2 more to vote"
+  // for the rest. Inside task 6, no extra taps. Signed in, results come at the real time.
   const votedCount = cats.filter((c) => votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)).length;
-  const votingOver = votedCount > 0 && votedCount === cats.length;
-  const resultsIn = demo && votingOver && voteCat === null && !ev.cancelled && phase !== 'over';
-  // The demo never promises a time it won't keep (Review 15 decision 2): "Vote for 3 trophies.", then "Results are in."
+  const resultsIn = demo && votedCount > 0 && voteCat === null && !ev.cancelled && phase !== 'over';
+  // The demo never promises a time it won't keep (Review 15 decision 2): no vote line, the results show.
   const status = statusLine(ev, state, { me, crews, builds, users, votes, now, resultsIn, demo: demo && phase !== 'over', trophies: cats.length });
 
   // ---------------------------------------------------------------------------
@@ -245,7 +260,7 @@ export default function EventScreen() {
       const result = await store.setGoing(ev.id, true, buildId);
       if (result === 'going' && !wasGoing && settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
       const b = mine.find((x) => x.id === buildId);
-      if (result === 'requested') toast({ message: 'Asked the host. You’ll hear when they say yes.' });
+      if (result === 'requested') toast({ message: 'Asked the host', tone: 'info' });
       else if (!wasGoing) {
         // Straight away and on one line (4.7, Review 14). No tap in a toast but Undo (Review 17): which
         // car is said in the ActionBar, and changed from the ··· menu.
@@ -298,13 +313,13 @@ export default function EventScreen() {
     const time = formatTime(at);
     if (!on) {
       store.setSettings({ reminders: false });
-      toast({ message: 'Event reminders off' });
+      toast({ message: 'Reminders off', tone: 'info' });
       return;
     }
     store.setSettings({ reminders: true });
     const allowed = notificationsSupported ? await askPermission().catch(() => false) : false;
     store.refreshReminders();
-    toast({ message: allowed || !notificationsSupported ? `We'll remind you at ${time}` : `Allow notifications in Settings to get it at ${time}` });
+    toast(allowed || !notificationsSupported ? { message: `We'll remind you at ${time}` } : { message: 'Allow notifications in Settings', tone: 'info' });
   }
 
   /** Share: the share sheet, else "Link copied", else the link to copy (src/lib/share.ts). Never a dead end. */
@@ -333,7 +348,7 @@ export default function EventScreen() {
     setErrorState(null);
     const was = chosen?.id;
     attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.").then((ok) => {
-      if (ok) toast({ message: `You're not going to ${ev.title}`, action: { label: 'Undo', onPress: () => store.setGoing(ev.id, true, was).catch(() => {}) } });
+      if (ok) toast({ message: 'Not going', tone: 'info', action: { label: 'Undo', onPress: () => store.setGoing(ev.id, true, was).catch(() => {}) } });
     });
   }
 
@@ -363,7 +378,7 @@ export default function EventScreen() {
   const votedCats = cats.filter((c) => !!voted(c));
   const toVote = cats.filter((c) => !voted(c));
   const firstUnvoted = cats.find((c) => !votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)) ?? cats[0];
-  // "1 of 3 voted · Best car next": always clear which trophies still need your vote (Review 15).
+  // "2 more to vote · Best bike next": always clear which trophies still need your vote (Reviews 15, 19).
   const voteProgress = <VoteProgress cats={cats} voted={(c) => !!voted(c)} onVote={setVoteCat} />;
   const addPhoto: ActionBarButton = { label: 'Add a photo', onPress: () => flow.pick(), busy: flow.busy };
   let primary: ActionBarButton | null = null;
@@ -372,6 +387,9 @@ export default function EventScreen() {
   // pill that just says "Going" (the time is said once, in the status line) and Can't make it, the
   // way out. Remind me is a switch in the location block.
   let pill: string | null = null;
+  // "On the day": it starts today, or within the next few hours (a 01:00 start the evening before).
+  const startMs = new Date(ev.startsAt).getTime();
+  const onTheDay = new Date(ev.startsAt).toDateString() === now.toDateString() || startMs - now.getTime() < ON_THE_DAY_HOURS * 3_600_000;
   const canRemind = state.kind === 'waiting' && !state.placing && going && !host && new Date(state.at) > now;
   switch (state.kind) {
     case 'join':
@@ -384,7 +402,10 @@ export default function EventScreen() {
       }
       break;
     case 'navigate':
-      if (navTo) primary = { label: nav.label, onPress: nav.open };
+      // A host before the day (Review 19): the next job is getting people there, not driving yet.
+      // Navigate is the primary on the day; before it, it waits in ··· (Open in another app).
+      if (host && !onTheDay) primary = inviteOn ? { label: INVITE_WORDS.open, onPress: () => setInviting(true) } : { label: 'Share', onPress: () => void doShare() };
+      else if (navTo) primary = { label: nav.label, onPress: nav.open };
       break;
     case 'checkin':
       primary = { label: 'Check in', onPress: doCheckIn, busy, haptic: 'success' };
@@ -399,11 +420,10 @@ export default function EventScreen() {
       secondary = addPhoto;
       break;
     case 'voted':
-      // The demo, trophies left and not Done: still Vote, the photo beside it (Review 17).
-      if (demo && !resultsIn && toVote.length > 0 && phase !== 'over') {
-        primary = { label: 'Vote', onPress: () => setVoteCat(firstUnvoted ?? null) };
-        secondary = addPhoto;
-      } else primary = addPhoto;
+      // Once you've voted, Vote steps down to the secondary while trophies are left (Review 19):
+      // the next thing is the photo, and the result already shows (the demo) or comes at its time.
+      primary = addPhoto;
+      if (toVote.length > 0 && phase !== 'over') secondary = { label: 'Vote', onPress: () => setVoteCat(firstUnvoted ?? null) };
       break;
     case 'ended':
       secondary = shownPhotosCount() > 0 ? { label: 'See photos', onPress: () => scroll.current?.scrollTo({ y: Math.max(0, photosAt.current - SPACING.lg), animated: true }) } : null;
@@ -413,6 +433,8 @@ export default function EventScreen() {
   }
 
   const barHasPhoto = primary === addPhoto || secondary === addPhoto;
+  /** Invite connections is the ActionBar's (a host before the day): not a row or a ··· item as well. */
+  const invitePrimary = primary?.label === INVITE_WORDS.open;
   // Going is said once, in the same place on every event (C5, Review 18): the ActionBar. Its pill
   // ("Going") while there's no primary yet, else this line over the buttons; never a tag on the photo.
   const goingState = myEventStatus(ev, me, crews, now) === 'going';
@@ -467,12 +489,13 @@ export default function EventScreen() {
     going && !host && !closed ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
     (going || host) && !closed && mine.length > 0 ? { label: 'Change what you’re bringing', onPress: () => (setMenu(false), setBring('change')) } : null,
     ev.requests?.includes(me) ? { label: GOING.cancelRequest, onPress: () => (setMenu(false), attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.")) } : null,
-    inviteOn ? { label: INVITE_WORDS.open, onPress: () => (setMenu(false), setInviting(true)) } : null,
+    inviteOn && !invitePrimary ? { label: INVITE_WORDS.open, onPress: () => (setMenu(false), setInviting(true)) } : null,
     navTo ? { label: 'Open in another app', onPress: () => (setMenu(false), nav.openOther()) } : null,
     canEdit ? { label: 'Edit', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
     canPlan ? { label: 'Change the plan', onPress: () => (setMenu(false), router.push({ pathname: '/event/plan', params: { id: ev.id } })) } : null,
     host && (ev.changes?.length ?? 0) > 0 ? { label: 'Plan changes', onPress: () => (setMenu(false), setChangesOpen(true)) } : null,
-    host && !closed ? { label: 'Cancel', destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
+    // Says what it cancels (4.5, Review 19): a bare "Cancel" in a sheet reads as "close this".
+    host && !closed ? { label: `Cancel the ${EVENT_LABELS[ev.type].toLowerCase()}`, destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
     !host ? { label: 'Report', onPress: () => (setMenu(false), openReport('event', ev.id, undefined, 'event')) } : null,
   ] as (MenuOption | null)[]).filter((x): x is MenuOption => !!x);
 
@@ -494,6 +517,8 @@ export default function EventScreen() {
         span={anyVisible ? (ev.type === 'cruise' ? 0.25 : 0.06) : Math.max(0.12, (areaMiles * 2.6) / 69)}
         follow
       />
+      {/* A road label cut by the frame's top edge showed as a white sliver (Review 19): the edge fades into the frame. */}
+      <Gradient to="top" colours={['rgba(17,24,39,0)', COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: EDGE_FADE }} />
       {unlock ? (
         <UnlockReveal
           glyph={ev.type}
@@ -508,14 +533,34 @@ export default function EventScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <Stack.Screen options={screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) })} />
+      <Stack.Screen
+        options={{
+          ...screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) }),
+          // The hero carries the title; once it has scrolled away (the location moment scrolls to the
+          // map) the header keeps a compact copy, so you always know which meet this is (4.1, Review 19).
+          headerTitle: titleUp
+            ? () => (
+                // Body size, up to two lines: never cut, at any text size (L2).
+                <DsText v="body" numberOfLines={2} style={{ maxWidth: Math.max(140, screenW - 200) }}>
+                  {ev.title}
+                </DsText>
+              )
+            : () => null,
+        }}
+      />
       <ScrollView
         ref={scroll as never}
+        scrollEventThrottle={32}
+        onScroll={(e) => {
+          const up = heroBottom.current > 0 && e.nativeEvent.contentOffset.y > heroBottom.current;
+          if (up !== titleUp) setTitleUp(up);
+        }}
         contentContainerStyle={PAGE_WITH_BAR}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         onLayout={(l) => (viewH.current = l.nativeEvent.layout.height)}
       >
+        <View onLayout={(l) => (heroBottom.current = l.nativeEvent.layout.y + l.nativeEvent.layout.height - HERO_TITLE_CLEAR)}>
         <Hero
           bleed
           photo={photoRef ? photoSource(photoRef) : null}
@@ -527,6 +572,7 @@ export default function EventScreen() {
           meta={meta}
           tag={heroTag}
         />
+        </View>
 
         <View style={{ gap: SPACING.md }}>
           {/* The place line says only where (4.11); the next step is its own line, said once (Review 14). */}
@@ -537,6 +583,17 @@ export default function EventScreen() {
                 {status.note}
               </DsText>
             ) : null}
+            {status.eligibility ? (
+              // Who can come is its own row with its own mark (4.11, Review 19), never the place line's pin.
+              <View accessible accessibilityLabel={status.eligibility} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm, paddingTop: SPACING.xs }}>
+                <View style={{ paddingTop: SPACING.xxs }} aria-hidden>
+                  <Icon name="info" size={18} colour={COLOR.text.secondary} />
+                </View>
+                <DsText v="body" style={{ flex: 1 }}>
+                  {status.eligibility}
+                </DsText>
+              </View>
+            ) : null}
             {canRemind && state.kind === 'waiting' ? (
               <View style={{ paddingLeft: 18 + SPACING.sm }}>
                 {/* The time is said once, in the line above (C5, Review 17). */}
@@ -546,7 +603,7 @@ export default function EventScreen() {
           </View>
           {justCheckedIn ? (
             <Animated.View exiting={FadeOut.duration(MOTION.base)}>
-              <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up." />
+              <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up. It shows on your profile." />
             </Animated.View>
           ) : null}
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
@@ -558,14 +615,20 @@ export default function EventScreen() {
             onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
           />
           {/* Bring your mates (Review 18): a row while you're going, never a sheet that opens by itself. */}
-          {going && !closed ? (
+          {going && !closed && !invitePrimary ? (
             <ListRow leading={{ icon: 'share' }} title="Bring your mates" subtitle="Invite connections or share" onPress={() => setInviting(true)} />
           ) : null}
         </View>
 
         {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (
           <View onLayout={(l) => (trophiesAt.current = l.nativeEvent.layout.y)}>
-            <TrophiesSection event={ev} preview={resultsIn && now < votingCloses(ev)} />
+            <TrophiesSection
+              event={ev}
+              preview={resultsIn && now < votingCloses(ev)}
+              // The cover rises once the page has scrolled to it.
+              delay={resultsIn ? REVEAL_DELAY_MS : 0}
+              progress={resultsIn && toVote.length > 0 ? voteProgress : undefined}
+            />
           </View>
         ) : null}
 
@@ -758,10 +821,10 @@ export default function EventScreen() {
       <VoteSheet
         event={ev}
         category={voteCat}
-        onClose={(_votedNow, allVoted) => {
+        onClose={(votedNow) => {
           setVoteCat(null);
-          // The demo's trophy moment (L4): your last vote makes the results show; they flip in here.
-          if (allVoted && demo) setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, trophiesAt.current - SPACING.lg), animated: true }), 350);
+          // The demo's trophy moment (L4, Review 19): any vote makes its result show; it flips in here.
+          if (votedNow && demo) setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, trophiesAt.current - SPACING.lg), animated: true }), 350);
         }}
       />
       {sharer.sheet}
@@ -788,15 +851,15 @@ export default function EventScreen() {
 
       <ConfirmSheet
         visible={confirmCancel}
-        title="Cancel event"
-        message={`Cancel ${ev.title}? Everyone going sees it as cancelled and gets no more reminders.${errorAt('cancel') ? `\n\n${errorAt('cancel')}` : ''}`}
+        title={`Cancel the ${EVENT_LABELS[ev.type].toLowerCase()}?`}
+        message={`Everyone going to ${ev.title} sees it as cancelled and gets no more reminders.${errorAt('cancel') ? `\n\n${errorAt('cancel')}` : ''}`}
         verb="Cancel"
         onCancel={() => setConfirmCancel(false)}
         onConfirm={() => {
           attempt('cancel', () => store.cancelEvent(ev.id), "Couldn't cancel it.").then((ok) => {
             if (!ok) return;
             setConfirmCancel(false);
-            toast({ message: 'Cancelled' });
+            toast({ message: `${EVENT_LABELS[ev.type]} cancelled`, tone: 'info' });
           });
         }}
       />
@@ -834,9 +897,9 @@ function InviteRows({ rows, ended }: { rows: { come: string; tell: string }; end
   );
 }
 
-/** One square photo in the event's Photos grid. */
+/** One square photo in the event's Photos grid: cover-fit like every tile, never letterboxed (Review 19). */
 function PhotoTile({ photoRef }: { photoRef: string }) {
-  return <FitImage source={photoSource(photoRef)} frameAspect={1} />;
+  return <Image source={photoSource(photoRef)} resizeMode="cover" style={StyleSheet.absoluteFill} accessibilityIgnoresInvertColors />;
 }
 
 type Line = { id: string; userId: string; text: string; at: string; system?: boolean };

@@ -18,14 +18,14 @@ import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from '.
  * | kind        | place line                                   | status note                          | ActionBar                    |
  * |-------------|----------------------------------------------|--------------------------------------|------------------------------|
  * | join        | "Location shows at 21:30 to people going."   |                                      | I'm going                    |
- * | join+request| "Open to Class A and up. Ask a host to let you in." |                               | Ask to go                    |
+ * | join+request| "Location shows at 21:30 to people going."   | (own row: "Open to Class A and up. Ask a host to let you in.") | Ask to go |
  * | requested   | "You asked to go. A host will say yes or no."|                                      | nothing                      |
  * | waiting     | "Location shows at 21:30 (in 20 min)."       |                                      | Remind me (or Can't make it) |
  * | navigate    | "Leisure park car park, Tamworth."           | "Check-in opens at 21:00 (in 20 min)." | Navigate                   |
  * | checkin     | "Leisure park car park, Tamworth."           | ("You're 2 mi away." with a fix)     | Check in + Navigate          |
  * | checkedIn   | "Leisure park car park, Tamworth."           | "Voting opens at 20:30." (if early)  | Navigate / Add a photo       |
- * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00." (demo: "Vote for 3 trophies.") | Vote + Add a photo |
- * | voted       | "Leisure park car park, Tamworth."           | "Results tomorrow 23:00." (demo: "Results are in.") | Add a photo   |
+ * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00." (demo: none) | Vote + Add a photo |
+ * | voted       | "Leisure park car park, Tamworth."           | "Results tomorrow 23:00." (demo: none; the results show) | Add a photo + Vote (trophies left) |
  * | ended       | "Leisure park car park, Tamworth." / "Around Tamworth." | "Results tomorrow 23:00." (until then) | See photos (secondary) |
  * | cancelled   | "Cancelled by the host."                     |                                      | nothing                      |
  *
@@ -126,7 +126,7 @@ export function statusLine(
   event: NightEvent,
   state: EventPrimary,
   ctx: { me: string; crews: Crew[]; builds: Build[]; users: User[]; votes: Vote[]; now: Date; milesAway?: number | null; resultsIn?: boolean; demo?: boolean; trophies?: number },
-): { text: string; note?: string; done?: boolean } {
+): { text: string; note?: string; done?: boolean; /** Who can come, when it isn't you yet: its own row, never in the place line (4.11, Review 19). */ eligibility?: string } {
   const { now } = ctx;
   const current = event.type === 'rolling' ? event.currentStop : 0;
   const stop = event.stops[current];
@@ -135,7 +135,7 @@ export function statusLine(
   const shownSentence = () =>
     event.type === 'rolling' && current > 0
       ? locationSentence({ state: 'rolling', point: stop?.name })
-      : // 4.11 exactly: "{Meet point name}, {Town}." even when the name has the town in it (Review 16).
+      : // 4.11: "{Meet point name}, {Town}.", the town left off when the name already says it (Review 19).
         locationSentence({ state: 'shown', point: event.type === 'cruise' ? event.stops[0]?.name : stop?.name, town });
   const minsTo = (d: Date) => (d.getTime() - now.getTime()) / 60_000;
   const host = isHost(event, ctx.me, ctx.crews);
@@ -147,10 +147,11 @@ export function statusLine(
       const by = event.invitedBy?.[ctx.me];
       const handle = by ? ctx.users.find((u) => u.id === by)?.handle : undefined;
       const invited = handle ? { note: `Invited by @${handle}.` } : {};
-      if (state.request) return { text: `${openToLine(event.filter)} Ask a host to let you in.`, ...invited };
-      if (isPublicType(event.type)) return { text: shownSentence(), ...invited };
+      // The place line only ever talks about the place (4.11, Review 19): who can come is its own row.
+      const eligibility = state.request ? { eligibility: `${openToLine(event.filter)} Ask a host to let you in.` } : {};
+      if (isPublicType(event.type)) return { text: shownSentence(), ...invited, ...eligibility };
       // Already shown to people going (a live meet): no time to give. The 4.11 words either way.
-      return { text: locationSentence({ state: 'notGoing', time: reveal.getTime() > now.getTime() ? clock(reveal) : undefined }), ...invited };
+      return { text: locationSentence({ state: 'notGoing', time: reveal.getTime() > now.getTime() ? clock(reveal) : undefined }), ...invited, ...eligibility };
     }
     case 'requested':
       return { text: 'You asked to go. A host will say yes or no.' };
@@ -173,13 +174,14 @@ export function statusLine(
       return { text: place, note: now < new Date(event.startsAt) ? `Voting opens at ${clock(event.startsAt)}.` : undefined };
     }
     case 'vote':
-      // The demo has one honest state each side of voting (Review 15 decision 2): never a time it won't keep.
-      if (ctx.demo) return { text: shownSentence(), note: `Vote for ${plural(Math.max(1, ctx.trophies ?? 1), 'trophy', 'trophies')}.` };
+      // The demo never promises a time it won't keep (Review 15 decision 2), and the ActionBar's Vote
+      // says what to do: no grey line under the place that reads as if it were about the place (Review 19).
+      if (ctx.demo) return { text: shownSentence() };
       return { text: shownSentence(), note: `Voting closes ${untilText(votingCloses(event), now)}.` };
     case 'voted':
-      // The demo (Review 18): "Results are in." only once voting is over for you (every trophy voted);
-      // until then the "1 of 3 voted · Best bike next" row says where you are, and nothing else.
-      if (ctx.demo) return { text: shownSentence(), note: ctx.resultsIn ? RESULTS_IN : undefined };
+      // The demo (owner decision, Review 19): each vote's result shows under "Demo: how Best car
+      // went" straight away, with "2 more to vote" there. That section says it, so no line here.
+      if (ctx.demo) return { text: shownSentence() };
       return { text: shownSentence(), note: ctx.resultsIn ? RESULTS_IN : `Results ${untilText(votingCloses(event), now)}.` };
     case 'ended': {
       // The place line is still the place (4.11, Review 17): the meet point to people who could see it,

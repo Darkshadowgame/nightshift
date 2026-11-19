@@ -6,7 +6,7 @@ import { NAV_ICON_COLOURS, NAV_ICON_SHAPES, navIconOf } from '../lib/driveView';
 import { ARROWS, formatDistance } from '../lib/nav';
 import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, tint } from '../theme';
 import { photoUri } from '../lib/photos';
-import { Button, ChoiceGroup, DsText, Press, Sheet } from './ds';
+import { Button, ChoiceGroup, DsText, Icon, Press, Sheet } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 import { LaneStrip } from './LaneStrip';
 import type { LaneStrip as LaneStripData } from '../lib/lanes';
@@ -244,12 +244,16 @@ export function AlertPill({ text, tone = 'warning' }: { text: string; tone?: 'wa
 }
 
 /** REPORT: one tap opens the report grid (RoadReportControls). */
+/**
+ * Report: a secondary round button like the map's others (Review 19), so End is the only coloured
+ * button on the driving view. The warning mark says what it's for; the label says it in words.
+ */
 export function ReportButton({ onPress }: { onPress: () => void }) {
   return (
-    <Press onPress={onPress} label="Report something on the road" hitSlop={6} style={st.report}>
-      <DsText v="driveButton" tone="onAction">
-        Report
-      </DsText>
+    <Press onPress={onPress} label="Report something on the road" haptic="tap" hitSlop={6} style={st.mapButton}>
+      <View aria-hidden>
+        <Icon name="alert" size={28} />
+      </View>
     </Press>
   );
 }
@@ -338,7 +342,6 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   pill: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.control, borderWidth: 2, borderColor: COLOR.state.warning, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
-  report: { height: 58, minWidth: 120, paddingHorizontal: SPACING.lg, borderRadius: RADII.pill, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center' },
 
   preview: { alignSelf: 'center', width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: RADII.card, backgroundColor: COLOR.surface.bg },
 });

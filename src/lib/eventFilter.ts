@@ -120,26 +120,38 @@ export function filtering(filter: EventFilter, eventsOn: boolean): boolean {
 
 export interface FilterLine {
   text: string;
-  /** "Show all" clears every filter; "Show" only turns Only ones I can go to off. */
-  action: { label: string; clears: 'all' | 'car' };
+  /** "Show" turns every filter off (and Events on); "Reset" puts the defaults back. */
+  action: { label: string; clears: 'all' | 'reset' };
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Every filter off and Events on: what "Show" sets. */
+function allShown(filter: EventFilter, eventsOn: boolean): boolean {
+  return eventsOn && filter.when === 'all' && filter.types.length === 0 && !filter.canGoOnly;
+}
+
 /**
- * The line over Tonight's sheet and list, one line at 375 wide (Review 18): "12 meets tonight · 18
- * hidden · Show all", or "9 meets tonight · 4 not for your car · Show"; both kinds hidden at once
- * are one number ("21 hidden"). The count is only the meets inside When (a Sunday meet you're going
- * to shows, but isn't "tonight"). Null when nothing is hidden.
+ * The line over Tonight's sheet and list (owner decision, Review 19): "2 meets tonight · 4 hidden
+ * by your filters · Show", or "· 1 not for your car" when only the car filter hid them, so it's
+ * clear what hid them. Show turns every filter off; then "6 meets · Filters off · Reset", so there
+ * is always a way back to the defaults. The count is only the meets inside When (a Sunday meet
+ * you're going to shows, but isn't "tonight"). Null with the default filters and nothing hidden.
  */
 export function filterLine(result: FilterResult, filter: EventFilter, eventsOn: boolean, hasCar: boolean): FilterLine | null {
   const { hiddenByCar: car, hiddenByFilters: other } = result;
-  if (car === 0 && other === 0) return null;
   const when = filter.when === 'tonight' ? ' tonight' : filter.when === 'week' ? ' this week' : '';
-  const parts = [`${plural(result.shownInWhen, 'meet', 'meets')}${when}`];
-  if (!eventsOn) parts.push(`${car + other} hidden, Events off`);
-  else if (car > 0 && other > 0) parts.push(`${car + other} hidden`);
-  else if (car > 0) parts.push(hasCar ? `${car} not for your car` : `${car} need a car`);
-  else parts.push(`${other} hidden`);
-  return { text: parts.join(' · '), action: other > 0 ? { label: 'Show all', clears: 'all' } : { label: 'Show', clears: 'car' } };
+  const count = `${plural(result.shownInWhen, 'meet', 'meets')}${when}`;
+  if (car === 0 && other === 0) {
+    const defaults = filter.when === DEFAULT_EVENT_FILTER.when && filter.types.length === 0 && filter.canGoOnly === DEFAULT_EVENT_FILTER.canGoOnly;
+    return allShown(filter, eventsOn) && !defaults ? { text: `${count} · Filters off`, action: { label: 'Reset', clears: 'reset' } } : null;
+  }
+  const why = !eventsOn
+    ? `${car + other} hidden, Events off`
+    : other === 0
+      ? hasCar
+        ? `${car} not for your car`
+        : `${car} need a car`
+      : `${car + other} hidden by your filters`;
+  return { text: `${count} · ${why}`, action: { label: 'Show', clears: 'all' } };
 }

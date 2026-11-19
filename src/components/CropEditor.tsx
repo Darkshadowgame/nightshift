@@ -166,10 +166,10 @@ export function CropEditor({
         </View>
         <DsText v="caption" style={{ paddingHorizontal: SPACING.screen }}>
           {saved
-            ? "This changes the saved photo. Anything cropped off now can't be got back."
+            ? "This changes the saved photo. Anything cropped off now can't be got back. Rotate it from ···."
             : plateRedactorAvailable
-              ? 'Drag the box, or a corner to resize. Plates are checked next.'
-              : 'Drag the box, or a corner to resize. Crop out any readable number plate.'}
+              ? 'Drag the box, or a corner to resize. Rotate it from ···. Plates are checked next.'
+              : 'Drag the box, or a corner to resize. Rotate it from ···. Crop out any readable number plate.'}
         </DsText>
 
         <View style={st.stage} onLayout={onStage}>

@@ -1199,7 +1199,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     status = { arrow: '…', title: legsDone && legsDone.total > 1 ? `Planning the route… ${legsDone.done} of ${legsDone.total} legs` : 'Planning the route…' };
   else if (phase === 'error') status = { arrow: '!', title: "Couldn't start navigation" };
   else if (phase === 'locating') status = { arrow: '…', title: 'Finding you…' };
-  else if (phase === 'preview') status = { arrow: ARROWS.arrive, title: finish, distance: pickedOption ? formatDistance(pickedOption.route.length) : undefined };
+  // The drive's distance is said once, in the preview's "2.9 mi drive · Arrive 21:16" (C5, Review 19).
+  else if (phase === 'preview') status = { arrow: ARROWS.arrive, title: finish };
   else if (!banner && route && progress) status = { arrow: ARROWS.straight, title: 'Follow the route', distance: formatDistance(progress.toEnd) };
 
   const roadName = routeRoad ?? osmRoad?.name ?? geoStreet;
@@ -1283,6 +1284,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           onPressYou={onPressYou}
           onLongPress={onLongPress}
           demoAround={store.backend === 'local' && settings.busyNight ? (store.users.find((u) => u.id === store.me)?.home ?? null) : null}
+          credit={credits || undefined}
         />
         <View pointerEvents="box-none" style={st.overlayTop}>
           {/* On web the map's tile credit sits top left (WP-E), so alerts start under it; the demo label is in the bottom bar. */}
@@ -1313,7 +1315,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         </View>
         <View pointerEvents="box-none" style={st.overlayBottom}>
           {reportsOn && !preview ? <ReportButton onPress={openReport} /> : <View />}
-          {credits ? (
+          {/* On web the map's own chip carries these too (one chip per map, Review 19). */}
+          {credits && Platform.OS !== 'web' ? (
             <View pointerEvents="none" style={st.credit} accessible accessibilityLabel={credits}>
               {/* One short line, every holder once ("© OSM, OSRM"), so it never grows into a block at 1.3x (Review 15). */}
               <DsText v="tag" tone="secondary" numberOfLines={1} style={{ textAlign: 'right', textTransform: 'none' }}>
