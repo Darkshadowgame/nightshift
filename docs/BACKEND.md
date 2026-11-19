@@ -1037,6 +1037,20 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   can't see the meet point is never masked or linked, so posts can't be used to probe for one. pgTAP:
   `post_privacy_test.sql` (44), run with the whole suite (887 of 887) in a rolled-back transaction on the
   hosted database; `db push --dry-run` lists only this migration.
+* **Waiting for the owner's yes (not pushed):** `20261121090000_event_invites.sql`, "Bring your mates".
+  `events.allow_invites` (the host form's "Let people invite their connections", on by default; host-only
+  `set_event_invites()`); `event_invites` (event, inviter, invitee; RLS: only the inviter and the invitee
+  read, no direct writes); `invite_connections(event_id, user_ids[])` for hosts and people going: accepted
+  connections only, never blocked either way, never while suspended, the host setting, at most 20 per
+  event per person and 100 a day; each invitee gets a `system` notice ("@you invited you to …") and the
+  event's card in the 1-to-1 chat. `events_for_me()` lists an event a connection invited you to (role
+  `shared`) even when the invite rules leave you out; the meet point still follows `can_see_stop()`, so
+  an invite never shows it early. Joining is `set_going()` as before (Ask to go when the rules leave you
+  out); `request_inviters(event_ids)` tells hosts who invited each request. The app hides Invite
+  connections (and the host toggle) signed in until `event_invites` can be read. pgTAP:
+  `event_invites_test.sql` (27), run with the whole suite (914 of 914) in rolled-back transactions on the
+  hosted database with the migration applied inside each; `db push --dry-run` lists only this migration
+  (a `pg_dump` of `public` and `private` was taken first, kept off the repo).
 * **Smoke test:** 121 of 121 (adds: A adds a dyno run with its sheet, B reads it with the build, B can't
   add one to A's build; B sees the badge proven, it goes when A edits the power by hand, B can't remove it).
 

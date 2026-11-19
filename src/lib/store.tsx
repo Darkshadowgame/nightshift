@@ -79,6 +79,8 @@ interface Store extends Persisted {
   setGoing: (eventId: string, going: boolean, buildId?: string) => Promise<'going' | 'requested' | 'none'>;
   /** Host approves or declines a request to go. */
   answerRequest: (eventId: string, userId: string, approve: boolean) => Promise<void>;
+  /** Invite connections to an event (eventInvites.ts). Resolves with the ids newly invited. */
+  inviteConnections: (eventId: string, userIds: string[], ctx: { connected: string[]; blocked: ReadonlySet<string> }) => Promise<string[]>;
   /** `buildId`: the build you actually turned up in, if it isn't the one you said. `position`: the GPS fix (needed signed in). */
   checkIn: (eventId: string, stopIndex: number, buildId?: string, position?: LatLng | null) => Promise<void>;
   moveOn: (eventId: string) => Promise<void>;
@@ -610,6 +612,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       saveProfile: async (draft) => need().saveProfile(draft),
       setGoing: async (id, going, buildId) => need().setGoing(id, going, buildId),
       answerRequest: async (id, userId, approve) => need().answerRequest(id, userId, approve),
+      inviteConnections: async (id, userIds, ctx) => need().inviteConnections(id, userIds, ctx),
       checkIn: async (id, stop, buildId, position) => need().checkIn(id, stop, buildId, position),
       moveOn: async (id) => need().moveOn(id),
       cancelEvent: async (id) => need().cancelEvent(id),

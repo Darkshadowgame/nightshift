@@ -384,6 +384,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
       currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'],
       filter: { ...DEFAULT_FILTER, cars: false, bikes: true, classes: ['S', 'A', 'B'], minMods: 0, radiusMiles: 100 },
       going: ['aimee', 'sully', 'liv', 'gaz'], checkIns: {},
+      // Bring your mates: @aimee.r1 (a connection) invited you. It's bikes only, so you'd ask to go.
+      invitedBy: { [ME]: 'aimee' },
     },
     {
       id: 'ev-show-don', type: 'show', title: 'Modified show day',

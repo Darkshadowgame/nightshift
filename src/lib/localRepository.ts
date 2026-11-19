@@ -34,6 +34,7 @@ import { sameHome } from './scene';
 import { driveMiles, judgeRun, makeSpot, rateSpot as applyRating, recordCompletion } from './spots';
 import type { ChatMessage, NightEvent, Spot } from './types';
 import { newId } from './ids';
+import { inviteProblem, newInvitees, withInvites } from './eventInvites';
 
 export interface LocalContext {
   /** The latest state (not a render's snapshot). */
@@ -143,6 +144,24 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       const next = rsvp(event, ME, eligible, pick, nowDate); // throws with the reason (a host said no, checked in...)
       updateEvent(eventId, (e) => rsvp(e, ME, eligible, pick, nowDate));
       return next.going.includes(ME) ? 'going' : next.requests?.includes(ME) ? 'requested' : 'none';
+    },
+    async inviteConnections(eventId, userIds, { connected, blocked }) {
+      const state = get();
+      const event = eventOf(eventId);
+      const nowDate = appNow();
+      const problem = inviteProblem(event, ME, userIds, connected, blocked, state.crews, nowDate);
+      if (problem) throw new Error(problem);
+      const fresh = newInvitees(event, ME, userIds, state.crews);
+      if (fresh.length === 0) return [];
+      // The sample people are made up: their notice is shown to you instead, so the demo says what happened.
+      const handles = fresh.map((id) => `@${state.users.find((u) => u.id === id)?.handle ?? 'someone'}`);
+      const who = handles.length <= 2 ? handles.join(' and ') : `${handles.length} people`;
+      const notice: Notice = {
+        id: newId('n'), eventId, at: nowDate.toISOString(), read: false, kind: 'host',
+        text: `You invited ${who} to ${event.title}. They each get a notice and the event in your chat.`,
+      };
+      set((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? withInvites(e, ME, fresh) : e)), notices: [notice, ...s.notices].slice(0, 100) }));
+      return fresh;
     },
     async answerRequest(eventId, userId, approve) {
       const next = applyAnswer(eventOf(eventId), ME, get().crews, userId, approve);

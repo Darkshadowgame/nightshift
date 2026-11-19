@@ -187,6 +187,13 @@ export interface NightEvent {
   routeMiles?: number;
   /** Changes hosts made to the plan (rolling meets on the night, and edits). Only hosts see this. */
   changes?: PlanChangeLog[];
+  /** The host's "Let people invite their connections" (eventInvites.ts). Missing means on. */
+  allowInvites?: boolean;
+  /**
+   * Invites from connections the phone knows about: invitee -> who invited them. Signed in: yours
+   * (either way) and, for hosts, the people asking to go.
+   */
+  invitedBy?: Record<string, string>;
 }
 
 export interface PlanChangeLog {

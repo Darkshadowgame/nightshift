@@ -33,6 +33,13 @@ export interface Repository {
   setGoing(eventId: string, going: boolean, buildId?: string): Promise<'going' | 'requested' | 'none'>;
   answerRequest(eventId: string, userId: string, approve: boolean): Promise<void>;
   /**
+   * Invite connections to an event (eventInvites.ts). Resolves with the ids newly invited. Each gets
+   * a notice and the event's card in your 1-to-1 chat (in the demo the screen sends the cards).
+   * `connected`/`blocked`: your connections as the Community tab has them (the demo checks with them;
+   * the server checks its own).
+   */
+  inviteConnections(eventId: string, userIds: string[], ctx: { connected: string[]; blocked: ReadonlySet<string> }): Promise<string[]>;
+  /**
    * `buildId`: the build you actually turned up in, if it isn't the one you said.
    * `position`: the phone's GPS fix, compared with the stop and never stored (required signed in).
    */
@@ -65,4 +72,6 @@ export interface BackendExtras {
   searchEvents(filters: SearchFilters, from: LatLng | null): Promise<{ eventId: string; miles: number; canGo: boolean }[]>;
   /** The host form's live count (invite_count()): null means "fewer than 3". */
   inviteCount(filter: InviteFilter, area: LatLng): Promise<{ people: number | null; builds: number | null }>;
+  /** False until the event invites migration is live on the server: the screens hide Invite connections. */
+  invitesLive(): boolean;
 }

@@ -38,6 +38,9 @@ import { useNavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { useShareLink } from '../../components/ShareLink';
+import { InviteSheet } from '../../components/InviteSheet';
+import { canInvite, INVITE_WORDS, inviterOf } from '../../lib/eventInvites';
+import { idsIn } from '../../lib/connections';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { eventPhotoRef, statusTag } from '../../components/TonightCards';
 import { appNow } from '../../lib/appClock';
@@ -113,6 +116,8 @@ export default function EventScreen() {
   /** The trophy the vote sheet is open on (null: closed). */
   const [voteCat, setVoteCat] = useState<AwardCategory | null>(null);
   const sharer = useShareLink();
+  /** Invite connections (InviteSheet): after I'm going, and from ···. */
+  const [inviting, setInviting] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   /** The "What are you bringing?" sheet: before I'm going, to change it, or at check-in. */
   const [bring, setBring] = useState<null | 'go' | 'change' | 'checkin'>(null);
@@ -219,6 +224,9 @@ export default function EventScreen() {
   const defaultPick = defaultBuild(ev, me, builds, events) ?? mine[0];
   const goesWith = (b?: Build) => canGoWith(ev, me, crews, users, builds, b);
 
+  // Invites need the server's invite_connections() signed in (store.remote.invitesLive()); the demo always has them.
+  const invitesLive = store.backend === 'local' || !!store.remote?.invitesLive();
+  const inviteOn = invitesLive && canInvite(ev, me, crews, now);
   const state = eventPrimary(ev, me, role, crews, builds, now, votes);
   // The demo (Review 14): once you've voted and closed the vote sheet, voting is closed for you and
   // the results show now, said once ("Results are in." and the results), never "Results tomorrow".
@@ -246,6 +254,8 @@ export default function EventScreen() {
         // Straight away and on one line (4.7, Review 14). Which car: Change, and the ActionBar while the tag is out of view.
         toast({ message: passenger ? "You're going as a passenger" : "You're going", action: mine.length > 0 ? { label: 'Change', onPress: () => setBring('change') } : undefined });
         if (result === 'going') setWentHere(true);
+        // Bring your mates: offer the invite sheet when there's someone to invite.
+        if (result === 'going' && invitesLive && canInvite({ ...ev, going: [...ev.going, me] }, me, crews, now) && idsIn(community.connections, 'connected').some((u) => !community.blocked.has(u) && !ev.going.includes(u))) setInviting(true);
       } else if (b) toast({ message: `Bringing your ${shortBuildName(b)}` });
     } catch (err) {
       setError('going', err instanceof Error ? err.message : "Couldn't change that.");
@@ -454,6 +464,7 @@ export default function EventScreen() {
     going && !host && !closed ? { label: GOING.leave, destructive: true, onPress: () => (setMenu(false), setConfirmLeave(true)) } : null,
     (going || host) && !closed && mine.length > 0 ? { label: 'Change what you’re bringing', onPress: () => (setMenu(false), setBring('change')) } : null,
     ev.requests?.includes(me) ? { label: GOING.cancelRequest, onPress: () => (setMenu(false), attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.")) } : null,
+    inviteOn ? { label: INVITE_WORDS.open, onPress: () => (setMenu(false), setInviting(true)) } : null,
     navTo ? { label: 'Open in another app', onPress: () => (setMenu(false), nav.openOther()) } : null,
     canEdit ? { label: 'Edit', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
     canPlan ? { label: 'Change the plan', onPress: () => (setMenu(false), router.push({ pathname: '/event/plan', params: { id: ev.id } })) } : null,
@@ -658,7 +669,7 @@ export default function EventScreen() {
               return (
                 <View key={uid} style={{ gap: SPACING.xs }}>
                   {i > 0 ? <RowDivider /> : null}
-                  <ListRow leading={{ avatar: { name: u?.name, handle: u?.handle } }} title={userLabel(uid)} subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'No car or bike'} meta="Asked to go" onPress={() => openUser(uid)} />
+                  <ListRow leading={{ avatar: { name: u?.name, handle: u?.handle } }} title={userLabel(uid)} subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'No car or bike'} meta={inviterOf(ev, uid) ? `Asked to go · Invited by ${inviterOf(ev, uid) === me ? 'you' : displayHandle(handleOf(inviterOf(ev, uid)!))}` : 'Asked to go'} onPress={() => openUser(uid)} />
                   <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                     <Button label="Say yes" tier="secondary" size="sm" haptic="success" style={{ flex: 1 }} block accessibilityLabel={`Say yes to ${userLabel(uid)}`} onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, true), "Couldn't approve that.")} />
                     <Button label="Say no" tier="tertiary" size="sm" style={{ flex: 1 }} block accessibilityLabel={`Say no to ${userLabel(uid)}`} onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, false), "Couldn't decline that.")} />
@@ -753,6 +764,7 @@ export default function EventScreen() {
         }}
       />
       {sharer.sheet}
+      <InviteSheet event={ev} visible={inviting} onClose={() => setInviting(false)} onShareOther={() => void doShare()} />
 
       <Sheet visible={menu} title="Event options" onClose={() => setMenu(false)}>
         <View>

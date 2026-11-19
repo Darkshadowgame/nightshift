@@ -204,7 +204,7 @@ describe('rule-checked actions go to their RPCs', () => {
     await repo.leaveCrew();
     await repo.answerRequest(EV, DAN, false);
     await repo.cancelEvent(EV);
-    expect(m.rpcCalls.filter(([n]) => n !== 'get_event_stops' && n !== 'spot_stats')).toEqual([
+    expect(m.rpcCalls.filter(([n]) => n !== 'get_event_stops' && n !== 'spot_stats' && n !== 'request_inviters')).toEqual([
       ['cast_vote', { p_event_id: EV, p_category: 'best-in-show', p_build_id: BUILD }],
       ['create_crew', { p_name: 'Night Owls', p_tag: 'no' }],
       ['join_crew', { p_crew_id: 'crew-2' }],

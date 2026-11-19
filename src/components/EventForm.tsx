@@ -16,6 +16,7 @@ import { fallbackPointName, shouldAutoName } from '../lib/placeNames';
 import { areaNameNear } from '../lib/profile';
 import { visibleSpots } from '../lib/spots';
 import { newId, useStore } from '../lib/store';
+import { INVITE_WORDS } from '../lib/eventInvites';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
@@ -139,6 +140,8 @@ export function EventForm({
   /** "Limit who can come" and "More options" are open. */
   const [limiting, setLimiting] = useState(() => !normaliseFilter(filter).everyone);
   const [more, setMore] = useState(false);
+  /** "Let people invite their connections" (eventInvites.ts): on unless the host turns it off. */
+  const [allowInvites, setAllowInvites] = useState(initial?.allowInvites !== false);
   /** What's missing, and where it shows: a field (`name`, `start`, `end`, `point`, `stop:<i>`) or the form. */
   const [error, setErrorRaw] = useState<{ at: string; message: string } | null>(null);
   const setError = (e: { at: string; message: string } | string | null) => setErrorRaw(typeof e === 'string' ? { at: 'form', message: e } : e);
@@ -397,6 +400,8 @@ export function EventForm({
     };
     if (end) event.endsAt = end.toISOString();
     else delete event.endsAt;
+    if (allowInvites) delete event.allowInvites;
+    else event.allowInvites = false;
     const twin = !initial ? duplicateHosted(store.events, event, me) : undefined;
     if (twin) return setError(`You already host ${twin.title} at that time. Change the name or the time.`);
     setError(null);
@@ -661,6 +666,10 @@ export function EventForm({
           ) : null}
           {myCrew && (canCrewHost || initial?.crewId === myCrew.id) ? (
             <SwitchRow label={`Crew event: ${myCrew.name}`} hint="The crew owner and hosts can host, move on and edit." value={crewOwned} onValueChange={setCrewOwned} />
+          ) : null}
+          {/* Signed in, only once the server has invites (20261121090000_event_invites.sql). */}
+          {!remote || remote.invitesLive() ? (
+            <SwitchRow label={INVITE_WORDS.hostToggle} hint={INVITE_WORDS.hostToggleHint} value={allowInvites} onValueChange={setAllowInvites} />
           ) : null}
           {friends.length ? (
             <ChipGroup<string>

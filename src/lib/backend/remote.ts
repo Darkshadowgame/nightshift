@@ -43,6 +43,7 @@ import {
   type GoingRow,
   type HomeRow,
   type HostRow,
+  type InviteRow,
   type NoticeRow,
   type PlaceRepRow,
   type PlanChangeRow,
@@ -149,9 +150,33 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
   // Reads
   // -------------------------------------------------------------------------
 
+  /**
+   * Invites (20261121090000_event_invites.sql): yours either way, and who invited the people asking
+   * to go to events you host. Before that migration is live both reads fail: invites stay off.
+   */
+  let invitesOn = false;
+  async function loadInvites(ids: string[]): Promise<InviteRow[]> {
+    try {
+      const [own, forHost] = await Promise.all([
+        call<InviteRow[]>(() => client.from('event_invites').select('event_id,inviter_id,invitee_id').in('event_id', ids)),
+        rpc<{ event_id: string; user_id: string; inviter_id: string }[]>('request_inviters', { p_event_ids: ids }),
+      ]);
+      invitesOn = true;
+      return [...own, ...forHost.map((r) => ({ event_id: r.event_id, inviter_id: r.inviter_id, invitee_id: r.user_id }))];
+    } catch (e) {
+      if (!offline(e)) invitesOn = false;
+      return [];
+    }
+  }
+
+  /** The host's "Let people invite their connections". Nothing to save before invites are live (the form hides it then). */
+  async function setEventInvites(eventId: string, on: boolean): Promise<void> {
+    if (invitesOn) await rpc('set_event_invites', { p_event_id: eventId, p_on: on });
+  }
+
   async function loadEventParts(ids: string[]) {
-    if (ids.length === 0) return { hosts: [], going: [], requests: [], checkIns: [], stops: [], changes: [], chat: [] };
-    const [hosts, going, requests, checkIns, stops, changes, chat] = await Promise.all([
+    if (ids.length === 0) return { hosts: [], going: [], requests: [], checkIns: [], stops: [], changes: [], chat: [], invites: [] };
+    const [hosts, going, requests, checkIns, stops, changes, chat, invites] = await Promise.all([
       call<HostRow[]>(() => client.from('event_hosts').select('event_id,user_id').in('event_id', ids)),
       call<GoingRow[]>(() => client.from('event_going').select('event_id,user_id,build_id').in('event_id', ids)),
       call<RequestRow[]>(() => client.from('event_requests').select('event_id,user_id,status,build_id').in('event_id', ids)),
@@ -159,8 +184,9 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       rpc<StopRow[]>('get_event_stops', { p_event_ids: ids }),
       call<PlanChangeRow[]>(() => client.from('plan_changes').select('id,event_id,by_user,at,text,ban_zone').in('event_id', ids).order('at')),
       call<ChatRow[]>(() => client.from('chat_messages').select('id,event_id,user_id,body,system,created_at').in('event_id', ids).order('created_at').limit(2000)),
+      loadInvites(ids),
     ]);
-    return { hosts, going, requests, checkIns, stops, changes, chat };
+    return { hosts, going, requests, checkIns, stops, changes, chat, invites };
   }
 
   /** Chat lines still waiting in the outbox, so they stay on screen until sent. */
@@ -565,12 +591,22 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     },
     async saveEvent(e) {
       const r = await rpc<{ id: string; warnings: string[] }>('save_event', eventToRpc(e, uid, true));
+      if (e.allowInvites === false) await setEventInvites(r.id, false);
       await quietly(refreshEvent(r.id));
       return r.id;
     },
     async editEvent(e) {
       await rpc('save_event', eventToRpc(e, uid, false));
+      if ((e.allowInvites !== false) !== (eventOf(e.id).allowInvites !== false)) await setEventInvites(e.id, e.allowInvites !== false);
       await quietly(refreshEvent(e.id));
+    },
+    async inviteConnections(eventId, userIds) {
+      if (!invitesOn) throw new Error("Invites aren't switched on yet. Use Share another way.");
+      const before = new Set(Object.keys(eventOf(eventId).invitedBy ?? {}));
+      await rpc<number>('invite_connections', { p_event_id: eventId, p_user_ids: userIds });
+      await quietly(refreshEvent(eventId));
+      const after = get().events.find((x) => x.id === eventId)?.invitedBy ?? {};
+      return userIds.filter((id) => after[id] === uid && !before.has(id));
     },
     async changePlan(eventId, change) {
       const event = eventOf(eventId);
@@ -744,6 +780,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       if (missing.length) await Promise.all(missing.slice(0, 20).map((r) => quietly(refreshEvent(r.event_id))));
       return rows.map((r) => ({ eventId: r.event_id, miles: Number(r.miles), canGo: r.can_go }));
     },
+    invitesLive: () => invitesOn,
     async inviteCount(filter, area) {
       return rpc<{ people: number | null; builds: number | null }>('invite_count', {
         p_filter: {

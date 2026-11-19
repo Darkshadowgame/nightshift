@@ -446,6 +446,7 @@ export function applyEventEdit(event: NightEvent, edited: NightEvent, by: string
     currentStop: Math.min(event.currentStop, Math.max(0, edited.stops.length - 1)),
     cancelled: event.cancelled,
     changes: [...(event.changes ?? []), log],
+    ...(event.invitedBy ? { invitedBy: event.invitedBy } : {}),
   };
 }
 

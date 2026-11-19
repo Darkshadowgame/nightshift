@@ -143,10 +143,14 @@ export function statusLine(
     case 'cancelled':
       return { text: 'Cancelled by the host.' };
     case 'join': {
-      if (state.request) return { text: `${openToLine(event.filter)} Ask a host to let you in.` };
-      if (isPublicType(event.type)) return { text: shownSentence() };
+      // A connection invited you (eventInvites.ts): who, as the one next-step note.
+      const by = event.invitedBy?.[ctx.me];
+      const handle = by ? ctx.users.find((u) => u.id === by)?.handle : undefined;
+      const invited = handle ? { note: `Invited by @${handle}.` } : {};
+      if (state.request) return { text: `${openToLine(event.filter)} Ask a host to let you in.`, ...invited };
+      if (isPublicType(event.type)) return { text: shownSentence(), ...invited };
       // Already shown to people going (a live meet): no time to give. The 4.11 words either way.
-      return { text: locationSentence({ state: 'notGoing', time: reveal.getTime() > now.getTime() ? clock(reveal) : undefined }) };
+      return { text: locationSentence({ state: 'notGoing', time: reveal.getTime() > now.getTime() ? clock(reveal) : undefined }), ...invited };
     }
     case 'requested':
       return { text: 'You asked to go. A host will say yes or no.' };

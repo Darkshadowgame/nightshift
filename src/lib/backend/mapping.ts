@@ -37,6 +37,8 @@ export interface EventRow {
   current_stop: number; crew_id: string | null; route_miles: number | null;
   invite_everyone: boolean; invite_cars: boolean; invite_bikes: boolean; invite_classes: ClassLetter[]; invite_min_mods: number;
   invite_brands: string[]; invite_radius_miles: number; created_by: string | null; cancelled_at: string | null; created_at?: string;
+  /** Missing until the event invites migration is live. */
+  allow_invites?: boolean;
 }
 /** A row from get_event_stops(): locked stops have name, lat, lng and note null and visible false. */
 export interface StopRow { id: string; event_id: string; position: number; name: string | null; lat: number | null; lng: number | null; note: string | null; revealed_at: string | null; visible: boolean }
@@ -44,6 +46,8 @@ export interface GoingRow { event_id: string; user_id: string; build_id: string 
 export interface RequestRow { event_id: string; user_id: string; status: 'pending' | 'approved' | 'declined'; build_id: string | null }
 export interface CheckInRow { event_id: string; user_id: string; stop_id: string }
 export interface HostRow { event_id: string; user_id: string }
+/** An invite (event_invites, or request_inviters() for hosts). */
+export interface InviteRow { event_id: string; inviter_id: string; invitee_id: string }
 export interface PlanChangeRow { id: string; event_id: string; by_user: string | null; at: string; text: string; ban_zone: string | null }
 export interface ChatRow { id: string; event_id: string; user_id: string; body: string; system: boolean; created_at: string }
 export interface VoteRow { event_id: string; voter_id: string; category: AwardCategory; build_id: string; created_at: string }
@@ -223,6 +227,7 @@ export interface EventParts {
   requests: RequestRow[];
   checkIns: CheckInRow[];
   stops: StopRow[];
+  invites?: InviteRow[];
   changes?: PlanChangeRow[];
 }
 
@@ -260,6 +265,13 @@ export function eventFromRows(r: EventRow, parts: EventParts): NightEvent {
   if (r.route_miles !== null && r.route_miles !== undefined) e.routeMiles = Number(r.route_miles);
   if (r.cancelled_at) e.cancelled = true;
   if (changes.length) e.changes = changes;
+  if (r.allow_invites === false) e.allowInvites = false;
+  const invites = mine(parts.invites ?? []);
+  if (invites.length) {
+    const invitedBy: Record<string, string> = {};
+    for (const i of invites) invitedBy[i.invitee_id] ??= i.inviter_id;
+    e.invitedBy = invitedBy;
+  }
   return e;
 }
 
