@@ -266,7 +266,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await snap('voted');
     await tap(B('Done'), { inSheet: true });
     await snap('results');
-    const trophy = C.trophyLines(await page.evaluate(C.pageText));
+    // A trophy cover, or a results line (allow/trophy.json).
+    const trophy = [...(await page.evaluate(C.pageCovers)), ...C.trophyLines(await page.evaluate(C.pageText))];
     const resultsShot = lastShot;
     const chooser = page.waitForEvent('filechooser', { timeout: 8000 });
     await tap(B('Add a photo'));
@@ -279,8 +280,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     const photo = (await B('Photo by You').count()) > 0;
     stop('t6', voted && photo, `${voted ? 'vote recorded' : 'no vote toast'}; ${photo ? 'photo in Photos' : 'photo not in Photos'}`);
     // L4 (Review 19 #16): after the vote, a results or trophy moment on the event page.
-    trophy.push(...C.trophyLines(await page.evaluate(C.pageText)));
-    if (!trophy.length) finding({ rule: 'L4', message: 'after voting (task 6), nothing on the event page says what voting leads to: no results or trophy line ("Results are in.", "Results at 23:00") (allow/trophy.json lists what counts)' }, resultsShot);
+    trophy.push(...(await page.evaluate(C.pageCovers)), ...C.trophyLines(await page.evaluate(C.pageText)));
+    if (!trophy.length) finding({ rule: 'L4', message: 'after voting (task 6), nothing on the event page says what voting leads to: no trophy cover and no results line ("Results are in.", "Results at 23:00"; allow/trophy.json lists what counts)' }, resultsShot);
 
     // 7. Someone at the meet: connect, message.
     await start('t7');

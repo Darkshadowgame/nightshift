@@ -1,9 +1,10 @@
 {
-  "about": "L4 after task 6: lines that count as a results or trophy moment on the event page (counts), and lines that look like one but aren't about this meet (ignore). Regexes, case-insensitive.",
+  "about": "L4 after task 6: a trophy cover (aria-label \"Cover: ...\") counts by itself; besides that, lines that count as a results or trophy moment on the event page (counts), and lines that look like one but aren't about this meet (ignore). Regexes, case-insensitive.",
   "counts": [
     { "text": "\\bresults are in\\b", "why": "Review 18's results cover." },
     { "text": "\\bresults?\\b.*\\b([01]?\\d|2[0-3]):[0-5]\\d\\b", "why": "A clear time the results come (\"Results at 23:00\")." },
-    { "text": "\\b(won|winner|wins|takes the trophy)\\b", "why": "The trophy itself." }
+    { "text": "\\b(won|winner|wins|takes the trophy)\\b", "why": "The trophy itself." },
+    { "text": "\\bhow .+ went\\b", "why": "The results header (\"Demo: how Best car went\")." }
   ],
   "ignore": [
     { "text": "^Last week's meet\\b", "why": "Last week's meet row, not this meet." },

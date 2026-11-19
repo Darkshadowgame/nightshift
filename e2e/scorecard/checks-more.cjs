@@ -422,6 +422,13 @@ function checkTonight(t, url) {
  * L4 (16): after task 6 (a vote), a results or trophy moment on the event page.
  * ---------------------------------------------------------------------------------------------- */
 
+/** In the page: trophy covers on show outside sheets (Cover.tsx labels them "Cover: Best car, ..."). */
+function pageCovers() {
+  return [...document.querySelectorAll('[aria-label^="Cover:"]')]
+    .filter((el) => !el.closest('[inert],[data-testid=sheet]') && el.getBoundingClientRect().width > 0)
+    .map((el) => el.getAttribute('aria-label'));
+}
+
 /** Whether any visible line (not a toast or sheet) reads as results or a trophy, per allow/trophy.json. */
 function trophyLines(texts) {
   const conf = ALLOW('trophy.json');
@@ -634,6 +641,6 @@ function unmarkBoxes() {
 
 module.exports = {
   at, pageMaps, checkMaps, pageBright, checkToastLines, pageCancels, checkCancels, checkDistances, pageMe, checkMe,
-  checkNameExample, pageTonight, checkTonight, trophyLines, pageTiles, checkTiles, pageHeaders, checkHeaders,
+  checkNameExample, pageTonight, checkTonight, pageCovers, trophyLines, pageTiles, checkTiles, pageHeaders, checkHeaders,
   pageEventCards, checkCardLook, pagePlaceholders, markBoxes, unmarkBoxes,
 };
