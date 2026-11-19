@@ -94,6 +94,7 @@ const TEMPLATES: Record<string, Template> = {
   report: 'T4',
   feedback: 'T4',
   signin: 'T4',
+  account: 'T4',
   welcome: 'T4',
   settings: 'T5',
   help: 'T5',

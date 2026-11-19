@@ -84,7 +84,7 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', hideDone, child
  * VoicePicker). Slides up; with reduced motion it fades. Tap the scrim or Done to close.
  * Create and edit flows are modal routes, not sheets.
  */
-export function Sheet({ visible, title, onClose, doneLabel, hideDone, children }: { visible: boolean; title: string; onClose: () => void; doneLabel?: string; /** No header Done: the sheet's own buttons are the only way out (ConfirmSheet). The scrim still closes it. */ hideDone?: boolean; children: ReactNode }) {
+export function Sheet({ visible, title, onClose, onDone, doneLabel, hideDone, children }: { visible: boolean; title: string; onClose: () => void; /** The header Done, when it means more than closing (the vote sheet: you're done voting). Defaults to onClose. */ onDone?: () => void; doneLabel?: string; /** No header Done: the sheet's own buttons are the only way out (ConfirmSheet). The scrim still closes it. */ hideDone?: boolean; children: ReactNode }) {
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   // The height cap is layout, not a percentage: the wrapper is a shrinkable flex item of a
@@ -103,7 +103,7 @@ export function Sheet({ visible, title, onClose, doneLabel, hideDone, children }
           accessibilityViewIsModal
           style={{ marginTop: insets.top + SPACING.xl, flexShrink: 1, minHeight: 0 }}
         >
-          <SheetPanel title={title} onClose={onClose} doneLabel={doneLabel} hideDone={hideDone} bottomInset={insets.bottom}>
+          <SheetPanel title={title} onClose={onDone ?? onClose} doneLabel={doneLabel} hideDone={hideDone} bottomInset={insets.bottom}>
             {children}
           </SheetPanel>
         </Animated.View>

@@ -11,13 +11,13 @@ import { COLOR, LAYER, RADII, SPACING } from '../theme';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
 import { PlaceSearch } from './PlaceSearch';
-import { TravelPrefs } from './TravelPrefs';
 import { useDiscardGuard } from './ComposerParts';
-import { ActionBar, Button, ChoiceGroup, DsText, ErrorState, PAGE_WITH_BAR, Press, Section, TextField, useToast } from './ds';
+import { ActionBar, Button, ChoiceGroup, DsText, ErrorState, ListRow, PAGE_WITH_BAR, Press, Section, Sheet, TextField, useToast } from './ds';
 
 /**
- * Your profile (Settings → Handle, name and home area): handle, name, region, rough home area and
- * how far you'd travel. A T4 form (Redesign 2, 4.2 and 4.3; Review 14 decision 3): Save is the
+ * Your profile (Settings → Handle, name and home area): handle, name, rough home area and region.
+ * How far you'd travel and new-meet alerts live in Settings only (one setting, one place; Review 17).
+ * Region has 11 options, so it's a row that opens a list sheet (4.4: pills up to 5, a list beyond). A T4 form (Redesign 2, 4.2 and 4.3; Review 14 decision 3): Save is the
  * ActionBar's primary, always in view; back with changes asks first ("Discard it" / "Keep
  * editing"); a save says "Saved" and goes back.
  */
@@ -40,8 +40,10 @@ export function ProfileForm({
   const [region, setRegion] = useState(initial.region);
   const [home, setHome] = useState<LatLng | null>(initial.home);
   const [centre, setCentre] = useState<LatLng>(initial.home ?? regionCentre(initial.region));
-  const [travelMiles, setTravelMiles] = useState(initial.travelMiles ?? DEFAULT_TRAVEL_MILES);
-  const [alerts, setAlerts] = useState<AlertMode>(initial.alerts ?? DEFAULT_ALERTS);
+  // Set in Settings; passed through unchanged so a save never resets them.
+  const travelMiles = initial.travelMiles ?? DEFAULT_TRAVEL_MILES;
+  const alerts: AlertMode = initial.alerts ?? DEFAULT_ALERTS;
+  const [regionOpen, setRegionOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -54,7 +56,7 @@ export function ProfileForm({
   const devArea = demo && (__DEV__ || !!settings.simulateGps);
 
   // Back with changes asks first (4.2).
-  const snapshot = JSON.stringify([handle, name, region, home, travelMiles, alerts]);
+  const snapshot = JSON.stringify([handle, name, region, home]);
   const [first] = useState(snapshot);
   const guard = useDiscardGuard(snapshot !== first, 'your changes');
 
@@ -142,23 +144,7 @@ export function ProfileForm({
       </Section>
 
       <Section title="Region">
-        <ChoiceGroup
-          label="Set from your home area. Change it if it's wrong."
-          options={REGIONS.map((r) => ({ key: r.name, label: r.name }))}
-          value={region}
-          onChange={pickRegion}
-        />
-      </Section>
-
-      <Section title="Events near you">
-        <TravelPrefs
-          miles={travelMiles}
-          alerts={alerts}
-          onChange={(next) => {
-            if (next.travelMiles !== undefined) setTravelMiles(next.travelMiles);
-            if (next.alerts) setAlerts(next.alerts);
-          }}
-        />
+        <ListRow title={region || 'Choose your region'} subtitle="Set from your home area. Change it if it's wrong." onPress={() => setRegionOpen(true)} accessibilityHint="Opens the list of regions" />
       </Section>
 
       {devArea && !isDemoHome ? <Button label="Developer: use the demo area (Tamworth)" tier="secondary" block onPress={pickDemoArea} /> : null}
@@ -167,6 +153,19 @@ export function ProfileForm({
     </ScrollView>
     <ActionBar primary={{ label: submitLabel, onPress: () => void submit(), busy: saving, haptic: 'success' }} />
     {guard.sheet}
+
+      <Sheet visible={regionOpen} title="Region" onClose={() => setRegionOpen(false)}>
+        <ChoiceGroup
+          label=""
+          layout="list"
+          options={REGIONS.map((r) => ({ key: r.name, label: r.name }))}
+          value={region}
+          onChange={(r) => {
+            pickRegion(r);
+            setRegionOpen(false);
+          }}
+        />
+      </Sheet>
 
       <MapPicker
         visible={picking}

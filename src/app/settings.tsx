@@ -16,6 +16,23 @@ import { askPermission, notificationsSupported, permissionGranted, testReminder 
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
 
+/**
+ * The way out of the demo: "Back to my account" when an account is waiting behind it, else "Leave the
+ * demo", which opens the sign-in form (the demo stays on the phone for later).
+ */
+export function LeaveDemoRow() {
+  const auth = useAuth();
+  return auth.accountWaiting ? (
+    <ListRow
+      title="Back to my account"
+      subtitle={`${auth.email ? `${auth.email} is` : 'Your account is'} just as you left it.`}
+      onPress={() => auth.backToAccount()}
+    />
+  ) : (
+    <ListRow title="Leave the demo" subtitle="Sign in or create an account. The demo stays here for later." onPress={() => router.push('/account')} />
+  );
+}
+
 /** One group of rows: the caps eyebrow, then rows that touch with a hairline. */
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -28,7 +45,8 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 /**
  * Settings (Redesign 2, 3.11; T5): Account → Privacy → Profile → Notifications → Directions →
  * About → Demo → Staff (staff only). Signed in, Demo offers "Try the demo" (auth.tryDemo: the session
- * stays, nothing from the demo goes to the account); in the demo, Account has "Back to my account". Privacy sits second so "Show me in People near
+ * stays, nothing from the demo goes to the account); in the demo, every demo control is in Demo,
+ * the way out too ("Back to my account" or "Leave the demo"). Privacy sits second so "Show me in People near
  * you" is on the first screen (REVIEW-12 #6). "Directions open in" is a setting, so it's a
  * ChoiceGroup of pills, never a SegmentedControl (4.4). The driving view's own settings (map heading,
  * icon, voice, cameras) live in its ··· menu; map layers live in the map's Layers sheet. The
@@ -76,14 +94,9 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
       <Group title="Account">
-        {demo && auth.accountWaiting ? (
-          <ListRow
-            title="Back to my account"
-            subtitle={`You're trying the demo. ${auth.email ? `${auth.email} is` : 'Your account is'} just as you left it.`}
-            onPress={() => auth.backToAccount()}
-          />
-        ) : demo ? (
-          <ListRow title="Sign in or create an account" subtitle="You're trying the demo. It stays here for later." onPress={() => auth.leaveDemo()} />
+        {demo ? (
+          // Every demo control, the way out included, is in the Demo group at the bottom (owner, Review 17).
+          <ListRow title="You're trying the demo" subtitle="Leave it from Demo, at the bottom of Settings." />
         ) : (
           <View>
             <ListRow title={auth.email ? `Signed in as ${auth.email}` : 'Signed in'} subtitle={store.online ? (store.pendingWrites > 0 ? 'Sending changes made offline…' : undefined) : 'Offline: showing what this phone last saw'} />
@@ -206,6 +219,9 @@ export default function SettingsScreen() {
                 toast({ message: on ? 'Busy night on' : 'Back to the normal demo night' });
               }}
             />
+            <RowDivider />
+            {/* The off switch next to the on switch (owner, Review 17). */}
+            <LeaveDemoRow />
           </View>
         </Group>
       ) : auth.status === 'signedIn' ? (

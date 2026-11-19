@@ -4,6 +4,9 @@ import { allVariants } from '../data/vehicles';
 import { classOf } from '../lib/classes';
 import { plural } from '../lib/format';
 import { carShape } from '../lib/buildShape';
+import { photoSource } from '../lib/photoSource';
+import { buildPicture } from '../lib/similarPhoto';
+import { useStore } from '../lib/store';
 import type { VehicleKind } from '../lib/types';
 import {
   canonicalMake,
@@ -22,6 +25,7 @@ import {
 import { COLOR, SPACING } from '../theme';
 import { Button, DsText, Icon, ListRow, PhotoCard, SearchField } from './ds';
 import { FadeUp } from './motion';
+import { PhotoCredit } from './PhotoCredit';
 import { SuggestMissing } from './SuggestMissing';
 
 /** Where the picker is: the one search, or the "Enter it yourself" list flow (make, model, version). */
@@ -247,14 +251,22 @@ function variantClass(v: Variant) {
   return classOf({ kind: v.kind, stockBhp: v.bhp, weightKg: v.weightKg, mods: [] });
 }
 
-/** Onboarding's picked card (Redesign 2, 3.2): the build as it will look, its class badge animating in. */
+/**
+ * Onboarding's picked card (Redesign 2, 3.2): the build as it will look, its class badge animating in.
+ * The same picture the Garage will show (Review 17): in the demo a stand-in photo of a similar car,
+ * else the drawing in its paint until you add your own photo.
+ */
 function PickedCard({ variant }: { variant: Variant }) {
+  const { backend } = useStore();
+  const pic = buildPicture({ photos: [], make: variant.make, model: variant.model, kind: variant.kind, year: variant.from }, backend === 'local');
   return (
     <FadeUp key={variant.id}>
       <View accessibilityLiveRegion="polite">
         <PhotoCard
           kind="build"
           size="sm"
+          photo={pic ? photoSource(pic.ref) : null}
+          overlay={pic ? <PhotoCredit photoRef={pic.ref} kind={variant.kind} standIn={pic.standIn} overlay /> : undefined}
           vehicle={variant.kind}
           shape={carShape(variant)}
           paint={COLOR.paint[3]}

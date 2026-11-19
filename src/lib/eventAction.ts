@@ -1,11 +1,11 @@
-import { canVote, categoriesFor, results, votingCloses, type Vote } from './awards';
+import { canVote, categoriesFor, votingCloses, type Vote } from './awards';
 import { broughtBuild } from './bringing';
 import { classOf } from './classes';
 import { canSeeStop, checkInOpensAt, checkInWindowOpen, endTime, hasRequested, isHost, isPublicType, phaseOf, revealTime } from './events';
 import type { Role } from './eventView';
 import { countdown } from './hud';
 import { formatTime, formatWhen, plural } from './format';
-import { locationSentence, NOT_OPEN } from './glossary';
+import { aroundArea, locationSentence, NOT_OPEN } from './glossary';
 import { classRange } from './invites';
 import { clock, clockWithCountdown, dayWord, whenLabel } from './when';
 import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from './types';
@@ -26,7 +26,7 @@ import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from '.
  * | checkedIn   | "Leisure park car park, Tamworth."           | "Voting opens at 20:30." (if early)  | Navigate / Add a photo       |
  * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00." (demo: "Vote for 3 trophies.") | Vote + Add a photo |
  * | voted       | "Leisure park car park, Tamworth."           | "Results tomorrow 23:00." (demo: "Results are in.") | Add a photo   |
- * | ended       | "Results are in." (the winner: on the cover) |                                      | See photos (secondary)       |
+ * | ended       | "Leisure park car park, Tamworth." / "Around Tamworth." | "Results tomorrow 23:00." (until then) | See photos (secondary) |
  * | cancelled   | "Cancelled by the host."                     |                                      | nothing                      |
  *
  * "Check-in is open" is never said: the ActionBar's Check in says it. Each fact once (C5): being
@@ -177,11 +177,16 @@ export function statusLine(
       if (ctx.demo) return { text: shownSentence(), note: `Vote for ${plural(Math.max(1, ctx.trophies ?? 1), 'trophy', 'trophies')}.` };
       return { text: shownSentence(), note: `Voting closes ${untilText(votingCloses(event), now)}.` };
     case 'voted':
-      return { text: shownSentence(), note: ctx.resultsIn || ctx.demo ? RESULTS_IN : `Results ${untilText(votingCloses(event), now)}.` };
+      // The demo (Review 17): "Results are in." only once voting is over for you (every trophy voted, or
+      // Done); until then the "1 of 3 voted · Best bike next" row says where you are, and nothing else.
+      if (ctx.demo) return { text: shownSentence(), note: ctx.resultsIn ? RESULTS_IN : undefined };
+      return { text: shownSentence(), note: ctx.resultsIn ? RESULTS_IN : `Results ${untilText(votingCloses(event), now)}.` };
     case 'ended': {
-      if (now < votingCloses(event)) return { text: `Ended. Results ${untilText(votingCloses(event), now)}.` };
-      // The winner is said once, on the trophy cover (Review 15 decision 2): the line only says they're in.
-      return { text: results(ctx.votes, event, ctx.builds, now).length > 0 ? RESULTS_IN : 'Ended.' };
+      // The place line is still the place (4.11, Review 17): the meet point to people who could see it,
+      // else "Around {Area}.". The results are the trophies below, said once.
+      const place = canSeeStop(event, current, ctx.me, ctx.crews, now) && stop?.at ? shownSentence() : `${aroundArea(event.areaName)}.`;
+      if (now < votingCloses(event)) return { text: place, note: `Results ${untilText(votingCloses(event), now)}.` };
+      return { text: place };
     }
   }
 }

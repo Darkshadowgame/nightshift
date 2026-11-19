@@ -79,6 +79,12 @@ const TAG_OUT = 36;
 /** The ActionBar line that says you're going while the tag is out of view. */
 const BAR_STATE_H = 32;
 
+/**
+ * The demo's meets where you've finished voting (tapped Done in the vote sheet), this session: voting
+ * is then over for you and the results show (Review 17). Every trophy voted does the same.
+ */
+const votingDone = new Set<string>();
+
 /** Where an error shows: under the control that caused it. */
 type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
 
@@ -228,12 +234,14 @@ export default function EventScreen() {
   const invitesLive = store.backend === 'local' || !!store.remote?.invitesLive();
   const inviteOn = invitesLive && canInvite(ev, me, crews, now);
   const state = eventPrimary(ev, me, role, crews, builds, now, votes);
-  // The demo (Review 14): once you've voted and closed the vote sheet, voting is closed for you and
-  // the results show now, said once ("Results are in." and the results), never "Results tomorrow".
-  const votedAny = votes.some((v) => v.eventId === ev.id && v.voterId === me);
   const demo = store.backend === 'local';
-  const resultsIn = demo && votedAny && voteCat === null && !ev.cancelled && phase !== 'over';
   const cats = voteCategories(ev, builds, me, now);
+  // The demo (Review 17): voting is over for you once every trophy has your vote, or you tapped Done
+  // in the vote sheet. Only then "Results are in." and the results, said once, never "Results
+  // tomorrow". Before that the page says "1 of 3 voted · Best bike next" and nothing else.
+  const votedCount = cats.filter((c) => votes.some((v) => v.eventId === ev.id && v.voterId === me && v.category === c)).length;
+  const votingOver = votedCount > 0 && (votedCount === cats.length || votingDone.has(ev.id));
+  const resultsIn = demo && votingOver && voteCat === null && !ev.cancelled && phase !== 'over';
   // The demo never promises a time it won't keep (Review 15 decision 2): "Vote for 3 trophies.", then "Results are in."
   const status = statusLine(ev, state, { me, crews, builds, users, votes, now, resultsIn, demo: demo && phase !== 'over', trophies: cats.length });
 
@@ -251,8 +259,9 @@ export default function EventScreen() {
       const b = mine.find((x) => x.id === buildId);
       if (result === 'requested') toast({ message: 'Asked the host. You’ll hear when they say yes.' });
       else if (!wasGoing) {
-        // Straight away and on one line (4.7, Review 14). Which car: Change, and the ActionBar while the tag is out of view.
-        toast({ message: passenger ? "You're going as a passenger" : "You're going", action: mine.length > 0 ? { label: 'Change', onPress: () => setBring('change') } : undefined });
+        // Straight away and on one line (4.7, Review 14). No tap in a toast but Undo (Review 17): which
+        // car is said in the ActionBar while the tag is out of view, and changed from the ··· menu.
+        toast({ message: passenger ? "You're going as a passenger" : "You're going" });
         if (result === 'going') setWentHere(true);
         // Bring your mates: offer the invite sheet when there's someone to invite.
         if (result === 'going' && invitesLive && canInvite({ ...ev, going: [...ev.going, me] }, me, crews, now) && idsIn(community.connections, 'connected').some((u) => !community.blocked.has(u) && !ev.going.includes(u))) setInviting(true);
@@ -403,7 +412,11 @@ export default function EventScreen() {
       secondary = addPhoto;
       break;
     case 'voted':
-      primary = addPhoto;
+      // The demo, trophies left and not Done: still Vote, the photo beside it (Review 17).
+      if (demo && !resultsIn && toVote.length > 0 && phase !== 'over') {
+        primary = { label: 'Vote', onPress: () => setVoteCat(firstUnvoted ?? null) };
+        secondary = addPhoto;
+      } else primary = addPhoto;
       break;
     case 'ended':
       secondary = shownPhotosCount() > 0 ? { label: 'See photos', onPress: () => scroll.current?.scrollTo({ y: Math.max(0, photosAt.current - SPACING.lg), animated: true }) } : null;
@@ -423,7 +436,7 @@ export default function EventScreen() {
   const placeShown = currentStop?.at && canSeeStop(ev, current, me, crews, now);
   // The area is said once (C5): in the meta line, as "Around Tamworth" (the one form), unless the
   // status line already names the town with the meet point.
-  const where = placeShown && ev.areaName && status.text.includes(ev.areaName) ? null : aroundArea(ev.areaName);
+  const where = ev.areaName && status.text.includes(ev.areaName) ? null : aroundArea(ev.areaName);
   const time =
     phase === 'cancelled'
       ? `Cancelled · ${timeRange(ev.startsAt, ev.endsAt, now)}`
@@ -434,7 +447,8 @@ export default function EventScreen() {
           : timeRange(ev.startsAt, ev.endsAt, now);
   const meta = [time, where, ev.routeMiles ? `${ev.routeMiles} mi route` : null].filter(Boolean).join(' · ');
   // Your status, once (K3, C5): the same tag as Tonight's card and Me (myEventStatus).
-  const heroTag = statusTag(myEventStatus(ev, me, crews, now)) ?? null;
+  // While the ActionBar's pill says "Going" (4.3 owns where you stand), the photo has no tag too (C5, Review 17).
+  const heroTag = pill ? null : (statusTag(myEventStatus(ev, me, crews, now)) ?? null);
 
   const goingPeople = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
     const u = users.find((x) => x.id === uid);
@@ -541,7 +555,8 @@ export default function EventScreen() {
             ) : null}
             {canRemind && state.kind === 'waiting' ? (
               <View style={{ paddingLeft: 18 + SPACING.sm }}>
-                <SwitchRow label={`Remind me at ${formatTime(state.at)}`} value={settings.reminders} onValueChange={(v) => setRemind(v, state.at)} />
+                {/* The time is said once, in the line above (C5, Review 17). */}
+                <SwitchRow label="Remind me" value={settings.reminders} onValueChange={(v) => setRemind(v, state.at)} />
               </View>
             ) : null}
           </View>
@@ -555,14 +570,14 @@ export default function EventScreen() {
           {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
           <GoingStrip
             people={goingPeople}
-            summary={goingSummary(ev.going.length, mix.cars, mix.bikes)}
+            summary={goingSummary(ev.going.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}
             onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
           />
         </View>
 
         {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (
           <View onLayout={(l) => (trophiesAt.current = l.nativeEvent.layout.y)}>
-            <TrophiesSection event={ev} preview={resultsIn && now < votingCloses(ev)} progress={resultsIn ? voteProgress : null} />
+            <TrophiesSection event={ev} preview={resultsIn && now < votingCloses(ev)} />
           </View>
         ) : null}
 
@@ -698,7 +713,7 @@ export default function EventScreen() {
             title={`Hosted by ${hostLine}`}
             onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
           />
-          {host && !closed ? null : <InviteRows rows={invite} />}
+          {host && !closed ? null : <InviteRows rows={invite} ended={closed} />}
           {earlier.map((x) => (
             <ListRow
               key={x.id}
@@ -755,7 +770,9 @@ export default function EventScreen() {
       <VoteSheet
         event={ev}
         category={voteCat}
-        onClose={(votedNow) => {
+        onClose={(votedNow, done) => {
+          // Done (not a tap outside) ends your voting in the demo: the results show (Review 17).
+          if (done && demo && votes.some((v) => v.eventId === ev.id && v.voterId === me)) votingDone.add(ev.id);
           setVoteCat(null);
           // The demo's trophy moment (L4): straight after you vote, the results flip in here.
           if (votedNow && store.backend === 'local') {
@@ -815,17 +832,20 @@ export default function EventScreen() {
 }
 
 /** Who can come, then who we'll tell: the host form's two rows (`inviteRows`), never "Anyone within 25 mi". */
-function InviteRows({ rows }: { rows: { come: string; tell: string } }) {
+function InviteRows({ rows, ended }: { rows: { come: string; tell: string }; ended?: boolean }) {
   return (
     <View style={{ gap: SPACING.xxs }}>
       <DsText v="secondary">
         <DsText v="secondary" tone="primary">Who can come: </DsText>
         {rows.come}
       </DsText>
-      <DsText v="secondary">
-        <DsText v="secondary" tone="primary">Who we'll tell: </DsText>
-        {rows.tell}
-      </DsText>
+      {/* Nobody is told about a meet that's over (Review 17). */}
+      {ended ? null : (
+        <DsText v="secondary">
+          <DsText v="secondary" tone="primary">Who we'll tell: </DsText>
+          {rows.tell}
+        </DsText>
+      )}
     </View>
   );
 }

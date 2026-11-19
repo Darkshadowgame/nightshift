@@ -32,6 +32,7 @@ import { FadeUp } from '../../components/motion';
 import { NightMap } from '../../components/NightMap';
 import { Pin } from '../../components/Pin';
 import { PhotoCredit } from '../../components/PhotoCredit';
+import { DemoNightSheet } from '../../components/DemoNightSheet';
 import { EventRow } from '../../components/EventRow';
 import { cardDistance, cardTime, driveLength, EventEntityCard, eventPhotoRef, notOpenLine, placeDistance, statusTag } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
@@ -875,9 +876,7 @@ export default function TonightScreen() {
         onClose={() => setBringFor(null)}
       />
 
-      <Sheet visible={demoInfo} title={DEMO_NIGHT.title} onClose={() => setDemoInfo(false)}>
-        <DsText v="body">{DEMO_NIGHT.body}</DsText>
-      </Sheet>
+      <DemoNightSheet visible={demoInfo} onClose={() => setDemoInfo(false)} />
     </View>
   );
 }

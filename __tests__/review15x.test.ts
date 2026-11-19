@@ -25,8 +25,11 @@ describe('the vote status line in the demo (decision 2)', () => {
     expect(before.note).toBe('Vote for 3 trophies.');
     const v = [{ eventId: 'e', voterId: 'me', category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }];
     const voted = eventPrimary(event, 'me', 'going', [], builds, at(20), v);
-    // While the vote sheet is still open too: no "Results tomorrow 23:00".
-    expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), demo: true }).note).toBe(RESULTS_IN);
+    // Voting not over for you yet (Review 17): no "Results are in." and no "Results tomorrow 23:00";
+    // the "1 of 3 voted" row says where you are.
+    expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), demo: true }).note).toBeUndefined();
+    // Every trophy voted, or Done: the results are in.
+    expect(statusLine(event, voted, { me: 'me', crews: [], builds, users: [], votes: v, now: at(20), demo: true, resultsIn: true }).note).toBe(RESULTS_IN);
   });
   test('ended with results: the winner is on the cover, not in the line', () => {
     const v = [1, 2, 3].map((n) => ({ eventId: 'e', voterId: `v${n}`, category: 'best-in-show' as const, buildId: 'b', at: at(20).toISOString() }));

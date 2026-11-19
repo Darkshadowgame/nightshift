@@ -57,7 +57,7 @@ export default function Garage() {
       {flow.view}
       <View style={{ gap: SPACING.sm }}>
         <BuildCard build={main} now={now} onPress={() => openBuild(main.id)} action={{ label: 'Add a mod', onPress: () => setAddMod(true) }} />
-        {main.photos.length === 0 ? <Button label="Add a photo" tier="tertiary" size="sm" icon="plus" busy={flow.busy} onPress={() => flow.pick()} style={{ alignSelf: 'center' }} /> : null}
+        {main.photos.length === 0 ? <Button label={`Add a photo of your ${main.kind === 'bike' ? 'bike' : 'car'}`} tier="tertiary" size="sm" icon="plus" busy={flow.busy} onPress={() => flow.pick()} style={{ alignSelf: 'center' }} /> : null}
         {error ? <ErrorState title={error} /> : null}
       </View>
       <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />

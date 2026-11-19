@@ -45,6 +45,7 @@ export function ListRow({
   leading,
   title,
   subtitle,
+  subtitleLines = 2,
   meta,
   build,
   trailing,
@@ -59,6 +60,8 @@ export function ListRow({
   leading?: Leading;
   title: string;
   subtitle?: string;
+  /** How many lines the subtitle may take before it's cut (default 2). An event's meta line wraps whole (Review 17). */
+  subtitleLines?: number;
   meta?: string;
   /** A person's build, under their handle: ClassBadge + name + "bhp" (K3). Instead of a subtitle. */
   build?: { letter: ClassLetter; name: string; power: string };
@@ -88,7 +91,7 @@ export function ListRow({
           </DsText>
         </View>
         {build ? <BuildLine {...build} /> : subtitle ? (
-          <DsText v="secondary" numberOfLines={2}>
+          <DsText v="secondary" numberOfLines={subtitleLines}>
             {subtitle}
           </DsText>
         ) : null}

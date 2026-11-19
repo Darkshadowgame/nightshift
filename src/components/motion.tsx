@@ -144,7 +144,8 @@ export function CheckInMark({ play, colour = COLOR.state.success }: { play: bool
     reduced ? { opacity: ring.value } : { opacity: Math.min(1, ring.value * 2), transform: [{ scale: 0.4 + 0.6 * ring.value }] },
   );
   const tickStyle = useAnimatedStyle(() => (reduced ? { opacity: tick.value } : { opacity: tick.value, transform: [{ scale: tick.value }] }));
-  const waveStyle = useAnimatedStyle(() => ({ opacity: wave.value === 0 ? 0 : 0.7 * (1 - wave.value), transform: [{ scale: 1 + 1.4 * wave.value }] }));
+  // The ring grows to 1.5x (60 px): it stays inside the check-in card's padding (Review 17).
+  const waveStyle = useAnimatedStyle(() => ({ opacity: wave.value === 0 ? 0 : 0.7 * (1 - wave.value), transform: [{ scale: 1 + 0.5 * wave.value }] }));
 
   return (
     <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -343,10 +344,8 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
           </View>
           {/* The pin carries the colour; the card's words stay neutral (sodium only on the primary, 5.4). */}
           <Animated.View style={[st.card, { borderLeftColor: COLOR.surface.raisedHi }, cardStyle]}>
-            <Animated.Text style={[typeStyle('eyebrow', COLOR.text.secondary), letters]}>Location shown</Animated.Text>
-            <DsText v="title" numberOfLines={1}>
-              {title}
-            </DsText>
+            {/* The place itself is said once, in the page's place line (C5, Review 17): the card only marks the moment. */}
+            <Animated.Text style={[typeStyle('title', COLOR.text.primary), letters]}>Location shown</Animated.Text>
           </Animated.View>
         </View>
       </Pressable>

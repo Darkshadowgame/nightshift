@@ -132,6 +132,8 @@ export function CheckInCelebration({ play, title, body, children }: { play: bool
         gap: SPACING.md,
         padding: SPACING.md,
         borderRadius: RADII.card,
+        // The burst stays inside the card (Review 17: it spilled past the left edge).
+        overflow: 'hidden',
         borderWidth: 1,
         borderColor: line(COLOR.state.success),
         backgroundColor: tint(COLOR.state.success),

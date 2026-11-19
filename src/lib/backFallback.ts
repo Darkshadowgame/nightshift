@@ -31,6 +31,7 @@ const BY_ROUTE: Record<string, TabHref> = {
   'build/power': '/garage',
   rate: '/garage',
   settings: '/me',
+  account: '/me',
   help: '/me',
   credits: '/me',
   profile: '/me',

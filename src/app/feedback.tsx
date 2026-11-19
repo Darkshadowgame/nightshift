@@ -1,6 +1,7 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useDiscardGuard } from '../components/ComposerParts';
 import { usePhotoFlow } from '../components/PhotoFlow';
 import { ActionBar, Button, ChoiceGroup, DsText, EmptyState, ErrorState, ListRow, PAGE_WITH_BAR, Section, SwitchRow, Tag, typeStyle, useToast } from '../components/ds';
 import { appNow } from '../lib/appClock';
@@ -31,6 +32,8 @@ export default function FeedbackScreen() {
   const [sent, setSent] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  // Back with a message typed asks first (4.2): "Discard it" / "Keep editing".
+  const guard = useDiscardGuard(!sent && (message.trim().length > 0 || photos.length > 0), 'your feedback');
   const route = (typeof from === 'string' && from) || 'unknown';
   const context = feedbackContext(route);
   const toast = useToast();
@@ -194,6 +197,7 @@ export default function FeedbackScreen() {
     ) : (
       <ActionBar primary={{ label: 'Send feedback', onPress: send, busy, haptic: 'success' }} />
     )}
+    {guard.sheet}
     </View>
   );
 }

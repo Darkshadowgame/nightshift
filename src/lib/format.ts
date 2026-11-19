@@ -116,9 +116,9 @@ export function meetDistance(event: { area: LatLng }, origin: DistanceOrigin | n
 }
 
 /** "9 going · 7 cars, 2 bikes" (Redesign 2, 4.9: no class codes). Leaves out a zero kind; a bare count when nothing's known. */
-export function goingSummary(going: number, cars = 0, bikes = 0): string {
+export function goingSummary(going: number, cars = 0, bikes = 0, verb: 'going' | 'went' = 'going'): string {
   const mix = [cars ? plural(cars, 'car') : null, bikes ? plural(bikes, 'bike') : null].filter(Boolean).join(', ');
-  return mix && cars + bikes > 0 ? `${going.toLocaleString('en-GB')} going · ${mix}` : `${going.toLocaleString('en-GB')} going`;
+  return mix && cars + bikes > 0 ? `${going.toLocaleString('en-GB')} ${verb} · ${mix}` : `${going.toLocaleString('en-GB')} ${verb}`;
 }
 
 /** A display-italic character's width, in ems, rounded up; and the room kept for larger text (1.3x). */

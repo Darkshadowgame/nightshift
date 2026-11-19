@@ -405,8 +405,9 @@ function events(now: Date, home: LatLng): NightEvent[] {
       // Not Tom (Review 14): his build is the Sunday meet's photo, and a past meet needs its own.
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['priya'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
-      going: lastGoing,
-      checkIns: Object.fromEntries(lastGoing.map((u) => [u, ['ps-1']])),
+      // You went too (Review 17): Me counts it as a meet, and your Past list says "Went".
+      going: [...lastGoing, ME],
+      checkIns: Object.fromEntries([...lastGoing, ME].map((u) => [u, ['ps-1']])),
     },
   ]);
 }

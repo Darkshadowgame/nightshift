@@ -3,7 +3,12 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { openLegal } from '../components/AboutSection';
 import { DsText, ListRow, RowDivider, Section } from '../components/ds';
 import { CLASS_EXPLAINER, SCREEN_TITLES } from '../lib/glossary';
+import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
+
+const VOTES_TOPIC = 'Votes and trophies';
+/** What the demo does differently, said where voting is explained (Review 17): the event page matches it. */
+const DEMO_VOTING = "In the demo, voting ends for you once you've voted for every trophy or tapped Done, and the results show straight away.";
 
 /** One idea per block, in the order you meet them on a night out. */
 const TOPICS: { title: string; lines: string[] }[] = [
@@ -32,7 +37,7 @@ const TOPICS: { title: string; lines: string[] }[] = [
     lines: ["When you get there, check in on the meet's page. Checking in is what lets you vote and add photos from the meet."],
   },
   {
-    title: 'Votes and trophies',
+    title: VOTES_TOPIC,
     lines: ['The people who checked in vote for Best in show, and for Best car and Best bike when both turn up. Voting runs until 24 hours after the end. Winners get a magazine cover.'],
   },
   {
@@ -48,11 +53,12 @@ const TOPICS: { title: string; lines: string[] }[] = [
 
 /** "How Nightshift works" (T5): the in-app help, from Me and Settings › About. Short and in the app, for when you're stuck at a meet. */
 export default function Help() {
+  const demo = useStore().backend === 'local';
   return (
     <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
       {TOPICS.map((t) => (
         <Section key={t.title} title={t.title} gap="sm">
-          {t.lines.map((l) => (
+          {[...t.lines, ...(demo && t.title === VOTES_TOPIC ? [DEMO_VOTING] : [])].map((l) => (
             <DsText key={l} v="body">
               {l}
             </DsText>

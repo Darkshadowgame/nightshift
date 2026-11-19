@@ -40,7 +40,10 @@ export function EventRow({
     <ListRow
       leading={{ pin: e.type, colour: v.phase === 'over' || v.phase === 'cancelled' ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
       title={e.title}
-      subtitle={metaLine([EVENT_LABELS[e.type], cardTime(e, now), cardDistance(v, origin)])}
+      // Never cut (Review 17, 1.3x text): the meta wraps to as many lines as it needs, breaking after a
+      // "·" rather than before it, so no line starts with a dot.
+      subtitle={metaLine([EVENT_LABELS[e.type], cardTime(e, now), cardDistance(v, origin)]).replace(/ · /g, '\u00a0· ')}
+      subtitleLines={4}
       meta={closed ? NOT_OPEN : undefined}
       trailing={shown ? <Tag label={shown.label} tone={shown.tone as TagTone} /> : undefined}
       onPress={onPress}

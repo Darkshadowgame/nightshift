@@ -267,13 +267,16 @@ describe('the demo scene', () => {
   const stock = { id: 'b-new', ownerId: 'me', kind: 'car' as const, make: 'Ford', model: 'Fiesta ST', stockBhp: 197, weightKg: 1262, mods: [], photos: [] };
   const meWho: Who = { me: 'me', crews: s.crews, users: s.users, builds: [...s.builds, stock] };
 
-  test("you start fresh: hosting nothing, in no crew, going only to Sunday coffee (so you can say you can't make it)", () => {
+  test("you start fresh: hosting nothing, in no crew, going only to Sunday coffee (so you can say you can't make it), and you went to last week's meet", () => {
     expect(s.builds.filter((b) => b.ownerId === 'me')).toHaveLength(0);
     expect(s.users.find((u) => u.id === 'me')!.crewId).toBeUndefined();
     for (const e of s.events) {
-      expect(e.going.includes('me')).toBe(e.id === 'ev-meet-soon');
+      // Last week's meet counts on Me as a meet you went to (Review 17).
+      const past = e.id === 'ev-past-snowdome';
+      expect(e.going.includes('me')).toBe(e.id === 'ev-meet-soon' || past);
       expect(e.hostIds).not.toContain('me');
-      expect(Object.keys(e.checkIns)).not.toContain('me');
+      if (past) expect(e.checkIns.me).toEqual(['ps-1']);
+      else expect(Object.keys(e.checkIns)).not.toContain('me');
     }
     expect(s.crews.some((c) => c.memberIds.includes('me') || (c.hostIds ?? []).includes('me'))).toBe(false);
     expect(s.votes.some((v) => v.voterId === 'me')).toBe(false);

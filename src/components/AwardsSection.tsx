@@ -62,8 +62,10 @@ export function TrophiesSection({ event, preview, progress }: { event: NightEven
               <ListRow
                 leading={{ icon: 'success', colour: COLOR.state.success }}
                 title={info.label}
-                subtitle={`${handle(a.ownerId)} · ${b ? `${b.make} ${b.model}` : 'a build'}`}
-                meta={preview ? `${a.votes} votes, yours included` : `${a.votes} votes`}
+                // A build is always ClassBadge + name + bhp (K3, Review 17), the owner and votes under it.
+                build={b ? { letter: classOf(b), name: `${b.make} ${b.model}`, power: bhpLine(b) } : undefined}
+                subtitle={b ? undefined : 'a build'}
+                meta={`${handle(a.ownerId)} · ${preview ? `${a.votes} votes, yours included` : `${a.votes} votes`}`}
                 onPress={() => router.push({ pathname: '/user/[id]', params: { id: a.ownerId } })}
                 accessibilityLabel={`${info.label}: ${handle(a.ownerId)}, ${b?.make ?? ''} ${b?.model ?? ''}, ${a.votes} votes`}
               />
@@ -111,9 +113,10 @@ export function buildTitle(make: string, model: string): string {
  * "Your vote" and a one-line toast says what you voted for. While another trophy is left to vote
  * in, a clear "Next: Best car" button takes you there; the sheet never moves on by itself (Review
  * 14). After the last one it closes. Done closes it any time. Never your own build.
- * `onClose(voted)`: whether a vote was cast while it was open.
+ * `onClose(voted, done)`: whether a vote was cast while it was open, and whether it closed with the
+ * header Done (you're done voting) rather than a tap outside.
  */
-export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: (voted: boolean) => void }) {
+export function VoteSheet({ event, category, onClose }: { event: NightEvent; category: AwardCategory | null; onClose: (voted: boolean, done?: boolean) => void }) {
   const { builds, users, votes, me, vote, backend } = useStore();
   const demo = backend === 'local';
   const now = useNow();
@@ -167,7 +170,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   }
 
   return (
-    <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close}>
+    <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close} onDone={() => onClose(cast.current, true)}>
       <View style={{ gap: SPACING.md }}>
         <DsText v="secondary">Tap the build you think wins.</DsText>
         <View style={{ gap: SPACING.sm }}>

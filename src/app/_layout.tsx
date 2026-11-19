@@ -108,6 +108,8 @@ function Gate() {
         {/* The old Events tab: now Tonight's list. */}
         <Stack.Screen name="events" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: title(T.settings) }} />
+        {/* Sign in from the demo: the email form under the app's own back arrow (Review 17). */}
+        <Stack.Screen name="account" options={{ title: title('Sign in'), presentation: 'modal' }} />
         <Stack.Screen name="help" options={{ title: title(T.help) }} />
         <Stack.Screen name="post/[id]" options={{ title: '' }} />
         <Stack.Screen name="post/new" options={{ title: title(T.newPost), presentation: 'modal' }} />

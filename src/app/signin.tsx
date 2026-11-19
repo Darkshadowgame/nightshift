@@ -64,83 +64,29 @@ export default function SignIn() {
   const { height } = useWindowDimensions();
   const small = height < 740;
   const [step, setStep] = useState<'start' | 'email'>('start');
-  const [email, setEmail] = useState('');
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [code, setCode] = useState('');
-  const [link, setLink] = useState('');
-  const [showLink, setShowLink] = useState(false);
-  const [busy, setBusy] = useState<null | 'send' | 'verify' | 'link' | 'demo'>(null);
-  /** The last error and which action it came from, shown under that action. */
-  const [error, setError] = useState<{ at: NonNullable<typeof busy>; text: string } | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [agreed, setAgreedState] = useState(false);
-  const [password, setPassword] = useState('');
-  const review = isReviewEmail(email);
-  useEffect(() => {
-    AsyncStorage.getItem(AGREED_KEY)
-      .then((v) => v === TERMS_VERSION && setAgreedState(true))
-      .catch(() => {});
-  }, []);
-  const setAgreed = (v: boolean) => {
-    setAgreedState(v);
-    if (v) setError(null);
-    (v ? AsyncStorage.setItem(AGREED_KEY, TERMS_VERSION) : AsyncStorage.removeItem(AGREED_KEY)).catch(() => {});
-  };
-  const mustAgree = () => {
-    if (!agreed) throw new Error('Tick the box to say you\'re 18 or over first.');
-  };
+  const [busy, setBusy] = useState<null | 'demo'>(null);
+  const [error, setError] = useState<{ at: 'demo'; text: string } | null>(null);
+  const [agreed, setAgreed] = useAgreed(() => setError(null));
 
-  async function run(kind: NonNullable<typeof busy>, fn: () => Promise<void>) {
+  // The 18+ box is on the first screen only, and both ways in need it: the demo too.
+  async function demo() {
     setError(null);
-    setNote(null);
-    setBusy(kind);
+    if (!agreed) return setError({ at: 'demo', text: TICK_FIRST });
+    setBusy('demo');
     try {
-      await fn();
+      await auth.startDemo();
     } catch (e) {
-      setError({ at: kind, text: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
+      setError({ at: 'demo', text: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
     } finally {
       setBusy(null);
     }
   }
+  const err = (at: 'demo') => (error?.at === at ? <ErrorState title={error.text} /> : null);
 
-  const send = () =>
-    run('send', async () => {
-      mustAgree();
-      if (!email.trim()) throw new Error('Type your email address first.');
-      await auth.sendCode(email);
-      setSentTo(email.trim().toLowerCase());
-      setCode('');
-    });
-  const withPassword = () =>
-    run('send', async () => {
-      mustAgree();
-      if (!password) throw new Error('Type the password first.');
-      await auth.signInWithPassword(email, password);
-    });
-  const verify = () =>
-    run('verify', async () => {
-      if (code.length !== 6) throw new Error('Type the 6-digit code from the email.');
-      await auth.verifyCode(sentTo ?? email, code);
-    });
-  const useLink = () =>
-    run('link', async () => {
-      if (!link.trim()) throw new Error('Paste the link from the email first.');
-      const ok = await auth.openLink(link);
-      if (!ok) throw new Error("That isn't a Nightshift sign-in link. Copy the whole link from the email.");
-    });
-  // The 18+ box is on the first screen only, and both ways in need it: the demo too.
-  const demo = () =>
-    run('demo', async () => {
-      mustAgree();
-      await auth.startDemo();
-    });
+  if (step === 'email') return <EmailSignIn onBack={() => setStep('start')} />;
 
-  const input = [typeStyle('input'), st.input];
-  const err = (at: NonNullable<typeof busy>) => (error?.at === at ? <ErrorState title={error.text} /> : null);
-
-  if (step === 'start') {
-    const photo = SAMPLE_PHOTOS[HERO_REF];
-    return (
+  const photo = SAMPLE_PHOTOS[HERO_REF];
+  return (
       <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
         <ScrollView contentContainerStyle={{ paddingTop: insets.top + SPACING.md, paddingBottom: SPACING.lg, gap: SPACING.lg }}>
           <View style={{ paddingHorizontal: SPACING.screen }}>
@@ -181,16 +127,109 @@ export default function SignIn() {
             label: 'Sign in',
             onPress: () => {
               setError(null);
-              if (!agreed) return setError({ at: 'demo', text: "Tick the box to say you're 18 or over first." });
+              if (!agreed) return setError({ at: 'demo', text: TICK_FIRST });
               setStep('email');
             },
           }}
         />
       </View>
-    );
+  );
+}
+
+/** Set the 18+ box from what was ticked last time; ticking it saves it. */
+function useAgreed(onTick?: () => void): [boolean, (v: boolean) => void] {
+  const [agreed, setAgreedState] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(AGREED_KEY)
+      .then((v) => v === TERMS_VERSION && setAgreedState(true))
+      .catch(() => {});
+  }, []);
+  const set = (v: boolean) => {
+    setAgreedState(v);
+    if (v) onTick?.();
+    (v ? AsyncStorage.setItem(AGREED_KEY, TERMS_VERSION) : AsyncStorage.removeItem(AGREED_KEY)).catch(() => {});
+  };
+  return [agreed, set];
+}
+
+const TICK_FIRST = "Tick the box to say you're 18 or over first.";
+
+/**
+ * The email step: an email code, or for the App Review account a password. On the first-run screen it
+ * draws its own header (`onBack` returns to the start). Opened from the demo (Settings › Demo ›
+ * Leave the demo, or the Demo night sheet: the `account` route) it sits under the app's own header,
+ * whose back arrow returns to where you were (`onBack` omitted); the 18+ box shows there if it
+ * hasn't been ticked on this phone yet.
+ */
+export function EmailSignIn({ onBack }: { onBack?: () => void }) {
+  const auth = useAuth();
+  const insets = useSafeAreaInsets();
+  const [email, setEmail] = useState('');
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [link, setLink] = useState('');
+  const [showLink, setShowLink] = useState(false);
+  const [busy, setBusy] = useState<null | 'send' | 'verify' | 'link'>(null);
+  /** The last error and which action it came from, shown under that action. */
+  const [error, setError] = useState<{ at: NonNullable<typeof busy>; text: string } | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [agreed, setAgreed] = useAgreed(() => setError(null));
+  /** Whether the 18+ box was already ticked when this opened: if not, it shows here (the demo's sign-in). */
+  const [askAgree, setAskAgree] = useState(false);
+  useEffect(() => {
+    if (onBack) return;
+    AsyncStorage.getItem(AGREED_KEY)
+      .then((v) => v !== TERMS_VERSION && setAskAgree(true))
+      .catch(() => setAskAgree(true));
+  }, [onBack]);
+  const [password, setPassword] = useState('');
+  const review = isReviewEmail(email);
+  const mustAgree = () => {
+    if (!agreed) throw new Error(TICK_FIRST);
+  };
+
+  async function run(kind: NonNullable<typeof busy>, fn: () => Promise<void>) {
+    setError(null);
+    setNote(null);
+    setBusy(kind);
+    try {
+      await fn();
+    } catch (e) {
+      setError({ at: kind, text: e instanceof Error ? e.message : 'Something went wrong. Try again.' });
+    } finally {
+      setBusy(null);
+    }
   }
 
-  // The email step: a form with its own header (sign-in draws its own; back returns to the start).
+  const send = () =>
+    run('send', async () => {
+      mustAgree();
+      if (!email.trim()) throw new Error('Type your email address first.');
+      await auth.sendCode(email);
+      setSentTo(email.trim().toLowerCase());
+      setCode('');
+    });
+  const withPassword = () =>
+    run('send', async () => {
+      mustAgree();
+      if (!password) throw new Error('Type the password first.');
+      await auth.signInWithPassword(email, password);
+    });
+  const verify = () =>
+    run('verify', async () => {
+      if (code.length !== 6) throw new Error('Type the 6-digit code from the email.');
+      await auth.verifyCode(sentTo ?? email, code);
+    });
+  const useLink = () =>
+    run('link', async () => {
+      if (!link.trim()) throw new Error('Paste the link from the email first.');
+      const ok = await auth.openLink(link);
+      if (!ok) throw new Error("That isn't a Nightshift sign-in link. Copy the whole link from the email.");
+    });
+
+  const input = [typeStyle('input'), st.input];
+  const err = (at: NonNullable<typeof busy>) => (error?.at === at ? <ErrorState title={error.text} /> : null);
+
   const primary = sentTo
     ? { label: 'Sign in', onPress: verify, busy: busy === 'verify', haptic: 'success' as const }
     : review
@@ -198,6 +237,7 @@ export default function SignIn() {
       : { label: 'Email me a code', onPress: send, busy: busy === 'send' };
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
+      {onBack ? (
       <View style={[st.header, { paddingTop: insets.top + SPACING.xs }]}>
         <IconButton
           icon="back"
@@ -207,19 +247,21 @@ export default function SignIn() {
             setError(null);
             setNote(null);
             if (sentTo) setSentTo(null);
-            else setStep('start');
+            else onBack();
           }}
         />
         <DsText v="heading" accessibilityRole="header">
           {sentTo ? 'CHECK YOUR EMAIL' : 'SIGN IN'}
         </DsText>
       </View>
+      ) : null}
       <ScrollView
         contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xl }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
       >
+        {askAgree && !sentTo ? <AgreeRow on={agreed} onChange={setAgreed} /> : null}
         {!sentTo ? (
           <Section title="Your email">
             <TextInput
