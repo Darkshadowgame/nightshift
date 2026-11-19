@@ -284,7 +284,8 @@ export function PostCard({
               {build ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
                   <ClassBadge letter={classOf(build)} size="sm" decorative />
-                  <DsText v="meta" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {/* Two lines, so the bhp is never cut off at 1.3x text (scorecard L2). */}
+                  <DsText v="meta" numberOfLines={2} style={{ flexShrink: 1 }}>
                     {buildLine(build)}
                   </DsText>
                 </View>

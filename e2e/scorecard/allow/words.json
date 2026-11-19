@@ -39,6 +39,12 @@
       "url": "^/me$",
       "why": "The ladder sheet may name the levels (owner, 9.1).",
       "sheet": true
+    },
+    {
+      "word": "stop",
+      "text": "^Tap anywhere to stop$",
+      "url": "^/drive",
+      "why": "The route preview's auto-start hint (owner, 19 Nov 2026; REDESIGN-2 9.9): it stops the countdown, not a meet's stop."
     }
   ]
 }

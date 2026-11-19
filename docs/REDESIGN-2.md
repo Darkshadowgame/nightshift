@@ -616,6 +616,10 @@ Reviewers must not count those as breaks.
 view ("+5 rep · Drive complete" on arriving, "+2 rep · Thanks for the report") counts as a moment
 like check-in. Its words live in `src/lib/navRep.ts`; Help explains it without the word "rep".
 
+**Added 19 Nov 2026 (owner decision, section 9.9):** "Tap anywhere to stop" under the route preview's
+auto-start countdown may use "stop" (it stops the countdown; it isn't a meet's stop). Reviewers must
+not count it.
+
 ---
 
 ## 5. Look upgrade
@@ -1030,3 +1034,4 @@ clashed, the owner's earlier decisions stand:
    starts the driving view by itself, like Waze. It stays, and reviewers must not count it as a
    break. It must read clearly: the countdown starts only once the route is drawn, the button says
    "Starting in 5" (counting down), and "Tap anywhere to stop" shows under it; any touch stops it.
+   That hint's "stop" is allowed (4.12 exception).
