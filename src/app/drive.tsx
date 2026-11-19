@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, AppState, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   chime,
@@ -22,6 +22,7 @@ import { RoutePreview } from '../components/RoutePreview';
 import { LANES_FROM_M, LANES_LOOKUP_M, lanesAtJunction, matchLanes, parseTurnLanes, type LaneStrip } from '../lib/lanes';
 import { useMapAppearance } from '../lib/mapAppearance';
 import { photoUri } from '../lib/photos';
+import { autoStartAllowed, autoStartDue, secondsLeft } from '../lib/autoStart';
 import { defaultChoice, routeCards, troubleLines, type RouteOption } from '../lib/routeChoice';
 import { spokenAfter, spokenInstruction } from '../lib/speech';
 import { MAP_STYLE_LABELS, type MapStyleChoice } from '../lib/sun';
@@ -285,6 +286,16 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const previewRef = useRef(preview);
   previewRef.current = preview;
   const [chosen, setChosen] = useState<number | null>(null);
+  /** One route: Start counts down from 5 and starts by itself, until anything on the preview is touched. */
+  const [autoFrom, setAutoFrom] = useState<number | null>(null);
+  const screenReader = useRef(false);
+  useEffect(() => {
+    // The web can't tell (react-native-web always answers yes): there, treat it as off.
+    if (Platform.OS === 'web') return;
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then((on) => (screenReader.current = on))
+      .catch(() => undefined);
+  }, []);
   const [legsDone, setLegsDone] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -441,6 +452,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         if (reason === 'start') {
           // Show the whole route (and any others) first; Start drives it.
           setChosen(null);
+          setAutoFrom(autoStartAllowed({ routes: options.length, screenReader: screenReader.current, touched: false }) ? realNowMs() : null);
           setPreview({ options, legStops });
           setPhase('preview');
           return;
@@ -1016,7 +1028,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const picked = preview ? (chosen ?? defaultChoice(previewCards, preview.options)) : 0;
   const pickedOption = preview?.options[picked] ?? null;
   const overview = useMemo(
-    () => (preview ? { routes: preview.options.map((o) => o.route.coords), selected: picked, onSelect: (i: number) => setChosen(i) } : null),
+    () => (preview ? { routes: preview.options.map((o) => o.route.coords), selected: picked, onSelect: (i: number) => {
+      setAutoFrom(null);
+      setChosen(i);
+    } } : null),
     [preview, picked],
   );
   const startDriving = () => {
@@ -1025,9 +1040,24 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     const option = p.options[picked] ?? p.options[0];
     previewRef.current = null;
     setPreview(null);
+    setAutoFrom(null);
     lastRoute.current = realNowMs();
     activate(option.route, p.legStops, 'start');
   };
+
+  const stopAuto = useCallback(() => setAutoFrom(null), []);
+  // Start by itself once the 5 seconds are up (ticks four times a second while counting).
+  const [autoNow, setAutoNow] = useState(0);
+  useEffect(() => {
+    if (autoFrom == null) return;
+    const t = setInterval(() => setAutoNow(realNowMs()), 250);
+    return () => clearInterval(t);
+  }, [autoFrom]);
+  useEffect(() => {
+    if (autoFrom != null && previewRef.current && autoStartDue(autoFrom, realNowMs())) startDriving();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoNow, autoFrom]);
+  const countdown = autoFrom != null && preview ? secondsLeft(autoFrom, Math.max(autoNow, autoFrom)) : null;
 
   // Lane guidance for the next manoeuvre: OpenStreetMap's lane tags at its junction, looked up
   // once per junction as it comes within a mile (lanes.ts); the demo uses its baked junctions.
@@ -1213,7 +1243,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       <DriveBanner top={insets.top} banner={banner} status={status} danger={over} lanes={laneStrip} />
       {alert ? <ReportAlert text={alert} /> : null}
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }} onTouchStart={preview ? stopAuto : undefined} {...(Platform.OS === 'web' && preview ? { onPointerDown: stopAuto } : {})}>
         <DriveMap
           route={pickedOption ? pickedOption.route.coords : routeLine}
           overview={overview}
@@ -1329,11 +1359,19 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           }
           cards={previewCards}
           chosen={picked}
-          onChoose={(i) => setChosen(i)}
+          onChoose={(i) => {
+            setAutoFrom(null);
+            setChosen(i);
+          }}
+          countdown={countdown}
+          onTouch={stopAuto}
           troubles={troubleLines(pickedOption.route, roadReports, appNow())}
           advisories={pickedOption.advisories}
           onStart={startDriving}
-          onCancel={end}
+          onCancel={() => {
+            setAutoFrom(null);
+            end();
+          }}
         />
       ) : (
         <DriveBar bottom={insets.bottom} road={roadName} speedMph={speedMph} over={over} limit={limit} trip={trip} sub={subLines} onEnd={end} />

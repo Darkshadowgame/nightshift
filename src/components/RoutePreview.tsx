@@ -1,4 +1,7 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, ScrollView, StyleSheet, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
+import { startLabel } from '../lib/autoStart';
 import type { RouteCard } from '../lib/routeChoice';
 import { COLOR, RADII, ROAD_COLOUR, SPACING } from '../theme';
 import { ActionBar, ChoiceGroup, DsText } from './ds';
@@ -21,7 +24,13 @@ export function RoutePreview({
   advisories,
   onStart,
   onCancel,
+  countdown,
+  onTouch,
 }: {
+  /** Auto-start (one route only): seconds left on Start, or null when not counting. */
+  countdown?: number | null;
+  /** Any touch on the panel: stops the countdown. */
+  onTouch?: () => void;
   /** "18 min". */
   time: string;
   /** "7.2 mi". */
@@ -40,8 +49,24 @@ export function RoutePreview({
   onStart: () => void;
   onCancel: () => void;
 }) {
+  const reduced = useReducedMotion();
+  const counting = countdown != null && countdown > 0;
+  // The bar fills over the 5 seconds (text only with Reduce Motion on).
+  const fill = useRef(new Animated.Value(0)).current;
+  const started = useRef(false);
+  useEffect(() => {
+    if (!counting) {
+      fill.stopAnimation();
+      started.current = false;
+      return;
+    }
+    if (reduced || started.current) return;
+    started.current = true;
+    fill.setValue(0);
+    Animated.timing(fill, { toValue: 1, duration: countdown! * 1000, easing: Easing.linear, useNativeDriver: false }).start();
+  }, [counting, reduced, countdown, fill]);
   return (
-    <View style={st.panel}>
+    <View style={st.panel} onTouchStart={onTouch}>
       <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={st.body}>
         <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance}. Arrive at ${eta}.`}>
           <DsText v="driveReadout">{time}</DsText>
@@ -79,7 +104,20 @@ export function RoutePreview({
           ))}
         </View>
       </ScrollView>
-      <ActionBar primary={{ label: 'Start', onPress: onStart, haptic: 'success' }} secondary={{ label: 'Not now', onPress: onCancel }} />
+      {counting && !reduced ? (
+        <View style={st.track} aria-hidden>
+          <Animated.View style={[st.bar, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+        </View>
+      ) : null}
+      <ActionBar
+        primary={{
+          label: startLabel(counting ? countdown! : null),
+          onPress: onStart,
+          haptic: 'success',
+          accessibilityHint: counting ? `Starts by itself in ${countdown} seconds. Touch anything to stay here.` : undefined,
+        }}
+        secondary={{ label: 'Not now', onPress: onCancel }}
+      />
     </View>
   );
 }
@@ -89,5 +127,7 @@ const st = StyleSheet.create({
   body: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, gap: SPACING.sm },
   summary: { flexDirection: 'row', alignItems: 'baseline', gap: SPACING.sm, flexWrap: 'wrap' },
   trouble: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  track: { height: 4, marginHorizontal: SPACING.screen, marginTop: SPACING.sm, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raised, overflow: 'hidden' },
+  bar: { height: 4, borderRadius: RADII.pill, backgroundColor: COLOR.text.primary },
   dot: { width: 10, height: 10, borderRadius: RADII.pill, backgroundColor: ROAD_COLOUR },
 });
