@@ -27,7 +27,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120800_feedback.sql` | In-app feedback (insert-only) and the private `feedback` screenshot bucket |
 | `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
 | `supabase/migrations/20261117170000_road_reports.sql` | Community road reports: `road_reports`, `road_report_votes`, `road_rep`, the report/vote/near RPCs, `road_closures_near()`, `road_rep_for()`, Realtime on `road_reports`; extra `road_closures` columns (section 3a) |
-| `supabase/migrations/20261121120000_nav_and_report_rep.sql` | **Not applied yet (waiting for the owner's yes, 19 Nov 2026).** Rep for using the app: `nav_rep` and `complete_navigation()` (+5, 3 a day), +2 for posting a road report (10 a day), -2 for one cleared as wrong, `road_rep_for()` with the new counts (section 3a) |
+| `supabase/migrations/20261121120000_nav_and_report_rep.sql` | **Not applied yet (Applied 19 Nov 2026 after the owner said yes, 19 Nov 2026).** Rep for using the app: `nav_rep` and `complete_navigation()` (+5, 3 a day), +2 for posting a road report (10 a day), -2 for one cleared as wrong, `road_rep_for()` with the new counts (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
 | `supabase/migrations/20261117230000_feedback_triage.sql` | Feedback triage (`triage_notes`, `fixed_in`, `handled_at`), senders read their own, `feedback_status()`, kind `other`, screenshots list, context and opt-in location, `pg_net` and the email trigger (section 3, "Feedback"; 7e) |
 | `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
@@ -1044,7 +1044,7 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   `remove_dyno` in the audit log. pgTAP: `dyno_badge_test.sql` (16), run in a rolled-back transaction
   before the push.
 * **pgTAP:** 822 of 822 on the hosted database (adds `dyno_runs_test.sql`, 12, and `dyno_badge_test.sql`, 16).
-* **applied 18 Nov 2026 after the owner said yes (branch `post-privacy`, waiting for the owner's yes):** `20261120100000_post_meet_point_privacy.sql`.
+* **applied 18 Nov 2026 after the owner said yes (branch `post-privacy`, Applied 19 Nov 2026 after the owner said yes):** `20261120100000_post_meet_point_privacy.sql`.
   A post at a meet point no longer gives it away: `posts.event_id` links a post to the meet whose meet point
   (within 0.25 mi) its author could see; `private.post_hidden_event(post, viewer)` applies `can_see_stop()`
   (reveal time, going/invites, a rolling meet's current meet point); `feed_posts()` returns the meet's area
@@ -1053,7 +1053,7 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   can't see the meet point is never masked or linked, so posts can't be used to probe for one. pgTAP:
   `post_privacy_test.sql` (44), run with the whole suite (887 of 887) in a rolled-back transaction on the
   hosted database; `db push --dry-run` lists only this migration.
-* **Waiting for the owner's yes (not pushed):** `20261121090000_event_invites.sql`, "Bring your mates".
+* **Applied 19 Nov 2026 after the owner said yes (not pushed):** `20261121090000_event_invites.sql`, "Bring your mates".
   `events.allow_invites` (the host form's "Let people invite their connections", on by default; host-only
   `set_event_invites()`); `event_invites` (event, inviter, invitee; RLS: only the inviter and the invitee
   read, no direct writes); `invite_connections(event_id, user_ids[])` for hosts and people going: accepted
@@ -1067,7 +1067,7 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   `event_invites_test.sql` (27), run with the whole suite (914 of 914) in rolled-back transactions on the
   hosted database with the migration applied inside each; `db push --dry-run` lists only this migration
   (a `pg_dump` of `public` and `private` was taken first, kept off the repo).
-* **Waiting for the owner's yes (not pushed):** `20261121120000_nav_and_report_rep.sql`, rep for using
+* **Applied 19 Nov 2026 after the owner said yes (not pushed):** `20261121120000_nav_and_report_rep.sql`, rep for using
   the app (owner decision 19 Nov 2026, section 3a): `complete_navigation()` and `nav_rep` (+5 for a finished
   in-app navigation, 3 a day, plausibility checked), +2 for posting a road report (10 a day), -2 for one
   cleared as wrong within 10 minutes, road-report rep never below 0, `road_rep_for()` with the new counts.

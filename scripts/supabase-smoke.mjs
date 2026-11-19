@@ -382,7 +382,8 @@ async function roadReports() {
   const twice = await rpcError(B, 'vote_road_report', { p_report_id: crash.id, p_vote: 'gone', p_lat: at.lat, p_lng: at.lng });
   check('vote_road_report: one answer each', twice === "You've already answered for this one.", twice ?? 'no error');
   const repBefore = await rpc(A, 'road_rep_for', { p_user_ids: [A.id] });
-  check('rep: nothing for the reporter after one confirmation', repBefore[0]?.rep === 0, JSON.stringify(repBefore));
+  // Posting a report pays +2 (nav_and_report_rep, 19 Nov 2026); the +10 confirm bonus needs two others.
+  check('rep: only the +2 for posting after one confirmation', repBefore[0]?.rep === 2 && repBefore[0]?.posted_rep === 2 && repBefore[0]?.reported_rep === 0, JSON.stringify(repBefore));
   const second = await rpc(C, 'vote_road_report', { p_report_id: crash.id, p_vote: 'still_there', p_lat: at.lat, p_lng: at.lng });
   check('vote_road_report: a second driver confirms', second.confirm_count === 2 && second.status === 'active');
   const repAfter = await rpc(B, 'road_rep_for', { p_user_ids: [A.id, B.id, C.id] });
