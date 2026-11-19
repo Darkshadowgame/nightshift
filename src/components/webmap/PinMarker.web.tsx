@@ -12,7 +12,7 @@ export const PinFace = memo(
     const size = pin.size ?? 36;
     return pin.live ? (
       <PulseRing live colour={pin.colour} size={size} pad>
-        <Pin glyph={pin.glyph} colour={pin.colour} size={size} />
+        <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
       </PulseRing>
     ) : (
       <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
@@ -30,7 +30,7 @@ export const PinFace = memo(
 /** How big a pin's box is (live pins leave room for the pulse). */
 export const pinBox = (pin: MapPin) => (pin.live ? (pin.size ?? 36) * 2.2 : (pin.size ?? 36));
 
-export const pinLabel = (pin: MapPin) => (pin.live ? `${pin.title}, live now` : pin.count ? `${pin.count} ${pin.title}. Zoom in` : pin.title);
+export const pinLabel = (pin: MapPin) => `${pin.count ? `${pin.count} ` : ''}${pin.title}${pin.live ? ', live now' : ''}${pin.count ? '. Zoom in' : ''}`;
 
 /** One marker the map should show; its drawing is `face`, rendered into the marker's own DOM node. */
 export interface MarkerSpec {

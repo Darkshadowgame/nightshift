@@ -4,10 +4,14 @@ import Animated, { useAnimatedStyle, useReducedMotion, withSpring, withTiming, t
 import { feel } from '../lib/feel';
 import { C, ELEVATION, RADII, SPACING, SURFACE } from '../theme';
 import { useToastAnchor } from './ds';
+import { detentTops, MIN_SHOWN, ORDER, settle, type Detent } from './sheetDetents';
 
 /**
  * The map's bottom sheet (MAP-REDESIGN.md): three detents, peek, half and
- * full. Drag the grabber or the header, or tap the grabber to cycle. The body
+ * full. Drag the grabber or the header, or tap the grabber to cycle. Also `min`:
+ * just the grabber and the screen's one-line `minBar`, so the map is all but full
+ * screen (Tonight lowers it there when a tap on the map closes a card). Tapping the
+ * bar or the grabber, or dragging up, brings it back to peek. The body
  * scrolls only at full; at full, pulling down from the top of the list drags
  * the sheet down again. VoiceOver: the grabber is adjustable (swipe up or
  * down). Reduced motion: no spring, it moves straight to the detent.
@@ -17,26 +21,9 @@ import { useToastAnchor } from './ds';
  * top of the sheet.
  */
 
-export type Detent = 'peek' | 'half' | 'full';
-const ORDER: Detent[] = ['peek', 'half', 'full'];
+export { detentTops, MIN_SHOWN, settle, type Detent } from './sheetDetents';
 const SPRING = { damping: 28, stiffness: 280, mass: 0.9, overshootClamping: true };
-const DETENT_WORDS: Record<Detent, string> = { peek: 'lowered', half: 'half open', full: 'fully open' };
-
-/** Where the sheet's top edge sits for each detent, in the screen's coordinates. */
-export function detentTops(height: number, peek: number, top: number): Record<Detent, number> {
-  const full = top;
-  const peekY = Math.max(full + 120, height - peek);
-  const half = Math.min(peekY - 80, Math.max(full + 80, Math.round(height * 0.5)));
-  return { peek: peekY, half, full };
-}
-
-/** The detent to settle on after a drag: where it's heading (with a flick) and the nearest stop. */
-export function settle(y: number, vy: number, tops: Record<Detent, number>): Detent {
-  const aim = y + vy * 160;
-  let best: Detent = 'peek';
-  for (const d of ORDER) if (Math.abs(tops[d] - aim) < Math.abs(tops[best] - aim)) best = d;
-  return best;
-}
+const DETENT_WORDS: Record<Detent, string> = { min: 'minimised', peek: 'lowered', half: 'half open', full: 'fully open' };
 
 export function MapSheet({
   y,
@@ -50,6 +37,7 @@ export function MapSheet({
   onHeaderLayout,
   toastAnchor,
   hidden,
+  minBar,
   children,
 }: {
   y: SharedValue<number>;
@@ -76,6 +64,8 @@ export function MapSheet({
    * first and comes back when it closes. Never a sheet on a sheet, never two grab handles (4.5).
    */
   hidden?: boolean;
+  /** At `min`, the one line shown under the grabber (over the header); tapping it goes back to peek. */
+  minBar?: ReactNode;
   children: ReactNode;
 }) {
   const reduced = useReducedMotion();
@@ -106,7 +96,7 @@ export function MapSheet({
     const to = hidden ? height + 24 : tops[detent];
     y.value = reduced ? to : hidden ? withTiming(to, { duration: 180 }) : withSpring(to, SPRING);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detent, tops.peek, tops.half, tops.full, reduced, hidden, height]);
+  }, [detent, tops.min, tops.peek, tops.half, tops.full, reduced, hidden, height]);
 
   const pan = useMemo(
     () =>
@@ -124,10 +114,11 @@ export function MapSheet({
           const t = live.current.tops;
           const next = live.current.start + g.dy;
           // A little give past the ends.
-          y.value = next < t.full ? t.full - (t.full - next) * 0.2 : next > t.peek ? t.peek + (next - t.peek) * 0.2 : next;
+          const low = live.current.detent === 'min' ? t.min : t.peek;
+          y.value = next < t.full ? t.full - (t.full - next) * 0.2 : next > low ? low + (next - low) * 0.2 : next;
         },
-        onPanResponderRelease: (_e, g) => snap(settle(y.value, g.vy, live.current.tops)),
-        onPanResponderTerminate: () => snap(settle(y.value, 0, live.current.tops)),
+        onPanResponderRelease: (_e, g) => snap(settle(y.value, g.vy, live.current.tops, live.current.detent === 'min')),
+        onPanResponderTerminate: () => snap(settle(y.value, 0, live.current.tops, live.current.detent === 'min')),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -135,7 +126,7 @@ export function MapSheet({
 
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
   const i = ORDER.indexOf(detent);
-  const cycle = () => snap(ORDER[(i + 1) % ORDER.length]);
+  const cycle = () => snap(detent === 'min' ? 'peek' : ORDER[(i + 1) % ORDER.length]);
 
   return (
     <Animated.View style={[st.sheet, { height: height - top }, style]} pointerEvents={hidden ? 'none' : 'auto'} aria-hidden={hidden || undefined} {...pan.panHandlers}>
@@ -147,7 +138,8 @@ export function MapSheet({
           accessibilityHint="Swipe up or down to show more or less"
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }, { name: 'activate' }]}
           onAccessibilityAction={(e) => {
-            if (e.nativeEvent.actionName === 'increment' && i < ORDER.length - 1) snap(ORDER[i + 1]);
+            if (e.nativeEvent.actionName === 'increment' && detent === 'min') snap('peek');
+            else if (e.nativeEvent.actionName === 'increment' && i < ORDER.length - 1) snap(ORDER[i + 1]);
             else if (e.nativeEvent.actionName === 'decrement' && i > 0) snap(ORDER[i - 1]);
             else if (e.nativeEvent.actionName === 'activate') cycle();
           }}
@@ -157,6 +149,11 @@ export function MapSheet({
           <View style={st.grabber} />
         </Pressable>
         {header}
+        {detent === 'min' && minBar ? (
+          <Pressable onPress={() => snap('peek')} accessibilityRole="button" style={st.minBar}>
+            {minBar}
+          </Pressable>
+        ) : null}
       </View>
       <ScrollView
         style={{ flex: 1 }}
@@ -190,6 +187,8 @@ const st = StyleSheet.create({
     ...ELEVATION.sheet,
     overflow: 'hidden',
   },
+  // Over the top of the header (kept mounted, so its height and the peek stay as they were).
+  minBar: { position: 'absolute', top: 22, left: 0, right: 0, height: MIN_SHOWN - 22, paddingHorizontal: SPACING.screen, justifyContent: 'center', backgroundColor: SURFACE.sheet },
   grabberHit: { alignItems: 'center', justifyContent: 'center', height: 22 },
   grabber: { width: 40, height: 5, borderRadius: RADII.pill, backgroundColor: SURFACE.borderStrong },
   body: { paddingHorizontal: SPACING.screen, paddingBottom: SPACING.xxxl, gap: SPACING.lg },

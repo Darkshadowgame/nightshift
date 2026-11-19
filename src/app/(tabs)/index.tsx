@@ -25,7 +25,7 @@ import {
 } from '../../components/ds';
 import { EventFilters } from '../../components/EventFilters';
 import { LayersPanel } from '../../components/LayersPanel';
-import { detentTops, MapSheet, type Detent } from '../../components/MapSheet';
+import { detentTops, MapSheet, MIN_SHOWN, type Detent } from '../../components/MapSheet';
 import { MapWidgetSlot } from '../../components/MapWidgetSlot';
 import type { MapCircle, MapPadding, MapPath, MapPin, MapRegion, NightMapHandle } from '../../components/mapTypes';
 import { FadeUp } from '../../components/motion';
@@ -59,7 +59,7 @@ import { rememberMapView } from '../../lib/lastView';
 import { currentPosition, locationHelp } from '../../lib/location';
 import { useMapAppearance } from '../../lib/mapAppearance';
 import { layerOn, setLayer, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
-import { clusterEventPins, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
+import { clusterEventPins, clusterZoomSpan, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
 import { postPlace } from '../../lib/postPrivacy';
 import { visibleSpots } from '../../lib/spots';
@@ -357,7 +357,7 @@ export default function TonightScreen() {
     pins.push(...grouped.pins);
     for (const c of grouped.clusters) {
       const lead = c.members[0];
-      pins.push({ ...lead, id: c.id, title: `${c.members.length} meets here`, size: 42, count: c.members.length, live: c.members.some((m) => m.live) });
+      pins.push({ ...lead, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live) });
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
@@ -368,7 +368,7 @@ export default function TonightScreen() {
     const c = placeView.clusters.find((x) => x.id === id) ?? eventClusters.current.find((x) => x.id === id);
     if (!c) return;
     feel.select();
-    setView((x) => ({ centre: c.zoomCentre, span: c.zoomSpan, key: (x?.key ?? 0) + 1 }));
+    setView((x) => ({ centre: c.zoomCentre, span: clusterZoomSpan(c.zoomSpan, box, mapPadding, c.zoomCentre.lat, region.span), key: (x?.key ?? 0) + 1 }));
   }
   const zoomClusterRef = useRef(zoomCluster);
   zoomClusterRef.current = zoomCluster;
@@ -432,7 +432,9 @@ export default function TonightScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lists, pick, meUser?.home]);
   const fitSig = fitPoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|');
-  const mapPadding = useMemo<MapPadding>(() => ({ top: FIT_TOP, bottom: peek + sheetTop }), [peek, sheetTop]);
+  // At min (a tap on the map closed the card) the map is all but full screen, so fits use all of it.
+  const lowest = detent === 'min' ? MIN_SHOWN : peek + sheetTop;
+  const mapPadding = useMemo<MapPadding>(() => ({ top: FIT_TOP, bottom: lowest }), [lowest]);
   useEffect(() => {
     if (!ready || !box.h || params.focus || !autoFit.current || (view && !view.fit)) return;
     const t = setTimeout(() => {
@@ -456,15 +458,18 @@ export default function TonightScreen() {
     setSelected(null);
     setDetent('peek');
   }, []);
+  /** A tap on the map itself (not a pin) closes the card and lowers the sheet to its one-line bar: the map is full screen again. */
   const onMapPress = useCallback(() => {
     autoFit.current = false;
-    if (selectedRef.current) close();
-  }, [close]);
+    if (!selectedRef.current) return;
+    setSelected(null);
+    setDetent('min');
+  }, []);
 
   // The map's buttons ride just above the sheet, up to half; they fade out as it opens fully.
   const [stackH, setStackH] = useState(2 * BUTTON + 1);
   const stackStyle = useAnimatedStyle(() => {
-    const yy = Math.min(sheetY.value, tops.peek);
+    const yy = Math.min(sheetY.value, tops.min);
     const lift = Math.max(SPACING.sm, yy - stackH - SPACING.md);
     const fade = Math.min(1, Math.max(0, (yy - (tops.full + 60)) / Math.max(1, tops.half - tops.full - 60)));
     return { transform: [{ translateY: lift }], opacity: fade };
@@ -741,7 +746,7 @@ export default function TonightScreen() {
   );
 
   // Toasts sit just above the sheet's peek (or the tab bar in the list), never over I'm going.
-  const anchorHeight = focused && mode === 'map' && box.h ? peek + TAB_BAR_HEIGHT + insets.bottom : null;
+  const anchorHeight = focused && mode === 'map' && box.h ? (detent === 'min' ? MIN_SHOWN : peek) + TAB_BAR_HEIGHT + insets.bottom : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
@@ -842,6 +847,11 @@ export default function TonightScreen() {
               header={sheetHeader}
               toastAnchor={anchorHeight}
               hidden={demoInfo || showLayers || !!bringFor}
+              minBar={
+                <DsText v="secondary" tone="primary" numberOfLines={1}>
+                  {metaLine([lists.live.length ? `${lists.live.length} live now` : null, `${lists.tonight.length} tonight`])}
+                </DsText>
+              }
             >
               {/* Read = push (4.5): a card in the sheet opens the event page, exactly as in List. */}
               {sections((v) => openEvent(v.event.id))}

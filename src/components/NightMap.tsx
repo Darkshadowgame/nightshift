@@ -39,11 +39,11 @@ const PinMarker = memo(
         tracksViewChanges={!!pin.live}
         zIndex={pinLayer(pin)}
         anchor={{ x: 0.5, y: 0.5 }}
-        accessibilityLabel={pin.live ? `${pin.title}, live now` : pin.count ? `${pin.count} ${pin.title}. Zoom in` : pin.title}
+        accessibilityLabel={`${pin.count ? `${pin.count} ` : ''}${pin.title}${pin.live ? ', live now' : ''}${pin.count ? '. Zoom in' : ''}`}
       >
         {pin.live ? (
           <PulseRing live colour={pin.colour} size={size} pad>
-            <Pin glyph={pin.glyph} colour={pin.colour} size={size} />
+            <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
           </PulseRing>
         ) : (
           <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />

@@ -283,3 +283,29 @@ export function clusterEventPins<T extends { id: string; at: LatLng; live?: bool
   }
   return { pins: out, clusters };
 }
+
+/**
+ * The span to ask the map for when a group pin is tapped. The map fits a span into the part the
+ * sheet doesn't cover (`padding`), and fits its width too (a region is 1.2 times as wide as it is
+ * tall), so the whole map ends up taller than asked; and the pins are grouped on that whole span
+ * rounded up a little (regionKey, and the web map's quarter zoom steps). Asking for the group's
+ * own `zoomSpan` left the whole map no closer in than before, so the group never split and a tap
+ * on it did nothing: its meets (often live ones, drawn with the pulse) could never be opened.
+ * `shown` is the whole map's span now: a tap always at least halves it, so taps always get there.
+ */
+export function clusterZoomSpan(
+  zoomSpan: number,
+  size: { w: number; h: number },
+  padding?: { top?: number; bottom?: number },
+  lat = 52.5,
+  shown?: number,
+): number {
+  const { w, h } = size;
+  const open = h - (padding?.top ?? 0) - (padding?.bottom ?? 0);
+  const byHeight = h > 0 && open >= 40 ? h / open : 1;
+  const byWidth = w > 0 && h > 0 ? (1.2 * Math.cos((lat * Math.PI) / 180) * h) / w : 0;
+  // What the whole map shows for each degree asked; then room for the rounding (2^0.25 × 2^0.125).
+  const whole = Math.max(byHeight, byWidth, 1) * 1.3;
+  const want = shown ? Math.min(zoomSpan, shown / 2) : zoomSpan;
+  return want / whole;
+}
