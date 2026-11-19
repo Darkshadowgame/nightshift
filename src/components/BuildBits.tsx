@@ -112,7 +112,8 @@ export function ModGroups({ build: b, mine }: { build: Build; mine: boolean }) {
     <>
       {groups.map((g) => (
         <View key={g.key} style={{ gap: SPACING.xxs }}>
-          <DsText v="label" accessibilityRole="header">
+          {/* A sub-label under the Mods section header, not a second header style (HEAD, Review 19 #48). */}
+          <DsText v="bodyStrong" tone="secondary" accessibilityRole="header">
             {g.label}
           </DsText>
           <View>
