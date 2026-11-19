@@ -1,7 +1,8 @@
 import { awardRep, type Award } from './awards';
 import { rewardedMods } from './legality';
 import { isHost, phaseOf } from './events';
-import { NO_ROAD_REP, type RoadRep } from './roadReports';
+import { NAV_RULES } from './navRep';
+import { NO_ROAD_REP, ROAD_RULES, roadReportsLine, type RoadRep } from './roadReports';
 import { hasCompleted, statsOf } from './spots';
 import type { Build, Crew, NightEvent, PlaceRep, Spot } from './types';
 
@@ -120,7 +121,24 @@ export const REP = {
   mod: 20,
 } as const;
 
-export type RepSource = 'attended' | 'hosted' | 'drives' | 'spots' | 'authored' | 'awards' | 'mods' | 'roadReports' | 'roadChecks' | 'forum';
+/** How rep is earned, in the order people meet it: the ladder sheet's "How to earn rep". */
+export const HOW_TO_EARN: { what: string; rep: string }[] = [
+  { what: 'Check in at a meet', rep: `+${REP.attended}` },
+  { what: 'Host an event (more with 10+ checked in)', rep: `+${REP.hostedSmall} to +${REP.hostedBig}` },
+  { what: 'Win a trophy at a meet', rep: 'varies' },
+  { what: 'Finish a drive (longer pays more)', rep: `about +${REP.drive}` },
+  { what: 'Visit a photo spot', rep: `+${REP.photoSpot}` },
+  { what: 'Log a road-legal mod (parts that do the same job count once)', rep: `+${REP.mod}` },
+  { what: 'A place you suggested gets approved and used', rep: 'varies' },
+  { what: 'A forum answer marked solved', rep: '+25' },
+  { what: `Finish a trip with directions (at least ${NAV_RULES.minMiles} miles, ${NAV_RULES.perDay} a day)`, rep: `+${NAV_RULES.rep}` },
+  { what: `Report traffic, police or a hazard from the driving view (${ROAD_RULES.postDailyCap} a day)`, rep: `+${ROAD_RULES.postRep}` },
+  { what: 'A road report two other drivers confirm', rep: `+${ROAD_RULES.reporterRep}` },
+  { what: 'Answer "Still there?" for a road report', rep: `+${ROAD_RULES.answerRep}` },
+  { what: `A road report cleared as wrong within ${ROAD_RULES.wrongWithinMin} minutes`, rep: `-${ROAD_RULES.wrongRep}` },
+];
+
+export type RepSource = 'attended' | 'hosted' | 'drives' | 'spots' | 'authored' | 'awards' | 'mods' | 'roadReports' | 'roadChecks' | 'navigation' | 'forum';
 
 export interface RepLine {
   source: RepSource;
@@ -144,9 +162,10 @@ export interface RepInputs {
   /** For crew events: the crew's owner and hosts count as hosts. */
   crews?: Crew[];
   /**
-   * Road reports (roadReports.ts), worked out by the server (or the demo): +10 per
-   * report two other drivers confirmed, +2 per "Still there?" answer, with daily caps.
-   * Never anything for speed.
+   * Road reports (roadReports.ts), worked out by the server (or the demo): +2 per
+   * report posted, +10 per report two other drivers confirmed, -2 per report cleared
+   * as wrong (that line never below 0), +2 per "Still there?" answer, with daily caps.
+   * Also finished in-app navigations (navRep.ts): +5 each, 3 a day. Never anything for speed.
    */
   roadRep?: RoadRep;
   /**
@@ -213,6 +232,7 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
   }
   const mods = [...groups.values()].reduce((n, m) => n + rewardedMods(m).length, 0);
   const road = input.roadRep ?? NO_ROAD_REP;
+  const reports = roadReportsLine(road);
 
   const lines: RepLine[] = [
     { source: 'attended', label: 'Events attended', count: attended, rep: attended * REP.attended },
@@ -222,8 +242,9 @@ export function repLedger(userId: string, input: RepInputs): RepLedger {
     { source: 'authored', label: 'Places you suggested', count: authored.length, rep: authoredRep },
     { source: 'awards', label: 'Trophies', count: mine.length, rep: awardRep(input.awards, userId) },
     { source: 'mods', label: 'Mods logged', count: mods, rep: mods * REP.mod },
-    { source: 'roadReports', label: 'Road reports confirmed', count: road.reportsConfirmed, rep: road.reportedRep },
+    { source: 'roadReports', label: 'Road reports', count: reports.count, rep: reports.rep },
     { source: 'roadChecks', label: 'Road reports checked', count: road.reportsChecked, rep: road.checkedRep },
+    { source: 'navigation', label: road.demo ? 'Navigation (demo)' : 'Navigation', count: road.navigations ?? 0, rep: road.navigationRep ?? 0 },
     { source: 'forum', label: 'Answers marked solved', count: input.forumRep?.solved ?? 0, rep: input.forumRep?.rep ?? 0 },
   ];
   return { total: lines.reduce((s, l) => s + l.rep, 0), lines };

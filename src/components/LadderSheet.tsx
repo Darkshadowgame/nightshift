@@ -1,22 +1,12 @@
 import { View } from 'react-native';
-import { ladderLabel, LEVEL_NAMES, REP, repForLevel, type LevelInfo, type RepLedger } from '../lib/rep';
+import { HOW_TO_EARN, ladderLabel, LEVEL_NAMES, repForLevel, type LevelInfo, type RepLedger } from '../lib/rep';
 import { SPACING } from '../theme';
 import { DsText, ListRow, RowDivider, Section, Sheet, Tag, metaLine } from './ds';
 
 const n = (x: number) => x.toLocaleString('en-GB');
 
-/** How rep is earned, in the order people meet it. */
-export const EARN: { what: string; rep: string }[] = [
-  { what: 'Check in at a meet', rep: `+${REP.attended}` },
-  { what: 'Host an event (more with 10+ checked in)', rep: `+${REP.hostedSmall} to +${REP.hostedBig}` },
-  { what: 'Win a trophy at a meet', rep: 'varies' },
-  { what: 'Finish a drive (longer pays more)', rep: `about +${REP.drive}` },
-  { what: 'Visit a photo spot', rep: `+${REP.photoSpot}` },
-  { what: 'Log a road-legal mod (parts that do the same job count once)', rep: `+${REP.mod}` },
-  { what: 'A place you suggested gets approved and used', rep: 'varies' },
-  { what: 'A forum answer marked solved', rep: '+25' },
-  { what: 'A road report others confirm', rep: '+10' },
-];
+/** How rep is earned, in the order people meet it (rep.ts). */
+export const EARN = HOW_TO_EARN;
 
 /**
  * The ladder (REVIEW-10 #15): every level with its name and the rep it starts at, where you

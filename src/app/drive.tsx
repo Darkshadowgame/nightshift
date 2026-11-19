@@ -19,6 +19,7 @@ import { DriveMap, type DriveMapStop } from '../components/DriveMap';
 import { DEMO_ROAD_CREDIT, demoRoadTo } from '../data/demoRoads';
 import { demoJunctionAt, withDemoJunctions } from '../data/demoLanes';
 import { RoutePreview } from '../components/RoutePreview';
+import { useDriveRep } from '../components/Rep';
 import { LANES_FROM_M, LANES_LOOKUP_M, lanesAtJunction, matchLanes, parseTurnLanes, type LaneStrip } from '../lib/lanes';
 import { useMapAppearance } from '../lib/mapAppearance';
 import { photoUri } from '../lib/photos';
@@ -349,6 +350,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const closed = useRef(false);
   const run = useRef<DriveRun>(NEW_RUN);
   const runDone = useRef(false);
+  /** Navigation and report rep (navRep.ts): the trip, and the toast when it pays. */
+  const driveRep = useDriveRep();
 
   // Road reports: read around you (re-read every couple of km, every minute and on any change).
   const roads = useRoads();
@@ -526,6 +529,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       if (last) {
         setPhase('arrived');
         feel.success();
+        driveRep.arrived();
         // The demo's drive, driven for you: count it at a legal pace (the same check as on the road).
         if (plan.driveId && simulate && !runDone.current) {
           const spot = store.spots.find((s) => s.id === plan.driveId);
@@ -539,7 +543,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         }
       }
     },
-    [stops, say, plan.title, plan.driveId, simulate, store],
+    [stops, say, plan.title, plan.driveId, simulate, store, driveRep],
   );
 
   /**
@@ -610,6 +614,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         if (!routing.current && realNowMs() - lastRoute.current > 15_000) doRoute(f.at, 'start');
         return;
       }
+      driveRep.fix(f.at, f.t, f.accuracy);
 
       const snap = snapToRoute(a.route, f.at, hint.current, f.course);
       hint.current = snap.along;
@@ -716,7 +721,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
         over,
       });
     },
-    [arrive, cameraAlerts, doRoute, detour, lookUpRoad, plan.driveId, say, simulate, stops, store],
+    [arrive, cameraAlerts, doRoute, detour, lookUpRoad, plan.driveId, say, simulate, stops, store, driveRep],
   );
   const onFixRef = useRef(onFix);
 
@@ -748,9 +753,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     (p: { kind: RoadReportKind; at: LatLng; heading: number | null }) => {
       roads
         .report(p.kind, p.at, p.heading, fixRef.current?.at ?? p.at)
+        .then((res) => driveRep.reported(res.rep))
         .catch((e) => setNotice(e instanceof Error ? e.message : "Couldn't send the report."));
     },
-    [roads],
+    [roads, driveRep],
   );
   const sendRef = useRef(sendReport);
   sendRef.current = sendReport;

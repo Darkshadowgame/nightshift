@@ -104,7 +104,7 @@ select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-0000-0000-0000000
 select throws_ok(format($$ select public.vote_road_report(%L, 'still_there', 52.4862, -1.8904) $$, current_setting('t.crash')::uuid),
   'P0001', 'You can''t confirm your own report.', 'vote: not on your own report');
 select is((select mine from public.road_reports_near(52.4862, -1.8904, 5, 'map') where kind = 'crash'), true, 'near: mine is true for your own');
-select is((select count(*)::int from public.road_rep), 0, 'rep: nothing for an unconfirmed report');
+select is((select count(*)::int from public.road_rep where reason = 'reported'), 0, 'rep: no confirm bonus for an unconfirmed report (+2 for posting it: nav_report_rep_test)');
 
 select set_config('request.jwt.claims', '{"sub":"cccccccc-0000-0000-0000-0000000000c1","role":"authenticated"}', true);
 select is((public.vote_road_report(current_setting('t.crash')::uuid, 'still_there', 52.4862, -1.8904)->>'confirm_count')::int, 2,
@@ -119,12 +119,12 @@ select is((select rep from public.road_rep_for(array['bbbbbbbb-0000-0000-0000-00
 select is((select count(*)::int from public.road_rep), 1, 'road_rep: B reads only their own rows');
 select is((select array_agg(rep order by user_id) from public.road_rep_for(array[
     'aaaaaaaa-0000-0000-0000-0000000000a1'::uuid, 'bbbbbbbb-0000-0000-0000-0000000000b1'::uuid, 'cccccccc-0000-0000-0000-0000000000c1'::uuid])),
-  array[10, 2, 2], 'road_rep_for: everyone''s totals (counts only)');
+  array[12, 2, 2], 'road_rep_for: everyone''s totals (counts only; A has +2 for posting)');
 
 -- A third confirmation doesn't pay the reporter again.
 select set_config('request.jwt.claims', '{"sub":"dddddddd-0000-0000-0000-0000000000d1","role":"authenticated"}', true);
 select lives_ok(format($$ select public.vote_road_report(%L, 'still_there', 52.4862, -1.8904) $$, current_setting('t.crash')::uuid), 'vote: D confirms');
-select is((select rep from public.road_rep_for(array['aaaaaaaa-0000-0000-0000-0000000000a1'::uuid])), 10, 'rep: the reporter is paid once per report');
+select is((select reported_rep from public.road_rep_for(array['aaaaaaaa-0000-0000-0000-0000000000a1'::uuid])), 10, 'rep: the reporter is paid once per report');
 
 -- Police reports are confirmed like the rest (owner decision) but never extended.
 select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-0000-0000-0000000000b1","role":"authenticated"}', true);

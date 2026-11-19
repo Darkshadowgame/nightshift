@@ -612,6 +612,10 @@ the one level line on Me, the ladder sheet it opens, and the "+150 rep" moment a
 The ladder sheet may also name the levels themselves (e.g. "Legend").
 Reviewers must not count those as breaks.
 
+**Added 19 Nov 2026 (owner decision):** the small toast at the moment rep is earned in the driving
+view ("+5 rep · Drive complete" on arriving, "+2 rep · Thanks for the report") counts as a moment
+like check-in. Its words live in `src/lib/navRep.ts`; Help explains it without the word "rep".
+
 ---
 
 ## 5. Look upgrade

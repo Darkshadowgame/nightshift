@@ -27,6 +27,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261117120800_feedback.sql` | In-app feedback (insert-only) and the private `feedback` screenshot bucket |
 | `supabase/migrations/20261117130000_event_vehicles.sql` | The build you're bringing on `event_going` / `event_requests`, vehicle rules in `set_going()`, `answer_request()`, `check_in()` and the awards; `builds.vehicle_id`, `tune_stage`, `engine_swap` |
 | `supabase/migrations/20261117170000_road_reports.sql` | Community road reports: `road_reports`, `road_report_votes`, `road_rep`, the report/vote/near RPCs, `road_closures_near()`, `road_rep_for()`, Realtime on `road_reports`; extra `road_closures` columns (section 3a) |
+| `supabase/migrations/20261121120000_nav_and_report_rep.sql` | **Not applied yet (waiting for the owner's yes, 19 Nov 2026).** Rep for using the app: `nav_rep` and `complete_navigation()` (+5, 3 a day), +2 for posting a road report (10 a day), -2 for one cleared as wrong, `road_rep_for()` with the new counts (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
 | `supabase/migrations/20261117230000_feedback_triage.sql` | Feedback triage (`triage_notes`, `fixed_in`, `handled_at`), senders read their own, `feedback_status()`, kind `other`, screenshots list, context and opt-in location, `pg_net` and the email trigger (section 3, "Feedback"; 7e) |
 | `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
@@ -45,6 +46,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/tests/check_in_vehicle_test.sql` | pgTAP: `check_in()` records a fitting build when none was on record and never refuses for it, still refuses someone else's build and a change once one is set; reminder wording "stop unlocked" (10 checks) |
 | `supabase/tests/account_test.sql` | pgTAP: the read views (own home only, others' pending places hidden, refused signed out) and `delete_my_account()` (cascade, crew handed over, events only you host cancelled, places kept without an author) (20 checks) |
 | `supabase/tests/road_reports_test.sql` | pgTAP: reporting rules and rate limits, police only for the driving context, votes, expiry and its cap, clearing, merging, rep and its daily caps, open-data closures, privacy (66 checks) |
+| `supabase/tests/nav_report_rep_test.sql` | pgTAP: `complete_navigation()` plausibility, overlap and its daily cap, posting rep and its cap, the confirm bonus once only, the wrong-report penalty and the 0 floor, signed out refused (32 checks) |
 | `supabase/tests/bundled_places_test.sql` | pgTAP: bundled ids (unique, format, no author), nobody signed in can add, change or delete one, finishing (with the road's own limit), visiting and rating one through the RPCs, `spot_stats` and `place_rep_for` the same for others, signed out refused (30 checks) |
 | `supabase/tests/community_test.sql` | pgTAP: Cars near you (rounding, hiding, blocks), connections (requests, declines and their 30 days, rate limit), 1-to-1 and group messages only between connections, blocks, the forum (filter, Solved rep and its caps, rate limits), feed posts (never near home, connections-only), reports and staff, message photos (164 checks) |
 | `supabase/tests/moderation_test.sql` | pgTAP: reports on event chat (only lines you can read), events, crews and places; blocks hide event chat; three reports hide a chat line; staff hide, reject, cancel and suspend; a suspended person can't chat, post or connect but can report; lifting it (36 checks) |
@@ -123,7 +125,8 @@ Rules of thumb:
 | `road_closures` | imported open-data closures: `road`, `direction`, `full_closure` (lanes only = false), line or point | signed-in users (`road_closures_near()` for the app) | import function (service role) |
 | `road_reports` | drivers' reports: kind, point (~10 m), heading, `created_by`, expiry, status, confirm/clear counts | signed-in users, **not police** and **never `created_by`** (column grants) | `report_road()`, `vote_road_report()` |
 | `road_report_votes` | one "still there" / "gone" per person per report | own answers | `vote_road_report()` (and `report_road()` merging) |
-| `road_rep` | rep from road reports (reported +10 / checked +2, 0 over the daily cap) | own rows (`road_rep_for()` gives counts for anyone) | the RPCs |
+| `road_rep` | rep from road reports (reported +10 / checked +2 / posted +2 / wrong -2, 0 over the daily cap) | own rows (`road_rep_for()` gives counts for anyone) | the RPCs |
+| `nav_rep` | finished in-app navigations: day, finish time, duration and rep only (no positions or distance) | own rows (`road_rep_for()` gives counts for anyone) | `complete_navigation()` |
 | `feedback` | bug / idea / looks_wrong reports: message (1–4000), screen, app version, update id, device, optional screenshot path, `status` | **staff only** | anyone, signed in or not (insert only); staff set `status` or delete |
 
 The invite filter is stored as columns (`invite_everyone`, `invite_cars`,
@@ -381,9 +384,21 @@ earn rep like other reports once other drivers confirm them.
 * **Rep** (`road_rep`, `private.road_award`): +10 to the reporter the moment a report has 2
   confirmations (`confirmed_at`, once), at most 5 paid a day (Europe/London); +2 to anyone who
   answers, once per report, at most 10 paid a day. Over a cap the row is kept with 0 rep, so
-  the counts stay right. Nothing for unconfirmed reports; nothing ever about speed.
+  the counts stay right. Nothing ever about speed.
   **`road_rep_for(p_user_ids)`** returns `reports_confirmed`, `reports_checked`,
   `reported_rep`, `checked_rep`, `rep` per person (counts only) for the app's rep ledger.
+* **Rep for using the app** (owner decision 19 Nov 2026; `20261121120000_nav_and_report_rep.sql`,
+  **not applied yet**): +2 to the reporter for posting (`posted`, at most 10 paid a day; a
+  merged report pays as an answer), -2 once when a report is cleared within 10 minutes of being
+  made and was never confirmed (`wrong`); posting, confirmations and wrong ones together never
+  go below 0 (`road_rep_for().rep`). `report_road()` also returns the `rep` it paid, for the
+  toast. **`complete_navigation(p_distance_m, p_duration_s, p_from_lat, p_from_lng, p_to_lat,
+  p_to_lng)`**: +5 for a finished in-app navigation of at least 2 miles and 3 minutes, average
+  at most 70 mph (complete_drive's check with the national limit), never shorter than the
+  straight line, never overlapping the last one; 3 paid a day (later ones kept with 0). The
+  points are compared and thrown away. `road_rep_for()` adds `reports_posted`, `posted_rep`,
+  `reports_wrong`, `wrong_rep`, `navigations`, `navigation_rep`; the app only calls
+  `complete_navigation()` once it sees `navigation_rep`, so nothing breaks before it's applied.
 * **Who reported it** is never readable by others: `authenticated` has column-level `select`
   on everything in `road_reports` except `created_by` (PostgREST refuses
   `select=created_by`), and Realtime payloads leave it out (checked by the smoke test).
@@ -569,11 +584,12 @@ All are `supabase.rpc(name, { p_…: … })`, signed in only.
 | `save_travel_prefs(p_travel_miles, p_new_event_alerts)` | `setTravelPrefs`, and the travel fields of `saveProfile` | Same checks and sentences as `travelProblem()` / `alertProblem()`: whole miles 1–300; `notify`, `search` or `off` |
 | `search_events(p_max_miles, p_types, p_when, p_can_go_only, p_vehicles, p_from_lat, p_from_lng)` | `searchEvents()` (Find events) | All optional. Distance from **your own home** (read inside, never returned), or from the point you send **snapped to ~1 km**, to each event's rough area; nearest first, then soonest; up to 100. `p_max_miles` null = your travel distance; 1–600 (600 = the app's "Any distance"). `p_when`: `any` / `tonight` (to 5am) / `week` / `weekend` (Fri 5pm–Mon 5am), Europe/London. `p_vehicles`: `any` / `cars` / `bikes`. Returns the event fields, `role`, `can_go`, `phase`, `miles` (0.1), `shown_stop`, and `stop_name`/`stop_lat`/`stop_lng` **only for a stop you may see** (null for locked events: rough area only) |
 | `queue_due_reminders()` | (server only) | Service role only; used by `push-notices` |
-| `report_road(p_kind, p_lat, p_lng, p_heading, p_from_lat, p_from_lng)` | `roads.report` (driving view) | Section 3a. Returns `{ id, merged, expires_at }` |
+| `report_road(p_kind, p_lat, p_lng, p_heading, p_from_lat, p_from_lng)` | `roads.report` (driving view) | Section 3a. Returns `{ id, merged, expires_at }` (and `rep` once 20261121120000 is applied) |
 | `vote_road_report(p_report_id, p_vote, p_lat, p_lng)` | `roads.answer` ("Still there?", map card) | `still_there` / `gone`; returns `{ status, confirm_count, clear_count, expires_at }` |
 | `road_reports_near(p_lat, p_lng, p_radius_mi, p_context)` | `useRoadReports()` | `map` (default, never police) or `driving` |
 | `road_closures_near(p_lat, p_lng, p_radius_mi)` | `useRoadReports()` | Open-data closures in force, credited in the app |
-| `road_rep_for(p_user_ids uuid[])` | rep ledger ("Road reports confirmed" / "checked") | Counts only |
+| `road_rep_for(p_user_ids uuid[])` | rep ledger ("Road reports", "Road reports checked", "Navigation") | Counts only |
+| `complete_navigation(p_distance_m, p_duration_s, p_from_lat, p_from_lng, p_to_lat, p_to_lng)` | `roads.navigated` (driving view, on arrival) | Section 3a; **not applied yet**. `{ ok, rep }` or `{ ok: false, reason }` |
 
 ## 5. The app on the backend (built 17 Nov 2026)
 
@@ -1051,6 +1067,15 @@ recipient: comma-separate `FEEDBACK_NOTIFY_EMAIL`.
   `event_invites_test.sql` (27), run with the whole suite (914 of 914) in rolled-back transactions on the
   hosted database with the migration applied inside each; `db push --dry-run` lists only this migration
   (a `pg_dump` of `public` and `private` was taken first, kept off the repo).
+* **Waiting for the owner's yes (not pushed):** `20261121120000_nav_and_report_rep.sql`, rep for using
+  the app (owner decision 19 Nov 2026, section 3a): `complete_navigation()` and `nav_rep` (+5 for a finished
+  in-app navigation, 3 a day, plausibility checked), +2 for posting a road report (10 a day), -2 for one
+  cleared as wrong within 10 minutes, road-report rep never below 0, `road_rep_for()` with the new counts.
+  The app calls `complete_navigation()` only once `road_rep_for()` returns `navigation_rep`. pgTAP:
+  `nav_report_rep_test.sql` (32) and the updated `road_reports_test.sql`, run with the whole suite (945 of 945; 972 of 972 with `event_invites` too) in
+  rolled-back transactions on the hosted database with the migration applied inside each;
+  `db push --dry-run --include-all` lists it after `event_invites` (a `pg_dump` of `public` was taken
+  first, kept off the repo).
 * **Smoke test:** 121 of 121 (adds: A adds a dyno run with its sheet, B reads it with the build, B can't
   add one to A's build; B sees the badge proven, it goes when A edits the power by hand, B can't remove it).
 

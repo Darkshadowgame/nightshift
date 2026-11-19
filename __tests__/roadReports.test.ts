@@ -146,14 +146,14 @@ describe('rep', () => {
   it('pays +10 per confirmed report (5 a day) and +2 per answer (10 a day)', () => {
     const day = (h: number) => `2026-11-17T${String(h).padStart(2, '0')}:00:00.000Z`;
     const rep = roadRepFrom(Array.from({ length: 7 }, (_, i) => day(10 + i)), Array.from({ length: 12 }, (_, i) => day(i)));
-    expect(rep).toEqual({ reportsConfirmed: 7, reportedRep: 50, reportsChecked: 12, checkedRep: 20 });
+    expect(rep).toMatchObject({ reportsConfirmed: 7, reportedRep: 50, reportsChecked: 12, checkedRep: 20, reportsPosted: 0, postedRep: 0, navigationRep: 0 });
     expect(roadRepFrom([day(10), '2026-11-18T10:00:00.000Z'], []).reportedRep).toBe(20);
   });
 
-  it('shows "Road reports confirmed" in the rep ledger, and nothing without confirmations', () => {
+  it('shows "Road reports" in the rep ledger, and nothing without reports', () => {
     const base = { events: [], spots: [], builds: [], awards: [], now: NOW };
     const none = repLedger('me', base);
-    expect(none.lines.find((l) => l.source === 'roadReports')).toMatchObject({ label: 'Road reports confirmed', count: 0, rep: 0 });
+    expect(none.lines.find((l) => l.source === 'roadReports')).toMatchObject({ label: 'Road reports', count: 0, rep: 0 });
     const some = repLedger('me', { ...base, roadRep: { reportsConfirmed: 2, reportedRep: 20, reportsChecked: 3, checkedRep: 6 } });
     expect(some.lines.find((l) => l.source === 'roadReports')).toMatchObject({ count: 2, rep: 20 });
     expect(some.lines.find((l) => l.source === 'roadChecks')).toMatchObject({ label: 'Road reports checked', count: 3, rep: 6 });
@@ -317,7 +317,8 @@ describe('the demo', () => {
     expect(near.some((r) => r.kind === 'police')).toBe(false);
     expect((await roads.near(START, 5, 'driving')).some((r) => r.kind === 'police')).toBe(true);
 
-    const { id } = await roads.report('hazard', START, 10, START);
+    const { id, rep: postRep } = await roads.report('hazard', START, 10, START);
+    expect(postRep).toBe(2);
     await expect(roads.report('crash', START, null, START)).rejects.toThrow(/just sent a report/);
     await expect(roads.report('crash', north(START, 1500), null, START)).rejects.toThrow(/half a mile/);
     await expect(roads.answer(id, 'still_there', START)).rejects.toThrow("You can't confirm your own report.");
@@ -326,13 +327,13 @@ describe('the demo', () => {
     await expect(roads.answer(sample.id, 'still_there', north(START, 20 * METRES_PER_MILE))).rejects.toThrow(/within a mile/);
     await roads.answer(sample.id, 'still_there', sample.at);
     await expect(roads.answer(sample.id, 'gone', sample.at)).rejects.toThrow(/already answered/);
-    expect((await roads.rep(['me'])).me).toEqual({ reportsConfirmed: 0, reportedRep: 0, reportsChecked: 1, checkedRep: 2 });
+    expect((await roads.rep(['me'])).me).toMatchObject({ reportsConfirmed: 0, reportedRep: 0, reportsChecked: 1, checkedRep: 2, reportsPosted: 1, postedRep: 2, demo: true });
 
     // Two sample drivers confirm your report 20 s later.
     now = new Date(NOW.getTime() + 25_000);
     const mine = (await roads.near(START, 5, 'map')).find((r) => r.id === id)!;
     expect(mine.confirmCount).toBe(2);
-    expect((await roads.rep(['me', 'someone'])).me).toEqual({ reportsConfirmed: 1, reportedRep: 10, reportsChecked: 1, checkedRep: 2 });
+    expect((await roads.rep(['me', 'someone'])).me).toMatchObject({ reportsConfirmed: 1, reportedRep: 10, reportsChecked: 1, checkedRep: 2, postedRep: 2 });
   });
 
   it('lays the samples out again once most have run out', () => {

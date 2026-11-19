@@ -1,12 +1,15 @@
 import { metresBetween, METRES_PER_MILE } from './nav';
+import { navRepNow, tripProblem, type FinishedTrip } from './navRep';
 import {
   answerProblem,
   applyAnswer,
+  clearedAsWrong,
   DEMO_CONFIRM_MS,
   demoReports,
   isLive,
   newReport,
   NO_ROAD_REP,
+  postRepNow,
   reportProblem,
   reportsFor,
   roadRepFrom,
@@ -31,13 +34,25 @@ export interface RoadsService {
   /** Live reports and open-data closures near a point. Police only for 'driving'. */
   near(at: LatLng, radiusMi: number, context: ReportContext): Promise<RoadReport[]>;
   /** `from`: where the phone is now (compared with the report, never stored). */
-  report(kind: RoadReportKind, at: LatLng, heading: number | null, from: LatLng | null): Promise<{ id: string; merged: boolean }>;
+  report(kind: RoadReportKind, at: LatLng, heading: number | null, from: LatLng | null): Promise<ReportResult>;
   /** "Still there?" `from`: where the phone is now (within a mile of the report). */
   answer(id: string, vote: RoadVote, from: LatLng | null): Promise<void>;
-  /** Rep from road reports for these people. */
+  /** Rep from road reports (and navigation) for these people. */
   rep(userIds: string[]): Promise<Record<string, RoadRep>>;
+  /**
+   * A finished in-app navigation (navRep.ts) that the phone judged as counting: the rep it paid
+   * (0 over the daily cap, or when the server can't pay it yet). Never throws for "doesn't count".
+   */
+  navigated(trip: FinishedTrip): Promise<{ rep: number }>;
   /** Something changed near someone (Realtime). Returns the unsubscribe. */
   watch(onChange: () => void): () => void;
+}
+
+/** A report sent: its id, whether it confirmed someone else's instead, and the rep it paid (0 when none). */
+export interface ReportResult {
+  id: string;
+  merged: boolean;
+  rep: number;
 }
 
 /** What the demo keeps (AsyncStorage `nightshift.roads.demo`). */
@@ -52,6 +67,8 @@ export interface DemoRoadState {
   confirmedAt: Record<string, string>;
   /** When you answered "Still there?". */
   answeredAt: string[];
+  /** When your simulated navigations finished (the demo's own ledger, labelled demo). */
+  navigatedAt?: string[];
   /** Settings › Demo › Busy night: many more sample reports round the demo routes (busyNight.ts). */
   busy?: RoadReport[];
   busyAround?: LatLng | null;
@@ -134,8 +151,9 @@ export function createLocalRoads(o: LocalRoadsOptions): RoadsService {
       const problem = reportProblem(s.mine.map((r) => r.createdAt), at, position, t);
       if (problem) throw new Error(problem);
       const r = newReport(id(), kind, at, heading, t);
+      const rep = postRepNow(s.mine.map((x) => x.createdAt), t);
       o.set({ ...s, mine: [r, ...s.mine].slice(0, 100) });
-      return { id: r.id, merged: false };
+      return { id: r.id, merged: false, rep };
     },
     async answer(reportId, vote, from) {
       const s = settled();
@@ -157,8 +175,24 @@ export function createLocalRoads(o: LocalRoadsOptions): RoadsService {
     async rep(userIds) {
       const s = settled();
       const out: Record<string, RoadRep> = {};
-      for (const u of userIds) out[u] = u === o.me ? roadRepFrom(Object.values(s.confirmedAt), s.answeredAt) : NO_ROAD_REP;
+      const mine = roadRepFrom(Object.values(s.confirmedAt), s.answeredAt, {
+        postedAt: s.mine.map((r) => r.createdAt),
+        wrongAt: s.mine.filter(clearedAsWrong).map((r) => r.clearedAt!),
+        navigatedAt: s.navigatedAt ?? [],
+        demo: true,
+      });
+      for (const u of userIds) out[u] = u === o.me ? mine : NO_ROAD_REP;
       return out;
+    },
+    async navigated(trip) {
+      // The demo's simulated drives pay here only: never on the server.
+      if (tripProblem(trip)) return { rep: 0 };
+      const s = settled();
+      const t = now();
+      const done = s.navigatedAt ?? [];
+      const rep = navRepNow(done, t);
+      o.set({ ...s, navigatedAt: [...done, t.toISOString()].slice(-500) });
+      return { rep };
     },
     watch(onChange) {
       // Sample drivers confirm your report a few seconds later: check now and then.

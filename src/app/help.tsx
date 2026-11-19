@@ -46,6 +46,13 @@ const TOPICS: { title: string; lines: string[] }[] = [
     lines: [CLASS_EXPLAINER, 'A dyno run with its sheet photo gets the ✓ Dyno badge.'],
   },
   {
+    title: 'On the road',
+    lines: [
+      'Tap Report in the driving view to warn other drivers about traffic, a police check, a hazard, a crash, roadworks or a closure. Police checks only ever show while driving and go after 30 minutes.',
+      'Finishing a trip with directions and sending reports both count on Me; tap your line there to see how.',
+    ],
+  },
+  {
     title: 'Privacy',
     lines: ['Nobody is shown on the map, ever. Your home area is saved to about half a mile and only used to show what’s near you.'],
   },

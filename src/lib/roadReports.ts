@@ -1,4 +1,5 @@
 import { angleBetween, bearing, METRES_PER_MILE, METRES_PER_YARD, metresBetween, passesNear, pointAlong, type NavRoute } from './nav';
+import { navRepFrom } from './navRep';
 import type { LatLng } from './types';
 
 /**
@@ -11,9 +12,13 @@ import type { LatLng } from './types';
  *
  * Police (owner decision, 17 Nov 2026): labelled "Police / speed check", only
  * ever shown in the driving view, 30 minutes and never extended, never on the
- * main map or on event, cruise or meet screens, and rep only once other
- * drivers confirm it, like every other report. Nothing about speed is ever
- * recorded or rewarded.
+ * main map or on event, cruise or meet screens, and rep like every other
+ * report. Nothing about speed is ever recorded or rewarded.
+ *
+ * Rep (owner decision, 19 Nov 2026): +2 for posting a report (10 a day), +10
+ * once two other drivers confirm it (5 a day), +2 for answering "Still there?"
+ * (10 a day), and -2 when two people clear it within 10 minutes of the report
+ * without it ever being confirmed. Road-report rep never goes below 0.
  */
 
 export type RoadReportKind = 'crash' | 'hazard' | 'roadworks' | 'closure' | 'traffic' | 'mobile_camera' | 'police';
@@ -47,6 +52,8 @@ export interface RoadReport {
   fullClosure?: boolean;
   /** Demo bookkeeping: "gone" answers since the last "still there". */
   goneRun?: number;
+  /** Demo bookkeeping: when it was cleared (for the wrong-report rule). */
+  clearedAt?: string;
 }
 
 export interface KindInfo {
@@ -88,6 +95,12 @@ export const ROAD_RULES = {
   clearAfterGone: 2,
   reporterRep: 10,
   reporterDailyCap: 5,
+  /** Posting a report (merged ones count as an answer instead). */
+  postRep: 2,
+  postDailyCap: 10,
+  /** Taken off when it's cleared this soon after the report, never confirmed. */
+  wrongRep: 2,
+  wrongWithinMin: 10,
   answerRep: 2,
   answerDailyCap: 10,
   /** Police reports are only ever shown this close, even in the driving view. */
@@ -221,7 +234,22 @@ export function applyAnswer(r: RoadReport, vote: RoadVote, now: Date, mine = tru
     return { ...r, myVote, confirmCount: r.confirmCount + 1, goneRun: 0, expiresAt: extendedExpiry(r, now) };
   }
   const goneRun = (r.goneRun ?? 0) + 1;
-  return { ...r, myVote, clearCount: r.clearCount + 1, goneRun, status: goneRun >= ROAD_RULES.clearAfterGone ? 'cleared' : r.status };
+  const cleared = goneRun >= ROAD_RULES.clearAfterGone && r.status !== 'cleared';
+  return {
+    ...r,
+    myVote,
+    clearCount: r.clearCount + 1,
+    goneRun,
+    status: cleared ? 'cleared' : r.status,
+    ...(cleared ? { clearedAt: now.toISOString() } : {}),
+  };
+}
+
+/** Cleared as wrong: two or more cleared it within 10 minutes of the report, and nobody had confirmed it. */
+export function clearedAsWrong(r: Pick<RoadReport, 'status' | 'createdAt' | 'clearedAt' | 'clearCount' | 'confirmCount'>): boolean {
+  if (r.status !== 'cleared' || !r.clearedAt || r.clearCount < ROAD_RULES.clearAfterGone) return false;
+  if (r.confirmCount >= ROAD_RULES.confirmedAt) return false;
+  return new Date(r.clearedAt).getTime() - new Date(r.createdAt).getTime() <= ROAD_RULES.wrongWithinMin * 60_000;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +263,17 @@ export interface RoadRep {
   /** "Still there?" answers, and the rep they paid. */
   reportsChecked: number;
   checkedRep: number;
+  /** Reports you posted (+2 each, 10 a day). Older servers don't send these: 0. */
+  reportsPosted?: number;
+  postedRep?: number;
+  /** Your reports cleared as wrong, and the rep they took (0 or less). */
+  reportsWrong?: number;
+  wrongRep?: number;
+  /** Finished in-app navigations (navRep.ts) and their rep. */
+  navigations?: number;
+  navigationRep?: number;
+  /** The demo's own ledger (simulated drives): labelled so. */
+  demo?: boolean;
 }
 
 export const NO_ROAD_REP: RoadRep = { reportsConfirmed: 0, reportedRep: 0, reportsChecked: 0, checkedRep: 0 };
@@ -242,27 +281,59 @@ export const NO_ROAD_REP: RoadRep = { reportsConfirmed: 0, reportedRep: 0, repor
 /** Day key for the daily caps (the phone's local day; the server uses Europe/London). */
 const dayOf = (iso: string) => iso.slice(0, 10);
 
+/** Rep for times under a daily cap: `each` for the first `cap` a day. */
+function cappedRep(times: string[], cap: number, each: number): number {
+  const perDay = new Map<string, number>();
+  let rep = 0;
+  for (const t of [...times].sort()) {
+    const n = perDay.get(dayOf(t)) ?? 0;
+    if (n < cap) rep += each;
+    perDay.set(dayOf(t), n + 1);
+  }
+  return rep;
+}
+
 /**
  * Rep from road reports, as the server pays it: +10 per report of yours that
- * two others confirmed (5 a day), +2 per answer (10 a day). `confirmedAt`: when
- * each of your reports was confirmed; `answeredAt`: when you answered.
+ * two others confirmed (5 a day), +2 per answer (10 a day), +2 per report
+ * posted (10 a day), -2 per report cleared as wrong. `confirmedAt`: when each
+ * of your reports was confirmed; `answeredAt`: when you answered. Navigation
+ * rides along (the demo keeps both in one place).
  */
-export function roadRepFrom(confirmedAt: string[], answeredAt: string[]): RoadRep {
-  const capped = (times: string[], cap: number, each: number) => {
-    const perDay = new Map<string, number>();
-    let rep = 0;
-    for (const t of [...times].sort()) {
-      const n = perDay.get(dayOf(t)) ?? 0;
-      if (n < cap) rep += each;
-      perDay.set(dayOf(t), n + 1);
-    }
-    return rep;
-  };
+export function roadRepFrom(
+  confirmedAt: string[],
+  answeredAt: string[],
+  more: { postedAt?: string[]; wrongAt?: string[]; navigatedAt?: string[]; demo?: boolean } = {},
+): RoadRep {
+  const posted = more.postedAt ?? [];
+  const wrong = more.wrongAt ?? [];
+  const nav = navRepFrom(more.navigatedAt ?? []);
   return {
     reportsConfirmed: confirmedAt.length,
-    reportedRep: capped(confirmedAt, ROAD_RULES.reporterDailyCap, ROAD_RULES.reporterRep),
+    reportedRep: cappedRep(confirmedAt, ROAD_RULES.reporterDailyCap, ROAD_RULES.reporterRep),
     reportsChecked: answeredAt.length,
-    checkedRep: capped(answeredAt, ROAD_RULES.answerDailyCap, ROAD_RULES.answerRep),
+    checkedRep: cappedRep(answeredAt, ROAD_RULES.answerDailyCap, ROAD_RULES.answerRep),
+    reportsPosted: posted.length,
+    postedRep: cappedRep(posted, ROAD_RULES.postDailyCap, ROAD_RULES.postRep),
+    reportsWrong: wrong.length,
+    wrongRep: wrong.length ? -wrong.length * ROAD_RULES.wrongRep : 0,
+    navigations: nav.navigations,
+    navigationRep: nav.navigationRep,
+    ...(more.demo ? { demo: true } : {}),
+  };
+}
+
+/** Rep a new report pays for posting it now: 2, or 0 once 10 have paid today. `postedAt`: your earlier reports. */
+export function postRepNow(postedAt: string[], now: Date): number {
+  const today = dayOf(now.toISOString());
+  return postedAt.filter((t) => dayOf(t) === today).length >= ROAD_RULES.postDailyCap ? 0 : ROAD_RULES.postRep;
+}
+
+/** The "Road reports" line: posting, confirmations and wrong ones together, never below 0. */
+export function roadReportsLine(r: RoadRep): { count: number; rep: number } {
+  return {
+    count: Math.max(r.reportsPosted ?? 0, r.reportsConfirmed),
+    rep: Math.max(0, (r.postedRep ?? 0) + r.reportedRep + (r.wrongRep ?? 0)),
   };
 }
 

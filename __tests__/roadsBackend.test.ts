@@ -79,7 +79,7 @@ describe('the RPCs', () => {
   it('reports with where you are, and answers with the server\'s sentence on refusal', async () => {
     const { client, calls } = mockClient({ report_road: { id: ROW.id, merged: false }, vote_road_report: new Error('You can\'t confirm your own report.') });
     const roads = createRemoteRoads(client as never, () => NOW);
-    expect(await roads.report('police', { lat: 52.49, lng: -1.89 }, 270, { lat: 52.4901, lng: -1.8901 })).toEqual({ id: ROW.id, merged: false });
+    expect(await roads.report('police', { lat: 52.49, lng: -1.89 }, 270, { lat: 52.4901, lng: -1.8901 })).toEqual({ id: ROW.id, merged: false, rep: 0 });
     expect(calls[0]).toEqual(['report_road', { p_kind: 'police', p_lat: 52.49, p_lng: -1.89, p_heading: 270, p_from_lat: 52.4901, p_from_lng: -1.8901 }]);
     await expect(roads.answer(ROW.id, 'still_there', { lat: 52.49, lng: -1.89 })).rejects.toThrow("You can't confirm your own report.");
     expect(calls[1]).toEqual(['vote_road_report', { p_report_id: ROW.id, p_vote: 'still_there', p_lat: 52.49, p_lng: -1.89 }]);
@@ -94,7 +94,7 @@ describe('the RPCs', () => {
     const { client, calls } = mockClient({ road_rep_for: [{ user_id: UID, reports_confirmed: 2, reports_checked: 3, reported_rep: 20, checked_rep: 6, rep: 26 }] });
     const rep = await createRemoteRoads(client as never).rep([UID, 'demo-user', UID]);
     expect(calls[0]).toEqual(['road_rep_for', { p_user_ids: [UID] }]);
-    expect(rep[UID]).toEqual({ reportsConfirmed: 2, reportedRep: 20, reportsChecked: 3, checkedRep: 6 });
+    expect(rep[UID]).toMatchObject({ reportsConfirmed: 2, reportedRep: 20, reportsChecked: 3, checkedRep: 6, postedRep: 0, navigationRep: 0 });
   });
 
   it('listens to road_reports on Realtime and unsubscribes', () => {

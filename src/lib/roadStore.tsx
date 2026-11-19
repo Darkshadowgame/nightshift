@@ -4,7 +4,8 @@ import { AppState } from 'react-native';
 import { supabase } from './backend/client';
 import { createRemoteRoads } from './backend/roads';
 import { NO_ROAD_REP, reportsFor, type ReportContext, type RoadRep, type RoadReport, type RoadReportKind, type RoadVote } from './roadReports';
-import { createLocalRoads, EMPTY_DEMO_ROADS, type DemoRoadState, type RoadsService } from './roadService';
+import type { FinishedTrip } from './navRep';
+import { createLocalRoads, EMPTY_DEMO_ROADS, type DemoRoadState, type ReportResult, type RoadsService } from './roadService';
 import { useStore } from './store';
 import type { LatLng } from './types';
 
@@ -23,8 +24,10 @@ interface Roads {
   version: number;
   /** Road-report rep per person (for the rep ledger). */
   rep: Record<string, RoadRep>;
-  report(kind: RoadReportKind, at: LatLng, heading: number | null, from: LatLng | null): Promise<{ id: string; merged: boolean }>;
+  report(kind: RoadReportKind, at: LatLng, heading: number | null, from: LatLng | null): Promise<ReportResult>;
   answer(id: string, vote: RoadVote, from: LatLng | null): Promise<void>;
+  /** A finished in-app navigation the phone judged as counting (navRep.ts): the rep it paid. */
+  navigated(trip: FinishedTrip): Promise<{ rep: number }>;
   /** Demo: "skip the GPS check" is on, so distance checks are waived. */
   skipGps: boolean;
 }
@@ -142,6 +145,12 @@ export function RoadsProvider({ children }: { children: ReactNode }) {
         await service.answer(id, vote, from);
         bump();
       },
+      navigated: async (trip) => {
+        if (!service) return { rep: 0 };
+        const res = await service.navigated(trip);
+        if (res.rep > 0) bump();
+        return res;
+      },
     }),
     [service, version, rep, skipGps, bump],
   );
@@ -159,6 +168,7 @@ const NONE: Roads = {
   answer: async () => {
     throw new Error('Road reports are not available here.');
   },
+  navigated: async () => ({ rep: 0 }),
 };
 
 export function useRoads(): Roads {
