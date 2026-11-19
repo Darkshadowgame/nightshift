@@ -146,7 +146,8 @@ export function statusLine(
       // A connection invited you (eventInvites.ts): who, as the one next-step note.
       const by = event.invitedBy?.[ctx.me];
       const handle = by ? ctx.users.find((u) => u.id === by)?.handle : undefined;
-      const invited = handle ? { note: `Invited by @${handle}.` } : {};
+      // Never "Invited" (a banned word, 4.12): who sent it, in other words.
+      const invited = handle ? { note: `@${handle} sent you this meet.` } : {};
       // The place line only ever talks about the place (4.11, Review 19): who can come is its own row.
       const eligibility = state.request ? { eligibility: `${openToLine(event.filter)} Ask a host to let you in.` } : {};
       if (isPublicType(event.type)) return { text: shownSentence(), ...invited, ...eligibility };

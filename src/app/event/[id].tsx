@@ -736,7 +736,7 @@ export default function EventScreen() {
               return (
                 <View key={uid} style={{ gap: SPACING.xs }}>
                   {i > 0 ? <RowDivider /> : null}
-                  <ListRow leading={{ avatar: { name: u?.name, handle: u?.handle } }} title={userLabel(uid)} subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'No car or bike'} meta={inviterOf(ev, uid) ? `Asked to go · Invited by ${inviterOf(ev, uid) === me ? 'you' : displayHandle(handleOf(inviterOf(ev, uid)!))}` : 'Asked to go'} onPress={() => openUser(uid)} />
+                  <ListRow leading={{ avatar: { name: u?.name, handle: u?.handle } }} title={userLabel(uid)} subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'No car or bike'} meta={inviterOf(ev, uid) ? `Asked to go · ${inviterOf(ev, uid) === me ? 'you' : displayHandle(handleOf(inviterOf(ev, uid)!))} sent it` : 'Asked to go'} onPress={() => openUser(uid)} />
                   <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                     <Button label="Say yes" tier="secondary" size="sm" haptic="success" style={{ flex: 1 }} block accessibilityLabel={`Say yes to ${userLabel(uid)}`} onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, true), "Couldn't approve that.")} />
                     <Button label="Say no" tier="tertiary" size="sm" style={{ flex: 1 }} block accessibilityLabel={`Say no to ${userLabel(uid)}`} onPress={() => attempt('answer', () => store.answerRequest(ev.id, uid, false), "Couldn't decline that.")} />

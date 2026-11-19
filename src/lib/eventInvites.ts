@@ -50,7 +50,7 @@ export function invitedByMe(event: NightEvent, me: string): string[] {
     .map(([who]) => who);
 }
 
-/** Who invited this person ("Invited by @dan_r" on a request), when the phone knows. */
+/** Who invited this person ("Asked to go · @dan_r sent it" on a request), when the phone knows. */
 export function inviterOf(event: NightEvent, userId: string): string | undefined {
   return event.invitedBy?.[userId];
 }
@@ -123,10 +123,10 @@ export function withInvites(event: NightEvent, me: string, userIds: readonly str
   return { ...event, invitedBy };
 }
 
-/** "Invited @mo.rs3 and @aimee.r1" / "Invited 3 people": the toast after inviting. */
+/** "Sent to @mo.rs3 and @aimee.r1" / "Sent to 3 people": the toast after inviting (never "Invited", a banned word, 4.12). */
 export function invitedToast(handles: readonly string[]): string {
   if (handles.length === 0) return 'Nobody new to invite';
-  if (handles.length === 1) return `Invited @${handles[0]}`;
-  if (handles.length === 2) return `Invited @${handles[0]} and @${handles[1]}`;
-  return `Invited ${handles.length} people`;
+  if (handles.length === 1) return `Sent to @${handles[0]}`;
+  if (handles.length === 2) return `Sent to @${handles[0]} and @${handles[1]}`;
+  return `Sent to ${handles.length} people`;
 }

@@ -67,9 +67,9 @@ describe('zone names in sentences', () => {
 describe('sentToast (after hosting)', () => {
   it('says how many were invited, in the right number', () => {
     const { sentToast } = jest.requireActual('../src/lib/format') as typeof import('../src/lib/format');
-    expect(sentToast('1', false)).toBe('Invited 1 person whose car fits');
-    expect(sentToast('12', false)).toBe('Invited 12 people whose car fits');
-    expect(sentToast('fewer than 3', false)).toBe('Invited fewer than 3 people whose car fits');
+    expect(sentToast('1', false)).toBe('Sent to 1 person whose car fits');
+    expect(sentToast('12', false)).toBe('Sent to 12 people whose car fits');
+    expect(sentToast('fewer than 3', false)).toBe('Sent to fewer than 3 people whose car fits');
     expect(sentToast('…', false)).toBe('Invites sent');
     expect(sentToast('40', true)).toBe('Published');
   });

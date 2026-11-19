@@ -80,15 +80,15 @@ describe('the invitee', () => {
     const line = statusLine(e, state, { me: 'mo', crews: [], builds: [], users, votes: [], now: before });
     expect(line.eligibility).toBe('Open to bikes only. Ask a host to let you in.');
     expect(line.text).toMatch(/^Location shows/);
-    expect(line.note).toBe('Invited by @aimee_h.');
+    expect(line.note).toBe('@aimee_h sent you this meet.');
   });
 });
 
 describe('words', () => {
   it('the toast', () => {
-    expect(invitedToast(['mo.rs3'])).toBe('Invited @mo.rs3');
-    expect(invitedToast(['mo.rs3', 'aimee.r1'])).toBe('Invited @mo.rs3 and @aimee.r1');
-    expect(invitedToast(['a', 'b', 'c'])).toBe('Invited 3 people');
+    expect(invitedToast(['mo.rs3'])).toBe('Sent to @mo.rs3');
+    expect(invitedToast(['mo.rs3', 'aimee.r1'])).toBe('Sent to @mo.rs3 and @aimee.r1');
+    expect(invitedToast(['a', 'b', 'c'])).toBe('Sent to 3 people');
   });
   it('Share another way sends the event page link, never the meet point', () => {
     const p = eventSharePayload(event, 'Fri 22:00', 'https://example.test');

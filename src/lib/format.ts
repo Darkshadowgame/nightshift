@@ -57,16 +57,17 @@ export function shortAgo(iso: string, now: Date): string {
 }
 
 /**
- * The toast after hosting: "Invites sent to 12 people", "… to 1 person", "… to fewer than 3 people"
+ * The toast after hosting: "Sent to 12 people whose car fits", "… to 1 person", "… to fewer than 3 people"
  * (signed in, small counts stay vague); a public event is just "Published".
  */
 export function sentToast(invited: string, isPublic: boolean, openToAll = false): string {
   if (isPublic) return 'Published';
   // One line at 375 wide (4.7, Review 19): who, in as few words as it takes.
-  if (openToAll) return /^\d+$/.test(invited) && invited !== '1' ? `Invited ${invited} people nearby` : invited === '1' ? 'Invited 1 person nearby' : 'Invited people nearby';
+  // "Sent to", never "Invited" (a banned word, Redesign 2 4.12).
+  if (openToAll) return /^\d+$/.test(invited) && invited !== '1' ? `Sent to ${invited} people nearby` : invited === '1' ? 'Sent to 1 person nearby' : 'Sent to people nearby';
   // Who: the people nearby whose car or bike fits (REVIEW-9: "Invites sent to 1 person" with no clue who).
-  if (invited === '1') return 'Invited 1 person whose car fits';
-  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Invited ${invited} people whose car fits`;
+  if (invited === '1') return 'Sent to 1 person whose car fits';
+  if (/^\d+$/.test(invited) || invited === 'fewer than 3') return `Sent to ${invited} people whose car fits`;
   return 'Invites sent';
 }
 
