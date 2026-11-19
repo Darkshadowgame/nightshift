@@ -7,6 +7,7 @@ import { areaNameNear, nearestRegion } from '../lib/profile';
 import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
 import { PLACES, type PlaceSeed } from './places';
 import { SAMPLE_PHOTOS } from './samplePhotos';
+import { SAMPLE_REF } from '../lib/photoSource';
 import { appNow } from '../lib/appClock';
 
 /**
@@ -318,6 +319,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
   return withAreas([
     {
       // The "Start here" pick: live, open to anyone, location shown. Going, check in and vote work at once.
+      photo: `${SAMPLE_REF}ev-meet-now`,
       id: 'ev-meet-now', type: 'meet', title: 'Car park meet-up',
       description: 'Park up at the far end, no revving, leave it clean.',
       startsAt: iso(t.meetNow.start), endsAt: iso(t.meetNow.end),
@@ -331,6 +333,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       // Later tonight: the location shows at 21:30 (20 minutes into the demo), then the host moves it on.
+      photo: `${SAMPLE_REF}ev-rolling-late`,
       id: 'ev-rolling-late', type: 'rolling', title: 'Late rolling meet',
       description: 'Three meet points, planned in advance. The host moves it on, and everyone going sees where it is now.',
       startsAt: iso(t.rollingLate.start), endsAt: iso(t.rollingLate.end),
@@ -347,6 +350,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       // Class S and A only: a stock hot hatch sees "Not open to your car".
+      photo: `${SAMPLE_REF}ev-cruise-peak`,
       id: 'ev-cruise-peak', type: 'cruise', title: `${WEEKDAY_NAMES[t.cruise.start.getDay()]} night cruise`,
       description: `${d1.name}, start to finish with a regroup halfway. Speed limits all the way.`,
       startsAt: iso(t.cruise.start), endsAt: iso(t.cruise.end), area: d1.at, areaName: d1.region, routeMiles: Math.round(d1.miles ?? 20),
@@ -356,6 +360,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       going: ['dan', 'mo', 'aimee', 'sully', 'cal'], checkIns: {},
     },
     {
+      photo: `${SAMPLE_REF}ev-meet-soon`,
       id: 'ev-meet-soon', type: 'meet', title: 'Sunday coffee and cars',
       description: 'Arranged with the site. Park up, no revving, leave it clean.',
       startsAt: iso(t.coffee.start), endsAt: iso(t.coffee.end),
@@ -368,6 +373,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       // Later in the week: A and B class, so a typical hot hatch can go.
+      photo: `${SAMPLE_REF}ev-meet-tam`,
       id: 'ev-meet-tam', type: 'meet', title: 'Hot hatch meet',
       description: 'Hot hatches, stock or modified. Arranged with the site.',
       startsAt: at(now, 5, 20, 0), endsAt: at(now, 5, 23, 0), area: home, areaName: area,
@@ -377,6 +383,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       going: ['kez', 'cal', 'priya', 'em', 'bex'], checkIns: {},
     },
     {
+      photo: `${SAMPLE_REF}ev-bike-cat`,
       id: 'ev-bike-cat', type: 'cruise', title: `Sunrise ride: ${d2.name}`,
       description: 'Breakfast at the finish.',
       startsAt: at(now, 6, 7, 0), endsAt: at(now, 6, 10, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
@@ -388,6 +395,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       invitedBy: { [ME]: 'aimee' },
     },
     {
+      photo: `${SAMPLE_REF}ev-show-don`,
       id: 'ev-show-don', type: 'show', title: 'Modified show day',
       description: 'Show-and-shine, club stands and a trade area. Tickets through the venue.',
       startsAt: at(now, 12, 9, 0), endsAt: at(now, 12, 17, 0), area: circuit.at, areaName: circuit.name,
@@ -398,6 +406,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       // Ended a week ago, voting closed: results, trophies and photos.
+      photo: `${SAMPLE_REF}ev-past-snowdome`,
       id: 'ev-past-snowdome', type: 'meet', title: "Last week's meet",
       description: 'Same car park, last Friday.',
       startsAt: iso(t.lastWeek.start), endsAt: iso(t.lastWeek.end), area: home, areaName: area,

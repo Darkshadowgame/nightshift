@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { at, mainBuild, openProfile, openReport, OptionsSheet, PersonRow, personMark, type SheetOption } from '../../components/Community';
 import { ownBuilds } from '../../lib/bringing';
 import { INPUT } from '../../components/ComposerParts';
@@ -39,7 +39,17 @@ export default function ChatScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  // The tab bar steps aside while the phone's keyboard is up (not on web: no layout jump under a tap).
   const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const show = Keyboard.addListener('keyboardDidShow', () => setTyping(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setTyping(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
   /** While the "Sent" toast shows, the newest message sits above it, never under it (Review 14). */
   const [toastRoom, setToastRoom] = useState(false);
@@ -158,7 +168,7 @@ export default function ChatScreen() {
   // at lunchtime makes sense (Review 19 #36).
   const dayLine = (d: string) => {
     const label = dayLabelShort(d, now);
-    return demo && label === 'Today' ? `Demo night · ${WEEKDAY_SHORT[new Date(d).getDay()]}` : label;
+    return demo && label === 'Today' ? `Demo · ${WEEKDAY_SHORT[new Date(d).getDay()]}` : label;
   };
 
   /** Messages from one person within 10 minutes run together: one name, one time under the last. */
@@ -320,8 +330,6 @@ export default function ChatScreen() {
               numberOfLines={1}
               maxLength={MESSAGE_MAX}
               accessibilityLabel="Message"
-              onFocus={() => setTyping(true)}
-              onBlur={() => setTyping(false)}
               style={[INPUT, { flex: 1, maxHeight: 120 }]}
             />
             <Button label="Send" size="md" haptic="success" onPress={() => void send({ body: text })} busy={busy} />

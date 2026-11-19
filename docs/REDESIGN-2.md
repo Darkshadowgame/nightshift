@@ -1078,3 +1078,16 @@ clashed, the owner's earlier decisions stand:
       How far sheet), not a second row.
     * **Garage:** the header's add is a car with a plus (not the bare "+", which hosts on Tonight);
       it's still in the "+" place (4.1). Under the main build: its mods and Power and dyno.
+12. **Review 19 fixes: people, Community and photos (owner decisions, 19 Nov 2026):**
+    * **Photo tiles always fill:** in photo grids and strips (an event's Photos, thumbnails, build
+      photos, a composer's row, chat grids) every tile is cover-fit (`FitImage fit="cover"`). The
+      whole-photo-over-a-blur fit is only for heroes and single-photo views.
+    * **Car-photo avatars:** a person's Avatar shows their main build's photo by default (in the demo
+      its stand-in); initials only for someone with no car or bike. Still "avatar + @handle" (K3).
+    * **A tab bar on a profile and a chat:** both keep a copy of the tab bar under their ActionBar, so
+      a tab is always one tap away (the chat hides it while you type). The owning tab (Community) is lit.
+    * **Demo clock in chats:** a chat's day label reads "Demo · Fri" in the demo, like Tonight's tag.
+    * **Photos:** no solid boxes over plates (plates are filled with the panel round them, or the photo
+      shows none); night or dusk photos for the sample meets; one photo on at
+      most two screens in the normal demo (a post shows its own photo, not its build's); every bundled
+      photo at least as large as it's shown (1200 x 900, meets 1600 x 900, posts 1080 x 1350).
