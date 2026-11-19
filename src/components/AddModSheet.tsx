@@ -29,7 +29,7 @@ const OTHER = '__other';
  * "Add a mod" (Redesign 2, 3.9): a short sheet, never the whole Edit build form. The kind of part
  * (Engine, Suspension, Wheels, Looks) → the common parts as a list with a tick on the one picked
  * (4.4: one of more than five is a list, never chips) → "Something else" to type one → the power
- * gain once a part is picked → Add. The toast says the build's class and power afterwards.
+ * gain once a part is picked → "Add {part}" (shown only once there's a part). The toast says the build's class and power afterwards.
  */
 export function AddModSheet({
   visible,
@@ -181,7 +181,8 @@ export function AddModSheet({
       ) : null}
       {picked?.roadLegal === false ? <DsText v="caption" tone="warning">{`${OFF_ROAD_TAG}: you can still log it.`}</DsText> : null}
       {error ? <ErrorState title={error} /> : null}
-      <Button label={name ? `Add ${name}` : 'Add'} block haptic="success" busy={busy} onPress={add} />
+      {/* No primary until there's a part to add (Review 19 #40, 4.3): then it names it. */}
+      {name ? <Button label={`Add ${name}`} block haptic="success" busy={busy} onPress={add} /> : null}
     </Sheet>
   );
 }

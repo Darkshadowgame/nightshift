@@ -96,7 +96,7 @@ export default function SettingsScreen() {
       <Group title="Account">
         {demo ? (
           // Every demo control, the way out included, is in the Demo group at the bottom (owner, Review 17).
-          <ListRow title="You're trying the demo" subtitle="Leave it from Demo, at the bottom of Settings." />
+          <ListRow title="You're trying the demo" subtitle="Leave it at the bottom of this page." />
         ) : (
           <View>
             <ListRow title={auth.email ? `Signed in as ${auth.email}` : 'Signed in'} subtitle={store.online ? (store.pendingWrites > 0 ? 'Sending changes made offline…' : undefined) : 'Offline: showing what this phone last saw'} />

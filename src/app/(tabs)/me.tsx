@@ -16,8 +16,8 @@ import { useNow } from '../../lib/clock';
 import { endTime, isHost, phaseOf } from '../../lib/events';
 import { viewEvent } from '../../lib/eventView';
 import { useDistanceOrigin } from '../../lib/useDistanceOrigin';
-import { SCREEN_TITLES } from '../../lib/glossary';
-import { attendedEvents, levelLabel } from '../../lib/rep';
+import { aroundArea, SCREEN_TITLES } from '../../lib/glossary';
+import { levelLabel } from '../../lib/rep';
 import { useStore } from '../../lib/store';
 import { eventTimeLabel } from '../../lib/when';
 import { ASPECT, COLOR, SPACING } from '../../theme';
@@ -61,7 +61,7 @@ const DEMO_RESULTS_EVENT = 'ev-past-snowdome';
 /**
  * Me (Redesign 2, 3.10; T1): you, your meets and your trophies. Avatar, @handle and your level on
  * one line (tap for the ladder; owner decision, section 9) → your main build → Meets, Hosted,
- * Trophies → your meets, next then past → trophy covers → Edit profile, help, feedback.
+ * Trophies (Meets counts the rows below) → Coming up, then Past meets → trophy covers → Edit profile, help, feedback.
  * Settings is the gear in the header only (REVIEW-12 #6; said once, C5).
  */
 export default function Me() {
@@ -81,7 +81,9 @@ export default function Me() {
   const mine = events.filter((e) => host(e) || e.going.includes(me) || checkedIn(e));
   const next = mine.filter((e) => { const p = phaseOf(e, now); return p !== 'over' && p !== 'cancelled'; }).sort((a, b) => startMs(a.startsAt) - startMs(b.startsAt));
   const past = mine.filter((e) => phaseOf(e, now) === 'over' && (checkedIn(e) || host(e))).sort((a, b) => startMs(b.startsAt) - startMs(a.startsAt));
-  const meets = attendedEvents(events, me, now).length;
+  // Meets counts exactly the rows under Coming up and Past meets (Review 19 #47): the ones you're going to or
+  // hosting, and the ones you went to or hosted. Hosted is the part of them you host.
+  const meets = next.length + past.length;
   // Hosted counts the meets you host that are still to come too, so it's never "0 Hosted" while you're hosting one.
   const hosted = events.filter((e) => host(e) && phaseOf(e, now) !== 'cancelled').length;
   const results = events.find((e) => e.id === DEMO_RESULTS_EVENT && phaseOf(e, now) === 'over' && !past.some((x) => x.id === e.id));
@@ -97,6 +99,14 @@ export default function Me() {
   const view = (e: (typeof events)[number]) => viewEvent(e, me, crews, users, builds, now);
   // The one distance origin, the same as Tonight and Search (useDistanceOrigin, Review 18).
   const origin = useDistanceOrigin();
+  // Two of your meets with the same name (one you host, one you're going to) also say where, so
+  // they never look the same (Review 19 #49): the meet point when you can see it, else "Around Tamworth".
+  const listed = [...next, ...pastShown];
+  const placeIfTwin = (e: (typeof events)[number]) => {
+    if (!listed.some((x) => x.id !== e.id && x.title.trim().toLowerCase() === e.title.trim().toLowerCase())) return null;
+    const v = view(e);
+    return v.shownStop >= 0 ? e.stops[v.shownStop]?.name || e.areaName : aroundArea(e.areaName);
+  };
 
   return (
     <ScrollView contentContainerStyle={st.page} showsVerticalScrollIndicator={false}>
@@ -137,9 +147,13 @@ export default function Me() {
         ]}
       />
 
-      <Section title="Your meets">
-        {next.length === 0 && pastShown.length === 0 ? (
-          <EmptyState variant="inline" title="Nothing yet. Say you're going to a meet on Tonight." action={{ label: 'See tonight', onPress: () => router.navigate('/') }} />
+      <Section title="Coming up">
+        {next.length === 0 ? (
+          <EmptyState
+            variant="inline"
+            title={pastShown.length ? "Nothing coming up. Say you're going to a meet on Tonight." : "Nothing yet. Say you're going to a meet on Tonight."}
+            action={{ label: 'See tonight', onPress: () => router.navigate('/') }}
+          />
         ) : null}
         {next.length ? (
           <View>
@@ -147,37 +161,37 @@ export default function Me() {
               // K3: the one event row (Tonight's list and Search), with the one status tag.
               <View key={e.id}>
                 {i ? <RowDivider /> : null}
-                <EventRow view={view(e)} now={now} origin={origin} onPress={() => openEvent(e.id)} />
+                <EventRow view={view(e)} now={now} origin={origin} place={placeIfTwin(e)} onPress={() => openEvent(e.id)} />
               </View>
             ))}
           </View>
         ) : null}
-        {pastShown.length ? (
-          <View style={{ gap: SPACING.xxs }}>
-            <DsText v="label" accessibilityRole="header">
-              Past
-            </DsText>
-            <View>
-              {pastShown.map((e, i) => {
-                const label = e === results ? 'Results' : host(e) ? 'Hosted' : 'Went';
-                return (
-                  <View key={e.id}>
-                    {i ? <RowDivider /> : null}
-                    <EventRow
-                      view={view(e)}
-                      now={now}
-                      origin={origin}
-                      tag={{ label, tone: 'neutral' }}
-                      onPress={() => openEvent(e.id)}
-                      accessibilityHint={e === results ? 'Opens the results and trophies' : undefined}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
       </Section>
+
+      {pastShown.length ? (
+        // The same section header as Coming up, rule line and all (Review 19 #48).
+        <Section title="Past meets">
+          <View>
+            {pastShown.map((e, i) => {
+              const label = e === results ? 'Results' : host(e) ? 'Hosted' : 'Went';
+              return (
+                <View key={e.id}>
+                  {i ? <RowDivider /> : null}
+                  <EventRow
+                    view={view(e)}
+                    now={now}
+                    origin={origin}
+                    place={placeIfTwin(e)}
+                    tag={{ label, tone: 'neutral' }}
+                    onPress={() => openEvent(e.id)}
+                    accessibilityHint={e === results ? 'Opens the results and trophies' : undefined}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        </Section>
+      ) : null}
 
       <Section title="Trophies">
         {myAwards.length === 0 ? (

@@ -13,7 +13,7 @@ import { cardDistance, cardTime, notOpenLine, statusTag } from './TonightCards';
  * distance), "Not open to your car" when it isn't, and your status as its tag.
  *
  * `tag` overrides the status tag (Me's "Results"); `notOpen` overrides who-can-come (Search's own
- * check).
+ * check); `place` adds where it is, last, when two rows would otherwise read the same (Me).
  */
 export function EventRow({
   view: v,
@@ -22,6 +22,7 @@ export function EventRow({
   onPress,
   tag,
   notOpen,
+  place,
   accessibilityHint,
 }: {
   view: EventView;
@@ -31,6 +32,7 @@ export function EventRow({
   onPress: () => void;
   tag?: EntityTag;
   notOpen?: boolean;
+  place?: string | null;
   accessibilityHint?: string;
 }) {
   const e = v.event;
@@ -42,7 +44,7 @@ export function EventRow({
       title={e.title}
       // Never cut (Review 17, 1.3x text): the meta wraps to as many lines as it needs, breaking after a
       // "·" rather than before it, so no line starts with a dot.
-      subtitle={metaLine([EVENT_LABELS[e.type], cardTime(e, now), cardDistance(v, origin)]).replace(/ · /g, '\u00a0· ')}
+      subtitle={metaLine([EVENT_LABELS[e.type], cardTime(e, now), cardDistance(v, origin), place]).replace(/ · /g, '\u00a0· ')}
       subtitleLines={4}
       meta={closed ? NOT_OPEN : undefined}
       trailing={shown ? <Tag label={shown.label} tone={shown.tone as TagTone} /> : undefined}

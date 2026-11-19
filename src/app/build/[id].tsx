@@ -3,11 +3,11 @@ import { useLayoutEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { AddModSheet } from '../../components/AddModSheet';
 import { PaintedArt } from '../../components/BuildArt';
-import { MOD_SECTIONS, sectionOfCategory, useBuildPicture } from '../../components/BuildBits';
+import { ModGroups, useBuildPicture } from '../../components/BuildBits';
 import { at, isStaffNow, openProfile, openReport, OptionsSheet, personMark } from '../../components/Community';
 import { Cover } from '../../components/Cover';
 import { NotFoundState } from '../../components/Detail';
-import { ActionBar, DsText, EmptyState, ErrorState, FitImage, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
+import { ActionBar, ErrorState, FitImage, HeaderActions, Hero, ListRow, PAGE_WITH_BAR, RowDivider, Section, StatBlock, Tag, metaLine, useToast } from '../../components/ds';
 import { DynoBadge } from '../../components/DynoBadge';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { PhotoManager } from '../../components/PhotoManager';
@@ -17,8 +17,7 @@ import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity } from '../../lib/communityStore';
 import { dynoBadge, headlinePower, latestRun } from '../../lib/dyno';
-import { isRoadIllegal, OFF_ROAD_TAG } from '../../lib/legality';
-import { modCount, sharedGroupLabel } from '../../lib/modGroups';
+import { modCount } from '../../lib/modGroups';
 import { photoSource } from '../../lib/photoSource';
 import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
@@ -60,7 +59,6 @@ export default function BuildScreen() {
   const covers = won.filter((a) => categoryInfo(a.category).cover);
   const swap = swapTag(b);
   const stage = b.tuneStage ?? stageFromMods(b.mods);
-  const groups = MOD_SECTIONS.map((s) => ({ ...s, mods: b.mods.filter((m) => sectionOfCategory(m.category) === s.key) })).filter((g) => g.mods.length);
   const latest = latestRun(b.dynoRuns);
   const photo = pic?.ref;
   const kindLine = metaLine([b.kind === 'bike' ? 'Bike' : 'Car', b.year ? String(b.year) : null, stage !== 'stock' ? stageLabel(stage) : null, swap]);
@@ -100,32 +98,7 @@ export default function BuildScreen() {
         ) : null}
 
         <Section title="Mods">
-          {groups.length === 0 ? <EmptyState variant="inline" title={mine ? 'Stock for now. Add what you have done to it.' : 'Stock for now.'} /> : null}
-          {groups.map((g) => (
-            <View key={g.key} style={{ gap: SPACING.xxs }}>
-              <DsText v="label" accessibilityRole="header">
-                {g.label}
-              </DsText>
-              <View>
-                {g.mods.map((m, i) => (
-                  <View key={m.id}>
-                    {i ? <RowDivider /> : null}
-                    <ListRow
-                      title={m.name}
-                      subtitle={metaLine([m.note, sharedGroupLabel(m, b.mods) ? `Counts once as ${sharedGroupLabel(m, b.mods)!.toLowerCase()}` : null]) || undefined}
-                      trailing={
-                        <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
-                          {m.bhpGain ? <DsText v="meta">+{m.bhpGain} bhp</DsText> : null}
-                          {isRoadIllegal(m) ? <Tag label="Off-road only" tone="warning" accessibilityLabel={OFF_ROAD_TAG} /> : null}
-                        </View>
-                      }
-                      accessibilityLabel={metaLine([m.name, m.bhpGain ? `plus ${m.bhpGain} bhp` : null, isRoadIllegal(m) ? OFF_ROAD_TAG : null])}
-                    />
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
+          <ModGroups build={b} mine={mine} />
         </Section>
 
         {mine ? (

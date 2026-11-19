@@ -2,12 +2,13 @@ import { router, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { AddModSheet } from '../../components/AddModSheet';
-import { BuildCard, buildName, powerLine } from '../../components/BuildBits';
-import { Button, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, useToast } from '../../components/ds';
+import { BuildCard, buildName, ModGroups, powerLine, useIsDemo } from '../../components/BuildBits';
+import { Button, DsText, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, useToast } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { lastBrought } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
+import { buildPicture } from '../../lib/similarPhoto';
 import { useStore } from '../../lib/store';
 import { SPACING } from '../../theme';
 
@@ -29,6 +30,7 @@ export default function Garage() {
   const others = mine.filter((b) => b.id !== main?.id);
   const [addMod, setAddMod] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const demo = useIsDemo();
   const flow = usePhotoFlow({
     aspect: '4:3',
     onError: setError,
@@ -41,7 +43,7 @@ export default function Garage() {
   });
 
   useLayoutEffect(() => {
-    nav.setOptions({ headerRight: () => <HeaderActions add={{ label: 'Add a car or bike', onPress: addBuild }} bell /> });
+    nav.setOptions({ headerRight: () => <HeaderActions add={{ label: 'Add a car or bike', onPress: addBuild, icon: 'addVehicle' }} bell /> });
   }, [nav]);
 
   if (!main) {
@@ -57,10 +59,34 @@ export default function Garage() {
       {flow.view}
       <View style={{ gap: SPACING.sm }}>
         <BuildCard build={main} now={now} onPress={() => openBuild(main.id)} action={{ label: 'Add a mod', onPress: () => setAddMod(true) }} />
-        {main.photos.length === 0 ? <Button label={`Add a photo of your ${main.kind === 'bike' ? 'bike' : 'car'}`} tier="tertiary" size="sm" icon="plus" busy={flow.busy} onPress={() => flow.pick()} style={{ alignSelf: 'center' }} /> : null}
+        {main.photos.length === 0 ? (
+          // A stand-in photo says it's one, so "Add a photo" under a photo makes sense (Review 19 #38).
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: SPACING.xs }}>
+            {buildPicture(main, demo)?.standIn ? <DsText v="secondary">Sample photo.</DsText> : null}
+            <Button
+              label={buildPicture(main, demo)?.standIn ? 'Add yours' : `Add a photo of your ${main.kind === 'bike' ? 'bike' : 'car'}`}
+              accessibilityLabel={`Add a photo of your ${main.kind === 'bike' ? 'bike' : 'car'}`}
+              tier="tertiary"
+              size="sm"
+              icon="plus"
+              busy={flow.busy}
+              onPress={() => flow.pick()}
+            />
+          </View>
+        ) : null}
         {error ? <ErrorState title={error} /> : null}
       </View>
       <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />
+
+      {/* The build sheet under the card (Review 19 #39): what's done to it, then where the power comes from. */}
+      <Section title="Mods">
+        <ModGroups build={main} mine />
+      </Section>
+      <View>
+        <RowDivider />
+        <ListRow title="Power and dyno" subtitle="How the power is worked out" onPress={() => router.push({ pathname: '/build/power', params: { id: main.id } })} />
+        <RowDivider />
+      </View>
 
       {others.length ? (
         <Section title="Other builds">

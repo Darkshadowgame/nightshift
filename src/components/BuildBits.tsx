@@ -2,14 +2,17 @@ import { carShape } from '../lib/buildShape';
 import { classOf } from '../lib/classes';
 import { dynoBadge, powerText } from '../lib/dyno';
 import { plural } from '../lib/format';
-import { modCount } from '../lib/modGroups';
+import { isRoadIllegal, OFF_ROAD_TAG } from '../lib/legality';
+import { modCount, sharedGroupLabel } from '../lib/modGroups';
 import { photoSource } from '../lib/photoSource';
 import { buildPicture } from '../lib/similarPhoto';
 import { useStore } from '../lib/store';
 import type { ModGroup } from '../data/catalog';
 import type { Build, ModCategory } from '../lib/types';
 import { PaintedArt } from './BuildArt';
-import { PhotoCard, metaLine, type CardAction } from './ds';
+import { View } from 'react-native';
+import { SPACING } from '../theme';
+import { DsText, EmptyState, ListRow, PhotoCard, RowDivider, Tag, metaLine, type CardAction } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
 /** "Ford Fiesta ST Mk8": a build's name, as typed. */
@@ -95,4 +98,43 @@ export function sectionOfCategory(category: ModCategory): ModSection {
   if (category === 'wheels') return 'wheels';
   if (category === 'engine' || category === 'turbo' || category === 'intake' || category === 'exhaust') return 'engine';
   return 'looks';
+}
+
+/**
+ * A build's mods in their four groups (Engine, Chassis, Wheels, Looks), each with its gain: the
+ * build page's Mods section, and the Garage under your main build (Review 19 #39). `mine` words the
+ * empty state for the owner.
+ */
+export function ModGroups({ build: b, mine }: { build: Build; mine: boolean }) {
+  const groups = MOD_SECTIONS.map((s) => ({ ...s, mods: b.mods.filter((m) => sectionOfCategory(m.category) === s.key) })).filter((g) => g.mods.length);
+  if (groups.length === 0) return <EmptyState variant="inline" title={mine ? 'Stock for now. Add what you have done to it.' : 'Stock for now.'} />;
+  return (
+    <>
+      {groups.map((g) => (
+        <View key={g.key} style={{ gap: SPACING.xxs }}>
+          <DsText v="label" accessibilityRole="header">
+            {g.label}
+          </DsText>
+          <View>
+            {g.mods.map((m, i) => (
+              <View key={m.id}>
+                {i ? <RowDivider /> : null}
+                <ListRow
+                  title={m.name}
+                  subtitle={metaLine([m.note, sharedGroupLabel(m, b.mods) ? `Counts once as ${sharedGroupLabel(m, b.mods)!.toLowerCase()}` : null]) || undefined}
+                  trailing={
+                    <View style={{ alignItems: 'flex-end', gap: SPACING.xs }}>
+                      {m.bhpGain ? <DsText v="meta">+{m.bhpGain} bhp</DsText> : null}
+                      {isRoadIllegal(m) ? <Tag label="Off-road only" tone="warning" accessibilityLabel={OFF_ROAD_TAG} /> : null}
+                    </View>
+                  }
+                  accessibilityLabel={metaLine([m.name, m.bhpGain ? `plus ${m.bhpGain} bhp` : null, isRoadIllegal(m) ? OFF_ROAD_TAG : null])}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </>
+  );
 }

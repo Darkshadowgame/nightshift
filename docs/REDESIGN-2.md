@@ -1058,3 +1058,23 @@ clashed, the owner's earlier decisions stand:
       when you can simply go). The meet's pin glyph never changes when you go or its place shows.
     * **Route preview:** one credit chip; the route and its destination are fitted clear of the
       chip and the map buttons (map padding), never under them.
+11. **Review 19 path to 10: sign-in, onboarding, hosting, Me, Settings, Garage (owner decisions, 19 Nov
+    2026):**
+    * **Sign-in:** the 18+ tick sits inside the ActionBar, right above Try the demo, so it's seen
+      before either button (3.1 said "above the ActionBar").
+    * **"It's up" after posting** is its own route (`event/posted`) with **no back arrow** (a 4.2
+      exception): the form is finished, so the header's **Done** closes it; Share (primary) and Open
+      the meet are the two ways on. Its hero is the meet's own PhotoCard, as on Tonight.
+    * **Host form:** the Name example never matches a seeded meet ("e.g. Friday night car park
+      meet"; `__tests__/placeholders.test.ts`). The Starts and Ends sheets show the evening (17–23)
+      first; "Show earlier hours" adds the rest. Step 3 says "people", never "drivers". Step 2's
+      prompt is a solid chip, never text printed over the map's labels.
+    * **Your own meet's `···`:** "Cancel this meet…" (its type) in red, then the ConfirmSheet
+      "Cancel the meet?" (Cancel it / Keep it).
+    * **Me:** the Meets stat counts exactly the rows under Coming up and Past meets (Hosted is the part
+      of them you host). Past meets is its own section with the same header. Two meets with one name
+      add where they are to the meta line. Distances: "about" only while the meet point is hidden.
+    * **Settings:** "New meets within [25 mi]" is one row; the distance is its tappable value (a
+      How far sheet), not a second row.
+    * **Garage:** the header's add is a car with a plus (not the bare "+", which hosts on Tonight);
+      it's still in the "+" place (4.1). Under the main build: its mods and Power and dyno.

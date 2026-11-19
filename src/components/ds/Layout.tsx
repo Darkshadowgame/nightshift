@@ -3,6 +3,7 @@ import { Platform, View } from 'react-native';
 import { COLOR, RADII, SPACING } from '../../theme';
 import { NoticeBell } from '../NoticeBell';
 import { IconButton } from './Button';
+import type { IconName } from './Icon';
 import { statA11yLabel } from './logic';
 import { Press } from './Press';
 import { DsText } from './Text';
@@ -30,7 +31,7 @@ export function Section({ title, right, children, gap = 'md' }: { title: string;
 export type HeaderAction = { label: string; onPress: () => void; accessibilityLabel?: string };
 
 /** The tab header's "+" (Tonight, Community, Garage only): what it makes, said in the label. */
-export type HeaderAdd = { onPress: () => void; label: string };
+export type HeaderAdd = { onPress: () => void; label: string; /** A glyph that says what it makes (the Garage's car with a plus); "+" by default. */ icon?: IconName };
 
 /** One text action in a pushed screen's header ("Share"): chalk, 44 pt tall. */
 export function HeaderTextAction({ label, onPress, accessibilityLabel }: HeaderAction) {
@@ -66,7 +67,7 @@ export function HeaderActions({ action: given, add: addGiven, bell, onMenu }: { 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
       {action ? <HeaderTextAction {...action} /> : null}
-      {add ? <IconButton icon="plus" label={add.label} onPress={add.onPress} /> : null}
+      {add ? <IconButton icon={add.icon ?? 'plus'} label={add.label} onPress={add.onPress} /> : null}
       {bell ? <NoticeBell /> : null}
       {onMenu ? <IconButton icon="more" label="More options" onPress={onMenu} /> : null}
     </View>

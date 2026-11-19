@@ -6,7 +6,7 @@ import { COLOR } from '../../theme';
  * Unicode stand-ins (›, ✕, ✓, ···, ⚠) in components. Decorative: the control
  * that holds an icon carries the accessibility label.
  */
-export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share';
+export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share' | 'addVehicle';
 
 export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: IconName; size?: number; colour?: string }) {
   const p = { stroke: colour, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -23,6 +23,15 @@ export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: I
       {name === 'back' ? <Path d="M15 5l-7 7 7 7" {...p} /> : null}
       {name === 'check' ? <Path d="M5 12.5l4.5 4.5L19 7.5" {...p} /> : null}
       {name === 'plus' ? <Path d="M12 5v14M5 12h14" {...p} /> : null}
+      {name === 'addVehicle' ? (
+        // A car with a plus: the Garage's "+", so it never reads as "host a meet" (Review 19 #37).
+        <>
+          <Path d="M5 17H3v-4l2-4h8l3 4h3.5a1.5 1.5 0 0 1 1.5 1.5V17h-2M9 17h5" {...p} />
+          <Circle cx={7} cy={17} r={2} {...p} />
+          <Circle cx={16} cy={17} r={2} {...p} />
+          <Path d="M19 2.5v5M16.5 5h5" {...p} />
+        </>
+      ) : null}
       {name === 'edit' ? <Path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" {...p} /> : null}
       {name === 'more' ? (
         <>
