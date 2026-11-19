@@ -5,8 +5,8 @@ import type { SamplePhoto } from './samplePhotos';
 /**
  * Stand-in photos for a demo build with no photo of its own (similarPhoto.ts; REVIEW-13 #2, L1):
  * the cars and bikes UK newcomers most often pick. Real Wikimedia Commons photos, free licences only
- * (CC BY, CC BY-SA, CC0, public domain), bundled at 480 x 360 like samplePhotos.ts and credited
- * through the ⓘ with author, licence and the Commons page. Readable plates are covered (`edited`).
+ * (CC BY, CC BY-SA, CC0, public domain), bundled at 1200 x 900 like samplePhotos.ts and credited
+ * through the ⓘ with author, licence and the Commons page. Plates are removed, filled with the panel round them (`edited`).
  *
  * None of these is a photo any sample person's build or post uses (postPrivacy.test.ts), so "your"
  * car never looks like someone else's. `fits` says which saved models each photo stands in for:
@@ -28,7 +28,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -42,7 +42,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Mr.choppers',
       licence: 'CC BY-SA 3.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -69,7 +69,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -78,6 +78,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'volkswagen', model: 'golf gti', gens: ['mk7', 'mk7.5'] }],
     photo: {
       image: require('../../assets/stand-ins/golf-gti-mk7.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2018_Volkswagen_Golf_GTi_TSi_S-A_2.0_(1).jpg',
       title: 'Volkswagen Golf GTI (Mk7.5, 2018)',
       author: 'Vauxford',
@@ -91,6 +92,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'volkswagen', model: 'golf gti', gens: ['mk8', 'mk8.5'] }],
     photo: {
       image: require('../../assets/stand-ins/golf-gti-mk8.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:Volkswagen_GOLF_GTI_(3BA-CDDNP).jpg',
       title: 'Volkswagen Golf GTI (Mk8)',
       author: 'Tokumeigakarinoaoshima',
@@ -104,6 +106,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'volkswagen', model: 'golf r', gens: ['mk7', 'mk7.5'] }],
     photo: {
       image: require('../../assets/stand-ins/golf-r-mk7.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2017_Volkswagen_Golf_R_TSi_S-A_facelift_2.0_Front.jpg',
       title: 'Volkswagen Golf R (Mk7.5, 2017)',
       author: 'Vauxford',
@@ -117,6 +120,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'volkswagen', model: 'polo gti', gens: ['aw'] }],
     photo: {
       image: require('../../assets/stand-ins/polo-gti.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2016_Volkswagen_Polo_GTi_1.8.jpg',
       title: 'Volkswagen Polo GTI (AW)',
       author: 'Vauxford',
@@ -130,6 +134,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'honda', model: 'civic type r', gens: ['fk2'] }],
     photo: {
       image: require('../../assets/stand-ins/civic-fk2.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2017_Honda_Civic_Type-R_I-VTEC_2.0.jpg',
       title: 'Honda Civic Type R (FK2, 2017)',
       author: 'Vauxford',
@@ -149,7 +154,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Ethan Llamas',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -163,7 +168,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Kevauto',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -172,6 +177,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'hyundai', model: 'i30 n', gens: ['pd'] }],
     photo: {
       image: require('../../assets/stand-ins/i30n.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2017_Hyundai_i30_N_Performance_T-GDi_2.0_Front.jpg',
       title: 'Hyundai i30 N Performance (2017)',
       author: 'Vauxford',
@@ -190,7 +196,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -204,7 +210,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Charles01',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -218,7 +224,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'RL GNZLZ from Chile',
       licence: 'CC BY-SA 2.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/2.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -232,7 +238,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -246,7 +252,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -255,6 +261,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'mazda', model: 'mx-5', gens: ['nd', 'nd2'] }, { make: 'mazda', model: 'mx-5 rf', gens: ['nd', 'nd2'] }],
     photo: {
       image: require('../../assets/stand-ins/mx5-nd.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2016_Mazda_MX-5_Sport_NAV_1.5_Front.jpg',
       title: 'Mazda MX-5 (ND, 2016)',
       author: 'Vauxford',
@@ -273,7 +280,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'SsmIntrigue',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -287,7 +294,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -301,7 +308,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -315,7 +322,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -324,6 +331,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'toyota', model: 'gr supra' }, { make: 'toyota', model: 'supra', gens: ['a90'] }],
     photo: {
       image: require('../../assets/stand-ins/supra-a90.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2019_Toyota_Supra_Pro_Automatic_3.0_Front.jpg',
       title: 'Toyota GR Supra (A90)',
       author: 'Vauxford',
@@ -337,6 +345,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'subaru', model: 'impreza', gens: ['new age', 'hawkeye'] }, { make: 'subaru', model: 'impreza wrx sti', gens: ['new age', 'hawkeye'] }],
     photo: {
       image: require('../../assets/stand-ins/impreza-gd.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2005.impreza.gx.sport.jpg',
       title: 'Subaru Impreza WRX (GD, 2004)',
       author: 'Jbattersby at English Wikipedia',
@@ -354,7 +363,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Elise240SX',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -380,7 +389,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -394,7 +403,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -408,7 +417,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'MrWalkr',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -422,7 +431,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -436,7 +445,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -450,7 +459,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Vauxford',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -459,6 +468,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'nissan', model: '350z' }],
     photo: {
       image: require('../../assets/stand-ins/350z.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2004_Nissan_350Z_3.5_Front.jpg',
       title: 'Nissan 350Z',
       author: 'Vauxford',
@@ -477,7 +487,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -491,7 +501,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Mr.choppers',
       licence: 'CC BY-SA 3.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -505,7 +515,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
       author: 'Calreyn88',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate covered',
+      edited: 'Plate removed',
     },
   },
   {
@@ -514,6 +524,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'seat', model: 'leon cupra', gens: ['mk3'] }, { make: 'cupra', model: 'leon', gens: ['mk3'] }],
     photo: {
       image: require('../../assets/stand-ins/leon-cupra.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2019_SEAT_Leon_Cupra_300_TSi_4Drive_Estate_2.0_Front.jpg',
       title: 'SEAT Leon Cupra (Mk3 facelift)',
       author: 'Vauxford',
@@ -527,6 +538,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'mercedes', model: 'a45', gens: ['w177'] }],
     photo: {
       image: require('../../assets/stand-ins/a45.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2020_Mercedes-AMG_A_45_S_4MATIC%2B_Automatic_2.0_Front.jpg',
       title: 'Mercedes-AMG A 45 S (W177)',
       author: 'Vauxford',
@@ -540,6 +552,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     fits: [{ make: 'abarth', model: '595' }],
     photo: {
       image: require('../../assets/stand-ins/abarth-595.jpg'),
+      edited: 'Plate removed',
       page: 'https://commons.wikimedia.org/wiki/File:2017_Abarth_595_Trofeo_1.4_Front.jpg',
       title: 'Abarth 595 Pista',
       author: 'Vauxford',

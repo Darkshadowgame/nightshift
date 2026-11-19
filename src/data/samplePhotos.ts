@@ -5,7 +5,7 @@ import { STAND_IN_PHOTOS } from './standInPhotos';
  * Real photos for the demo's sample builds, posts and photo spots, from
  * Wikimedia Commons. Free licences only (CC0, public domain, CC BY, CC BY-SA),
  * each credited on screen with its author and licence and linked to its Commons
- * page. Number plates are unreadable or covered by us (marked `edited`).
+ * page. Number plates are unreadable or removed by us, filled with the panel round them (marked `edited`).
  * Bundled at 1200 x 900 (4:3; meets' night photos 1600 x 900), at least the size they're shown at,
  * so no network is needed and nothing is upscaled (Review 19).
  */
@@ -36,7 +36,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Alexander Migl',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Plate covered',
+    edited: 'Plate removed',
   },
   'b-kez-0': {
     image: require('../../assets/sample-photos/b-kez-0.jpg'),
@@ -58,6 +58,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
   },
   'b-jord-0': {
     image: require('../../assets/sample-photos/b-jord-0.jpg'),
+    edited: 'Plate removed',
     page: 'https://commons.wikimedia.org/wiki/File:2017_Ford_Fiesta_ST-3_Turbo_1.6_Front.jpg',
     title: 'Ford Fiesta ST-3 (Mk7)',
     author: 'Vauxford',
@@ -91,6 +92,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
   },
   'b-bex-0': {
     image: require('../../assets/sample-photos/b-bex-0.jpg'),
+    edited: 'Plate removed',
     page: 'https://commons.wikimedia.org/wiki/File:2017_Volkswagen_Golf_GTi_TSi_2.0_Front.jpg',
     title: 'Volkswagen Golf GTI (Mk7.5, 2017)',
     author: 'Vauxford',
@@ -118,6 +120,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
   },
   'b-cal-0': {
     image: require('../../assets/sample-photos/b-cal-0.jpg'),
+    edited: 'Plate removed',
     page: 'https://commons.wikimedia.org/wiki/File:2017_Ford_Focus_RS_2.3.jpg',
     title: 'Ford Focus RS (Mk3, 2017)',
     author: 'Vauxford',
@@ -126,6 +129,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
   },
   'b-ash-0': {
     image: require('../../assets/sample-photos/b-ash-0.jpg'),
+    edited: 'Plate removed',
     page: 'https://commons.wikimedia.org/wiki/File:Saxo_3.JPG',
     title: 'Citroën Saxo VTS 16v (facelift)',
     author: 'Matteocorradini',
@@ -134,6 +138,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
   },
   'b-nina-0': {
     image: require('../../assets/sample-photos/b-nina-0.jpg'),
+    edited: 'Plate removed',
     page: 'https://commons.wikimedia.org/wiki/File:2001_Mazda_MX-5_1.6.jpg',
     title: 'Mazda MX-5 1.6 (NB, 2001)',
     author: 'Vauxford',
@@ -157,7 +162,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Vauxford',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Dealer sign removed',
+    edited: 'Dealer sign removed, plate removed',
   },
   'b-tom-0': {
     image: require('../../assets/sample-photos/b-tom-0.jpg'),
@@ -166,7 +171,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Calreyn88',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Plate covered',
+    edited: 'Plate removed',
   },
   'b-gaz-0': {
     image: require('../../assets/sample-photos/b-gaz-0.jpg'),
@@ -184,7 +189,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Calreyn88',
     licence: 'CC BY 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by/4.0',
-    edited: 'Plate covered',
+    edited: 'Plate removed',
   },
   'b-lew-0': {
     image: require('../../assets/sample-photos/b-lew-0.jpg'),
@@ -202,7 +207,7 @@ export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
     author: 'Calreyn88',
     licence: 'CC BY-SA 4.0',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-    edited: 'Plate covered',
+    edited: 'Plate removed',
   },
   // The sign-in hero (Review 19 #1): a meet at night, modified cars, cropped so no plate shows.
   'hero-night-meet': {
