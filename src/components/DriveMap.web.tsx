@@ -5,10 +5,10 @@ import type * as Leaflet from 'leaflet';
 import { iconRotation } from '../lib/driveView';
 import { CAMERA_FOLLOW_MS, CAMERA_JUMP_METRES, easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../lib/heading';
 import type { LatLng } from '../lib/types';
-import { ART, BRAND, C, RADII, ROAD_COLOUR } from '../theme';
+import { ART, BRAND, C, RADII, ROAD_COLOUR, SPACING } from '../theme';
 // Types only: on web './DriveMap' is this file, so values come from elsewhere.
 import type { DriveMapProps } from './DriveMap';
-import { OVERVIEW_PADDING } from './mapTypes';
+import { OVERVIEW_BUTTONS, OVERVIEW_MARKER_HALF, OVERVIEW_PADDING } from './mapTypes';
 import { NavIcon } from './NavIcon';
 import { DEMO_DRIVER_LABEL, DEMO_DRIVER_SIZE, DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin } from './Pin';
@@ -159,18 +159,40 @@ export function DriveMap(props: DriveMapProps) {
     };
   }, [lf, overview]);
   const fitKey = overview ? `${overview.routes.length}:${overview.routes.map((r) => r.length).join(',')}` : '';
+  /** The credit chip's bottom edge in the map (it grows with text size): the fit keeps the markers below it. */
+  const [chipBottom, setChipBottom] = useState(0);
+  /** The map's size on screen: the preview's panel under it can settle after the route is fitted (taller at 1.3x text). */
+  const [viewSize, setViewSize] = useState('');
+  useEffect(() => {
+    const view = outer.current;
+    if (!view || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setViewSize(`${view.clientWidth}x${view.clientHeight}`));
+    ro.observe(view);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     if (!lf || !overview) return;
-    const all = overview.routes.flat();
-    if (all.length < 2) return;
+    const routePts = overview.routes.flat();
+    if (routePts.length < 2) return;
+    // The route, where you are and the stops: the "You" marker needn't sit on the route's first point.
+    const { you: at, stops: pins } = latest.current;
+    const all = [...routePts, ...(at ? [at] : []), ...pins.map((x) => x.at)];
     // The map is a square as big as the screen's diagonal (so it can turn): fit the routes into
     // the part that shows, by padding out the rest.
     const square = box.current;
     const view = outer.current;
     const padX = square && view ? Math.max(0, (square.clientWidth - view.clientWidth) / 2) : 0;
     const padY = square && view ? Math.max(0, (square.clientHeight - view.clientHeight) / 2) : 0;
-    // Clear of the buttons down the right and the credit chip at the top left (Review 19).
-    const pad = OVERVIEW_PADDING;
+    // Clear of the buttons down the right and the credit chip at the top left (Review 19), with room
+    // for the markers drawn round each point (the "You" marker is 50 pt). The chip is measured, as
+    // it grows with text size (at 1.3x it covered the "You" marker).
+    const m = OVERVIEW_MARKER_HALF + SPACING.xs;
+    const pad = {
+      top: Math.max(OVERVIEW_PADDING.top, chipBottom + m),
+      right: Math.max(OVERVIEW_PADDING.right, OVERVIEW_BUTTONS + m),
+      bottom: Math.max(OVERVIEW_PADDING.bottom, m),
+      left: Math.max(OVERVIEW_PADDING.left, m),
+    };
     lf.map.fitBounds(lf.L.latLngBounds(all.map((p) => [p.lat, p.lng] as [number, number])), {
       paddingTopLeft: [padX + pad.left, padY + pad.top],
       paddingBottomRight: [padX + pad.right, padY + pad.bottom],
@@ -179,8 +201,10 @@ export function DriveMap(props: DriveMapProps) {
     // Drawn and fitted: the next frame shows it (the auto-start countdown waits for this).
     const frame = requestAnimationFrame(() => overview.onShown?.());
     return () => cancelAnimationFrame(frame);
+    // Fitted again once where you are is known (the first fix can come after the route), and when
+    // the chip or the map's space on screen changes size (the panel under it settles after the fit).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lf, fitKey]);
+  }, [lf, fitKey, chipBottom, viewSize, !!you]);
 
   // When the latest fix arrived, for guessing ahead between fixes.
   const since = useRef(realNowMs());
@@ -261,7 +285,12 @@ export function DriveMap(props: DriveMapProps) {
       ) : null}
       {/* One chip: the tiles' credit and the screen's (roads, cameras), top left, clear of the route's fit. */}
       {/* Both lines whole (Credit's own merge drops a second OpenStreetMap holder such as OSRM); short form, full on tap. */}
-      <Credit top tiles={credit ? null : tiles} credit={credit ? [tiles, credit].filter(Boolean).join(' · ') : undefined} />
+      <Credit
+        top
+        tiles={credit ? null : tiles}
+        credit={credit ? [tiles, credit].filter(Boolean).join(' · ') : undefined}
+        onSize={(b) => setChipBottom(Math.ceil(b.y + b.height))}
+      />
     </View>
   );
 }

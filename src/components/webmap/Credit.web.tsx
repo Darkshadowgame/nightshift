@@ -13,7 +13,18 @@ import { creditLine, shortCredit, TILE_CREDIT } from './tiles.web';
  * maps. It now shows the short form ("© Stadia · OSM") on one line, tucked in the corner, and the
  * full credit on tap (tap again to shorten it).
  */
-export function Credit({ credit, tiles = TILE_CREDIT, top }: { credit?: string; tiles?: string | null; top?: boolean }) {
+export function Credit({
+  credit,
+  tiles = TILE_CREDIT,
+  top,
+  onSize,
+}: {
+  credit?: string;
+  tiles?: string | null;
+  top?: boolean;
+  /** The chip's box in the map (it grows with text size), for maps that fit their content clear of it. */
+  onSize?: (box: { x: number; y: number; width: number; height: number }) => void;
+}) {
   const [full, setFull] = useState(false);
   const line = tiles ? creditLine(credit, tiles) : credit;
   if (!line) return null;
@@ -22,6 +33,7 @@ export function Credit({ credit, tiles = TILE_CREDIT, top }: { credit?: string; 
   return (
     <Pressable
       onPress={() => setFull((f) => !f)}
+      onLayout={onSize ? (e) => onSize(e.nativeEvent.layout) : undefined}
       accessibilityRole="button"
       accessibilityLabel={`Map credit: ${line}`}
       accessibilityHint={showFull ? undefined : 'Shows the full map credit'}

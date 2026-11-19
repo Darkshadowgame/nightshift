@@ -160,7 +160,8 @@ export const DriveMap = memo(function DriveMap({
     const all = overview.routes.flat();
     if (all.length < 2) return;
     // Every 8th point is plenty to fit the view.
-    const pts = all.filter((_, i) => i % 8 === 0 || i === all.length - 1).map((p) => ({ latitude: p.lat, longitude: p.lng }));
+    // Plus where you are: the "You" marker needn't sit on the route's first point.
+    const pts = [...all.filter((_, i) => i % 8 === 0 || i === all.length - 1), ...(you ? [you] : [])].map((p) => ({ latitude: p.lat, longitude: p.lng }));
     const t = setTimeout(() => map.current?.fitToCoordinates(pts, { edgePadding: { ...OVERVIEW_PADDING }, animated: true }), 50);
     // Fitted (the animation runs about half a second): the route is on screen.
     const shown = setTimeout(() => overview.onShown?.(), 650);
@@ -168,8 +169,9 @@ export const DriveMap = memo(function DriveMap({
       clearTimeout(t);
       clearTimeout(shown);
     };
+    // Fitted again once where you are is known (the first fix can come after the route).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey]);
+  }, [fitKey, !!you]);
 
   return (
     <View style={StyleSheet.absoluteFill}>

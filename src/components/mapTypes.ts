@@ -119,3 +119,8 @@ export function paddedRegion(region: MapRegion, height: number, padding?: MapPad
  * their margin) and the credit chip, so the route and its destination never sit under either.
  */
 export const OVERVIEW_PADDING = { top: 48, right: 84, bottom: 48, left: 40 } as const;
+
+/** Half the "You" marker (50 pt), the biggest marker on the route preview: a fitted point needs this much more room. */
+export const OVERVIEW_MARKER_HALF = 25;
+/** The map buttons down the right of the driving view: 58 pt wide, 8 pt in from the edge. */
+export const OVERVIEW_BUTTONS = 58 + 8;
