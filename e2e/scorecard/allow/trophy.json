@@ -1,0 +1,12 @@
+{
+  "about": "L4 after task 6: lines that count as a results or trophy moment on the event page (counts), and lines that look like one but aren't about this meet (ignore). Regexes, case-insensitive.",
+  "counts": [
+    { "text": "\\bresults are in\\b", "why": "Review 18's results cover." },
+    { "text": "\\bresults?\\b.*\\b([01]?\\d|2[0-3]):[0-5]\\d\\b", "why": "A clear time the results come (\"Results at 23:00\")." },
+    { "text": "\\b(won|winner|wins|takes the trophy)\\b", "why": "The trophy itself." }
+  ],
+  "ignore": [
+    { "text": "^Last week's meet\\b", "why": "Last week's meet row, not this meet." },
+    { "text": "^Ended ", "why": "A past meet's meta line." }
+  ]
+}

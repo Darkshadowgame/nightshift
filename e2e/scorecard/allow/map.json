@@ -1,0 +1,4 @@
+{
+  "about": "MAP: overlaps between what's on a map (pins, the route's end, text) and its chrome (credit chips, buttons) that are fine, pins allowed to be cut by the map's edge (obstacle \"edge\") and text allowed straight on the map (obstacle \"no backing\"). Each entry: regexes for subject, obstacle and URL path (all optional), and why. A pin under a chip is a fail; keep this short.",
+  "allow": []
+}

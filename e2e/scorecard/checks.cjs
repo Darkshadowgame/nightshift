@@ -17,7 +17,10 @@ function bannedWords() {
   return new Function(`return ${m[1]};`)().map((b) => ({ word: b.word, re: b.re }));
 }
 
-/** In the page: every visible text node, with flags for where it sits. Whole page, not just the fold. */
+/**
+ * In the page: every visible text node, with flags for where it sits. Whole page, not just the fold.
+ * Screens behind the one on show (other tabs, the screen under a push) are `inert`: left out.
+ */
 function pageText() {
   const out = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -25,7 +28,7 @@ function pageText() {
     const text = n.textContent.replace(/\s+/g, ' ').trim();
     if (!text) continue;
     const el = n.parentElement;
-    if (!el || el.closest('script,style,noscript')) continue;
+    if (!el || el.closest('script,style,noscript,[inert]')) continue;
     if (el.checkVisibility && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
@@ -182,4 +185,4 @@ function restoreScroll() {
   window.__scBack = [];
 }
 
-module.exports = { revealClip, restoreScroll, pageText, pageOverflow, checkWords, checkOverflow, checkFacts, checkConsole, checkToasts, checkDisabled, bannedWords };
+module.exports = { ...require('./checks-more.cjs'), revealClip, restoreScroll, pageText, pageOverflow, checkWords, checkOverflow, checkFacts, checkConsole, checkToasts, checkDisabled, bannedWords };

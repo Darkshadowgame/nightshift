@@ -1,5 +1,5 @@
 {
-  "about": "C5 on the event page: text that doesn't count as saying a fact again. key is going, live, time or place; text is a regex removed from the line before counting.",
+  "about": "C5: text that doesn't count as saying a fact again. key is going, live, time or place (the event page) or distance (route preview and Settings); text is a regex removed from the line before counting.",
   "allow": [
     { "key": "going", "text": "\\b\\d+ going\\b", "why": "The count of people going (\"11 going · 8 cars, 3 bikes\"), not your own status." },
     { "key": "going", "text": "\\bpeople going\\b", "why": "The location line (\"Location shows at 21:30 to people going.\"), 4.11 wording." },

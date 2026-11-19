@@ -1,0 +1,4 @@
+{
+  "about": "HEAD: letter-spaced headings that aren't section headers, so may look different from the Section header on their screen. Each entry: a regex for the heading text, an optional regex for the URL path, and why.",
+  "allow": []
+}

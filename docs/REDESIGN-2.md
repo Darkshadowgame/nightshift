@@ -962,8 +962,9 @@ with the screen and the rule. Nothing else is needed; bugs outside the tasks go 
 Reviews 11–18 kept finding regressions that came in with new features. `e2e/scorecard/` plays this
 section's set-up and the ten tasks with Playwright, so most of them show up before a review does:
 
-* `npm run scorecard`: four runs (12:30 and 20:30, each at 1.0x and 1.3x text), about 3 minutes.
-  `npm run scorecard:quick`: 20:30 at 1.0x only, about 2 minutes; CI runs it on every push to main.
+* `npm run scorecard`: four runs (12:30 and 20:30, each at 1.0x and 1.3x text) plus the Busy night
+  pass, about 3 minutes. `npm run scorecard:quick`: 20:30 at 1.0x only, about 2 minutes; CI runs it
+  on every push to main.
 * Set-up as 7.1: a `--clear` web export served with SPA fallback, 375x667, touch, @2x, cleared
   storage, demo mode, location granted. 1.3x text multiplies each element's computed font size and
   px line height once (text that inherits its size and SVG tspans are left alone, so nothing
@@ -978,8 +979,23 @@ section's set-up and the ten tasks with Playwright, so most of them show up befo
   the meet point's name at most once (toasts and sheets left out); **L2** no text cut off (ellipsis
   or line clamp) at either size; **4.12** no banned word (`BANNED_WORDS` in `glossary.ts`, minus the
   owner exceptions above); no console errors.
+* Review 19's checks (`checks-more.cjs`; its problem numbers in brackets): **MAP** on every map,
+  pins, the route's end and text over the map clear of the credit chips and map buttons, text over
+  the map on a chip with a backing, no meet pin cut by the map's own edge (26, 15, 42); **EDGE** no
+  bright sliver (a cut label or tile) in the top 4 px of a small map card (5, 21); **T1** a toast's
+  message on one line at 1.0x (52); **CANCEL** no button or menu row that just says "Cancel" (24;
+  the script opens your new meet's `···` menu after task 9 for this); **C5+** the route preview and
+  Settings say each distance once, Me's Meets stat equals the meets listed, Tonight's "N meets
+  tonight" equals the tonight cards and says why the rest are hidden (27, 51, 47, 7); **ME** no two
+  meets of one name in Me, and the host form's Name example isn't a meet on show (41, 49); **L4** a
+  results or trophy line on the event page after the vote (16); **TILE** every photo in a grid
+  fills its tile (30); **HEAD** one section header style per screen (48); **K3** an event's card has
+  its title in the same place on Tonight's map sheet and in the List (8); **ART** (full run only,
+  after task 10 of the 20:30 1.0x run) Busy night on, Tonight's map passes MAP and no List card
+  shows the grid placeholder art (13). Each finding's screenshot outlines what it found in red.
 * Allow-lists, each entry with its reason: `e2e/scorecard/allow/` (`c5.json`, `overflow.json`,
-  `words.json`, `console.json`). Adding to one is a decision like an owner exception: say why.
+  `words.json`, `console.json`, `map.json`, `cancel.json`, `tiles.json`, `headers.json`,
+  `trophy.json`). Adding to one is a decision like an owner exception: say why. Screenshots are JPEG.
 * It can't judge clarity, look or TTU; the human review still scores those.
 
 ---

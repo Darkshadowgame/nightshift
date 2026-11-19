@@ -1,0 +1,4 @@
+{
+  "about": "TILE: photo tiles allowed to show the whole photo (contain) inside a grid of full-bleed tiles. Each entry: an optional regex for the tile's label, an optional regex for the URL path, and why.",
+  "allow": []
+}

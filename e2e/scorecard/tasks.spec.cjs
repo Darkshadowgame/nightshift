@@ -24,23 +24,25 @@ const TASKS = [
   ['t10', "You can't make the Sunday coffee meet after all. Sort that out, then find where you'd stop people near you seeing you.", 45],
 ];
 
-async function runScorecard({ base, clock, scale, outDir }) {
+async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   const tag = `${clock.replace(':', '')}-${scale}x`;
   const shots = path.join(outDir, tag);
   fs.mkdirSync(shots, { recursive: true });
-  const result = { tag, clock, scale, tasks: {}, findings: [], notes: [], steps: [] };
+  const result = { tag, clock, scale, busy, tasks: {}, findings: [], notes: [], steps: [] };
   let step = 0;
   let current = '';
   let lastShot = '';
 
   const hits = {};
-  const shotPath = (name) => path.join(shots, `${String(++step).padStart(2, '0')}-${current || 'start'}-${name}.png`);
+  const shotPath = (name) => path.join(shots, `${String(++step).padStart(2, '0')}-${current || 'start'}-${name}.jpg`);
+  /** JPEG screenshots keep the output small (a full run is about 160 of them). */
+  const shoot = (p, o = {}) => S.page.screenshot({ path: p, type: 'jpeg', quality: 70, ...o });
   let S = null;
   S = await L.launch({
     base, clock, scale,
     onHit: async (name) => {
       const p = shotPath(name);
-      if (S) await S.page.screenshot({ path: p }).catch(() => {});
+      if (S) await shoot(p).catch(() => {});
       hits[name] = p;
     },
   });
@@ -51,11 +53,30 @@ async function runScorecard({ base, clock, scale, outDir }) {
   const sheetOpen = async () => (await page.locator('[data-testid=sheet]').count()) > 0;
   const toastCount = () => page.evaluate(() => window.__sc.toasts.length);
   const finding = (f, shot) => result.findings.push({ task: current, step, shot: shot || lastShot, ...f });
+  /** Every line of text seen on a screen so far (for the host form's Name example). */
+  const seenTexts = new Set();
+  /** One finding per message per run; its screenshot outlines `boxes` in red. */
+  const said = new Set();
+  async function boxFinding(f, p) {
+    if (said.has(f.message)) return;
+    said.add(f.message);
+    const { boxes, ...rest } = f;
+    let shot = p;
+    if (boxes && boxes.length) {
+      shot = p.replace(/\.jpg$/, `-${f.rule.replace(/\W/g, '')}${said.size}.jpg`);
+      await page.evaluate(C.markBoxes, boxes);
+      await shoot(shot);
+      await page.evaluate(C.unmarkBoxes);
+    }
+    finding(rest, shot);
+  }
+  /** The Tonight cards seen on the map sheet and in the List, for K3. */
+  const cards = { map: [], list: [] };
 
   /** Screenshot plus the per-screen checks: banned words, clipped text, and C5 on an event page. */
   async function snap(name) {
     const p = shotPath(name);
-    await page.screenshot({ path: p });
+    await shoot(p);
     lastShot = p;
     const u = url();
     const texts = await page.evaluate(C.pageText);
@@ -65,17 +86,44 @@ async function runScorecard({ base, clock, scale, outDir }) {
       // Below or above the fold: scroll it into view for its own screenshot, then scroll back.
       let shot = p;
       if (f.y < 0 || f.y > 640) {
-        shot = p.replace(/\.png$/, `-clip${f.idx}.png`);
+        shot = p.replace(/\.jpg$/, `-clip${f.idx}.jpg`);
         await page.evaluate(C.revealClip, f.idx);
         await L.sleep(200);
-        await page.screenshot({ path: shot });
+        await shoot(shot);
         await page.evaluate(C.restoreScroll);
       }
       const { idx, y, ...rest } = f;
       finding(rest, shot);
     }
     if (/^\/event\//.test(u) && !(await sheetOpen())) for (const f of C.checkFacts(texts)) finding(f, p);
+    await screenChecks(p, u, texts);
+    for (const t of texts) if (!t.toast) seenTexts.add(t.text);
     result.steps.push({ step, name, task: current, url: u, shot: p });
+  }
+
+  /** Review 19's checks that run on every screen (checks-more.cjs). */
+  async function screenChecks(p, u, texts) {
+    const found = [];
+    const maps = await page.evaluate(C.pageMaps);
+    found.push(...C.checkMaps(maps, u));
+    found.push(...C.checkCancels(await page.evaluate(C.pageCancels), u));
+    found.push(...C.checkDistances(texts, u));
+    found.push(...C.checkTiles(await page.evaluate(C.pageTiles), u));
+    found.push(...C.checkHeaders(await page.evaluate(C.pageHeaders), u));
+    if (u === '/') found.push(...C.checkTonight(await page.evaluate(C.pageTonight), u));
+    if (u === '/me') found.push(...C.checkMe(await page.evaluate(C.pageMe), u));
+    // A bright sliver along the top of a small map card (Review 19 #5, #21): its top 4 px.
+    const edges = maps.filter((x) => x.small && x.top && x.top.y + 4 <= 667);
+    // Tiles still loading show the map's plain background: wait for them (up to 3 s) so the result doesn't depend on timing.
+    if (edges.length) await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-container')].every((m) => !m.querySelector('.leaflet-tile:not(.leaflet-tile-loaded)')), null, { timeout: 3000 }).catch(() => {});
+    for (const m of edges) {
+      const clip = { x: Math.ceil(m.clip.x), y: Math.ceil(m.top.y), width: m.top.cols.length, height: 4 };
+      const png = await page.screenshot({ clip, type: 'png' });
+      const b = await page.evaluate(C.pageBright, [png.toString('base64'), m.top.cols]);
+      // A cut label or tile gap is 40+ bright device pixels; a stray anti-aliased pixel or two isn't.
+      if (b.n >= 40 && b.cols >= 8) found.push({ rule: 'EDGE', message: `on ${C.at(u)}, a bright sliver along the top edge of the small map (a label or tile cut by the edge)`, boxes: [{ x: clip.x, y: clip.y, w: clip.width, h: 4 }] });
+    }
+    for (const f of found) await boxFinding(f, p);
   }
 
   /**
@@ -98,6 +146,14 @@ async function runScorecard({ base, clock, scale, outDir }) {
     if (!hadSheet && (await sheetOpen())) wait = Math.max(wait, L.PACE.readSheet);
     const left = wait - (Date.now() - t0);
     if (left > 0) await L.sleep(left);
+  }
+
+  /** Closes the sheet on show with Done, else its scrim. */
+  async function closeSheet() {
+    const done = page.locator('[data-testid=sheet]').getByRole('button', { name: 'Done', exact: true });
+    if (await done.count()) await done.first().click();
+    else await page.locator('[data-testid=sheet-scrim]').first().click({ position: { x: 20, y: 20 } });
+    await L.sleep(L.PACE.settle);
   }
 
   async function closeStraySheet() {
@@ -150,6 +206,7 @@ async function runScorecard({ base, clock, scale, outDir }) {
     await tap(B('Show me tonight'));
     await L.sleep(2000);
     await snap('tonight');
+    cards.map = await page.evaluate(C.pageEventCards);
     const onTonight = url() === '/';
     stop('t1', onTonight, onTonight ? '' : `ended on ${url()}`);
     await tap(page.getByRole('tab', { name: 'Garage' }));
@@ -209,6 +266,8 @@ async function runScorecard({ base, clock, scale, outDir }) {
     await snap('voted');
     await tap(B('Done'), { inSheet: true });
     await snap('results');
+    const trophy = C.trophyLines(await page.evaluate(C.pageText));
+    const resultsShot = lastShot;
     const chooser = page.waitForEvent('filechooser', { timeout: 8000 });
     await tap(B('Add a photo'));
     await (await chooser).setFiles(PHOTO);
@@ -219,6 +278,9 @@ async function runScorecard({ base, clock, scale, outDir }) {
     const voted = (await page.evaluate(() => window.__sc.toasts.some((t) => t.task === 't6' && /voted/i.test(t.text))));
     const photo = (await B('Photo by You').count()) > 0;
     stop('t6', voted && photo, `${voted ? 'vote recorded' : 'no vote toast'}; ${photo ? 'photo in Photos' : 'photo not in Photos'}`);
+    // L4 (Review 19 #16): after the vote, a results or trophy moment on the event page.
+    trophy.push(...C.trophyLines(await page.evaluate(C.pageText)));
+    if (!trophy.length) finding({ rule: 'L4', message: 'after voting (task 6), nothing on the event page says what voting leads to: no results or trophy line ("Results are in.", "Results at 23:00") (allow/trophy.json lists what counts)' }, resultsShot);
 
     // 7. Someone at the meet: connect, message.
     await start('t7');
@@ -262,6 +324,8 @@ async function runScorecard({ base, clock, scale, outDir }) {
     await tap(page.getByRole('tab', { name: 'Tonight' }));
     await tap(B('Host a meet'));
     await snap('host-1');
+    const example = await page.getByRole('textbox', { name: 'Name' }).getAttribute('placeholder');
+    for (const f of C.checkNameExample(example, seenTexts)) finding(f);
     await page.getByRole('textbox', { name: 'Name' }).fill('Sunday morning meet');
     await tap(B(/^Starts:/));
     await snap('starts');
@@ -290,15 +354,27 @@ async function runScorecard({ base, clock, scale, outDir }) {
     const sun10 = /Sun 10:00/.test(review);
     stop('t9', sun10 && anyone && shared, `${sun10 ? 'Sun 10:00' : 'not Sun 10:00'}; ${anyone ? 'open to everyone' : 'not open to everyone'}; share ${shared ? 'opened' : 'not opened'}`);
     if (await sheetOpen()) await tap(page.locator('[data-testid=sheet]').getByRole('button', { name: 'Done', exact: true }), { inSheet: true });
+    // Not timed: your meet's ··· menu, for the bare-Cancel check (Review 19 #24). Open the meet
+    // replaces the posted page, so its back goes to Tonight, where task 10 starts.
+    if (await B('Open the meet').count()) {
+      await tap(B('Open the meet'));
+      await tap(B('More options'));
+      await snap('options');
+      if (await sheetOpen()) await closeSheet();
+      await tap(B('Go back'));
+    } else result.notes.push('t9: no "Open the meet" after posting, so the meet\'s ··· menu went unchecked');
 
     // 10. Not going to Sunday coffee; the Privacy switch.
     await start('t10');
-    // The "It's up" page has no back (Review 19 #46): Done closes it.
-    await tap((await B('Go back').count()) ? B('Go back') : B('Done', { exact: true }));
+    // The "It's up" page has no back (Review 19 #46): Done closes it. After the options check above
+    // you're usually on Tonight already.
+    if (url() !== '/') await tap((await B('Go back').count()) ? B('Go back') : B('Done', { exact: true }));
     await tap(page.getByRole('tab', { name: /^List/ }));
     const coffee = B(/Sunday coffee and cars/);
     await coffee.first().scrollIntoViewIfNeeded();
     await snap('list');
+    cards.list = await page.evaluate(C.pageEventCards);
+    for (const f of C.checkCardLook(cards.map, cards.list)) finding(f);
     await tap(coffee);
     await snap('coffee');
     await tap(B("Can't make it"));
@@ -323,9 +399,54 @@ async function runScorecard({ base, clock, scale, outDir }) {
   }
   for (const [id, , limit] of TASKS) if (!result.tasks[id]) result.tasks[id] = { pass: false, ms: 0, limit, note: 'not reached', shot: '' };
 
+  /**
+   * Busy night, full scorecard only: from Settings (where task 10 ends), Busy night on, then
+   * Tonight's map (MAP, Review 19 #15) and List (ART, #13: no card may show the grid placeholder
+   * art). Not scored otherwise: its toasts and screens skip the other rule checks.
+   */
+  async function busyNight() {
+    current = 'busy';
+    await page.evaluate(() => { window.__sc.task = 'busy'; });
+    const sw = page.getByRole('switch', { name: /Busy night/i });
+    await sw.first().scrollIntoViewIfNeeded();
+    await sw.first().click();
+    await L.sleep(L.PACE.readToast);
+    await B('Go back').first().click();
+    await L.sleep(L.PACE.settle);
+    await page.getByRole('tab', { name: 'Tonight' }).click();
+    await L.sleep(L.PACE.settle);
+    await page.getByRole('tab', { name: /^Map/ }).click();
+    await L.sleep(2500);
+    // The busy map: pins clear of the controls and inside its edges (Review 19 #15).
+    const pm = shotPath('busy-map');
+    await shoot(pm);
+    for (const f of C.checkMaps(await page.evaluate(C.pageMaps), url())) await boxFinding(f, pm);
+    await page.getByRole('tab', { name: /^List/ }).click();
+    await L.sleep(2000);
+    const p = shotPath('busy-list');
+    await shoot(p);
+    const art = await page.evaluate(C.pagePlaceholders);
+    for (const a of art) {
+      let shot = p;
+      if (a.idx < 3) {
+        shot = p.replace(/\.jpg$/, `-art${a.idx}.jpg`);
+        await page.locator(`[data-sc-art="${a.idx}"]`).scrollIntoViewIfNeeded();
+        await L.sleep(300);
+        const r = await page.locator(`[data-sc-art="${a.idx}"]`).boundingBox();
+        if (r) await page.evaluate(C.markBoxes, [{ x: r.x, y: r.y, w: r.width, h: r.height }]);
+        await shoot(shot);
+        await page.evaluate(C.unmarkBoxes);
+      }
+      finding({ rule: 'ART', message: `Busy night, Tonight's List: the card "${a.label}" shows the grid placeholder art instead of a photo or the real map` }, shot);
+    }
+    result.notes.push(`Busy night: ${art.length} Tonight card(s) with placeholder art`);
+  }
+
   const sc = await page.evaluate(() => window.__sc).catch(() => ({ toasts: [], disabled: [] }));
   for (const f of C.checkToasts(sc.toasts)) result.findings.push({ ...f, shot: hits[`toast-covered-${f.toastId}`] || shotFor(result, f.task) });
   sc.disabled.forEach((d, i) => result.findings.push({ ...C.checkDisabled([d])[0], shot: hits[`disabled-primary-${i + 1}`] || shotFor(result, d.task) }));
+  for (const f of C.checkToastLines(sc.toasts, scale)) result.findings.push({ ...f, shot: hits[`toast-lines-${f.toastId}`] || shotFor(result, f.task) });
+  if (busy && !result.error) await busyNight().catch((e) => result.notes.push(`Busy night pass stopped: ${String(e.message || e).split('\n')[0]}`));
   for (const f of C.checkConsole(S.errors)) result.findings.push({ ...f, task: '', shot: '' });
   result.toasts = sc.toasts.map(({ text, task, url: u, bestRunMs, coveredBy, actions }) => ({ text, task, url: u, bestRunMs, coveredBy, actions }));
   await S.browser.close();

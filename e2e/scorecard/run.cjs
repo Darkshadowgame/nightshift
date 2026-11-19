@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Automated scorecard (docs/REDESIGN-2.md, section 7). Run before pushing UI changes.
 //
-//   npm run scorecard            12:30 and 20:30, at 1.0x and 1.3x text (four runs in parallel)
-//   npm run scorecard:quick      20:30 at 1.0x only
+//   npm run scorecard            12:30 and 20:30, at 1.0x and 1.3x text (four runs in parallel),
+//                                plus a Busy night pass at the end of the 20:30 1.0x run
+//   npm run scorecard:quick      20:30 at 1.0x only, no Busy night pass
 //
 // Options: --web <dir> use an existing web export instead of building one (`expo export --clear`),
 // --jobs <n> runs at once (default 4), --out <dir> (default e2e/scorecard/.out), --headed.
@@ -22,7 +23,7 @@ const jobs = Number(opt('--jobs', process.env.CI ? 2 : 4));
 
 const RUNS = quick
   ? [{ clock: '20:30', scale: 1 }]
-  : [{ clock: '12:30', scale: 1 }, { clock: '20:30', scale: 1 }, { clock: '12:30', scale: 1.3 }, { clock: '20:30', scale: 1.3 }];
+  : [{ clock: '12:30', scale: 1 }, { clock: '20:30', scale: 1, busy: true }, { clock: '12:30', scale: 1.3 }, { clock: '20:30', scale: 1.3 }];
 
 async function main() {
   const started = Date.now();
@@ -51,7 +52,7 @@ async function main() {
     while (queue.length) {
       const r = queue.shift();
       const t = Date.now();
-      const res = await runScorecard({ base, clock: r.clock, scale: r.scale, outDir }).catch((e) => ({ tag: `${r.clock}-${r.scale}x`, clock: r.clock, scale: r.scale, tasks: {}, findings: [], notes: [], error: String(e) }));
+      const res = await runScorecard({ base, clock: r.clock, scale: r.scale, busy: !!r.busy, outDir }).catch((e) => ({ tag: `${r.clock}-${r.scale}x`, clock: r.clock, scale: r.scale, tasks: {}, findings: [], notes: [], error: String(e) }));
       res.wallMs = Date.now() - t;
       console.log(`  done ${res.tag} in ${(res.wallMs / 1000).toFixed(0)} s`);
       results.push(res);
@@ -94,17 +95,30 @@ function report(results) {
     ['L2', 'No clipped text (1.0x and 1.3x)'],
     ['4.12', 'No banned word on screen'],
     ['console', 'No console errors'],
+    // Review 19, "What e2e/scorecard could catch" (its problem numbers in brackets).
+    ['MAP', 'Map pins/route end/text clear of chrome (26,15,42)'],
+    ['EDGE', 'No bright sliver atop a small map (5,21)'],
+    ['T1', 'Toast message on one line at 1.0x (52)'],
+    ['CANCEL', 'No bare "Cancel" (24)'],
+    ['C5+', 'Route, Settings, Me, Tonight say facts once (27,51,47,7)'],
+    ['ME', 'No two meets of one name in Me (41,49)'],
+    ['L4', 'Results or trophy moment after task 6 (16)'],
+    ['TILE', 'Photo tiles fill their frames (30)'],
+    ['HEAD', 'One section header style per screen (48)'],
+    ['K3', 'Same event card on map sheet and List (8)'],
+    ['ART', 'Busy night: no placeholder art on Tonight (13)'],
   ];
   console.log('\nRULE CHECKS');
-  console.log('rule     ' + 'check'.padEnd(48) + cols.map((c) => c.padEnd(w)).join(''));
+  console.log('rule     ' + 'check'.padEnd(56) + cols.map((c) => c.padEnd(w)).join(''));
   const detail = [];
   for (const [rule, what] of RULES) {
     const cells = results.map((r) => {
+      if (rule === 'ART' && !r.busy) return 'n/a'.padEnd(w);
       const n = r.findings.filter((f) => f.rule === rule).length;
       if (n) ok = false;
       return (n ? `FAIL (${n})` : 'pass').padEnd(w);
     });
-    console.log(rule.padEnd(9) + what.padEnd(48) + cells.join(''));
+    console.log(rule.padEnd(9) + what.padEnd(56) + cells.join(''));
     // The same finding in several runs is listed once, with the runs it showed up in.
     const merged = new Map();
     for (const r of results) for (const f of r.findings.filter((x) => x.rule === rule)) {

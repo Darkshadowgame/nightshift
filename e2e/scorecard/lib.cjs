@@ -91,7 +91,8 @@ function scalerScript(scale) {
 /**
  * Always-on probe, sampled every 100 ms:
  * - toasts ([data-testid=toast]): for each one, when it was on screen, not faded and not covered
- *   by anything (a sheet, its scrim, a modal); which element covered it; its action buttons.
+ *   by anything (a sheet, its scrim, a modal); which element covered it; its action buttons; how
+ *   many lines its message took while readable.
  * - disabled primaries ([data-testid=primary-button] with aria-disabled, not busy), where they sit.
  * The first time either goes wrong it calls window.__scorecardHit so Node takes a screenshot.
  */
@@ -125,7 +126,7 @@ const PROBE = `(() => {
     for (const el of els) {
       let rec = live.get(el);
       if (!rec) {
-        rec = { id: nextId++, task: sc.task, url: location.pathname, text: '', first: now, last: now, visibleMs: 0, bestRunMs: 0, runStart: null, coverRun: 0, coveredBy: '', actions: [], hit: false };
+        rec = { id: nextId++, task: sc.task, url: location.pathname, text: '', first: now, last: now, visibleMs: 0, bestRunMs: 0, runStart: null, coverRun: 0, coveredBy: '', actions: [], hit: false, lines: 0 };
         live.set(el, rec); sc.toasts.push(rec);
       }
       rec.text = (el.innerText || '').replace(/\\s+/g, ' ').trim();
@@ -141,6 +142,17 @@ const PROBE = `(() => {
         }
       }
       const ok = !cover && opacity(el) >= 0.9 && shown(el);
+      // Lines of the message, the action left out (Review 19 #52: one line at 375 wide).
+      const tops = [];
+      const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+        if (!n.textContent.trim() || (n.parentElement && n.parentElement.closest('[role=button]'))) continue;
+        const rg = document.createRange();
+        rg.selectNodeContents(n);
+        for (const q of rg.getClientRects()) if (q.width > 0 && !tops.some((t) => Math.abs(t - q.top) < 4)) tops.push(q.top);
+      }
+      if (ok) rec.lines = Math.max(rec.lines || 0, tops.length);
+      if (ok && tops.length > 1 && !rec.linesHit) { rec.linesHit = true; if (window.__scorecardHit) window.__scorecardHit('toast-lines-' + rec.id); }
       rec.last = now;
       // Each sample stands for the 100 ms around it.
       if (ok) { if (rec.runStart == null) rec.runStart = now; rec.bestRunMs = Math.max(rec.bestRunMs, now - rec.runStart + 100); rec.visibleMs += 100; }
