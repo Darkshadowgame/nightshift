@@ -3,14 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import type * as Leaflet from 'leaflet';
 import { pinLayer } from '../lib/hud';
 import type { LatLng } from '../lib/types';
-import { ART, BRAND } from '../theme';
+import { ART, BRAND, COLOR } from '../theme';
 import { Pin } from './Pin';
 import { type MapCircle, type MapPath, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
 import { Credit } from './webmap/Credit.web';
 import { GridMap } from './webmap/GridMap.web';
 import { loadLeaflet, longPress, makeMap, type L } from './webmap/leaflet.web';
 import { PinFace, pinBox, pinLabel, useMarkers, type MarkerSpec } from './webmap/PinMarker.web';
-import { TILE_CREDIT } from './webmap/tiles.web';
+import { BARE_TILE_SOURCES, TILE_CREDIT } from './webmap/tiles.web';
 import { fitZoom } from './webmap/zoom.web';
 
 const MILE_M = 1609.34;
@@ -40,7 +40,7 @@ function regionOf(map: Leaflet.Map): MapRegion {
 export function NightMap(props: NightMapProps) {
   const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
   const [broken, setBroken] = useState(false);
-  const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
+  const [tiles, setTiles] = useState<string | null>(props.labels === false ? BARE_TILE_SOURCES[0].credit : TILE_CREDIT);
   /** A tall map is a full-screen one with a sheet over its bottom: its credit goes top left so it stays visible. */
   const [tall, setTall] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ export function NightMap(props: NightMapProps) {
       (L) => {
         const el = box.current;
         if (gone || !el) return;
-        made = makeMap(L, el, { onTiles: setTiles, appearance: latest.current.appearance ?? 'dark' });
+        made = makeMap(L, el, { onTiles: setTiles, appearance: latest.current.appearance ?? 'dark', labels: latest.current.labels ?? true });
         setAppearanceRef.current = made.setAppearance;
         const map = made.map;
         let sized = el.clientWidth > 0 && el.clientHeight > 0;
@@ -167,13 +167,16 @@ export function NightMap(props: NightMapProps) {
       z: pinLayer(p),
       label: pinLabel(p),
       onClick: () => latest.current.onSelect?.(p.id),
-      face: <PinFace pin={p} />,
+      // Meets and clusters on the dark map get the label-quieting pool (Review 21 gap 5); small cards have no labels.
+      face: <PinFace pin={p} halo={appearance === 'dark' && props.labels !== false} />,
     }));
+    // You: the blue dot with a soft accuracy ring, as on every phone map (Review 21 problem 5).
+    if (props.you) out.push({ id: '__you', lat: props.you.lat, lng: props.you.lng, size: 44, z: 8, label: 'You are here', face: <YouDot /> });
     if (picked) out.push({ id: '__picked', lat: picked.lat, lng: picked.lng, size: 40, z: 9, face: <Pin glyph="you" colour={BRAND} size={40} /> });
     return out;
     // onSelect is read through `latest`; a new handler needn't redraw the pins.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pins, picked?.lat, picked?.lng, !!onSelect]);
+  }, [pins, picked?.lat, picked?.lng, props.you?.lat, props.you?.lng, !!onSelect, appearance, props.labels]);
   const { portals } = useMarkers(lf, specs);
 
   if (broken) return <GridMap {...props} />;
@@ -184,6 +187,16 @@ export function NightMap(props: NightMapProps) {
       <div ref={box} style={{ position: 'absolute', inset: 0, ...(tall ? null : EDGE_MASK) }} />
       {portals}
       <Credit credit={credit} tiles={tiles} top={tall} />
+    </View>
+  );
+}
+
+/** The "you" dot: Apple's blue, a white rim and a faint ring round it. */
+function YouDot() {
+  return (
+    <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,132,255,0.18)', borderWidth: 1, borderColor: 'rgba(10,132,255,0.35)' }} />
+      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: ART.you, borderWidth: 3, borderColor: COLOR.text.primary }} />
     </View>
   );
 }

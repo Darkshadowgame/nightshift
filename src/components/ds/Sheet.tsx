@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ReactNode } from 'react';
+import { Children, createContext, isValidElement, useCallback, useContext, useRef, type ComponentRef, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, SlideInDown, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,22 @@ import { ActionBar, InSheetContext } from './ActionBar';
 import { Button } from './Button';
 import { Press } from './Press';
 import { DsText } from './Text';
+
+/** Scroll a sheet's body so content `top` to `bottom` (points from the body's top) is in view. */
+type Reveal = (top: number, bottom: number) => void;
+const RevealContext = createContext<Reveal>(() => {});
+/**
+ * For content in a Sheet: bring a part of it into view above the pinned footer, e.g. the card a
+ * toast in the footer confirms (Review 21 problem 6: the toast's slot grew the footer over the card).
+ */
+export function useSheetReveal(): Reveal {
+  return useContext(RevealContext);
+}
+/** For the component that renders the Sheet (outside its body): put this in the body to get `reveal`. */
+export function SheetRevealRef({ into }: { into: { current: Reveal | null } }) {
+  into.current = useContext(RevealContext);
+  return null;
+}
 
 /**
  * A sheet's primary is never scrolled out of sight (REVIEW-11: Add a mod's button sat under the
@@ -32,6 +48,15 @@ export function splitFooter(children: ReactNode): { body: ReactNode[]; footer: R
  */
 export function SheetPanel({ title, onClose, doneLabel = 'Done', hideDone, children, bottomInset = 0 }: { title: string; onClose: () => void; doneLabel?: string; hideDone?: boolean; children: ReactNode; bottomInset?: number }) {
   const { body, footer } = splitFooter(children);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const view = useRef({ h: 0, y: 0 });
+  const reveal = useCallback<Reveal>((top, bottom) => {
+    const { h, y } = view.current;
+    if (!h) return;
+    const pad = SPACING.sm;
+    if (bottom + pad > y + h) scroll.current?.scrollTo({ y: Math.max(0, Math.min(top - pad, bottom + pad - h)), animated: true });
+    else if (top - pad < y) scroll.current?.scrollTo({ y: Math.max(0, top - pad), animated: true });
+  }, []);
   return (
     <View
       style={[
@@ -66,8 +91,18 @@ export function SheetPanel({ title, onClose, doneLabel = 'Done', hideDone, child
           </Press>
         )}
       </View>
-      <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}>
-        {body}
+      <ScrollView
+        ref={scroll}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        style={{ flexGrow: 0, flexShrink: 1 }}
+        contentContainerStyle={{ gap: SPACING.md, paddingBottom: SPACING.sm }}
+        onLayout={(e) => (view.current.h = e.nativeEvent.layout.height)}
+        onScroll={(e) => (view.current.y = e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={32}
+      >
+        <RevealContext.Provider value={reveal}>{body}</RevealContext.Provider>
       </ScrollView>
       {footer ? (
         <View style={{ flexShrink: 0, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border }}>

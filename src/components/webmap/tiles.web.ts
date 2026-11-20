@@ -68,8 +68,21 @@ export const LIGHT_TILE_SOURCES: TileSource[] = [
   },
 ];
 
-/** The sources for a look: night (dark) or day (light). */
-export function tileSources(appearance: 'light' | 'dark' = 'dark'): TileSource[] {
+/**
+ * Small map cards (Review 21 problem 1): Esri's Canvas base layers carry no place labels and no road
+ * shields (those live in the separate Reference layer, left out here), so nothing can be cut by a
+ * small card's edge. Stadia has no label-free Alidade style, so Esri is the only source; the grid is
+ * the fallback as usual. The credit stays.
+ */
+export const BARE_TILE_SOURCES: TileSource[] = [
+  // Without its label layer Esri's base is much paler than the big map: darker, to match its tone.
+  { ...TILE_SOURCES[1], name: 'esri-bare', urls: [TILE_SOURCES[1].urls[0]], filter: 'sepia(1) hue-rotate(180deg) saturate(0.8) brightness(0.6) contrast(1.15)' },
+];
+export const BARE_LIGHT_TILE_SOURCES: TileSource[] = [{ ...LIGHT_TILE_SOURCES[1], name: 'esri-light-bare', urls: [LIGHT_TILE_SOURCES[1].urls[0]] }];
+
+/** The sources for a look: night (dark) or day (light), with or without place labels. */
+export function tileSources(appearance: 'light' | 'dark' = 'dark', labels = true): TileSource[] {
+  if (!labels) return appearance === 'light' ? BARE_LIGHT_TILE_SOURCES : BARE_TILE_SOURCES;
   return appearance === 'light' ? LIGHT_TILE_SOURCES : TILE_SOURCES;
 }
 

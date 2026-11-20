@@ -33,14 +33,14 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
       <View style={st.top}>
         {/* The masthead is a drawing (SVG text): it scales with the cover, never with the text size. */}
         <Masthead width={width - 2 * SPACING.md} cover={width} />
-        <DsText v="tag" tone="primary">
+        <DsText v="meta" tone="primary" style={st.chrome}>
           {issue} · {event?.areaName ?? 'UK'}
         </DsText>
       </View>
       <View style={st.bottom}>
         {/* The trophy is chrome (a tag); the build's name is content, so it keeps its case (Review 13). */}
         <View style={st.ribbon}>
-          <DsText v="eyebrow" tone="primary">
+          <DsText v="meta" tone="primary" style={st.chrome}>
             {categoryInfo(award.category).label}
           </DsText>
         </View>
@@ -50,8 +50,13 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
             {title.text}
           </DsText>
         </View>
+        {/* Two short lines, never one that wraps on a "·" (Review 21 gap 13): who, then the build's facts,
+            kept whole with no-break spaces. */}
+        <DsText v="meta" tone="primary" numberOfLines={1}>
+          {displayHandle(owner?.handle ?? 'unknown')}
+        </DsText>
         <DsText v="meta" tone="primary">
-          {[displayHandle(owner?.handle ?? 'unknown'), powerText(build), plural(modCount(build.mods), 'mod').replace(' ', '\u00a0')].join(' · ')}
+          {[powerText(build), plural(modCount(build.mods), 'mod')].join(' · ').replace(/ /g, '\u00a0')}
         </DsText>
         {event?.title ? (
           <DsText v="meta" tone="primary" numberOfLines={1}>
@@ -118,6 +123,9 @@ const st = StyleSheet.create({
   cover: { borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.surface.raisedHi },
   top: { position: 'absolute', top: SPACING.sm, left: SPACING.md, right: SPACING.md },
   bottom: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs },
+  // Three type sizes on the poster (Review 21 gap 13): the masthead, the title, and this meta size; the
+  // chrome lines (issue, trophy) are the meta size in the label face, in capitals.
+  chrome: { fontFamily: F.labelBold, letterSpacing: 1, textTransform: 'uppercase' },
   // Sodium is for the one primary (5.4): the ribbon is glass with a hairline.
   ribbon: { alignSelf: 'flex-start', backgroundColor: COLOR.surface.glass, borderWidth: 1, borderColor: COLOR.text.primary, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, transform: [{ skewX: '-10deg' }] },
 });

@@ -373,5 +373,6 @@ const st = StyleSheet.create({
   top: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, gap: SPACING.sm },
   locate: { width: HIT, height: HIT, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.glass, alignItems: 'center', justifyContent: 'center', ...ELEVATION.float },
-  panel: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, padding: SPACING.md, gap: SPACING.xs, ...ELEVATION.float },
+  // Solid (the sheet's colour): map labels never show through "Under the crosshair" (Review 21 gap 18).
+  panel: { backgroundColor: COLOR.surface.sheet, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, padding: SPACING.md, gap: SPACING.xs, ...ELEVATION.float },
 });

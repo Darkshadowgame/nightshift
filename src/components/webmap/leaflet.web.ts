@@ -1,7 +1,7 @@
 import type * as Leaflet from 'leaflet';
 import { realNowMs } from '../../lib/appClock';
 import { ART } from '../../theme';
-import { GRID_BACKGROUND, GRID_SIZE, LIGHT_TILE_SOURCES, TILE_FAILS_BEFORE_GRID, TILE_MAX_ZOOM, TILE_SOURCES, tileSources } from './tiles.web';
+import { BARE_LIGHT_TILE_SOURCES, BARE_TILE_SOURCES, GRID_BACKGROUND, GRID_SIZE, LIGHT_TILE_SOURCES, TILE_FAILS_BEFORE_GRID, TILE_MAX_ZOOM, TILE_SOURCES, tileSources } from './tiles.web';
 
 export type L = typeof Leaflet;
 
@@ -49,7 +49,7 @@ svg.leaflet-zoom-animated{will-change:transform}
 .leaflet-marker-icon,.leaflet-pane>svg path,.leaflet-tile-container{pointer-events:none}
 .leaflet-marker-icon.leaflet-interactive,.leaflet-pane>svg path.leaflet-interactive{pointer-events:auto}
 .leaflet-marker-icon:focus-visible{outline:2px solid ${ART.mapGrid};outline-offset:2px;border-radius:999px}
-${[...TILE_SOURCES, ...LIGHT_TILE_SOURCES].map((t) => `.ns-tiles-${t.name}{filter:${t.filter}}`).join('\n')}
+${[...TILE_SOURCES, ...LIGHT_TILE_SOURCES, ...BARE_TILE_SOURCES, ...BARE_LIGHT_TILE_SOURCES].map((t) => `.ns-tiles-${t.name}{filter:${t.filter}}`).join('\n')}
 .leaflet-container.ns-light{background:${ART.mapBgLight}}
 .ns-light img.leaflet-tile{mix-blend-mode:normal}
 .ns-grid{background-image:${GRID_BACKGROUND};background-size:${GRID_SIZE}}
@@ -71,7 +71,7 @@ function injectCss() {
  * won't load, and the grid when none will (offline). `onTiles` gets the credit for the tiles
  * on show, or null for the grid.
  */
-export function makeMap(L: L, el: HTMLElement, opts: { zoomSnap?: number; onTiles?: (credit: string | null) => void; appearance?: 'light' | 'dark' } = {}) {
+export function makeMap(L: L, el: HTMLElement, opts: { zoomSnap?: number; onTiles?: (credit: string | null) => void; appearance?: 'light' | 'dark'; labels?: boolean } = {}) {
   const map = L.map(el, {
     zoomControl: false,
     attributionControl: false,
@@ -84,7 +84,8 @@ export function makeMap(L: L, el: HTMLElement, opts: { zoomSnap?: number; onTile
     // The page's own long press handles touch; Leaflet's Safari tap-hold would fire it twice.
     tapHold: false,
   } as Leaflet.MapOptions);
-  let sources = tileSources(opts.appearance);
+  const labels = opts.labels ?? true;
+  let sources = tileSources(opts.appearance, labels);
   el.classList.toggle('ns-light', opts.appearance === 'light');
   let source = 0;
   let layers: Leaflet.TileLayer[] = [];
@@ -136,7 +137,7 @@ export function makeMap(L: L, el: HTMLElement, opts: { zoomSnap?: number; onTile
     map,
     /** Day or night tiles, swapped in place. */
     setAppearance: (a: 'light' | 'dark') => {
-      const next = tileSources(a);
+      const next = tileSources(a, labels);
       if (next === sources) return;
       sources = next;
       el.classList.toggle('ns-light', a === 'light');

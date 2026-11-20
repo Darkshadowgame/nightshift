@@ -1199,8 +1199,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     status = { arrow: '…', title: legsDone && legsDone.total > 1 ? `Planning the route… ${legsDone.done} of ${legsDone.total} legs` : 'Planning the route…' };
   else if (phase === 'error') status = { arrow: '!', title: "Couldn't start navigation" };
   else if (phase === 'locating') status = { arrow: '…', title: 'Finding you…' };
-  // The drive's distance is said once, in the preview's "2.9 mi drive · Arrive 21:16" (C5, Review 19).
-  else if (phase === 'preview') status = { arrow: ARROWS.arrive, title: finish };
+  // The route preview is a detail screen: no header title (4.1, Review 21 break 1). The place is said
+  // once, in the summary under the map: "2.9 mi drive to Leisure park car park" (C5, Review 19).
+  else if (phase === 'preview') status = { arrow: ARROWS.arrive, title: '' };
   else if (!banner && route && progress) status = { arrow: ARROWS.straight, title: 'Follow the route', distance: formatDistance(progress.toEnd) };
 
   const roadName = routeRoad ?? osmRoad?.name ?? geoStreet;
@@ -1386,6 +1387,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           time={formatDuration(pickedOption.time)}
           distance={formatDistance(pickedOption.distance || pickedOption.route.length)}
           eta={etaClock(clockNowMs, pickedOption.time)}
+          place={finish}
           trafficNote={
             noDirections
               ? // The demo's baked road starts at home, not at the phone (Review 20 gap 24): say so.

@@ -196,7 +196,9 @@ export default function TonightScreen() {
       setLocated(true);
       setHere(pos.at);
       setLocNote(null);
-      if (explicit) map.current?.animateTo(pos.at, 0.35);
+      // You and the meets nearest you, together (Review 21 problem 5): the map never lands on an
+      // empty patch with every meet off screen.
+      if (explicit) fitYouRef.current(pos.at);
       return;
     }
     setLocated(false);
@@ -474,6 +476,23 @@ export default function TonightScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, box.h, peek, fitSig, params.focus]);
   showRef.current = show;
+  /** Show where I am: fit you and up to three of tonight's meets nearest you into the open map. */
+  function fitYou(at: LatLng) {
+    const meets = [...lists.live, ...lists.tonight].map(pointOf).sort((a, b) => milesBetween(at, a) - milesBetween(at, b));
+    const near = meets.filter((p) => milesBetween(at, p) <= FIT_MILES).slice(0, 3);
+    // None within reach: the nearest one, if it isn't across the country.
+    if (!near.length && meets[0] && milesBetween(at, meets[0]) <= FIT_MILES * 2) near.push(meets[0]);
+    if (!near.length) {
+      setView((x) => ({ centre: at, span: 0.35, key: (x?.key ?? 0) + 1 }));
+      return;
+    }
+    const right = box.w ? (BUTTON + SPACING.md * 2) / box.w : 0;
+    const across = box.w && box.h ? Math.min(1.2, box.w / box.h / Math.cos((at.lat * Math.PI) / 180)) : 1.2;
+    const r = fitRegion([at, ...near], at, right, across);
+    setView((x) => ({ ...r, key: (x?.key ?? 0) + 1 }));
+  }
+  const fitYouRef = useRef(fitYou);
+  fitYouRef.current = fitYou;
   useEffect(() => {
     if (params.focus && ready) showRef.current(params.focus);
   }, [params.focus, params.t, ready]);
@@ -844,6 +863,7 @@ export default function TonightScreen() {
             onSelect={onSelectPin}
             onPressMap={onMapPress}
             showsUser={located}
+            you={located ? here : null}
             compass={COMPASS}
             credit={mapCredit}
           />

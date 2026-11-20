@@ -17,6 +17,7 @@ export function RoutePreview({
   time,
   distance,
   eta,
+  place,
   trafficNote,
   cards,
   chosen,
@@ -40,6 +41,8 @@ export function RoutePreview({
   distance: string;
   /** "21:42". */
   eta: string;
+  /** Where the drive ends ("Leisure park car park"): said here, not as a header title (4.1). */
+  place?: string;
   /** What the time includes: live traffic, or traffic on the map only. */
   trafficNote: string;
   /** Two or more: the route cards. One or none: just the route. */
@@ -70,13 +73,16 @@ export function RoutePreview({
   return (
     <View style={st.panel} onTouchStart={onTouch}>
       <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={st.body}>
-        <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance} drive. Arrive at ${eta}${clockTag ? `, ${clockTag}` : ''}.`}>
+        <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance} drive${place ? ` to ${place}` : ''}. Arrive at ${eta}${clockTag ? `, ${clockTag}` : ''}.`}>
           <DsText v="driveReadout">{time}</DsText>
           <DsText v="driveBody" tone="secondary">
-            {distance} drive · Arrive {eta}
-            {clockTag ? ` (${clockTag})` : ''}
+            {distance} drive{place ? ` to ${place}` : ''}
           </DsText>
         </View>
+        <DsText v="driveBody" tone="secondary">
+          Arrive {eta}
+          {clockTag ? ` (${clockTag})` : ''}
+        </DsText>
         <DsText v="caption">{trafficNote}</DsText>
         {cards.length > 1 ? (
           <ChoiceGroup

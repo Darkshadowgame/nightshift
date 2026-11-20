@@ -67,6 +67,11 @@ export interface NightMapProps {
   onSelect?: (id: string) => void;
   onLongPress?: (at: LatLng) => void;
   showsUser?: boolean;
+  /**
+   * Where you are, for the web map's "you" dot (the iPhone map draws its own with `showsUser`).
+   * Review 21 problem 5: Show where I am moved the map but drew nothing.
+   */
+  you?: LatLng | null;
   /** Draggable "picker" pin used when choosing a place for a stop. */
   picked?: LatLng | null;
   /** Move the map when `centre` or `span` change (otherwise they only set where it opens). */
@@ -84,6 +89,13 @@ export interface NightMapProps {
    * moved this far from its usual top-right spot (iOS only).
    */
   compass?: { x: number; y: number };
+  /**
+   * Draw the map's own place labels and road shields (default true). Small map cards (the event
+   * page, Host step 2, onboarding) pass false: a label or shield cut by a small card's edge shows
+   * as a sliver (Review 21 problem 1). On web they get a label-free base map; on iPhone, Apple's
+   * points of interest are off (Apple keeps its own labels inside the view).
+   */
+  labels?: boolean;
   /** Small credit line in the map's bottom corner, e.g. for OpenStreetMap data drawn on it. */
   credit?: string;
   /**

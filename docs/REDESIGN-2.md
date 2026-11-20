@@ -1185,3 +1185,22 @@ clashed, the owner's earlier decisions stand:
     * **Posts and photos:** a post's words never give a second power number (K5); captions match their
       photos; no blur boxes (a softened background is fine). Busy night's evening meets get night or
       dusk photos of their own.
+17. **Review 21 fixes: maps, Tonight, the event page, the route preview, voting and toasts (owner decisions,
+    20 Nov 2026):**
+    * **Small map cards** (the event page, Host step 2, onboarding, place and plan cards) draw no place
+      labels or road shields (`labels={false}`): on web a label-free base (Esri's Canvas base without
+      its Reference layer, credit kept); on iPhone no points of interest (Apple keeps its own labels
+      inside the view). The big Tonight map keeps its labels; on the dark map each pin sits on a soft
+      dark pool so a town name under it fades out round it.
+    * **Route preview:** a detail screen, so no header title (4.1); the place is said once in the
+      summary, "2.9 mi drive to Leisure park car park".
+    * **Tonight cards:** the "● MEET" kind line on a photo sits on a solid dark pill (over 4.5:1 on any
+      photo, at any text size). The count line's button names what it shows: "Show later" (only When
+      hid them), else "Show all".
+    * **Show where I am:** draws a blue "you" dot on web and fits you and up to three meets nearest you.
+    * **Demo vote result:** the winner comes from sample votes plus yours (`previewTally`), so your pick
+      wins only when it's one of the room's favourites; the split shows under the trophy.
+    * **Toasts never land on what they confirm:** the vote sheet scrolls the voted card clear of its
+      footer's toast; Garage scrolls the Mods list up after Add a mod.
+    * **Your own cancelled meet:** "You cancelled this meet.", no Share and no "Say hello". Me lists a
+      meet that's on now under "Now", never "Coming up".

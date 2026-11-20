@@ -133,7 +133,7 @@ export function ProfileForm({
           style={{ height: 200, borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: home ? COLOR.state.success : COLOR.surface.raisedHi }}
         >
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <NightMap key={`${centre.lat},${centre.lng}`} pins={[]} centre={centre} span={home ? 0.3 : 0.8} picked={home} />
+            <NightMap key={`${centre.lat},${centre.lng}`} labels={false} pins={[]} centre={centre} span={home ? 0.3 : 0.8} picked={home} />
           </View>
         </Press>
         <DsText v="meta" tone={home ? 'success' : 'secondary'}>

@@ -118,6 +118,7 @@ export default function SuggestPlace() {
         <MediaFrame height={200} style={points.length ? { borderColor: colour } : undefined}>
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
+              labels={false}
               pins={pins}
               paths={
                 kind === 'drive' && points.length > 1

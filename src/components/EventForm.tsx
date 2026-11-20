@@ -523,7 +523,7 @@ export function EventForm({
           <MediaFrame height={180} style={errorAt('point') ? { borderColor: COLOR.state.danger } : undefined}>
             <View style={[StyleSheet.absoluteFill, { zIndex: 0 }]} pointerEvents="none">
               {/* Only your own points: meet bans show in the picker, with their legend, and under a point that's in one (Review 13). */}
-              <NightMap pins={pointPins(null)} paths={routePaths} centre={preview.centre} span={preview.span} follow />
+              <NightMap labels={false} pins={pointPins(null)} paths={routePaths} centre={preview.centre} span={preview.span} follow />
             </View>
             <MapEdgeFade />
             {/* One solid chip, never words printed over the map's own labels (Review 19 #42, owner decision).

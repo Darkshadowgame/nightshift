@@ -148,6 +148,7 @@ export default function ChangePlan() {
         <MediaFrame height={200}>
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <NightMap
+              labels={false}
               key={`${selected}`}
               pins={pins}
               circles={BAN_SHAPES.circles}

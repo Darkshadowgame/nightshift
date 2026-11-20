@@ -124,7 +124,7 @@ export function filtering(filter: EventFilter, eventsOn: boolean): boolean {
 
 export interface FilterLine {
   text: string;
-  /** "Show" turns every filter off (and Events on); "Reset" puts the defaults back. */
+  /** "Show later" / "Show all" turn every filter off (and Events on); "Reset" puts the defaults back. */
   action: { label: string; clears: 'all' | 'reset' };
 }
 
@@ -162,5 +162,8 @@ export function filterLine(result: FilterResult, filter: EventFilter, eventsOn: 
       : byWhenOnly
         ? [`${later} later`, car > 0 ? carWhy(car) : null].filter(Boolean).join(', ')
         : `${car + other} hidden by your filters`;
-  return { text: `${count} · ${why}`, action: { label: 'Show', clears: 'all' } };
+  // The button names what it shows (Review 21 problem 7): "Show later" when only When hid them,
+  // else "Show all" (it turns every filter off either way).
+  const label = eventsOn && byWhenOnly && car === 0 ? 'Show later' : 'Show all';
+  return { text: `${count} · ${why}`, action: { label, clears: 'all' } };
 }

@@ -259,6 +259,8 @@ export const ART = {
   /** The route preview's other options, under the chosen one (grey on either map). */
   routeOther: '#8a93a3',
   mapGrid: '#141c2a',
+  /** The web map's "you" dot: Apple's location blue, as on every phone map (Review 21 problem 5). */
+  you: '#0a84ff',
   /** A speed camera with no known limit: the camera layer, dimmed. */
   cameraDim: '#c45a5a',
   /** Native shadows (iOS shadowColor). */

@@ -27,6 +27,6 @@ export { SearchField } from './SearchField';
 export { Card } from './Card';
 export { SwitchRow } from './SwitchRow';
 export { Field, INPUT, TextField } from './Field';
-export { Sheet, SheetPanel, SheetOption, ConfirmSheet, ConfirmBody } from './Sheet';
+export { Sheet, SheetPanel, SheetOption, ConfirmSheet, ConfirmBody, SheetRevealRef, useSheetReveal } from './Sheet';
 export { ToastProvider, ToastView, useToast, useToastAnchor, TAB_BAR_HEIGHT, type ToastInput, type ToastTone } from './Toast';
 export * from './logic';

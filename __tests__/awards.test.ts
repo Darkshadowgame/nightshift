@@ -1,4 +1,4 @@
-import { awardRep, canVote, castVote, categoriesFor, hasLegend, previewResults, results, votingCloses, winner, type Vote } from '../src/lib/awards';
+import { awardRep, canVote, castVote, categoriesFor, hasLegend, previewResults, previewTally, results, votingCloses, winner, type Vote } from '../src/lib/awards';
 import { DEFAULT_FILTER } from '../src/lib/invites';
 import type { Build, NightEvent } from '../src/lib/types';
 
@@ -119,12 +119,32 @@ describe('kind-aware trophies and the demo cap (REVIEW-10)', () => {
   });
 });
 
-describe('previewResults (the demo trophy moment, Review 12 L4)', () => {
-  test('your vote picks each winner, never your own build, before voting closes', () => {
-    const v: Vote[] = [{ eventId: event.id, voterId: 'u1', category: 'best-in-show', buildId: 'b2', at: at(1).toISOString() }];
-    const r = previewResults(v, event, builds, 'u1', at(1));
-    expect(r.find((a) => a.category === 'best-in-show')?.buildId).toBe('b2');
-    expect(r.every((a) => a.ownerId !== 'u1')).toBe(true);
-    expect(results(v, event, builds, at(1))).toEqual([]);
+describe('previewResults (the demo trophy moment, Review 12 L4; Review 21 problem 4)', () => {
+  const big: NightEvent = { ...event, id: 'big', going: [...event.going], checkIns: { ...event.checkIns } };
+  const many = [...builds];
+  for (let i = 6; i <= 12; i++) {
+    const uid = `u${i}`;
+    many.push(b(`b${i}`, uid));
+    big.going.push(uid);
+    big.checkIns[uid] = ['s'];
+  }
+  const mine = (buildId: string): Vote[] => [{ eventId: big.id, voterId: 'u1', category: 'best-car', buildId, at: at(1).toISOString() }];
+
+  test('sample votes plus yours: your vote counts once, never for your own build, before voting closes', () => {
+    const t = previewTally(mine('b2'), big, many, 'u1', 'best-car');
+    expect(t.find((r) => r.yours)?.buildId).toBe('b2');
+    expect(t.some((r) => r.buildId === 'b1')).toBe(false);
+    // The room's half (6 of 12 checked in) votes: 5 sample votes and yours.
+    expect(t.reduce((n, r) => n + r.votes, 0)).toBe(6);
+    expect(results(mine('b2'), big, many, at(1))).toEqual([]);
+  });
+
+  test('your pick wins only sometimes: the winner is the most votes, not your vote', () => {
+    const options = many.filter((x) => x.kind === 'car' && x.ownerId !== 'u1' && big.checkIns[x.ownerId]).map((x) => x.id);
+    const wins = options.filter((id) => previewResults(mine(id), big, many, 'u1', at(1)).find((a) => a.category === 'best-car')?.buildId === id);
+    expect(wins.length).toBeGreaterThan(0);
+    expect(wins.length).toBeLessThan(options.length);
+    // The same on every run.
+    expect(previewTally(mine(options[0]), big, many, 'u1', 'best-car')).toEqual(previewTally(mine(options[0]), big, many, 'u1', 'best-car'));
   });
 });

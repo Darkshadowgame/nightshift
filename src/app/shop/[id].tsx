@@ -105,6 +105,7 @@ export default function ShopScreen() {
         bleed
         media={
           <NightMap
+            labels={false}
             pins={[{ id: 'shop', at: listing.at, glyph, colour, title: listing.name, size: 34 }]}
             centre={listing.at}
             span={0.012}

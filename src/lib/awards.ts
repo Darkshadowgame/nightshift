@@ -210,19 +210,61 @@ export function allAwards(votes: Vote[], events: NightEvent[], builds: Build[], 
   return events.flatMap((e) => results(votes, e, builds, now));
 }
 
+/** One build's share of a demo trophy's votes. */
+export interface TallyRow {
+  buildId: string;
+  votes: number;
+  /** Your vote went to this build. */
+  yours: boolean;
+}
+
+/** A small stable hash, so the demo's sample votes are the same on every run (12:30 and 20:30). */
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/**
+ * The demo's vote split for one trophy (Review 21 problem 4): the rest of the room's votes are
+ * sample votes, spread over the builds in a fixed, made-up order of favour (about 40 / 30 / 20 /
+ * 10%), plus yours. The winner is whoever has most, so your pick wins only when it's one of the
+ * room's favourites; a tie goes to the room's favourite (it got there first). Sorted most first.
+ * Never your own build. Demo only.
+ */
+export function previewTally(votes: Vote[], event: NightEvent, builds: Build[], me: string, category: AwardCategory): TallyRow[] {
+  const options = eligibleFor(category, event, builds).filter((b) => b.ownerId !== me);
+  if (!options.length) return [];
+  const room = Math.max(MIN_VOTES, Math.round(attendeeIds(event).length / 2));
+  const others = room - 1;
+  const order = [...options].sort((a, b) => hash(`${event.id}:${category}:${a.id}`) - hash(`${event.id}:${category}:${b.id}`));
+  const counts = new Map<string, number>();
+  let left = others;
+  for (const [i, b] of order.entries()) {
+    // The favourite always leads the sample votes outright; the rest share what's left.
+    const n = i === order.length - 1 ? left : i === 0 ? Math.min(left, Math.ceil(left * 0.4)) : Math.min(left, Math.max(1, Math.floor(left * 0.5)));
+    counts.set(b.id, n);
+    left -= n;
+  }
+  const mine = votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === category)?.buildId;
+  if (mine && counts.has(mine)) counts.set(mine, (counts.get(mine) ?? 0) + 1);
+  return order
+    .map((b, i) => ({ row: { buildId: b.id, votes: counts.get(b.id) ?? 0, yours: b.id === mine }, i }))
+    .filter((x) => x.row.votes > 0)
+    .sort((a, b) => b.row.votes - a.row.votes || a.i - b.i)
+    .map((x) => x.row);
+}
+
 /**
  * The demo's trophy moment (Review 12, L4): the results as they'd look if voting closed now, so a
- * newcomer sees the trophy reveal straight after voting instead of "tomorrow 23:00". Your vote picks
- * each winner (the rest of the room is sample people); a trophy you didn't vote on goes to the
- * build with the most votes, else the first that turned up. Never your own build. Demo only.
+ * newcomer sees the trophy reveal straight after voting instead of "tomorrow 23:00". Each winner
+ * comes from the room's sample votes plus yours (`previewTally`, Review 21 problem 4), so your pick
+ * doesn't always win. `votes` on each award is the winner's own count. Never your own build. Demo only.
  */
 export function previewResults(votes: Vote[], event: NightEvent, builds: Build[], me: string, at: Date): Award[] {
-  const room = Math.max(MIN_VOTES, Math.round(attendeeIds(event).length / 2));
   return categoriesFor(event, builds).flatMap((category) => {
-    const options = eligibleFor(category, event, builds).filter((b) => b.ownerId !== me);
-    const mine = votes.find((v) => v.eventId === event.id && v.voterId === me && v.category === category)?.buildId;
-    const top = winner(votes, event, category)?.buildId;
-    const build = options.find((b) => b.id === mine) ?? options.find((b) => b.id === top) ?? options[0];
-    return build ? [{ eventId: event.id, category, buildId: build.id, ownerId: build.ownerId, votes: room, at: at.toISOString() }] : [];
+    const top = previewTally(votes, event, builds, me, category)[0];
+    const build = top && builds.find((b) => b.id === top.buildId);
+    return build ? [{ eventId: event.id, category, buildId: build.id, ownerId: build.ownerId, votes: top.votes, at: at.toISOString() }] : [];
   });
 }

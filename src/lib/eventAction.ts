@@ -142,7 +142,8 @@ export function statusLine(
   switch (state.kind) {
     case 'cancelled':
       // Said once on the page (C5, Review 20 problem 6): the meta keeps only the time, the chat no line.
-      return { text: `The host cancelled this ${EVENT_LABELS[event.type].toLowerCase()}.` };
+      // Your own meet says who did it (Review 21 gap 9): "You cancelled this meet."
+      return { text: `${host ? 'You' : 'The host'} cancelled this ${EVENT_LABELS[event.type].toLowerCase()}.` };
     case 'join': {
       // A connection invited you (eventInvites.ts): who, as the one next-step note.
       const by = event.invitedBy?.[ctx.me];

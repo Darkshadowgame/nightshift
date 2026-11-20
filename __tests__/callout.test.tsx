@@ -161,7 +161,9 @@ describe('GoingStrip', () => {
     const root = render(<GoingStrip people={people} summary="9 going · 7 cars, 2 bikes" onPress={noop} />);
     const all = texts(root.container);
     expect(all).toContain('+3');
-    expect(all).toContain('9 going · 7 cars, 2 bikes');
+    // The count, then the mix on its own line (Review 21 gap 10).
+    expect(all).toContain('9 going');
+    expect(all).toContain('7 cars, 2 bikes');
   });
 });
 

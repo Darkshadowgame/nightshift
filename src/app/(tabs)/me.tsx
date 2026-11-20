@@ -80,6 +80,8 @@ export default function Me() {
   const host = (e: (typeof events)[number]) => isHost(e, me, crews);
   const mine = events.filter((e) => host(e) || e.going.includes(me) || checkedIn(e));
   const next = mine.filter((e) => { const p = phaseOf(e, now); return p !== 'over' && p !== 'cancelled'; }).sort((a, b) => startMs(a.startsAt) - startMs(b.startsAt));
+  const liveNow = next.filter((e) => phaseOf(e, now) === 'live');
+  const comingUp = next.filter((e) => phaseOf(e, now) !== 'live');
   const past = mine.filter((e) => phaseOf(e, now) === 'over' && (checkedIn(e) || host(e))).sort((a, b) => startMs(b.startsAt) - startMs(a.startsAt));
   // Meets counts exactly the rows under Coming up and Past meets (Review 19 #47): the ones you're going to or
   // hosting, and the ones you went to or hosted. Hosted is the part of them you host.
@@ -148,17 +150,32 @@ export default function Me() {
         ]}
       />
 
+      {/* A meet that's on now isn't "coming up" (Review 21 gap 15): it has its own Now section first, as on Tonight. */}
+      {liveNow.length ? (
+        <Section title="Now">
+          <View>
+            {liveNow.map((e, i) => (
+              <View key={e.id}>
+                {i ? <RowDivider /> : null}
+                <EventRow view={view(e)} now={now} origin={origin} place={placeIfTwin(e)} onPress={() => openEvent(e.id)} />
+              </View>
+            ))}
+          </View>
+        </Section>
+      ) : null}
+
+      {comingUp.length || !liveNow.length ? (
       <Section title="Coming up">
-        {next.length === 0 ? (
+        {comingUp.length === 0 ? (
           <EmptyState
             variant="inline"
             title={pastShown.length ? "Nothing coming up. Say you're going to a meet on Tonight." : "Nothing yet. Say you're going to a meet on Tonight."}
             action={{ label: 'See tonight', onPress: () => router.navigate('/') }}
           />
         ) : null}
-        {next.length ? (
+        {comingUp.length ? (
           <View>
-            {next.map((e, i) => (
+            {comingUp.map((e, i) => (
               // K3: the one event row (Tonight's list and Search), with the one status tag.
               <View key={e.id}>
                 {i ? <RowDivider /> : null}
@@ -168,6 +185,7 @@ export default function Me() {
           </View>
         ) : null}
       </Section>
+      ) : null}
 
       {pastShown.length ? (
         // The same section header as Coming up, rule line and all (Review 19 #48).

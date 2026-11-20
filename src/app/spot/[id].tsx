@@ -177,6 +177,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
   const map = (
     <MediaFrame height={placePhoto ? 200 : 220}>
       <NightMap
+        labels={false}
         pins={pins}
         paths={paths}
         centre={framed.length ? midpoint(framed) : spot.at}

@@ -48,7 +48,7 @@ export function DriveBanner({
   const arrow = banner ? ARROWS[banner.kind] : status?.arrow ?? '…';
   const distance = banner ? formatDistance(banner.distance) : status?.distance;
   const title = banner ? banner.title : status?.title ?? '';
-  const label = banner ? `${distance}. ${banner.text}` : title;
+  const label = banner ? `${distance}. ${banner.text}` : title || 'Route preview';
   return (
     <View accessibilityLiveRegion="polite" accessible accessibilityLabel={label}>
       <View style={[st.banner, { paddingTop: top + SPACING.sm }, danger && { borderBottomColor: COLOR.state.danger }]}>
@@ -61,9 +61,11 @@ export function DriveBanner({
         )}
         <View style={{ flex: 1 }}>
           {distance ? <DsText v="driveDistance">{distance}</DsText> : null}
-          <DsText v="driveTitle" numberOfLines={2}>
-            {title}
-          </DsText>
+          {title ? (
+            <DsText v="driveTitle" numberOfLines={2}>
+              {title}
+            </DsText>
+          ) : null}
         </View>
       </View>
       {banner && lanes ? <LaneStrip strip={lanes} /> : null}

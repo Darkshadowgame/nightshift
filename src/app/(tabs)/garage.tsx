@@ -1,5 +1,5 @@
 import { router, useNavigation } from 'expo-router';
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { AddModSheet } from '../../components/AddModSheet';
 import { BuildCard, buildName, ModGroups, powerLine, useIsDemo } from '../../components/BuildBits';
@@ -29,6 +29,19 @@ export default function Garage() {
   const main = lastBrought(events, me, builds) ?? mine[0];
   const others = mine.filter((b) => b.id !== main?.id);
   const [addMod, setAddMod] = useState(false);
+  // A new mod scrolls the Mods list up, clear of the toast that confirms it (Review 21 problem 6: the
+  // toast sat on the new "Cold air intake" row).
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  const modsY = useRef(0);
+  const modCount = main?.mods.length ?? 0;
+  const lastCount = useRef(modCount);
+  useEffect(() => {
+    const grew = modCount > lastCount.current;
+    lastCount.current = modCount;
+    if (!grew) return;
+    const t = setTimeout(() => scroller.current?.scrollTo({ y: Math.max(0, modsY.current - SPACING.md), animated: true }), 250);
+    return () => clearTimeout(t);
+  }, [modCount]);
   const [error, setError] = useState<string | null>(null);
   const demo = useIsDemo();
   const flow = usePhotoFlow({
@@ -55,7 +68,7 @@ export default function Garage() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl }} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scroller} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl * 2 }} showsVerticalScrollIndicator={false}>
       {flow.view}
       <View style={{ gap: SPACING.sm }}>
         <BuildCard build={main} now={now} onPress={() => openBuild(main.id)} action={{ label: 'Add a mod', onPress: () => setAddMod(true) }} />
@@ -79,9 +92,11 @@ export default function Garage() {
       <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />
 
       {/* The build sheet under the card (Review 19 #39): what's done to it, then where the power comes from. */}
-      <Section title="Mods">
-        <ModGroups build={main} mine />
-      </Section>
+      <View onLayout={(e) => (modsY.current = e.nativeEvent.layout.y)}>
+        <Section title="Mods">
+          <ModGroups build={main} mine />
+        </Section>
+      </View>
       <View>
         <RowDivider />
         <ListRow title="Power and dyno" subtitle="How the power is worked out" onPress={() => router.push({ pathname: '/build/power', params: { id: main.id } })} />

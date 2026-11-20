@@ -96,6 +96,8 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
     const c = eventPrimary({ ...event, cancelled: true }, 'me', 'going', crews, [], at(-20));
     expect(c.kind).toBe('cancelled');
     expect(statusLine(event, c, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-20) }).text).toBe('The host cancelled this meet.');
+    // Your own meet says who did it (Review 21 gap 9).
+    expect(statusLine({ ...event, hostIds: ['me'] }, c, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-20) }).text).toBe('You cancelled this meet.');
     expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(200)).kind).toBe('ended');
   });
 

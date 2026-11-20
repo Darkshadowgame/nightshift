@@ -18,6 +18,9 @@ export type StripPerson = { id?: string; name?: string | null; handle?: string |
  */
 export function GoingStrip({ people, summary, onPress, max = 6 }: { people: readonly StripPerson[]; summary: string; onPress?: () => void; max?: number }) {
   const { shown, more } = stripFaces(people, max);
+  const cut = summary.indexOf(' · ');
+  const count = cut < 0 ? summary : summary.slice(0, cut);
+  const mix = cut < 0 ? '' : summary.slice(cut + 3);
   const size = AVATAR_SIZE.sm;
   const body = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: 44 }}>
@@ -47,9 +50,14 @@ export function GoingStrip({ people, summary, onPress, max = 6 }: { people: read
           ) : null}
         </View>
       ) : null}
-      <DsText v="meta" numberOfLines={2} style={{ flex: 1, color: COLOR.text.primary }}>
-        {summary}
-      </DsText>
+      {/* The count, then the mix under it: never one line that wraps as "7 cars, 3" / "bikes" or ends on
+          a "·" (Review 21 gap 10). The whole summary is still the row's label. */}
+      <View style={{ flex: 1 }}>
+        <DsText v="meta" style={{ color: COLOR.text.primary }}>
+          {count}
+        </DsText>
+        {mix ? <DsText v="meta">{mix}</DsText> : null}
+      </View>
       {onPress ? <Icon name="chevron" size={18} colour={COLOR.text.secondary} /> : null}
     </View>
   );

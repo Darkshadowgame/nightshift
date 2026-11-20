@@ -88,11 +88,17 @@ describe('filterLine', () => {
   test('filters hid some: names the default filters (later, not for your car) and Show (Review 20)', () => {
     const line = filterLine(filterEvents(VIEWS, DEFAULT_EVENT_FILTER, true, NOW), DEFAULT_EVENT_FILTER, true, true)!;
     expect(line.text).toBe('4 meets tonight · 3 later, 1 not for your car');
-    expect(line.action).toEqual({ label: 'Show', clears: 'all' });
+    expect(line.action).toEqual({ label: 'Show all', clears: 'all' });
+  });
+  test('only When hid some: the button says it shows the later ones (Review 21 problem 7)', () => {
+    const r = filterEvents(VIEWS, f({ when: DEFAULT_EVENT_FILTER.when, canGoOnly: false }), true, NOW);
+    const line = filterLine(r, f({ when: DEFAULT_EVENT_FILTER.when, canGoOnly: false }), true, true)!;
+    expect(line.text).toBe('5 meets tonight · 3 later');
+    expect(line.action).toEqual({ label: 'Show later', clears: 'all' });
   });
   test('only the car hid some: Show; no car says so', () => {
     const r = filterEvents(VIEWS, f({ canGoOnly: true }), true, NOW);
-    expect(filterLine(r, f({ canGoOnly: true }), true, true)).toEqual({ text: '9 meets · 1 not for your car', action: { label: 'Show', clears: 'all' } });
+    expect(filterLine(r, f({ canGoOnly: true }), true, true)).toEqual({ text: '9 meets · 1 not for your car', action: { label: 'Show all', clears: 'all' } });
     expect(filterLine(r, f({ canGoOnly: true }), true, false)!.text).toBe('9 meets · 1 need a car');
   });
   test('Events off says so', () => {

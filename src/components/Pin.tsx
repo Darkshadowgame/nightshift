@@ -1,6 +1,6 @@
-import { memo } from 'react';
+import { memo, useId, type ReactNode } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { ART, COLOR, RADII, SPACING } from '../theme';
 import { DsText } from './ds/Text';
 
@@ -93,6 +93,36 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
     </View>
   );
 });
+
+/**
+ * A map pin with a soft dark pool under it, wider than tall like a place name, so a town label the
+ * pin lands on fades out round it instead of showing its ends either side (Review 21 gap 5: pins on
+ * "Tamworth", "LICHFIELD"). Only on the dark map; drawn under the pin, never takes a touch, and
+ * never changes the pin's own box (it spills out of it).
+ */
+export function PinHalo({ size, children, on = true }: { size: number; children: ReactNode; on?: boolean }) {
+  const id = `h${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  if (!on) return <>{children}</>;
+  const w = Math.round(size * 3.8);
+  const h = Math.round(size * 1.8);
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+      <View pointerEvents="none" aria-hidden style={{ position: 'absolute', width: w, height: h, left: '50%', top: '50%', marginLeft: -w / 2, marginTop: -h / 2 }}>
+        <Svg width={w} height={h}>
+          <Defs>
+            <RadialGradient id={id} cx="50%" cy="50%" rx="50%" ry="50%">
+              <Stop offset="0" stopColor={ART.mapBg} stopOpacity={0.95} />
+              <Stop offset="0.6" stopColor={ART.mapBg} stopOpacity={0.8} />
+              <Stop offset="1" stopColor={ART.mapBg} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h / 2} fill={`url(#${id})`} />
+        </Svg>
+      </View>
+      {children}
+    </View>
+  );
+}
 
 function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
   switch (glyph) {

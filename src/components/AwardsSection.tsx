@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { canVote, categoriesFor, categoryInfo, eligibleFor, previewResults, results, votingCloses, type AwardCategory } from '../lib/awards';
+import { canVote, categoriesFor, categoryInfo, eligibleFor, previewResults, previewTally, results, votingCloses, type AwardCategory } from '../lib/awards';
 import { carShape } from '../lib/buildShape';
 import { classOf } from '../lib/classes';
 import { useNow } from '../lib/clock';
@@ -14,7 +14,7 @@ import type { NightEvent } from '../lib/types';
 import { COLOR, MOTION, SPACING } from '../theme';
 import { bhpLine } from './BringPicker';
 import { Cover } from './Cover';
-import { ActionBar, Button, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, Sheet, ToastView, displayHandle, useToast } from './ds';
+import { ActionBar, Button, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, Sheet, ToastView, displayHandle, SheetRevealRef, useToast } from './ds';
 import { RevealIn } from './motion';
 import { PhotoCredit } from './PhotoCredit';
 
@@ -47,9 +47,17 @@ export function TrophiesSection({ event, preview, progress, delay = 0 }: { event
   // The winner is said once (Review 15 decision 2): the cover's trophy has no row as well.
   const onCover = awards.filter((a) => categoryInfo(a.category).cover && builds.some((b) => b.id === a.buildId)).slice(0, 1);
   const rows = awards.filter((a) => !onCover.includes(a));
+  // The demo's split (Review 21 problem 4): the room's sample votes plus yours, so the result reads as
+  // everyone's votes and your pick can lose. Shown under the newest trophy's cover.
+  const tally = preview && awards[0] ? previewTally(votes, event, builds, me, awards[0].category) : [];
+  const total = tally.reduce((n, r) => n + r.votes, 0);
+  const buildName = (id: string) => {
+    const b = builds.find((x) => x.id === id);
+    return b ? buildTitle(b.make, b.model) : 'A build';
+  };
   return (
     // With the vote count in the title (Review 20 gap 26), so the result reads as everyone's votes, not just yours.
-    <Section title={preview ? (awards.length === 1 ? `Demo: how ${categoryInfo(awards[0].category).label} went · ${plural(awards[0].votes, 'vote')}` : 'Demo: how your trophies went') : 'Trophies'}>
+    <Section title={preview ? (awards.length === 1 ? `Demo: how ${categoryInfo(awards[0].category).label} went · ${plural(total, 'vote')}` : 'Demo: how your trophies went') : 'Trophies'}>
       {awards.length === 0 ? <DsText v="secondary">Not enough votes for any trophies at this one.</DsText> : null}
       {onCover.map((a) => {
           const b = builds.find((x) => x.id === a.buildId);
@@ -60,6 +68,21 @@ export function TrophiesSection({ event, preview, progress, delay = 0 }: { event
             </RevealIn>
           );
         })}
+      {tally.length ? (
+        <View accessible accessibilityLabel={`Votes: ${tally.map((r) => `${buildName(r.buildId)} ${plural(r.votes, 'vote')}${r.yours ? ', your vote' : ''}`).join('; ')}`}>
+          {tally.map((r) => (
+            <View key={r.buildId} style={{ flexDirection: 'row', alignItems: 'baseline', gap: SPACING.sm, paddingVertical: SPACING.xxs }}>
+              <DsText v="meta" style={{ flex: 1, color: r.yours ? COLOR.text.primary : undefined }}>
+                {buildName(r.buildId)}
+                {r.yours ? ' (your vote)' : ''}
+              </DsText>
+              <DsText v="meta" style={{ fontVariant: ['tabular-nums'] }}>
+                {plural(r.votes, 'vote')}
+              </DsText>
+            </View>
+          ))}
+        </View>
+      ) : null}
       {progress}
       <View>
         {rows.map((a, i) => {
@@ -74,7 +97,7 @@ export function TrophiesSection({ event, preview, progress, delay = 0 }: { event
                 // A build is always ClassBadge + name + bhp (K3, Review 17), the owner and votes under it.
                 build={b ? { letter: classOf(b), name: `${b.make} ${b.model}`, power: bhpLine(b) } : undefined}
                 subtitle={b ? undefined : 'a build'}
-                meta={`${handle(a.ownerId)} · ${preview ? `${a.votes} votes, yours included` : `${a.votes} votes`}`}
+                meta={`${handle(a.ownerId)} · ${plural(a.votes, 'vote')}`}
                 onPress={() => router.push({ pathname: '/user/[id]', params: { id: a.ownerId } })}
                 accessibilityLabel={`${info.label}: ${handle(a.ownerId)}, ${b?.make ?? ''} ${b?.model ?? ''}, ${a.votes} votes`}
               />
@@ -133,6 +156,9 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
   const toast = useToast();
   const cats = voteCategories(event, builds, me, now);
   const [shown, setShown] = useState<AwardCategory | null>(category);
+  /** Where each card is in the sheet's body, so the one you voted for is kept in view (below). */
+  const at0 = useRef({ outer: 0, list: 0, cards: new Map<string, { y: number; h: number }>() });
+  const lastPick = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The in-sheet toast (the app's toast sits under the sheet while it's open). */
   const [flash, setFlash] = useState<{ id: number; message: string } | null>(null);
@@ -151,6 +177,24 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
     const t = setTimeout(() => setFlash((f) => (f?.id === flash.id ? null : f)), MOTION.toast);
     return () => clearTimeout(t);
   }, [flash]);
+  // The toast's slot grows the footer: keep the card you just voted for in view above it, so the
+  // toast never sits on the card it confirms (Review 21 problems 4 and 6).
+  const reveal = useRef<((top: number, bottom: number) => void) | null>(null);
+  useEffect(() => {
+    if (!flash || !lastPick.current) return;
+    const show = () => {
+      const c = at0.current.cards.get(lastPick.current ?? '');
+      if (!c) return;
+      const top = at0.current.outer + at0.current.list + c.y;
+      reveal.current?.(top, top + c.h);
+    };
+    const a = setTimeout(show, 60);
+    const b = setTimeout(show, MOTION.base + 60);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [flash]);
   const cat = shown && cats.includes(shown) ? shown : cats[0];
   if (!cat) return null;
   const label = categoryInfo(cat).label;
@@ -167,6 +211,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
     try {
       await vote(event.id, cat, buildId);
       cast.current = true;
+      lastPick.current = buildId;
       const b = builds.find((x) => x.id === buildId);
       const name = b ? `${b.make} ${b.model}` : 'that build';
       if (next) setFlash({ id: ++flashes.current, message: `Voted for ${name}` });
@@ -181,14 +226,15 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
 
   return (
     <Sheet visible={!!category} title={`Vote: ${label}`} onClose={close}>
-      <View style={{ gap: SPACING.md }}>
+      <View style={{ gap: SPACING.md }} onLayout={(e) => (at0.current.outer = e.nativeEvent.layout.y)}>
+        <SheetRevealRef into={reveal} />
         <DsText v="secondary">Tap the build you think wins.</DsText>
-        <View style={{ gap: SPACING.sm }}>
+        <View style={{ gap: SPACING.sm }} onLayout={(e) => (at0.current.list = e.nativeEvent.layout.y)}>
           {options.map((b) => {
             const owner = users.find((u) => u.id === b.ownerId);
             const pic = buildPicture(b, demo);
             return (
-              <View key={b.id}>
+              <View key={b.id} onLayout={(e) => at0.current.cards.set(b.id, { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}>
                 <PhotoCard
                   kind="build"
                   size="sm"

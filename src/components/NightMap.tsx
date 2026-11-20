@@ -88,7 +88,7 @@ const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export const NightMap = memo(function NightMap({
   ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
-  onRegion, credit, compass, padding, appearance = 'dark',
+  onRegion, credit, compass, padding, appearance = 'dark', labels = true,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
   /** The map's height, for fitting regions above whatever covers its bottom (`padding`). */
@@ -149,8 +149,10 @@ export const NightMap = memo(function NightMap({
       }}
       // Traffic lines (red and amber) compete with cameras and events on a night map.
       showsTraffic={false}
-      // Only what a driver needs: fuel, chargers and parking.
-      pointsOfInterestFilter={MAP_POIS}
+      // Only what a driver needs: fuel, chargers and parking. A small card shows none (Review 21):
+      // the filter wins over showsPointsOfInterests, so it's left off there.
+      pointsOfInterestFilter={labels ? MAP_POIS : undefined}
+      showsPointsOfInterests={labels}
       showsCompass={!!compass}
       compassOffset={compass}
       pitchEnabled={false}

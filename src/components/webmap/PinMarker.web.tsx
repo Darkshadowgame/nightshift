@@ -2,23 +2,28 @@ import { memo, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type * as Leaflet from 'leaflet';
 import { PulseRing } from '../motion';
-import { Pin } from '../Pin';
+import { Pin, PinHalo } from '../Pin';
 import type { MapPin } from '../mapTypes';
 import type { L } from './leaflet.web';
 
 /** The pin's drawing, the same as the iPhone map's marker. */
 export const PinFace = memo(
-  function PinFace({ pin }: { pin: MapPin }) {
+  function PinFace({ pin, halo = false }: { pin: MapPin; /** The dark map's label-quieting pool (Pin.tsx `PinHalo`). */ halo?: boolean }) {
     const size = pin.size ?? 36;
-    return pin.live ? (
-      <PulseRing live colour={pin.colour} size={size} pad>
-        <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
-      </PulseRing>
-    ) : (
-      <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
+    return (
+      <PinHalo size={size} on={halo}>
+        {pin.live ? (
+          <PulseRing live colour={pin.colour} size={size} pad>
+            <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
+          </PulseRing>
+        ) : (
+          <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
+        )}
+      </PinHalo>
     );
   },
   (a, b) =>
+    a.halo === b.halo &&
     a.pin.glyph === b.pin.glyph &&
     a.pin.colour === b.pin.colour &&
     a.pin.size === b.pin.size &&

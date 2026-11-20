@@ -531,6 +531,7 @@ export default function EventScreen() {
   const map = (
     <>
       <NightMap
+        labels={false}
         // While "Location shown" plays, its own pin is the only one (no second pin under it, Review 15).
         // The pin stays put under it (Review 20 problem 5): the moment's own pin is drawn exactly over it.
         pins={anyVisible ? mapPins : []}
@@ -561,7 +562,8 @@ export default function EventScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Stack.Screen
         options={{
-          ...screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this meet', onPress: doShare }, onMenu: () => setMenu(true) }),
+          // Nothing to share on a cancelled meet (Review 21 gap 9).
+          ...screenHeader({ action: phase === 'cancelled' ? undefined : { label: 'Share', accessibilityLabel: 'Share this meet', onPress: doShare }, onMenu: () => setMenu(true) }),
           // The hero carries the title; once it has scrolled away (the location moment scrolls to the
           // map) the header keeps a compact copy, so you always know which meet this is (4.1, Review 19).
           headerTitle: titleUp
@@ -716,9 +718,10 @@ export default function EventScreen() {
           </Section>
         ) : null}
 
-        {going || host ? (
+        {/* A cancelled meet keeps its chat only if people said something; it never asks you to say hello (Review 21 gap 9). */}
+        {(going || host) && !(phase === 'cancelled' && messages.length === 0) ? (
           <Section title="Chat">
-            <ChatLines lines={chatPage.items} earlier={chatOpen ? chatPage.earlier : 0} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} users={users} />
+            <ChatLines lines={chatPage.items} earlier={chatOpen ? chatPage.earlier : 0} onEarlier={() => setChatShown((n) => n + LIST_PAGE)} me={me} label={userLabel} users={users} closed={closed} />
             {!chatOpen && messages.length > 2 ? <Button tier="tertiary" size="sm" label={`See all ${messages.length} messages`} onPress={() => setChatOpen(true)} style={{ alignSelf: 'flex-start' }} /> : null}
             {!closed ? (
               <View style={{ flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' }}>
@@ -934,8 +937,8 @@ function PhotoTile({ photoRef }: { photoRef: string }) {
 type Line = { id: string; userId: string; text: string; at: string; system?: boolean };
 
 /** Chat lines: a system line is a quiet caption; a person is their handle and the time, then the text. */
-function ChatLines({ lines, earlier, onEarlier, me, label, users }: { lines: readonly Line[]; earlier: number; onEarlier: () => void; me: string; label: (uid: string) => string; users: readonly User[] }) {
-  if (lines.length === 0) return <EmptyState variant="inline" title="No messages yet. Say hello." />;
+function ChatLines({ lines, earlier, onEarlier, me, label, users, closed }: { lines: readonly Line[]; earlier: number; onEarlier: () => void; me: string; label: (uid: string) => string; users: readonly User[]; closed?: boolean }) {
+  if (lines.length === 0) return <EmptyState variant="inline" title={closed ? 'No messages.' : 'No messages yet. Say hello.'} />;
   return (
     <View style={{ gap: SPACING.md }}>
       {earlier > 0 ? <Button tier="tertiary" size="sm" label={`Show ${earlier} earlier`} onPress={onEarlier} /> : null}

@@ -202,6 +202,7 @@ export default function Welcome() {
               {/* zIndex 0 keeps the web map's own layers inside this box, under the edge fade. */}
               <View style={[StyleSheet.absoluteFill, { zIndex: 0 }]} pointerEvents="none">
                 <NightMap
+                  labels={false}
                   key={home ? `${home.lat},${home.lng}` : 'none'}
                   pins={[]}
                   circles={home ? [{ id: 'home', centre: home, radiusMiles: HOME_RADIUS_MILES, colour: LAYER.event }] : []}

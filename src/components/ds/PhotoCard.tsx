@@ -235,7 +235,9 @@ export function PhotoCard({
           <>
             <Gradient style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '70%' }} />
             <View style={{ position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs }}>
-              {kindLine}
+              {/* On a photo the kind line sits on a solid dark pill, so "● MEET" reads on any photo, even a
+                  bright yellow bonnet (Review 21 problem 3): fog on glass is over 5:1 at any text size. */}
+              {kindLine ? <View style={ON_PHOTO_KIND}>{kindLine}</View> : null}
               {titleRow}
             </View>
           </>
@@ -368,3 +370,12 @@ export function AreaArt({ colour = COLOR.layer.event }: { colour?: string }) {
     </View>
   );
 }
+
+/** The kind line's backing on a photo: a solid dark pill, hugging its words (Review 21 problem 3). */
+const ON_PHOTO_KIND = {
+  alignSelf: 'flex-start' as const,
+  backgroundColor: COLOR.surface.glass,
+  borderRadius: RADII.tag,
+  paddingHorizontal: SPACING.sm,
+  paddingVertical: SPACING.xxs,
+};

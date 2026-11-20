@@ -459,6 +459,7 @@ function Picked({ place, note, onClear }: { place: Destination; note: string | n
     <View style={st.picked}>
       <View style={st.pickedMap}>
         <NightMap
+          labels={false}
           key={`${place.at.lat},${place.at.lng}`}
           pins={[{ id: 'destination', at: place.at, glyph: 'destination', colour: COLOR.text.primary, title: place.name, size: 40 }]}
           centre={place.at}
