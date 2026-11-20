@@ -1,7 +1,19 @@
 {
   "about": "DIST-ORIGIN: distances that need no origin (4.9 asks every distance from a place to name it: \"from home\", \"from you\"). Each entry: regexes for the URL path and the distance's text (\"text\") or its row (\"row\"), and why. A route's length or a radius isn't a distance from a place.",
   "allow": [
-    { "row": "\\bwithin\\s*\\d+(\\.\\d+)?\\s?(mi|km)\\b", "why": "A radius (\"people within 30 mi\", \"New meets within 25 mi\"): how far a meet's reach or an alert goes, not a distance between you and a place. 4.9's origin rule is for distances; no review has counted a radius." },
-    { "url": "^/drive", "row": "\\d\\s?mi drive\\b", "why": "The route preview's length (\"2.9 mi drive\"): the drive itself, from the route's start, not a distance from a place." }
+    {
+      "row": "\\bwithin\\s*\\d+(\\.\\d+)?\\s?(mi|km)\\b",
+      "why": "A radius (\"people within 30 mi\", \"New meets within 25 mi\"): how far a meet's reach or an alert goes, not a distance between you and a place. 4.9's origin rule is for distances; no review has counted a radius."
+    },
+    {
+      "url": "^/drive",
+      "row": "\\d\\s?mi drive\\b",
+      "why": "The route preview's length (\"2.9 mi drive\"): the drive itself, from the route's start, not a distance from a place."
+    },
+    {
+      "url": "^/settings$",
+      "text": "^\\d+\\s?mi$",
+      "why": "Settings' \"New meets within [25 mi]\": the radius picker's button, its value a radius from home, said by the row's own words (\"within\")."
+    }
   ]
 }
