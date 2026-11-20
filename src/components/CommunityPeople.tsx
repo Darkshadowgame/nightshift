@@ -141,7 +141,7 @@ export function CommunityPeople() {
             ))}
           </View>
         )}
-        <DsText v="caption">Distances are rough, from home areas. You can turn this off in Settings › Privacy.</DsText>
+        <DsText v="caption">Distances are rough, between home areas, never exact. You can turn this off in Settings › Privacy.</DsText>
       </View>
     );
   }
@@ -162,7 +162,7 @@ export function CommunityPeople() {
         <ListRow
           leading={{ icon: 'check' }}
           title={`Your connections (${connected.length})`}
-          subtitle={connected.length ? 'Message them, or see who you blocked' : 'Meet people at an event, then connect from their profile'}
+          subtitle={connected.length ? 'Message them, or see who you blocked' : 'Say hello at a meet, then connect from their profile'}
           onPress={() => router.push('/connections')}
         />
         <RowDivider />

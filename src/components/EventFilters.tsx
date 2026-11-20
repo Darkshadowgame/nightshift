@@ -11,14 +11,14 @@ export interface EventFiltersProps {
 }
 
 /**
- * The Events part of the Layers sheet (owner, 18 Nov 2026): Events on or off, When (Tonight / This
+ * The Meets part of the Layers sheet (owner, 18 Nov 2026; "Meets", not "Events": Review 21 gap 19): Meets on or off, When (Tonight / This
  * week / All), Type chips (nothing picked = all) and Only ones I can go to. Meets you're going to or
  * hosting always show. The logic is eventFilter.ts.
  */
 export function EventFilters({ eventsOn, onToggleEvents, filter, onChange }: EventFiltersProps) {
   return (
     <View style={{ gap: SPACING.md }}>
-      <SwitchRow label="Events" hint="Meets, cruises and rolling meets. Yours always show" value={eventsOn} onValueChange={onToggleEvents} />
+      <SwitchRow label="Meets" hint="Cruises and rolling meets too. Yours always show" value={eventsOn} onValueChange={onToggleEvents} />
       {eventsOn ? (
         <>
           <View style={{ gap: SPACING.sm }}>

@@ -151,7 +151,8 @@ New DS components named below (`ActionBar`, `PhotoCard`, `Hero`, `GoingStrip`, `
   meets / Say you're going with your car / Check in and vote for the best build) → `ActionBar`.
 * **ActionBar (both visible at 375x667 with no scroll):** primary **Try the demo**; secondary
   **Sign in**. Sign in opens the email step as a pushed screen (T4).
-* **Legal:** the 18+ and terms tick sits above the ActionBar, one line.
+* **Legal:** one line in the ActionBar, above the buttons: "By going on, you confirm you're 18 or over and
+  agree to the Terms." with Read. Tapping either button is the agreement (owner decision 16, Review 21).
 * **DS:** `Hero` (photo variant), `DsText`, `ActionBar`, `Button`, `SwitchRow`-style tick.
 * **Must NOT show:** the email field on the first screen, feedback link, version, credits.
 
@@ -167,7 +168,7 @@ New DS components named below (`ActionBar`, `PhotoCard`, `Hero`, `GoingStrip`, `
 │ • Say you're going            │
 │ • Check in, vote for the best │
 │                               │
-│ ☐ I'm 18+ and agree to Terms  │
+│ By going on, you're 18+ … Read│
 ├───────────────────────────────┤
 │ [      TRY THE DEMO       ]   │  primary
 │ [        SIGN IN          ]   │  secondary
@@ -1166,3 +1167,21 @@ clashed, the owner's earlier decisions stand:
     * **Meet, not event:** "Meet options", "Meet reminders", "Share this meet"; `__tests__/glossary.test.ts`
       ratchets "event" off screens.
 15. **Your own car's photo may repeat** (20 Nov 2026): the user's own build photo (or its stand-in) shows on Garage, Me, "It's up" and wherever their car is meant. The "one photo on at most two screens" rule is about sample content, not your own car.
+16. **Review 21 path to 10: sign-in, hosting, Garage, wording, People, photos (owner decisions, 20 Nov 2026):**
+    * **Sign-in:** no tick box on the first screen. One line in the ActionBar, above Try the demo and
+      Sign in, says "By going on, you confirm you're 18 or over and agree to the Terms." (Read opens
+      them); tapping either button is the agreement and is saved as the tick was, so the first tap
+      never errors. This replaces 11's tick in the ActionBar. The demo's later sign-in (the `account`
+      route) keeps its tick when it hasn't been agreed on this phone.
+    * **Starts and Ends hours:** every hour is drawn full strength and tappable; the evening (17–23)
+      gets only a subtle raised face ("Evening (17–23) is shaded"), never the rest dimmed. Only hours
+      that truly can't be picked are greyed.
+    * **Add a mod sheet:** Done shows until a part is picked; then "Add {part}" is the sheet's action
+      and Done steps away (4.5: a sheet closes with Done *or* the action it exists for), so there is
+      never a choice between two buttons that might save.
+    * **Layers sheet:** its first switch is "Meets" ("Cruises and rolling meets too. Yours always show").
+    * **People near you:** each row says its origin, "About 8 mi from home" (rough, between home areas;
+      `format.ts` `roughDistanceText`). The row leads with the build its avatar shows.
+    * **Posts and photos:** a post's words never give a second power number (K5); captions match their
+      photos; no blur boxes (a softened background is fine). Busy night's evening meets get night or
+      dusk photos of their own.

@@ -1,4 +1,5 @@
 import { classOf, effectivePower } from './classes';
+import { roughDistanceText } from './format';
 import { milesBetween } from './geo';
 import type { Build, ClassLetter, LatLng, User, VehicleKind } from './types';
 
@@ -26,9 +27,13 @@ export function roughMiles(miles: number): number {
   return Math.round(miles / 10) * 10;
 }
 
-/** "Under 5 mi" or "About 12 mi". */
+/**
+ * "Under 5 mi from home" or "About 12 mi from home": measured between home areas, so it says so
+ * (4.9, Review 21 gap 20). The words are format.ts `roughDistanceText`, capitalised to lead a line.
+ */
 export function distanceLabel(miles: number): string {
-  return miles <= 5 ? 'Under 5 mi' : `About ${miles} mi`;
+  const t = roughDistanceText(miles, 'home');
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 export function roughMilesBetween(a: LatLng, b: LatLng): number {
@@ -95,6 +100,13 @@ export function isFiltered(f: NearFilter): boolean {
   return f.kind !== 'all' || f.classes.length > 0 || f.make.trim() !== '' || (f.makes?.length ?? 0) > 0;
 }
 
+/** Someone's main build, the one their profile leads with: a photo first, then the first they added. */
+export function mainBuild(builds: readonly Build[]): Build | undefined {
+  // One with its own photo first, then the first they added (Review 20 #40: @na_ollie's MX-5, not
+  // the more powerful bike they also own), so an avatar shows the car their handle and posts are about.
+  return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]))[0];
+}
+
 /** Cards for the People list. With a filter on, people with no matching build drop out. */
 export function personCards(near: Nearby[], users: User[], builds: Build[], f: NearFilter): PersonCard[] {
   const byId = new Map(users.map((u) => [u.id, u]));
@@ -106,7 +118,11 @@ export function personCards(near: Nearby[], users: User[], builds: Build[], f: N
       .filter((b) => b.ownerId === n.userId && buildMatches(b, f))
       .sort((a, b) => effectivePower(b) - effectivePower(a));
     if (isFiltered(f) && theirs.length === 0) continue;
-    out.push({ user, miles: n.miles, builds: theirs, lead: theirs[0] ?? null });
+    // The row leads with the build the avatar shows (their main one) when it matches, so the photo
+    // and the words agree (Review 21 gap 25); with a filter that it fails, the best match.
+    const main = mainBuild(builds.filter((b) => b.ownerId === n.userId));
+    const lead = main && theirs.includes(main) ? main : theirs[0] ?? null;
+    out.push({ user, miles: n.miles, builds: theirs, lead });
   }
   return out;
 }

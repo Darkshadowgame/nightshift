@@ -236,7 +236,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
 
     // 1. Demo with a Fiesta ST.
     await start('t1');
-    await tap(page.getByRole('checkbox'));
+    // The 18+ line is part of Try the demo's tap now (Review 21 gap 1); an older build still has a box.
+    if (await page.getByRole('checkbox').count()) await tap(page.getByRole('checkbox'));
     await tap(B('Try the demo'));
     await snap('welcome');
     await page.getByRole('search').click();

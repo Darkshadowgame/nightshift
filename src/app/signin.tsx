@@ -51,6 +51,18 @@ function AgreeRow({ on, onChange }: { on: boolean; onChange: (v: boolean) => voi
   );
 }
 
+/** First run: the agreement said once, above the two ways in; either tap agrees (Review 21 gap 1). */
+function AgreeLine() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+      <DsText v="secondary" style={{ flex: 1 }}>
+        By going on, you confirm you're 18 or over and agree to the Terms.
+      </DsText>
+      <Button label="Read" tier="tertiary" size="sm" onPress={() => openLegal('terms')} accessibilityLabel="Read the Terms of Use" accessibilityHint="Opens in Safari" />
+    </View>
+  );
+}
+
 /**
  * First run (Redesign 2, 3.1): what Nightshift is in one line, a photo, the loop in three lines,
  * then Try the demo (primary) and Sign in (secondary) in the ActionBar, both on screen at 375x667.
@@ -67,12 +79,13 @@ export default function SignIn() {
   const [step, setStep] = useState<'start' | 'email'>('start');
   const [busy, setBusy] = useState<null | 'demo'>(null);
   const [error, setError] = useState<{ at: 'demo'; text: string } | null>(null);
-  const [agreed, setAgreed] = useAgreed(() => setError(null));
+  const [, setAgreed] = useAgreed();
 
-  // The 18+ box is on the first screen only, and both ways in need it: the demo too.
+  // Both ways in say you're 18+ and agree to the Terms: the line right above them says so, and the
+  // tap itself is the agreement, so the first tap never errors (Review 21 gap 1).
   async function demo() {
     setError(null);
-    if (!agreed) return setError({ at: 'demo', text: TICK_FIRST });
+    setAgreed(true);
     setBusy('demo');
     try {
       await auth.startDemo();
@@ -120,20 +133,21 @@ export default function SignIn() {
             ))}
           </View>
         </ScrollView>
-        {/* The 18+ tick sits in the bar, right above the buttons it unlocks, so it's seen before
-            either is tapped (Review 19 #2). Its error shows between the two. */}
+        {/* The 18+ and Terms line sits in the bar, right above the buttons it goes with, so it's read
+            before either is tapped; tapping either is the agreement (Review 19 #2, Review 21 gap 1). */}
         <ActionBar>
-          <AgreeRow on={agreed} onChange={setAgreed} />
+          <AgreeLine />
           {err('demo')}
-          <Button tier="primary" size="md" block label="Try the demo" onPress={demo} busy={busy === 'demo'} accessibilityHint="Sample people and meets. Nothing leaves this phone." />
+          <Button tier="primary" size="md" block label="Try the demo" onPress={demo} busy={busy === 'demo'} accessibilityHint="You're 18 or over and agree to the Terms. Sample people and meets. Nothing leaves this phone." />
           <Button
             tier="secondary"
             size="md"
             block
             label="Sign in"
+            accessibilityHint="You're 18 or over and agree to the Terms."
             onPress={() => {
               setError(null);
-              if (!agreed) return setError({ at: 'demo', text: TICK_FIRST });
+              setAgreed(true);
               setStep('email');
             }}
           />

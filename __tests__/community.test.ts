@@ -90,8 +90,8 @@ describe('Cars near you (mirrors people_near)', () => {
     expect(roughMiles(13.2)).toBe(14);
     expect(roughMiles(33)).toBe(35);
     expect(roughMiles(87)).toBe(90);
-    expect(distanceLabel(5)).toBe('Under 5 mi');
-    expect(distanceLabel(12)).toBe('About 12 mi');
+    expect(distanceLabel(5)).toBe('Under 5\u00a0mi from home');
+    expect(distanceLabel(12)).toBe('About 12\u00a0mi from home');
   });
   it('snaps homes to 0.05° first', () => {
     expect(coarse({ lat: 53.23, lng: -0.54 })).toEqual({ lat: expect.closeTo(53.25, 6), lng: expect.closeTo(-0.55, 6) });

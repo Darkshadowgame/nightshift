@@ -84,6 +84,15 @@ export function distanceText(miles: number, from: 'you' | 'home' = 'you', about 
   return `${base} from ${from}`;
 }
 
+/**
+ * A rough distance between two people's home areas (People near you): rounded for privacy, and,
+ * like every distance, it names its origin (Review 21 gap 20): "under 5 mi from home", "about 8 mi
+ * from home". `miles` is already rounded (carsNear `roughMiles`); 5 or less means "under 5".
+ */
+export function roughDistanceText(miles: number, from: 'you' | 'home' = 'home'): string {
+  return miles <= 5 ? `under 5\u00a0mi from ${from}` : `about ${Math.round(miles)}\u00a0mi from ${from}`;
+}
+
 /** Where every distance is measured from: your GPS fix while location is on, else your home. */
 export type DistanceOrigin = { at: LatLng; from: 'you' | 'home' };
 

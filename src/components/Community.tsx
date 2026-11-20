@@ -3,7 +3,7 @@ import { carShape } from '../lib/buildShape';
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
+import { distanceLabel, mainBuild, type PersonCard as Card_ } from '../lib/carsNear';
 import { classOf } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
@@ -180,12 +180,8 @@ export function PersonNearRow({ card, state }: { card: Card_; state: ConnectionS
   );
 }
 
-/** Someone's main build, the one their profile leads with: a photo first, then the most power. */
-export function mainBuild(builds: readonly Build[]): Build | undefined {
-  // One with its own photo first, then the first they added (Review 20 #40: @na_ollie's MX-5, not
-  // the more powerful bike they also own), so an avatar shows the car their handle and posts are about.
-  return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]))[0];
-}
+/** Someone's main build, the one their profile and avatar lead with (carsNear.ts). */
+export { mainBuild };
 
 /** A person's row anywhere else (connections, a chat's members): avatar, @handle, their build. */
 export function PersonRow({ user, build, meta, onPress, trailing }: { user?: User; build?: Build; meta?: string; onPress?: () => void; trailing?: ReactNode }) {

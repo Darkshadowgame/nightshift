@@ -108,7 +108,10 @@ export function AddModSheet({
   }
 
   return (
-    <Sheet visible={visible} title="Add a mod" onClose={close}>
+    // One way out at a time (4.5, Review 21): Done until a part is picked, then the Add button is the
+    // sheet's action and Done steps away, so nobody wonders which of the two saves. Untick the part (or
+    // tap outside) to leave without adding.
+    <Sheet visible={visible} title="Add a mod" onClose={close} hideDone={!!name}>
       <SegmentedControl<ModSection>
         accessibilityLabel="Kind of part"
         value={section}

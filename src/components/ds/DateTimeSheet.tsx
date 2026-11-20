@@ -43,7 +43,7 @@ export function dateTimeText(value: Date, now: Date, mode: DateTimeMode = 'datet
 /**
  * Every hour of the day, in clock order, in one tidy grid of 6 columns by 4 rows (Review 20 #10,
  * owner decision): morning meets (Sunday coffee) are as easy to pick as evening ones. The evening
- * (17–23), when most meets start, is lit.
+ * (17–23), when most meets start, has a subtle shaded face; every hour is full strength (Review 21).
  */
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const EVENING_FROM = 17;
@@ -55,7 +55,7 @@ const HOUR_COLUMNS = 6;
  *
  * In a Sheet: a sideways row of days (`days`, default 14: "Today", "Tomorrow", "Sat 21", …, then
  * "Another day" for the month calendar, in the same sheet), then for `mode="datetime"` the hour
- * (all 24 in clock order, a 6 x 4 grid with the evening lit; any that can't be picked are greyed)
+ * (all 24 in clock order, a 6 x 4 grid with the evening shaded; any that can't be picked are greyed)
  * and the minutes in `stepMinutes` steps (default 15: :00 :15 :30 :45).
  * Every tap calls `onChange` with the whole new Date; the Sheet closes with Done.
  *
@@ -150,12 +150,13 @@ export function DateTimeSheet({
           alignItems: 'center',
           justifyContent: 'center',
           ...chipFace(on),
-          // The evening is lit: a raised face and a stronger edge; selection stays the one sodium state.
-          ...(!on && evening ? { backgroundColor: COLOR.surface.raised, borderColor: COLOR.surface.borderStrong } : null),
+          // Every hour is full strength and tappable (Review 21 gap 17: dim mornings looked disabled).
+          // The evening gets only a subtle raised face; selection stays the one sodium state.
+          ...(!on && evening ? { backgroundColor: COLOR.surface.raised } : null),
           opacity: off ? 0.35 : 1,
         }}
       >
-        <DsText v={on || evening ? 'bodyStrong' : 'body'} style={{ color: on ? chipText(on) : evening ? COLOR.text.primary : COLOR.text.secondary, fontVariant: ['tabular-nums'] }}>
+        <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on), fontVariant: ['tabular-nums'] }}>
           {String(h).padStart(2, '0')}
         </DsText>
       </Press>
@@ -243,7 +244,7 @@ export function DateTimeSheet({
         <View style={{ gap: SPACING.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACING.sm }}>
             <DsText v="label">Hour</DsText>
-            <DsText v="caption">Evening hours are lit</DsText>
+            <DsText v="caption">Evening (17–23) is shaded</DsText>
           </View>
           <View style={{ gap: SPACING.xs }}>
             {hourRows.map((row) => (

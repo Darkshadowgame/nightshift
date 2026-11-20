@@ -181,8 +181,6 @@ const EVENT_KNOWN = new Set([
   'src/app/report.tsx',
   'src/components/AwardsSection.tsx',
   'src/components/CommunityMessages.tsx',
-  'src/components/CommunityPeople.tsx',
-  'src/components/EventFilters.tsx',
   'src/components/EventForm.tsx',
   'src/components/InviteSheet.tsx',
   'src/components/ModerationGate.tsx',
