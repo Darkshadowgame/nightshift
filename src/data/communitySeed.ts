@@ -108,7 +108,7 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     p('po-1', 'dan', 'Fresh from a wash, parked up at the old airfield car park. Quiet, plenty of space, nobody about.', 3 * HOUR,
       { at: near(0.05, -0.08), placeName: 'Old airfield car park', buildId: 'b-dan-0', likeCount: 12, commentCount: 2 }),
     p('po-2', 'aimee', 'First ride out since the new end can went on. Sounds mint and it’s still road legal.', 7 * HOUR, { buildId: 'b-aimee-0', likeCount: 8 }),
-    p('po-3', 'mo', 'Rolling road day: 470 at the hubs after the map. Brakes next.', 26 * HOUR,
+    p('po-3', 'mo', 'Back from the rolling road: 470 at the hubs after the map. Brakes next.', 26 * HOUR,
       { at: near(-0.04, 0.07), placeName: 'Rolling road', buildId: 'b-mo-0', likeCount: 21, commentCount: 1 }),
     p('po-4', 'liv', 'Out early this morning, roads were empty and dry for once.', 30 * HOUR, { at: near(0.11, 0.09), placeName: 'Reservoir viewpoint', buildId: 'b-liv-0', likeCount: 5 }),
     p('po-5', 'mo', 'Connections only: wash day Saturday, 10am. Bring your own snow foam.', 2 * DAY, { visibility: 'connections', likeCount: 3 }),

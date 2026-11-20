@@ -71,72 +71,72 @@ const PEOPLE: Person[] = [
   { id: ME, handle: 'you', name: 'You', home: [52.63, -1.69], builds: [] },
   {
     id: 'dan', handle: 'dan_r', name: 'Dan', home: [52.63, -1.70], crew: 'nr',
-    builds: [{ kind: 'car', make: 'BMW', model: 'M4 Competition', year: 2021, stockBhp: 503, weightKg: 1725, torque: 479, colour: '#ff9a2e',
+    builds: [{ kind: 'car', make: 'BMW', model: 'M4 Competition', year: 2021, stockBhp: 503, weightKg: 1725, torque: 479, colour: '#1f4fa8',
       mods: [['engine', 'Stage 1 remap', 80], ['exhaust', 'Valved cat-back'], ['wheels', '20" forged'], ['body', 'Carbon front splitter']] }],
   },
   {
     id: 'aimee', handle: 'aimee.r1', name: 'Aimee', home: [52.68, -1.82], crew: 'nr',
-    builds: [{ kind: 'bike', make: 'Yamaha', model: 'YZF-R1', year: 2020, stockBhp: 197, weightKg: 201, colour: '#3f6fff',
+    builds: [{ kind: 'bike', make: 'Yamaha', model: 'YZF-R1', year: 2020, stockBhp: 197, weightKg: 201, colour: '#1f4fa8',
       mods: [['exhaust', 'Full titanium system', 8], ['engine', 'ECU flash', 5], ['other', 'Quickshifter'], ['body', 'Tail tidy']] }],
   },
   {
     id: 'kez', handle: 'kez_typer', name: 'Kez', home: [52.52, -1.47], crew: 'ts',
-    builds: [{ kind: 'car', make: 'Honda', model: 'Civic Type R FK8', year: 2018, stockBhp: 316, weightKg: 1380, colour: '#ff4d4d',
+    builds: [{ kind: 'car', make: 'Honda', model: 'Civic Type R FK8', year: 2018, stockBhp: 316, weightKg: 1380, colour: '#c8102e',
       mods: [['intake', 'Carbon intake', 5], ['exhaust', 'Cat-back'], ['wheels', '19" flow-formed'], ['suspension', 'Lowering springs'], ['engine', 'Stage 1 map', 30]] }],
   },
   {
     id: 'jord', handle: 'jordST', name: 'Jordan', home: [52.80, -1.64],
-    builds: [{ kind: 'car', make: 'Ford', model: 'Fiesta ST Mk7', year: 2016, stockBhp: 197, weightKg: 1163, colour: '#2ec4b6',
+    builds: [{ kind: 'car', make: 'Ford', model: 'Fiesta ST Mk7', year: 2016, stockBhp: 197, weightKg: 1163, colour: '#1b1f27',
       mods: [['engine', 'Mountune MR230 pack', 33], ['intake', 'Induction kit'], ['suspension', 'Coilovers'], ['wheels', '17" Rotas']] }],
   },
   {
     id: 'mo', handle: 'mo.rs3', name: 'Mo', home: [52.57, -1.82], crew: 'nr',
-    builds: [{ kind: 'car', make: 'Audi', model: 'RS3 8V', year: 2019, stockBhp: 395, weightKg: 1575, torque: 354, dyno: 470, colour: '#9b5de5',
+    builds: [{ kind: 'car', make: 'Audi', model: 'RS3 8V', year: 2019, stockBhp: 395, weightKg: 1575, torque: 354, dyno: 470, colour: '#7a7f8a',
       mods: [['engine', 'Stage 2+ remap'], ['turbo', 'Hybrid turbo'], ['intake', 'Turbo inlet'], ['exhaust', 'Decat downpipe'], ['wheels', '19" forged']] }],
   },
   {
     id: 'liv', handle: 'liv_on_two', name: 'Liv', home: [52.92, -1.48], crew: 'pk',
-    builds: [{ kind: 'bike', make: 'Triumph', model: 'Street Triple RS', year: 2022, stockBhp: 128, weightKg: 188, colour: '#ff4fa3',
+    builds: [{ kind: 'bike', make: 'Triumph', model: 'Street Triple RS', year: 2022, stockBhp: 128, weightKg: 188, colour: '#1b1f27',
       mods: [['exhaust', 'Arrow end can', 3], ['other', 'Bar-end mirrors'], ['body', 'Fly screen']] }],
   },
   {
     id: 'sully', handle: 'sully_zx', name: 'Sully', home: [52.64, -1.13], crew: 'pk',
-    builds: [{ kind: 'bike', make: 'Kawasaki', model: 'ZX-10R', year: 2021, stockBhp: 200, weightKg: 207, colour: '#9dfa5a',
+    builds: [{ kind: 'bike', make: 'Kawasaki', model: 'ZX-10R', year: 2021, stockBhp: 200, weightKg: 207, colour: '#2f7d4f',
       mods: [['exhaust', 'Akrapovič slip-on', 4], ['engine', 'ECU flash', 6], ['suspension', 'Öhlins shock'], ['other', 'Steering damper']] }],
   },
   {
     id: 'bex', handle: 'bex_gti', name: 'Bex', home: [52.41, -1.51], crew: 'ts',
-    builds: [{ kind: 'car', make: 'Volkswagen', model: 'Golf GTI Mk7', year: 2017, stockBhp: 227, weightKg: 1375, colour: '#e9edf4',
+    builds: [{ kind: 'car', make: 'Volkswagen', model: 'Golf GTI Mk7', year: 2017, stockBhp: 227, weightKg: 1375, colour: '#c8102e',
       mods: [['engine', 'Stage 1 remap', 50], ['wheels', '18" Pretorias'], ['suspension', 'Air ride']] }],
   },
   {
     id: 'tay', handle: 'tay_subie', name: 'Tay', home: [52.81, -2.12],
-    builds: [{ kind: 'car', make: 'Subaru', model: 'Impreza WRX STI', year: 2008, stockBhp: 296, weightKg: 1505, colour: '#3f6fff',
+    builds: [{ kind: 'car', make: 'Subaru', model: 'Impreza WRX STI', year: 2008, stockBhp: 296, weightKg: 1505, colour: '#1b1f27',
       mods: [['engine', 'Forged internals'], ['turbo', 'Twin-scroll turbo'], ['exhaust', 'Equal-length manifold'], ['brakes', 'Big brake kit'], ['body', 'Wing']], dyno: 420 }],
   },
   {
     id: 'raf', handle: 'raf.r6', name: 'Raf', home: [52.59, -1.98],
-    builds: [{ kind: 'bike', make: 'Yamaha', model: 'YZF-R6', year: 2017, stockBhp: 117, weightKg: 190, colour: '#3fd6ff',
+    builds: [{ kind: 'bike', make: 'Yamaha', model: 'YZF-R6', year: 2017, stockBhp: 117, weightKg: 190, colour: '#e9edf4',
       mods: [['exhaust', 'Slip-on', 3], ['body', 'Race fairings'], ['other', 'Rearsets']] }],
   },
   {
     id: 'nina', handle: 'nina_mx5', name: 'Nina', home: [52.37, -1.26],
-    builds: [{ kind: 'car', make: 'Mazda', model: 'MX-5 NB', year: 2003, stockBhp: 144, weightKg: 1065, colour: '#ff9a2e',
+    builds: [{ kind: 'car', make: 'Mazda', model: 'MX-5 NB', year: 2003, stockBhp: 144, weightKg: 1065, colour: '#1f4fa8',
       mods: [['suspension', 'Coilovers'], ['wheels', '15" Enkei'], ['interior', 'Bucket seats'], ['body', 'Hardtop']] }],
   },
   {
     id: 'cal', handle: 'cal_focusrs', name: 'Cal', home: [52.54, -1.37], crew: 'ts',
-    builds: [{ kind: 'car', make: 'Ford', model: 'Focus RS Mk3', year: 2017, stockBhp: 345, weightKg: 1599, colour: '#3f6fff',
+    builds: [{ kind: 'car', make: 'Ford', model: 'Focus RS Mk3', year: 2017, stockBhp: 345, weightKg: 1599, colour: '#1f4fa8',
       mods: [['engine', 'Stage 2 remap', 55], ['intake', 'Turbo inlet'], ['exhaust', 'Cat-back'], ['wheels', '19" forged']] }],
   },
   {
     id: 'ash', handle: 'ash.saxo', name: 'Ash', home: [52.69, -2.03],
-    builds: [{ kind: 'car', make: 'Citroen', model: 'Saxo VTS', year: 2001, stockBhp: 100, weightKg: 935, colour: '#ffd166',
+    builds: [{ kind: 'car', make: 'Citroen', model: 'Saxo VTS', year: 2001, stockBhp: 100, weightKg: 935, colour: '#7a7f8a',
       mods: [['engine', 'Throttle bodies', 25], ['exhaust', '4-2-1 manifold'], ['suspension', 'Coilovers'], ['interior', 'Half cage']] }],
   },
   {
     id: 'deano', handle: 'deano_mt09', name: 'Dean', home: [52.75, -1.47], crew: 'pk',
-    builds: [{ kind: 'bike', make: 'Yamaha', model: 'MT-09', year: 2021, stockBhp: 117, weightKg: 189, colour: '#7a7f8c',
+    builds: [{ kind: 'bike', make: 'Yamaha', model: 'MT-09', year: 2021, stockBhp: 117, weightKg: 189, colour: '#7a7f8a',
       mods: [['exhaust', 'Full system', 6], ['engine', 'ECU flash', 4], ['other', 'Tail tidy']] }],
   },
   {
@@ -146,27 +146,27 @@ const PEOPLE: Person[] = [
   },
   {
     id: 'gaz', handle: 'gaz_gsxr', name: 'Gaz', home: [52.53, -1.46], crew: 'pk',
-    builds: [{ kind: 'bike', make: 'Suzuki', model: 'GSX-R750', year: 2016, stockBhp: 148, weightKg: 190, colour: '#3f6fff',
+    builds: [{ kind: 'bike', make: 'Suzuki', model: 'GSX-R750', year: 2016, stockBhp: 148, weightKg: 190, colour: '#1b1f27',
       mods: [['exhaust', 'Yoshimura can', 4], ['brakes', 'Braided lines'], ['other', 'Steering damper']] }],
   },
   {
     id: 'em', handle: 'em_i30n', name: 'Em', home: [52.69, -1.83],
-    builds: [{ kind: 'car', make: 'Hyundai', model: 'i30 N', year: 2020, stockBhp: 271, weightKg: 1429, colour: '#3fd6ff',
+    builds: [{ kind: 'car', make: 'Hyundai', model: 'i30 N', year: 2020, stockBhp: 271, weightKg: 1429, colour: '#7a7f8a',
       mods: [['engine', 'Stage 1 remap', 40], ['wheels', '19" Rotas']] }],
   },
   {
     id: 'tom', handle: 'tomtom_gr', name: 'Tom', home: [52.64, -1.68],
-    builds: [{ kind: 'car', make: 'Toyota', model: 'GR Yaris', year: 2021, stockBhp: 257, weightKg: 1280, colour: '#ff4d4d',
+    builds: [{ kind: 'car', make: 'Toyota', model: 'GR Yaris', year: 2021, stockBhp: 257, weightKg: 1280, colour: '#1b1f27',
       mods: [['engine', 'Stage 1 remap', 40], ['intake', 'Turbo inlet'], ['exhaust', 'Cat-back'], ['suspension', 'Coilovers'], ['wheels', '18" forged']] }],
   },
   {
     id: 'lew', handle: 'lew.ninja', name: 'Lewis', home: [52.81, -1.62],
-    builds: [{ kind: 'bike', make: 'Kawasaki', model: 'Ninja 400', year: 2022, stockBhp: 45, weightKg: 168, colour: '#9dfa5a',
+    builds: [{ kind: 'bike', make: 'Kawasaki', model: 'Ninja 400', year: 2022, stockBhp: 45, weightKg: 168, colour: '#2f7d4f',
       mods: [['exhaust', 'Slip-on'], ['other', 'Tail tidy'], ['body', 'Double-bubble screen']] }],
   },
   {
     id: 'sam', handle: 'sam_e46', name: 'Sam', home: [52.31, -1.94],
-    builds: [{ kind: 'car', make: 'BMW', model: 'M3 E46', year: 2004, stockBhp: 338, weightKg: 1495, colour: '#9b5de5',
+    builds: [{ kind: 'car', make: 'BMW', model: 'M3 E46', year: 2004, stockBhp: 338, weightKg: 1495, colour: '#1b1f27',
       mods: [['exhaust', 'Straight-through system'], ['suspension', 'Coilovers'], ['wheels', '19" CSL replicas'], ['interior', 'Bucket seats']] }],
   },
 ];
@@ -327,6 +327,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // The "Start here" pick: live, open to anyone, location shown. Going, check in and vote work at once.
       photo: `${SAMPLE_REF}ev-meet-now`,
+      // Photos from tonight's meet of its own (Review 20 #13), not the builds' photos again.
+      gallery: ['g-now-1', 'g-now-2', 'g-now-3'].map((k) => `${SAMPLE_REF}${k}`),
       id: 'ev-meet-now', type: 'meet', title: 'Car park meet-up',
       description: 'Park up at the far end, no revving, leave it clean.',
       startsAt: iso(t.meetNow.start), endsAt: iso(t.meetNow.end),
@@ -391,9 +393,10 @@ function events(now: Date, home: LatLng): NightEvent[] {
     },
     {
       photo: `${SAMPLE_REF}ev-bike-cat`,
-      id: 'ev-bike-cat', type: 'cruise', title: `Sunrise ride: ${d2.name}`,
-      description: 'Breakfast at the finish.',
-      startsAt: at(now, 6, 7, 0), endsAt: at(now, 6, 10, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
+      // An evening ride (Review 20: its photo is a bike at a bike night, not a sunrise).
+      id: 'ev-bike-cat', type: 'cruise', title: `Evening ride: ${d2.name}`,
+      description: 'Bikes only. Tea and a bacon roll at the finish.',
+      startsAt: at(now, 6, 19, 0), endsAt: at(now, 6, 22, 0), area: d2.at, areaName: d2.region, routeMiles: Math.round(d2.miles ?? 20),
       stops: driveStops('bc', d2),
       currentStop: 0, revealMinutesBefore: 120, hostIds: ['aimee', 'sully'],
       filter: { ...DEFAULT_FILTER, cars: false, bikes: true, classes: ['S', 'A', 'B'], minMods: 0, radiusMiles: 100 },
@@ -414,6 +417,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // Ended a week ago, voting closed: results, trophies and photos.
       photo: `${SAMPLE_REF}ev-past-snowdome`,
+      gallery: ['g-past-1', 'g-past-2', 'g-past-3'].map((k) => `${SAMPLE_REF}${k}`),
       id: 'ev-past-snowdome', type: 'meet', title: "Last week's meet",
       description: 'Same car park, last Friday.',
       startsAt: iso(t.lastWeek.start), endsAt: iso(t.lastWeek.end), area: home, areaName: area,

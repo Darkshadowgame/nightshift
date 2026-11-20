@@ -14,13 +14,15 @@ import type { SamplePhoto } from './samplePhotos';
  * ("Fiesta ST" + "mk8" matches "Fiesta ST Mk8 facelift"), or model years for bikes.
  */
 export type StandInFit = { make: string; model: string; gens?: string[]; years?: [number, number] };
-export type StandInPhoto = { key: string; kind: VehicleKind; fits: StandInFit[]; photo: SamplePhoto };
+/** `paint`: the photo's body colour from the app's paint swatches, so a build shown with it is that colour (Review 20). */
+export type StandInPhoto = { key: string; kind: VehicleKind; fits: StandInFit[]; paint: string; photo: SamplePhoto };
 
 export const STAND_IN_PHOTOS: StandInPhoto[] = [
   {
     key: 'si-fiesta-st-mk8',
     kind: 'car',
     fits: [{ make: 'ford', model: 'fiesta st', gens: ['mk8'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/fiesta-st-mk8.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2018_Ford_Fiesta_ST-2_Turbo_1.5_Front_(1).jpg',
@@ -35,6 +37,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-fiesta-st-mk7',
     kind: 'car',
     fits: [{ make: 'ford', model: 'fiesta st', gens: ['mk7'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/fiesta-st-mk7.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2016_Ford_Fiesta_ST,_Kona_Blue,_front_left.jpg',
@@ -49,6 +52,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-focus-st-mk4',
     kind: 'car',
     fits: [{ make: 'ford', model: 'focus st', gens: ['mk4'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/focus-st-mk4.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2019_Ford_Focus_ST.jpg',
@@ -62,6 +66,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-focus-rs-mk2',
     kind: 'car',
     fits: [{ make: 'ford', model: 'focus rs', gens: ['mk2'] }],
+    paint: '#2f7d4f',
     photo: {
       image: require('../../assets/stand-ins/focus-rs-mk2.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2010_Ford_Focus_RS_2.5_Front.jpg',
@@ -76,6 +81,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-golf-gti-mk7',
     kind: 'car',
     fits: [{ make: 'volkswagen', model: 'golf gti', gens: ['mk7', 'mk7.5'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/golf-gti-mk7.jpg'),
       edited: 'Plate removed',
@@ -90,6 +96,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-golf-gti-mk8',
     kind: 'car',
     fits: [{ make: 'volkswagen', model: 'golf gti', gens: ['mk8', 'mk8.5'] }],
+    paint: '#1b1f27',
     photo: {
       image: require('../../assets/stand-ins/golf-gti-mk8.jpg'),
       edited: 'Plate removed',
@@ -104,6 +111,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-golf-r-mk7',
     kind: 'car',
     fits: [{ make: 'volkswagen', model: 'golf r', gens: ['mk7', 'mk7.5'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/golf-r-mk7.jpg'),
       edited: 'Plate removed',
@@ -118,6 +126,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-polo-gti',
     kind: 'car',
     fits: [{ make: 'volkswagen', model: 'polo gti', gens: ['aw'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/polo-gti.jpg'),
       edited: 'Plate removed',
@@ -132,6 +141,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-civic-fk2',
     kind: 'car',
     fits: [{ make: 'honda', model: 'civic type r', gens: ['fk2'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/civic-fk2.jpg'),
       edited: 'Plate removed',
@@ -147,6 +157,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-civic-fk8',
     kind: 'car',
     fits: [{ make: 'honda', model: 'civic type r', gens: ['fk8'] }],
+    paint: '#e9edf4',
     photo: {
       image: require('../../assets/stand-ins/civic-fk8.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2017_Honda_Civic_Type_R_FK8_in_Championship_White,_front_right,_08-04-2024.jpg',
@@ -161,6 +172,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-civic-fl5',
     kind: 'car',
     fits: [{ make: 'honda', model: 'civic type r', gens: ['fl5'] }],
+    paint: '#e9edf4',
     photo: {
       image: require('../../assets/stand-ins/civic-fl5.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2023_Honda_Civic_Type_R,_front_4.18.25.jpg',
@@ -175,6 +187,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-i30n',
     kind: 'car',
     fits: [{ make: 'hyundai', model: 'i30 n', gens: ['pd'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/i30n.jpg'),
       edited: 'Plate removed',
@@ -189,6 +202,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-corsa-vxr',
     kind: 'car',
     fits: [{ make: 'vauxhall', model: 'corsa vxr', gens: ['e'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/corsa-vxr.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2015_Vauxhall_Corsa_VXR_1.6_Front.jpg',
@@ -203,6 +217,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-astra-vxr',
     kind: 'car',
     fits: [{ make: 'vauxhall', model: 'astra vxr', gens: ['j'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/astra-vxr.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Vauxhall_Astra_VXR_(GTC)_3-door_hatchback_2-litre_turbo_1998cc_registered_March_2014.JPG',
@@ -217,6 +232,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-clio-rs',
     kind: 'car',
     fits: [{ make: 'renault', model: 'clio rs', gens: ['clio iv'] }],
+    paint: '#f2c14e',
     photo: {
       image: require('../../assets/stand-ins/clio-rs.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Renault_Clio_RS_2017_(25303224968).jpg',
@@ -231,6 +247,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-megane-rs',
     kind: 'car',
     fits: [{ make: 'renault', model: 'megane rs', gens: ['mk3'] }],
+    paint: '#1b1f27',
     photo: {
       image: require('../../assets/stand-ins/megane-rs.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2011_Renault_Megane_RS_Cup.jpg',
@@ -245,20 +262,22 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-205-gti',
     kind: 'car',
     fits: [{ make: 'peugeot', model: '205 gti' }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/205-gti.jpg'),
-      page: 'https://commons.wikimedia.org/wiki/File:1990_Peugeot_205_GTi_1.6_Front.jpg',
-      title: 'Peugeot 205 GTi 1.6 (1990)',
-      author: 'Vauxford',
-      licence: 'CC BY-SA 4.0',
-      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate removed',
+      page: "https://commons.wikimedia.org/wiki/File:1986_Peugeot_205_GTI.jpg",
+      title: "Peugeot 205 GTI (1986), museum car",
+      author: "TTTNIS",
+      licence: "CC0",
+      licenceUrl: "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      edited: "Cropped",
     },
   },
   {
     key: 'si-mx5-nd',
     kind: 'car',
     fits: [{ make: 'mazda', model: 'mx-5', gens: ['nd', 'nd2'] }, { make: 'mazda', model: 'mx-5 rf', gens: ['nd', 'nd2'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/mx5-nd.jpg'),
       edited: 'Plate removed',
@@ -273,6 +292,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-mx5-na',
     kind: 'car',
     fits: [{ make: 'mazda', model: 'mx-5', gens: ['na'] }, { make: 'mazda', model: 'eunos roadster' }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/mx5-na.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:1990_Mazda_MX-5_Miata,_Front_Right,_04-24-2020.jpg',
@@ -287,6 +307,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-gr-yaris',
     kind: 'car',
     fits: [{ make: 'toyota', model: 'gr yaris', gens: ['gen 1'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/gr-yaris.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2021_Toyota_GR_Yaris_Circuit_2.jpg',
@@ -301,6 +322,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-gt86',
     kind: 'car',
     fits: [{ make: 'toyota', model: 'gt86' }, { make: 'toyota', model: 'gr86', gens: ['zn6'] }],
+    paint: '#e9edf4',
     photo: {
       image: require('../../assets/stand-ins/gt86.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2017_Toyota_GT86_PRO_D-4S_2.0_Front.jpg',
@@ -315,6 +337,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-supra-a80',
     kind: 'car',
     fits: [{ make: 'toyota', model: 'supra', gens: ['mk4'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/supra-a80.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:1995_Toyota_Supra_3.0.jpg',
@@ -329,6 +352,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-supra-a90',
     kind: 'car',
     fits: [{ make: 'toyota', model: 'gr supra' }, { make: 'toyota', model: 'supra', gens: ['a90'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/supra-a90.jpg'),
       edited: 'Plate removed',
@@ -343,6 +367,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-impreza-gd',
     kind: 'car',
     fits: [{ make: 'subaru', model: 'impreza', gens: ['new age', 'hawkeye'] }, { make: 'subaru', model: 'impreza wrx sti', gens: ['new age', 'hawkeye'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/impreza-gd.jpg'),
       edited: 'Plate removed',
@@ -356,20 +381,22 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-brz',
     kind: 'car',
     fits: [{ make: 'subaru', model: 'brz', gens: ['gen 1'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/brz.jpg'),
-      page: 'https://commons.wikimedia.org/wiki/File:2015_Subaru_BRZ_Sport-Tech_in_World_Rally_Blue_Pearl,_front_right,_2021-04-28.jpg',
-      title: 'Subaru BRZ (2015)',
-      author: 'Elise240SX',
-      licence: 'CC BY-SA 4.0',
-      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
-      edited: 'Plate removed',
+      page: "https://commons.wikimedia.org/wiki/File:Dark_Gray_Subaru_BRZ_Front_with_Lights.jpg",
+      title: "Subaru BRZ (first generation)",
+      author: "The359",
+      licence: "CC BY-SA 3.0",
+      licenceUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+      edited: "Cropped",
     },
   },
   {
     key: 'si-evo-x',
     kind: 'car',
     fits: [{ make: 'mitsubishi', model: 'lancer evolution', gens: ['evo x'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/evo-x.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2008_Mitsubishi_Lancer_Evolution_X.jpg',
@@ -382,6 +409,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-evo-ix',
     kind: 'car',
     fits: [{ make: 'mitsubishi', model: 'lancer evolution', gens: ['evo ix'] }],
+    paint: '#e9edf4',
     photo: {
       image: require('../../assets/stand-ins/evo-ix.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2005_Mitsubishi_Lancer_Evolution_IX_GT.jpg',
@@ -396,6 +424,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-m3-f80',
     kind: 'car',
     fits: [{ make: 'bmw', model: 'm3', gens: ['f80'] }],
+    paint: '#e86a1c',
     photo: {
       image: require('../../assets/stand-ins/m3-f80.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2017_BMW_M3.jpg',
@@ -410,6 +439,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-m4-f82',
     kind: 'car',
     fits: [{ make: 'bmw', model: 'm4', gens: ['f82'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/m4-f82.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2015_BMW_M4_Blue_FOS22.jpg',
@@ -424,6 +454,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-m3-e92',
     kind: 'car',
     fits: [{ make: 'bmw', model: 'm3', gens: ['e92', 'e90'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/m3-e92.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2012_BMW_M3_M_Performance_Edition_4.0_Front.jpg',
@@ -438,6 +469,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-m140i',
     kind: 'car',
     fits: [{ make: 'bmw', model: 'm140i', gens: ['f20'] }, { make: 'bmw', model: 'm135i', gens: ['f20'] }],
+    paint: '#1b1f27',
     photo: {
       image: require('../../assets/stand-ins/m140i.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2017_BMW_M140i_1.jpg',
@@ -452,6 +484,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-s3-8v',
     kind: 'car',
     fits: [{ make: 'audi', model: 's3', gens: ['8v'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/s3-8v.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2017_Audi_S3_Black_Edition_TFSi_Quattro_2.0_Front.jpg',
@@ -466,6 +499,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-350z',
     kind: 'car',
     fits: [{ make: 'nissan', model: '350z' }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/350z.jpg'),
       edited: 'Plate removed',
@@ -480,6 +514,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-gtr',
     kind: 'car',
     fits: [{ make: 'nissan', model: 'gt-r', gens: ['r35'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/gtr.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2012_Nissan_GT-R_Premium_Edition_3.jpg',
@@ -494,6 +529,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-skyline-r34',
     kind: 'car',
     fits: [{ make: 'nissan', model: 'skyline', gens: ['r34'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/skyline-r34.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Nissan_Skyline_GT-R_(R34)_in_Blue,_front_left_2.jpg',
@@ -508,6 +544,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-mini-r56',
     kind: 'car',
     fits: [{ make: 'mini', model: 'cooper s', gens: ['r56'] }, { make: 'mini', model: 'john cooper works', gens: ['r56'] }, { make: 'mini', model: 'cooper', gens: ['r56'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/mini-r56.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2008_Mini_Cooper_S_1.jpg',
@@ -522,6 +559,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-leon-cupra',
     kind: 'car',
     fits: [{ make: 'seat', model: 'leon cupra', gens: ['mk3'] }, { make: 'cupra', model: 'leon', gens: ['mk3'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/leon-cupra.jpg'),
       edited: 'Plate removed',
@@ -536,6 +574,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-a45',
     kind: 'car',
     fits: [{ make: 'mercedes', model: 'a45', gens: ['w177'] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/a45.jpg'),
       edited: 'Plate removed',
@@ -550,6 +589,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-abarth-595',
     kind: 'car',
     fits: [{ make: 'abarth', model: '595' }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/abarth-595.jpg'),
       edited: 'Plate removed',
@@ -564,6 +604,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-mt07',
     kind: 'bike',
     fits: [{ make: 'yamaha', model: 'mt-07', years: [2014, 2017] }],
+    paint: '#1b1f27',
     photo: {
       image: require('../../assets/stand-ins/mt07.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Yamaha_MT-07.jpg',
@@ -577,6 +618,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-mt09',
     kind: 'bike',
     fits: [{ make: 'yamaha', model: 'mt-09', years: [2017, 2020] }],
+    paint: '#7a7f8a',
     photo: {
       image: require('../../assets/stand-ins/mt09.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:MT_09_RN43_2017.jpg',
@@ -590,6 +632,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-r6',
     kind: 'bike',
     fits: [{ make: 'yamaha', model: 'yzf-r6', years: [2008, 2016] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/r6.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:YAMAHA_YZF-R6_2010_right-front-1_Yamaha_Communication_Plaza.jpg',
@@ -603,6 +646,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-r1',
     kind: 'bike',
     fits: [{ make: 'yamaha', model: 'yzf-r1', years: [2007, 2008] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/r1.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:YAMAHA_YZF-R1_2007TMS.jpg',
@@ -616,6 +660,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-cbr600rr',
     kind: 'bike',
     fits: [{ make: 'honda', model: 'cbr600rr', gens: ['pc40'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/cbr600rr.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Blue_2007_Honda_CBR600RR_left_front.jpg',
@@ -629,6 +674,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-fireblade',
     kind: 'bike',
     fits: [{ make: 'honda', model: 'fireblade', gens: ['sc77'] }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/fireblade.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Honda_CBR1000RR_Fireblade_-_Indonesia_International_Motor_Show_2017_-_Side_view_-_April_30_2017.jpg',
@@ -642,6 +688,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-z900',
     kind: 'bike',
     fits: [{ make: 'kawasaki', model: 'z900' }],
+    paint: '#1b1f27',
     photo: {
       image: require('../../assets/stand-ins/z900.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:KawasakiZ900.jpg',
@@ -655,6 +702,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-zx6r',
     kind: 'bike',
     fits: [{ make: 'kawasaki', model: 'zx-6r', gens: ['p'] }],
+    paint: '#2f7d4f',
     photo: {
       image: require('../../assets/stand-ins/zx6r.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:2007KawasakiNinjaZX6R-001.jpg',
@@ -668,6 +716,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-street-triple',
     kind: 'bike',
     fits: [{ make: 'triumph', model: 'street triple', gens: ['675'] }],
+    paint: '#1b1f27',
     photo: {
       image: require('../../assets/stand-ins/street-triple.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Triumph_Street_Triple_675_left.jpg',
@@ -681,6 +730,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-panigale',
     kind: 'bike',
     fits: [{ make: 'ducati', model: 'panigale v4' }],
+    paint: '#c8102e',
     photo: {
       image: require('../../assets/stand-ins/panigale.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:Panigale_V4_(255160039).jpeg',
@@ -694,6 +744,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-s1000rr',
     kind: 'bike',
     fits: [{ make: 'bmw', model: 's1000rr', gens: ['k46'] }],
+    paint: '#e9edf4',
     photo: {
       image: require('../../assets/stand-ins/s1000rr.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:BMW_S1000RR_NEC_Birmingham_2009.jpg',
@@ -706,6 +757,7 @@ export const STAND_IN_PHOTOS: StandInPhoto[] = [
     key: 'si-gsxr',
     kind: 'bike',
     fits: [{ make: 'suzuki', model: 'gsx-r1000', gens: ['k3-k4'] }],
+    paint: '#1f4fa8',
     photo: {
       image: require('../../assets/stand-ins/gsxr.jpg'),
       page: 'https://commons.wikimedia.org/wiki/File:GSXR1000_2003.jpg',

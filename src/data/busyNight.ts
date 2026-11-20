@@ -12,6 +12,8 @@ import { meetAt } from '../lib/postPrivacy';
 import { areaNameNear, nearestRegion } from '../lib/profile';
 import { nearest, translate } from '../lib/scene';
 import { similarSample } from '../lib/similarPhoto';
+import { SAMPLE_REF } from '../lib/photoSource';
+import { STAND_IN_PHOTOS } from './standInPhotos';
 import { modelLabel, type Variant } from '../lib/vehicles';
 import { DEMO_ROADS, roadPoints } from './demoRoads';
 import { PLACES, type PlaceSeed } from './places';
@@ -185,9 +187,14 @@ export function busyPeople(home: LatLng): BusyPeople {
       const specMods = pickMods(rand, pool, 1 + Math.floor(rand() * 5));
       const mods: Mod[] = specMods.map(([category, mname, bhpGain], k) => ({ id: `${bid}-m${k}`, category, name: mname, bhpGain }));
       const to = v.to ?? 2025;
+      const year = v.from + Math.floor(rand() * (to - v.from + 1));
+      const random = COLOURS[Math.floor(rand() * COLOURS.length)];
+      // The colour of the stand-in photo it shows, when that's the same model (Review 20: words and photos agree).
+      const pic = similarSample(v.make, modelLabel(v), v.kind, year);
+      const paint = pic?.match === 'model' ? STAND_IN_PHOTOS.find((p) => p.key === pic.key)?.paint : undefined;
       builds.push({
-        id: bid, ownerId: id, kind: v.kind, make: v.make, model: modelLabel(v), year: v.from + Math.floor(rand() * (to - v.from + 1)),
-        stockBhp: v.bhp, weightKg: v.weightKg, torqueLbFt: v.torqueLbFt, mods, photos: [], colour: COLOURS[Math.floor(rand() * COLOURS.length)],
+        id: bid, ownerId: id, kind: v.kind, make: v.make, model: modelLabel(v), year,
+        stockBhp: v.bhp, weightKg: v.weightKg, torqueLbFt: v.torqueLbFt, mods, photos: [], colour: paint ?? random,
         vehicleId: v.id, tuneStage: stageOf(specMods),
       });
     });
@@ -223,31 +230,36 @@ interface EventSpec {
   filter: Partial<typeof DEFAULT_FILTER>;
   going: number;
   reveal?: number;
+  /**
+   * A night photo of its own (samplePhotos.ts, Review 20 #39): evening and night meets that aren't
+   * about one make. Without it (daytime and one-make meets) the card shows the host's build.
+   */
+  photo?: string;
 }
 
 const EVENT_SPECS: EventSpec[] = [
-  { type: 'meet', title: 'Friday night meet', description: 'The big one. Park up, no revving, leave it clean.', when: { live: 35 }, hours: 3, miles: 4, filter: { everyone: true }, going: 46 },
+  { type: 'meet', title: 'Friday night meet', description: 'The big one. Park up, no revving, leave it clean.', when: { live: 35 }, hours: 3, miles: 4, filter: { everyone: true }, going: 46 , photo: 'bn-1' },
   { type: 'meet', title: 'JDM night', description: 'Japanese cars only. Arranged with the site.', when: { live: 30 }, hours: 3, miles: 7, filter: { cars: true, bikes: false, brands: JAPANESE }, going: 18 },
-  { type: 'meet', title: 'Bike night', description: 'Bikes of every kind. Tea and bacon rolls inside till late.', when: { live: 25 }, hours: 3, miles: 9, filter: { cars: false, bikes: true }, going: 14 },
-  { type: 'meet', title: 'Hot hatch takeover', description: 'Hot hatches, stock or modified.', when: { live: 15 }, hours: 3, miles: 12, filter: { cars: true, bikes: false, classes: ['A', 'B', 'C'] }, going: 41 },
+  { type: 'meet', title: 'Bike night', description: 'Bikes of every kind. Tea and bacon rolls inside till late.', when: { live: 25 }, hours: 3, miles: 9, filter: { cars: false, bikes: true }, going: 14 , photo: 'bn-bike' },
+  { type: 'meet', title: 'Hot hatch takeover', description: 'Hot hatches, stock or modified.', when: { live: 15 }, hours: 3, miles: 12, filter: { cars: true, bikes: false, classes: ['A', 'B', 'C'] }, going: 41 , photo: 'bn-2' },
   { type: 'meet', title: 'VAG meet', description: 'VW, Audi, SEAT and Skoda. Quiet arrivals please.', when: { day: 0, hour: 22 }, hours: 2.5, miles: 5, filter: { cars: true, bikes: false, brands: VAG }, going: 22 },
-  { type: 'rolling', title: 'Late rolling meet: east side', description: 'Three meet points. The host moves it on.', when: { day: 0, hour: 22, minute: 30 }, hours: 2.5, miles: 6, filter: { everyone: true }, going: 25, reveal: 30 },
-  { type: 'meet', title: 'Night photo meet', description: 'Bring a tripod. Modified only.', when: { day: 0, hour: 23 }, hours: 2, miles: 35, filter: { minMods: 1 }, going: 11 },
-  { type: 'cruise', title: 'Midnight cruise', description: 'Start to finish with a regroup halfway. Speed limits all the way.', when: { day: 0, hour: 23, minute: 30 }, hours: 2, miles: 0, filter: { classes: ['S', 'A', 'B'] }, going: 12 },
+  { type: 'rolling', title: 'Late rolling meet: east side', description: 'Three meet points. The host moves it on.', when: { day: 0, hour: 22, minute: 30 }, hours: 2.5, miles: 6, filter: { everyone: true }, going: 25, reveal: 30 , photo: 'bn-3' },
+  { type: 'meet', title: 'Night photo meet', description: 'Bring a tripod. Modified only.', when: { day: 0, hour: 23 }, hours: 2, miles: 35, filter: { minMods: 1 }, going: 11 , photo: 'bn-4' },
+  { type: 'cruise', title: 'Midnight cruise', description: 'Start to finish with a regroup halfway. Speed limits all the way.', when: { day: 0, hour: 23, minute: 30 }, hours: 2, miles: 0, filter: { classes: ['S', 'A', 'B'] }, going: 12  },
   { type: 'rolling', title: 'Rolling meet: north', description: 'Planned in advance, location shows half an hour before.', when: { day: 0, hour: 22, minute: 15 }, hours: 2.5, miles: 40, filter: { everyone: true }, going: 20, reveal: 30 },
   { type: 'meet', title: 'Saturday morning coffee', description: 'Coffee and cars. Daytime, family friendly.', when: { day: 1, hour: 9, minute: 30 }, hours: 3, miles: 8, filter: { everyone: true }, going: 30 },
   { type: 'cruise', title: 'Saturday afternoon cruise', description: 'A proper drive with a stop for food at the end.', when: { day: 1, hour: 14 }, hours: 3, miles: 0, filter: { minMods: 1 }, going: 16 },
   { type: 'meet', title: 'Ford owners night', description: 'Fiestas, Focuses and anything with a blue oval.', when: { day: 1, hour: 19 }, hours: 3, miles: 15, filter: { cars: true, bikes: false, brands: ['Ford'] }, going: 17 },
   { type: 'meet', title: 'Bikes and brews', description: 'Bikes only. Café open till ten.', when: { day: 1, hour: 18 }, hours: 3, miles: 28, filter: { cars: false, bikes: true }, going: 15 },
-  { type: 'meet', title: 'Saturday night meet', description: 'Everyone welcome. Arranged with the site, marshals on.', when: { day: 1, hour: 20 }, hours: 3, miles: 10, filter: { everyone: true }, going: 52 },
+  { type: 'meet', title: 'Saturday night meet', description: 'Everyone welcome. Arranged with the site, marshals on.', when: { day: 1, hour: 20 }, hours: 3, miles: 10, filter: { everyone: true }, going: 52  },
   { type: 'meet', title: 'Big Saturday meet', description: 'The regional one. Worth the drive.', when: { day: 1, hour: 19, minute: 30 }, hours: 4, miles: 45, filter: { everyone: true }, going: 64 },
-  { type: 'rolling', title: 'Rolling meet: west', description: 'Modified only, two mods or more.', when: { day: 1, hour: 21, minute: 30 }, hours: 2.5, miles: 9, filter: { minMods: 2 }, going: 19, reveal: 30 },
+  { type: 'rolling', title: 'Rolling meet: west', description: 'Modified only, two mods or more.', when: { day: 1, hour: 21, minute: 30 }, hours: 2.5, miles: 9, filter: { minMods: 2 }, going: 19, reveal: 30 , photo: 'bn-7' },
   { type: 'cruise', title: 'Sunday breakfast ride', description: 'Bikes only. Breakfast at the finish.', when: { day: 2, hour: 8 }, hours: 3, miles: 0, filter: { cars: false, bikes: true }, going: 21 },
   { type: 'meet', title: 'BMW Sunday', description: 'BMWs of every age.', when: { day: 2, hour: 10 }, hours: 3, miles: 18, filter: { cars: true, bikes: false, brands: ['BMW'] }, going: 13 },
   { type: 'meet', title: 'Retro and classic Sunday', description: 'Anything older than 2005 at the front.', when: { day: 2, hour: 11 }, hours: 4, miles: 30, filter: { everyone: true }, going: 27 },
   { type: 'cruise', title: 'Sunday evening cruise', description: 'Classes A to C. Steady pace.', when: { day: 2, hour: 18 }, hours: 2, miles: 0, filter: { classes: ['A', 'B', 'C'] }, going: 18 },
   { type: 'meet', title: 'Midweek meet', description: 'Same place every Wednesday.', when: { day: 5, hour: 19, minute: 30 }, hours: 3, miles: 20, filter: { everyone: true }, going: 33 },
-  { type: 'meet', title: 'Track prep and tea', description: 'Three mods or more. Talk tyres, pads and track days.', when: { day: 6, hour: 19 }, hours: 3, miles: 40, filter: { minMods: 3 }, going: 9 },
+  { type: 'meet', title: 'Track prep and tea', description: 'Three mods or more. Talk tyres, pads and track days.', when: { day: 6, hour: 19 }, hours: 3, miles: 40, filter: { minMods: 3 }, going: 9 , photo: 'bn-8' },
 ];
 
 /** Tonight at this clock time, the same way seed.ts lays the demo night out. */
@@ -331,7 +343,7 @@ export function busyEvents(now: Date, home: LatLng, people: BusyPeople, sampleUs
     const live = start.getTime() <= now.getTime();
     const checkIns: Record<string, string[]> = live ? Object.fromEntries(going.filter(() => rand() < 0.7).map((u) => [u, [stops[0].id]])) : {};
     events.push({
-      id, type: spec.type, title: spec.title, description: spec.description,
+      id, type: spec.type, title: spec.title, description: spec.description, ...(spec.photo ? { photo: `${SAMPLE_REF}${spec.photo}` } : {}),
       startsAt: start.toISOString(), endsAt: end.toISOString(), areaName, ...(routeMiles ? { routeMiles } : {}),
       stops, currentStop: 0, revealMinutesBefore: spec.reveal ?? 60, hostIds: host ? [host] : [],
       filter, going, checkIns, vehicles: Object.fromEntries(going.map((u) => [u, fits.get(u)!])),

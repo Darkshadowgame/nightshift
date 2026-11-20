@@ -156,7 +156,8 @@ export function refreshDemo(slice: DemoSlice, anchor: Date, now: Date, scene: Sc
     if (!SEED_IDS.has(ev.id)) return ev;
     // A sample meet's picture always follows the seed (a save from before it had one gets it).
     const seededPhoto = fresh.get(ev.id)?.photo;
-    const e = seededPhoto && ev.photo !== seededPhoto ? { ...ev, photo: seededPhoto } : ev;
+    const seededGallery = fresh.get(ev.id)?.gallery;
+    const e = (seededPhoto && ev.photo !== seededPhoto) || (seededGallery && ev.gallery?.join() !== seededGallery.join()) ? { ...ev, ...(seededPhoto ? { photo: seededPhoto } : {}), ...(seededGallery ? { gallery: seededGallery } : {}) } : ev;
     if (untouched.has(e.id) && fresh.has(e.id)) {
       deltas.set(e.id, new Date(fresh.get(e.id)!.startsAt).getTime() - new Date(e.startsAt).getTime());
       return fresh.get(e.id)!;

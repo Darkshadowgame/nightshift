@@ -42,6 +42,7 @@ import { InviteSheet } from '../../components/InviteSheet';
 import { canInvite, INVITE_WORDS, inviterOf } from '../../lib/eventInvites';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { eventPhotoRef, statusTag } from '../../components/TonightCards';
+import { PhotoViewer } from '../../components/PhotoGallery';
 import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
 import { categoryInfo, votingCloses, type AwardCategory } from '../../lib/awards';
@@ -106,6 +107,7 @@ export default function EventScreen() {
   const community = useCommunity();
   const e = events.find((x) => x.id === id);
   const [message, setMessage] = useState('');
+  const [galleryAt, setGalleryAt] = useState<number | null>(null);
   const [error, setErrorState] = useState<{ at: ErrorAt; text: string } | null>(null);
   const setError = (at: ErrorAt, text: string | null) => setErrorState(text ? { at, text } : null);
   const errorAt = (at: ErrorAt) => (error?.at === at ? error.text : null);
@@ -365,17 +367,20 @@ export default function EventScreen() {
   const to = endTime(ev).getTime() + 24 * 3_600_000;
   // Your own photos at the meet point always show (posts may be stamped on the real clock in the demo).
   const postPhotos = (posts.data ?? []).filter((p) => p.photo && (p.authorId === me || (new Date(p.createdAt).getTime() >= from && new Date(p.createdAt).getTime() <= to)));
-  const buildPhotos = Object.entries(ev.checkIns)
+  // A sample meet's own photos (Review 20 #13) stand in for the builds' photos, which show elsewhere.
+  const meetPhotos = ev.gallery ?? [];
+  const buildPhotos = meetPhotos.length ? [] : Object.entries(ev.checkIns)
     .filter(([, s]) => s.length > 0)
     .map(([uid]) => broughtBuild(ev, uid, builds))
     .filter((b): b is Build => !!b && b.photos.length > 0);
   function shownPhotosCount() {
-    return postPhotos.length + buildPhotos.length;
+    return postPhotos.length + meetPhotos.length + buildPhotos.length;
   }
   const showPhotos = phase === 'live' || phase === 'over';
   const canAddPhoto = myCheckIns.length > 0 && !closed;
   const tiles = [
     ...postPhotos.map((p) => ({ key: `p:${p.id}`, ref: p.photo!, open: () => router.push({ pathname: '/post/[id]', params: { id: p.id } }), label: `Photo by ${userLabel(p.authorId)}`, kind: 'car' as const })),
+    ...meetPhotos.map((ref, i) => ({ key: `g:${i}`, ref, open: () => setGalleryAt(i), label: `Photo ${i + 1} from the meet`, kind: 'car' as const })),
     ...buildPhotos.map((b) => ({ key: `b:${b.id}`, ref: b.photos[0], open: () => router.push({ pathname: '/build/[id]', params: { id: b.id } }), label: `${b.make} ${b.model}`, kind: b.kind })),
   ].slice(0, 9);
 
@@ -677,6 +682,7 @@ export default function EventScreen() {
               )}
               {errorAt('photo') ? <ErrorState title={errorAt('photo')!} /> : null}
             </Section>
+            <PhotoViewer photos={meetPhotos} start={galleryAt} onClose={() => setGalleryAt(null)} />
           </View>
         ) : null}
 

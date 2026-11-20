@@ -199,6 +199,11 @@ export interface NightEvent {
    * for now: without it the card shows the host's build photo (TonightCards `eventPhotoRef`).
    */
   photo?: string;
+  /**
+   * Photos taken at the meet (sample meets only, `sample:` refs): the Photos grid shows these instead
+   * of the builds' own photos, so a meet has pictures of its own (Review 20 #13).
+   */
+  gallery?: string[];
 }
 
 export interface PlanChangeLog {
