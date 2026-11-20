@@ -110,7 +110,7 @@ function pageMaps() {
       obstacles.push({ kind: 'credit chip', name: `"${el.textContent.trim()}"`, r, el: chip });
     }
     for (const b of document.querySelectorAll('[role=button],button')) {
-      if (inMap(b) || !shown(b) || obstacles.some((o) => o.el.contains(b) || b.contains(o.el))) continue;
+      if (inMap(b) || !shown(b) || b.closest('[data-testid=toast]') || obstacles.some((o) => o.el.contains(b) || b.contains(o.el))) continue;
       const r = rect(b);
       if (r.w === 0 || r.w > 72 || r.h > 72) continue;
       const [cx, cy] = centre(r);
@@ -155,7 +155,8 @@ function pageMaps() {
     const bare = [];
     for (const n of texts) {
       const el = n.parentElement;
-      if (!el || inMap(el) || !shown(el) || isObstacle(el)) continue;
+      // A toast floats above everything for a moment (4.7 checks it); it isn't text on the map.
+      if (!el || inMap(el) || !shown(el) || isObstacle(el) || el.closest('[data-testid=toast]')) continue;
       // Faded or see-through text (an animation's start or end) isn't on show.
       let op = 1;
       for (let e = el; e && e.nodeType === 1; e = e.parentElement) op *= parseFloat(getComputedStyle(e).opacity || '1');
@@ -180,19 +181,29 @@ function pageMaps() {
         if (i && i.w * i.h >= 9) overlaps.push({ subject: s.name, obstacle: `${o.kind} ${o.name}`, a: s.r, b: o.r, area: Math.round(i.w * i.h) });
       }
     }
-    // The top edge, when it's the map's own (not cut by scrolling): which 1 px columns show the
-    // map there (a chip or a sheet over it doesn't count).
-    let top = null;
-    if (rect(map).y >= clip.y - 0.5 || Math.abs(rect(map.parentElement).y - clip.y) < 1.5) {
-      const cols = [];
-      for (let x = Math.ceil(clip.x); x < Math.floor(clip.x + clip.w); x++) {
-        let on = 0;
-        for (const e of document.elementsFromPoint(x + 0.5, clip.y + 2)) { if (inMap(e) || e.contains(map)) { on = 1; break; } if (!seeThrough(e)) break; }
-        cols.push(on);
+    // Each edge that's the map's own (its frame's, not cut by scrolling or the screen), with the
+    // 1 px columns (top, bottom) or rows (left, right) that show the map 2 px in from it (a chip or
+    // a sheet over it doesn't count). Review 20 (4, 33): all four edges, not just the top.
+    const onMap = (x, y) => { for (const e of document.elementsFromPoint(x, y)) { if (inMap(e) || e.contains(map)) return 1; if (!seeThrough(e)) return 0; } return 0; };
+    const edges = [];
+    const ownEdge = { top: own.y, bottom: own.y + own.h, left: own.x, right: own.x + own.w };
+    const clipEdge = { top: clip.y, bottom: clip.y + clip.h, left: clip.x, right: clip.x + clip.w };
+    for (const side of ['top', 'bottom', 'left', 'right']) {
+      const mine = Math.abs(ownEdge[side] - clipEdge[side]) < 1.5 || (side === 'top' && Math.abs(rect(map.parentElement).y - clip.y) < 1.5);
+      const offScreen = (side === 'bottom' && clipEdge.bottom > innerHeight - 0.5) || (side === 'right' && clipEdge.right > innerWidth - 0.5);
+      if (!mine || offScreen) continue;
+      const flags = [];
+      if (side === 'top' || side === 'bottom') {
+        const y = side === 'top' ? clip.y + 2 : clip.y + clip.h - 2;
+        for (let x = Math.ceil(clip.x); x < Math.floor(clip.x + clip.w); x++) flags.push(onMap(x + 0.5, y));
+      } else {
+        const x = side === 'left' ? clip.x + 2 : clip.x + clip.w - 2;
+        for (let y = Math.ceil(clip.y); y < Math.floor(clip.y + clip.h); y++) flags.push(onMap(x, y + 0.5));
       }
-      if (cols.filter(Boolean).length > cols.length / 2) top = { y: clip.y, cols };
+      if (flags.filter(Boolean).length > flags.length / 2) edges.push({ side, flags });
     }
-    maps.push({ clip, overlaps, cut, bare, small: clip.h <= 320 && clip.w < innerWidth, top, url: location.pathname });
+    const top = edges.find((e) => e.side === 'top');
+    maps.push({ clip, overlaps, cut, bare, small: clip.h <= 320 && clip.w < innerWidth, top: top ? { y: clip.y, cols: top.flags } : null, edges, url: location.pathname });
   }
   return maps;
 }
@@ -225,14 +236,15 @@ function checkMaps(maps, url) {
 }
 
 /* ------------------------------------------------------------------------------------------------
- * EDGE (5, 21): no bright sliver along the top of a small map card (a tile gap, a cut label).
+ * EDGE (5, 21; Review 20 4, 33): no bright sliver along any edge of a small map card (a tile gap,
+ * a cut label).
  * ---------------------------------------------------------------------------------------------- */
 
 /**
- * In the page: how many bright pixels a PNG (base64) has, and in how many columns, counting only
- * the columns where `cols` (one flag per CSS pixel) says the map shows.
+ * In the page: how many bright pixels a PNG (base64) has, and in how many columns (rows when `axis`
+ * is 'y'), counting only the columns (rows) where `cols` (one flag per CSS pixel) says the map shows.
  */
-async function pageBright([b64, cols]) {
+async function pageBright([b64, cols, axis = 'x']) {
   const img = new Image();
   img.src = `data:image/png;base64,${b64}`;
   await img.decode();
@@ -246,7 +258,9 @@ async function pageBright([b64, cols]) {
   for (let i = 0; i < d.length; i += 4) {
     const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
     const x = (i / 4) % c.width;
-    if (l > 170 && cols[Math.floor((x * cols.length) / c.width)]) { n++; seen.add(x); }
+    const y = Math.floor(i / 4 / c.width);
+    const at = axis === 'y' ? Math.floor((y * cols.length) / c.height) : Math.floor((x * cols.length) / c.width);
+    if (l > 170 && cols[at]) { n++; seen.add(axis === 'y' ? y : x); }
   }
   return { n, cols: seen.size, w: c.width, h: c.height };
 }

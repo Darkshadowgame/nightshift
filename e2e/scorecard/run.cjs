@@ -97,7 +97,7 @@ function report(results) {
     ['console', 'No console errors'],
     // Review 19, "What e2e/scorecard could catch" (its problem numbers in brackets).
     ['MAP', 'Map pins/route end/text clear of chrome (26,15,42)'],
-    ['EDGE', 'No bright sliver atop a small map (5,21)'],
+    ['EDGE', 'No bright sliver on a small map\'s edges (5,21; R20 4,33)'],
     ['T1', 'Toast message on one line at 1.0x (52)'],
     ['CANCEL', 'No bare "Cancel" (24)'],
     ['C5+', 'Route, Settings, Me, Tonight say facts once (27,51,47,7)'],
@@ -107,18 +107,30 @@ function report(results) {
     ['HEAD', 'One section header style per screen (48)'],
     ['K3', 'Same event card on map sheet and List (8)'],
     ['ART', 'Busy night: no placeholder art on Tonight (13)'],
-  ];
-  console.log('\nRULE CHECKS');
-  console.log('rule     ' + 'check'.padEnd(56) + cols.map((c) => c.padEnd(w)).join(''));
+    // Review 20, "Suggested new automated checks" (its numbers in brackets).
+    ['IMG-SCALE', 'Photos scaled to their frames, not a corner (1,12)'],
+    ['CLASH', 'Clash warning when hosting while going (2,31)'],
+    ['HOME-DIST', 'Distances from home say "from home" (3,6,24,28,35)'],
+    ['C5-CANCEL', 'A cancelled meet says "cancelled" once (17)'],
+    ['CHECKED-IN', '"Checked in" still on the page 10 s on (16)'],
+    ['REVEAL', '"Location shown" on show, uncovered, 2 s (14)'],
+    ['EXIT-OVERLAP', 'No text over text as check-in plays out (15)'],
+    ['PLACEHOLDER', '"It\'s up": no placeholder art (34)'],
+    ['MAP-393', 'Busy night: MAP at 393x852 (11)'],
+    ['WORDS', 'No "event" in text or labels (37)'],
+    ['PHOTO-REUSE', 'One photo on at most two screens (13)'],
+    ['DUP-NAME', 'Task 10: one meet fits "the Sunday coffee meet" (2)'],
+  ];  console.log('\nRULE CHECKS');
+  console.log('rule'.padEnd(13) + 'check'.padEnd(56) + cols.map((c) => c.padEnd(w)).join(''));
   const detail = [];
   for (const [rule, what] of RULES) {
     const cells = results.map((r) => {
-      if (rule === 'ART' && !r.busy) return 'n/a'.padEnd(w);
+      if ((rule === 'ART' || rule === 'MAP-393') && !r.busy) return 'n/a'.padEnd(w);
       const n = r.findings.filter((f) => f.rule === rule).length;
       if (n) ok = false;
       return (n ? `FAIL (${n})` : 'pass').padEnd(w);
     });
-    console.log(rule.padEnd(9) + what.padEnd(56) + cells.join(''));
+    console.log(rule.padEnd(13) + what.padEnd(56) + cells.join(''));
     // The same finding in several runs is listed once, with the runs it showed up in.
     const merged = new Map();
     for (const r of results) for (const f of r.findings.filter((x) => x.rule === rule)) {

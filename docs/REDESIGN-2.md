@@ -995,9 +995,25 @@ section's set-up and the ten tasks with Playwright, so most of them show up befo
   its title in the same place on Tonight's map sheet and in the List (8); **ART** (full run only,
   after task 10 of the 20:30 1.0x run) Busy night on, Tonight's map passes MAP and no List card
   shows the grid placeholder art (13). Each finding's screenshot outlines what it found in red.
+* Review 20's checks (`checks-r20.cjs`; its numbers in brackets): **IMG-SCALE** no photo drawn over
+  1.05x its frame, and no frame showing under 40% of its photo (1, 12); **CLASH** hosting at a time
+  you're going to a meet warns before posting (2, 31); **HOME-DIST** with the phone 13 mi from home,
+  a distance on Tonight, Me, "It's up" or the route preview is from the phone or says "from home"
+  (3, 6, 24, 28, 35); **C5-CANCEL** after task 9's `···` check the script cancels your meet, and its
+  page says "cancel…" once (17); **CHECKED-IN** 10 s after check-in the screen still says "Checked
+  in" (16); **REVEAL** "Location shown" drawn and uncovered for 2 s after I'm going (14);
+  **EXIT-OVERLAP** for 8 s after check-in (the "+150 rep" moment and its fade) no text, or fading
+  card, over other text (15); **PLACEHOLDER** no placeholder art on "It's up" (34); **EDGE** now
+  checks all four edges of every small map card (4, 33); **MAP-393** (full run) Busy night's map
+  checked again at 393x852 (11); **WORDS** no "event" in text or control labels (37);
+  **PHOTO-REUSE** one photo on at most two screens (a sheet counts as a screen; photos shown 64 px
+  or smaller, avatars, left out) (13, 9.12). **DUP-NAME** (task path): before task 10 the script
+  reads every meet card on Tonight, its List and Me as a newcomer would; more than one meet that
+  fits "the Sunday coffee meet" is an app problem (a duplicate-name trap), and task 10 opens the one
+  you're going to, wherever it shows first (Tonight, List, Me), or fails if there's none.
 * Allow-lists, each entry with its reason: `e2e/scorecard/allow/` (`c5.json`, `overflow.json`,
   `words.json`, `console.json`, `map.json`, `cancel.json`, `tiles.json`, `headers.json`,
-  `trophy.json`). Adding to one is a decision like an owner exception: say why. Screenshots are JPEG.
+  `trophy.json`, `scale.json`, `photos.json`). Adding to one is a decision like an owner exception: say why. Screenshots are JPEG.
 * It can't judge clarity, look or TTU; the human review still scores those.
 
 ---

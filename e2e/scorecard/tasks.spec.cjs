@@ -9,6 +9,8 @@ const C = require('./checks.cjs');
 const ROOT = path.join(__dirname, '..', '..');
 /** Any photo for task 6: one of the app's own sample photos (no personal data in a public repo). */
 const PHOTO = path.join(ROOT, 'assets', 'sample-photos', 'b-dan-0.jpg');
+/** The meet hosted in task 9 (not a name task 10 could mean). */
+const HOSTED = 'Sunday morning meet';
 
 /** Task, read to the tester, and its time limit in seconds (7.3). */
 const TASKS = [
@@ -42,7 +44,11 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     base, clock, scale,
     onHit: async (name) => {
       const p = shotPath(name);
+      // Text over text after check-in (EXIT-OVERLAP): outline the two lines.
+      const boxes = name.startsWith('overlap') && S ? await S.page.evaluate(() => (window.__scOv && window.__scOv.found[0] ? window.__scOv.found[0].boxes : [])).catch(() => []) : [];
+      if (S && boxes.length) await S.page.evaluate(C.markBoxes, boxes).catch(() => {});
       if (S) await shoot(p).catch(() => {});
+      if (S && boxes.length) await S.page.evaluate(C.unmarkBoxes).catch(() => {});
       hits[name] = p;
     },
   });
@@ -60,18 +66,39 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   async function boxFinding(f, p) {
     if (said.has(f.message)) return;
     said.add(f.message);
-    const { boxes, ...rest } = f;
+    const { boxes, reveal, ...rest } = f;
     let shot = p;
     if (boxes && boxes.length) {
       shot = p.replace(/\.jpg$/, `-${f.rule.replace(/\W/g, '')}${said.size}.jpg`);
-      await page.evaluate(C.markBoxes, boxes);
+      // A photo below the fold (IMG-SCALE): scroll it into view, outline it, scroll back.
+      let marks = boxes;
+      if (reveal != null) {
+        const r = await page.evaluate(([i]) => {
+          const el = document.querySelector(`[data-sc-photo="${i}"]`);
+          if (!el) return null;
+          const b0 = el.getBoundingClientRect();
+          if (b0.top >= 0 && b0.bottom <= innerHeight) return { dy: 0 };
+          const saved = [];
+          for (let q = el.parentElement; q; q = q.parentElement) if (q.scrollHeight > q.clientHeight) saved.push([q, q.scrollTop]);
+          el.scrollIntoView({ block: 'center' });
+          window.__scBack = saved.map(([q, t]) => [q, t, q.scrollLeft]);
+          return { dy: el.getBoundingClientRect().top - b0.top };
+        }, [reveal]).catch(() => null);
+        if (r && r.dy) { await L.sleep(300); marks = boxes.map((b) => ({ ...b, y: b.y + r.dy })); }
+      }
+      await page.evaluate(C.markBoxes, marks);
       await shoot(shot);
       await page.evaluate(C.unmarkBoxes);
+      if (reveal != null) await page.evaluate(C.restoreScroll).catch(() => {});
     }
     finding(rest, shot);
   }
   /** The Tonight cards seen on the map sheet and in the List, for K3. */
   const cards = { map: [], list: [] };
+  /** PHOTO-REUSE: photo -> Map(screen -> screenshot), over the whole run. */
+  const photoScreens = new Map();
+  /** HOME-DIST: miles from the phone to the demo's home. */
+  const phoneHome = C.miles(L.PHONE, L.DEMO_HOME);
 
   /** Screenshot plus the per-screen checks: banned words, clipped text, and C5 on an event page. */
   async function snap(name) {
@@ -81,7 +108,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     const u = url();
     const texts = await page.evaluate(C.pageText);
     const over = await page.evaluate(C.pageOverflow);
-    for (const f of C.checkWords(texts, u)) finding(f, p);
+    // WORDS findings once per run (the same label is on every step of a screen).
+    for (const f of C.checkWords(texts, u, await page.evaluate(C.pageLabels))) if (f.rule !== 'WORDS' || !said.has(f.message)) { said.add(f.message); finding(f, p); }
     for (const f of C.checkOverflow(over, u, scale)) {
       // Below or above the fold: scroll it into view for its own screenshot, then scroll back.
       let shot = p;
@@ -112,16 +140,31 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     found.push(...C.checkHeaders(await page.evaluate(C.pageHeaders), u));
     if (u === '/') found.push(...C.checkTonight(await page.evaluate(C.pageTonight), u));
     if (u === '/me') found.push(...C.checkMe(await page.evaluate(C.pageMe), u));
-    // A bright sliver along the top of a small map card (Review 19 #5, #21): its top 4 px.
-    const edges = maps.filter((x) => x.small && x.top && x.top.y + 4 <= 667);
+    // Review 20: photos scaled to their frames (IMG-SCALE), photos per screen (PHOTO-REUSE),
+    // distances from home that don't say so (HOME-DIST).
+    const photos = await page.evaluate(C.pagePhotos);
+    // Once per screen: the same grid is on every step of it.
+    for (const f of C.checkPhotoScale(photos, u)) if (!said.has(`IMG-SCALE ${C.at(u)}`)) { said.add(`IMG-SCALE ${C.at(u)}`); found.push(f); }
+    C.notePhotos(photoScreens, photos, u, p);
+    found.push(...C.checkHomeDistances(await page.evaluate(C.pageDistances), u, phoneHome));
+    // A bright sliver along an edge of a small map card (Review 19 #5, #21; Review 20 #4, #33):
+    // the 4 px along each of its own edges.
+    const edges = maps.filter((x) => x.small && x.edges.length);
     // Tiles still loading show the map's plain background: wait for them (up to 3 s) so the result doesn't depend on timing.
     if (edges.length) await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-container')].every((m) => !m.querySelector('.leaflet-tile:not(.leaflet-tile-loaded)')), null, { timeout: 3000 }).catch(() => {});
     for (const m of edges) {
-      const clip = { x: Math.ceil(m.clip.x), y: Math.ceil(m.top.y), width: m.top.cols.length, height: 4 };
-      const png = await page.screenshot({ clip, type: 'png' });
-      const b = await page.evaluate(C.pageBright, [png.toString('base64'), m.top.cols]);
-      // A cut label or tile gap is 40+ bright device pixels; a stray anti-aliased pixel or two isn't.
-      if (b.n >= 40 && b.cols >= 8) found.push({ rule: 'EDGE', message: `on ${C.at(u)}, a bright sliver along the top edge of the small map (a label or tile cut by the edge)`, boxes: [{ x: clip.x, y: clip.y, w: clip.width, h: 4 }] });
+      for (const e of m.edges) {
+        const x0 = Math.ceil(m.clip.x); const y0 = Math.ceil(m.clip.y);
+        const clip = e.side === 'top' ? { x: x0, y: y0, width: e.flags.length, height: 4 }
+          : e.side === 'bottom' ? { x: x0, y: Math.floor(m.clip.y + m.clip.h) - 4, width: e.flags.length, height: 4 }
+            : e.side === 'left' ? { x: x0, y: y0, width: 4, height: e.flags.length }
+              : { x: Math.floor(m.clip.x + m.clip.w) - 4, y: y0, width: 4, height: e.flags.length };
+        if (clip.y < 0 || clip.y + clip.height > 667 || clip.x < 0 || clip.x + clip.width > 375 || !clip.width || !clip.height) continue;
+        const png = await page.screenshot({ clip, type: 'png' });
+        const b = await page.evaluate(C.pageBright, [png.toString('base64'), e.flags, e.side === 'left' || e.side === 'right' ? 'y' : 'x']);
+        // A cut label or tile gap is 40+ bright device pixels; a stray anti-aliased pixel or two isn't.
+        if (b.n >= 40 && b.cols >= 8) found.push({ rule: 'EDGE', message: `on ${C.at(u)}, a bright sliver along the ${e.side} edge of the small map (a label or tile cut by the edge)`, boxes: [{ x: clip.x, y: clip.y, w: clip.width, h: clip.height }] });
+      }
     }
     for (const f of found) await boxFinding(f, p);
   }
@@ -227,6 +270,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
 
     // 3. Going, with the car; toast seen.
     await start('t3');
+    // REVEAL (Review 20 #14): watch the "Location shown" card for 6 s from the tap.
+    await page.evaluate(C.watchReveal, 6000);
     await tap(B("I'm going"));
     await snap('going');
     if (await sheetOpen()) await closeStraySheet();
@@ -235,6 +280,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     const going = /Going with your Fiesta ST/i.test(await text());
     const seen3 = await toastSeen('t3', /going/i);
     stop('t3', going && seen3.ok, `${going ? 'going with the Fiesta' : 'not going with the Fiesta'}; ${seen3.why}`);
+    await page.waitForFunction(() => window.__scReveal && window.__scReveal.done, null, { timeout: 8000 }).catch(() => {});
+    for (const f of C.checkReveal(await page.evaluate(() => window.__scReveal))) finding(f, hits['reveal-covered'] || shotFor(result, 't3'));
 
     // 4. Directions and back.
     await start('t4');
@@ -252,11 +299,21 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
 
     // 5. Check in; burst and toast.
     await start('t5');
+    // EXIT-OVERLAP (Review 20 #15): no text over text from the tap until the "+150 rep" moment
+    // has gone (it stays 6 s, REP_MOMENT_MS in event/[id].tsx, then fades out): 8 s.
+    await page.evaluate(C.watchOverlap, 8000);
+    const checkInAt = Date.now();
     await tap(B('Check in'));
     await snap('checked-in');
     const checked = /checked in/i.test(await text());
     const seen5 = await toastSeen('t5', /checked in/i);
     stop('t5', checked && seen5.ok, seen5.why);
+    // CHECKED-IN (Review 20 #16): 10 s on, the event page still says you're checked in.
+    await L.sleep(Math.max(0, 10000 - (Date.now() - checkInAt)));
+    await snap('checked-in-10s');
+    for (const f of C.checkCheckedIn(await page.evaluate(C.pageCheckedIn))) finding(f);
+    await page.waitForFunction(() => window.__scOv && window.__scOv.done, null, { timeout: 3000 }).catch(() => {});
+    for (const f of C.checkOverlap(await page.evaluate(() => window.__scOv))) finding(f, hits['overlap-1'] || shotFor(result, 't5'));
 
     // 6. Vote and a photo.
     await start('t6');
@@ -327,7 +384,7 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await snap('host-1');
     const example = await page.getByRole('textbox', { name: 'Name' }).getAttribute('placeholder');
     for (const f of C.checkNameExample(example, seenTexts)) finding(f);
-    await page.getByRole('textbox', { name: 'Name' }).fill('Sunday morning meet');
+    await page.getByRole('textbox', { name: 'Name' }).fill(HOSTED);
     await tap(B(/^Starts:/));
     await snap('starts');
     await tap(page.getByRole('radio', { name: /^Sun, Sun/ }), { inSheet: true });
@@ -349,7 +406,12 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     const anyone = /Everyone/.test(await text());
     await tap(B('Next'));
     await snap('host-4');
+    const host4Shot = lastShot;
     const review = await text();
+    // CLASH (Review 20 #2, #31): a warning about a meet you're already going to then, on Check and
+    // post or in a sheet after Post meet.
+    const pageWarn = (await page.evaluate(C.pageText)).find((t) => !t.toast && C.CLASH_WORDS.test(t.text));
+    const clash = { warned: !!pageWarn, warning: pageWarn ? pageWarn.text : '' };
     await tap(B('Post meet'));
     // Up to two warnings, each only a warning: the time clash with the demo's Sunday coffee and cars
     // (Review 20 problem 2: the task says to host it, so Host anyway), and, with home started at the
@@ -365,6 +427,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
       if (!shown) break;
       if (shown === 'clash') {
         await snap('clash');
+        const sheetText = (await page.evaluate(C.pageText)).filter((t) => t.sheet).map((t) => t.text).join(' ');
+        Object.assign(clash, { warned: true, warning: sheetText.slice(0, 120) });
         result.notes.push('t9: the clash warning showed (going to a meet at that time); tapped Host anyway');
         await tap(hostAnyway, { inSheet: true });
       } else {
@@ -373,6 +437,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
       }
     }
     await snap('posted');
+    // PLACEHOLDER (Review 20 #34): "It's up" shows a photo or the real map, not the grid art.
+    for (const a of await page.evaluate(C.pagePlaceholders)) finding({ rule: 'PLACEHOLDER', message: `"It's up" (task 9): ${a.label === '(no card)' ? 'the hero' : `the card "${a.label}"`} shows the grid placeholder art instead of a photo or the real map` });
     await tap(B('Share', { exact: true }));
     await snap('share');
     const shared = /share this meet|copy link/i.test(await text()) || (await sheetOpen());
@@ -385,35 +451,76 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
       await tap(B('Open the meet'));
       await tap(B('More options'));
       await snap('options');
+      // C5 on cancel (Review 20 #17): cancel your meet; its page says "cancelled" once.
+      const cancelRow = page.locator('[data-testid=sheet]').getByRole('button', { name: /^Cancel (this|the) meet/i });
+      if (await cancelRow.count()) {
+        await tap(cancelRow, { inSheet: true });
+        await snap('cancel-confirm');
+        const yes = page.locator('[data-testid=sheet]').getByRole('button', { name: /^(Cancel it|Cancel the meet|Yes, cancel)/i });
+        if (await yes.count()) {
+          await tap(yes, { inSheet: true });
+          await snap('cancelled');
+          for (const f of C.checkCancelledOnce(await page.evaluate(C.pageText), url())) finding(f);
+        } else result.notes.push('t9: no "Cancel it" in the cancel sheet, so the cancelled page went unchecked');
+      } else result.notes.push('t9: no "Cancel this meet" in the ··· menu, so the cancelled page went unchecked');
       if (await sheetOpen()) await closeSheet();
       await tap(B('Go back'));
     } else result.notes.push('t9: no "Open the meet" after posting, so the meet\'s ··· menu went unchecked');
 
-    // 10. Not going to Sunday coffee; the Privacy switch.
-    await start('t10');
-    // The "It's up" page has no back (Review 19 #46): Done closes it. After the options check above
-    // you're usually on Tonight already.
+    // Not timed: what a newcomer could take "the Sunday coffee meet" to be. Every meet card on
+    // Tonight's sheet, its List and Me (Review 20 #2: the duplicate-name trap). Also K3's List cards
+    // and CLASH's meets you're going to.
+    current = 'survey';
+    await page.evaluate(() => { window.__sc.task = 'survey'; });
     if (url() !== '/') await tap((await B('Go back').count()) ? B('Go back') : B('Done', { exact: true }));
+    const seenCards = [...(await page.evaluate(C.pageMeetCards, 1))];
     await tap(page.getByRole('tab', { name: /^List/ }));
-    const coffee = B(/Sunday coffee and cars/);
-    await coffee.first().scrollIntoViewIfNeeded();
+    const coffeeCard = B(/coffee/i).filter({ visible: true });
+    if (await coffeeCard.count()) await coffeeCard.first().scrollIntoViewIfNeeded();
     await snap('list');
     cards.list = await page.evaluate(C.pageEventCards);
     for (const f of C.checkCardLook(cards.map, cards.list)) finding(f);
-    await tap(coffee);
-    await snap('coffee');
-    await tap(B("Can't make it"));
-    await snap('cant-make-it');
-    await tap(B("Yes, I can't go"), { inSheet: true });
-    await snap('left');
-    const left = /not going/i.test(await text()) || (await page.evaluate(() => window.__sc.toasts.some((t) => t.task === 't10' && /not going/i.test(t.text))));
-    await tap(B('Go back'));
+    seenCards.push(...(await page.evaluate(C.pageMeetCards, 2)));
+    await tap(page.getByRole('tab', { name: 'Me' }));
+    await snap('me-survey');
+    seenCards.push(...(await page.evaluate(C.pageMeetCards, 3)));
+    for (const f of C.checkClash({ cards: seenCards, hosted: HOSTED, hostedWhen: 'Sun 10:00', ...clash })) finding(f, host4Shot);
+    const coffee = C.sundayCoffee(seenCards);
+    if (coffee.count > 1) {
+      finding({ rule: 'DUP-NAME', message: `task 10 says "the Sunday coffee meet" and ${coffee.count} meets fit it (${coffee.meets.map((c) => `"${c.title}" ${c.when}${c.tag ? ` ${c.tag.toUpperCase()}` : ''}`).join(', ')}); a newcomer can't tell which. Give seeded meets names no one would host, or tell them apart` });
+    }
+    await tap(page.getByRole('tab', { name: 'Tonight' }));
+    await tap(page.getByRole('tab', { name: /^Map/ }));
+    await L.sleep(800);
+
+    // 10. Not going to the Sunday coffee meet (the one you're going to); the Privacy switch.
+    await start('t10');
+    let left = false;
+    if (!coffee.target) {
+      result.tasks.t10 = { pass: false, ms: 0, limit: 45, note: coffee.going ? `${coffee.going} Sunday coffee meets say GOING; which one is meant?` : `no Sunday coffee meet you're going to on Tonight, its List or Me (${coffee.meets.length} matched by name)`, shot: lastShot };
+    } else {
+      // Where a newcomer looks: Tonight's sheet first, then the List, then Me.
+      const card = () => page.getByRole('button', { name: coffee.target.label, exact: true }).filter({ visible: true });
+      for (const tab of [null, /^List/, 'Me']) {
+        if (tab) await tap(page.getByRole('tab', { name: tab }));
+        if (await card().count()) break;
+      }
+      await card().first().scrollIntoViewIfNeeded();
+      await tap(card());
+      await snap('coffee');
+      await tap(B("Can't make it"));
+      await snap('cant-make-it');
+      await tap(B("Yes, I can't go"), { inSheet: true });
+      await snap('left');
+      left = /not going/i.test(await text()) || (await page.evaluate(() => window.__sc.toasts.some((t) => t.task === 't10' && /not going/i.test(t.text))));
+      await tap(B('Go back'));
+    }
     await tap(page.getByRole('tab', { name: 'Me' }));
     await snap('me');
     await tap(B('Settings'));
     await snap('settings');
     const privacy = (await page.getByRole('switch', { name: /People near you/i }).count()) > 0;
-    stop('t10', left && privacy, `${left ? 'not going' : 'still going'}; Privacy switch ${privacy ? 'found' : 'not found'}`);
+    if (coffee.target) stop('t10', left && privacy, `"${coffee.target.title}" ${coffee.target.when}: ${left ? 'not going' : 'still going'}; Privacy switch ${privacy ? 'found' : 'not found'}`);
     current = '';
     await L.sleep(3500); // let the last toast run its course before the toast check
   } catch (e) {
@@ -446,6 +553,14 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     const pm = shotPath('busy-map');
     await shoot(pm);
     for (const f of C.checkMaps(await page.evaluate(C.pageMaps), url())) await boxFinding(f, pm);
+    // The same at a second phone size (Review 20 #11): 393x852.
+    await page.setViewportSize({ width: 393, height: 852 });
+    await L.sleep(2500);
+    const pl = shotPath('busy-map-393');
+    await shoot(pl);
+    for (const f of C.checkMaps(await page.evaluate(C.pageMaps), url())) await boxFinding({ ...f, rule: 'MAP-393', message: `at 393x852, ${f.message}` }, pl);
+    await page.setViewportSize({ width: 375, height: 667 });
+    await L.sleep(1000);
     await page.getByRole('tab', { name: /^List/ }).click();
     await L.sleep(2000);
     const p = shotPath('busy-list');
@@ -473,6 +588,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   for (const f of C.checkToastLines(sc.toasts, scale)) result.findings.push({ ...f, shot: hits[`toast-lines-${f.toastId}`] || shotFor(result, f.task) });
   if (busy && !result.error) await busyNight().catch((e) => result.notes.push(`Busy night pass stopped: ${String(e.message || e).split('\n')[0]}`));
   for (const f of C.checkConsole(S.errors)) result.findings.push({ ...f, task: '', shot: '' });
+  // PHOTO-REUSE (Review 20 #13): over the whole run (the Busy night pass isn't the normal demo).
+  for (const f of C.checkPhotoReuse(photoScreens)) result.findings.push({ task: '', ...f });
   result.toasts = sc.toasts.map(({ text, task, url: u, bestRunMs, coveredBy, actions }) => ({ text, task, url: u, bestRunMs, coveredBy, actions }));
   await S.browser.close();
   fs.writeFileSync(path.join(shots, 'result.json'), JSON.stringify(result, null, 1));

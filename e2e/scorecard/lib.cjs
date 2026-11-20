@@ -179,6 +179,13 @@ const PROBE = `(() => {
   setInterval(sample, 100);
 })();`;
 
+/**
+ * Where the phone is: Birmingham, about 12 mi from the demo's home (Tamworth, `DEMO_HOME` in
+ * src/data/seed.ts), so distances from home and from the phone differ (HOME-DIST).
+ */
+const PHONE = { latitude: 52.4862, longitude: -1.8904 };
+const DEMO_HOME = { latitude: 52.63, longitude: -1.7 };
+
 /** A browser page set up like the scored runs. */
 async function launch({ base, clock, scale, onHit, headless = true }) {
   const browser = await chromium.launch({ headless });
@@ -189,7 +196,7 @@ async function launch({ base, clock, scale, onHit, headless = true }) {
     hasTouch: true,
     timezoneId: 'Europe/London',
     locale: 'en-GB',
-    geolocation: { latitude: 52.4862, longitude: -1.8904 },
+    geolocation: PHONE,
     permissions: ['geolocation'],
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
   });
@@ -211,4 +218,4 @@ function safePath(page) {
   try { return new URL(page.url()).pathname; } catch { return ''; }
 }
 
-module.exports = { sleep, PACE, serve, launch, scalerScript, safePath };
+module.exports = { sleep, PACE, serve, launch, scalerScript, safePath, PHONE, DEMO_HOME };

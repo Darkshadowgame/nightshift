@@ -86,18 +86,36 @@ function pageOverflow() {
 }
 
 let BANNED;
-/** 4.12: banned words in the visible text, minus the owner exceptions in allow/words.json. */
-function checkWords(texts, url) {
+/**
+ * Words the scorecard scans for beyond BANNED_WORDS (rule WORDS), in the visible text and in the
+ * labels of controls on show. Review 20 (37): the app says "meet"; "event" is the code's word.
+ */
+const EXTRA_WORDS = [{ word: 'event', re: /\bevents?\b/i }];
+
+/** In the page: the accessibility labels of controls on show (a screen reader says these). */
+function pageLabels() {
+  const shown = (el) => !el.closest('[inert]') && (!el.checkVisibility || el.checkVisibility({ opacityProperty: true, visibilityProperty: true }));
+  const out = new Set();
+  for (const el of document.querySelectorAll('[role=button][aria-label],[role=link][aria-label],[role=switch][aria-label],[role=tab][aria-label],button[aria-label]')) {
+    if (shown(el) && el.getBoundingClientRect().width > 0) out.add(el.getAttribute('aria-label').replace(/\s+/g, ' ').trim());
+  }
+  return [...out];
+}
+
+/** 4.12: banned words in the visible text, minus the owner exceptions in allow/words.json; WORDS: EXTRA_WORDS, in text and labels. */
+function checkWords(texts, url, labels = []) {
   BANNED = BANNED || bannedWords();
   const allow = ALLOW('words.json').allow;
   const found = [];
+  const ok = (word, text, sheet) => allow.some((a) => a.word === word && rx(a.text).test(text) && (!a.url || rx(a.url).test(url)) && (!a.sheet || sheet));
   for (const t of texts) {
     for (const b of BANNED) {
       if (!b.re.test(t.text)) continue;
-      const ok = allow.some((a) => a.word === b.word && rx(a.text).test(t.text) && (!a.url || rx(a.url).test(url)) && (!a.sheet || t.sheet));
-      if (!ok) found.push({ rule: '4.12', message: `banned word "${b.word}" in "${t.text}"` });
+      if (!ok(b.word, t.text, t.sheet)) found.push({ rule: '4.12', message: `banned word "${b.word}" in "${t.text}"` });
     }
+    for (const b of EXTRA_WORDS) if (b.re.test(t.text) && !ok(b.word, t.text, t.sheet)) found.push({ rule: 'WORDS', message: `"${b.word}" in "${t.text}" on ${url.replace(/\/[0-9a-f-]{36}/g, '/:new')}; the app says "meet"` });
   }
+  for (const l of labels) for (const b of EXTRA_WORDS) if (b.re.test(l) && !ok(b.word, l, false)) found.push({ rule: 'WORDS', message: `"${b.word}" in the label "${l}" on ${url.replace(/\/[0-9a-f-]{36}/g, '/:new')}; the app says "meet"` });
   return dedupe(found);
 }
 
@@ -185,4 +203,4 @@ function restoreScroll() {
   window.__scBack = [];
 }
 
-module.exports = { ...require('./checks-more.cjs'), revealClip, restoreScroll, pageText, pageOverflow, checkWords, checkOverflow, checkFacts, checkConsole, checkToasts, checkDisabled, bannedWords };
+module.exports = { ...require('./checks-more.cjs'), ...require('./checks-r20.cjs'), pageLabels, EXTRA_WORDS, revealClip, restoreScroll, pageText, pageOverflow, checkWords, checkOverflow, checkFacts, checkConsole, checkToasts, checkDisabled, bannedWords };

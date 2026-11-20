@@ -1,0 +1,16 @@
+{
+  "about": "IMG-SCALE: photos allowed to be drawn bigger than their frame (a deliberate crop). Each entry: a regex for the photo's file name (without its hash), an optional regex for the URL path, an optional maxFrame (px: only frames this small or smaller), and why.",
+  "allow": [
+    {
+      "photo": "^hero-night-meet$",
+      "url": "^/signin$",
+      "why": "The sign-in hero is cropped on purpose to the tail lights, with no plate in the crop (signin.tsx, Review 19 #1)."
+    },
+    {
+      "photo": ".",
+      "url": "^/me$",
+      "maxFrame": 96,
+      "why": "Me's avatar is a close crop of your car photo when the car's card is right under it (Review 20 #29; REDESIGN-2, Me)."
+    }
+  ]
+}
