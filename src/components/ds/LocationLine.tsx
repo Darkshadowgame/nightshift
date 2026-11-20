@@ -15,7 +15,7 @@ import { DsText } from './Text';
  *
  * `done` swaps the pin for a green tick (checked in, voted). The wording is `locationSentence()`
  * in glossary.ts, so tests and other screens say it the same way. `text` overrides the location
- * sentence for the states that aren't about location (ended, cancelled): "Cancelled by the host."
+ * sentence for the states that aren't about location (ended, cancelled): "The host cancelled this meet."
  */
 export function LocationLine({
   note,

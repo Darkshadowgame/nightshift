@@ -73,6 +73,7 @@ export function PhotoCard({
   live,
   meta,
   detail,
+  selected,
   tag,
   classLetter,
   action,
@@ -102,6 +103,8 @@ export function PhotoCard({
   meta?: string;
   /** One quiet line under meta ("Not open to your car"). */
   detail?: string;
+  /** The one picked (a vote): the selected border, like every other selection (Review 20 gap 25). */
+  selected?: boolean;
   /** One state: Going, Hosting, Checked in. */
   tag?: EntityTag | null;
   /** Builds: the ClassBadge beside the title. */
@@ -194,9 +197,9 @@ export function PhotoCard({
 
   const frame = {
     backgroundColor: finished ? COLOR.surface.bg : COLOR.surface.card,
-    borderColor: COLOR.surface.border,
+    borderColor: selected ? COLOR.action.selected : COLOR.surface.border,
     borderStyle: finished ? ('dashed' as const) : ('solid' as const),
-    borderWidth: 1,
+    borderWidth: selected ? 2 : 1,
     borderRadius: RADII.card,
     overflow: 'hidden' as const,
   };

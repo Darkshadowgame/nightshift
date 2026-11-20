@@ -1,7 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeOut } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
 import { TrophiesSection, VoteProgress, VoteSheet, voteCategories } from '../../components/AwardsSection';
 import { bhpLine, BringSheet, shortBuildName } from '../../components/BringPicker';
 import { isStaffNow, openModerate, openReport, personMark } from '../../components/Community';
@@ -15,6 +14,7 @@ import {
   DsText,
   EmptyState,
   ErrorState,
+  FitImage,
   GoingStrip,
   Gradient,
   Hero,
@@ -33,7 +33,7 @@ import {
   type ActionBarButton,
 } from '../../components/ds';
 import type { MapPath, MapPin } from '../../components/mapTypes';
-import { UnlockReveal } from '../../components/motion';
+import { FoldAway, UnlockReveal } from '../../components/motion';
 import { useNavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
 import { PhotoCredit } from '../../components/PhotoCredit';
@@ -111,10 +111,13 @@ export default function EventScreen() {
   const errorAt = (at: ErrorAt) => (error?.at === at ? error.text : null);
   const [busy, setBusy] = useState(false);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
+  /** The "+150 rep" card is folding away (fade, then its height closes: never over the going row). */
+  const [repLeaving, setRepLeaving] = useState(false);
   // "+150 rep" is a moment, not page content (Review 15 decision 7): it shows once, then folds away.
   useEffect(() => {
     if (!justCheckedIn) return;
-    const t = setTimeout(() => setJustCheckedIn(false), REP_MOMENT_MS);
+    setRepLeaving(false);
+    const t = setTimeout(() => setRepLeaving(true), REP_MOMENT_MS);
     return () => clearTimeout(t);
   }, [justCheckedIn]);
   const [unlock, setUnlock] = useState<string | null>(null);
@@ -161,7 +164,12 @@ export default function EventScreen() {
   }, [freshKey, e?.id]);
 
   const { blocked } = community;
-  const messages = useMemo(() => chat.filter((m) => m.eventId === id && !blocked.has(m.userId)), [chat, id, blocked]);
+  // A cancelled meet says so once, in its place line (C5, Review 20 problem 6): not again in the chat.
+  const cancelledNow = !!e?.cancelled;
+  const messages = useMemo(
+    () => chat.filter((m) => m.eventId === id && !blocked.has(m.userId) && !(cancelledNow && m.system && /cancel/i.test(m.text))),
+    [chat, id, blocked, cancelledNow],
+  );
   const [chatShown, setChatShown] = useState(LIST_PAGE * 2);
   const chatPage = lastPage(messages, chatOpen ? chatShown : 2);
 
@@ -437,8 +445,16 @@ export default function EventScreen() {
   const invitePrimary = primary?.label === INVITE_WORDS.open;
   // Going is said once, in the same place on every event (C5, Review 18): the ActionBar. Its pill
   // ("Going") while there's no primary yet, else this line over the buttons; never a tag on the photo.
-  const goingState = myEventStatus(ev, me, crews, now) === 'going';
-  const barState = going && !pill && goingState ? (bringing ? `Going with your ${shortBuildName(bringing)}` : "You're going") : null;
+  const myStatus = myEventStatus(ev, me, crews, now);
+  const goingState = myStatus === 'going';
+  const barState =
+    myStatus === 'checkedIn' && !closed
+      ? STATUS_LABELS.checkedIn
+      : going && !pill && goingState
+        ? bringing
+          ? `Going with your ${shortBuildName(bringing)}`
+          : "You're going"
+        : null;
 
   // ---------------------------------------------------------------------------
   // Pieces
@@ -449,8 +465,9 @@ export default function EventScreen() {
   // status line already names the town with the meet point.
   const where = ev.areaName && status.text.includes(ev.areaName) ? null : aroundArea(ev.areaName);
   const time =
+    // Cancelled is said once, in the place line (C5, Review 20 problem 6): the meta keeps only the time.
     phase === 'cancelled'
-      ? `Cancelled · ${timeRange(ev.startsAt, ev.endsAt, now)}`
+      ? timeRange(ev.startsAt, ev.endsAt, now)
       : phase === 'over'
         ? endedLabel(endTime(ev), now)
         : phase === 'live'
@@ -459,7 +476,8 @@ export default function EventScreen() {
   const meta = [time, where, ev.routeMiles ? `${ev.routeMiles} mi route` : null].filter(Boolean).join(' · ');
   // Your status, once (K3, C5): the same tag as Tonight's card and Me (myEventStatus).
   // Going is the ActionBar's to say (4.3 owns where you stand), so the photo never has a Going tag (C5, Reviews 17 and 18).
-  const heroTag = pill || goingState ? null : (statusTag(myEventStatus(ev, me, crews, now)) ?? null);
+  // Checked in is the ActionBar's line too (Review 20 problem 4); a cancelled meet has no HOSTING tag (problem 6).
+  const heroTag = pill || goingState || myStatus === 'checkedIn' || phase === 'cancelled' ? null : (statusTag(myStatus) ?? null);
 
   const goingPeople = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
     const u = users.find((x) => x.id === uid);
@@ -471,7 +489,7 @@ export default function EventScreen() {
   const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: canSeeStop(ev, i, me, crews, now) }));
   const mapPins: MapPin[] = visibleStops
     .filter((x) => x.visible && x.st.at)
-    .map((x) => ({ id: x.st.id, at: x.st.at!, glyph: ev.type, colour: x.i === current ? colour : COLOR.text.secondary, title: x.st.name, size: x.i === current ? 40 : 30, live: x.i === current && phase === 'live' }));
+    .map((x) => ({ id: x.st.id, at: x.st.at!, glyph: ev.type, colour: x.i === current && phase !== 'cancelled' ? colour : COLOR.text.secondary, title: x.st.name, size: x.i === current ? 40 : 30, live: x.i === current && phase === 'live' }));
   const mapPaths: MapPath[] = ev.type === 'cruise' && mapPins.length > 1 ? [{ id: 'route', coords: mapPins.map((p) => p.at), colour, dashed: true }] : [];
   const anyVisible = mapPins.length > 0;
   const mapCentre = anyVisible ? (mapPins.find((p) => p.id === currentStop?.id)?.at ?? mapPins[0].at) : ev.area;
@@ -509,7 +527,8 @@ export default function EventScreen() {
     <>
       <NightMap
         // While "Location shown" plays, its own pin is the only one (no second pin under it, Review 15).
-        pins={anyVisible && !unlock ? mapPins : []}
+        // The pin stays put under it (Review 20 problem 5): the moment's own pin is drawn exactly over it.
+        pins={anyVisible ? mapPins : []}
         paths={mapPaths}
         // The area in a quiet grey: colour is for the pin (accent rule, Review 13).
         circles={anyVisible ? [] : [{ id: 'area', centre: ev.area, radiusMiles: areaMiles, colour: COLOR.text.secondary }]}
@@ -524,6 +543,7 @@ export default function EventScreen() {
         <UnlockReveal
           glyph={ev.type}
           colour={colour}
+          pinSize={mapPins.find((p) => p.id === currentStop?.id)?.size ?? 40}
           title={unlock}
           onDone={() => setUnlock(null)}
         />
@@ -603,16 +623,16 @@ export default function EventScreen() {
             ) : null}
           </View>
           {justCheckedIn ? (
-            <Animated.View exiting={FadeOut.duration(MOTION.base)}>
+            <FoldAway shown={!repLeaving} gap={SPACING.md} onGone={() => setJustCheckedIn(false)}>
               <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up. It shows on your profile." />
-            </Animated.View>
+            </FoldAway>
           ) : null}
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
           {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
           <GoingStrip
             people={goingPeople}
-            summary={goingSummary(ev.going.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}
+            summary={`${phase === 'cancelled' ? 'Was ' : ''}${goingSummary(ev.going.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}`}
             onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
           />
           {/* Bring your mates (Review 18): a row while you're going, never a sheet that opens by itself. */}
@@ -900,7 +920,9 @@ function InviteRows({ rows, ended }: { rows: { come: string; tell: string }; end
 
 /** One square photo in the event's Photos grid: cover-fit like every tile, never letterboxed (Review 19). */
 function PhotoTile({ photoRef }: { photoRef: string }) {
-  return <Image source={photoSource(photoRef)} resizeMode="cover" style={StyleSheet.absoluteFill} accessibilityIgnoresInvertColors />;
+  // FitImage sizes the photo to the tile (100% by 100%): a bare Image takes a bundled photo's own
+  // 1200 x 900 size on web and shows only its corner (Review 20 problem 1).
+  return <FitImage fit="cover" source={photoSource(photoRef)} frameAspect={1} />;
 }
 
 type Line = { id: string; userId: string; text: string; at: string; system?: boolean };

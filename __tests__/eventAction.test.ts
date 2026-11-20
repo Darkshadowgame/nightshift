@@ -95,7 +95,7 @@ describe('eventPrimary: the one state, by the 3.5 table', () => {
   test('cancelled and finished-without-you', () => {
     const c = eventPrimary({ ...event, cancelled: true }, 'me', 'going', crews, [], at(-20));
     expect(c.kind).toBe('cancelled');
-    expect(statusLine(event, c, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-20) }).text).toBe('Cancelled by the host.');
+    expect(statusLine(event, c, { me: 'me', crews, builds: [], users: [], votes: [], now: at(-20) }).text).toBe('The host cancelled this meet.');
     expect(eventPrimary({ ...event, going: ['host'] }, 'me', 'invited', crews, [], at(200)).kind).toBe('ended');
   });
 

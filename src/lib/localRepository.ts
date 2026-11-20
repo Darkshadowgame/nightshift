@@ -197,7 +197,7 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       set((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? next : e)), notices: [notice, ...s.notices] }));
     },
     async cancelEvent(eventId) {
-      const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text: 'Hosts cancelled the event', at: appNow().toISOString(), system: true };
+      const msg: ChatMessage = { id: newId('c'), eventId, userId: ME, text: 'The host cancelled this meet', at: appNow().toISOString(), system: true };
       set((s) => ({ ...s, events: s.events.map((e) => (e.id === eventId ? { ...e, cancelled: true } : e)), chat: [...s.chat, msg] }));
     },
     async sendChat(eventId, text) {

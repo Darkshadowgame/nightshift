@@ -1,7 +1,7 @@
 import { canVote, categoriesFor, votingCloses, type Vote } from './awards';
 import { broughtBuild } from './bringing';
 import { classOf } from './classes';
-import { canSeeStop, checkInOpensAt, checkInWindowOpen, endTime, hasRequested, isHost, isPublicType, phaseOf, revealTime } from './events';
+import { canSeeStop, checkInOpensAt, checkInWindowOpen, endTime, EVENT_LABELS, hasRequested, isHost, isPublicType, phaseOf, revealTime } from './events';
 import type { Role } from './eventView';
 import { countdown } from './hud';
 import { formatTime, formatWhen, plural } from './format';
@@ -27,7 +27,7 @@ import type { Build, ClassLetter, Crew, InviteFilter, NightEvent, User } from '.
  * | vote        | "Leisure park car park, Tamworth."           | "Voting closes tomorrow 23:00." (demo: none) | Vote + Add a photo |
  * | voted       | "Leisure park car park, Tamworth."           | "Results tomorrow 23:00." (demo: none; the results show) | Add a photo + Vote (trophies left) |
  * | ended       | "Leisure park car park, Tamworth." / "Around Tamworth." | "Results tomorrow 23:00." (until then) | See photos (secondary) |
- * | cancelled   | "Cancelled by the host."                     |                                      | nothing                      |
+ * | cancelled   | "The host cancelled this meet."                  |                                      | nothing                      |
  *
  * "Check-in is open" is never said: the ActionBar's Check in says it. Each fact once (C5): being
  * going or checked in is the hero's status tag (`myEventStatus`) and the toast, never the place
@@ -141,7 +141,8 @@ export function statusLine(
   const host = isHost(event, ctx.me, ctx.crews);
   switch (state.kind) {
     case 'cancelled':
-      return { text: 'Cancelled by the host.' };
+      // Said once on the page (C5, Review 20 problem 6): the meta keeps only the time, the chat no line.
+      return { text: `The host cancelled this ${EVENT_LABELS[event.type].toLowerCase()}.` };
     case 'join': {
       // A connection invited you (eventInvites.ts): who, as the one next-step note.
       const by = event.invitedBy?.[ctx.me];

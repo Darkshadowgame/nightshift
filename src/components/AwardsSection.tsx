@@ -8,6 +8,7 @@ import { classOf } from '../lib/classes';
 import { useNow } from '../lib/clock';
 import { photoSource } from '../lib/photoSource';
 import { buildPicture } from '../lib/similarPhoto';
+import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { NightEvent } from '../lib/types';
 import { COLOR, MOTION, SPACING } from '../theme';
@@ -47,7 +48,8 @@ export function TrophiesSection({ event, preview, progress, delay = 0 }: { event
   const onCover = awards.filter((a) => categoryInfo(a.category).cover && builds.some((b) => b.id === a.buildId)).slice(0, 1);
   const rows = awards.filter((a) => !onCover.includes(a));
   return (
-    <Section title={preview ? (awards.length === 1 ? `Demo: how ${categoryInfo(awards[0].category).label} went` : 'Demo: how your trophies went') : 'Trophies'}>
+    // With the vote count in the title (Review 20 gap 26), so the result reads as everyone's votes, not just yours.
+    <Section title={preview ? (awards.length === 1 ? `Demo: how ${categoryInfo(awards[0].category).label} went · ${plural(awards[0].votes, 'vote')}` : 'Demo: how your trophies went') : 'Trophies'}>
       {awards.length === 0 ? <DsText v="secondary">Not enough votes for any trophies at this one.</DsText> : null}
       {onCover.map((a) => {
           const b = builds.find((x) => x.id === a.buildId);
@@ -199,6 +201,7 @@ export function VoteSheet({ event, category, onClose }: { event: NightEvent; cat
                   meta={`${displayHandle(owner?.handle ?? 'unknown')} · ${bhpLine(b)}`}
                   // Under the name, not a tag beside it: the name keeps the row's width (1.3x text).
                   detail={myVote === b.id ? '✓ Your vote' : undefined}
+                  selected={myVote === b.id}
                   overlay={<PhotoCredit photoRef={pic?.ref} kind={b.kind} standIn={pic?.standIn} overlay />}
                   onPress={() => pick(b.id)}
                   accessibilityHint={`Votes for ${label.toLowerCase()}`}

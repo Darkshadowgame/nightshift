@@ -282,7 +282,12 @@ export function ClassUpMoment({ from, to, onDone }: { from: ClassLetter; to: Cla
 // Location shown: dim, a scan sweeps round the area, its dashed ring becomes the pin, a card rises.
 // ---------------------------------------------------------------------------
 
-export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; colour: string; title: string; onDone: () => void }) {
+/**
+ * `pinSize` is the map pin's own size: the moment's pin is drawn exactly over it (the map is centred
+ * on the meet point), so when the moment fades the same pin is still there (Review 20 problem 5).
+ * The "Location shown" card sits at the top of the map, clear of the toast above the ActionBar.
+ */
+export function UnlockReveal({ glyph, colour, title, onDone, pinSize = 40 }: { glyph: Glyph; colour: string; title: string; onDone: () => void; pinSize?: number }) {
   const reduced = useReducedMotion();
   const dim = useSharedValue(0);
   const sweep = useSharedValue(0);
@@ -323,14 +328,13 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
   }));
   const lockStyle = useAnimatedStyle(() => ({ opacity: 1 - swap.value }));
   const openStyle = useAnimatedStyle(() => (reduced ? { opacity: swap.value } : { opacity: swap.value, transform: [{ scale: 0.8 + 0.2 * swap.value }] }));
-  const cardStyle = useAnimatedStyle(() => (reduced ? { opacity: card.value } : { opacity: card.value, transform: [{ translateY: 24 * (1 - card.value) }] }));
-  const letters = useAnimatedStyle(() => ({ letterSpacing: reduced ? 2 : 2 + 4 * (1 - card.value) }));
+  const cardStyle = useAnimatedStyle(() => (reduced ? { opacity: card.value } : { opacity: card.value, transform: [{ translateY: -16 * (1 - card.value) }] }));
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, wrap]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel={`Location shown: ${title}. Tap to close.`}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim }, scrim]} />
-        <View style={[StyleSheet.absoluteFill, st.centre]}>
+        <View style={[StyleSheet.absoluteFill, st.centre]} pointerEvents="none">
           <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
             {!reduced ? (
               <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: RADII.pill, borderWidth: 3, borderColor: 'transparent', borderTopColor: colour }, sweepStyle]} />
@@ -339,17 +343,20 @@ export function UnlockReveal({ glyph, colour, title, onDone }: { glyph: Glyph; c
                 (K3, Review 19); the sweeping ring is the moment. */}
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, lockStyle]}>
               <View style={{ opacity: 0.4 }}>
-                <Pin glyph={glyph} colour={colour} size={56} />
+                <Pin glyph={glyph} colour={colour} size={pinSize} />
               </View>
             </Animated.View>
             <Animated.View style={[StyleSheet.absoluteFill, st.centre, openStyle]}>
-              <Pin glyph={glyph} colour={colour} size={56} />
+              <Pin glyph={glyph} colour={colour} size={pinSize} />
             </Animated.View>
           </View>
-          {/* The pin carries the colour; the card's words stay neutral (sodium only on the primary, 5.4). */}
+        </View>
+        {/* The pin carries the colour; the card's words stay neutral (sodium only on the primary, 5.4).
+            At the top of the map, so the toast above the ActionBar never covers it (Review 20 problem 5). */}
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', paddingTop: SPACING.sm }]} pointerEvents="none">
           <Animated.View style={[st.card, { borderLeftColor: COLOR.surface.raisedHi }, cardStyle]}>
             {/* The place itself is said once, in the page's place line (C5, Review 17): the card only marks the moment. */}
-            <Animated.Text style={[typeStyle('title', COLOR.text.primary), letters]}>Location shown</Animated.Text>
+            <DsText v="title">Location shown</DsText>
           </Animated.View>
         </View>
       </Pressable>
@@ -363,7 +370,46 @@ const st = StyleSheet.create({
   scrim: { backgroundColor: COLOR.surface.glassRaised, alignItems: 'center', justifyContent: 'center', gap: SPACING.md, padding: SPACING.xl },
   streak: { position: 'absolute', top: -SPACING.lg, bottom: -SPACING.lg, width: 14, backgroundColor: COLOR.text.primary, opacity: 0.75 },
   card: {
-    marginTop: SPACING.md, backgroundColor: COLOR.surface.glassRaised, borderColor: COLOR.surface.border, borderWidth: 1, borderLeftWidth: 3, borderRadius: RADII.card,
+    backgroundColor: COLOR.surface.glassRaised, borderColor: COLOR.surface.border, borderWidth: 1, borderLeftWidth: 3, borderRadius: RADII.card,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, maxWidth: '86%', alignItems: 'center',
   },
 });
+
+// ---------------------------------------------------------------------------
+// A moment that folds away: it fades, then its height closes, so the rows under it move up only
+// once it's gone and nothing ever overlaps them (Review 20 problem 4: the "+150 rep" card).
+// ---------------------------------------------------------------------------
+
+/** `gap`: the parent's gap under it, closed too so nothing jumps when it unmounts. */
+export function FoldAway({ shown, onGone, gap = 0, children }: { shown: boolean; onGone: () => void; gap?: number; children: ReactNode }) {
+  const fade = useSharedValue(1);
+  const fold = useSharedValue(1);
+  const height = useRef(0);
+  const [measured, setMeasured] = useState(0);
+  useEffect(() => {
+    if (shown) return;
+    fade.value = withTiming(0, { duration: MOTION.base });
+    fold.value = withDelay(MOTION.base, withTiming(0, { duration: MOTION.base }));
+    const t = setTimeout(onGone, MOTION.base * 2 + 20);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+  const style = useAnimatedStyle(() =>
+    measured > 0 ? { opacity: fade.value, height: measured * fold.value, marginBottom: -gap * (1 - fold.value), overflow: 'hidden' as const } : { opacity: fade.value },
+  );
+  return (
+    <Animated.View style={style}>
+      <View
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && Math.abs(h - height.current) > 0.5) {
+            height.current = h;
+            setMeasured(h);
+          }
+        }}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  );
+}
