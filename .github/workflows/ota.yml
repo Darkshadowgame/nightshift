@@ -6,13 +6,9 @@
 
 name: OTA update
 
+# Owner, 20 Nov 2026: no automatic updates to phones until the app scores 8+ on our own review.
+# Publish by hand only (Actions > OTA update > Run workflow) once that's reached.
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "supabase/**"
   workflow_dispatch:
 
 concurrency:
