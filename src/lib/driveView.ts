@@ -275,3 +275,27 @@ export function straightRoute(points: LatLng[], names: string[] = [], spacingM =
   }
   return { coords, distance: total, time: total / DEMO_ROUTE_SPEED, steps, legs };
 }
+
+/**
+ * The route preview's camera and report markers by the route (on it, or inside its box with a
+ * small margin): fitted with the route, so a marker is never cut by the map's top edge, at any
+ * text size (Review 20 problem 18). Markers far off the route don't widen the view.
+ */
+export function marksNearRoute(
+  route: readonly { lat: number; lng: number }[],
+  cameras: readonly { at: { lat: number; lng: number } }[],
+  reports: readonly { at: { lat: number; lng: number }; onRoute?: boolean }[],
+): { lat: number; lng: number }[] {
+  if (route.length < 2) return [];
+  let [s, n, w, e] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (const p of route) {
+    s = Math.min(s, p.lat);
+    n = Math.max(n, p.lat);
+    w = Math.min(w, p.lng);
+    e = Math.max(e, p.lng);
+  }
+  const mLat = (n - s) * 0.15 + 0.002;
+  const mLng = (e - w) * 0.15 + 0.003;
+  const near = (p: { lat: number; lng: number }) => p.lat >= s - mLat && p.lat <= n + mLat && p.lng >= w - mLng && p.lng <= e + mLng;
+  return [...cameras.map((c) => c.at), ...reports.map((r) => r.at)].filter(near);
+}

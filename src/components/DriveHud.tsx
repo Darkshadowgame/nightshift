@@ -6,7 +6,7 @@ import { NAV_ICON_COLOURS, NAV_ICON_SHAPES, navIconOf } from '../lib/driveView';
 import { ARROWS, formatDistance } from '../lib/nav';
 import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, tint } from '../theme';
 import { photoUri } from '../lib/photos';
-import { Button, ChoiceGroup, DsText, Icon, Press, Sheet } from './ds';
+import { Button, ChoiceGroup, DsText, Icon, IconButton, Press, Sheet } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 import { LaneStrip } from './LaneStrip';
 import type { LaneStrip as LaneStripData } from '../lib/lanes';
@@ -29,8 +29,14 @@ export function DriveBanner({
   status,
   danger,
   lanes,
+  onBack,
 }: {
   top: number;
+  /**
+   * The route preview (Review 20 problem 9, rule 4.2): the root back arrow at the top left, in the
+   * arrow's place. Only the driving view itself has End as its back.
+   */
+  onBack?: () => void;
   /** Lane guidance for the next manoeuvre (OpenStreetMap), when it's close and known. */
   lanes?: LaneStripData | null;
   /** The next turn, or null while planning, arrived or without a route. */
@@ -46,9 +52,13 @@ export function DriveBanner({
   return (
     <View accessibilityLiveRegion="polite" accessible accessibilityLabel={label}>
       <View style={[st.banner, { paddingTop: top + SPACING.sm }, danger && { borderBottomColor: COLOR.state.danger }]}>
-        <DsText v="driveArrow" style={st.arrow} allowFontScaling={false}>
-          {arrow}
-        </DsText>
+        {onBack ? (
+          <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={onBack} />
+        ) : (
+          <DsText v="driveArrow" style={st.arrow} allowFontScaling={false}>
+            {arrow}
+          </DsText>
+        )}
         <View style={{ flex: 1 }}>
           {distance ? <DsText v="driveDistance">{distance}</DsText> : null}
           <DsText v="driveTitle" numberOfLines={2}>

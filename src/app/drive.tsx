@@ -50,7 +50,7 @@ import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
 import { feel } from '../lib/feel';
-import { DEMO_NIGHT } from '../lib/glossary';
+import { DEMO_NIGHT, demoDayTag } from '../lib/glossary';
 import {
   arrivedByRoute,
   bannerFor,
@@ -1260,7 +1260,21 @@ function DriveSession({ plan }: { plan: NavPlan }) {
 
   return (
     <View style={st.screen}>
-      <DriveBanner top={insets.top} banner={banner} status={status} danger={over} lanes={laneStrip} />
+      <DriveBanner
+        top={insets.top}
+        banner={banner}
+        status={status}
+        danger={over}
+        lanes={laneStrip}
+        onBack={
+          preview && pickedOption
+            ? () => {
+                stopAuto();
+                end();
+              }
+            : undefined
+        }
+      />
       {alert ? <ReportAlert text={alert} /> : null}
 
       <View style={{ flex: 1 }} onTouchStart={preview ? stopAuto : undefined} {...(Platform.OS === 'web' && preview ? { onPointerDown: stopAuto } : {})}>
@@ -1374,7 +1388,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           eta={etaClock(clockNowMs, pickedOption.time)}
           trafficNote={
             noDirections
-              ? 'Demo: a sample route with real lane markings. Live traffic is on the iPhone app.'
+              ? // The demo's baked road starts at home, not at the phone (Review 20 gap 24): say so.
+                bakedRoad
+                ? 'Demo: a sample route from home, with real lane markings. Live traffic is on the iPhone app.'
+                : 'Demo: a sample route with real lane markings. Live traffic is on the iPhone app.'
               : supportsAlternatives()
                 ? 'Times include live traffic. Traffic is shown on the map.'
                 : 'Traffic is shown on the map in red and amber.'
@@ -1387,13 +1404,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           }}
           countdown={countdown}
           onTouch={stopAuto}
+          clockTag={store.backend === 'local' ? demoDayTag(new Date(clockNowMs)) : undefined}
           troubles={troubleLines(pickedOption.route, roadReports, appNow())}
           advisories={pickedOption.advisories}
           onStart={startDriving}
-          onCancel={() => {
-            stopAuto();
-            end();
-          }}
         />
       ) : (
         <DriveBar bottom={insets.bottom} road={roadName} speedMph={speedMph} over={over} limit={limit} trip={trip} sub={subLines} onEnd={end} />

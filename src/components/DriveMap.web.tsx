@@ -1,3 +1,4 @@
+import { marksNearRoute } from '../lib/driveView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { realNowMs } from '../lib/appClock';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -175,8 +176,10 @@ export function DriveMap(props: DriveMapProps) {
     const routePts = overview.routes.flat();
     if (routePts.length < 2) return;
     // The route, where you are and the stops: the "You" marker needn't sit on the route's first point.
-    const { you: at, stops: pins } = latest.current;
-    const all = [...routePts, ...(at ? [at] : []), ...pins.map((x) => x.at)];
+    const { you: at, stops: pins, cameras: cams = [], reports: reps = [] } = latest.current;
+    // Markers drawn by the route are fitted too, so none is cut by the map's edge (Review 20).
+    const marks = marksNearRoute(routePts, cams, reps);
+    const all = [...routePts, ...(at ? [at] : []), ...pins.map((x) => x.at), ...marks];
     // The map is a square as big as the screen's diagonal (so it can turn): fit the routes into
     // the part that shows, by padding out the rest.
     const square = box.current;

@@ -1,3 +1,4 @@
+import { marksNearRoute } from '../lib/driveView';
 import { OVERVIEW_PADDING } from './mapTypes';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { realNowMs } from '../lib/appClock';
@@ -161,7 +162,7 @@ export const DriveMap = memo(function DriveMap({
     if (all.length < 2) return;
     // Every 8th point is plenty to fit the view.
     // Plus where you are: the "You" marker needn't sit on the route's first point.
-    const pts = [...all.filter((_, i) => i % 8 === 0 || i === all.length - 1), ...(you ? [you] : [])].map((p) => ({ latitude: p.lat, longitude: p.lng }));
+    const pts = [...all.filter((_, i) => i % 8 === 0 || i === all.length - 1), ...(you ? [you] : []), ...marksNearRoute(all, cameras, reports)].map((p) => ({ latitude: p.lat, longitude: p.lng }));
     const t = setTimeout(() => map.current?.fitToCoordinates(pts, { edgePadding: { ...OVERVIEW_PADDING }, animated: true }), 50);
     // Fitted (the animation runs about half a second): the route is on screen.
     const shown = setTimeout(() => overview.onShown?.(), 650);

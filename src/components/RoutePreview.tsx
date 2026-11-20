@@ -10,7 +10,8 @@ import { ActionBar, ChoiceGroup, DsText } from './ds';
  * The route preview before the driving view starts talking (Waze and Google Maps style): the
  * whole route on the map with live traffic, the time, distance and arrival, any road reports
  * and closures on it, and, when Apple gives more than one (build 15 on), up to three routes to
- * pick from. One primary: Start (Redesign 2, 4.3), in the ActionBar.
+ * pick from. One primary: Start (Redesign 2, 4.3), in the ActionBar. The way back is the banner's
+ * back arrow at the top left (4.2, Review 20 problem 9), never a "Not now" in the body.
  */
 export function RoutePreview({
   time,
@@ -23,10 +24,12 @@ export function RoutePreview({
   troubles,
   advisories,
   onStart,
-  onCancel,
   countdown,
   onTouch,
+  clockTag,
 }: {
+  /** The demo: "Demo · Fri" by the arrival time, so 21:16 reads as the demo's clock (Review 20 gap 22). */
+  clockTag?: string;
   /** Auto-start (one route only): seconds left on Start, or null when not counting. */
   countdown?: number | null;
   /** Any touch on the panel: stops the countdown. */
@@ -47,7 +50,6 @@ export function RoutePreview({
   troubles: string[];
   advisories: string[];
   onStart: () => void;
-  onCancel: () => void;
 }) {
   const reduced = useReducedMotion();
   const counting = countdown != null && countdown > 0;
@@ -68,10 +70,11 @@ export function RoutePreview({
   return (
     <View style={st.panel} onTouchStart={onTouch}>
       <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={st.body}>
-        <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance} drive. Arrive at ${eta}.`}>
+        <View style={st.summary} accessible accessibilityLabel={`${time}, ${distance} drive. Arrive at ${eta}${clockTag ? `, ${clockTag}` : ''}.`}>
           <DsText v="driveReadout">{time}</DsText>
           <DsText v="driveBody" tone="secondary">
             {distance} drive · Arrive {eta}
+            {clockTag ? ` (${clockTag})` : ''}
           </DsText>
         </View>
         <DsText v="caption">{trafficNote}</DsText>
@@ -123,7 +126,6 @@ export function RoutePreview({
           haptic: 'success',
           accessibilityHint: counting ? `Starts by itself in ${countdown} seconds. Touch anything to stay here.` : undefined,
         }}
-        secondary={{ label: 'Not now', onPress: onCancel }}
       />
     </View>
   );
