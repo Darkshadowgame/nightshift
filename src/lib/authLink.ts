@@ -89,7 +89,7 @@ export function authMessage(e: unknown): string {
   if (/invalid login credentials/i.test(msg)) return "That email and password don't match.";
   if (/signups? not allowed/i.test(msg)) return 'New accounts are closed right now.';
   if (/error sending|smtp|email.*(address|recipient).*not authorized/i.test(msg))
-    return "The sign-in email couldn't be sent to that address yet. Until Nightshift's own email is set up, only the project team can sign in. Try the demo for now.";
+    return "The sign-in email couldn't be sent to that address yet. Until Slipstream's own email is set up, only the project team can sign in. Try the demo for now.";
   return msg || 'Something went wrong. Try again.';
 }
 

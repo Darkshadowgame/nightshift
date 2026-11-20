@@ -275,7 +275,7 @@ select is(
 select results_eq($$ select title from public.search_events(p_max_miles => 10, p_from_lat => 53.80, p_from_lng => -0.52) $$,
   $$ values ('Far meet') $$, 'search: from where you are instead of home');
 select throws_ok($$ select public.search_events(p_from_lat => 40.7, p_from_lng => -74.0) $$, 'P0001',
-  'Nightshift is UK only for now. Search from somewhere in the UK.', 'search: UK only');
+  'Slipstream is UK only for now. Search from somewhere in the UK.', 'search: UK only');
 select throws_ok($$ select public.search_events(p_from_lat => 53.2) $$, 'P0001', 'Send both latitude and longitude, or neither.',
   'search: both coordinates or neither');
 select throws_ok($$ select public.search_events(p_when => 'someday') $$, 'P0001', 'Pick when: any time, tonight, this week or the weekend.',

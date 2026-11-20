@@ -36,7 +36,7 @@ select results_eq($$ select * from public.move_on('de000000-0000-0000-0000-00000
   'move on: only people checked in at the meet point being left are told');
 reset role;
 select is((select body from public.notices where user_id = 'd2222222-2222-2222-2222-222222222222' and kind = 'moved'),
-  'Meet point 2 is shown. Open Nightshift to see where.', 'move on: the notice says "meet point … is shown", never the place');
+  'Meet point 2 is shown. Open Slipstream to see where.', 'move on: the notice says "meet point … is shown", never the place');
 select is((select count(*)::int from public.notices where user_id = 'd3333333-3333-3333-3333-333333333333'), 0,
   'move on: someone who joins later gets no "moved on" notice');
 select is((select text from public.plan_changes where event_id = 'de000000-0000-0000-0000-0000000000a1' and kind = 'move_on'),

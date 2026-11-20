@@ -158,7 +158,7 @@ export default function NewThread() {
         {error ? <ErrorState title={error} /> : null}
         {sellingHint(`${title} ${body}`, board) ? <DsText v="caption" tone="warning">{SELLING_HINT}</DsText> : null}
         <DsText v="caption">
-          {listing ? 'Nightshift never handles payments. Collecting: meet somewhere public and pay in person. Posting: use a payment with buyer protection. ' : ''}
+          {listing ? 'Slipstream never handles payments. Collecting: meet somewhere public and pay in person. Posting: use a payment with buyer protection. ' : ''}
           No street racing, no timing on public roads and nothing about where police are.
         </DsText>
       </View>

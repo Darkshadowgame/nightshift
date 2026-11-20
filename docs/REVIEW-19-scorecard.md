@@ -378,7 +378,7 @@ What a 10 needs overall:
 
 | # | | What's wrong | What a 10 looks like | Effort |
 |---|---|---|---|---|
-| 55 | L | Every photo is daytime; the app is "Nightshift". | A night set for heroes (Tonight, event pages, sign-in). | L |
+| 55 | L | Every photo is daytime; the app is "Slipstream". | A night set for heroes (Tonight, event pages, sign-in). | L |
 | 56 | K | The demo's Friday 21:10 clock surprises at any other phone time. | One visible "Demo · Fri 21:10" everywhere times show (11, 28, 36). | S |
 
 **Count: 56 gaps: 37 S, 15 M, 4 L.**

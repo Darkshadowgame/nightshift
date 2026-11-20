@@ -66,7 +66,7 @@ export default function FeedbackScreen() {
       if (withLocation) {
         const pos = await currentPosition(true);
         if (!pos.ok) {
-          setError(pos.reason === 'denied' ? 'Location is off for Nightshift. Untick "Include my location" to send without it.' : "Couldn't find where you are. Untick it to send without.");
+          setError(pos.reason === 'denied' ? 'Location is off for Slipstream. Untick "Include my location" to send without it.' : "Couldn't find where you are. Untick it to send without.");
           return;
         }
         location = pos.at;
@@ -143,7 +143,7 @@ export default function FeedbackScreen() {
                     <Button label="Take a photo" tier="secondary" size="sm" block style={{ flex: 1 }} onPress={() => flow.pick(true)} />
                   </View>
                 ) : null}
-                <DsText v="caption">Up to {FEEDBACK_PHOTOS_MAX}. Number plates are found and blurred first; tap a photo to take it off. Only the Nightshift team sees them.</DsText>
+                <DsText v="caption">Up to {FEEDBACK_PHOTOS_MAX}. Number plates are found and blurred first; tap a photo to take it off. Only the Slipstream team sees them.</DsText>
               </>
             ) : (
               <DsText v="caption">Sign in to add screenshots. You can still send this without them.</DsText>

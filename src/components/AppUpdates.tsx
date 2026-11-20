@@ -7,15 +7,15 @@ import { SPACING } from '../theme';
 import { Button, ErrorState, Tag } from './ds';
 
 /**
- * Version line, e.g. "Nightshift v1.0.08". The number is set by the OTA workflow
+ * Version line, e.g. "Slipstream v1.0.08". The number is set by the OTA workflow
  * (one per published update); the version built into an install shows its build number.
  */
 export function versionLine(): string {
   const update = process.env.EXPO_PUBLIC_APP_VERSION;
   const build = process.env.EXPO_PUBLIC_BUILD_NUMBER;
-  if (Updates.updateId && update) return `Nightshift ${update}`;
-  if (build) return `Nightshift build ${build} (built-in)`;
-  return `Nightshift ${Constants.expoConfig?.version ?? '1.0.0'}`;
+  if (Updates.updateId && update) return `Slipstream ${update}`;
+  if (build) return `Slipstream build ${build} (built-in)`;
+  return `Slipstream ${Constants.expoConfig?.version ?? '1.0.0'}`;
 }
 
 /**

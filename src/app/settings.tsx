@@ -159,7 +159,7 @@ export default function SettingsScreen() {
         {/* Without phone notifications they simply show under the bell: no platform note (Review 15). */}
         {!notificationsSupported ? null : allowed === false && (settings.reminders || travel.alerts === 'notify') ? (
           <View style={{ gap: SPACING.sm }}>
-            <DsText v="caption" tone="warning">Notifications are off for Nightshift, so these show under the bell only.</DsText>
+            <DsText v="caption" tone="warning">Notifications are off for Slipstream, so these show under the bell only.</DsText>
             <Button label="Allow notifications" tier="secondary" size="sm" onPress={allow} />
           </View>
         ) : null}

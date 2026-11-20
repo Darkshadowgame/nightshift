@@ -1,4 +1,4 @@
--- Nightshift's own drives and photo spots on the server (20261117190000_bundled_places.sql):
+-- Slipstream's own drives and photo spots on the server (20261117190000_bundled_places.sql):
 -- the bundled_id and limit_mph columns, nobody but the seed writes them, finishing,
 -- visiting and rating one through the same RPCs, stats and rep the same for everyone.
 -- Works with or without seed_bundled_places.sql: it makes its own fixture rows.

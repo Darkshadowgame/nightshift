@@ -21,7 +21,7 @@ export const SHOP_MAX_SPAN = 0.3;
 export const MAX_SHOP_PINS = 90;
 
 export const SHOP_CREDIT = 'Shops © OpenStreetMap contributors (ODbL)';
-export const SHOP_CAVEAT = 'Listing from OpenStreetMap, mapped by volunteers. It may be out of date: check with the business before you go. Not a Nightshift partner.';
+export const SHOP_CAVEAT = 'Listing from OpenStreetMap, mapped by volunteers. It may be out of date: check with the business before you go. Not a Slipstream partner.';
 
 export interface Shop {
   id: string;

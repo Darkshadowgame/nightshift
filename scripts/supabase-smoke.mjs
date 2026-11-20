@@ -301,9 +301,9 @@ async function main() {
   const { data: spotB } = await B.client.from('spots_list').select('id').eq('id', spot.id);
   check('suggest_spot: pending; the author sees it, others don\'t', spotA?.[0]?.status === 'pending' && spotB?.length === 0);
 
-  // Nightshift's own places (spots.bundled_id): A drives the Snake Pass, rates it; B sees the same numbers.
+  // Slipstream's own places (spots.bundled_id): A drives the Snake Pass, rates it; B sees the same numbers.
   const { data: bundled } = await B.client.from('spots_list').select('id,kind,bundled_id').not('bundled_id', 'is', null).limit(1000);
-  check("bundled places: B reads Nightshift's own drives and photo spots by their stable ids",
+  check("bundled places: B reads Slipstream's own drives and photo spots by their stable ids",
     (bundled ?? []).filter((r) => r.kind === 'drive').length >= 100 && (bundled ?? []).filter((r) => r.kind === 'photo').length >= 100,
     `${bundled?.length} rows`);
   const { data: snakeRows } = await A.client.from('spots_list').select('id,path,miles').eq('bundled_id', 'dr-snake-pass');
@@ -460,7 +460,7 @@ async function community() {
   // Forum.
   const thread = await rpc(A, 'create_thread', { p_board: 'advice', p_region: null, p_title: `Smoke thread ${RUN}`, p_body: 'Which tyres?', p_photos: [], p_build_id: null });
   const police = await rpcError(A, 'create_thread', { p_board: 'meets', p_region: null, p_title: 'Heads up', p_body: 'Police spotted on the ring road', p_photos: [], p_build_id: null });
-  check('forum: no police spotting', police === "Posts about where police or speed checks are aren't allowed on Nightshift.", police ?? 'no error');
+  check('forum: no police spotting', police === "Posts about where police or speed checks are aren't allowed on Slipstream.", police ?? 'no error');
   const reply = await rpc(B, 'reply_thread', { p_thread_id: thread, p_body: 'All-seasons', p_photos: [], p_build_id: null });
   await rpc(A, 'mark_solved', { p_thread_id: thread, p_reply_id: reply });
   const frep = await rpc(C, 'forum_rep_for', { p_user_ids: [B.id] });

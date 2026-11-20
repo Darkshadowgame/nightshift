@@ -1,5 +1,5 @@
 /**
- * Nightshift's own drives and photo spots on the server (REVIEW-5 M4): the
+ * Slipstream's own drives and photo spots on the server (REVIEW-5 M4): the
  * seed SQL generated from src/data/places.ts, reading the rows back as
  * progress on the bundled places, the signed-in join, and rep from the
  * server's counts so it's the same on every phone.

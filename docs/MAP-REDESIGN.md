@@ -62,7 +62,7 @@ bottom sheet that holds everything else.
 
 | Feature | Before | Now |
 | --- | --- | --- |
-| NIGHTSHIFT wordmark | Top-left | Removed from the map (it's on sign-in and welcome); the search pill takes its place |
+| SLIPSTREAM wordmark | Top-left | Removed from the map (it's on sign-in and welcome); the search pill takes its place |
 | Live pill ("1 live") | Top row | Sheet peek: "Live now" row with the pulse; tap it to centre the event |
 | Find | Top row | The search pill |
 | Where to? (any address) | Find, first row | Search pill → Find → Where to? row, and the Addresses result in All |

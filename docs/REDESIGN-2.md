@@ -72,7 +72,7 @@ and photos → connect.
 
 | Setting | Decision |
 |---|---|
-| Navigate opens (Nightshift / Apple / Google / Waze) | **Kept**, as the only Navigation setting: "Directions open in". |
+| Navigate opens (Slipstream / Apple / Google / Waze) | **Kept**, as the only Navigation setting: "Directions open in". |
 | The driving map (heading up / north up) | **Moved** into the driving view's own `···` sheet. |
 | Your icon on the map (hatchback, saloon…) | **Moved** into the driving view's `···` sheet. |
 | Spoken directions / voice | **Moved** into the driving view's `···` sheet. |
@@ -82,7 +82,7 @@ and photos → connect.
 | Send a test reminder, reset demo data, runtime and data versions | Developer group: dev builds or a long press on the version line only (as now). |
 | Show me in People near you | **Kept, default OFF**, asked once on the People screen. |
 | Willing to travel (radius) | Kept once, under Notifications ("New meets within 25 mi"). |
-| Feedback, How Nightshift works, legal, credits | One "About" group. |
+| Feedback, How Slipstream works, legal, credits | One "About" group. |
 
 ### Map layers
 
@@ -145,7 +145,7 @@ New DS components named below (`ActionBar`, `PhotoCard`, `Hero`, `GoingStrip`, `
 
 ### 3.1 Sign-in and demo
 
-* **Purpose:** say what Nightshift is in one line and get you in.
+* **Purpose:** say what Slipstream is in one line and get you in.
 * **Order:** wordmark → tagline "What's on tonight near you. Go with your car." → one full-bleed demo
   photo (a meet at night, from `samplePhotos`) behind a gradient → three short lines (See tonight's
   meets / Say you're going with your car / Check in and vote for the best build) → `ActionBar`.
@@ -158,7 +158,7 @@ New DS components named below (`ActionBar`, `PhotoCard`, `Hero`, `GoingStrip`, `
 
 ```
 ┌───────────────────────────────┐
-│ ◇ NIGHTSHIFT                  │
+│ ◇ SLIPSTREAM                  │
 │ ░░░░░░░ meet photo ░░░░░░░░░░ │
 │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
 │ What's on tonight near you.   │  hero 30/34
@@ -443,7 +443,7 @@ Sheet with **Add your car** (primary) and **Go as a passenger** (secondary).
 * **Purpose:** you, your meets and your trophies.
 * **Order:** header "ME", Settings gear, bell → avatar (lg), @handle, main build line → `StatBlock`: **Meets** (checked
   in), **Hosted**, **Trophies** → Your meets: Next (Going / Hosting / Checked in tags) then Past (Went
-  / Hosted) → Trophies (cover thumbnails) → `ListRow`s: Edit profile, Settings, How Nightshift works,
+  / Hosted) → Trophies (cover thumbnails) → `ListRow`s: Edit profile, Settings, How Slipstream works,
   Send feedback.
 * **Primary:** none.
 * **Must NOT show:** rep, level, crew, your places, Public view, "Find more".
@@ -464,7 +464,7 @@ Sheet with **Add your car** (primary) and **Go as a passenger** (secondary).
 │ [cover] Best in show · 14 Nov │
 │ Edit profile                › │
 │ Settings                    › │
-│ How Nightshift works        › │
+│ How Slipstream works        › │
 │ Send feedback               › │
 └───────────────────────────────┘
 ```
@@ -474,8 +474,8 @@ Sheet with **Add your car** (primary) and **Go as a passenger** (secondary).
 * **Groups, in order:** Account (sign in / out, delete) → Privacy (show me in People near you,
   default off; connections and blocked people; second so it's on the first screen, Review 12) →
   Profile (handle, name, home area) → Notifications (event reminders; new meets near me + radius) →
-  Directions ("Directions open in": Nightshift, Apple
-  Maps, Google Maps, Waze) → About (How Nightshift works, Send feedback, Terms, Privacy, Community
+  Directions ("Directions open in": Slipstream, Apple
+  Maps, Google Maps, Waze) → About (How Slipstream works, Send feedback, Terms, Privacy, Community
   rules, Open data and credits, version) → Demo (demo only: Restart the demo night) → Staff (staff
   only).
 * **Must NOT show:** map heading, map icon, voice, speed cameras, layers, "build 11 or later", demo
@@ -1222,3 +1222,13 @@ clashed, the owner's earlier decisions stand:
       footer's toast; Garage scrolls the Mods list up after Add a mod.
     * **Your own cancelled meet:** "You cancelled this meet.", no Share and no "Say hello". Me lists a
       meet that's on now under "Now", never "Coming up".
+
+### 9.x Rebrand to Slipstream (20 Nov 2026, owner decision)
+
+* The app is **Slipstream**. The one accent is energy green `#95D600` (token `C.sodium`/`BRAND`, name kept
+  to avoid churn; read "sodium" in this document as "the brand green"). Text on it is `#0a0a0a`.
+  Rule 5.4 is unchanged: green is the primary button and "selected", nothing else. Success green
+  (`state.success`) stays for "done" only.
+* The Tracks layer moved from lime to orange (the old accent) so it cannot be mistaken for the brand green.
+* Frozen on purpose (installs, OTA, links): bundle id, package, slug, EAS project, `nightshift://`
+  scheme, Supabase refs and migrations, storage keys, repo and folder names.

@@ -222,7 +222,7 @@ function NeedsApp({ plan }: { plan: NavPlan }) {
       </DsText>
       <DsText v="secondary">
         {Platform.OS === 'web'
-          ? 'The web preview has no directions or voice. Open Nightshift on the iPhone, or use another app for now.'
+          ? 'The web preview has no directions or voice. Open Slipstream on the iPhone, or use another app for now.'
           : 'This install is older than the navigation update. Install the latest IPA, or use another app for now.'}
         {plan.driveId ? " Other apps don't count a drive: back on the drive's page, Start the drive does." : ''}
       </DsText>
@@ -861,7 +861,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     async function startReal() {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) {
-        setError('Navigation needs your location while the app is open. Allow it for Nightshift in Settings.');
+        setError('Navigation needs your location while the app is open. Allow it for Slipstream in Settings.');
         setPhase('error');
         return;
       }

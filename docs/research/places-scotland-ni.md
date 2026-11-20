@@ -1,4 +1,4 @@
-# Nightshift – regional places research (Scotland and Northern Ireland)
+# Slipstream – regional places research (Scotland and Northern Ireland)
 
 _Compiled 17 November 2026. Research only – the data module is `src/data/regions/scotlandNI.ts`; no existing app file was changed._
 

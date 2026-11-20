@@ -4,7 +4,7 @@ import type { LatLng } from './types';
 
 /**
  * "Where to?": search any address, postcode or place and drive there with
- * Nightshift's own navigation. Pure helpers; the lookups are in location.ts
+ * Slipstream's own navigation. Pure helpers; the lookups are in location.ts
  * (Apple's geocoder on iOS, nothing else) and the screen is src/app/where.tsx.
  *
  * What you search for stays on this phone: recent places and Home and Work are

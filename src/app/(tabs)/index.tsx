@@ -661,7 +661,7 @@ export default function TonightScreen() {
       const open = () => router.push({ pathname: '/shop/[id]', params: { id: x.id } });
       return (
         <PhotoCard kind="place" aspect={PEEK_ASPECT} photo={null} fallback={glyphArt(x.categories[0] ?? 'shop', SHOP_COLOUR)} eyebrow="Shop" layerColour={SHOP_COLOUR}
-          title={x.name} meta={metaLine([describeCategories(x.categories), pointDistance(x.at)])} detail="From OpenStreetMap, not a Nightshift partner."
+          title={x.name} meta={metaLine([describeCategories(x.categories), pointDistance(x.at)])} detail="From OpenStreetMap, not a Slipstream partner."
           overlay={closeBtn} onPress={open} action={{ label: 'Open', onPress: open }} />
       );
     }

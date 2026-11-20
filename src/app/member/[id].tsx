@@ -70,7 +70,7 @@ function MemberModerationScreen() {
   }, [id]);
 
   if (status.data && !status.data.isStaff) {
-    return <EmptyState title="For the Nightshift team" body="Member moderation is only for staff." />;
+    return <EmptyState title="For the Slipstream team" body="Member moderation is only for staff." />;
   }
   if (overview.error) return <ErrorState variant="block" title={overview.error} onRetry={overview.reload} />;
   const m = overview.data;

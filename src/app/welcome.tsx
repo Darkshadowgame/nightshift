@@ -116,7 +116,7 @@ export default function Welcome() {
     if (pos.ok) {
       setHome(fuzz(pos.at));
       setFromFix(true);
-    } else setLocError(pos.reason === 'denied' ? 'Location is off for Nightshift. Tap the map to choose home instead.' : "Couldn't find where you are. Tap the map to choose home instead.");
+    } else setLocError(pos.reason === 'denied' ? 'Location is off for Slipstream. Tap the map to choose home instead.' : "Couldn't find where you are. Tap the map to choose home instead.");
   }
 
   async function finish() {

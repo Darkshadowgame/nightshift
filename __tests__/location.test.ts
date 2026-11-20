@@ -148,7 +148,7 @@ describe('never silent (Review 14)', () => {
   });
   test('says why and how to turn it on', () => {
     expect(locationHelp('denied', true)).toMatch(/browser's site settings/);
-    expect(locationHelp('denied', false)).toMatch(/Settings → Nightshift → Location/);
+    expect(locationHelp('denied', false)).toMatch(/Settings → Slipstream → Location/);
     expect(locationHelp('unavailable', true)).toMatch(/try again/);
   });
 });

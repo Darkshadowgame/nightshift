@@ -161,7 +161,7 @@ select is((select count(*)::int from public.moderation_team() where handle in ('
 select is((select actions_7d from public.moderation_team() where handle = 'mm_2'), 5, 'team: A''s actions in 7 days');
 select set_config('request.jwt.claims', '{"sub":"e6000000-0000-0000-0000-000000000008","role":"authenticated"}', true);
 select is((select body from public.notices where user_id = auth.uid() and title = 'You''re now a moderator'),
-  'You''re now a moderator on Nightshift. Settings › Moderation has the tools.', 'roles: W gets a notice');
+  'You''re now a moderator on Slipstream. Settings › Moderation has the tools.', 'roles: W gets a notice');
 select set_config('request.jwt.claims', '{"sub":"e6000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
 select lives_ok($$ select public.set_staff_role('e6000000-0000-0000-0000-000000000003', 'moderator', 'Stepping back') $$, 'roles: the owner demotes an admin');
 select lives_ok($$ select public.set_staff_role('e6000000-0000-0000-0000-000000000008', 'admin', 'Trusted') $$, 'roles: the owner makes an admin');

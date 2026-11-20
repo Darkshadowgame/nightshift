@@ -1,4 +1,4 @@
-// Shared helpers for Nightshift Edge Functions (Deno).
+// Shared helpers for Slipstream Edge Functions (Deno).
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected by the Edge Runtime;
 // never hard-code them and never ship the service role key in the app.
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';

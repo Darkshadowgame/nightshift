@@ -295,7 +295,7 @@ the partner pin a small "P" or "Partner" tab under the hexagon so the label is o
 **Walkie-talkie with strangers**. *Fix:* hide them until they do something, or move them under a "Coming
 later" note. Put **Shops** next to **Speed cameras** under Map, as it's also a saved map setting.
 
-**m13. "Sent to the Nightshift team with the next sync" is never true yet.** `SuggestMissing.tsx:73`;
+**m13. "Sent to the Slipstream team with the next sync" is never true yet.** `SuggestMissing.tsx:73`;
 nothing reads `pendingFeedback` except to store it. *Fix:* "Saved on your phone. It'll be sent once the app
 has its server." Or send it to the live `feedback` table now, which already exists (`20261117120800_feedback.sql`).
 

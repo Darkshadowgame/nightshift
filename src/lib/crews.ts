@@ -142,7 +142,7 @@ export function addToCrew(state: CrewState, actorId: string, crewId: string, use
   if (!crew) throw new Error('That crew no longer exists.');
   if (!isCrewHost(crew, actorId)) throw new Error('Only the owner and hosts can bring people in.');
   const user = state.users.find((u) => u.id === userId);
-  if (!user) throw new Error('They are not on Nightshift any more.');
+  if (!user) throw new Error('They are not on Slipstream any more.');
   if (user.crewId) throw new Error('They are already in a crew.');
   return joinCrew(state, userId, crewId);
 }

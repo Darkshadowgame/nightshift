@@ -1,4 +1,4 @@
-# Nightshift – regional places research (Midlands and Wales)
+# Slipstream – regional places research (Midlands and Wales)
 
 _Compiled 17 November 2026. Research only – the data module is `src/data/regions/midlandsWales.ts`; no existing app file was changed._
 

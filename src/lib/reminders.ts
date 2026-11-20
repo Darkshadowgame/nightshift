@@ -90,7 +90,7 @@ export function remindersFor(event: NightEvent, me: string, crews: Crew[]): Remi
         `${event.title}: location shown`,
         host
           ? `People going can now see where your ${label} is.`
-          : `Open Nightshift to see where the ${label} is. Starts ${formatTime(event.startsAt)}.`,
+          : `Open Slipstream to see where the ${label} is. Starts ${formatTime(event.startsAt)}.`,
       ),
     );
   }
@@ -177,7 +177,7 @@ export function movedOnReminder(before: NightEvent, me: string, now: Date): Remi
   if (!moveOnAudience(before, before.currentStop).includes(me)) return null;
   const next = before.currentStop + 2;
   const title = `${before.title} moved on`;
-  const body = `Meet point ${next} is shown. Open Nightshift to see where.`;
+  const body = `Meet point ${next} is shown. Open Slipstream to see where.`;
   return make(before, 'moved', now, title, body, before.currentStop + 1);
 }
 

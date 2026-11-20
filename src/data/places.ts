@@ -20,7 +20,7 @@ import { places as PHOTO_SWEEP } from './regions/photoSpots';
  * https://www.openstreetmap.org/copyright) and thinned to checkpoints.
  * Circuit positions were checked against OpenStreetMap's raceway data.
  *
- * Authors: everything here is added by Nightshift itself (SYSTEM_AUTHOR), not
+ * Authors: everything here is added by Slipstream itself (SYSTEM_AUTHOR), not
  * by a person, so nobody earns author rep for it.
  *
  * To add places (e.g. a regional list): append to PLACES with a unique id,
@@ -1046,7 +1046,7 @@ export const ROAD_LIMIT_MPH: Record<string, number> = {
   'sni-a87-glengarry': 60,
 };
 
-/** The bundled places as map spots: approved, added by Nightshift, not yet driven or visited. Ban zones: see placeStore.ts. */
+/** The bundled places as map spots: approved, added by Slipstream, not yet driven or visited. Ban zones: see placeStore.ts. */
 /** Research notes, not things a driver needs: how sure the data is and where it came from. */
 const DATA_NOTE = /\b(\w+ confidence|unnamed OSM|from OSM|research notes|researched area|rebuilt from a postcode)\b/i;
 

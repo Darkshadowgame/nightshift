@@ -96,7 +96,7 @@ I did not read earlier reviews before testing.
 
 ### 13. The app is trying to be a satnav too (medium, scope)
 - **Screen:** Settings.
-- **What happens:** Settings opens with "Navigate opens: Nightshift" (turn-by-turn with a British voice), speed camera alerts, your car icon on the map, shops, road reports, and the map layers sheet has nine layers. The Tonight map has five layers on by default, so four events are lost among tracks, drives and meet-spot clusters. This app is about tonight's meets. Default the map to Events only and make the rest opt-in.
+- **What happens:** Settings opens with "Navigate opens: Slipstream" (turn-by-turn with a British voice), speed camera alerts, your car icon on the map, shops, road reports, and the map layers sheet has nine layers. The Tonight map has five layers on by default, so four events are lost among tracks, drives and meet-spot clusters. This app is about tonight's meets. Default the map to Events only and make the rest opt-in.
 - **Shots:** `69-settings.png`, `87-se-layers.png`, `80-se-tonight.png`.
 
 ### 14. Too many scores (medium)

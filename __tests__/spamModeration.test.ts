@@ -168,7 +168,7 @@ describe('actionLine', () => {
   it('says what, how long and by whom', () => {
     expect(actionLine({ action: 'ban', actorHandle: '@dan', actorRole: 'moderator', days: 7, newRole: null })).toBe('Community ban · 7 days · by @dan (moderator)');
     expect(actionLine({ action: 'suspend', actorHandle: '@kez', actorRole: 'admin', days: null, newRole: null })).toBe('Full suspension · until lifted · by @kez (admin)');
-    expect(actionLine({ action: 'cooldown', actorHandle: null, actorRole: 'system', days: 1, newRole: null })).toBe('Automatic 24-hour cooldown · by Nightshift (system)');
+    expect(actionLine({ action: 'cooldown', actorHandle: null, actorRole: 'system', days: 1, newRole: null })).toBe('Automatic 24-hour cooldown · by Slipstream (system)');
     expect(actionLine({ action: 'promote', actorHandle: '@boss', actorRole: 'owner', days: null, newRole: 'admin' })).toBe('Promoted · Admin · by @boss (owner)');
   });
 });

@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccountWaiting(!!waiting && !!hasSession);
         return setStatus('demo');
       }
-      // Phones that used Nightshift before accounts existed keep their demo.
+      // Phones that used Slipstream before accounts existed keep their demo.
       if (!saved && (await hasDemoSave())) {
         await AsyncStorage.setItem(MODE_KEY, 'demo').catch(() => {});
         mode.current = 'demo';

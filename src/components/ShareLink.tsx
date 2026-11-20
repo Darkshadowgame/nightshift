@@ -40,7 +40,7 @@ export function useShareLink(): { share: (p: SharePayload) => Promise<void>; she
   const sheet = (
     <Sheet visible={!!manual} title="Share this meet" onClose={() => setManual(null)}>
       <View style={{ gap: SPACING.md }}>
-        <DsText v="secondary">Copy the link and send it to people. It opens the meet in Nightshift.</DsText>
+        <DsText v="secondary">Copy the link and send it to people. It opens the meet in Slipstream.</DsText>
         <TextField value={manual?.url ?? ''} editable={false} selectTextOnFocus accessibilityLabel="The meet's link" />
         {shareEnv().copy ? <Button block tier="secondary" label={copied ? 'Copied' : 'Copy link'} onPress={copyAgain} /> : null}
       </View>

@@ -56,7 +56,7 @@ export interface NoticeRow { id: string; event_id: string | null; kind: string; 
 export interface SpotRow {
   id: string; kind: Spot['kind']; name: string; description: string; lat: number; lng: number; path: LatLng[] | null; miles: number | null;
   author_id: string | null; status: 'pending' | 'approved' | 'rejected'; created_at: string; ban_zone: string | null; warnings: string[] | null; region: string | null;
-  /** Nightshift's own places: the app's stable id (src/data/places.ts). Null for places people suggest. */
+  /** Slipstream's own places: the app's stable id (src/data/places.ts). Null for places people suggest. */
   bundled_id?: string | null;
   limit_mph?: number | null;
 }
@@ -389,7 +389,7 @@ export function spotFromRow(r: SpotRow, opts: { me: string; stats?: SpotStatsRow
 }
 
 /**
- * Server places split in two: rows for Nightshift's own places this app has
+ * Server places split in two: rows for Slipstream's own places this app has
  * (matched by bundled_id, never by name) become progress on the bundled place
  * plus the server id the RPCs need; everything else is a place in its own
  * right (people's suggestions, or a bundled place this app version doesn't know yet).

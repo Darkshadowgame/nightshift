@@ -13,7 +13,7 @@ const TARGETS: ReportTarget[] = ['thread', 'reply', 'message', 'post', 'comment'
 /**
  * Report something, with a reason (and block the person too, if you like), or
  * block someone (`target=block`, with an optional report). Reports go to the
- * Nightshift team; three different people reporting a post hides it until
+ * Slipstream team; three different people reporting a post hides it until
  * someone looks.
  */
 export default function ReportScreen() {
@@ -47,7 +47,7 @@ export default function ReportScreen() {
       setDone(
         blocking
           ? `@${handle ?? 'They'} is blocked.${reporting ? ' Thanks for the report too.' : ''}`
-          : `Thanks. The Nightshift team will look at it.${alsoBlock ? ` @${handle ?? 'They'} is blocked.` : ''}`,
+          : `Thanks. The Slipstream team will look at it.${alsoBlock ? ` @${handle ?? 'They'} is blocked.` : ''}`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send that.");
@@ -80,7 +80,7 @@ export default function ReportScreen() {
         multiline
         multilineHeight={80}
         maxLength={500}
-        accessibilityLabel="Note for the Nightshift team"
+        accessibilityLabel="Note for the Slipstream team"
       />
     </>
   );
@@ -101,7 +101,7 @@ export default function ReportScreen() {
             <DsText v="body">They won't be able to message you or connect with you, and you won't see their posts, threads, replies, comments, messages or event chat.</DsText>
             <DsText v="caption">They aren't told. Any connection between you ends.</DsText>
           </Card>
-          <SwitchRow label="Report them too" hint="Tell the Nightshift team what happened." value={alsoReport} onValueChange={setAlsoReport} />
+          <SwitchRow label="Report them too" hint="Tell the Slipstream team what happened." value={alsoReport} onValueChange={setAlsoReport} />
           {alsoReport ? <Section title="What's wrong?">{reasons}</Section> : null}
         </>
       ) : (

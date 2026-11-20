@@ -1,4 +1,4 @@
-# Nightshift: Phase 1 spec
+# Slipstream: Phase 1 spec
 
 ## Purpose
 
@@ -26,7 +26,7 @@ of Tonight and Community only.
 | **Tonight** | What's on near you: a **Map / List** switch. The map keeps the bottom sheet from MAP-REDESIGN.md (peek: what's live or next; half and full: Live now, Tonight, This week and places near the map, as cards). The list shows **Live now**, **Tonight**, **This week** and **Later** (the same events as the map pins, Search and the bell; your own carry Going, Hosting or Requested), and with no car an **Add your car to see more** card. Your events are on Me. Events and places are `EntityCard`s in both. | "TONIGHT", **+ Host** (one sheet: Host an event, Suggest a place), the bell; under it the one search pill and Map / List |
 | **Community** | Feed, People, Forum, Messages | "COMMUNITY", **+ New**, the bell |
 | **Garage** | Your builds | "GARAGE", **+ Add** |
-| **Me** | Profile (avatar, handle, level as a plain fact, crew), trophies, your places, then Settings, Send feedback and How Nightshift works | "ME" |
+| **Me** | Profile (avatar, handle, level as a plain fact, crew), trophies, your places, then Settings, Send feedback and How Slipstream works | "ME" |
 
 * **One search** (`src/app/search.tsx`): the pill on Tonight opens it. All / Events /
   Places / People in one field; addresses are place results (All and Places) and
@@ -40,7 +40,7 @@ of Tonight and Community only.
   cameras, shops and road reports start **off**; they're also in Settings › Map layers.
 * **Settings** is one screen of groups: Account, Navigation and voice, Map layers,
   Notifications (reminders, willing to travel, new events near you), Privacy,
-  Feedback, About and legal (How Nightshift works in the app; the legal pages on the
+  Feedback, About and legal (How Slipstream works in the app; the legal pages on the
   hosted site; credits; version and app updates), and Demo in the demo. Developer
   switches (reset the demo, a test reminder, runtime and data versions) only show in
   development builds or after a long press on the version line.
@@ -213,7 +213,7 @@ Code: `src/lib/vehicles.ts`, `tune.ts`, `swap.ts`, `feedbackQueue.ts`, tests in
   an info card: the zone's name and id, the kind of order (court injunction, PSPO,
   police dispersal orders), what it bans in plain words, hours if known, the
   source, "Sample — check the current order", and what it means for the host
-  (Nightshift only warns; hosts are responsible). They are not a layer on the
+  (Slipstream only warns; hosts are responsible). They are not a layer on the
   main map. Places inside one show a single line, "Inside a car-meet order area —
   see details", opening the same card.
 * **Drives** (formerly "sprints"): rated roads, never timed or ranked.
@@ -268,7 +268,7 @@ Code: `src/lib/discover.ts`, tests in `__tests__/discover.test.ts`. Backend:
   approved), completions and 1–5 star ratings. Tap a pin on the map to open one.
 * **Navigate the drive** (the drive page's one primary button) opens the driving view, and
   passing every checkpoint in order counts the drive. Each point of the drive's line is a
-  checkpoint (within 0.2 mi). The drive's one primary is **Start the drive**: Nightshift's own
+  checkpoint (within 0.2 mi). The drive's one primary is **Start the drive**: Slipstream's own
   directions where they're available; elsewhere (web, an older install, or another directions app
   chosen in Settings) it runs the same checkpoint check with GPS (`watchPositionAsync`); in the
   demo it walks the checkpoints for you at a legal pace.
@@ -406,7 +406,7 @@ Owner's request, 17 Nov 2026. Legal basis: `docs/research/legal.md` sections 2, 
 * **Entry points:** **Start navigation** on events (once their stops are revealed to you: a
   cruise through every stop you can see, in order; a rolling meet only to the stop it's at
   now; a meet to the spot), drives (**Navigate the drive**: to the start, then through the
-  checkpoints), tracks, meet spots, photo spots and shops. It opens Nightshift's driving view by
+  checkpoints), tracks, meet spots, photo spots and shops. It opens Slipstream's driving view by
   default. **Open in another app ›** offers Apple Maps, Google Maps (app, else website), Waze
   or the share sheet, with **Always use this**; Me › Settings › **Navigation** changes the default.
   Other apps get the first stop's coordinates only, never a stop or event name.
@@ -474,7 +474,7 @@ AVSpeechSynthesizer, system chime). Needs a new IPA (the fingerprint changes).
 
 ## Where to? (owner request, 17 Nov 2026; part of Search since 18 Nov)
 
-Nightshift as an everyday sat nav: **Search** finds any address, postcode or
+Slipstream as an everyday sat nav: **Search** finds any address, postcode or
 place (UK first, then anywhere) among its place results, shows it on a small map, and **Go here** starts the driving view
 (or the app picked with **Always use this**). Recent places (10, with **Clear**), **Home** and
 **Work** are kept in the phone's settings only. Lookups go to Apple's geocoder alone
@@ -752,7 +752,7 @@ Full reports are in `docs/research/`.
     drivers' "Police / speed check" reports in the driving view only, with the safeguards in
     "Road reports").
   * Plan how the app makes money early, since Drivetribe and Zenly both closed.
-  * Don't use "Need for Speed", "NFS" or "Underground" in the name. "Nightshift"
+  * Don't use "Need for Speed", "NFS" or "Underground" in the name. "Slipstream"
     clashes with Apple's Night Shift feature and a 2026 UK trademark filing for
     vehicle lights, so it stays a working name only. Name shortlist: Sodium Nights,
     Slipstreet, Nitelane.
@@ -762,7 +762,7 @@ Full reports are in `docs/research/`.
   App Store rule 1.4.4. The Online Safety Act applies from launch. Live location
   needs a data protection impact assessment (DPIA). Owner's decisions:
   rolling-meet stops are all planned ahead, ban zones warn but don't block,
-  "sprints" are renamed "Drives", and "Nightshift" stays the working name.
+  "sprints" are renamed "Drives", and "Slipstream" stays the working name.
   Before a public launch: proper age checks, a DPIA, the ICO fee, Online Safety
   Act paperwork, a trademark search and a solicitor's review.
 
@@ -791,7 +791,7 @@ Owner's request: "Obviously you need to use real maps and location."
   Drives whose lines follow the real road with points at most 1.5 mi apart
   (OpenStreetMap, ODbL), with warnings for single-track, steep or snow-gated roads;
   photo spots only at public car parks and viewpoints. They are "Added by
-  Nightshift", so nobody earns author rep for them. A `venue` kind exists for
+  Slipstream", so nobody earns author rep for them. A `venue` kind exists for
   meet spots: cafés and museums that welcome meets (information only, like tracks).
 * **Sample scene near you:** the sample people and events (labelled Sample) are
   moved onto your home area keeping each point's distance and direction; cruises
@@ -863,12 +863,12 @@ Owner's request: "Obviously you need to use real maps and location."
    stock specs, year, nickname, engine swap, stock bhp, weight, dyno figure, tune
    stage, quick-pick mod chips and the mods list with bhp gains.
 9. **Me** (tab): profile, level, crew, trophies, your places; rows for Settings, Send
-   feedback and How Nightshift works.
+   feedback and How Slipstream works.
 10. **Settings:** one screen of groups (see "Information architecture").
 11. **Drive / photo spot:** details, map, **Navigate the drive** or **Check in here**, rating, photos.
 12. **Suggest a place:** draw a drive or drop a photo spot on the map.
 13. **Crews:** browse crews, crew page, start a crew.
-14. **Notifications** (the bell), **How Nightshift works**, **Credits**, **Send feedback**.
+14. **Notifications** (the bell), **How Slipstream works**, **Credits**, **Send feedback**.
 
 ## Words and design system (REVIEW-5, 17 Nov 2026)
 

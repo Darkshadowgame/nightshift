@@ -823,7 +823,7 @@ export function EventForm({
         }}
         onDismiss={() => setAskBan(false)}
       >
-        <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>
+        <DsText v="caption">Slipstream only warns: you're responsible for where you send people.</DsText>
       </ConfirmSheet>
     </View>
   );

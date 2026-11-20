@@ -1,4 +1,4 @@
-# Nightshift – regional places research (East Anglia, Kent, London)
+# Slipstream – regional places research (East Anglia, Kent, London)
 
 _Compiled 17 November 2026. Research only – no app code changed._
 

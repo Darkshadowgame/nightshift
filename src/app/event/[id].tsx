@@ -302,7 +302,7 @@ export default function EventScreen() {
       if (!skipGps) {
         const fix = await preciseFix();
         if (!fix.ok) {
-          setError('checkin', fix.reason === 'denied' ? 'Check-in needs your location. Allow it for Nightshift in Settings.' : "Couldn't read your location. Try again outside.");
+          setError('checkin', fix.reason === 'denied' ? 'Check-in needs your location. Allow it for Slipstream in Settings.' : "Couldn't read your location. Try again outside.");
           return;
         }
         pos = fix.at;

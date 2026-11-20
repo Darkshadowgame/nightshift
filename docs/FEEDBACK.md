@@ -1,6 +1,6 @@
 # Feedback: how it comes in and how to work through it
 
-This is the workflow for any Claude session (or person) triaging Nightshift
+This is the workflow for any Claude session (or person) triaging Slipstream
 feedback. The backend details are in [BACKEND.md](BACKEND.md) section 3
 ("Feedback") and section 7e.
 

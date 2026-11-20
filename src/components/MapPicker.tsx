@@ -196,7 +196,7 @@ function PickerBody({
     } else {
       setNote(
         pos.reason === 'denied'
-          ? 'Location is off for Nightshift. Search or move the map instead, or turn it on in Settings.'
+          ? 'Location is off for Slipstream. Search or move the map instead, or turn it on in Settings.'
           : "Couldn't find where you are just now. Search or move the map instead.",
       );
     }

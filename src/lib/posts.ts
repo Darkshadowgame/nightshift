@@ -15,7 +15,7 @@ import type { LatLng } from './types';
 export type PostVisibility = 'public' | 'connections';
 
 export const VISIBILITY: Record<PostVisibility, { label: string; hint: string }> = {
-  public: { label: 'Public', hint: 'Everyone on Nightshift' },
+  public: { label: 'Public', hint: 'Everyone on Slipstream' },
   connections: { label: 'Connections', hint: 'Only people you’re connected with' },
 };
 

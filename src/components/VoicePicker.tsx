@@ -156,11 +156,11 @@ function VoiceGuide({ comeBack }: { comeBack?: boolean }) {
           </View>
         ))}
       </View>
-      {comeBack ? <DsText v="caption">Then come back to Nightshift: the new voice shows in the list above.</DsText> : null}
+      {comeBack ? <DsText v="caption">Then come back to Slipstream: the new voice shows in the list above.</DsText> : null}
       {Platform.OS === 'ios' ? (
         <View style={{ gap: SPACING.xs }}>
           <Button label="Open the Settings app" tier="secondary" size="sm" onPress={() => Linking.openSettings().catch(() => undefined)} />
-          <DsText v="caption">It opens on Nightshift&apos;s page. Tap back at the top left until you see the main list, then go from step 2.</DsText>
+          <DsText v="caption">It opens on Slipstream&apos;s page. Tap back at the top left until you see the main list, then go from step 2.</DsText>
         </View>
       ) : null}
     </View>

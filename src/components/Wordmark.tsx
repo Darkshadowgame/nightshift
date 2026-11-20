@@ -1,7 +1,8 @@
 import { Image, View } from 'react-native';
-import { COLOR, RADII, SPACING } from '../theme';
+import { COLOR, F, RADII, SPACING } from '../theme';
 
-/** The NS mark: the app icon, the same one the legal and support site uses (REVIEW-7 inconsistency 10). */
+/** The Slipstream mark: the app icon, the same one the legal and support site uses (REVIEW-7 inconsistency 10). */
+const WORD = { fontFamily: F.displayItalic, textTransform: 'uppercase' as const, letterSpacing: 0.5 };
 const MARK = require('../../assets/icon.png');
 import { DsText } from './ds';
 import { FadeUp } from './motion';
@@ -25,8 +26,9 @@ export function Wordmark({ compact, short }: { compact?: boolean; short?: boolea
     <View style={{ gap: SPACING.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>
         <Image source={MARK} style={{ width: compact ? 36 : 48, height: compact ? 36 : 48, borderRadius: RADII.control }} accessibilityIgnoresInvertColors aria-hidden />
-        <DsText v="display" accessibilityRole="header" accessibilityLabel="Nightshift">
-          Night<DsText v="display" tone="brand">shift</DsText>
+        <DsText v="display" accessibilityRole="header" accessibilityLabel="Slipstream">
+          <DsText v="display" style={WORD}>SLIP</DsText>
+          <DsText v="display" tone="brand" style={WORD}>STREAM</DsText>
         </DsText>
       </View>
       {compact ? null : (

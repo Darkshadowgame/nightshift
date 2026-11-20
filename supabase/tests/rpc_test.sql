@@ -36,7 +36,7 @@ select ok((select onboarded from public.profiles where id = '11111111-1111-1111-
 select throws_ok($$ select public.save_profile('ab', 'Host', 'East', 53.2, -0.5) $$, 'P0001', 'Handles need at least 3 characters.', 'save_profile: short handle');
 select throws_ok($$ select public.save_profile('host_two', 'Host', 'Narnia', 53.2, -0.5) $$, 'P0001', 'Pick your region.', 'save_profile: region');
 select throws_ok($$ select public.save_profile('host_two', 'Host', 'East', 40.7, -74.0) $$, 'P0001',
-  'Nightshift is UK only for now. Pick a home area in the UK.', 'save_profile: UK only');
+  'Slipstream is UK only for now. Pick a home area in the UK.', 'save_profile: UK only');
 
 -- ---------------------------------------------------------------------------
 -- Crews

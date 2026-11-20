@@ -37,7 +37,7 @@ export function locationHelp(reason: 'denied' | 'unavailable', web = Platform.OS
       ? "Location is blocked for this site. Allow it in your browser's site settings (the icon by the address), then try again."
       : "Couldn't get your location. Check your browser lets this site use it, then try again.";
   return reason === 'denied'
-    ? 'Location is off for Nightshift. Turn it on in Settings → Nightshift → Location, then try again.'
+    ? 'Location is off for Slipstream. Turn it on in Settings → Slipstream → Location, then try again.'
     : "Couldn't find where you are just now. Check Location Services is on in Settings, then try again.";
 }
 

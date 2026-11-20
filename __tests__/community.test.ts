@@ -69,7 +69,8 @@ describe('moderation (mirrors private.text_problem)', () => {
     expect(textProblem('Track day at Donington, who is in?')).toBeNull();
   });
   it('the SQL has the same sentences', () => {
-    for (const s of Object.values(TEXT_PROBLEMS)) expect(MIGRATION).toContain(s.replace(/'/g, "''"));
+    // Migrations are frozen and still say the old name; a new migration must follow the rebrand.
+    for (const s of Object.values(TEXT_PROBLEMS)) expect(MIGRATION).toContain(s.replace(/Slipstream/g, 'Nightshift').replace(/'/g, "''"));
   });
   it('reports need a reason, and a note for "something else"', () => {
     expect(reportProblem(null, '')).toBe('Pick a reason.');

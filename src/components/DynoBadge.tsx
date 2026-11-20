@@ -51,7 +51,7 @@ export function DynoBadge({ build }: { build: Build }) {
           <DsText v="caption">
             {proven
               ? demo
-                ? 'Demo badges aren\'t checked: any photo counts here. Signed in, Nightshift checks the run and others can report a fake or edited sheet.'
+                ? 'Demo badges aren\'t checked: any photo counts here. Signed in, Slipstream checks the run and others can report a fake or edited sheet.'
                 : 'The power shown matches this run and its sheet. Others can report a fake or edited sheet.'
               : 'This run is more than two years old, so it no longer counts as proof.'}
           </DsText>

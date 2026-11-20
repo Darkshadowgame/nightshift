@@ -1,4 +1,4 @@
-# Nightshift: App Store submission
+# Slipstream: App Store submission
 
 Everything for the first App Store submission that doesn't need the paid Apple
 Developer account, plus the steps that do. Prepared 17 Nov 2026.
@@ -70,12 +70,12 @@ shows today and what to change:
 
 | Key | Today | Change to |
 |---|---|---|
-| `NSPhotoLibraryUsageDescription` | "…so you can add pictures of your build." | "Nightshift uses your photos so you can add pictures of your builds, posts, messages and the places you visit. Number plates are blurred on your phone before anything is uploaded." |
-| `NSCameraUsageDescription` | "…so you can photograph your build." | "Nightshift uses the camera so you can photograph your build, a photo spot or a meet. Number plates are blurred on your phone before anything is uploaded." |
-| `NSMicrophoneUsageDescription` | Generic "Allow $(PRODUCT_NAME) to access your microphone" (added by expo-image-picker) | Remove: `"microphonePermission": false` in the expo-image-picker plugin. If voice search ships (branch `native-voice-search`), use instead: "Nightshift uses the microphone when you tap the mic in Where to? so you can say where you're going." plus `NSSpeechRecognitionUsageDescription`: "Nightshift turns what you say in Where to? into a search. Nothing is kept." |
+| `NSPhotoLibraryUsageDescription` | "…so you can add pictures of your build." | "Slipstream uses your photos so you can add pictures of your builds, posts, messages and the places you visit. Number plates are blurred on your phone before anything is uploaded." |
+| `NSCameraUsageDescription` | "…so you can photograph your build." | "Slipstream uses the camera so you can photograph your build, a photo spot or a meet. Number plates are blurred on your phone before anything is uploaded." |
+| `NSMicrophoneUsageDescription` | Generic "Allow $(PRODUCT_NAME) to access your microphone" (added by expo-image-picker) | Remove: `"microphonePermission": false` in the expo-image-picker plugin. If voice search ships (branch `native-voice-search`), use instead: "Slipstream uses the microphone when you tap the mic in Where to? so you can say where you're going." plus `NSSpeechRecognitionUsageDescription`: "Slipstream turns what you say in Where to? into a search. Nothing is kept." |
 | `NSLocationAlwaysAndWhenInUseUsageDescription`, `NSLocationAlwaysUsageDescription` | Generic, added by expo-location although the app never asks for Always | Remove: `"locationAlwaysAndWhenInUsePermission": false, "locationAlwaysPermission": false` in the expo-location plugin |
 | `NSMotionUsageDescription` | Generic, added by expo-location | Remove: `"motionUsagePermission": false` (the app doesn't use motion) |
-| `NSLocationTemporaryUsageDescriptionDictionary` › `ExpoLocationFullAccuracy` | Generic | `"locationFullAccuracyPermission": "Nightshift needs your precise location to check you in at a stop and guide you turn by turn."` |
+| `NSLocationTemporaryUsageDescriptionDictionary` › `ExpoLocationFullAccuracy` | Generic | `"locationFullAccuracyPermission": "Slipstream needs your precise location to check you in at a stop and guide you turn by turn."` |
 | `ITSAppUsesNonExemptEncryption` | `false` | Keep (see section 5) |
 
 Apple rejects vague purpose strings (5.1.1(i)); the generic ones are the most likely
@@ -86,17 +86,17 @@ reason for a metadata rejection on the first build. Check with
 
 ### Name (30 characters max)
 
-**Use: `Nightshift: Car & Bike Meets`** (28).
+**Use: `Slipstream: Car & Bike Meets`** (28).
 
-Name check (App Store search, GB, 17 Nov 2026): plain "Nightshift" is not free to
+Name check (App Store search, GB, 17 Nov 2026): plain "Slipstream" is not free to
 use alone. "NightShift: Party & Events" (Entertainment) already exists, plus
 several "Night Shift" games, and Apple's own iOS display feature is called **Night
 Shift** (guidelines 4.1(c) and 5.2.5: nothing confusingly similar to an Apple
 product). Keeping a descriptor in the name keeps it unique and clearly not Apple's
-feature. The home-screen name stays "Nightshift" (`expo.name`).
+feature. The home-screen name stays "Slipstream" (`expo.name`).
 
 Alternatives if it's refused or you want to steer further from Apple's Night Shift:
-`Nightshift Meets`, `Nightshift: UK Car Meets`, `Nightshift Drive Club`,
+`Slipstream Meets`, `Slipstream: UK Car Meets`, `Slipstream Drive Club`,
 `NSX: Night Scene` (check), `Afterdark Meets`, `Late Shift: Car Meets`. Also get a
 UK IPO search done before spending on branding (research/legal.md section 8).
 
@@ -113,7 +113,7 @@ UK IPO search done before spending on branding (research/legal.md section 8).
 
 ### Description
 
-> Nightshift is a live map of the UK car and bike scene. Meets, cruises, rolling meets, shows and track days, the best driving roads and photo spots, all on one dark map that feels like your favourite racing game, built for the real world and the right side of the law.
+> Slipstream is a live map of the UK car and bike scene. Meets, cruises, rolling meets, shows and track days, the best driving roads and photo spots, all on one dark map that feels like your favourite racing game, built for the real world and the right side of the law.
 >
 > FIND WHAT'S ON
 > • Events near you: meets, cruises, rolling meets, shows and track days, nearest first.
@@ -147,7 +147,7 @@ UK IPO search done before spending on branding (research/legal.md section 8).
 >
 > Try it straight away with the demo, no account needed. Signing in takes an email code, no password.
 >
-> Nightshift is for over-18s. Drive legally, follow road signs and set your route before you go. Speed camera and road information may be incomplete.
+> Slipstream is for over-18s. Drive legally, follow road signs and set your route before you go. Speed camera and road information may be incomplete.
 >
 > Terms of Use: https://darkshadowgame.github.io/nightshift/terms.html
 > Privacy Policy: https://darkshadowgame.github.io/nightshift/privacy.html
@@ -160,7 +160,7 @@ in the submitted build (2.3.1: no hidden or unbuilt features).
 `car meet,bike meet,cruise,car show,track day,modified,JDM,petrolhead,garage,motorbike,road trip,UK`
 (98 characters). Don't add other apps' names, "Need for Speed", "NFS" or car
 makers' trade marks (5.2.1, 2.3.7). Words in the name and subtitle already count,
-so "meets", "drives" and "Nightshift" aren't repeated.
+so "meets", "drives" and "Slipstream" aren't repeated.
 
 ### Category
 
@@ -201,7 +201,7 @@ Tracking: **No** (no data is used to track people across other companies' apps o
 websites; no ad SDKs, no analytics SDKs). Every item below is **linked to the
 user**, **not used for tracking**, purpose **App Functionality** unless stated.
 
-| Apple data type | Collected? | What it is in Nightshift |
+| Apple data type | Collected? | What it is in Slipstream |
 |---|---|---|
 | Contact Info › Email Address | Yes | Sign-in (and replies to support) |
 | Contact Info › Name | Yes | Optional display name on the profile |
@@ -224,7 +224,7 @@ add **Identifiers › Device ID** then if you store it with the account.
 
 ## 4. Review notes (paste into App Review Information › Notes)
 
-> Nightshift is a UK app for legal car and bike meets (meets, cruises, shows and track days), places to drive and photograph cars, and turn-by-turn directions.
+> Slipstream is a UK app for legal car and bike meets (meets, cruises, shows and track days), places to drive and photograph cars, and turn-by-turn directions.
 >
 > HOW TO GET IN
 > 1. Quickest: on the first screen tap "Try the demo without an account". This is a full local demo with sample people and events placed around the reviewer's location; nothing is uploaded. Settings > Demo > "Skip the GPS check" lets you check in at stops and visit places from anywhere (demo only; it doesn't exist when signed in).
@@ -344,7 +344,7 @@ App preview video: optional, skip for v1.
    legal name is shown as the seller. As an organisation you need a D-U-N-S number
    and the company's name shows instead). Approval takes from minutes to 2 days.
 2. **Create the app** in App Store Connect › Apps › + › New App: platform iOS,
-   name `Nightshift: Car & Bike Meets`, primary language English (UK), bundle ID
+   name `Slipstream: Car & Bike Meets`, primary language English (UK), bundle ID
    `app.nightshift.ios` (register it under Certificates, Identifiers & Profiles
    first, or let EAS do it), SKU `nightshift-ios`, full access.
 3. **Build and sign with EAS** (no Mac needed):

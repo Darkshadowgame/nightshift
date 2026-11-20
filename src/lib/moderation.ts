@@ -23,9 +23,9 @@ export const BANNED_TERMS: readonly string[] = [
 ];
 
 export const TEXT_PROBLEMS = {
-  words: "Keep it friendly: that has a word Nightshift doesn't allow.",
-  police: "Posts about where police or speed checks are aren't allowed on Nightshift.",
-  racing: "Nightshift doesn't allow organising or timing racing on public roads. Track days are fine.",
+  words: "Keep it friendly: that has a word Slipstream doesn't allow.",
+  police: "Posts about where police or speed checks are aren't allowed on Slipstream.",
+  racing: "Slipstream doesn't allow organising or timing racing on public roads. Track days are fine.",
 } as const;
 
 const SWAPS: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '9': 'g', '@': 'a', $: 's', '!': 'i' };
@@ -81,7 +81,7 @@ export type ReportReason =
   | 'other'
   /** Builds only: the dyno sheet behind the "Dyno proven" badge looks fake or edited. */
   | 'fake_dyno'
-  /** Only raised by Nightshift itself: someone whose posts are nearly all selling. */
+  /** Only raised by Slipstream itself: someone whose posts are nearly all selling. */
   | 'sell_only';
 
 /** In the order the report screen lists them. */
@@ -354,7 +354,7 @@ const ACTION_LABEL: Record<string, string> = {
 
 /** One line of the moderation log: what, how long, by whom (and their role then). */
 export function actionLine(a: { action: string; actorHandle: string | null; actorRole: string; days: number | null; newRole: string | null }): string {
-  const who = a.actorHandle ?? (a.actorRole === 'system' ? 'Nightshift' : 'Staff');
+  const who = a.actorHandle ?? (a.actorRole === 'system' ? 'Slipstream' : 'Staff');
   const len = a.action === 'ban' || a.action === 'suspend' ? (a.days ? ` · ${a.days} day${a.days === 1 ? '' : 's'}` : ' · until lifted') : '';
   const role = a.action === 'promote' || a.action === 'demote' ? ` · ${a.newRole ? ROLE_LABEL[a.newRole as StaffRole] ?? a.newRole : 'no role'}` : '';
   return `${ACTION_LABEL[a.action] ?? a.action}${len}${role} · by ${who} (${a.actorRole})`;

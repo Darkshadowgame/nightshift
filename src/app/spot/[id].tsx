@@ -82,7 +82,7 @@ export default function SpotScreen() {
   const { spots } = useStore();
   const spot = spots.find((x) => x.id === id);
   // The header stays blank: the Hero carries the kind and the name.
-  if (!spot) return <NotFoundState what="Place" message="This place is no longer on Nightshift." />;
+  if (!spot) return <NotFoundState what="Place" message="This place is no longer on Slipstream." />;
   return <SpotDetail spot={spot} />;
 }
 
@@ -225,7 +225,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
           {author ? (
             <Button tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} label={`Suggested by ${mine ? 'you' : displayHandle(author.handle)} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: author.id } })} />
           ) : spot.authorId === SYSTEM_AUTHOR ? (
-            <DsText v="caption">Added by Nightshift</DsText>
+            <DsText v="caption">Added by Slipstream</DsText>
           ) : null}
           {spot.phoneOnly && (spot.phoneOnly.completions > 0 || spot.phoneOnly.stars) ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' }}>
@@ -262,7 +262,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
 
         {pending ? (
           <Callout tone="info" title={mine ? 'Thanks. Your suggestion is waiting for approval.' : 'This place is waiting for approval.'}>
-            {mine ? (store.backend === 'local' ? 'In the demo, suggestions are approved after about 10 seconds.' : 'Someone from Nightshift checks each suggestion before it goes on the map.') : undefined}
+            {mine ? (store.backend === 'local' ? 'In the demo, suggestions are approved after about 10 seconds.' : 'Someone from Slipstream checks each suggestion before it goes on the map.') : undefined}
           </Callout>
         ) : null}
 
@@ -332,7 +332,7 @@ type Nav = ReturnType<typeof useNavLaunch>;
 
 /**
  * A drive's one primary is **Start**: it opens the driving view, which navigates and counts the
- * drive as you pass the checkpoints (drive.tsx; the demo drives it for you). Without Nightshift's
+ * drive as you pass the checkpoints (drive.tsx; the demo drives it for you). Without Slipstream's
  * directions (signed in on the web preview, an older install, another directions app chosen),
  * Start counts the checkpoints here on GPS, and directions go in the secondary. The one other way
  * to count it (on GPS with no directions; in the demo, driven for you on this page) is the secondary.
@@ -352,7 +352,7 @@ function useDrivePanel(
   const demo = store.backend === 'local';
   const checkpoints = spot.path ?? [];
   const miles = driveMiles(spot);
-  /** The driving view counts the drive: in the demo everywhere, signed in with Nightshift's own directions on the iPhone. */
+  /** The driving view counts the drive: in the demo everywhere, signed in with Slipstream's own directions on the iPhone. */
   const driveView = demo || (Platform.OS === 'ios' && navDirectionsAvailable && (settings.directionsApp ?? 'nightshift') === 'nightshift');
   const watch = useRef<Location.LocationSubscription | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -409,7 +409,7 @@ function useDrivePanel(
       const perm = await Location.requestForegroundPermissionsAsync();
       if (!perm.granted) {
         setRun(null);
-        setError('Drives need your location to pass the checkpoints. Allow it for Nightshift in Settings.');
+        setError('Drives need your location to pass the checkpoints. Allow it for Slipstream in Settings.');
         return;
       }
       const sub = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 25 }, (loc) => {
@@ -535,7 +535,7 @@ function useVisitPanel(spot: Spot, onVisited: () => void, nav: Nav): Panel {
       if (!simGps) {
         const fix = await preciseFix();
         if (!fix.ok) {
-          setError(fix.reason === 'denied' ? 'Checking in here needs your location. Allow it for Nightshift in Settings.' : "Couldn't read your location. Try again outside.");
+          setError(fix.reason === 'denied' ? 'Checking in here needs your location. Allow it for Slipstream in Settings.' : "Couldn't read your location. Try again outside.");
           return;
         }
         pos = fix.at;

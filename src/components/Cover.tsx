@@ -69,10 +69,10 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
 }
 
 /**
- * The masthead's drawing box, as shares of the cover's width (Review 16): two runs, NIGHT then
- * SHIFT, each one text with its own pinned width (`textLength`), never a run nested in another, so
+ * The masthead's drawing box, as shares of the cover's width (Review 16): two runs, SLIP then
+ * STREAM, each one text with its own pinned width (`textLength`), never a run nested in another, so
  * nothing scales a run twice. The box is tall enough for the letters at up to `MASTHEAD_MAX_SCALE`
- * times their size, so the top of "SHIFT" is never cut at 1.3x text, even where a browser scales
+ * times their size, so the top of "STREAM" is never cut at 1.3x text, even where a browser scales
  * SVG text with the page's.
  */
 export function mastheadLayout(cover: number) {
@@ -86,19 +86,19 @@ export function mastheadLayout(cover: number) {
 export const MASTHEAD_CAP = 0.7;
 /** The largest text size the masthead's box has room for (1.3x text, with room to spare). */
 export const MASTHEAD_MAX_SCALE = 1.5;
-/** NIGHT's share of NIGHTSHIFT's natural width in Chakra Petch Bold Italic (294 of 570). */
-const NIGHT_SHARE = 0.516;
+/** SLIP's share of SLIPSTREAM's natural width in Chakra Petch Bold Italic (estimated: S, L, I, P of 10 letters, I is narrow). */
+const NIGHT_SHARE = 0.36;
 
 export function Masthead({ width, cover }: { width: number; cover: number }) {
   const m = mastheadLayout(cover);
   const run = { y: m.baseline, fontFamily: F.displayItalic, fontSize: m.fontSize, letterSpacing: -1, lengthAdjust: 'spacingAndGlyphs' as const };
   return (
-    <Svg width={width} height={m.height} accessibilityLabel="Nightshift" style={{ overflow: 'visible' }}>
+    <Svg width={width} height={m.height} accessibilityLabel="Slipstream" style={{ overflow: 'visible' }}>
       <SvgText x={0} textLength={m.night} fill={COLOR.text.primary} {...run}>
-        NIGHT
+        SLIP
       </SvgText>
       <SvgText x={m.night} textLength={m.shift} fill={COLOR.action.primary} {...run}>
-        SHIFT
+        STREAM
       </SvgText>
     </Svg>
   );

@@ -184,7 +184,7 @@ the welcome pitch says places are "rated by the scene". Track times are also on 
 (`TrackPanel.tsx:206` says so, which is good).
 *Fix (copy now, data later):* until bundled progress is on the server, don't count it in the shared rep
 when signed in. Instead show it as "On this phone: 2 drives, +250 rep. Counts for everyone once
-Nightshift's own places are on the server". On bundled places, label the counts "you" not "members"
+Slipstream's own places are on the server". On bundled places, label the counts "you" not "members"
 when signed in. Track the server import as BACKEND section 10 item 2.
 
 **M5. The type scale stops at `muted`, so screens make up their own small sizes.**

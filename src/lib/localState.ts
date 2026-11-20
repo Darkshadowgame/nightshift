@@ -63,7 +63,7 @@ export interface Persisted extends SeedState {
   /** "Your feedback": what this phone sent (and, signed in, your reports from other phones), with the server's status. */
   sentFeedback?: SentFeedback[];
   /**
-   * Signed in only: Nightshift's own drives and photo spots as the server has
+   * Signed in only: Slipstream's own drives and photo spots as the server has
    * them (spots.bundled_id). `ids`: bundled id -> the server row's id, for the
    * RPCs. `progress`: completions and ratings by bundled id (yours, plus
    * anonymous stand-ins for everyone else's counts). `placeProgress` then only

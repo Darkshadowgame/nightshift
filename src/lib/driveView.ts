@@ -183,7 +183,7 @@ export const NAV_ICON_SHAPES: { id: NavIconShape; label: string }[] = [
   { id: 'bike', label: 'Bike' },
 ];
 
-/** Bright on the dark map, and none of them the route's orange. */
+/** Bright on the dark map, and none of them the route's green. */
 export const NAV_ICON_COLOURS: { id: string; label: string; hex: string }[] = [
   { id: 'white', label: 'White', hex: '#f4f6fa' },
   { id: 'blue', label: 'Blue', hex: '#4da3ff' },

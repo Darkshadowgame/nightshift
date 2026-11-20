@@ -30,7 +30,7 @@ export function ListingCard({ listing, mine, busy, onSold }: { listing: Listing;
         {priceLabel(listing)}
       </DsText>
       {facts.length ? <DsText v="meta">{facts.join(' · ')}</DsText> : null}
-      <DsText v="caption">Posts only: no payments through Nightshift. Meet somewhere public and pay in person.</DsText>
+      <DsText v="caption">Posts only: no payments through Slipstream. Meet somewhere public and pay in person.</DsText>
       {mine && onSold ? (
         sold ? (
           <Button tier="tertiary" size="sm" label={listing.kind === 'wanted' ? 'Still looking' : 'Back on sale'} busy={busy} onPress={() => onSold(false)} style={{ alignSelf: 'flex-start' }} />

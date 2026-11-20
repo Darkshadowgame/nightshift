@@ -285,7 +285,7 @@ export interface Spot {
   photo?: string;
   /**
    * Signed in, on a bundled place: what this phone recorded there before
-   * Nightshift's own places were on the server. Shown as "Only on this phone";
+   * Slipstream's own places were on the server. Shown as "Only on this phone";
    * never counted in rep, "Driven by" or the star average.
    */
   phoneOnly?: { completions: number; stars?: number };

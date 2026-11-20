@@ -240,7 +240,7 @@ export interface QueueItem {
   firstReported: string;
   excerpt: string;
   notes: string[];
-  /** Raised by Nightshift itself (spam cooldowns, sell-only accounts). */
+  /** Raised by Slipstream itself (spam cooldowns, sell-only accounts). */
   automatic?: boolean;
 }
 
@@ -795,19 +795,19 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       throw new Error('Only staff can do that.');
     },
     async memberOverview() {
-      throw new Error('Moderation is for the Nightshift team, signed in.');
+      throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async memberHistory() {
       return [];
     },
     async warn() {
-      throw new Error('Moderation is for the Nightshift team, signed in.');
+      throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async ban() {
-      throw new Error('Moderation is for the Nightshift team, signed in.');
+      throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async setRole() {
-      throw new Error('Moderation is for the Nightshift team, signed in.');
+      throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async team() {
       return [];
@@ -816,10 +816,10 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       return [];
     },
     async moderate() {
-      throw new Error('Moderation is for the Nightshift team, signed in.');
+      throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async liftSuspension() {
-      throw new Error('Moderation is for the Nightshift team, signed in.');
+      throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     watch(onChange) {
       listeners.add(onChange);

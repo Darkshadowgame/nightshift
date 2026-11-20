@@ -1,4 +1,4 @@
--- Nightshift seed data: places only, never people.
+-- Slipstream seed data: places only, never people.
 --
 -- Runs on `npx supabase db reset` (local) and only goes to the hosted project
 -- if you ask for it (`npx supabase db push --include-seed`). It is safe to run
@@ -9,7 +9,7 @@
 --   rough circles, not the legal boundaries: check the current orders before
 --   relying on them (docs/research/legal.md).
 -- * A handful of well-known UK circuits as information-only `track` places,
---   "Added by Nightshift" (no author, so nobody earns author rep). Points are
+--   "Added by Slipstream" (no author, so nobody earns author rep). Points are
 --   approximate circuit centres.
 --
 -- What is not here, on purpose:

@@ -48,7 +48,7 @@ function str(v: unknown): string | null {
 export function feedbackEmail(row: FeedbackRow, links: string[]): { subject: string; text: string } {
   const kind = KIND_LABELS[row.kind] ?? row.kind;
   const ctx = row.context ?? {};
-  const subject = `[Nightshift feedback] ${kind}: ${oneLine(row.message, 70)}`;
+  const subject = `[Slipstream feedback] ${kind}: ${oneLine(row.message, 70)}`;
   const facts: [string, string | null][] = [
     ['Type', kind],
     ['Sent', row.created_at],

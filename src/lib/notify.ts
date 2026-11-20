@@ -86,7 +86,7 @@ export function onNotificationTap(open: (url: string) => void): () => void {
 export async function testReminder(seconds = 5): Promise<boolean> {
   if (!(await askPermission())) return false;
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'Nightshift reminders work', body: 'You’ll get one at the reveal and 30 min before the start.', data: { url: '/notifications' } },
+    content: { title: 'Slipstream reminders work', body: 'You’ll get one at the reveal and 30 min before the start.', data: { url: '/notifications' } },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
   });
   return true;

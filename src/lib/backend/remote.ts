@@ -196,7 +196,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       .flatMap((x) => (x.kind === 'chat' && (!eventIds || eventIds.has(x.eventId)) ? [{ id: x.id, eventId: x.eventId, userId: uid, text: x.text, at: x.at }] : []));
   }
 
-  /** The server's places: people's suggestions as places, Nightshift's own as progress on the bundled ones. */
+  /** The server's places: people's suggestions as places, Slipstream's own as progress on the bundled ones. */
   async function loadSpots(): Promise<{ spots: Spot[]; bundledServer: NonNullable<Persisted['bundledServer']> }> {
     const rows = await call<SpotRow[]>(() => client.from('spots_list').select('*').limit(2000));
     const ids = rows.map((r) => r.id);
@@ -343,7 +343,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     set((s) => ({ ...s, ...places, placeRep: { ...s.placeRep, ...placeRep } }));
   };
   /**
-   * The server row for a place: its own id, or for one of Nightshift's own
+   * The server row for a place: its own id, or for one of Slipstream's own
    * places the row seeded with its bundled id (read again once if it's not known yet).
    */
   async function serverSpotId(spotId: string): Promise<string | null> {
@@ -695,7 +695,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       if (!spot || spot.kind !== 'drive' || !spot.path) return { ok: false, reason: 'Drive not found.' };
       const verdict = judgeRun(run, spot.path, driveMiles(spot), spot.limitMph);
       if (!verdict.ok) return verdict;
-      // Nightshift's own drives too: the server judges the same fixes, so the drive counts on every phone.
+      // Slipstream's own drives too: the server judges the same fixes, so the drive counts on every phone.
       try {
         const id = await serverSpotId(spotId);
         if (!id) return { ok: false, reason: NOT_ON_SERVER };

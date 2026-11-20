@@ -4,7 +4,7 @@ Tested 18 Nov 2026 on the web preview (`expo export --platform web`, served as a
 
 ## 10-second impression
 
-"Nightshift: what's on tonight near you. Go with your car." Three lines underneath (meets, check in, vote for builds). Within ten seconds I knew this is a UK car and bike meet finder with a points game on top. That's the best first screen this app has had. The dark navy, orange and hex-badge look says "night car culture" without being tacky.
+"Slipstream: what's on tonight near you. Go with your car." Three lines underneath (meets, check in, vote for builds). Within ten seconds I knew this is a UK car and bike meet finder with a points game on top. That's the best first screen this app has had. The dark navy, orange and hex-badge look says "night car culture" without being tacky.
 
 What spoils it: on a 375x667 phone the "Try the demo without an account" button is below the fold, so a nervous first-timer sees only "give us your email".
 
@@ -73,12 +73,12 @@ Format: what I did → what happened. ⚠ = hesitation, ✗ = dead end or bug.
 - Post: Library → a full crop tool (Free/Cover/1:1/4:5…; "Cover" is unclear) → Add a place (crosshair) → link build → Post. ✓
 - ✗ **After posting, the post screen has no back button and no tab bar.** The forum thread and the For Sale thread have the same problem. You're stranded.
 - Forum › New thread: board chips "Advice / Builds / … / For sale / Local". The chip says "Advice", the board is called "Advice and help".
-- Selling: the only way is a "For sale" forum board ("Posts only: no payments through Nightshift"). No price, condition or location fields, and the placeholder still asks "What's the car or bike, what have you tried, what do you want to know?". ⚠ There's no "Sell" in the Garage, the build page or the "+ New" sheet. I only found it by trying every board.
+- Selling: the only way is a "For sale" forum board ("Posts only: no payments through Slipstream"). No price, condition or location fields, and the placeholder still asks "What's the car or bike, what have you tried, what do you want to know?". ⚠ There's no "Sell" in the Garage, the build page or the "+ New" sheet. I only found it by trying every board.
 
 ### 8. Settings, feedback, help, legal
 - Settings is one very long page: account, navigation app, map heading, icon and colour, voice, cameras, layers, notifications, travel radius, privacy, feedback, legal, version, demo. It works, but it's a wall of options. "Choosing a voice needs the latest iPhone app (**build 11 or later**)" is developer talk.
 - Feedback: type chips, message, optional location, "Thanks, it's with the team" and a status list ("Bug · 18 Nov · New"). Excellent.
-- How Nightshift works: clear and short. It says "Tap the **+**" (the button says "+ New") and says voting lasts "for a day" (the vote screen says "Closes in 27 h").
+- How Slipstream works: clear and short. It says "Tap the **+**" (the button says "+ New") and says voting lasts "for a day" (the vote screen says "Closes in 27 h").
 - Terms, Privacy, Guidelines and Support open an external website in a new tab, so you leave the app.
 
 ### Other taps

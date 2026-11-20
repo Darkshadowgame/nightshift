@@ -18,7 +18,7 @@ export function StaffOnly({ children }: { children: ReactNode }) {
       <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg, justifyContent: 'center' }}>
         <EmptyState
           title="Staff only"
-          body="This page is for the Nightshift team. To report something, use Report on it."
+          body="This page is for the Slipstream team. To report something, use Report on it."
           action={{ label: 'Go to Tonight', onPress: () => router.replace('/') }}
         />
       </View>

@@ -1,6 +1,6 @@
 # Moderation: roles, powers and the audit review
 
-How the Nightshift moderation team works (owner request, 18 Nov 2026). The server decides
+How the Slipstream moderation team works (owner request, 18 Nov 2026). The server decides
 everything here (`supabase/migrations/20261118180000_spam_selling_member_moderation.sql`); the app
 only shows what you're allowed to do. Community rules themselves: docs/SPEC.md, "Community".
 
@@ -8,7 +8,7 @@ only shows what you're allowed to do. Community rules themselves: docs/SPEC.md, 
 
 | Role | Who | How they get it |
 |---|---|---|
-| **Owner** | Exactly one person: the owner of Nightshift | Sets themselves once with SQL (below). Never through the app. |
+| **Owner** | Exactly one person: the owner of Slipstream | Sets themselves once with SQL (below). Never through the app. |
 | **Admin** | Trusted people who run the team | The owner makes them (Member moderation › Make admin) |
 | **Moderator** | People who keep the Community tidy | An admin or the owner makes them (Member moderation › Make moderator) |
 
@@ -38,7 +38,7 @@ Always:
 * A **Community ban** stops posts, comments, threads, replies, event chat and connection requests.
   They can still read, use the map, events and their garage, report things, and message the
   people they're already connected with. A **full suspension** stops messages too.
-* Nightshift itself raises **automatic reports** (Spam after five refused duplicate posts in a day,
+* Slipstream itself raises **automatic reports** (Spam after five refused duplicate posts in a day,
   with a 24-hour Community cooldown; "Only here to sell" when 90%+ of someone's posts are selling).
   They show in the queue marked Automatic. Nothing bans anyone for selling automatically.
 
@@ -54,7 +54,7 @@ filter by person and action); the member screen shows everything about that one 
 
 ## Setting yourself as owner (once, by the owner)
 
-In the Supabase dashboard › SQL editor, with **your own** Nightshift account's email (the one you
+In the Supabase dashboard › SQL editor, with **your own** Slipstream account's email (the one you
 sign in with). Nobody else should run this, and it isn't run by any script or migration:
 
 ```sql

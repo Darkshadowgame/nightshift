@@ -86,7 +86,7 @@ Times are rough wall-clock times for a careful first-timer. Taps count real taps
 *Screen:* Community › People (`80-people.png`). *What:* "Requests 2" in the header, a "2 people want to connect" banner and "People 2" on the tab. Each person is a full-width placeholder car drawing. *Why bad:* it's slow to scan, and three badges for one thing reads as noise. *Fix:* compact rows (avatar, handle, car, class, distance) and one requests entry.
 
 **15. Settings is a junk drawer, and help leaves the app.**
-*Screen:* Settings (`120-settings-*.png`), Support. *What:* it repeats map layers and the travel radius, includes developer switches ("Skip the GPS check", "Reset demo data", "Car and bike list 2026-11-17.4") and roadmap text. Help opens an external web page. *Why bad:* settings should be short and boring, and help should be in reach when you're stuck at a meet. *Fix:* split into Account, Notifications, Navigation, Privacy and About. Remove what's already on the map sheet. Put developer switches behind a hidden "developer" toggle. Add a short in-app "How Nightshift works" (stops unlocking, check-in, classes, rep).
+*Screen:* Settings (`120-settings-*.png`), Support. *What:* it repeats map layers and the travel radius, includes developer switches ("Skip the GPS check", "Reset demo data", "Car and bike list 2026-11-17.4") and roadmap text. Help opens an external web page. *Why bad:* settings should be short and boring, and help should be in reach when you're stuck at a meet. *Fix:* split into Account, Notifications, Navigation, Privacy and About. Remove what's already on the map sheet. Put developer switches behind a hidden "developer" toggle. Add a short in-app "How Slipstream works" (stops unlocking, check-in, classes, rep).
 
 ---
 

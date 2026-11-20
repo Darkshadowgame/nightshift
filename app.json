@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nightshift",
+    "name": "Slipstream",
     "slug": "nightshift",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,9 +10,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.nightshift.ios",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Nightshift uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
-        "NSPhotoLibraryUsageDescription": "Nightshift uses your photos so you can add pictures of your build.",
-        "NSCameraUsageDescription": "Nightshift uses the camera so you can photograph your build.",
+        "NSLocationWhenInUseUsageDescription": "Slipstream uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
+        "NSPhotoLibraryUsageDescription": "Slipstream uses your photos so you can add pictures of your build.",
+        "NSCameraUsageDescription": "Slipstream uses the camera so you can photograph your build.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0b0f17",
+        "backgroundColor": "#0a0a0a",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -45,18 +45,18 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Nightshift uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
+          "locationWhenInUsePermission": "Slipstream uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "motionUsagePermission": false,
-          "locationFullAccuracyPermission": "Nightshift needs your precise location to check you in at a stop and guide you turn by turn."
+          "locationFullAccuracyPermission": "Slipstream needs your precise location to check you in at a stop and guide you turn by turn."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Nightshift uses your photos so you can add pictures of your builds, posts, messages and the places you visit. Number plates are blurred on your phone before anything is uploaded.",
-          "cameraPermission": "Nightshift uses the camera so you can photograph your build, a photo spot or a meet. Number plates are blurred on your phone before anything is uploaded.",
+          "photosPermission": "Slipstream uses your photos so you can add pictures of your builds, posts, messages and the places you visit. Number plates are blurred on your phone before anything is uploaded.",
+          "cameraPermission": "Slipstream uses the camera so you can photograph your build, a photo spot or a meet. Number plates are blurred on your phone before anything is uploaded.",
           "microphonePermission": false
         }
       ],
@@ -72,7 +72,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0b0f17"
+          "backgroundColor": "#0a0a0a"
         }
       ]
     ],

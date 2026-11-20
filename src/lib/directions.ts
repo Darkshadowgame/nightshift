@@ -1,7 +1,7 @@
 import type { LatLng } from './types';
 
 /**
- * Where "Start navigation" goes: Nightshift's own driving view by default, or
+ * Where "Start navigation" goes: Slipstream's own driving view by default, or
  * another app. Links carry the coordinates only (no stop or event names), so
  * a secret stop's name never leaves the phone in a URL.
  */
@@ -9,14 +9,14 @@ import type { LatLng } from './types';
 export type DirectionsApp = 'nightshift' | 'apple' | 'google' | 'waze';
 
 export const DIRECTIONS_APPS: { id: DirectionsApp; label: string }[] = [
-  { id: 'nightshift', label: 'Nightshift' },
+  { id: 'nightshift', label: 'Slipstream' },
   { id: 'apple', label: 'Apple Maps' },
   { id: 'google', label: 'Google Maps' },
   { id: 'waze', label: 'Waze' },
 ];
 
 export function appLabel(app: DirectionsApp): string {
-  return DIRECTIONS_APPS.find((a) => a.id === app)?.label ?? 'Nightshift';
+  return DIRECTIONS_APPS.find((a) => a.id === app)?.label ?? 'Slipstream';
 }
 
 const ll = (p: LatLng) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;

@@ -1,4 +1,4 @@
-# Nightshift – regional places research (North of England)
+# Slipstream – regional places research (North of England)
 
 _Compiled 17 November 2026. Research only – the data module is `src/data/regions/northEngland.ts`; no existing app file was changed._
 

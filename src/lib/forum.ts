@@ -21,7 +21,7 @@ export const BOARDS: readonly { key: BoardKey; label: string; hint: string; titl
   { key: 'bikes', label: 'Bikes', hint: 'Anything on two wheels.', title: 'e.g. First winter with an R1', body: 'Say what you think and why. Pictures welcome.' },
   { key: 'detailing', label: 'Detailing', hint: 'Washing, polishing, wraps and tints.', title: 'e.g. Ceramic coat or wax on a daily?', body: 'Paint, colour, how it lives (garaged or outside), and what you use now.' },
   { key: 'meets', label: 'Meets and events', hint: 'Talk about events. Never where police are.', title: 'e.g. Parking tips for Sunday’s show', body: 'Which event, and what you want to know or share. Nothing about where police are.' },
-  { key: 'for_sale', label: 'For sale and wanted', hint: 'Posts only: no payments through Nightshift.', title: 'e.g. FK8 rear wing, Championship White', body: 'Condition, mileage or age, part numbers, what it fits, where you are…' },
+  { key: 'for_sale', label: 'For sale and wanted', hint: 'Posts only: no payments through Slipstream.', title: 'e.g. FK8 rear wing, Championship White', body: 'Condition, mileage or age, part numbers, what it fits, where you are…' },
   { key: 'local', label: 'Local', hint: 'Your region.', title: 'e.g. Coffee stops that welcome a few cars?', body: 'Where roughly, and what you have in mind.' },
 ];
 

@@ -54,7 +54,7 @@ same. No crash, no on-screen error and **no console errors** in any run.
 
 | # | 12:30 | 20:30 | Script | Notes |
 |---|---|---|---|---|
-| 1–10 | 10/10 | 10/10 | Same as 1.0x (±0.1 s) | Same outcomes and toasts. One clip on a task screen: on Me (task 10), the checked-in meet's meta line is cut to "Meet · Live · until 23:00 · 2 mi from …" (e-me-13). The trophy cover's wordmark now fits ("NIGHTSHIFT" whole, car name wraps "Hyundai / i30 N", e-cover-1.3). "583 bhp" stays together on the Going list. The drive view's bottom row is tight ("21:15 2.9 mi 6 min" next to END) but nothing is cut (r-2030-13-t4-drive). |
+| 1–10 | 10/10 | 10/10 | Same as 1.0x (±0.1 s) | Same outcomes and toasts. One clip on a task screen: on Me (task 10), the checked-in meet's meta line is cut to "Meet · Live · until 23:00 · 2 mi from …" (e-me-13). The trophy cover's wordmark now fits ("SLIPSTREAM" whole, car name wraps "Hyundai / i30 N", e-cover-1.3). "583 bhp" stays together on the Going list. The drive view's bottom row is tight ("21:15 2.9 mi 6 min" next to END) but nothing is cut (r-2030-13-t4-drive). |
 
 ## 2. Time to understand
 
@@ -194,7 +194,7 @@ ring; the outline car on onboarding; the caps sentence on Edit profile.
 |---|---|---|---|---|---|
 | 1 | Medium | Sign in from Settings | Me, gear, Sign in or create an account | Lands on the first-run landing with no back arrow (break 2). It offers "Try the demo" as the primary to someone who asked to sign in; Sign in is one more tap. `e6526d8` ("Settings: … Back to my account") landed after this build and may change it. | e-signin-from-settings |
 | 2 | Medium | Me at 1.3x | 1.3x text, go and check in, Me | The meet row's meta is cut to "Meet · Live · until 23:00 · 2 mi from …". It's a task screen, and the only clip left at 1.3x (L2). Two lines for the meta, or shorter wording ("Live · until 23:00 · 2 mi"), fixes it. | e-me-13 |
-| 3 | Medium | Live event after one vote | Check in, Vote, pick a car, Done | "Results are in." and a Best car cover, while the next line says "1 of 3 voted · Best bike next", the meet is live until 23:00, and How Nightshift works says voting runs until 24 h after the end. It reads as over and not over at once (hesitation 1, C5). | x6-c, e-cover-1, e-help |
+| 3 | Medium | Live event after one vote | Check in, Vote, pick a car, Done | "Results are in." and a Best car cover, while the next line says "1 of 3 voted · Best bike next", the meet is live until 23:00, and How Slipstream works says voting runs until 24 h after the end. It reads as over and not over at once (hesitation 1, C5). | x6-c, e-cover-1, e-help |
 | 4 | Low | Event, going, location hidden | Me, Sunday coffee and cars | "Going" twice (the badge on the photo and the ActionBar pill) and 09:00 twice ("Location shows at 09:00." and "Remind me at 09:00"). Keeping one of each makes C5 true here. | x10-b |
 | 5 | Low | Live event right after I'm going | Car park meet-up, I'm going | The place twice: the line "Leisure park car park, Tamworth." and the "LOCATION SHOWN · Leisure park car park" card on the map, which stays until tapped (C5's "one location line"). Letting the card fade after the motion moment fixes it. | x4-b |
 | 6 | Low | Going toast | I'm going | "You're going · CHANGE": a toast with an action that isn't Undo (break 1). | x4-a |
@@ -221,7 +221,7 @@ errors.
   went from about 35 s with two dead taps to about 20 s with none.
 * **"Leave it / Keep it" (R16 #4):** now "Yes, I can't go / I'm still going".
 * **Vote order (R16 #3):** the sheet opens on Best car.
-* **Trophy wordmark at 1.3x (R16 #2):** "NIGHTSHIFT" is whole; the car name wraps cleanly.
+* **Trophy wordmark at 1.3x (R16 #2):** "SLIPSTREAM" is whole; the car name wraps cleanly.
 * **bhp split from its number at 1.3x (R16 #5):** "583 bhp" stays together on the Going list.
 * **Event rows (R16 #6) and live time (R16 break 1, #7):** one format, "Meet · Sun 10:00 · about 1 mi
   from home", on Tonight, Search and Me; "Live · until 23:00" on the card and the event page.

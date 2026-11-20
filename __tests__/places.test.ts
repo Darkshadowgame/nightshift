@@ -42,7 +42,7 @@ describe('bundled UK places', () => {
     }
   });
 
-  test('added by Nightshift, not by a person; tracks have no author', () => {
+  test('added by Slipstream, not by a person; tracks have no author', () => {
     const spots = placeSpots('2026-01-01T00:00:00.000Z');
     for (const s of spots) {
       if (s.kind === 'track' || s.kind === 'venue') expect(s.authorId).toBeUndefined();

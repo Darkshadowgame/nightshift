@@ -1,4 +1,4 @@
-/* Nightshift legal and support pages. Dark only, like the app: asphalt, sodium orange, Chakra Petch. */
+/* Slipstream legal and support pages. Dark only, like the app: asphalt, energy green, Chakra Petch. */
 :root {
   --asphalt: #0b0f17;
   --tarmac: #131a26;
@@ -6,7 +6,7 @@
   --kerb-hi: #2a3446;
   --fog: #8a97ad;
   --chalk: #e9edf4;
-  --sodium: #ff9a2e;
+  --sodium: #95d600;
   --alert: #ff4d4d;
   color-scheme: dark;
 }
@@ -15,7 +15,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background: var(--asphalt);
-  background-image: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255, 154, 46, 0.10), transparent 70%);
+  background-image: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(149, 214, 0, 0.10), transparent 70%);
   background-repeat: no-repeat;
   color: var(--chalk);
   font: 17px/1.6 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -46,7 +46,7 @@ li { margin: 4px 0; }
 .card { background: var(--tarmac); border: 1px solid var(--kerb); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
 .card > :first-child { margin-top: 0; }
 .card > :last-child { margin-bottom: 0; }
-.card.key { border-color: rgba(255, 154, 46, 0.45); }
+.card.key { border-color: rgba(149, 214, 0, 0.45); }
 .todo { background: rgba(255, 77, 77, 0.12); border: 1px dashed var(--alert); color: #ffb3b3; border-radius: 6px; padding: 0 6px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.9em; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 20px 0; }
 .grid a.card { display: block; margin: 0; text-decoration: none; color: var(--chalk); }

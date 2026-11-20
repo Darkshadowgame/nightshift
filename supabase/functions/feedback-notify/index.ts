@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
       { host: env('BREVO_SMTP_HOST'), port: tlsPort(env('BREVO_SMTP_PORT')), user: env('BREVO_SMTP_USER'), pass: env('BREVO_SMTP_KEY') },
       {
         from: env('BREVO_SENDER_EMAIL'),
-        fromName: 'Nightshift feedback',
+        fromName: 'Slipstream feedback',
         to: env('FEEDBACK_NOTIFY_EMAIL').split(',').map((s) => s.trim()).filter(Boolean),
         subject,
         text,

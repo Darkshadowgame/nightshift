@@ -22,7 +22,7 @@ export interface Partner {
   /** Always shown: "Partner" (or "Sample partner" in the demo). */
   label: string;
   description?: string;
-  /** What the partner offers Nightshift members. */
+  /** What the partner offers Slipstream members. */
   offer?: string;
   /** Their own link (website or offer page). */
   link?: string;

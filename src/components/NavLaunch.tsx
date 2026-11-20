@@ -31,7 +31,7 @@ export async function openDirections(app: Exclude<DirectionsApp, 'nightshift'>, 
 
 function choices(toName?: string): { id: DirectionsApp | 'other'; label: string; note: string }[] {
   return [
-    { id: 'nightshift', label: 'Nightshift', note: 'Turn by turn here, with camera alerts' },
+    { id: 'nightshift', label: 'Slipstream', note: 'Turn by turn here, with camera alerts' },
     { id: 'apple', label: 'Apple Maps', note: toName ? `To ${toName}` : 'Straight there' },
     { id: 'google', label: 'Google Maps', note: 'The app, or the website without it' },
     { id: 'waze', label: 'Waze', note: 'The app, or the website without it' },
@@ -101,7 +101,7 @@ export function useNavLaunch({ target, to, toName, otherAppsNote }: NavLaunchOpt
 
   return {
     label: preferred === 'nightshift' ? label : `Directions in ${appLabel(preferred)}`,
-    /** Opens the saved choice (Nightshift's driving view by default). */
+    /** Opens the saved choice (Slipstream's driving view by default). */
     open: () => go(preferred),
     /** The choice of apps, as a Sheet. */
     openOther: () => {
@@ -114,7 +114,7 @@ export function useNavLaunch({ target, to, toName, otherAppsNote }: NavLaunchOpt
 }
 
 /**
- * "Navigate" as a button on the page: Nightshift's own driving view by default, with a link to
+ * "Navigate" as a button on the page: Slipstream's own driving view by default, with a link to
  * open Apple Maps, Google Maps, Waze or the share sheet instead (useNavLaunch). On detail screens
  * prefer `useNavLaunch` with the ActionBar.
  * `kind`: secondary unless navigating is the main thing the screen is for (one primary per screen).
@@ -146,7 +146,7 @@ export function NavLaunch({
         disabled={disabled}
         hint={hint}
         onPress={nav.open}
-        accessibilityHint={preferred === 'nightshift' ? 'Opens turn-by-turn navigation in Nightshift' : undefined}
+        accessibilityHint={preferred === 'nightshift' ? 'Opens turn-by-turn navigation in Slipstream' : undefined}
       />
       {disabled ? null : (
         <View style={{ alignItems: 'center' }}>

@@ -77,7 +77,7 @@ export function SuggestMissing({
         />
       </View>
       {error ? <ErrorState title={error} /> : null}
-      <DsText v="caption">It goes to the Nightshift team. With no signal it waits on your phone and goes later.</DsText>
+      <DsText v="caption">It goes to the Slipstream team. With no signal it waits on your phone and goes later.</DsText>
     </Card>
   );
 }

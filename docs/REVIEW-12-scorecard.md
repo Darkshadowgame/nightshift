@@ -102,7 +102,7 @@ Rulebook exceptions on screens met in the tasks (each counted once):
    is "Tomorrow 23:00" (a12, a14).
 5. **4.4** Host form Type (Meet / Cruise / Rolling meet) uses a SegmentedControl for one choice of
    many in a form; that should be a ChoiceGroup (a28).
-6. **4.4** Settings "Open in" (Nightshift / Apple Maps / Google Maps / Waze) uses a SegmentedControl
+6. **4.4** Settings "Open in" (Slipstream / Apple Maps / Google Maps / Waze) uses a SegmentedControl
    for a setting. "Google Maps" also wraps onto two lines (a46).
 7. **4.5** The Add a mod picker sheet closes with "Cancel". Picker sheets close with Done; Cancel is
    only for forms that lose work (a25).

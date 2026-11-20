@@ -1,6 +1,6 @@
 # Review 10: first-time user
 
-A harsh first look from someone who has never seen Nightshift. Web export (`npx expo export --platform web`), served locally, tested with Playwright at 393x852 (iPhone 15-ish) and 375x667 (iPhone SE), each from cleared storage, through "Try the demo".
+A harsh first look from someone who has never seen Slipstream. Web export (`npx expo export --platform web`), served locally, tested with Playwright at 393x852 (iPhone 15-ish) and 375x667 (iPhone SE), each from cleared storage, through "Try the demo".
 
 - Run 1 (393x852, 13:20, no car): skipped the car, set home area, went to a meet, hosted a meet, used Community, Garage (empty), Me, Settings, Help, Search, bad links and back navigation.
 - Run 2 (375x667, browser clock set to 19:40, with a car): picked a Fiesta ST in onboarding, went to a live meet, checked in, voted, added mods, added dyno runs (typed, then with a sheet photo) and checked the Dyno badge.
@@ -50,7 +50,7 @@ Screen: Garage, Build. The garage shows **221 whp** next to **224 bhp/tonne**, w
 Shots: `75-se-build-page`, `79-se-garage-dyno`.
 
 ### 6. "People near you" is on by default (Medium-High, iPhone too)
-Screen: Community → People; Settings → Privacy. A brand-new user goes straight into a list that shows a rough distance from their home ("Under 5 mi"). Turning it off is buried in Settings. The profile footer says "Nightshift never shows where anyone lives or where they are", which sits badly next to "Under 5 mi". For an app that sells itself on privacy, this should be opt-in, asked once.
+Screen: Community → People; Settings → Privacy. A brand-new user goes straight into a list that shows a rough distance from their home ("Under 5 mi"). Turning it off is buried in Settings. The profile footer says "Slipstream never shows where anyone lives or where they are", which sits badly next to "Under 5 mi". For an app that sells itself on privacy, this should be opt-in, asked once.
 Shots: `36-people`, `37-profile`, `50-settings`.
 
 ### 7. The event screen says the same thing four or five times (Medium)

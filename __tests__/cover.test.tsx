@@ -1,5 +1,5 @@
 /**
- * The trophy cover's masthead at 1.0x and 1.3x text (Review 16: the top of "SHIFT" was cut, so it
+ * The trophy cover's masthead at 1.0x and 1.3x text (Review 16: the top of "STREAM" was cut, so it
  * read "NIGHTSHIH"). The masthead is two SVG text runs side by side, never one nested in the other
  * (a nested run scales twice where a browser scales text), in a box with room for the letters at
  * up to 1.5x their size.
@@ -43,11 +43,11 @@ describe('the trophy cover masthead never clips (Review 16)', () => {
   const svg = find(root.container, (n) => n.type === 'Svg')[0];
   const runs = find(root.container, (n) => n.type === 'SvgText');
 
-  it('draws NIGHT and SHIFT as two runs side by side, neither inside the other', () => {
-    expect(runs.map(text)).toEqual(['NIGHT', 'SHIFT']);
+  it('draws SLIP and STREAM as two runs side by side, neither inside the other', () => {
+    expect(runs.map(text)).toEqual(['SLIP', 'STREAM']);
     expect(find(root.container, (n) => n.type === 'TSpan')).toHaveLength(0);
     for (const r of runs) expect(find(r, (n) => n.type === 'SvgText' && n !== r)).toHaveLength(0);
-    // SHIFT starts where NIGHT's pinned width ends, and together they fit the box.
+    // STREAM starts where SLIP's pinned width ends, and together they fit the box.
     expect(runs[1].props?.x).toBeCloseTo(Number(runs[0].props?.textLength));
     expect(Number(runs[0].props?.textLength) + Number(runs[1].props?.textLength)).toBeLessThanOrEqual(COVER - 32);
   });

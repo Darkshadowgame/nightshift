@@ -289,7 +289,7 @@ export const SCREEN_TITLES = {
   notifications: 'Notifications',
   search: 'Search',
   settings: 'Settings',
-  help: 'How Nightshift works',
+  help: 'How Slipstream works',
   credits: 'Credits',
   feedback: 'Send feedback',
   post: 'Post',

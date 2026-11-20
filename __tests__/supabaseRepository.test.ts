@@ -254,7 +254,7 @@ describe('rule-checked actions go to their RPCs', () => {
   });
 });
 
-describe("Nightshift's own places on the server (spots.bundled_id)", () => {
+describe("Slipstream's own places on the server (spots.bundled_id)", () => {
   const SNAKE = 'dr-snake-pass';
   const SNAKE_ROW = 'dddddddd-0000-4000-8000-0000000000aa';
   const SUGGESTED = 'dddddddd-0000-4000-8000-0000000000bb';

@@ -18,17 +18,17 @@ export const C = {
   kerbHi: '#2a3446',
   fog: '#8a97ad',
   chalk: '#e9edf4',
-  sodium: '#ff9a2e',
+  sodium: '#95d600',
   /** The Drives layer colour. Not a button or state colour. */
   neon: '#3fd6ff',
   /** The Photos layer colour. */
   magenta: '#ff4fa3',
-  /** The Tracks layer colour. */
-  lime: '#9dfa5a',
+  /** The Tracks layer colour (orange, the old brand accent, now free). */
+  lime: '#ff9a2e',
   /** Danger and errors (also the Speed cameras layer). */
   alert: '#ff4d4d',
-  /** Text on sodium. */
-  ink: '#2a1300',
+  /** Text on the brand green. */
+  ink: '#0a0a0a',
 };
 
 /** The one brand and action colour: the primary button and selected states (and the wordmark). */
@@ -45,7 +45,7 @@ export const LAYER = {
   photo: C.magenta,
   drive: C.neon,
   track: C.lime,
-  /** Meet spots (cafés and museums that welcome meets): mint, not the events' orange. */
+  /** Meet spots (cafés and museums that welcome meets): mint, not the events' green. */
   venue: '#2fe0b0',
   shop: '#b48cff',
   partner: '#ffd23f',

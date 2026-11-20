@@ -58,7 +58,7 @@ const TOPICS: { title: string; lines: string[] }[] = [
   },
 ];
 
-/** "How Nightshift works" (T5): the in-app help, from Me and Settings › About. Short and in the app, for when you're stuck at a meet. */
+/** "How Slipstream works" (T5): the in-app help, from Me and Settings › About. Short and in the app, for when you're stuck at a meet. */
 export default function Help() {
   const demo = useStore().backend === 'local';
   return (

@@ -41,7 +41,7 @@ export interface Settings {
   eventsOnlyMap?: boolean;
   /** Shops and Speed cameras came back as optional layers (18 Nov 2026): reset to off once (owner: shops off by default). */
   layersBackOff?: boolean;
-  /** Where "Start navigation" goes. Nightshift's own driving view unless you chose "Always use" another app. */
+  /** Where "Start navigation" goes. Slipstream's own driving view unless you chose "Always use" another app. */
   directionsApp: DirectionsApp;
   /** Driving view: spoken instructions. */
   navVoice: boolean;

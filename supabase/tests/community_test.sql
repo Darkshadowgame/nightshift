@@ -295,11 +295,11 @@ select isnt(current_setting('t.thread'), null, 'create_thread: C asks for advice
 select throws_ok($$ select public.create_thread('advice', null, 'Hi', '') $$, 'P0001', 'Give it a title of at least 4 characters.', 'create_thread: a real title');
 select throws_ok($$ select public.create_thread('local', null, 'Meet up?', '') $$, 'P0001', 'Pick a region for the Local board.', 'create_thread: Local needs a region');
 select throws_ok($$ select public.create_thread('cars', null, 'You absolute s.l.u.t', '') $$, 'P0001',
-  'Keep it friendly: that has a word Nightshift doesn''t allow.', 'filter: words Nightshift doesn''t allow, dotted out too');
+  'Keep it friendly: that has a word Slipstream doesn''t allow.', 'filter: words Slipstream doesn''t allow, dotted out too');
 select throws_ok($$ select public.create_thread('meets', null, 'Heads up', 'Police spotted on the ring road') $$, 'P0001',
-  'Posts about where police or speed checks are aren''t allowed on Nightshift.', 'filter: no police spotting');
+  'Posts about where police or speed checks are aren''t allowed on Slipstream.', 'filter: no police spotting');
 select throws_ok($$ select public.create_thread('meets', null, 'Friday night', 'Street racing on the A46 after') $$, 'P0001',
-  'Nightshift doesn''t allow organising or timing racing on public roads. Track days are fine.', 'filter: no racing on public roads');
+  'Slipstream doesn''t allow organising or timing racing on public roads. Track days are fine.', 'filter: no racing on public roads');
 select lives_ok($$ select public.create_thread('advice', null, 'Pulled by police at a meet', 'Got a ticket for my exhaust, what are my options?') $$,
   'filter: talking about the police isn''t spotting them');
 select throws_ok($$ select public.create_thread('builds', null, 'My build', '', array['c0000000-0000-0000-0000-00000000000a/forum/x.jpg']) $$, 'P0001',
@@ -386,7 +386,7 @@ select throws_ok($$ select public.create_post('   ') $$, 'P0001', 'Write somethi
 select throws_ok($$ select public.create_post('', array['c0000000-0000-0000-0000-00000000000b/posts/x.jpg']) $$, 'P0001',
   'That photo isn''t one of yours.', 'create_post: photos from your own folder only');
 select throws_ok($$ select public.create_post('Speed trap at the A15 roundabout') $$, 'P0001',
-  'Posts about where police or speed checks are aren''t allowed on Nightshift.', 'create_post: the same rules as the forum');
+  'Posts about where police or speed checks are aren''t allowed on Slipstream.', 'create_post: the same rules as the forum');
 select set_config('t.post', public.create_post('Sunset at the cathedral', array['c0000000-0000-0000-0000-00000000000a/posts/p1.jpg'], 53.30, -0.60, 'Cathedral car park', 'public')::text, true);
 select isnt(current_setting('t.post'), null, 'create_post: A posts a photo with a place');
 select is((select round(lat::numeric, 2) from public.feed_posts('author', null, auth.uid()) where id = current_setting('t.post')::uuid), 53.30::numeric,
@@ -408,7 +408,7 @@ select lives_ok(format($$ select public.like_post(%L, true) $$, current_setting(
 select is((select like_count || ':' || liked_by_me from public.feed_posts('local') where id = current_setting('t.post')::uuid), '1:true', 'like_post: counted, and liked by me');
 select lives_ok(format($$ select public.comment_post(%L, 'Proper shot that') $$, current_setting('t.post')), 'comment_post: D comments');
 select throws_ok(format($$ select public.comment_post(%L, 'what a slut') $$, current_setting('t.post')), 'P0001',
-  'Keep it friendly: that has a word Nightshift doesn''t allow.', 'comment_post: the word filter');
+  'Keep it friendly: that has a word Slipstream doesn''t allow.', 'comment_post: the word filter');
 select is((select comment_count from public.posts where id = current_setting('t.post')::uuid), 1, 'comment_post: counted');
 select lives_ok(format($$ select public.report_content('post', %L, 'spam') $$, current_setting('t.post')), 'report_content: posts can be reported');
 

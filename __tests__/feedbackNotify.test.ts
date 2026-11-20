@@ -24,7 +24,7 @@ const row: FeedbackRow = {
 describe('feedback email', () => {
   test('subject: kind and the start of the message on one line', () => {
     const { subject } = feedbackEmail(row, []);
-    expect(subject.startsWith('[Nightshift feedback] Bug: The Going button overlaps the chat')).toBe(true);
+    expect(subject.startsWith('[Slipstream feedback] Bug: The Going button overlaps the chat')).toBe(true);
     expect(subject).not.toContain('\n');
     expect(subject.length).toBeLessThan(110);
   });

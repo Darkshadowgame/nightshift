@@ -263,11 +263,11 @@ otp_expiry = 600
 # Sign-in is a 6-digit code typed into the app (no links). The template must
 # show {{ .Token }}. Set the same template on the hosted project.
 [auth.email.template.magic_link]
-subject = "Your Nightshift code"
+subject = "Your Slipstream code"
 content_path = "./supabase/templates/otp.html"
 
 [auth.email.template.confirmation]
-subject = "Your Nightshift code"
+subject = "Your Slipstream code"
 content_path = "./supabase/templates/otp.html"
 
 # Use a production-ready SMTP server

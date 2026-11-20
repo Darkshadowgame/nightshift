@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Nightshift's own drives and photo spots on the server (docs/BACKEND.md, section 7a-4).
+// Slipstream's own drives and photo spots on the server (docs/BACKEND.md, section 7a-4).
 //
 //   node --import ./scripts/lib/resolve-ts.mjs scripts/seed-bundled-places.mjs            # writes supabase/seed_bundled_places.sql
 //   set -a; . ~/.config/homelab-secrets.env; set +a

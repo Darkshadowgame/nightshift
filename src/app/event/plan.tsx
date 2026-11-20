@@ -254,7 +254,7 @@ export default function ChangePlan() {
         }}
         onDismiss={() => setAskBan(null)}
       >
-        <DsText v="caption">Nightshift only warns: you're responsible for where you send people.</DsText>
+        <DsText v="caption">Slipstream only warns: you're responsible for where you send people.</DsText>
       </ConfirmSheet>
 
       <MapPicker

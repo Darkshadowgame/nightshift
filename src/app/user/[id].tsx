@@ -66,7 +66,7 @@ export default function UserScreen() {
     nav.setOptions({ headerRight: p && !isMe ? () => <HeaderActions onMenu={() => setMenu(true)} /> : undefined });
   }, [nav, p?.id, isMe]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!p) return <NotFoundState what="Profile" message="This person isn't on Nightshift any more." />;
+  if (!p) return <NotFoundState what="Profile" message="This person isn't on Slipstream any more." />;
   const cover = mainBuild(p.builds);
   const handle = `@${p.handle}`;
   const coverPic = cover ? buildPicture(cover, demo) : null;
@@ -198,7 +198,7 @@ export default function UserScreen() {
         ) : null}
 
         <DsText v="caption" style={{ textAlign: 'center' }}>
-          Nightshift never shows where anyone lives or where they are.
+          Slipstream never shows where anyone lives or where they are.
         </DsText>
       </ScrollView>
       {/* A tab is one tap away on a profile, however deep it was opened (Review 19 #35). */}

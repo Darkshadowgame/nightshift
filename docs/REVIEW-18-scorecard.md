@@ -187,7 +187,7 @@ pills any more (e-editprofile).
 | 7 | Low | Connect | Profile, Connect | "Waiting for @dan_r to accept" for about 4 s, then it flips to Message. Nothing says the demo will accept, so a tester may leave. | t7-c, t7-d |
 | 8 | Low | Tonight map sheet | Task 10 | Only the first card shows above the fold; a meet you're going to on Sunday needs List and a scroll. | t10-b, t10-c |
 | 9 | Low | Photos | Sign-in, Car park meet-up, Friday night meet (Busy) | Plate-blur boxes sit in the background as grey smudges (sign-in hero, top middle; event hero, top right; a large one on Friday night meet). They read as damage, not privacy. | x-start, t2-a, b-event |
-| 10 | Low | Vote | Vote one trophy, Done | Done ends voting for you: Vote leaves the ActionBar and "Results are in." shows, with Best bike and Best in show never voted. Only How Nightshift works explains it's a demo shortcut. | t6-c, e-help |
+| 10 | Low | Vote | Vote one trophy, Done | Done ends voting for you: Vote leaves the ActionBar and "Results are in." shows, with Best bike and Best in show never voted. Only How Slipstream works explains it's a demo shortcut. | t6-c, e-help |
 | 11 | Low | Small maps | Onboarding step 2, Sunday coffee and cars | A white sliver at the top edge of the map card (a clipped road label). | t1-e, t10-d |
 | 12 | Low | Garage header | Garage tab | "+" adds a car here, hosts a meet on Tonight and posts on Community: same place, three jobs (allowed by 4.1). | t8-a |
 
@@ -220,7 +220,7 @@ and 2 breaks on the task screens. No console errors in either.
 **Fixed since Review 17 (checked):**
 * **Going toast's CHANGE (R17 break 1, #6):** the toast is now "You're going" with no action.
 * **Me at 1.3x (R17 #2):** the meet rows wrap; no ellipsis.
-* **"Results are in." next to "1 of 3 voted" (R17 #3):** no longer side by side; How Nightshift works
+* **"Results are in." next to "1 of 3 voted" (R17 #3):** no longer side by side; How Slipstream works
   explains the demo shortcut (problem 10 is what's left).
 * **Sunday meet said twice (R17 #4):** no GOING badge on its photo, no "Remind me at 09:00"; one
   "Going" pill and one "Location shows at 09:00."

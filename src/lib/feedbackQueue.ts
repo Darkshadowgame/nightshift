@@ -12,7 +12,7 @@ export type FeedbackKind = 'bug' | 'idea' | 'looks_wrong' | 'other';
 /** The form's choices, in order. */
 export const FEEDBACK_KINDS: { kind: FeedbackKind; label: string; hint: string }[] = [
   { kind: 'bug', label: 'Bug', hint: 'Something broke or didn’t work.' },
-  { kind: 'idea', label: 'Idea', hint: 'Something you’d like Nightshift to do.' },
+  { kind: 'idea', label: 'Idea', hint: 'Something you’d like Slipstream to do.' },
   { kind: 'looks_wrong', label: 'Something’s wrong with a place or event', hint: 'A wrong pin, name, time or detail.' },
   { kind: 'other', label: 'Other', hint: 'Anything else.' },
 ];

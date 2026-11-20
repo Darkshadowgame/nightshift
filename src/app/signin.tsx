@@ -66,10 +66,10 @@ function AgreeLine() {
 }
 
 /**
- * First run (Redesign 2, 3.1): what Nightshift is in one line, a photo, the loop in three lines,
+ * First run (Redesign 2, 3.1): what Slipstream is in one line, a photo, the loop in three lines,
  * then Try the demo (primary) and Sign in (secondary) in the ActionBar, both on screen at 375x667.
  * Sign in opens the email step (a form with its own back): an email code, or for the App Review
- * account a password. The email has a 6-digit code once Nightshift's own mail is set up; until
+ * account a password. The email has a 6-digit code once Slipstream's own mail is set up; until
  * then Supabase's built-in sender mails a sign-in link. Tapping that link on the phone opens the
  * app signed in; pasting it here works too.
  */
@@ -249,7 +249,7 @@ export function EmailSignIn({ onBack }: { onBack?: () => void }) {
     run('link', async () => {
       if (!link.trim()) throw new Error('Paste the link from the email first.');
       const ok = await auth.openLink(link);
-      if (!ok) throw new Error("That isn't a Nightshift sign-in link. Copy the whole link from the email.");
+      if (!ok) throw new Error("That isn't a Slipstream sign-in link. Copy the whole link from the email.");
     });
 
   const input = [typeStyle('input'), st.input];

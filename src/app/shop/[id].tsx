@@ -128,7 +128,7 @@ export default function ShopScreen() {
           {p.offer ? <DsText v="body">{p.offer}</DsText> : <EmptyState variant="inline" title="No offer listed right now." />}
           {p.link && safeWebLink(p.link) && !p.demo ? <Button label="See the offer" tier="tertiary" size="sm" onPress={() => open(p.link!)} /> : null}
           <DsText v="caption">
-            {p.demo ? 'A made-up business to show how partners look. It isn’t real and neither is the offer.' : 'Partners pay Nightshift to be highlighted on the map. They are always marked Partner.'}
+            {p.demo ? 'A made-up business to show how partners look. It isn’t real and neither is the offer.' : 'Partners pay Slipstream to be highlighted on the map. They are always marked Partner.'}
           </DsText>
         </Section>
       ) : null}

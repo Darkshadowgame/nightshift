@@ -1,4 +1,4 @@
-This is Nightshift, an Expo/React Native app (see README.md and docs/SPEC.md). Prioritize mobile-first patterns.
+This is Slipstream, an Expo/React Native app (see README.md and docs/SPEC.md). Prioritize mobile-first patterns.
 
 ## Expo has changed — do not trust your training data
 

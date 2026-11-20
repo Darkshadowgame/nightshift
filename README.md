@@ -1,4 +1,4 @@
-# Nightshift (working name)
+# Slipstream (working name)
 
 **What's on tonight near me, and go with my car.** A UK car and bike meet app: see
 what's on near you tonight, say you're going with your build, check in, vote for
@@ -98,21 +98,21 @@ note anything odd for the next pass. Each step says what you should see.
 
 ### 2. Sign in, or the demo
 
-The app now opens on **Sign in** (phones that used Nightshift before accounts stay in
+The app now opens on **Sign in** (phones that used Slipstream before accounts stay in
 the demo with their data; Me › Settings › Account > **Sign in or create an account** gets you here).
 
 - [ ] Type your email and tap **Email me a code**. Until custom email (SMTP) is set up,
       Supabase only mails **the project team's addresses**, about 2 an hour, and the email
       has a **sign-in link, not a code** (docs/BACKEND.md section 7b). So for now: use the
       owner's address, then **tap the link in the email on the iPhone**: iOS asks to open
-      Nightshift and you're signed in. Reading the email on a computer instead? Tap **The
+      Slipstream and you're signed in. Reading the email on a computer instead? Tap **The
       email has a link, not a code**, copy the link from the email and paste it in.
 - [ ] Once SMTP is on, the email has a 6-digit code: type it and tap **Sign in**. A wrong
       or old code says so; **Send it again** works once a minute.
 - [ ] Mates can't sign in until SMTP is set up: they get a clear message and can tap **Try
       the demo without an account**.
 - [ ] Signed in, the first run below is the same, but saved on the server: a taken handle
-      is anyone's on Nightshift now, not a sample person's. There are no sample people or
+      is anyone's on Slipstream now, not a sample person's. There are no sample people or
       events when signed in: you'll see what real people host.
 - [ ] Me › Settings › Account shows **Signed in as …**, **Sign out** and **Delete my account**.
       Deleting asks first, then removes your profile, home, garage and photos, check-ins,
@@ -150,7 +150,7 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
       (e.g. "Ventura Park Rd, Tamworth" style); with no signal they keep neutral names
       like "Retail park car park".
 - [ ] Location denied instead? Delete and reinstall, or turn it off in Settings >
-      Nightshift > Location: the map shows your home area and says so once, with an
+      Slipstream > Location: the map shows your home area and says so once, with an
       **Open Settings** link. Tapping the **you** button says it again.
 
 ### 3. Garage and photos (plate blur)
@@ -280,13 +280,13 @@ the demo with their data; Me › Settings › Account > **Sign in or create an a
       car-meet order area… See details ›", which opens the info card. Each
       drive's line should sit on the real road when you zoom in. Drives show **Before you
       go** warnings where they matter (single-track, snow gates, cameras), and "Added by
-      Nightshift".
+      Slipstream".
 - [ ] A drive has one primary button, **Start the drive**: on the iPhone it opens the driving
       view, which counts the drive when you pass every checkpoint in order (pass or fail, never
       timed). In the demo the app drives it for you at a legal pace and it finishes with a pass
       and its rep. Rate it 1–5 stars. On the web (or with another directions app chosen), it
       counts only the checkpoints you really pass; **Directions to the start** opens other apps.
-- [ ] Signed in, finishing, checking in at or rating one of Nightshift's own drives or photo
+- [ ] Signed in, finishing, checking in at or rating one of Slipstream's own drives or photo
       spots is saved on the server: **Driven by**, the stars and your rep match on a mate's
       phone. Anything done on that phone before this update shows **Only on this phone** and
       doesn't count.
@@ -388,10 +388,10 @@ while moving: the driving screen is built to be glanced at, not used.
       at …** (with the usual distance and time checks). Drives: each checkpoint is called out
       ("Checkpoint 3 of 12"), and passing them all in order counts the drive (pass or fail,
       never timed).
-- [ ] **Open in another app ›**: Nightshift, Apple Maps, Google Maps (the app if installed,
+- [ ] **Open in another app ›**: Slipstream, Apple Maps, Google Maps (the app if installed,
       else the website), Waze, or **Other app…** (share sheet with the coordinates). Turn on
       **Always use this** and pick Waze: the main button now says **Directions in Waze**.
-      Me › Settings › **Navigation** sets it back to Nightshift. Other apps get the first stop only.
+      Me › Settings › **Navigation** sets it back to Slipstream. Other apps get the first stop only.
 - [ ] Web preview: the driving screen says it needs the iPhone app and offers the other apps.
 
 ### 7e. Road reports (over the air)
@@ -491,7 +491,7 @@ app updates.
   real person for now.
 - Signed in, live updates (chat, going, check-ins, move on, notices) arrive while the app
   is open. Real push to a locked phone needs Phase 2 and a paid Apple developer account.
-- Signed in: Nightshift's own bundled drives, photo spots and circuits aren't on the server
+- Signed in: Slipstream's own bundled drives, photo spots and circuits aren't on the server
   yet, so finishing or rating one is kept on the phone (places people suggest are on the
   server and checked there). "Demo: skip the GPS check" doesn't exist signed in: the server
   always checks you're there. Adding someone to your crew needs an invite (not built): they
@@ -629,7 +629,7 @@ app updates.
 | Circuit outlines (`src/data/circuits.ts`), drive lines, car parks | OpenStreetMap (`highway=raceway`, motorsport `leisure=track`) | © OpenStreetMap contributors, ODbL 1.0. Credited on the track and drive maps. |
 | Shops (`assets/data/shops.nsdata`) | OpenStreetMap car and bike businesses (`shop=car_repair`, `car_parts`, `car`, `motorcycle`, `tyres`, `amenity=car_wash`, `vehicle_inspection`, biker cafés…), read from the Geofabrik UK extract of 16 Nov 2026 | © OpenStreetMap contributors, ODbL 1.0. Kept as its own dataset; edits people suggest go to the feedback queue, never into it. Credited on the map and every shop screen. |
 | Road closures (server, `road_closures`) | TfL Unified API road disruptions (London, no key); National Highways Road and Lane Closures v2 (England's motorways and major A roads, once a key is set) | TfL: its open data terms, credited "Powered by TfL Open Data" (terms not re-read for this; check before launch). National Highways: Open Government Licence v3.0. Credited on each closure. |
-| Road reports | Nightshift drivers | Kept on the server only while they're live (plus two days); never merged with the camera data |
+| Road reports | Slipstream drivers | Kept on the server only while they're live (plus two days); never merged with the camera data |
 | Layouts and lap records (`src/data/trackInfo.ts`) | Each circuit's Wikipedia page, linked on the track screen | Facts, with the source linked |
 | Nearby photos | Wikimedia Commons, fetched by the app | Each photo's own licence and author, shown under it and on its Commons page |
 | Web preview base map (web only, `src/components/webmap/tiles.web.ts`) | Stadia Maps "Alidade Smooth Dark" raster tiles; if they won't load, Esri "Dark Gray Canvas"; offline, the grid | © Stadia Maps © OpenMapTiles © OpenStreetMap (or © Esri, HERE, Garmin © OpenStreetMap), always shown on the map. **Licence note:** both are free for development and light use only. Stadia needs no key on `localhost`, but any other web address must be registered (free tier) at stadiamaps.com, or the map drops to Esri. Revisit both (paid plan or own tiles) before a public web launch. CARTO's keyless Dark Matter tiles now return an "API key required" picture, so they aren't used. |

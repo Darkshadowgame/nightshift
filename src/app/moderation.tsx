@@ -62,7 +62,7 @@ function ModerationScreen() {
   if (status.data && !status.data.isStaff) {
     return (
       <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
-        <EmptyState title="For the Nightshift team" body="Moderation is only for staff. To report something, use Report on it." />
+        <EmptyState title="For the Slipstream team" body="Moderation is only for staff. To report something, use Report on it." />
       </View>
     );
   }

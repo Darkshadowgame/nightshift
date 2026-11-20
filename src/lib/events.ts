@@ -458,5 +458,5 @@ export function eventLink(eventId: string): string {
 
 /** Share text. Only the rough area, never a stop, so it's safe to post anywhere. */
 export function shareText(event: NightEvent, when: string): string {
-  return `${event.title}: ${EVENT_LABELS[event.type].toLowerCase()}, ${when}, ${event.areaName}. Open it in Nightshift: ${eventLink(event.id)}`;
+  return `${event.title}: ${EVENT_LABELS[event.type].toLowerCase()}, ${when}, ${event.areaName}. Open it in Slipstream: ${eventLink(event.id)}`;
 }

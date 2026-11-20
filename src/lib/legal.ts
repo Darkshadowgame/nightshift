@@ -67,4 +67,4 @@ export const CREDITS: Credit[] = [
 
 /** Car and bike makes are named only to describe what people own. */
 export const BRANDS_NOTE =
-  "Car and bike makes and models are named only to describe the vehicles people own. Nightshift isn't connected with or endorsed by any manufacturer.";
+  "Car and bike makes and models are named only to describe the vehicles people own. Slipstream isn't connected with or endorsed by any manufacturer.";

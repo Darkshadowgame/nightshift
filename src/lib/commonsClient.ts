@@ -57,7 +57,7 @@ export async function nearbyCommonsPhotos(at: LatLng, radiusM: number, placeName
     const res = await fetch(commonsUrl(at, radiusM), {
       signal: controller.signal,
       // Wikimedia asks apps to say who they are. No contact details or user data.
-      headers: { 'Api-User-Agent': 'Nightshift-app/1.0' },
+      headers: { 'Api-User-Agent': 'Slipstream-app/1.0' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const photos = parseCommons(await res.json(), at, placeName);

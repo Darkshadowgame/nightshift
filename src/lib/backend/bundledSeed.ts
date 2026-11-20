@@ -1,7 +1,7 @@
 import type { LatLng, SpotKind } from '../types';
 
 /**
- * The SQL that puts Nightshift's own drives and photo spots on the server
+ * The SQL that puts Slipstream's own drives and photo spots on the server
  * (spots.bundled_id, migration 20261117190000_bundled_places.sql). Generated
  * from src/data/places.ts by scripts/seed-bundled-places.mjs, so the app and
  * the database never drift. Pure, so it's unit-tested.

@@ -206,7 +206,7 @@ export function ConfirmSheet({
   onCancel: () => void;
   /** The scrim (and Android back): closes without either choice. Defaults to `onCancel`. */
   onDismiss?: () => void;
-  /** A quiet line under the message ("Nightshift only warns…"). */
+  /** A quiet line under the message ("Slipstream only warns…"). */
   children?: ReactNode;
 }) {
   return (

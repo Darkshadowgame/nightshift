@@ -1,4 +1,4 @@
-# Nightshift: public and third-party data sources (UK)
+# Slipstream: public and third-party data sources (UK)
 
 Researched 17 Nov 2026. Sources are linked inline. Where a fact comes from a third-party page, or I couldn't confirm it on an official page, it is marked **(unverified)**. Prices and quotas change, so recheck them before you commit to a vendor.
 

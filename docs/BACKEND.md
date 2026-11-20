@@ -1,9 +1,9 @@
-# Nightshift backend (Supabase)
+# Slipstream backend (Supabase)
 
 Status: **live on the hosted project since 17 Nov 2026** (ref
 `vuftzeianmqjboivqmws`, region **eu-west-1, Ireland**, free plan, Postgres 17).
 All 18 migrations and the seeds are applied and the 613 pgTAP checks pass
-against the hosted database (Community added 17 Nov 2026, section 3b) (road reports added 17 Nov 2026, section 3a; Nightshift's
+against the hosted database (Community added 17 Nov 2026, section 3b) (road reports added 17 Nov 2026, section 3a; Slipstream's
 own drives and photo spots on the server, section 7a-4). **The app is wired to it** (17 Nov 2026): signed in,
 every store action goes to the tables and RPCs below (section 5); "Try the demo
 without an account" keeps the local sample scene. The end-to-end smoke test
@@ -30,7 +30,7 @@ Everything lives in `supabase/` (Supabase CLI layout):
 | `supabase/migrations/20261121120000_nav_and_report_rep.sql` | **Not applied yet (Applied 19 Nov 2026 after the owner said yes, 19 Nov 2026).** Rep for using the app: `nav_rep` and `complete_navigation()` (+5, 3 a day), +2 for posting a road report (10 a day), -2 for one cleared as wrong, `road_rep_for()` with the new counts (section 3a) |
 | `supabase/migrations/20261117150000_app_wiring.sql` | What the app needs: `events_list`, `spots_list`, `my_home` read views (lat/lng instead of geography, `security_invoker`, so RLS still decides); the Realtime publication; `delete_my_account()` |
 | `supabase/migrations/20261117230000_feedback_triage.sql` | Feedback triage (`triage_notes`, `fixed_in`, `handled_at`), senders read their own, `feedback_status()`, kind `other`, screenshots list, context and opt-in location, `pg_net` and the email trigger (section 3, "Feedback"; 7e) |
-| `supabase/migrations/20261117190000_bundled_places.sql` | Nightshift's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
+| `supabase/migrations/20261117190000_bundled_places.sql` | Slipstream's own places on the server: `spots.bundled_id` (the app's stable id, unique, no author) and `limit_mph`, both in `spots_list`; `complete_drive()` uses the road's own limit; `place_rep_for()` (drives, their tier rep and photo spots per person, counts only) |
 | `supabase/migrations/20261117220000_community.sql` | Community: Cars near you, connections, blocks, the forum, messages, feed posts, rate builds, reports, rate limits, the private `messages` bucket (section 3b) |
 | `supabase/migrations/20261117233000_report_targets.sql` | Report targets `chat`, `event`, `crew`, `spot` (on their own: a new enum value can't be used in the transaction that adds it) |
 | `supabase/migrations/20261117233100_moderation.sql` | Moderation for all user content: reports on event chat, events, crews and places; hidden chat lines; blocks in event chat; `suspensions`; `moderate_report()` with suspend; `lift_suspension()`; `my_moderation_status()` (section 3b) |
@@ -484,7 +484,7 @@ conversation you're in; members read; you delete your own. Forum and post photos
 
 * `report_content()` also takes `chat` (an event chat line you can read: you're a host or
   going), `event`, `crew` (reported against its owner) and `spot` (a suggested place, not
-  Nightshift's own). Three reports hide a chat line (`chat_messages.hidden_at`), as for posts.
+  Slipstream's own). Three reports hide a chat line (`chat_messages.hidden_at`), as for posts.
 * **Blocks reach event chat:** a restrictive select policy on `chat_messages` leaves out lines
   from people you blocked (Realtime too) and hidden lines (their writer and staff still see them).
 * **Suspensions** (`public.suspensions`: user, reason, `until` or null for "until lifted"): read
@@ -519,7 +519,7 @@ Rules: docs/SPEC.md "Community"; roles and the audit: docs/MODERATION.md. Mirror
 | `posts.is_selling`, `forum_threads.is_selling` | the selling detector's answer when posted | as the row | the RPCs |
 | `is_repeat` on posts, threads, replies, comments, event chat | a second copy of the same text in 24 h | as the row | the RPCs / chat trigger |
 | `private.spam_log` | each person's normalised text for 48 h (private messages too, never shown) | nobody (RPCs) | `private.spam_gate()` |
-| `reports.automatic` | raised by Nightshift (spam cooldown, sell-only) | staff | `private.auto_report()` |
+| `reports.automatic` | raised by Slipstream (spam cooldown, sell-only) | staff | `private.auto_report()` |
 | `suspensions.scope` | `community` (no public posting, event chat, connection requests) or `full` (messages too) | own, staff | `ban_member()`, `moderate_report()`, the cooldown |
 | `staff.role` | `owner` (one, unique index), `admin`, `moderator` (existing rows) | own row, staff | `set_staff_role()`; the owner row by SQL only |
 | `moderation_warnings` | warnings and when they were acknowledged | own, staff | `warn_member()`, `acknowledge_warning()` |
@@ -867,7 +867,7 @@ push every other difference in `config.toml` (MFA, storage, API settings).
 * **Not deployed:** the `import-closures` function and its schedule (section 7d), so
   `road_closures` is empty and the app shows drivers' reports only.
 
-### 7a-4. What's live (17 Nov 2026, Nightshift's own places on the server)
+### 7a-4. What's live (17 Nov 2026, Slipstream's own places on the server)
 
 * **Migration** `20261117190000_bundled_places.sql` pushed with `db push --remote --yes`
   (a `pg_dump` of `public` was taken first, kept off the repo).
@@ -1135,7 +1135,7 @@ client sends one (kind `other`) and can't read the table; after the team marks i
 `done` and the version, with no message or notes. Both are marked `context.test`, so
 they're never emailed.
 
-Bundled places: B reads Nightshift's own drives and photo spots by `bundled_id`; A
+Bundled places: B reads Slipstream's own drives and photo spots by `bundled_id`; A
 finishes the Snake Pass (`dr-snake-pass`) with fixes on the seeded line and rates it; B
 sees one more person and a rating in `spot_stats` (never who), and A's drive rep
 (medium, 100) in `place_rep_for`. The cleanup also checks no completions or ratings are
@@ -1153,10 +1153,10 @@ left for the test users.
      --arg host "$BREVO_SMTP_HOST" --arg port "$BREVO_SMTP_PORT" --arg user "$BREVO_SMTP_USER" \
      --arg pass "$BREVO_SMTP_KEY" --arg from "$BREVO_SENDER_EMAIL" '{
        smtp_host: $host, smtp_port: $port, smtp_user: $user, smtp_pass: $pass,
-       smtp_admin_email: $from, smtp_sender_name: "Nightshift", smtp_max_frequency: 60,
+       smtp_admin_email: $from, smtp_sender_name: "Slipstream", smtp_max_frequency: 60,
        rate_limit_email_sent: 30,
-       mailer_subjects_magic_link: "Your Nightshift code", mailer_templates_magic_link_content: $t,
-       mailer_subjects_confirmation: "Your Nightshift code", mailer_templates_confirmation_content: $t }' \
+       mailer_subjects_magic_link: "Your Slipstream code", mailer_templates_magic_link_content: $t,
+       mailer_subjects_confirmation: "Your Slipstream code", mailer_templates_confirmation_content: $t }' \
    | curl -sS -o /dev/null -w '%{http_code}\n' -X PATCH \
        -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
        https://api.supabase.com/v1/projects/vuftzeianmqjboivqmws/config/auth --data @-
