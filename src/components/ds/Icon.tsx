@@ -6,7 +6,7 @@ import { COLOR } from '../../theme';
  * Unicode stand-ins (›, ✕, ✓, ···, ⚠) in components. Decorative: the control
  * that holds an icon carries the accessibility label.
  */
-export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share' | 'addVehicle';
+export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share' | 'addVehicle' | 'addMeet' | 'compose';
 
 export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: IconName; size?: number; colour?: string }) {
   const p = { stroke: colour, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -30,6 +30,20 @@ export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: I
           <Circle cx={7} cy={17} r={2} {...p} />
           <Circle cx={16} cy={17} r={2} {...p} />
           <Path d="M19 2.5v5M16.5 5h5" {...p} />
+        </>
+      ) : null}
+      {name === 'addMeet' ? (
+        // A calendar with a plus: Tonight's "+", host a meet (Review 20 #30: one icon per job).
+        <>
+          <Path d="M20 11V6a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h7M4 9.5h16M8 3v4M16 3v4" {...p} />
+          <Path d="M18 15v6M15 18h6" {...p} />
+        </>
+      ) : null}
+      {name === 'compose' ? (
+        // A speech bubble with a plus: Community's "+", post, ask, sell or message (Review 20 #30).
+        <>
+          <Path d="M20 12.5V6a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h2v3.5L10.5 17H13" {...p} />
+          <Path d="M18 14v6M15 17h6" {...p} />
         </>
       ) : null}
       {name === 'edit' ? <Path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" {...p} /> : null}

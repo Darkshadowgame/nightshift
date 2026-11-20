@@ -26,6 +26,18 @@ export function nearest<T extends { at: LatLng }>(items: T[], home: LatLng, n = 
 }
 
 /** Same place, to about 10 m: has the home area changed enough to redraw the scene? */
+/**
+ * A home this close to the sample scene keeps the scene where it is (Review 20, owner decision 1):
+ * its real roads and places stay true, and distances are measured honestly from you. Further away,
+ * the scene is drawn round the new home.
+ */
+export const SCENE_NEAR_MILES = 15;
+
+/** Whether a new home keeps the sample scene where it is (`SCENE_NEAR_MILES`). */
+export function keepsScene(sceneHome: LatLng | undefined, home: LatLng): boolean {
+  return !!sceneHome && (sameHome(sceneHome, home) || milesBetween(sceneHome, home) <= SCENE_NEAR_MILES);
+}
+
 export function sameHome(a: LatLng | undefined, b: LatLng): boolean {
   return !!a && Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001;
 }

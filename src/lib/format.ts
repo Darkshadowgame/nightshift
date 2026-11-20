@@ -72,17 +72,16 @@ export function sentToast(invited: string, isPublic: boolean, openToAll = false)
 }
 
 /**
- * A distance in the one wording (Redesign 2, 4.9, Review 11). Whole miles, one rounding
- * everywhere: "2 mi", "under 1 mi". `from`: `you` (a GPS fix) gives "2 mi"; `home` gives
- * "2 mi from home"; `about` (a meet whose point you can't see yet) gives "about 2 mi". Never
- * "from the map's centre".
+ * A distance in the one wording (Redesign 2, 4.9, Reviews 11 and 20). Whole miles, one rounding
+ * everywhere, and always its origin (Review 20, owner decision 1): "2 mi from you" (a GPS fix),
+ * "2 mi from home", "under 1 mi from you". `about` (a meet whose point you can't see yet) gives
+ * "about 2 mi from you". Never "from the map's centre", never a bare "2 mi".
  */
-export function distanceText(miles: number, from: 'you' | 'home' | 'about' = 'you'): string {
+export function distanceText(miles: number, from: 'you' | 'home' = 'you', about = false): string {
   const n = Math.round(miles);
   // A no-break space keeps the number with "mi" at large text, as with bhp (Review 16).
-  const base = miles < 1 || n < 1 ? 'under 1\u00a0mi' : `${n}\u00a0mi`;
-  if (from === 'about') return miles < 1 ? 'about 1\u00a0mi' : `about ${base}`;
-  return from === 'home' ? `${base} from home` : base;
+  const base = about ? (miles < 1.5 ? 'about 1\u00a0mi' : `about ${n}\u00a0mi`) : miles < 1 || n < 1 ? 'under 1\u00a0mi' : `${n}\u00a0mi`;
+  return `${base} from ${from}`;
 }
 
 /** Where every distance is measured from: your GPS fix while location is on, else your home. */
@@ -112,15 +111,12 @@ export function distanceOrigin(here: LatLng | null | undefined, home: LatLng | n
 /**
  * The distance to a meet, the same on every screen (Tonight, the event page, Search, lists): from
  * the one origin (`distanceOrigin`) to the meet's **area** centre, which never moves when the meet
- * point shows, so going doesn't change the number. "2 mi" from you, "2 mi from home", and
- * "about 2 mi" (with "from home" when from home) while you can't see the meet point yet.
- * Null with no origin.
+ * point shows, so going doesn't change the number. "2 mi from you", "2 mi from home", and
+ * "about 2 mi from you" while you can't see the meet point yet. Null with no origin.
  */
 export function meetDistance(event: { area: LatLng }, origin: DistanceOrigin | null, pointHidden = false): string | null {
   if (!origin) return null;
-  const miles = milesBetween(origin.at, event.area);
-  const text = distanceText(miles, pointHidden ? 'about' : origin.from);
-  return pointHidden && origin.from === 'home' ? `${text} from home` : text;
+  return distanceText(milesBetween(origin.at, event.area), origin.from, pointHidden);
 }
 
 /** "9 going · 7 cars, 2 bikes" (Redesign 2, 4.9: no class codes). Leaves out a zero kind; a bare count when nothing's known. */

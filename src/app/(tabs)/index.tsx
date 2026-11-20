@@ -800,7 +800,7 @@ export default function TonightScreen() {
                 </Press>
               ) : undefined
             }
-            add={{ label: 'Host a meet', onPress: () => router.push('/event/new') }}
+            add={{ label: 'Host a meet', onPress: () => router.push('/event/new'), icon: 'addMeet' }}
             bell
           />
         </View>

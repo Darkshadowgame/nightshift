@@ -113,7 +113,8 @@ export default function Me() {
       <Tabs.Screen options={{ headerRight: meHeaderRight }} />
       <View style={{ gap: SPACING.md }}>
         <View style={st.profile}>
-          <Avatar name={user?.name} handle={user?.handle} size="lg" />
+          {/* A close crop when your car's card is right under it (Review 20 #29), so it's not the same photo twice. */}
+          <Avatar name={user?.name} handle={user?.handle} size="lg" close={!!main} />
           <View style={{ flex: 1, gap: SPACING.xxs }}>
             <DsText v="titleLg" numberOfLines={1}>
               @{user?.handle}

@@ -259,7 +259,8 @@ function variantClass(v: Variant) {
  */
 function PickedCard({ variant }: { variant: Variant }) {
   const { backend } = useStore();
-  const pic = buildPicture({ photos: [], make: variant.make, model: variant.model, kind: variant.kind, year: variant.from }, backend === 'local');
+  // The saved model names the generation ("Fiesta ST Mk7 ST180"), so the stand-in is that generation (Review 20 #5).
+  const pic = buildPicture({ photos: [], make: variant.make, model: modelLabel(variant), kind: variant.kind, year: variant.from }, backend === 'local');
   return (
     <FadeUp key={variant.id}>
       <View accessibilityLiveRegion="polite">

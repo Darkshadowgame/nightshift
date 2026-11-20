@@ -33,12 +33,19 @@ export function Avatar({
   photo,
   size = 'md',
   label,
+  close,
 }: {
   name?: string | null;
   handle?: string | null;
   photo?: Photo | null;
   size?: AvatarSize;
   label?: string;
+  /**
+   * A close crop of the car photo (Me, Review 20 #29): where the whole car is shown right under the
+   * avatar, the avatar is a detail of it (about 2.4x in, a little below the middle: lights, wheel arch),
+   * so the two never read as the same picture twice.
+   */
+  close?: boolean;
 }) {
   const lookup = useContext(AvatarPhotoContext);
   const dim = AVATAR_SIZE[size];
@@ -47,6 +54,18 @@ export function Avatar({
   const a11y = label
     ? { accessible: true, accessibilityRole: 'image' as const, accessibilityLabel: label }
     : { 'aria-hidden': true };
+  if (pic && close) {
+    return (
+      <View {...a11y} style={[frame, { overflow: 'hidden', backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.avatar.border }]}>
+        <Image
+          source={src(pic)}
+          resizeMode="cover"
+          style={{ position: 'absolute', width: dim, height: dim, transform: [{ scale: 2.4 }, { translateX: -dim * 0.1 }, { translateY: dim * 0.05 }] }}
+          accessibilityIgnoresInvertColors
+        />
+      </View>
+    );
+  }
   if (pic) {
     return <Image source={src(pic)} resizeMode="cover" style={[frame, { backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.avatar.border }]} accessibilityIgnoresInvertColors {...a11y} />;
   }

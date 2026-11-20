@@ -231,16 +231,17 @@ describe('time wording (4.10, when.ts)', () => {
 
 describe('numbers and units (4.9, format.ts)', () => {
   const f = require('../src/lib/format');
-  it('says where a distance is from, in whole miles', () => {
-    expect(f.distanceText(2)).toBe('2\u00a0mi');
-    expect(f.distanceText(2.34)).toBe('2\u00a0mi');
-    expect(f.distanceText(1.2)).toBe('1\u00a0mi');
-    expect(f.distanceText(0.4)).toBe('under 1\u00a0mi');
+  it('says where a distance is from, in whole miles, every time (Review 20)', () => {
+    expect(f.distanceText(2)).toBe('2\u00a0mi from you');
+    expect(f.distanceText(2.34)).toBe('2\u00a0mi from you');
+    expect(f.distanceText(1.2)).toBe('1\u00a0mi from you');
+    expect(f.distanceText(0.4)).toBe('under 1\u00a0mi from you');
     expect(f.distanceText(2, 'home')).toBe('2\u00a0mi from home');
-    expect(f.distanceText(6.2, 'about')).toBe('about 6\u00a0mi');
-    expect(f.distanceText(14.6)).toBe('15\u00a0mi');
+    expect(f.distanceText(6.2, 'you', true)).toBe('about 6\u00a0mi from you');
+    expect(f.distanceText(0.6, 'home', true)).toBe('about 1\u00a0mi from home');
+    expect(f.distanceText(14.6)).toBe('15\u00a0mi from you');
     // The number never splits from "mi" at large text (Review 16).
-    expect(f.distanceText(1.2, 'about')).not.toMatch(/\d mi/);
+    expect(f.distanceText(1.2, 'you', true)).not.toMatch(/\d mi/);
   });
   it('gives one distance to a meet from one origin, whether or not its point shows', () => {
     const home = { lat: 52.63, lng: -1.7 };
@@ -251,10 +252,12 @@ describe('numbers and units (4.9, format.ts)', () => {
     expect(f.distanceOrigin({ lat: 51.5072, lng: -0.1276 }, home)).toEqual({ at: home, from: 'home' });
     expect(f.distanceOrigin({ lat: 1, lng: 1 }, null).from).toBe('you');
     expect(f.distanceOrigin(null, { lat: 0, lng: 0 })).toBeNull();
+    // The demo measures from its home, said so (Review 20): never passed off as you.
+    expect(f.distanceOrigin({ lat: 52.68, lng: -1.83 }, home, true)).toEqual({ at: home, from: 'home' });
     const o = f.distanceOrigin(null, home);
     expect(f.meetDistance(ev, o)).toBe('2\u00a0mi from home');
     expect(f.meetDistance(ev, o, true)).toBe('about 2\u00a0mi from home');
-    expect(f.meetDistance(ev, f.distanceOrigin(home, home))).toBe('2\u00a0mi');
+    expect(f.meetDistance(ev, f.distanceOrigin(home, home))).toBe('2\u00a0mi from you');
     expect(f.meetDistance(ev, null)).toBeNull();
   });
   it('sums up who is going without class codes', () => {

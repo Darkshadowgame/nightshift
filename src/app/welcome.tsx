@@ -14,6 +14,7 @@ import { fuzz, milesBetween } from '../lib/geo';
 import { newId } from '../lib/ids';
 import { currentPosition } from '../lib/location';
 import { areaNameNear, nearestRegion, regionCentre, suggestHandle } from '../lib/profile';
+import { sameHome, SCENE_NEAR_MILES } from '../lib/scene';
 import { useStore } from '../lib/store';
 import type { Build, LatLng, VehicleKind } from '../lib/types';
 import { findVariant, specFill, type Variant } from '../lib/vehicles';
@@ -21,8 +22,6 @@ import { COLOR, LAYER, RADII, SPACING } from '../theme';
 
 /** Where the map starts before a home is set: the middle of England, zoomed out. */
 const UK_MIDDLE = regionCentre('Midlands');
-/** A phone this close to the demo's sample area is already on its map: home starts where it is. */
-const SAME_AREA_MILES = 3;
 /** The home circle on the map: saved to about half a mile. */
 const HOME_RADIUS_MILES = 0.6;
 
@@ -74,15 +73,18 @@ export default function Welcome() {
   const [locError, setLocError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Home is still the demo's own (no location, or a phone far from the sample meets). */
+  const demoHome = demo && !!home && sameHome(DEMO_HOME, home);
 
-  // Step 2: when location is already allowed (no prompt), home starts where you are. The demo keeps
-  // its sample area (Redesign 2, 3.2) unless you're already in it: then it's your own spot, said so.
+  // Step 2: when location is already allowed (no prompt), home starts where you are, named after your
+  // real nearest town (Review 20, owner decision 1). The demo keeps its own home (Tamworth, said
+  // "Demo home: Tamworth") only for a phone far from its sample meets.
   useEffect(() => {
     if (step !== 2 || fromFix) return;
     let live = true;
     currentPosition(false).then((pos) => {
       if (!live || !pos.ok) return;
-      if (demo && milesBetween(pos.at, DEMO_HOME) > SAME_AREA_MILES) return;
+      if (demo && milesBetween(pos.at, DEMO_HOME) > SCENE_NEAR_MILES) return;
       setHome(fuzz(pos.at));
       setFromFix(true);
     });
@@ -214,15 +216,18 @@ export default function Welcome() {
                 </View>
               ) : null}
             </Pressable>
-            {/* Where home is, and the one way to change it, on one line: "Around Tamworth · Move it". */}
+            {/* Where home is, and the one way to change it, on one line: "Around Lichfield · Move it". The
+                demo's own home says that it is one, once: "Demo home: Tamworth" (Review 20, owner decision 1). */}
             <View style={{ gap: SPACING.xxs }}>
               {home ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: SPACING.sm }}>
-                  <DsText v="bodyStrong" style={{ flexShrink: 1 }}>{`Around ${areaNameNear(home)}`}</DsText>
+                  <DsText v="bodyStrong" style={{ flexShrink: 1 }}>{demoHome ? `Demo home: ${areaNameNear(home)}` : `Around ${areaNameNear(home)}`}</DsText>
                   <Button label="Move it" tier="tertiary" size="sm" accessibilityLabel="Move your home area on the map" onPress={() => setPicking(true)} />
                 </View>
               ) : null}
-              <DsText v="secondary">{fromFix ? 'From your location. Saved roughly, never your address.' : 'Saved roughly, never your address.'}</DsText>
+              <DsText v="secondary">
+                {fromFix ? 'From your location. Saved roughly, never your address.' : demoHome ? "The demo's sample meets are round here." : 'Saved roughly, never your address.'}
+              </DsText>
             </View>
             {fromFix ? null : <Button label={home ? 'Use my location instead' : 'Use my location'} tier="tertiary" size="sm" busy={locating} onPress={useMyLocation} style={{ alignSelf: 'flex-start' }} />}
             {locError ? <ErrorState title={locError} /> : null}

@@ -160,3 +160,46 @@ describe('banned words (Redesign 2, 4.12)', () => {
     expect(rep.allowIn!.test('src/app/user/[id].tsx')).toBe(false);
   });
 });
+
+/**
+ * One noun for a meet (Review 20 #37): screens say "meet", never "event" ("Meet options", "Meet
+ * reminders", "Share this meet"). `EVENT_KNOWN` is the ratchet, as `KNOWN` above: the screens where
+ * "event" is still the umbrella word (crews, moderation, sharing, people) or that other packages own.
+ * A file can only leave it; a new "event" anywhere else fails.
+ */
+const EVENT_KNOWN = new Set([
+  'src/app/chat/[id].tsx',
+  'src/app/chat/new.tsx',
+  'src/app/connections.tsx',
+  'src/app/crew/[id].tsx',
+  'src/app/crew/new.tsx',
+  'src/app/crews.tsx',
+  'src/app/event/[id].tsx',
+  'src/app/event/plan.tsx',
+  'src/app/member/[id].tsx',
+  'src/app/moderation.tsx',
+  'src/app/report.tsx',
+  'src/components/AwardsSection.tsx',
+  'src/components/CommunityMessages.tsx',
+  'src/components/CommunityPeople.tsx',
+  'src/components/EventFilters.tsx',
+  'src/components/EventForm.tsx',
+  'src/components/InviteSheet.tsx',
+  'src/components/ModerationGate.tsx',
+  'src/components/SharePicker.tsx',
+  'src/components/ds/EntityCard.tsx',
+]);
+
+describe('one noun for a meet (Review 20 #37)', () => {
+  test('no new "event" on any screen', () => {
+    const files = [...sources(join(ROOT, 'src', 'app')), ...sources(join(ROOT, 'src', 'components'))].filter((f) => !f.includes(join('dev', 'components')));
+    const fresh: string[] = [];
+    for (const f of files) {
+      const rel = relative(ROOT, f).split(sep).join('/');
+      if (EVENT_KNOWN.has(rel)) continue;
+      const hit = screenText(readFileSync(f, 'utf8')).find((t) => /\bevents?\b/i.test(t));
+      if (hit) fresh.push(`${rel}: "${hit}"`);
+    }
+    expect(fresh).toEqual([]);
+  });
+});

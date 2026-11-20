@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActionBar, Button, DsText, ErrorState, Gradient, Icon, IconButton, Press, Section, typeStyle } from '../components/ds';
+import { ActionBar, Button, DsText, ErrorState, FitImage, Gradient, Icon, IconButton, Press, Section, typeStyle } from '../components/ds';
 import { openLegal } from '../components/AboutSection';
 import { FadeUp } from '../components/motion';
 import { PhotoCredit } from '../components/PhotoCredit';
@@ -41,7 +41,8 @@ function AgreeRow({ on, onChange }: { on: boolean; onChange: (v: boolean) => voi
         style={{ flex: 1, flexDirection: 'row', gap: SPACING.sm, alignItems: 'center', minHeight: 44 }}
       >
         <View style={[st.box, on && st.boxOn]}>{on ? <Icon name="check" size={16} colour={COLOR.text.onAction} /> : null}</View>
-        <DsText v="secondary" style={{ flex: 1 }}>
+        {/* Body colour, not secondary: the label is a step, not a footnote (Review 20 #13). */}
+        <DsText v="body" style={{ flex: 1 }}>
           I'm 18+ and agree to the Terms
         </DsText>
       </Press>
@@ -92,8 +93,10 @@ export default function SignIn() {
           <View style={{ paddingHorizontal: SPACING.screen }}>
             <Wordmark compact />
           </View>
-          <View style={{ height: small ? 190 : 260, overflow: 'hidden', backgroundColor: COLOR.surface.media }}>
-            {photo ? <Image source={photo.image} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors aria-hidden /> : null}
+          <View style={{ height: small ? 240 : 280, overflow: 'hidden', backgroundColor: COLOR.surface.media }}>
+            {/* FitImage cover: a plain web Image takes the file's own size over absoluteFill and showed a
+                blown-up corner of the photo (Review 20 #2). */}
+            {photo ? <FitImage source={photo.image} fit="cover" style={StyleSheet.absoluteFill} /> : null}
             <Gradient />
             <View style={{ position: 'absolute', left: SPACING.screen, right: SPACING.screen, bottom: SPACING.md }}>
               <DsText v="hero" accessibilityRole="header">
@@ -389,6 +392,7 @@ const st = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, paddingBottom: SPACING.xs },
   input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   code: { textAlign: 'center', letterSpacing: 8 },
-  box: { width: 24, height: 24, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.secondary, alignItems: 'center', justifyContent: 'center' },
+  // A clearly bordered box on a raised fill, so it reads as a control before the first tap (Review 20 #13).
+  box: { width: 28, height: 28, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.primary, backgroundColor: COLOR.surface.raised, alignItems: 'center', justifyContent: 'center' },
   boxOn: { borderColor: COLOR.text.primary, backgroundColor: COLOR.text.primary },
 });

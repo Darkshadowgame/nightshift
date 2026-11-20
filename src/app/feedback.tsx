@@ -115,7 +115,7 @@ export default function FeedbackScreen() {
             <TextInput
               value={message}
               onChangeText={setMessage}
-              placeholder={kind === 'bug' ? 'What happened, and what did you expect?' : kind === 'looks_wrong' ? 'Which place or event, and what’s wrong?' : 'Tell us…'}
+              placeholder={kind === 'bug' ? 'What happened, and what did you expect?' : kind === 'looks_wrong' ? 'Which place or meet, and what’s wrong?' : 'Tell us…'}
               placeholderTextColor={COLOR.text.secondary}
               style={[typeStyle('input'), st.input]}
               multiline

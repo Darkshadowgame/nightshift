@@ -556,7 +556,7 @@ export default function EventScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Stack.Screen
         options={{
-          ...screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this event', onPress: doShare }, onMenu: () => setMenu(true) }),
+          ...screenHeader({ action: { label: 'Share', accessibilityLabel: 'Share this meet', onPress: doShare }, onMenu: () => setMenu(true) }),
           // The hero carries the title; once it has scrolled away (the location moment scrolls to the
           // map) the header keeps a compact copy, so you always know which meet this is (4.1, Review 19).
           headerTitle: titleUp
@@ -851,7 +851,7 @@ export default function EventScreen() {
       {sharer.sheet}
       <InviteSheet event={ev} visible={inviting} onClose={() => setInviting(false)} onShareOther={() => void doShare()} />
 
-      <Sheet visible={menu} title="Event options" onClose={() => setMenu(false)}>
+      <Sheet visible={menu} title="Meet options" onClose={() => setMenu(false)}>
         <View>
           {menuOptions.map((o) => (
             <SheetOption key={o.label} label={o.label} detail={o.detail} destructive={o.destructive} onPress={o.onPress} />

@@ -19,7 +19,7 @@ export default function GoingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { events, users, builds, me } = useStore();
   const ev = events.find((e) => e.id === id);
-  if (!ev) return <NotFoundState what="Event" message="It may have been cancelled and removed, or the link is old." />;
+  if (!ev) return <NotFoundState what="Meet" message="It may have been cancelled and removed, or the link is old." />;
   const mix = goingMix(ev, builds);
   // You first, then everyone else in the order they said they're going.
   const people = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0));

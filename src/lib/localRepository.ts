@@ -30,7 +30,7 @@ import { bundledSpots, isBundled, setProgress } from './placeStore';
 import { applyProfile, profileProblem } from './profile';
 import { movedOnReminder } from './reminders';
 import type { Repository } from './repository';
-import { sameHome } from './scene';
+import { keepsScene } from './scene';
 import { driveMiles, judgeRun, makeSpot, rateSpot as applyRating, recordCompletion } from './spots';
 import type { ChatMessage, NightEvent, Spot } from './types';
 import { newId } from './ids';
@@ -111,9 +111,10 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       set((s) => {
         const users = s.users.map((u) => (u.id === ME ? applyProfile(u, draft) : u));
         const next = { ...s, onboarded: true, onboardedAt: s.onboardedAt ?? appNow().toISOString(), users };
-        // A new home area: the sample scene moves with it.
+        // A new home area far from the sample scene: the scene moves with it. Near it, the scene stays
+        // on its real roads and places, and Tonight measures from where you are (Review 20).
         const home = users.find((u) => u.id === ME)!.home;
-        return sameHome(s.scene?.home, home) ? next : redrawScene(next, home, appNow());
+        return keepsScene(s.scene?.home, home) ? next : redrawScene(next, home, appNow());
       });
     },
     async setTravelPrefs({ travelMiles, alerts }) {

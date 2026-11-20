@@ -106,6 +106,7 @@ export function EventEntityCard({
   overlay,
   hasCar = true,
   demo,
+  fallbackRef,
 }: {
   view: EventView;
   now: Date;
@@ -125,12 +126,14 @@ export function EventEntityCard({
   hasCar?: boolean;
   /** The demo: a host with no photo gets the stand-in for their build (`eventStandIn`). */
   demo?: boolean;
+  /** A photo for when there's no build photo or stand-in ("It's up": the night meet art), never the drawn placeholder. */
+  fallbackRef?: string;
 }) {
   const e = v.event;
   const done = v.phase === 'over' || v.phase === 'cancelled';
   const own = builds ? eventPhotoRef(e, builds) : null;
   const standIn = !own && builds && demo ? eventStandIn(e, builds) : null;
-  const ref = own ?? standIn?.ref ?? null;
+  const ref = own ?? standIn?.ref ?? fallbackRef ?? null;
   return (
     <PhotoCard
       kind="event"

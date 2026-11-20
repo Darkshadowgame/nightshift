@@ -138,7 +138,7 @@ export default function SettingsScreen() {
 
       <Group title="Notifications">
         <SwitchRow
-          label="Event reminders"
+          label="Meet reminders"
           hint="When the location shows, and before the start."
           value={settings.reminders}
           onValueChange={(v) => {
@@ -303,7 +303,7 @@ export default function SettingsScreen() {
       <ConfirmSheet
         visible={confirm === 'delete'}
         title="Delete your account"
-        message="This deletes your profile, home area, garage and photos, check-ins, chat, posts and messages, votes and notices, straight away. Events only you host are cancelled. Places you suggested stay, without your name. It can't be undone."
+        message="This deletes your profile, home area, garage and photos, check-ins, chat, posts and messages, votes and notices, straight away. Meets only you host are cancelled. Places you suggested stay, without your name. It can't be undone."
         verb="Delete"
         busy={busy === 'delete'}
         onConfirm={() => account('delete')}

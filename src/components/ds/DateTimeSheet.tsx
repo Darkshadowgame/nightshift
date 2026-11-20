@@ -5,7 +5,6 @@ import { dayKey, dayLabelShort, dayOptions, whenLabel } from '../../lib/when';
 import { COLOR, SPACING } from '../../theme';
 import { ChoiceGroup, chipFace, chipText } from './Choice';
 import { MonthCalendar } from './DateField';
-import { Button } from './Button';
 import { Field, INPUT } from './Field';
 import { Icon } from './Icon';
 import { afterMidnightLabel, localDay, parseLocalDay, shortDate, shortDay } from './logic';
@@ -41,10 +40,14 @@ export function dateTimeText(value: Date, now: Date, mode: DateTimeMode = 'datet
   return (after && afterMidnightLabel(value, after)) || whenLabel(value, now);
 }
 
-/** Meets are in the evening: these hours show first, in one row (Review 19 #44). */
-const EVENING = [17, 18, 19, 20, 21, 22, 23];
-/** The rest of the day, behind "Show earlier hours". */
-const EARLIER = Array.from({ length: 17 }, (_, h) => h);
+/**
+ * Every hour of the day, in clock order, in one tidy grid of 6 columns by 4 rows (Review 20 #10,
+ * owner decision): morning meets (Sunday coffee) are as easy to pick as evening ones. The evening
+ * (17–23), when most meets start, is lit.
+ */
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const EVENING_FROM = 17;
+const HOUR_COLUMNS = 6;
 
 /**
  * The one date and time picker (Redesign 2, 4.4): host flow Starts and Ends, a dyno run's date, a
@@ -52,8 +55,8 @@ const EARLIER = Array.from({ length: 17 }, (_, h) => h);
  *
  * In a Sheet: a sideways row of days (`days`, default 14: "Today", "Tomorrow", "Sat 21", …, then
  * "Another day" for the month calendar, in the same sheet), then for `mode="datetime"` the hour
- * (the evening, 17–23, in one row; "Show earlier hours" adds 00–16, leaving out any that can't be
- * picked) and the minutes in `stepMinutes` steps (default 15: :00 :15 :30 :45).
+ * (all 24 in clock order, a 6 x 4 grid with the evening lit; any that can't be picked are greyed)
+ * and the minutes in `stepMinutes` steps (default 15: :00 :15 :30 :45).
  * Every tap calls `onChange` with the whole new Date; the Sheet closes with Done.
  *
  * Use `DateTimeField` in forms: it shows the value ("Sun 10:00", "Today") and opens this.
@@ -84,8 +87,6 @@ export function DateTimeSheet({
   // that reads Wednesday doesn't make "Today" look wrong.
   const demoDay = !nowGiven && clockOffset() !== 0 ? `The demo night is ${shortDate(now)}, so that's "Today" here.` : null;
   const [calendar, setCalendar] = useState(false);
-  // Earlier hours start open only when the value is already in them (a Sunday 10:00 meet being edited).
-  const [earlier, setEarlier] = useState(() => !!value && !EVENING.includes(value.getHours()));
   // The day row opens scrolled to the picked day (it can be two weeks along).
   const row = useRef<ComponentRef<typeof ScrollView>>(null);
   const scrolled = useRef(false);
@@ -130,9 +131,10 @@ export function DateTimeSheet({
     return (!!minDate && end < minDate) || (!!maxDate && start > maxDate);
   };
   const minutes = Array.from({ length: Math.max(1, Math.floor(60 / stepMinutes)) }, (_, i) => i * stepMinutes);
-  const hourChip = (h: number, basis: `${number}%`) => {
+  const hourChip = (h: number) => {
     const on = !!value && value.getHours() === h;
     const off = hourOff(h);
+    const evening = h >= EVENING_FROM;
     return (
       <Press
         key={h}
@@ -143,21 +145,23 @@ export function DateTimeSheet({
         state={{ checked: on, disabled: off }}
         label={`${String(h).padStart(2, '0')}:00`}
         style={{
-          flexBasis: basis,
-          flexGrow: 1,
+          flex: 1,
           minHeight: 44,
           alignItems: 'center',
           justifyContent: 'center',
           ...chipFace(on),
+          // The evening is lit: a raised face and a stronger edge; selection stays the one sodium state.
+          ...(!on && evening ? { backgroundColor: COLOR.surface.raised, borderColor: COLOR.surface.borderStrong } : null),
           opacity: off ? 0.35 : 1,
         }}
       >
-        <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on), fontVariant: ['tabular-nums'] }}>
+        <DsText v={on || evening ? 'bodyStrong' : 'body'} style={{ color: on ? chipText(on) : evening ? COLOR.text.primary : COLOR.text.secondary, fontVariant: ['tabular-nums'] }}>
           {String(h).padStart(2, '0')}
         </DsText>
       </Press>
     );
   };
+  const hourRows = Array.from({ length: HOURS.length / HOUR_COLUMNS }, (_, r) => HOURS.slice(r * HOUR_COLUMNS, (r + 1) * HOUR_COLUMNS));
 
   return (
     <Sheet visible={visible} title={title} onClose={onClose}>
@@ -237,17 +241,17 @@ export function DateTimeSheet({
       )}
       {mode === 'datetime' && !calendar ? (
         <View style={{ gap: SPACING.sm }}>
-          <DsText v="label">Hour</DsText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
-            {EVENING.map((h) => hourChip(h, '12%'))}
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACING.sm }}>
+            <DsText v="label">Hour</DsText>
+            <DsText v="caption">Evening hours are lit</DsText>
           </View>
-          {earlier ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
-              {EARLIER.filter((h) => !hourOff(h) || (!!value && value.getHours() === h)).map((h) => hourChip(h, '15%'))}
-            </View>
-          ) : (
-            <Button label="Show earlier hours" tier="tertiary" size="sm" onPress={() => setEarlier(true)} accessibilityHint="Adds 00:00 to 16:00" style={{ alignSelf: 'flex-start' }} />
-          )}
+          <View style={{ gap: SPACING.xs }}>
+            {hourRows.map((row) => (
+              <View key={row[0]} style={{ flexDirection: 'row', gap: SPACING.xs }}>
+                {row.map((h) => hourChip(h))}
+              </View>
+            ))}
+          </View>
           <ChoiceGroup
             label="Minutes"
             options={minutes.map((m) => ({ key: String(m), label: `:${String(m).padStart(2, '0')}` }))}

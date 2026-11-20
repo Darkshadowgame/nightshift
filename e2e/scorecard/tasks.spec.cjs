@@ -331,7 +331,7 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await tap(B(/^Starts:/));
     await snap('starts');
     await tap(page.getByRole('radio', { name: /^Sun, Sun/ }), { inSheet: true });
-    // Evening hours show first (Review 19 #44): morning hours are behind "Show earlier hours".
+    // Every hour shows, in clock order (Review 20 #10); the old "Show earlier hours" is tapped if it's there.
     if (!(await page.getByRole('radio', { name: '10:00', exact: true }).count())) await tap(B('Show earlier hours'), { inSheet: true });
     await tap(page.getByRole('radio', { name: '10:00', exact: true }), { inSheet: true });
     await snap('starts-picked');
@@ -341,6 +341,9 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await tap(B(/^Place the meet point/));
     await snap('place');
     await tap(B('Set meet point here'));
+    // With nothing known near the spot, the meet point's name is left for the host (Review 20 #36).
+    const pointName = page.getByRole('textbox', { name: 'Meet point name' });
+    if ((await pointName.count()) && !(await pointName.inputValue()).trim()) await pointName.fill('Leisure centre car park');
     await tap(B('Next'));
     await snap('host-3');
     const anyone = /Everyone/.test(await text());
@@ -348,12 +351,26 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await snap('host-4');
     const review = await text();
     await tap(B('Post meet'));
-    // Sun 10:00 clashes with the demo's Sunday coffee and cars, which you're going to (Review 20
-    // problem 2): the warning shows, and the task says to host it, so Host anyway.
-    if (await B('Host anyway').count()) {
-      await snap('clash');
-      result.notes.push('t9: the clash warning showed (going to a meet at that time); tapped Host anyway');
-      await tap(B('Host anyway'), { inSheet: true });
+    // Up to two warnings, each only a warning: the time clash with the demo's Sunday coffee and cars
+    // (Review 20 problem 2: the task says to host it, so Host anyway), and, with home started at the
+    // phone (Review 20), a meet ban round a city phone (owner decision 9.3: Post anyway).
+    for (let i = 0; i < 2; i++) {
+      const hostAnyway = page.getByRole('button', { name: 'Host anyway', exact: true });
+      const postAnyway = page.getByRole('button', { name: 'Post anyway', exact: true });
+      const which = await Promise.race([
+        hostAnyway.waitFor({ state: 'visible', timeout: 2500 }).then(() => 'clash', () => null),
+        postAnyway.waitFor({ state: 'visible', timeout: 2500 }).then(() => 'ban', () => null),
+      ]);
+      const shown = which ?? ((await hostAnyway.isVisible()) ? 'clash' : (await postAnyway.isVisible()) ? 'ban' : null);
+      if (!shown) break;
+      if (shown === 'clash') {
+        await snap('clash');
+        result.notes.push('t9: the clash warning showed (going to a meet at that time); tapped Host anyway');
+        await tap(hostAnyway, { inSheet: true });
+      } else {
+        result.notes.push('t9: the meet-ban warning showed (home is in a ban area); tapped Post anyway');
+        await tap(postAnyway, { inSheet: true });
+      }
     }
     await snap('posted');
     await tap(B('Share', { exact: true }));

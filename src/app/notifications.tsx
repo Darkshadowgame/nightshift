@@ -50,7 +50,7 @@ export default function NotificationsScreen() {
           glyph="meet"
           title={
             !settings.reminders
-              ? 'Event reminders are off.'
+              ? 'Meet reminders are off.'
               : goingToOne
                 ? 'Reminders for your meets will show here.'
                 : "Say you're going to a meet and its reminders show here."
@@ -75,7 +75,7 @@ export default function NotificationsScreen() {
       ListHeaderComponent={
         !settings.reminders ? (
           <View style={st.notice}>
-            <DsText v="secondary" tone="primary">Event reminders are off.</DsText>
+            <DsText v="secondary" tone="primary">Meet reminders are off.</DsText>
             <Button label="Settings" tier="tertiary" size="sm" onPress={() => router.push('/settings')} accessibilityLabel="Turn reminders on in Settings" />
           </View>
         ) : undefined
@@ -107,9 +107,9 @@ export default function NotificationsScreen() {
             leading={{ pin: event?.type ?? 'meet', colour: event ? EVENT_COLOURS[event.type] : COLOR.text.secondary }}
             unread={fresh}
             title={n.text}
-            meta={event ? noticeTime(n.at, now) : `${noticeTime(n.at, now)} · This event has gone`}
+            meta={event ? noticeTime(n.at, now) : `${noticeTime(n.at, now)} · This meet has gone`}
             onPress={event ? () => router.push({ pathname: '/event/[id]', params: { id: n.eventId } }) : undefined}
-            accessibilityHint={event ? 'Opens the event' : undefined}
+            accessibilityHint={event ? 'Opens the meet' : undefined}
           />
         );
       }}

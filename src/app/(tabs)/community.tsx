@@ -29,7 +29,7 @@ export default function CommunityScreen() {
 
   useLayoutEffect(() => {
     nav.setOptions({
-      headerRight: () => <HeaderActions add={{ label: 'Post, ask, sell or message', onPress: () => setCreating(true) }} bell />,
+      headerRight: () => <HeaderActions add={{ label: 'Post, ask, sell or message', onPress: () => setCreating(true), icon: 'compose' }} bell />,
     });
   }, [nav]);
 

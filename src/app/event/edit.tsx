@@ -14,16 +14,16 @@ export default function EditEvent() {
   const now = useNow();
   const event = events.find((e) => e.id === id);
   const allowed = !event
-    ? { ok: false as const, reason: 'This event no longer exists.' }
+    ? { ok: false as const, reason: 'This meet no longer exists.' }
     : !isHost(event, me, crews)
-      ? { ok: false as const, reason: 'Only hosts can edit this event.' }
+      ? { ok: false as const, reason: 'Only hosts can edit this meet.' }
       : canEditEvent(event, now);
 
-  if (!event) return <NotFoundState what="Event" />;
+  if (!event) return <NotFoundState what="Meet" />;
   if (!allowed.ok) {
     return (
       <View style={{ flex: 1, padding: SPACING.screen, backgroundColor: COLOR.surface.bg }}>
-        <EmptyState title="Can't edit this event" body={allowed.reason} action={{ label: 'Open the meet', onPress: () => router.replace({ pathname: '/event/[id]', params: { id: event.id } }) }} />
+        <EmptyState title="Can't edit this meet" body={allowed.reason} action={{ label: 'Open the meet', onPress: () => router.replace({ pathname: '/event/[id]', params: { id: event.id } }) }} />
       </View>
     );
   }

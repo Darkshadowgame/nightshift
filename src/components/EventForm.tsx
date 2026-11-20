@@ -21,7 +21,7 @@ import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
 import { injunctionConfirmText, publishCheck, pspoConfirmText } from '../lib/zones';
-import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
+import { ART, COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
 import { useClashCheck } from './ClashSheet';
@@ -294,8 +294,8 @@ export function EventForm({
 
   /**
    * Drop a meet point, then name it after the street and town (the host can edit it). With no
-   * geocoder (the web preview) or no answer, it's named from the nearest known place or town, so
-   * the name is filled in before Next (Review 13).
+   * geocoder (the web preview) or no answer, it's named from a known place within a mile, else left
+   * for the host to name (Review 20 #36: never "Tamworth meet point" for any spot).
    */
   function placeStop(i: number, at: LatLng, knownName?: string) {
     const key = stops[i]?.key;
@@ -307,7 +307,9 @@ export function EventForm({
     }
     setStop(i, { at });
     nameForPlace(at).then((found) => {
-      const name = found ?? fallbackPointName(at, visibleSpots(store.spots, me), areaNameNear(at));
+      const name = found ?? fallbackPointName(at, visibleSpots(store.spots, me));
+      // Nothing known near it: the field stays empty for the host to name (Review 20 #36).
+      if (!name) return;
       setStops((xs) =>
         xs.map((x) => {
           if (x.key !== key || x.at !== at || !shouldAutoName(x.name, autoNames.current[key])) return x;
@@ -432,9 +434,10 @@ export function EventForm({
         : [],
     );
   const routePaths = type === 'cruise' && placed.length > 1 ? [{ id: 'r', coords: placed.map((p) => p.at!), colour: typeColour, dashed: true }] : [];
-  // The preview frames the meet points placed so far, or opens on home.
-  // About 15 miles across: your own area, with its town names readable (Review 19 #42).
-  const preview = fitRegion(placed.map((p) => p.at!), 0.1) ?? { centre: meUser.home, span: 0.22 };
+  // The preview frames the meet points placed so far, or opens on home (Review 20 #33): home's own
+  // area, as the picker opens (about 5 mi), then close in on a placed point (about 2 mi), so the pin
+  // sits among streets rather than on a town's name.
+  const preview = fitRegion(placed.map((p) => p.at!), 0.025) ?? { centre: meUser.home, span: 0.08 };
   function openPicker(i: number) {
     setActiveStop(i);
     setPicking(i);
@@ -601,7 +604,7 @@ export function EventForm({
         />
       ) : null}
       {placed.length ? (
-        <Field label="Area name" hint={isPublicType(type) ? 'Shown with the event.' : `Before the location shows, people see “Around ${shownArea}” and ${areaCircle(areaRadiusMiles)}.`}>
+        <Field label="Area name" hint={isPublicType(type) ? 'Shown with the meet.' : `Before the location shows, people see “Around ${shownArea}” and ${areaCircle(areaRadiusMiles)}.`}>
           <TextField value={areaName} onChangeText={setAreaName} placeholder={suggestedAreaName} maxLength={30} accessibilityLabel="Area name" />
         </Field>
       ) : null}
@@ -795,7 +798,7 @@ export function EventForm({
       <ConfirmSheet
         visible={leaveAction !== null}
         title={editing ? 'Discard your changes?' : 'Discard this meet?'}
-        message={editing ? `Your changes to ${initial?.title ?? 'this event'} aren't saved yet.` : `${title.trim() || 'Your meet'} isn't posted yet.`}
+        message={editing ? `Your changes to ${initial?.title ?? 'this meet'} aren't saved yet.` : `${title.trim() || 'Your meet'} isn't posted yet.`}
         verb="Discard"
         cancelLabel="Keep editing"
         onConfirm={discard}
@@ -859,5 +862,8 @@ const promptSt = StyleSheet.create({
     backgroundColor: COLOR.surface.raised,
     borderWidth: 1,
     borderColor: COLOR.surface.borderStrong,
+    // A soft halo in the map's own dark round the chip (Review 20 #15/#33): a road shield half under
+    // it fades out instead of peeking from its edge as a white sliver.
+    boxShadow: `0 0 10px 8px ${ART.mapBg}`,
   },
 });

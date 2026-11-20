@@ -585,8 +585,10 @@ WP-A rewrites DESIGN-SYSTEM.md's "One way to do X" and "Added after Review N" se
 * The demo starts with zero badges.
 
 ### 4.9 Numbers and units *(replaces rules 24, 33)*
-* Distance: "2 mi" from you (GPS) or "2 mi from home"; a hidden meet is "about 6 mi". Under 1 mi:
-  "under 1 mi". Never "from the map's centre".
+* Distance: "2 mi from you" (GPS) or "2 mi from home"; a hidden meet is "about 6 mi from you". Under
+  1 mi: "under 1 mi from you". Never "from the map's centre", never a bare "2 mi".
+  *Note (20 Nov 2026, Review 20, owner decision 14):* every distance names its origin (`format.ts`
+  `distanceText`). The demo's distances are from its home (your real town when the phone is near), said "from home".
 * Power: "197 bhp", plus the "✓ Dyno" tag when proven. whp, bhp per tonne and "claimed" only on the
   Power and dyno page.
 * Counts: "9 going", "1 person", "3 mods": always `plural()`. Mix: "7 cars, 2 bikes".
@@ -1124,3 +1126,26 @@ clashed, the owner's earlier decisions stand:
       meet says so once, "The host cancelled this meet.", with no status tag, "Was 1 going" and a
       grey pin.
     * **Demo distances** are measured from the demo's home and said "from home" (4.9).
+14. **Review 20 path to 10: sign-in, onboarding, Garage and Me, hosting, wording (owner decisions, 20 Nov
+    2026):**
+    * **Distances (4.9):** every distance names its origin, "2 mi from you" or "2 mi from home". In the
+      demo, onboarding with a phone within 15 mi of the sample meets starts home at the phone, named after
+      its real nearest town ("Around Lichfield"), and the sample scene stays on its real roads; the demo's
+      distances are from that home, said "from home" (13 above), so they're honest wherever the phone is.
+      With no location, or a phone far away, the demo's own home is said once in onboarding:
+      "Demo home: Tamworth".
+    * **"It's up":** a real picture, never the placeholder grid: your build's photo, else its stand-in
+      (credited as similar), else the night meet art (the sign-in hero's photo).
+    * **Starts and Ends hours:** all 24 hours in clock order, a 6 x 4 grid (00–05, 06–11, 12–17, 18–23),
+      with the evening (17–23) lit. No "Show earlier hours": morning meets (Sunday coffee) are common.
+      This replaces 11's "evening first".
+    * **Small map cards:** the web map's tiles fade out at every edge (no clipped label or shield shows as
+      a sliver); Host step 2's chip has a halo in the map's dark for the same reason. Step 2 opens on
+      home's area (about 5 mi) and closes in on a placed point (about 2 mi).
+    * **Meet point name:** named from a known place within a mile ("Near Ventura Park"), else left empty
+      for the host; never "{Town} meet point".
+    * **Header "+":** one icon per job: a calendar with a plus hosts (Tonight), a speech bubble with a plus
+      posts (Community), a car with a plus adds a build (Garage).
+    * **Me:** the avatar is a close crop of your car photo when your car's card is right under it.
+    * **Meet, not event:** "Meet options", "Meet reminders", "Share this meet"; `__tests__/glossary.test.ts`
+      ratchets "event" off screens.

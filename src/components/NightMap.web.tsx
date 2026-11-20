@@ -14,6 +14,15 @@ import { TILE_CREDIT } from './webmap/tiles.web';
 import { fitZoom } from './webmap/zoom.web';
 
 const MILE_M = 1609.34;
+
+/** The edge fade for small maps: fully clear for the first 3 px, solid by 18 px, on all four sides. */
+const EDGE_FADE = 'transparent 0, transparent 3px, #000 18px, #000 calc(100% - 18px), transparent calc(100% - 3px), transparent 100%';
+const EDGE_MASK = {
+  maskImage: `linear-gradient(to bottom, ${EDGE_FADE}), linear-gradient(to right, ${EDGE_FADE})`,
+  WebkitMaskImage: `linear-gradient(to bottom, ${EDGE_FADE}), linear-gradient(to right, ${EDGE_FADE})`,
+  maskComposite: 'intersect',
+  WebkitMaskComposite: 'source-in',
+} as const;
 const ll = (p: LatLng): [number, number] => [p.lat, p.lng];
 
 /** What a Leaflet map shows now, in the app's terms. */
@@ -170,15 +179,9 @@ export function NightMap(props: NightMapProps) {
   if (broken) return <GridMap {...props} />;
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={(e) => setTall(e.nativeEvent.layout.height > 420)}>
-      <div ref={box} style={{ position: 'absolute', inset: 0 }} />
-      {/* A small map's edges fade into its frame, so a road label cut by the edge never shows as a
-          white sliver (Review 19 #5, #21). Over the tiles, under the pins. */}
-      {tall ? null : (
-        <div
-          aria-hidden
-          style={{ position: 'absolute', inset: 0, zIndex: 450, pointerEvents: 'none', boxShadow: `inset 0 0 0 1px ${ART.mapBg}, inset 0 10px 8px -6px ${ART.mapBg}, inset 0 -10px 8px -6px ${ART.mapBg}, inset 10px 0 8px -6px ${ART.mapBg}, inset -10px 0 8px -6px ${ART.mapBg}` }}
-        />
-      )}
+      {/* A small map's tiles fade out at every edge into its frame (a CSS mask, Review 20 #4/#16): a road
+          shield or label cut by the edge melts away instead of showing as a white sliver (Review 19 #5, #21). */}
+      <div ref={box} style={{ position: 'absolute', inset: 0, ...(tall ? null : EDGE_MASK) }} />
       {portals}
       <Credit credit={credit} tiles={tiles} top={tall} />
     </View>

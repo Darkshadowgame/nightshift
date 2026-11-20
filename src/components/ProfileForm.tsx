@@ -122,7 +122,7 @@ export function ProfileForm({
       </Section>
 
       <Section title="Home area">
-        <DsText v="secondary">Only used to find events near you. It's saved to about half a mile, never your exact address, and nobody sees it.</DsText>
+        <DsText v="secondary">Only used to find meets near you. It's saved to about half a mile, never your exact address, and nobody sees it.</DsText>
         <Button label={locating ? 'Finding you…' : 'Use my current location'} tier="secondary" block onPress={useMyLocation} busy={locating} />
         {locError ? <ErrorState title={locError} /> : null}
         <PlaceSearch placeholder="Town or postcode" onPick={(h) => setHomeNear(h.at)} />
