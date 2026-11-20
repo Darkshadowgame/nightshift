@@ -1,4 +1,4 @@
-import { addPoint, canFinish, crosshairStop, describePoint, formatLatLng, postPickerStart, gapTo, MIN_STEP_MILES, nearbyPlaces, pathSummary, roundAt, snapPlace, undoPoint } from '../src/lib/picker';
+import { addPoint, crosshairAt, canFinish, crosshairStop, describePoint, formatLatLng, postPickerStart, gapTo, MIN_STEP_MILES, nearbyPlaces, pathSummary, roundAt, snapPlace, undoPoint } from '../src/lib/picker';
 import { longGap, MAX_POINT_GAP_MILES } from '../src/lib/spots';
 import { milesBetween } from '../src/lib/geo';
 
@@ -126,5 +126,19 @@ describe('readable picker labels and where the post picker opens (REVIEW-7)', ()
     const fallback = postPickerStart({ picked: null, lastView: home, here: near, home });
     expect(fallback).not.toEqual(home);
     expect(Math.abs(fallback.lat - home.lat)).toBeGreaterThan(0.015);
+  });
+});
+
+describe('PLACE-STABLE: the saved point is the crosshair', () => {
+  const c = { lat: 52.633, lng: -1.69 };
+  it('uses the spot the map is flying to, not the stale centre', () => {
+    const stale = { lat: 52.598, lng: -1.7 };
+    expect(crosshairAt(c, stale)).toEqual(c);
+    expect(crosshairAt(null, c)).toEqual(c);
+  });
+  it('saves exactly the crosshair (to a metre) when no known place is under it', () => {
+    expect(crosshairStop(crosshairAt(c, A), [], 0.08).at).toEqual(roundAt(c));
+    const far = [{ id: 'x', name: 'Far', at: { lat: 52.6, lng: -1.7 } }];
+    expect(crosshairStop(c, far, 0.08)).toEqual({ at: roundAt(c) });
   });
 });

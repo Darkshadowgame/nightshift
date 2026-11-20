@@ -41,7 +41,7 @@ import { useShareLink } from '../../components/ShareLink';
 import { InviteSheet } from '../../components/InviteSheet';
 import { canInvite, INVITE_WORDS, inviterOf } from '../../lib/eventInvites';
 import { usePhotoFlow } from '../../components/PhotoFlow';
-import { eventPhotoRef, statusTag } from '../../components/TonightCards';
+import { eventPhotoRef, eventStandIn, statusTag } from '../../components/TonightCards';
 import { PhotoViewer } from '../../components/PhotoGallery';
 import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
@@ -60,7 +60,7 @@ import { planForEvent } from '../../lib/navPlan';
 import { askPermission, notificationsSupported } from '../../lib/notify';
 import { lastPage, PAGE as LIST_PAGE } from '../../lib/paging';
 import { milesBetween } from '../../lib/geo';
-import { photoSource } from '../../lib/photoSource';
+import { photoSource, SAMPLE_REF } from '../../lib/photoSource';
 import { REP } from '../../lib/rep';
 import { eventSharePayload } from '../../lib/share';
 import { useStore } from '../../lib/store';
@@ -76,6 +76,9 @@ const HERO_TITLE_CLEAR = 72;
 
 /** A host's Navigate becomes the primary this close to the start (else Invite or Share is). */
 const ON_THE_DAY_HOURS = 6;
+
+/** The night meet photo when a demo meet has no build photo or stand-in (as on "It's up"). */
+const NIGHT_MEET_ART = `${SAMPLE_REF}hero-night-meet`;
 
 /** The demo's trophy cover waits this long after the vote sheet closes, so the page has scrolled to it. */
 const REVEAL_DELAY_MS = 450;
@@ -464,7 +467,11 @@ export default function EventScreen() {
   // ---------------------------------------------------------------------------
   // Pieces
   // ---------------------------------------------------------------------------
-  const photoRef = eventPhotoRef(ev, builds);
+  // One look for every meet (K3, Review 22): in the demo a meet with no photo of its own gets the host's
+  // stand-in, then the night meet art, as the cards and "It's up" do, never a map hero with the title under it.
+  const ownPhoto = eventPhotoRef(ev, builds);
+  const standIn = !ownPhoto && demo ? eventStandIn(ev, builds) : null;
+  const photoRef = ownPhoto ?? standIn?.ref ?? (demo ? NIGHT_MEET_ART : null);
   const placeShown = currentStop?.at && canSeeStop(ev, current, me, crews, now);
   // The area is said once (C5): in the meta line, as "Around Tamworth" (the one form), unless the
   // status line already names the town with the meet point.
@@ -593,7 +600,7 @@ export default function EventScreen() {
           bleed
           photo={photoRef ? photoSource(photoRef) : null}
           media={mapOnTop ? <View style={{ aspectRatio: 16 / 9, overflow: 'hidden' }}>{map}</View> : undefined}
-          overlay={photoRef ? <PhotoCredit photoRef={photoRef} overlay corner="topRight" /> : undefined}
+          overlay={photoRef ? <PhotoCredit photoRef={photoRef} standIn={standIn?.standIn} overlay corner="topRight" /> : undefined}
           eyebrow={EVENT_LABELS[ev.type]}
           live={phase === 'live'}
           title={ev.title}

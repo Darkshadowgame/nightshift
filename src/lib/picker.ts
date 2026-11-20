@@ -86,6 +86,15 @@ export function snapPlace(at: LatLng, places: PickPlace[], span: number): PickPl
   return best;
 }
 
+/**
+ * Where the crosshair is for a pick (PLACE-STABLE): the spot the map is flying to, if it is still
+ * flying (a tap or a search just moved it), else the map's centre. Reading the centre mid-flight
+ * saved a point a few km off, and a different one each run.
+ */
+export function crosshairAt(flyingTo: LatLng | null, centre: LatLng): LatLng {
+  return flyingTo ?? centre;
+}
+
 /** Where the crosshair is, as the stop to hand back: snapped onto a known place (with its name) when it's on one. */
 export function crosshairStop(at: LatLng, places: PickPlace[], span: number): PickedStop {
   const snap = snapPlace(at, places, span);

@@ -8,6 +8,7 @@ import { currentPosition, geocoderAvailable, nameForPlace } from '../lib/locatio
 import {
   addPoint,
   canFinish,
+  crosshairAt,
   crosshairStop,
   describePoint,
   gapTo,
@@ -177,7 +178,10 @@ function PickerBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Where the map is flying to right now, until it lands (then the region state is the truth again). */
+  const flyingTo = useRef<LatLng | null>(null);
   function jump(at: LatLng, sp = region.span) {
+    flyingTo.current = at;
     map.current?.animateTo(at, sp);
   }
 
@@ -199,8 +203,9 @@ function PickerBody({
   }
 
   /** The crosshair (or a tapped point) as the next point. Point mode hands it straight back. */
-  function take(at: LatLng) {
+  function take(tapped?: LatLng) {
     setNote(null);
+    const at = tapped ?? crosshairAt(flyingTo.current, region.centre);
     if (mode === 'point') {
       onDone([crosshairStop(at, snapTo, map.current?.region().span ?? region.span)]);
       return;
@@ -264,7 +269,10 @@ function PickerBody({
         polygons={zones ? BAN_SHAPES.polygons : undefined}
         centre={opensAt}
         span={span}
-        onRegion={setRegion}
+        onRegion={(r) => {
+          flyingTo.current = null;
+          setRegion(r);
+        }}
         onPressMap={tapMap}
         onSelect={(id) => {
           if (id.startsWith('zone:')) {
@@ -349,8 +357,8 @@ function PickerBody({
       <ActionBar
         primary={
           mode === 'point'
-            ? { label: confirmLabel, onPress: () => take(region.centre), haptic: 'success' }
-            : { label: points.length === 0 ? 'Add start' : 'Add checkpoint', onPress: () => take(region.centre) }
+            ? { label: confirmLabel, onPress: () => take(), haptic: 'success' }
+            : { label: points.length === 0 ? 'Add start' : 'Add checkpoint', onPress: () => take() }
         }
         secondary={mode === 'path' && canFinish(points, 'path') ? { label: 'Done', onPress: () => onDone(points.map((at) => ({ at }))) } : null}
       />
