@@ -35,12 +35,14 @@ export default function Garage() {
   const modsY = useRef(0);
   const modCount = main?.mods.length ?? 0;
   const lastCount = useRef(modCount);
-  useEffect(() => {
+  // At once, before the new row is painted, and without an animation: the closing sheet still covers
+  // the page, so the jump isn't seen, and the row never sits under the toast (which rises with it) for a
+  // moment. A delayed, animated scroll left it there for the first half second (the scorecard's
+  // TOAST-OVER-CHANGE caught it in one run of four).
+  useLayoutEffect(() => {
     const grew = modCount > lastCount.current;
     lastCount.current = modCount;
-    if (!grew) return;
-    const t = setTimeout(() => scroller.current?.scrollTo({ y: Math.max(0, modsY.current - SPACING.md), animated: true }), 250);
-    return () => clearTimeout(t);
+    if (grew) scroller.current?.scrollTo({ y: Math.max(0, modsY.current - SPACING.md), animated: false });
   }, [modCount]);
   const [error, setError] = useState<string | null>(null);
   const demo = useIsDemo();
