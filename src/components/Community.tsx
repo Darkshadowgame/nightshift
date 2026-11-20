@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { distanceLabel, type PersonCard as Card_ } from '../lib/carsNear';
-import { classOf, effectivePower } from '../lib/classes';
+import { classOf } from '../lib/classes';
 import { connectLabel, type ConnectionState } from '../lib/connections';
 import { boardLabel, listingFacts, priceLabel, type ForumThread } from '../lib/forum';
 import { plural } from '../lib/format';
@@ -182,7 +182,9 @@ export function PersonNearRow({ card, state }: { card: Card_; state: ConnectionS
 
 /** Someone's main build, the one their profile leads with: a photo first, then the most power. */
 export function mainBuild(builds: readonly Build[]): Build | undefined {
-  return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]) || effectivePower(b) - effectivePower(a))[0];
+  // One with its own photo first, then the first they added (Review 20 #40: @na_ollie's MX-5, not
+  // the more powerful bike they also own), so an avatar shows the car their handle and posts are about.
+  return [...builds].sort((a, b) => Number(!!b.photos[0]) - Number(!!a.photos[0]))[0];
 }
 
 /** A person's row anywhere else (connections, a chat's members): avatar, @handle, their build. */
@@ -381,10 +383,13 @@ export function ConversationRow({ c, me, users, now }: { c: Conversation; me: st
   const handleOf = (id: string) => users.find((u) => u.id === id)?.handle;
   const title = conversationTitle(c, me, handleOf);
   const other = c.kind === 'direct' ? users.find((u) => c.memberIds.includes(u.id) && u.id !== me) : undefined;
+  // A group shows the car of whoever runs it (else its first other member), like every other avatar (Review 20 #27).
+  const leadId = c.kind === 'group' ? [...c.adminIds, ...c.memberIds].find((id) => id !== me) : undefined;
+  const lead = leadId ? users.find((u) => u.id === leadId) : undefined;
   const unread = c.unread > 0;
   return (
     <ListRow
-      leading={{ avatar: c.kind === 'group' ? { name: c.name ?? title } : personMark(other) }}
+      leading={{ avatar: c.kind === 'group' ? { name: c.name ?? title, handle: lead?.handle } : personMark(other) }}
       title={title}
       subtitle={previewLine(c, me, handleOf)}
       meta={c.kind === 'group' ? metaLine(['Group', plural(c.memberIds.length, 'person', 'people')]) : undefined}

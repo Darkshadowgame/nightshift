@@ -6,7 +6,7 @@ import { idsIn } from '../lib/connections';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
 import { ConversationRow, MEET_ACTION } from './Community';
-import { DsText, EmptyState, RowDivider, Section } from './ds';
+import { DsText, EmptyState, ListRow, RowDivider, Section } from './ds';
 import { PeopleStrip } from './PeopleStrip';
 
 /**
@@ -44,6 +44,8 @@ export function CommunityMessages() {
       {friends.length ? (
         <Section title="Your connections">
           <PeopleStrip people={friends} label="Your connections" />
+          <RowDivider />
+          <ListRow leading={{ icon: 'comment' }} title="New chat" subtitle="Message one connection, or start a group" onPress={() => router.push('/chat/new')} />
         </Section>
       ) : null}
       <DsText v="caption" style={{ textAlign: 'center' }}>
