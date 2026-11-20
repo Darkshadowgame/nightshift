@@ -1107,3 +1107,20 @@ clashed, the owner's earlier decisions stand:
       shows none); night or dusk photos for the sample meets; one photo on at
       most two screens in the normal demo (a post shows its own photo, not its build's); every bundled
       photo at least as large as it's shown (1200 x 900, meets 1600 x 900, posts 1080 x 1350).
+13. **Review 20 fixes: event page, route preview, Tonight, vote (owner decisions, 20 Nov 2026):**
+    * **Host clash warning:** hosting at a time you're already going to a meet asks first, with the
+      ConfirmSheet "Time clash": "You're going to Sunday coffee and cars then. Host anyway?", **Change
+      time** as the primary and **Host anyway** under it (secondary). Like the meet-ban warning, it is
+      the second confirm whose safe way back comes first (4.5); reviewers must not count it.
+    * **Seeded demo meets:** a meet the demo put you down for says "You're going (demo)" on its row
+      (in place of the Going tag) and in the Demo night sheet. Tonight lists your meets after tonight
+      under "Coming up", at the top of the sheet and the List.
+    * **Route preview:** the root back arrow at the top left is its way back (4.2); "Not now" is gone,
+      so Start is the only button. The demo route says it starts from home and its arrival carries
+      "(Demo · Fri)".
+    * **Event page:** "Checked in" is the ActionBar's status line after check-in (as "Going with your
+      …" is before); the "+150 rep" card fades, then folds its height. "Location shown" sits at the
+      top of the map, clear of the toast, over the map pin itself (which never leaves). A cancelled
+      meet says so once, "The host cancelled this meet.", with no status tag, "Was 1 going" and a
+      grey pin.
+    * **Demo distances** are measured from the demo's home and said "from home" (4.9).

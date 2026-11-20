@@ -24,6 +24,7 @@ import { injunctionConfirmText, publishCheck, pspoConfirmText } from '../lib/zon
 import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
+import { useClashCheck } from './ClashSheet';
 import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, Icon, PAGE_WITH_BAR, Press, RowDivider, Section, StepHeading, SwitchRow, TextField } from './ds';
 import { MapEdgeFade } from './MapEdgeFade';
 import { MapPicker } from './MapPicker';
@@ -275,6 +276,7 @@ export function EventForm({
   // Warn only (owner): a court injunction or a PSPO asks before posting.
   const check = publishCheck(placed, BAN_ZONES);
   const verb = editing ? 'Save' : 'Post';
+  const clash = useClashCheck();
   const friends = meUser.crewId ? users.filter((u) => u.id !== me && u.crewId === meUser.crewId) : [];
   const myBuilds = builds.filter((b) => b.ownerId === me);
   const leftOut = !isPublicType(type) && hostLeftOut(filter, myBuilds);
@@ -354,8 +356,8 @@ export function EventForm({
     go((step + 1) as Step);
   }
 
-  /** Post: checks every step, then asks before a meet ban (warn only, never blocked). */
-  function save() {
+  /** Post: checks every step, then asks before a clash (ClashSheet) and a meet ban (warn only, never blocked). */
+  function save(clashOk = false) {
     if (saving) return;
     for (const s of [0, 1] as Step[]) {
       const p = problem(s);
@@ -364,6 +366,7 @@ export function EventForm({
         return setError(p);
       }
     }
+    if (clashOk !== true && clash.check({ start, end, selfId: initial?.id }, () => save(true), () => go(0))) return;
     if (check.injunction || check.pspos.length) return setAskBan(true);
     return publish();
   }
@@ -764,7 +767,7 @@ export function EventForm({
         </View>
       ) : null}
       <ActionBar
-        primary={step === LAST ? { label: editing ? (submitLabel ?? 'Save changes') : postLabel, onPress: save, busy: saving, haptic: 'success' } : { label: 'Next', onPress: nextStep }}
+        primary={step === LAST ? { label: editing ? (submitLabel ?? 'Save changes') : postLabel, onPress: () => save(), busy: saving, haptic: 'success' } : { label: 'Next', onPress: nextStep }}
       />
 
       <MapPicker
@@ -799,6 +802,7 @@ export function EventForm({
         onCancel={() => setLeaveAction(null)}
       />
 
+      {clash.sheet}
       {/* The meet-ban warning (owner decision 9.3): warn, never block, with Change location as the main button. */}
       <ConfirmSheet
         visible={askBan}

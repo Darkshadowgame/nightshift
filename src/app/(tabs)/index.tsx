@@ -84,16 +84,18 @@ const FIT_TOP = 28;
  * `rightShare`: the share of the map's width on the right that the map buttons cover; the points are
  * fitted into the rest, so no pin sits under the buttons or off the edge (Review 19).
  */
-function fitRegion(points: readonly LatLng[], fallback: LatLng, rightShare = 0): { centre: LatLng; span: number } {
+function fitRegion(points: readonly LatLng[], fallback: LatLng, rightShare = 0, across = 1.2): { centre: LatLng; span: number } {
   if (points.length === 0) return { centre: fallback, span: START_SPAN };
   const lats = points.map((p) => p.lat);
   const lngs = points.map((p) => p.lng);
   const [s, n, w, e] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
   const open = 1 - Math.min(0.4, Math.max(0, rightShare));
   // The map shows 1.2x the span across (as both maps fit it); pins need about a fifth more each way.
-  const span = Math.max(0.06, (n - s) * 1.5 + 0.02, ((e - w) * 1.3) / 1.2 / open + 0.02);
+  // `across`: degrees of longitude the map shows per degree of `span` (1.2 on a 375x667 phone; less on
+  // a tall one, 393x852, where pins at the sides were cut by the edge: Review 20 gap 11).
+  const span = Math.max(0.06, (n - s) * 1.5 + 0.02, ((e - w) * 1.3) / across / open + 0.02);
   // Move the middle east by half the covered strip, so the points sit in the open part.
-  const shift = (span * 1.2 * (1 - open)) / 2;
+  const shift = (span * across * (1 - open)) / 2;
   return { centre: { lat: (s + n) / 2, lng: (w + e) / 2 + shift }, span };
 }
 /** Count pins (places grouped when zoomed out): what each one is. */
@@ -396,7 +398,9 @@ export default function TonightScreen() {
   const [headerH, setHeaderH] = useState(260);
   const sheetY = useSharedValue(screen.height);
   const sheetTop = SPACING.sm;
-  const peekCap = Math.max(160, Math.round(Math.min(screen.height * 0.5, (box.h || screen.height) - 2 * BUTTON - SPACING.xl)));
+  // The map keeps at least a third of the screen above the sheet, at any text size (Review 20 gap 10:
+  // at 1.3x it shrank to a 150 px strip); the rest of the card is a drag away.
+  const peekCap = Math.max(160, Math.round(Math.min(screen.height * 0.5, (box.h || screen.height) - Math.max(2 * BUTTON + SPACING.xl, screen.height / 3) - sheetTop)));
   const peek = Math.min(headerH + NEXT_PEEK, peekCap);
   const tops = detentTops(box.h, peek, sheetTop);
 
@@ -440,6 +444,14 @@ export default function TonightScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lists, pick, meUser?.home]);
   const fitSig = fitPoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|');
+  /** Tonight's meets outside the fit that fall within a band round `r`'s edges (they'd show cut off). */
+  function edgePoints(r: { centre: LatLng; span: number }, inside: readonly LatLng[]): LatLng[] {
+    const halfLat = (r.span / 2) * 1.3;
+    const halfLng = ((r.span * 1.2) / 2) * 1.5;
+    return [...lists.live, ...lists.tonight]
+      .map(pointOf)
+      .filter((p) => !inside.includes(p) && Math.abs(p.lat - r.centre.lat) <= halfLat && Math.abs(p.lng - r.centre.lng) <= halfLng);
+  }
   // At min (a tap on the map closed the card) the map is all but full screen, so fits use all of it.
   const lowest = detent === 'min' ? MIN_SHOWN : peek + sheetTop;
   const mapPadding = useMemo<MapPadding>(() => ({ top: FIT_TOP, bottom: lowest }), [lowest]);
@@ -447,7 +459,15 @@ export default function TonightScreen() {
     if (!ready || !box.h || params.focus || !autoFit.current || (view && !view.fit)) return;
     const t = setTimeout(() => {
       if (!autoFit.current) return;
-      const r = fitRegion(fitPoints, meUser?.home ?? START, box.w ? (BUTTON + SPACING.md * 2) / box.w : 0);
+      const right = box.w ? (BUTTON + SPACING.md * 2) / box.w : 0;
+      // Longitude shown per degree of span: the map's shape, stretched by Mercator at this latitude.
+      const lat = (meUser?.home ?? START).lat;
+      const across = box.w && box.h ? Math.min(1.2, box.w / box.h / Math.cos((lat * Math.PI) / 180)) : 1.2;
+      const first = fitRegion(fitPoints, meUser?.home ?? START, right, across);
+      // A meet further out that would sit on the view's edge, half cut off, is fitted in too (Review 20
+      // gap 11: a Busy night pin cut by the map's left edge at 393x852).
+      const edge = edgePoints(first, fitPoints);
+      const r = edge.length ? fitRegion([...fitPoints, ...edge], meUser?.home ?? START, right, across) : first;
       setView((x) => (x && !x.fit ? x : { ...r, fit: true, key: (x?.key ?? 0) + 1 }));
     }, 150);
     return () => clearTimeout(t);
@@ -677,14 +697,30 @@ export default function TonightScreen() {
   function sections(onOpen: (v: EventView) => void) {
     const live = lists.live.filter((v) => v.event.id !== skip);
     const tonight = lists.tonight.filter((v) => v.event.id !== skip);
-    const week = lists.week.filter((v) => v.event.id !== skip);
-    const later = lists.later.filter((v) => v.event.id !== skip);
+    // Yours after tonight (going or hosting) lead the sheet (Review 20 gap 8): a Sunday meet you're
+    // going to is never only the last row of the list. Listed here, not again under This week or Later.
+    const isYours = (v: EventView) => v.status === 'going' || v.status === 'hosting';
+    const yours = [...lists.week, ...lists.later].filter((v) => v.event.id !== skip && isYours(v));
+    const week = lists.week.filter((v) => v.event.id !== skip && !isYours(v));
+    const later = lists.later.filter((v) => v.event.id !== skip && !isYours(v));
     let i = 0;
     return (
       <>
         {mode === 'list' ? filterNote : null}
         {noCar ? (
           <ListRow leading={{ icon: 'plus' }} title="Add your car to see what you can join" chevron onPress={() => router.push('/build/edit')} />
+        ) : null}
+        {yours.length ? (
+          <Section title="Coming up">
+            <View>
+              {yours.map((v, n) => (
+                <View key={v.event.id}>
+                  {n > 0 ? <RowDivider inset /> : null}
+                  <EventRow view={v} now={now} origin={origin} notOpen={false} onPress={() => onOpen(v)} />
+                </View>
+              ))}
+            </View>
+          </Section>
         ) : null}
         {live.length ? (
           <Section title="Live now">

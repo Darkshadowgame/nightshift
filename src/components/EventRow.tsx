@@ -1,7 +1,9 @@
 import { EVENT_LABELS } from '../lib/events';
 import type { EventView } from '../lib/eventView';
 import type { DistanceOrigin } from '../lib/format';
-import { NOT_OPEN } from '../lib/glossary';
+import { DEMO_SEEDED_GOING } from '../data/seed';
+import { DEMO_NIGHT, NOT_OPEN } from '../lib/glossary';
+import { useStore } from '../lib/store';
 import { COLOR, EVENT_COLOURS } from '../theme';
 import { ListRow, metaLine, Tag, type EntityTag, type TagTone } from './ds';
 import { cardDistance, cardTime, notOpenLine, statusTag } from './TonightCards';
@@ -36,7 +38,10 @@ export function EventRow({
   accessibilityHint?: string;
 }) {
   const e = v.event;
-  const shown = tag ?? statusTag(v.status);
+  const { backend } = useStore();
+  // A meet the demo put you down for says so, in words, instead of the bare Going tag (Review 20 problem 2).
+  const seeded = !tag && backend === 'local' && v.status === 'going' && DEMO_SEEDED_GOING.has(e.id);
+  const shown = seeded ? undefined : (tag ?? statusTag(v.status));
   const closed = notOpen ?? !!notOpenLine(v);
   return (
     <ListRow
@@ -46,7 +51,7 @@ export function EventRow({
       // "·" rather than before it, so no line starts with a dot.
       subtitle={metaLine([EVENT_LABELS[e.type], cardTime(e, now), cardDistance(v, origin), place]).replace(/ · /g, '\u00a0· ')}
       subtitleLines={4}
-      meta={closed ? NOT_OPEN : undefined}
+      meta={seeded ? DEMO_NIGHT.seededGoing : closed ? NOT_OPEN : undefined}
       trailing={shown ? <Tag label={shown.label} tone={shown.tone as TagTone} /> : undefined}
       onPress={onPress}
       accessibilityHint={accessibilityHint}

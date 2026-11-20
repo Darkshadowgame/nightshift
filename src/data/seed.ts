@@ -20,6 +20,13 @@ import { appNow } from '../lib/appClock';
 export const ME = 'me';
 
 /**
+ * Meets the demo says you're going to before you've tapped anything (Sunday coffee and cars, for
+ * task 10's "Can't make it"). Said "You're going (demo)" on their row and in the Demo night sheet,
+ * so it's never a surprise (Review 20 problem 2).
+ */
+export const DEMO_SEEDED_GOING: ReadonlySet<string> = new Set(['ev-meet-soon']);
+
+/**
  * The made-up origin the sample scene is drawn round (Tamworth). Every sample
  * point is moved onto your home area keeping its distance and direction.
  * "Use the demo area" on first run still puts your home here, for testing.

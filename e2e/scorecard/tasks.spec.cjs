@@ -348,6 +348,13 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await snap('host-4');
     const review = await text();
     await tap(B('Post meet'));
+    // Sun 10:00 clashes with the demo's Sunday coffee and cars, which you're going to (Review 20
+    // problem 2): the warning shows, and the task says to host it, so Host anyway.
+    if (await B('Host anyway').count()) {
+      await snap('clash');
+      result.notes.push('t9: the clash warning showed (going to a meet at that time); tapped Host anyway');
+      await tap(B('Host anyway'), { inSheet: true });
+    }
     await snap('posted');
     await tap(B('Share', { exact: true }));
     await snap('share');

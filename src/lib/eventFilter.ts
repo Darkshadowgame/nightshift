@@ -75,6 +75,8 @@ export interface FilterResult {
   shown: EventView[];
   /** Hidden by Events off, When or Type. */
   hiddenByFilters: number;
+  /** Of `hiddenByFilters`: hidden only by When (a later meet), so the line can say "later" (Review 20 gap 7). */
+  hiddenByWhen?: number;
   /** Passed the other filters but not open to your car (Only ones I can go to). */
   hiddenByCar: number;
   /** Shown and inside When (Tonight: live or starting before 05:00): the count line's number. Yours outside it show but aren't counted. */
@@ -87,6 +89,7 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
   const shown: EventView[] = [];
   let hiddenByFilters = 0;
   let hiddenByCar = 0;
+  let hiddenByWhen = 0;
   let shownInWhen = 0;
   for (const v of views) {
     const start = new Date(v.event.startsAt).getTime();
@@ -100,6 +103,7 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
     const inType = filter.types.length === 0 || (filter.types as EventType[]).includes(v.event.type);
     if (!eventsOn || !inWhen || !inType) {
       hiddenByFilters++;
+      if (eventsOn && inType && !inWhen) hiddenByWhen++;
       continue;
     }
     // Asked to go and waiting for the host: still yours to see.
@@ -110,7 +114,7 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
     shown.push(v);
     shownInWhen++;
   }
-  return { shown, hiddenByFilters, hiddenByCar, shownInWhen };
+  return { shown, hiddenByFilters, hiddenByCar, hiddenByWhen, shownInWhen };
 }
 
 /** Is anything narrowing the events (so the Layers button can say so)? */
@@ -146,12 +150,17 @@ export function filterLine(result: FilterResult, filter: EventFilter, eventsOn: 
     const defaults = filter.when === DEFAULT_EVENT_FILTER.when && filter.types.length === 0 && filter.canGoOnly === DEFAULT_EVENT_FILTER.canGoOnly;
     return allShown(filter, eventsOn) && !defaults ? { text: `${count} · Filters off`, action: { label: 'Reset', clears: 'reset' } } : null;
   }
+  const carWhy = (n: number) => (hasCar ? `${n} not for your car` : `${n} need a car`);
+  const later = result.hiddenByWhen ?? 0;
+  // Only When (and the car) hid them: name it, "3 later, 1 not for your car" (Review 20 gap 7: a new
+  // user has set no filters, so "hidden by your filters" puzzled).
+  const byWhenOnly = other > 0 && later === other;
   const why = !eventsOn
     ? `${car + other} hidden, Events off`
     : other === 0
-      ? hasCar
-        ? `${car} not for your car`
-        : `${car} need a car`
-      : `${car + other} hidden by your filters`;
+      ? carWhy(car)
+      : byWhenOnly
+        ? [`${later} later`, car > 0 ? carWhy(car) : null].filter(Boolean).join(', ')
+        : `${car + other} hidden by your filters`;
   return { text: `${count} · ${why}`, action: { label: 'Show', clears: 'all' } };
 }

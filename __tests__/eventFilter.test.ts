@@ -85,9 +85,9 @@ describe('filterLine', () => {
   test('everything shown after Show: a way back (Review 19)', () => {
     expect(filterLine(filterEvents(VIEWS, NO_EVENT_FILTER, true, NOW), NO_EVENT_FILTER, true, true)).toEqual({ text: '10 meets · Filters off', action: { label: 'Reset', clears: 'reset' } });
   });
-  test('filters hid some: says by what, and Show', () => {
+  test('filters hid some: names the default filters (later, not for your car) and Show (Review 20)', () => {
     const line = filterLine(filterEvents(VIEWS, DEFAULT_EVENT_FILTER, true, NOW), DEFAULT_EVENT_FILTER, true, true)!;
-    expect(line.text).toBe('4 meets tonight · 4 hidden by your filters');
+    expect(line.text).toBe('4 meets tonight · 3 later, 1 not for your car');
     expect(line.action).toEqual({ label: 'Show', clears: 'all' });
   });
   test('only the car hid some: Show; no car says so', () => {

@@ -96,12 +96,14 @@ export const AWAY_FROM_HOME_MILES = 30;
  * from home (on holiday, a London phone on a Tamworth demo) measures from home, said "from home",
  * so the map, "Around Tamworth" and the distances agree.
  *
- * `demo`: the demo's own start point (its home, where its drives start) counts as you (Review 18),
- * so Tonight, the event page, Search, Me and the route preview all measure from the same place.
+ * `demo`: the demo's own start point (its home, where its drives start) is the origin (Review 18),
+ * so Tonight, the event page, Search, Me and the route preview all measure from the same place; it
+ * is said "from home" (Review 20), since the phone itself may be anywhere.
  */
 export function distanceOrigin(here: LatLng | null | undefined, home: LatLng | null | undefined, demo = false): DistanceOrigin | null {
   const hasHome = !!home && (home.lat !== 0 || home.lng !== 0);
-  if (demo && hasHome) return { at: home!, from: 'you' };
+  // Measured from the demo's home, so said "from home" (4.9, Review 20 break 2): the phone may be miles away.
+  if (demo && hasHome) return { at: home!, from: 'home' };
   if (here && !(hasHome && milesBetween(here, home!) > AWAY_FROM_HOME_MILES)) return { at: here, from: 'you' };
   if (hasHome) return { at: home!, from: 'home' };
   return null;

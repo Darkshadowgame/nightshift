@@ -166,6 +166,8 @@ export function locationSentence({ state, time, minutesTo, point, town, leadMinu
 
 /** The demo's one tag and its explanation (Redesign 2, 3.1). */
 export const DEMO_NIGHT = {
+  /** A meet the demo put you down for (seed.ts DEMO_SEEDED_GOING): on its row and in the sheet (Review 20). */
+  seededGoing: "You're going (demo)",
   tag: 'Demo night',
   title: 'Demo night',
   body: "The demo runs on its own clock: Friday night from 21:10, whatever time your phone says, so a meet is always on and you can try everything. Every time in the demo follows that clock. Nothing leaves this phone, and check-in doesn't need you to be at the meet point.",
@@ -181,6 +183,11 @@ export function demoClockTag(now: Date): string {
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   return `Demo · ${DAYS[now.getDay()]} ${hh}:${mm}`;
+}
+
+/** "Demo · Fri": the demo's day, by a time that follows its clock (the route preview's arrival, chats). */
+export function demoDayTag(now: Date): string {
+  return `Demo · ${DAYS[now.getDay()]}`;
 }
 
 /**
