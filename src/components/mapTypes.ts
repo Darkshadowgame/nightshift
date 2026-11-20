@@ -68,7 +68,7 @@ export interface NightMapProps {
   onLongPress?: (at: LatLng) => void;
   showsUser?: boolean;
   /**
-   * Where you are, for the web map's "you" dot (the iPhone map draws its own with `showsUser`).
+   * Where you are: both maps draw the "you" dot here (YouDot, testID you-marker).
    * Review 21 problem 5: Show where I am moved the map but drew nothing.
    */
   you?: LatLng | null;

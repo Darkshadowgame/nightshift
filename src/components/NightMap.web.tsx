@@ -4,7 +4,7 @@ import type * as Leaflet from 'leaflet';
 import { pinLayer } from '../lib/hud';
 import type { LatLng } from '../lib/types';
 import { ART, BRAND, COLOR } from '../theme';
-import { Pin } from './Pin';
+import { Pin, YOU_LABEL, YouDot } from './Pin';
 import { type MapCircle, type MapPath, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
 import { Credit } from './webmap/Credit.web';
 import { GridMap } from './webmap/GridMap.web';
@@ -171,7 +171,7 @@ export function NightMap(props: NightMapProps) {
       face: <PinFace pin={p} halo={appearance === 'dark' && props.labels !== false} />,
     }));
     // You: the blue dot with a soft accuracy ring, as on every phone map (Review 21 problem 5).
-    if (props.you) out.push({ id: '__you', lat: props.you.lat, lng: props.you.lng, size: 44, z: 8, label: 'You are here', face: <YouDot /> });
+    if (props.you) out.push({ id: '__you', lat: props.you.lat, lng: props.you.lng, size: 44, z: 8, label: YOU_LABEL, face: <YouDot /> });
     if (picked) out.push({ id: '__picked', lat: picked.lat, lng: picked.lng, size: 40, z: 9, face: <Pin glyph="you" colour={BRAND} size={40} /> });
     return out;
     // onSelect is read through `latest`; a new handler needn't redraw the pins.
@@ -187,16 +187,6 @@ export function NightMap(props: NightMapProps) {
       <div ref={box} style={{ position: 'absolute', inset: 0, ...(tall ? null : EDGE_MASK) }} />
       {portals}
       <Credit credit={credit} tiles={tiles} top={tall} />
-    </View>
-  );
-}
-
-/** The "you" dot: Apple's blue, a white rim and a faint ring round it. */
-function YouDot() {
-  return (
-    <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,132,255,0.18)', borderWidth: 1, borderColor: 'rgba(10,132,255,0.35)' }} />
-      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: ART.you, borderWidth: 3, borderColor: COLOR.text.primary }} />
     </View>
   );
 }

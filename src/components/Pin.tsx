@@ -432,3 +432,20 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return <Path d="M20 10.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5L20 25l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z" fill={c} />;
   }
 }
+
+/** What the "you" dot is read out as, on both maps (and what the scorecard looks for). */
+export const YOU_LABEL = 'You are here';
+
+/**
+ * The "you" dot: Apple's blue, a white rim and a faint accuracy ring round it, as on every phone
+ * map (Review 21 problem 5). testID `you-marker` on the iPhone and the web; the marker round it
+ * carries the YOU_LABEL (NightMap's Marker, the web marker's role="img"), so it's read out once.
+ */
+export function YouDot() {
+  return (
+    <View testID="you-marker" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,132,255,0.18)', borderWidth: 1, borderColor: 'rgba(10,132,255,0.35)' }} />
+      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: ART.you, borderWidth: 3, borderColor: COLOR.text.primary }} />
+    </View>
+  );
+}

@@ -119,6 +119,10 @@ export function useMarkers(leaflet: { L: L; map: Leaflet.Map } | null, specs: Ma
         if (s.onClick) {
           el.setAttribute('role', 'button');
           if (s.label) el.setAttribute('aria-label', s.label);
+        } else if (s.label) {
+          // A labelled mark that isn't a button (the "You are here" dot) is still read out, as an image.
+          el.setAttribute('role', 'img');
+          el.setAttribute('aria-label', s.label);
         } else el.setAttribute('aria-hidden', 'true');
       });
       m.addTo(map);

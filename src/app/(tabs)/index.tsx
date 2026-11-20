@@ -184,6 +184,10 @@ export default function TonightScreen() {
 
   const [located, setLocated] = useState(false);
   const [here, setHere] = useState<LatLng | null>(null);
+  // The "You are here" dot once you've asked (Show where I am), with the map fitted round you and the
+  // nearest meets. A fix taken quietly on opening only sets where distances are from: the map opens on
+  // the meets, and a dot from it could sit under the lowered sheet (SHEET-PIN, Review 21 #7).
+  const [youShown, setYouShown] = useState(false);
   const [locNote, setLocNote] = useState<string | null>(null);
   async function locate(ask: boolean, explicit: boolean) {
     if (explicit) autoFit.current = false;
@@ -198,10 +202,14 @@ export default function TonightScreen() {
       setLocNote(null);
       // You and the meets nearest you, together (Review 21 problem 5): the map never lands on an
       // empty patch with every meet off screen.
-      if (explicit) fitYouRef.current(pos.at);
+      if (explicit) {
+        setYouShown(true);
+        fitYouRef.current(pos.at);
+      }
       return;
     }
     setLocated(false);
+    setYouShown(false);
     // Only when asked: the map stays on your home area without a word otherwise.
     // Why, and how to turn it on, on this platform (Review 14).
     if (explicit) setLocNote(locationHelp(pos.reason));
@@ -863,7 +871,7 @@ export default function TonightScreen() {
             onSelect={onSelectPin}
             onPressMap={onMapPress}
             showsUser={located}
-            you={located ? here : null}
+            you={located && youShown ? here : null}
             compass={COMPASS}
             credit={mapCredit}
           />

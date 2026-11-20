@@ -6,7 +6,7 @@ import { DsText } from './ds/Text';
 import { pinLayer } from '../lib/hud';
 import { MAP_POIS, MAP_TYPE } from '../lib/mapAppearance';
 import { PulseRing } from './motion';
-import { Pin } from './Pin';
+import { Pin, YOU_LABEL, YouDot } from './Pin';
 import { paddedRegion, type MapCircle, type MapPath, type MapPin, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
 import type { LatLng } from '../lib/types';
 
@@ -87,7 +87,7 @@ const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
 
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export const NightMap = memo(function NightMap({
-  ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, picked, follow, recentreKey, onPressMap, onMoved,
+  ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, you, picked, follow, recentreKey, onPressMap, onMoved,
   onRegion, credit, compass, padding, appearance = 'dark', labels = true,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
@@ -140,7 +140,9 @@ export const NightMap = memo(function NightMap({
       // Apple's legal label and compass stay in the uncovered part too.
       mapPadding={padding ? { top: padding.top ?? 0, bottom: padding.bottom ?? 0, left: 0, right: 0 } : undefined}
       initialRegion={{ latitude: centre.lat, longitude: centre.lng, latitudeDelta: span, longitudeDelta: span * 1.2 }}
-      showsUserLocation={showsUser}
+      // With a fix (Show where I am) the map draws its own "you" dot, the same as the web's, labelled
+      // and with testID you-marker (Review 21 problem 6); Apple's own dot only stands in without one.
+      showsUserLocation={showsUser && !you}
       showsMyLocationButton={false}
       onRegionChangeComplete={(r) => {
         shown.current = { centre: { lat: r.latitude, lng: r.longitude }, span: r.latitudeDelta };
@@ -170,6 +172,11 @@ export const NightMap = memo(function NightMap({
       {pins.map((p) => (
         <PinMarker key={p.id} pin={p} onSelect={select} />
       ))}
+      {you ? (
+        <Marker coordinate={{ latitude: you.lat, longitude: you.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} zIndex={8} accessibilityLabel={YOU_LABEL} testID="you-marker">
+          <YouDot />
+        </Marker>
+      ) : null}
       {picked ? (
         <Marker coordinate={{ latitude: picked.lat, longitude: picked.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
           <Pin glyph="you" colour={BRAND} size={40} />
