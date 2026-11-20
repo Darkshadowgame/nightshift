@@ -372,7 +372,7 @@ export function AreaArt({ colour = COLOR.layer.event }: { colour?: string }) {
 }
 
 /** The kind line's backing on a photo: a solid dark pill, hugging its words (Review 21 problem 3). */
-const ON_PHOTO_KIND = {
+export const ON_PHOTO_KIND = {
   alignSelf: 'flex-start' as const,
   backgroundColor: COLOR.surface.glass,
   borderRadius: RADII.tag,

@@ -19,6 +19,8 @@ const TERMS_VERSION = '2026-11-17';
 
 /** The picture behind the tagline: a meet at night, no plate in the crop, credited through the ⓘ (Review 19 #1). */
 const HERO_REF = 'hero-night-meet';
+/** The sign-in hero's extra scrim, light at the top (the photo shows) and darker where the words sit. */
+const HERO_SCRIM = ['rgba(5,7,12,0.2)', 'rgba(5,7,12,0.6)'] as const;
 
 /** The core loop in three short lines (Redesign 2, 3.1). */
 const PITCH: { glyph: Glyph; text: string }[] = [
@@ -110,6 +112,9 @@ export default function SignIn() {
             {/* FitImage cover: a plain web Image takes the file's own size over absoluteFill and showed a
                 blown-up corner of the photo (Review 20 #2). */}
             {photo ? <FitImage source={photo.image} fit="cover" style={StyleSheet.absoluteFill} /> : null}
+            {/* A scrim under the fade: at 1.3x text the headline climbs to three lines, over the bright
+                silver car, and still has to read (WCAG AA, scorecard PHOTO-CONTRAST, Review 21 problem 3). */}
+            <Gradient colours={HERO_SCRIM} />
             <Gradient />
             <View style={{ position: 'absolute', left: SPACING.screen, right: SPACING.screen, bottom: SPACING.md }}>
               <DsText v="hero" accessibilityRole="header">

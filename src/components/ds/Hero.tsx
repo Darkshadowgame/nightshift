@@ -8,6 +8,7 @@ import { FitImage } from './FitImage';
 import { Gradient } from './Gradient';
 import { contentColour } from './logic';
 import { ClassBadge, Tag, type Photo } from './Marks';
+import { ON_PHOTO_KIND } from './PhotoCard';
 import { DsText } from './Text';
 
 /**
@@ -141,7 +142,9 @@ export function Hero({
             <>
               <Gradient style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '75%' }} />
               <View style={{ position: 'absolute', left: SPACING.screen, right: SPACING.screen, bottom: SPACING.md, gap: SPACING.xs }}>
-                {kindRow}
+                {/* The kind line on a solid dark pill, as on the Tonight cards (PhotoCard ON_PHOTO_KIND): "● MEET"
+                    reads on any photo, a bright sky or a white car (Review 21 problem 3). */}
+                {kindRow ? <View style={ON_PHOTO_KIND}>{kindRow}</View> : null}
                 {titleRow}
               </View>
             </>
