@@ -1,0 +1,4 @@
+{
+  "about": "HEADER-TITLE: content-case header titles allowed on a pushed screen (4.1 allows caps titles, and a detail screen's compact copy of a hero title that has scrolled away). Each entry: regexes for the URL path and title text, and why. Adding one is a 4.1 exception: write it into REDESIGN-2.md too.",
+  "allow": []
+}

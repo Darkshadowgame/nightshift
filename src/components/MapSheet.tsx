@@ -129,7 +129,7 @@ export function MapSheet({
   const cycle = () => snap(detent === 'min' ? 'peek' : ORDER[(i + 1) % ORDER.length]);
 
   return (
-    <Animated.View style={[st.sheet, { height: height - top }, style]} pointerEvents={hidden ? 'none' : 'auto'} aria-hidden={hidden || undefined} {...pan.panHandlers}>
+    <Animated.View testID="map-sheet" style={[st.sheet, { height: height - top }, style]} pointerEvents={hidden ? 'none' : 'auto'} aria-hidden={hidden || undefined} {...pan.panHandlers}>
       <View onLayout={(e: LayoutChangeEvent) => onHeaderLayout?.(e.nativeEvent.layout.height)}>
         <Pressable
           onPress={cycle}

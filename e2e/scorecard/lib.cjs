@@ -98,7 +98,8 @@ function scalerScript(scale) {
  */
 const PROBE = `(() => {
   if (window.__sc) return;
-  const sc = window.__sc = { toasts: [], disabled: [], task: '' };
+  const sc = window.__sc = { toasts: [], disabled: [], sheets: [], task: '' };
+  const sheetKeys = new Set();
   const live = new Map();
   let nextId = 1;
   const css = document.createElement('style');
@@ -163,6 +164,21 @@ const PROBE = `(() => {
     }
     css.remove();
     for (const [el, rec] of live) if (!el.isConnected) { live.delete(el); rec.gone = now; }
+    // WORDS-SHEET (Review 21 #19): every sheet's text and control labels as it's shown, so a sheet
+    // opened and closed between screenshots is still scanned. "event" (EXTRA_WORDS in checks.cjs)
+    // triggers a screenshot.
+    for (const sh of document.querySelectorAll('[data-testid=sheet]')) {
+      if (!shown(sh) || sh.getBoundingClientRect().height < 40) continue;
+      const h = sh.querySelector('[role=heading]');
+      const lines = (sh.innerText || '').split('\\n').map((x) => x.replace(/\\s+/g, ' ').trim()).filter(Boolean);
+      const labels = [...sh.querySelectorAll('[aria-label]')].map((x) => x.getAttribute('aria-label').replace(/\\s+/g, ' ').trim()).filter(Boolean);
+      const key = lines.join('|') + '#' + labels.join('|');
+      if (sheetKeys.has(key) || sc.sheets.length > 200) continue;
+      sheetKeys.add(key);
+      const rec = { id: sc.sheets.length + 1, task: sc.task, url: location.pathname, title: h ? h.textContent.trim() : '?', lines, labels };
+      sc.sheets.push(rec);
+      if ([...lines, ...labels].some((x) => /\\bevents?\\b/i.test(x)) && window.__scorecardHit) window.__scorecardHit('sheet-word-' + rec.id);
+    }
     for (const b of document.querySelectorAll('[data-testid=primary-button]')) {
       // A busy primary (spinner while it works) isn't a disabled one.
       if (b.getAttribute('aria-disabled') !== 'true' || b.getAttribute('aria-busy') === 'true' || b.querySelector('[role=progressbar]') || !shown(b)) continue;

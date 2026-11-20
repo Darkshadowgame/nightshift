@@ -66,15 +66,16 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   async function boxFinding(f, p) {
     if (said.has(f.message)) return;
     said.add(f.message);
-    const { boxes, reveal, ...rest } = f;
+    const { boxes, reveal, revealSel, ...rest } = f;
     let shot = p;
     if (boxes && boxes.length) {
       shot = p.replace(/\.jpg$/, `-${f.rule.replace(/\W/g, '')}${said.size}.jpg`);
       // A photo below the fold (IMG-SCALE): scroll it into view, outline it, scroll back.
       let marks = boxes;
-      if (reveal != null) {
-        const r = await page.evaluate(([i]) => {
-          const el = document.querySelector(`[data-sc-photo="${i}"]`);
+      const sel = revealSel || (reveal != null ? `[data-sc-photo="${reveal}"]` : null);
+      if (sel) {
+        const r = await page.evaluate(([q]) => {
+          const el = document.querySelector(q);
           if (!el) return null;
           const b0 = el.getBoundingClientRect();
           if (b0.top >= 0 && b0.bottom <= innerHeight) return { dy: 0 };
@@ -83,13 +84,13 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
           el.scrollIntoView({ block: 'center' });
           window.__scBack = saved.map(([q, t]) => [q, t, q.scrollLeft]);
           return { dy: el.getBoundingClientRect().top - b0.top };
-        }, [reveal]).catch(() => null);
+        }, [sel]).catch(() => null);
         if (r && r.dy) { await L.sleep(300); marks = boxes.map((b) => ({ ...b, y: b.y + r.dy })); }
       }
       await page.evaluate(C.markBoxes, marks);
       await shoot(shot);
       await page.evaluate(C.unmarkBoxes);
-      if (reveal != null) await page.evaluate(C.restoreScroll).catch(() => {});
+      if (sel) await page.evaluate(C.restoreScroll).catch(() => {});
     }
     finding(rest, shot);
   }
@@ -100,12 +101,21 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   /** HOME-DIST: miles from the phone to the demo's home. */
   const phoneHome = C.miles(L.PHONE, L.DEMO_HOME);
 
-  /** Screenshot plus the per-screen checks: banned words, clipped text, and C5 on an event page. */
-  async function snap(name) {
+  /**
+   * Screenshot plus the per-screen checks: banned words, clipped text, and C5 on an event page.
+   * `extra`: a screen off the task path (Review 21's survey: Feed, People, Layers), where only
+   * Review 21's checks run, so the older rules keep the task path they were set on.
+   */
+  async function snap(name, { extra = false } = {}) {
     const p = shotPath(name);
     await shoot(p);
     lastShot = p;
     const u = url();
+    if (extra) {
+      await r21Checks(p, u, await page.evaluate(C.pageDistances));
+      result.steps.push({ step, name, task: current, url: u, shot: p, extra: true });
+      return;
+    }
     const texts = await page.evaluate(C.pageText);
     const over = await page.evaluate(C.pageOverflow);
     // WORDS findings once per run (the same label is on every step of a screen).
@@ -146,7 +156,8 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     // Once per screen: the same grid is on every step of it.
     for (const f of C.checkPhotoScale(photos, u)) if (!said.has(`IMG-SCALE ${C.at(u)}`)) { said.add(`IMG-SCALE ${C.at(u)}`); found.push(f); }
     C.notePhotos(photoScreens, photos, u, p);
-    found.push(...C.checkHomeDistances(await page.evaluate(C.pageDistances), u, phoneHome));
+    const dists = await page.evaluate(C.pageDistances);
+    found.push(...C.checkHomeDistances(dists, u, phoneHome));
     // A bright sliver along an edge of a small map card (Review 19 #5, #21; Review 20 #4, #33):
     // the 4 px along each of its own edges.
     const edges = maps.filter((x) => x.small && x.edges.length);
@@ -165,6 +176,60 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
         // A cut label or tile gap is 40+ bright device pixels; a stray anti-aliased pixel or two isn't.
         if (b.n >= 40 && b.cols >= 8) found.push({ rule: 'EDGE', message: `on ${C.at(u)}, a bright sliver along the ${e.side} edge of the small map (a label or tile cut by the edge)`, boxes: [{ x: clip.x, y: clip.y, w: clip.width, h: clip.height }] });
       }
+    }
+    // EDGE-LABEL (Review 21 #2, #8, #16): labels or shields within 10 px of a small map's edge.
+    // Each band twice: with the edge fade hidden (is a label cut by the edge?) and as drawn (does it show?).
+    const bands = [];
+    for (const m of edges) {
+      for (const e of m.edges) {
+        const band = C.edgeBand(m, e.side);
+        if (band.y < 0 || band.y + band.h > page.viewportSize().height || band.x < 0 || band.x + band.w > page.viewportSize().width || band.w < 8 || band.h < 8) continue;
+        bands.push({ band, side: e.side });
+      }
+    }
+    if (bands.length) {
+      const clip = (b) => ({ x: b.x, y: b.y, width: b.w, height: b.h });
+      try {
+        await page.evaluate(C.pageHideFades, true);
+        for (const b of bands) b.off = (await page.screenshot({ clip: clip(b.band), type: 'png' })).toString('base64');
+      } finally { await page.evaluate(C.pageHideFades, false).catch(() => {}); }
+      for (const b of bands) {
+        const on = (await page.screenshot({ clip: clip(b.band), type: 'png' })).toString('base64');
+        const r = await page.evaluate(C.pageEdgeLabel, [b.off, on, b.band, b.side]);
+        found.push(...C.checkEdgeLabel(r, u, b.side, b.band));
+      }
+    }
+    for (const f of found) await boxFinding(f, p);
+    await r21Checks(p, u, dists);
+  }
+
+  /**
+   * Review 21's per-screen checks (checks-r21.cjs): HEADER-TITLE, PHOTO-CONTRAST, DOT-WRAP,
+   * DIST-ORIGIN, POWER-ONE (Community) and SHEET-PIN (Tonight's map). Each finding once per run.
+   */
+  async function r21Checks(p, u, dists) {
+    const found = [];
+    found.push(...C.checkHeaderTitle(await page.evaluate(C.pageHeaderTitle), u));
+    found.push(...C.checkDistOrigin(dists, u));
+    if (u === '/') found.push(...C.checkSheetPins(await page.evaluate(C.pageSheetPins), u));
+    if (/^\/community/.test(u)) {
+      found.push(...C.checkPostPower(await page.evaluate(C.pagePostPower), u));
+    }
+    for (const f of C.checkWraps(await page.evaluate(C.pageWraps), u, scale)) {
+      const { idx, y, ...rest } = f;
+      found.push(y < 0 || y > 620 ? { ...rest, revealSel: `[data-sc-wrap="${idx}"]` } : rest);
+    }
+    // PHOTO-CONTRAST: one screenshot with the text over photos hidden, then put back.
+    const items = await page.evaluate(C.pagePhotoText).catch(() => []);
+    if (items.length) {
+      let res = [];
+      try {
+        const png = await page.screenshot({ type: 'png' });
+        res = await page.evaluate(C.pageContrast, [png.toString('base64'), items]);
+      } finally {
+        await page.evaluate(() => { const st = document.getElementById('__sc_ph'); if (st) st.remove(); document.querySelectorAll('[data-sc-ph]').forEach((e) => e.removeAttribute('data-sc-ph')); }).catch(() => {});
+      }
+      found.push(...C.checkContrast(items, res, u));
     }
     for (const f of found) await boxFinding(f, p);
   }
@@ -320,10 +385,17 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await start('t6');
     await tap(B('Vote'));
     await snap('vote');
+    // VOTE-RESULT (Review 21 #12): the builds on offer, to tell a split from a lone winner.
+    const choices = await page.evaluate(C.pageVoteChoices);
+    // TOAST-OVER-CHANGE (Review 21 #26): the vote toast against the card it marks "✓ Your vote".
+    await page.evaluate(C.watchToastOver, ['vote', '✓ Your vote', 'sheet', 5000]);
     await tap(B(/^BMW M4 Competition, /), { inSheet: true });
     await snap('voted');
+    await page.waitForFunction(() => window.__scTo && window.__scTo.vote && window.__scTo.vote.done, null, { timeout: 4000 }).catch(() => {});
+    for (const f of C.checkToastOver(await page.evaluate(() => window.__scTo.vote), 'The vote toast', 6)) await boxFinding(f, hits['toast-over-vote'] || lastShot);
     await tap(B('Done'), { inSheet: true });
     await snap('results');
+    for (const f of C.checkVoteResult('BMW M4 Competition', choices, await page.evaluate(C.pageVoteResult))) finding(f, lastShot);
     // A trophy cover, or a results line (allow/trophy.json).
     const trophy = [...(await page.evaluate(C.pageCovers)), ...C.trophyLines(await page.evaluate(C.pageText))];
     const resultsShot = lastShot;
@@ -369,8 +441,11 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await snap('add-mod');
     await tap(B('Cold air intake'), { inSheet: true });
     await snap('cold-air-intake');
+    await page.evaluate(C.watchToastOver, ['mod', '^\\s*Cold air intake', 'page', 6000]);
     await tap(B(/^Add cold air intake$/i), { inSheet: true });
     await snap('mod-added');
+    await page.waitForFunction(() => window.__scTo && window.__scTo.mod && window.__scTo.mod.done, null, { timeout: 5000 }).catch(() => {});
+    for (const f of C.checkToastOver(await page.evaluate(() => window.__scTo.mod), 'The add-a-mod toast', 8)) await boxFinding(f, hits['toast-over-mod'] || lastShot);
     const t8toast = await page.evaluate(() => (window.__sc.toasts.find((t) => t.task === 't8' && /bhp/.test(t.text)) || {}).text || '');
     const g = await text();
     const now = (t8toast.match(/(\d+)\s*bhp/) || [])[1];
@@ -486,6 +561,9 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     await snap('me-survey');
     seenCards.push(...(await page.evaluate(C.pageMeetCards, 3)));
     for (const f of C.checkClash({ cards: seenCards, hosted: HOSTED, hostedWhen: 'Sun 10:00', ...clash })) finding(f, host4Shot);
+    // Review 21's survey (not timed; only its own checks run here): the Feed (POWER-ONE), People
+    // near you (DIST-ORIGIN) and the Layers sheet (WORDS-SHEET).
+    await survey21().catch((e) => result.notes.push(`Review 21 survey stopped: ${String(e.message || e).split('\n')[0]}`));
     const coffee = C.sundayCoffee(seenCards);
     if (coffee.count > 1) {
       finding({ rule: 'DUP-NAME', message: `task 10 says "the Sunday coffee meet" and ${coffee.count} meets fit it (${coffee.meets.map((c) => `"${c.title}" ${c.when}${c.tag ? ` ${c.tag.toUpperCase()}` : ''}`).join(', ')}); a newcomer can't tell which. Give seeded meets names no one would host, or tell them apart` });
@@ -532,6 +610,56 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   }
   for (const [id, , limit] of TASKS) if (!result.tasks[id]) result.tasks[id] = { pass: false, ms: 0, limit, note: 'not reached', shot: '' };
 
+  /** Community's Feed (scrolled through) and People near you, then the Layers sheet on Tonight's map. */
+  async function survey21() {
+    await tap(page.getByRole('tab', { name: /^Community/ }));
+    await L.sleep(1000);
+    await snap('feed', { extra: true });
+    for (let i = 0; i < 3; i++) {
+      await page.mouse.move(187, 400);
+      await page.mouse.wheel(0, 600);
+      await L.sleep(600);
+    }
+    await snap('feed-more', { extra: true });
+    await page.mouse.wheel(0, -5000);
+    await L.sleep(400);
+    const people = page.getByRole('tab', { name: /^People(,|$)/ });
+    if (await people.count()) {
+      await tap(people);
+      const showMe = B('Show me', { exact: true });
+      if (await showMe.count()) { await tap(showMe); await L.sleep(1500); }
+      await snap('people', { extra: true });
+    } else result.notes.push('Review 21 survey: no People tab in Community');
+    await tap(page.getByRole('tab', { name: 'Tonight' }));
+    await tap(page.getByRole('tab', { name: /^Map/ }));
+    await L.sleep(800);
+    const layers = B(/^Map layers/);
+    if (await layers.count()) {
+      await tap(layers);
+      await snap('layers', { extra: true });
+      if (await sheetOpen()) await closeSheet();
+    } else result.notes.push('Review 21 survey: no Map layers button on Tonight');
+  }
+
+  /**
+   * YOU-MARKER (Review 21 #6): last of all (it moves Tonight's map), Show where I am on Tonight's
+   * map, then a you-marker inside the map.
+   */
+  async function youMarker() {
+    current = 'you';
+    await page.evaluate(() => { window.__sc.task = 'you'; });
+    for (let i = 0; i < 4 && !(await page.getByRole('tab', { name: 'Tonight' }).count()); i++) await page.getByRole('button', { name: 'Go back' }).first().click().then(() => L.sleep(L.PACE.settle));
+    await page.getByRole('tab', { name: 'Tonight' }).click();
+    await L.sleep(L.PACE.settle);
+    await page.getByRole('tab', { name: /^Map/ }).click();
+    await L.sleep(1000);
+    await B('Show where I am').first().click();
+    await L.sleep(3000);
+    const p = shotPath('where-am-i');
+    await shoot(p);
+    for (const f of C.checkYouMarker(await page.evaluate(C.pageYouMarker))) await boxFinding(f, p);
+  }
+
   /**
    * Busy night, full scorecard only: from Settings (where task 10 ends), Busy night on, then
    * Tonight's map (MAP, Review 19 #15) and List (ART, #13: no card may show the grid placeholder
@@ -554,12 +682,14 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
     const pm = shotPath('busy-map');
     await shoot(pm);
     for (const f of C.checkMaps(await page.evaluate(C.pageMaps), url())) await boxFinding(f, pm);
+    for (const f of C.checkSheetPins(await page.evaluate(C.pageSheetPins), url(), ' (Busy night)')) await boxFinding(f, pm);
     // The same at a second phone size (Review 20 #11): 393x852.
     await page.setViewportSize({ width: 393, height: 852 });
     await L.sleep(2500);
     const pl = shotPath('busy-map-393');
     await shoot(pl);
     for (const f of C.checkMaps(await page.evaluate(C.pageMaps), url())) await boxFinding({ ...f, rule: 'MAP-393', message: `at 393x852, ${f.message}` }, pl);
+    for (const f of C.checkSheetPins(await page.evaluate(C.pageSheetPins), url(), ' at 393x852 (Busy night)')) await boxFinding(f, pl);
     await page.setViewportSize({ width: 375, height: 667 });
     await L.sleep(1000);
     await page.getByRole('tab', { name: /^List/ }).click();
@@ -587,7 +717,10 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   for (const f of C.checkToasts(sc.toasts)) result.findings.push({ ...f, shot: hits[`toast-covered-${f.toastId}`] || shotFor(result, f.task) });
   sc.disabled.forEach((d, i) => result.findings.push({ ...C.checkDisabled([d])[0], shot: hits[`disabled-primary-${i + 1}`] || shotFor(result, d.task) }));
   for (const f of C.checkToastLines(sc.toasts, scale)) result.findings.push({ ...f, shot: hits[`toast-lines-${f.toastId}`] || shotFor(result, f.task) });
+  // WORDS-SHEET (Review 21 #19): every sheet the run opened, as the probe saw it.
+  for (const f of C.checkSheetWords(sc.sheets || [], C.EXTRA_WORDS, C.allowSheetWord)) result.findings.push({ ...f, shot: hits[`sheet-word-${f.sheetId}`] || shotFor(result, f.task) });
   if (busy && !result.error) await busyNight().catch((e) => result.notes.push(`Busy night pass stopped: ${String(e.message || e).split('\n')[0]}`));
+  if (!result.error) await youMarker().catch((e) => result.notes.push(`YOU-MARKER step stopped: ${String(e.message || e).split('\n')[0]}`));
   for (const f of C.checkConsole(S.errors)) result.findings.push({ ...f, task: '', shot: '' });
   // PHOTO-REUSE (Review 20 #13): over the whole run (the Busy night pass isn't the normal demo).
   for (const f of C.checkPhotoReuse(photoScreens)) result.findings.push({ task: '', ...f });

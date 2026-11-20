@@ -1,0 +1,4 @@
+{
+  "about": "POWER-ONE: post text allowed to give a power figure that differs from its build's bhp. Each entry: regexes for the URL path and the post text, and why. K5: one power number per build outside the Power and dyno page.",
+  "allow": []
+}

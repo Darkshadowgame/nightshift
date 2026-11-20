@@ -1,0 +1,4 @@
+{
+  "about": "EDGE-LABEL: map edges where a label or shield within 10 px of a small map card's edge is fine. Each entry: regexes for the URL path and side (top, bottom, left, right), and why. A cut label is a look-checklist fail (owner decision 14); keep this empty.",
+  "allow": []
+}

@@ -1012,9 +1012,27 @@ section's set-up and the ten tasks with Playwright, so most of them show up befo
   reads every meet card on Tonight, its List and Me as a newcomer would; more than one meet that
   fits "the Sunday coffee meet" is an app problem (a duplicate-name trap), and task 10 opens the one
   you're going to, wherever it shows first (Tonight, List, Me), or fails if there's none.
+* Review 21's checks (`checks-r21.cjs`; its path-to-10 numbers in brackets): **EDGE-LABEL** no
+  label or road shield (grey-white pixels showing at 30%+ of their strength) within 16 px of any edge
+  of a small map card (2, 8, 16); **HEADER-TITLE** a header title is a caps title, or a detail
+  screen's compact copy of a hero title that has scrolled away, never while the hero shows (11;
+  4.1); **PHOTO-CONTRAST** text over a photo meets WCAG AA (4.5:1, 3:1 large) against the photo
+  pixels behind its glyph boxes, worst 10% (3); **TOAST-OVER-CHANGE** the vote toast clear of the
+  "✓ Your vote" card and the add-a-mod toast clear of the new row (26); **DOT-WRAP** no rendered
+  line ends in "·" and no line is a lone unit ("mi", "bhp", "bikes") at either size (10, 13, 14);
+  **VOTE-RESULT** after your vote the winner isn't simply your pick, or the result shows a split of
+  two or more builds (12); **WORDS-SHEET** the "event" scan on every sheet the run opens (the probe
+  keeps each), Layers included; sheet text moves here from WORDS (19); **DIST-ORIGIN** every
+  distance on every screen names its origin, People near you included (20; 4.9); **POWER-ONE** no
+  post gives its build a second power figure (21; K5); **YOU-MARKER** after Show where I am (last
+  step of each run) a you-marker, labelled "You are here" or testID `you-marker`, inside the map
+  (6); **SHEET-PIN** no meet pin under Tonight's lowered `map-sheet`, at 375x667 and in Busy night
+  at 393x852 (7). After task 9 the script surveys the Feed, People near you (Show me) and the
+  Layers sheet; only Review 21's checks run on those screens.
 * Allow-lists, each entry with its reason: `e2e/scorecard/allow/` (`c5.json`, `overflow.json`,
   `words.json`, `console.json`, `map.json`, `cancel.json`, `tiles.json`, `headers.json`,
-  `trophy.json`, `scale.json`, `photos.json`). Adding to one is a decision like an owner exception: say why. Screenshots are JPEG.
+  `trophy.json`, `scale.json`, `photos.json`, `edge-label.json`, `header-title.json`,
+  `contrast.json`, `wrap.json`, `dist.json`, `power.json`). Adding to one is a decision like an owner exception: say why. Screenshots are JPEG.
 * It can't judge clarity, look or TTU; the human review still scores those.
 
 ---

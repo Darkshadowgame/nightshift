@@ -120,8 +120,20 @@ function report(results) {
     ['WORDS', 'No "event" in text or labels (37)'],
     ['PHOTO-REUSE', 'One photo on at most two screens (13)'],
     ['DUP-NAME', 'Task 10: one meet fits "the Sunday coffee meet" (2)'],
+    // Review 21, "Suggested new automated checks" (its path-to-10 numbers in brackets).
+    ['EDGE-LABEL', 'No label or shield within 16 px of a small map\'s edge (2,8,16)'],
+    ['HEADER-TITLE', 'Header title: caps, or a scrolled-away hero\'s copy (11; 4.1)'],
+    ['PHOTO-CONTRAST', 'Text over photos meets WCAG AA (3)'],
+    ['TOAST-OVER-CHANGE', 'Vote and mod toasts clear of the change (26)'],
+    ['DOT-WRAP', 'No line ends in "·", no lone unit on a line (10,13,14)'],
+    ['VOTE-RESULT', 'Demo vote result isn\'t just your pick (12)'],
+    ['WORDS-SHEET', 'No "event" on any sheet opened, Layers too (19)'],
+    ['DIST-ORIGIN', 'Every distance names its origin (20; 4.9)'],
+    ['POWER-ONE', 'No second power figure in a post (21; K5)'],
+    ['YOU-MARKER', 'Show where I am draws a you-marker (6)'],
+    ['SHEET-PIN', 'No meet pin under Tonight\'s lowered sheet (7)'],
   ];  console.log('\nRULE CHECKS');
-  console.log('rule'.padEnd(13) + 'check'.padEnd(56) + cols.map((c) => c.padEnd(w)).join(''));
+  console.log('rule'.padEnd(18) + 'check'.padEnd(56) + cols.map((c) => c.padEnd(w)).join(''));
   const detail = [];
   for (const [rule, what] of RULES) {
     const cells = results.map((r) => {
@@ -130,7 +142,7 @@ function report(results) {
       if (n) ok = false;
       return (n ? `FAIL (${n})` : 'pass').padEnd(w);
     });
-    console.log(rule.padEnd(13) + what.padEnd(56) + cells.join(''));
+    console.log(rule.padEnd(18) + what.padEnd(56) + cells.join(''));
     // The same finding in several runs is listed once, with the runs it showed up in.
     const merged = new Map();
     for (const r of results) for (const f of r.findings.filter((x) => x.rule === rule)) {
