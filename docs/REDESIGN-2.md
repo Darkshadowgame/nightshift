@@ -1165,3 +1165,4 @@ clashed, the owner's earlier decisions stand:
     * **Me:** the avatar is a close crop of your car photo when your car's card is right under it.
     * **Meet, not event:** "Meet options", "Meet reminders", "Share this meet"; `__tests__/glossary.test.ts`
       ratchets "event" off screens.
+15. **Your own car's photo may repeat** (20 Nov 2026): the user's own build photo (or its stand-in) shows on Garage, Me, "It's up" and wherever their car is meant. The "one photo on at most two screens" rule is about sample content, not your own car.

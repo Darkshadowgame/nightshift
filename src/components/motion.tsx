@@ -314,8 +314,9 @@ export function UnlockReveal({ glyph, colour, title, onDone, pinSize = 40 }: { g
       card.value = withDelay(950, withTiming(1, { duration: 250, easing: Easing.bezier(0.2, 0.8, 0.2, 1) }));
       timers.push(setTimeout(feel.success, 700));
     }
-    timers.push(setTimeout(() => (out.value = withTiming(0, { duration: 300 })), 2600));
-    timers.push(setTimeout(finish, 2950));
+    // The card holds about 2.8 s once drawn, long enough to read (scorecard REVEAL: 2 s uncovered).
+    timers.push(setTimeout(() => (out.value = withTiming(0, { duration: 300 })), 4000));
+    timers.push(setTimeout(finish, 4350));
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,4 +1,9 @@
 {
   "about": "PHOTO-REUSE: photos allowed on more than two screens in the normal demo (owner decision 9.12: one photo on at most two screens). Each entry: a regex for the photo's file name (without its hash) and why. Photos shown 64 px or smaller (avatars) are never counted: an avatar is its owner's build photo by design (9.12).",
-  "allow": []
+  "allow": [
+    {
+      "pattern": "^fiesta-st-mk8",
+      "why": "The user's own car: it is meant to show on Garage, Me and It's up (owner decision 9.15, 20 Nov 2026)."
+    }
+  ]
 }
