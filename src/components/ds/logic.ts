@@ -80,6 +80,19 @@ export function segmentLabel(label: string, count?: number): string {
   return count === undefined ? label : `${label} ${count}`;
 }
 
+/**
+ * A line as drawn, so it wraps cleanly (Review 21 gaps 10, 13, 14):
+ * - each " · " becomes " ·" + a no-break space: a line can break before a dot but never after one,
+ *   so no line ends on "·" ("Triumph Street Triple RS ·" / "131 bhp") and "· 131 bhp" moves down whole;
+ * - a number keeps its unit ("25 mi", "4 going", "131 bhp"): no unit alone on the next line.
+ * DsText does this to every string it draws, so EventRow, BuildLine, post author lines and the
+ * Tonight cards all wrap the same way. Labels read out are untouched.
+ */
+export function keepTogether(s: string): string {
+  return s.replace(/[ \u00a0]·[ \u00a0]/g, ' ·\u00a0').replace(UNIT_AFTER_NUMBER, '$1\u00a0$2');
+}
+const UNIT_AFTER_NUMBER = /(\d) (mi|km|miles?|bhp|whp|hp|ps|cars?|bikes?|mins?|going)\b/g;
+
 /** Joins the parts of a meta line with " · ", skipping empties. */
 export function metaLine(parts: readonly (string | number | null | undefined | false)[]): string {
   return parts.filter((p) => p !== null && p !== undefined && p !== false && `${p}`.trim() !== '').join(' · ');

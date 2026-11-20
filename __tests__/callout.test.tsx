@@ -51,7 +51,8 @@ function render(el: React.ReactElement) {
 
 function texts(node: unknown): string[] {
   const n = node as { type?: string; children?: unknown[] } | string;
-  if (typeof n === 'string') return [n];
+  // DsText draws no-break spaces after "·" and between a number and its unit (keepTogether).
+  if (typeof n === 'string') return [n.replace(/\u00a0/g, ' ')];
   return (n.children ?? []).flatMap(texts);
 }
 

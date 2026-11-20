@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 import { COLOR, FONT_SCALE, TYPE_SCALE, type TypeToken } from '../../theme';
+import { keepTogether } from './logic';
 
 /** The style object for a type token: family, size, line height, case and tabular figures. */
 export function typeStyle(token: TypeToken, colour?: string): TextStyle {
@@ -66,7 +67,8 @@ export function DsText({
   const colour = tone ? TONE[tone] : undefined;
   return (
     <Text style={[typeStyle(v, colour), style]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier ?? maxScale(v)} {...rest}>
-      {children}
+      {/* A meta line never wraps with a "·" at a line end (logic.ts keepTogether). */}
+      {typeof children === 'string' ? keepTogether(children) : Array.isArray(children) ? Children.map(children, (c) => (typeof c === 'string' ? keepTogether(c) : c)) : children}
     </Text>
   );
 }

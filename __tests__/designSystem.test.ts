@@ -2,6 +2,7 @@ import {
   displayHandle,
   entityA11yLabel,
   initials,
+  keepTogether,
   metaLine,
   normaliseSelection,
   passesFilter,
@@ -85,6 +86,13 @@ describe('labels', () => {
   });
   it('joins meta lines and skips blanks', () => {
     expect(metaLine(['Tonight 22:30', '7 going', null, '', false, '3.2 mi'])).toBe('Tonight 22:30 · 7 going · 3.2 mi');
+  });
+  it('wraps a meta line before a dot, never after, and keeps a number with its unit', () => {
+    const nb = '\u00a0';
+    expect(keepTogether('Triumph Street Triple RS · 131 bhp')).toBe(`Triumph Street Triple RS ·${nb}131${nb}bhp`);
+    expect(keepTogether(`Live${nb}· until 23:00 · 4 going`)).toBe(`Live ·${nb}until 23:00 ·${nb}4${nb}going`);
+    expect(keepTogether('about 17 people within 25 mi')).toBe(`about 17 people within 25${nb}mi`);
+    expect(keepTogether('More ···')).toBe('More ···');
   });
   it('reads an entity in order', () => {
     expect(entityA11yLabel({ kind: 'event', title: 'Late one', meta: 'Tonight', tags: ['Going'], sample: true })).toBe(
