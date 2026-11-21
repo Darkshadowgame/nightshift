@@ -563,7 +563,7 @@ async function runScorecard({ base, clock, scale, outDir, busy = false, scheme =
     cards.list = await page.evaluate(C.pageEventCards);
     for (const f of C.checkCardLook(cards.map, cards.list)) finding(f);
     seenCards.push(...(await page.evaluate(C.pageMeetCards, 2)));
-    await tap(page.getByRole('tab', { name: 'Me' }));
+    await tap(page.getByRole('tab', { name: 'Me', exact: true }));
     await snap('me-survey');
     seenCards.push(...(await page.evaluate(C.pageMeetCards, 3)));
     for (const f of C.checkClash({ cards: seenCards, hosted: HOSTED, hostedWhen: 'Sun 10:00', ...clash })) finding(f, host4Shot);
@@ -600,7 +600,7 @@ async function runScorecard({ base, clock, scale, outDir, busy = false, scheme =
       left = /not going/i.test(await text()) || (await page.evaluate(() => window.__sc.toasts.some((t) => t.task === 't10' && /not going/i.test(t.text))));
       await tap(B('Go back'));
     }
-    await tap(page.getByRole('tab', { name: 'Me' }));
+    await tap(page.getByRole('tab', { name: 'Me', exact: true }));
     await snap('me');
     await tap(B('Settings'));
     await snap('settings');

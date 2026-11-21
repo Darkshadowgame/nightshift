@@ -191,7 +191,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
   const doneTag = pending
     ? { label: 'Waiting for approval', tone: 'warning' as const }
     : done && !isInfoOnly(spot.kind)
-      ? { label: spot.kind === 'drive' ? 'Driven' : 'Checked in', tone: 'success' as const }
+      ? { label: '✓ Done', tone: 'success' as const }
       : null;
 
   return (

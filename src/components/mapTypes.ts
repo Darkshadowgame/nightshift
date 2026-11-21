@@ -15,6 +15,8 @@ export interface MapPin {
   count?: number;
   /** A short label badge, e.g. "P" for partners. */
   badge?: string;
+  /** A place you've done: drawn quieter with a tick. Its title already says "done" for screen readers. */
+  done?: boolean;
 }
 
 /** A filled outline, e.g. a borough-wide ban zone. */

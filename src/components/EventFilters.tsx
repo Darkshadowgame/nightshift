@@ -9,6 +9,8 @@ export interface EventFiltersProps {
   onToggleEvents: () => void;
   filter: EventFilter;
   onChange: (next: EventFilter) => void;
+  /** Show the Meets on/off row (default). The split Layers sheet leaves it out: its Meets / Things to do switch decides. */
+  toggle?: boolean;
 }
 
 /**
@@ -16,10 +18,10 @@ export interface EventFiltersProps {
  * week / All), Type chips (nothing picked = all) and Only ones I can go to. Meets you're going to or
  * hosting always show. The logic is eventFilter.ts.
  */
-export function EventFilters({ eventsOn, onToggleEvents, filter, onChange }: EventFiltersProps) {
+export function EventFilters({ eventsOn, onToggleEvents, filter, onChange, toggle = true }: EventFiltersProps) {
   return (
     <View style={{ gap: SPACING.md }}>
-      <SwitchRow label="Meets" hint="Cruises and rolling meets too. Yours always show" value={eventsOn} onValueChange={onToggleEvents} />
+      {toggle ? <SwitchRow label="Meets" hint="Cruises and rolling meets too. Yours always show" value={eventsOn} onValueChange={onToggleEvents} /> : null}
       {eventsOn ? (
         <>
           <View style={{ gap: SPACING.sm }}>
@@ -35,7 +37,7 @@ export function EventFilters({ eventsOn, onToggleEvents, filter, onChange }: Eve
           />
         </>
       ) : null}
-      <RowDivider />
+      {toggle ? <RowDivider /> : null}
     </View>
   );
 }

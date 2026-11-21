@@ -82,6 +82,8 @@ export interface Settings {
    * set until the person picks: until then it follows the garage (only bikes → Bikes, else all).
    */
   photoVehicles?: ('car' | 'bike')[];
+  /** Tonight's map shows Meets (default) or Things to do (mapFocus.ts). Remembered. */
+  mapFocus?: 'meets' | 'places';
   /**
    * "Where to?": recent searches (at most 10) and Home and Work. Only on this phone: never
    * sent to the server (settings aren't) and never logged (whereTo.ts).

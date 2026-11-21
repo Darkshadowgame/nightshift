@@ -58,6 +58,8 @@ import { rememberMapView } from '../../lib/lastView';
 import { currentPosition, locationHelp } from '../../lib/location';
 import { useMapAppearance } from '../../lib/mapAppearance';
 import { layerOn, setLayer, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
+import { DONE_WORD, FOCUS_OPTIONS, mapFocus, openPlacesChange, placeDone, placesCountLine, withDone, type MapFocus } from '../../lib/mapFocus';
+import { DoneMark } from '../../components/DoneMark';
 import { clusterEventPins, clusterZoomSpan, inViewOnly, offView, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
 import { postPlace } from '../../lib/postPrivacy';
@@ -153,11 +155,16 @@ export default function TonightScreen() {
   // ---------------------------------------------------------------------------
   // Layers: events always, then whatever's switched on.
   // ---------------------------------------------------------------------------
-  const layers = useMemo(
+  // Owner decision 21 Nov 2026: the map shows Meets or Things to do, one at a time. The saved layer
+  // choices (`stored`) are kept as they were; Meets draws none of them, Things to do draws the ones that are on.
+  const focus: MapFocus = mapFocus(settings.mapFocus);
+  const meetsFocus = focus === 'meets';
+  const stored = useMemo(
     () => Object.fromEntries(MAP_LAYERS.map((k) => [k, layerOn(settings, k)])) as Record<Layer, boolean>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings.mapLayers, settings.postsLayer, settings.shops, settings.cameras],
   );
+  const layers = useMemo(() => (meetsFocus ? (Object.fromEntries(MAP_LAYERS.map((k) => [k, false])) as Record<Layer, boolean>) : stored), [meetsFocus, stored]);
   const [showLayers, setShowLayers] = useState(false);
   const layersOn = MAP_LAYERS.filter((k) => layers[k]).length;
 
@@ -239,14 +246,15 @@ export default function TonightScreen() {
   // Layers › Events (eventFilter.ts): Events on or off, When, Type and Only ones I can go to. Yours
   // always show; `views` stays whole so a pushed or tapped meet can still be found.
   const eventFilter = settings.eventFilter ?? DEFAULT_EVENT_FILTER;
-  const eventsOn = layerOn(settings, 'events');
+  // The Meets / Things to do switch decides whether meets show, so the old Meets on/off row is gone.
+  const eventsOn = true;
   const ends = whenEnds(now);
   const filtered = useMemo(
     () => filterEvents(views, eventFilter, eventsOn, now),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [views, eventFilter, eventsOn, ends.tonight, ends.week],
+    [views, eventFilter, ends.tonight, ends.week],
   );
-  const shownViews = filtered.shown;
+  const shownViews = useMemo(() => (meetsFocus ? filtered.shown : []), [meetsFocus, filtered]);
   const pointOf = (v: EventView): LatLng => (v.shownStop >= 0 ? (v.event.stops[v.shownStop].at ?? v.event.area) : v.event.area);
 
   const lists = useMemo(() => {
@@ -299,6 +307,16 @@ export default function TonightScreen() {
     return placesForView(shownPlaces, snapped.centre, snapped.span, sel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places, layers, snapped.key, selected]);
+  /** Things to do, nearest first: what the sheet lists in that view (drives, photo spots and tracks that are on). */
+  const thingsFrom = origin?.at ?? meUser?.home ?? snapped.centre;
+  const things = useMemo(
+    () =>
+      meetsFocus
+        ? []
+        : places.filter((s) => layers[s.kind as Layer]).sort((a, b) => milesBetween(thingsFrom, a.at) - milesBetween(thingsFrom, b.at)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [meetsFocus, places, layers, thingsFrom.lat, thingsFrom.lng],
+  );
   const postPins = usePostPins(region.centre, region.span, layers.posts);
 
   /** Speed cameras (Layers, off by default): fixed cameras and average-speed zones, only once zoomed in to driving distance. */
@@ -335,9 +353,11 @@ export default function TonightScreen() {
     for (const p of postPins) pins.push({ id: `post:${p.id}`, at: p.at, glyph: 'post', colour: POST_COLOUR, title: postPlace(p, { events })?.text ?? 'Post', size: 30 });
     for (const s of placeView.places) {
       const bikeOnly = isBikeOnly(s);
+      const done = placeDone(s, me);
       pins.push({
         id: `sp:${s.id}`, at: s.at, glyph: s.kind, colour: s.status === 'pending' ? COLOR.text.secondary : SPOT_COLOURS[s.kind],
-        title: bikeOnly ? `${s.name} (${BIKE_ONLY_LABEL.toLowerCase()})` : s.name, size: 32, ...(bikeOnly ? { badge: BIKE_ONLY_BADGE } : {}),
+        title: withDone(bikeOnly ? `${s.name} (${BIKE_ONLY_LABEL.toLowerCase()})` : s.name, done), size: 32, ...(bikeOnly ? { badge: BIKE_ONLY_BADGE } : {}),
+        ...(done ? { done: true } : {}),
       });
     }
     for (const c of placeView.clusters)
@@ -383,7 +403,7 @@ export default function TonightScreen() {
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
-  }, [views, shownViews, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span]);
+  }, [views, shownViews, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span, me]);
 
   // Tonight's count says what the list holds; the map only draws what is in view, so say how many sit outside it.
   const offMap = useMemo(
@@ -462,11 +482,16 @@ export default function TonightScreen() {
   // fits again if the sheet's peek changes (larger text) until you pick something on the map.
   const fitPoints = useMemo(() => {
     const home = meUser?.home;
+    if (!meetsFocus) {
+      // Things to do: the nearest few, so the map opens on somewhere you could go.
+      const near = things.filter((s) => !home || milesBetween(home, s.at) <= FIT_MILES * 2).slice(0, 6).map((s) => s.at);
+      return near.length ? near : things.slice(0, 3).map((s) => s.at);
+    }
     const pts = [...lists.live, ...lists.tonight].map(pointOf).filter((p) => !home || milesBetween(home, p) <= FIT_MILES);
     if (pts.length === 0 && pick) pts.push(pointOf(pick));
     return pts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lists, pick, meUser?.home]);
+  }, [lists, pick, meUser?.home, meetsFocus, things]);
   const fitSig = fitPoints.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join('|');
   /** Tonight's meets outside the fit that fall within a band round `r`'s edges (they'd show cut off). */
   function edgePoints(r: { centre: LatLng; span: number }, inside: readonly LatLng[]): LatLng[] {
@@ -516,7 +541,11 @@ export default function TonightScreen() {
   const fitYouRef = useRef(fitYou);
   fitYouRef.current = fitYou;
   useEffect(() => {
-    if (params.focus && ready) showRef.current(params.focus);
+    if (!params.focus || !ready) return;
+    // A meet opens in Meets, a place in Things to do.
+    const want: MapFocus = params.focus.startsWith('sp:') ? 'places' : 'meets';
+    if (/^(ev|sp):/.test(params.focus) && want !== focus) setSettings({ mapFocus: want, ...(want === 'places' ? (openPlacesChange(settings) ?? {}) : {}) });
+    showRef.current(params.focus);
   }, [params.focus, params.t, ready]);
   const onSelectPin = useCallback((id: string) => {
     autoFit.current = false;
@@ -534,6 +563,17 @@ export default function TonightScreen() {
     setSelected(null);
     setDetent('min');
   }, []);
+
+  /** The Meets / Things to do switch: remembered; opening Things to do the first time turns the place layers on. */
+  function chooseFocus(next: MapFocus) {
+    if (next === focus) return;
+    feel.select();
+    setSelected(null);
+    setDetent('peek');
+    autoFit.current = true;
+    setView((x) => (x ? { ...x, fit: true } : x));
+    setSettings({ mapFocus: next, ...(next === 'places' ? (openPlacesChange(settings) ?? {}) : {}) });
+  }
 
   // The map's buttons ride just above the sheet, up to half; they fade out as it opens fully.
   const [stackH, setStackH] = useState(2 * BUTTON + 1);
@@ -622,11 +662,13 @@ export default function TonightScreen() {
           eyebrow={PLACE_NAMES[s.kind].one}
           layerColour={SPOT_COLOURS[s.kind]}
           title={s.name}
-          meta={metaLine([driveLength(s), s.region, placeDistance(s, origin)])}
+          meta={metaLine([driveLength(s), s.region, placeDistance(s, origin), placeDone(s, me) ? `✓ ${DONE_WORD}` : null])}
           overlay={
-            <View style={st.closeOnPhoto}>
-              <IconButton icon="close" label="Close" variant="glass" onPress={close} />
-            </View>
+            selected === id ? (
+              <View style={st.closeOnPhoto}>
+                <IconButton icon="close" label="Close" variant="glass" onPress={close} />
+              </View>
+            ) : undefined
           }
           onPress={() => router.push({ pathname: '/spot/[id]', params: { id: s.id } })}
           action={{ label: 'Open', onPress: () => router.push({ pathname: '/spot/[id]', params: { id: s.id } }) }}
@@ -712,9 +754,9 @@ export default function TonightScreen() {
     return [shopView ? SHOP_CREDIT : null, cams ? 'Cameras © OpenStreetMap, may be incomplete' : null].filter(Boolean).join(' · ');
   })();
   const noCar = ready && myBuilds.length === 0;
-  const nothingOn = ready && views.length === 0;
+  const nothingOn = ready && meetsFocus && views.length === 0;
   /** What the filters hid, said over the sheet and the list (nothing disappears silently). */
-  const hiddenLine = ready ? filterLine(filtered, eventFilter, eventsOn, myBuilds.length > 0) : null;
+  const hiddenLine = ready && meetsFocus ? filterLine(filtered, eventFilter, eventsOn, myBuilds.length > 0) : null;
   function showHidden(clears: 'all' | 'reset') {
     feel.select();
     if (clears === 'reset') return setSettings({ eventFilter: { ...DEFAULT_EVENT_FILTER } });
@@ -733,9 +775,44 @@ export default function TonightScreen() {
   // The sections (the list, and the sheet drawn up).
   // ---------------------------------------------------------------------------
   // The card in the sheet's top (the pick, or a tapped pin's meet) isn't listed again below it.
-  const topId = mode !== 'map' ? null : selected?.startsWith('ev:') ? selected.slice(3) : !selCard && pick ? pick.event.id : null;
+  const nearest = things[0] ?? null;
+  const topId =
+    mode !== 'map' ? null : !meetsFocus ? (selected?.startsWith('sp:') ? selected.slice(3) : !selCard && nearest ? nearest.id : null) : selected?.startsWith('ev:') ? selected.slice(3) : !selCard && pick ? pick.event.id : null;
   const skip = topId;
+  /** Things to do: drives, photo spots and tracks, nearest first, a few per kind in the sheet. */
+  function placeSections() {
+    const cap = mode === 'list' ? 100 : 12;
+    const kinds = (['drive', 'photo', 'track'] as const).filter((k) => layers[k]);
+    const rows = kinds.map((k) => ({ k, list: things.filter((s) => s.kind === k && s.id !== skip) })).filter((g) => g.list.length);
+    return (
+      <>
+        {rows.map(({ k, list }) => (
+          <Section key={k} title={PLACE_NAMES[k].many} right={list.length > cap ? <Tag label={`${list.length}`} /> : undefined}>
+            <View>
+              {list.slice(0, cap).map((s, n) => (
+                <View key={s.id}>
+                  {n > 0 ? <RowDivider inset /> : null}
+                  <ListRow
+                    leading={{ pin: s.kind, colour: SPOT_COLOURS[s.kind] }}
+                    title={s.name}
+                    subtitle={metaLine([driveLength(s), s.region])}
+                    meta={placeDistance(s, origin) ?? undefined}
+                    trailing={placeDone(s, me) ? <DoneMark /> : undefined}
+                    onPress={() => router.push({ pathname: '/spot/[id]', params: { id: s.id } })}
+                  />
+                </View>
+              ))}
+            </View>
+          </Section>
+        ))}
+        {things.length === 0 && ready && mode === 'list' ? (
+          <EmptyState variant="inline" title="Nothing to do is switched on." action={{ label: 'Choose in Map layers', onPress: () => setShowLayers(true) }} />
+        ) : null}
+      </>
+    );
+  }
   function sections(onOpen: (v: EventView) => void) {
+    if (!meetsFocus) return placeSections();
     const live = lists.live.filter((v) => v.event.id !== skip);
     const tonight = lists.tonight.filter((v) => v.event.id !== skip);
     // Yours after tonight (going or hosting) lead the sheet (Review 20 gap 8): a Sunday meet you're
@@ -820,7 +897,7 @@ export default function TonightScreen() {
   const sheetHeader = (
     <View style={st.header}>
       {filterNote}
-      {selCard ?? (pick ? eventCard(pick, 'peek') : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
+      {selCard ?? (!meetsFocus ? (nearest ? selectionCard(`sp:${nearest.id}`) : ready ? <EmptyState variant="inline" title="Nothing to do is switched on." action={{ label: 'Choose in Map layers', onPress: () => setShowLayers(true) }} /> : null) : pick ? eventCard(pick, 'peek') : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
     </View>
   );
 
@@ -864,6 +941,8 @@ export default function TonightScreen() {
             />
           </View>
         </View>
+        {/* What the map and list show: meets, or places to go. Its own row, so the search pill and Map / List keep their room. */}
+        <SegmentedControl accessibilityLabel="What to show" value={focus} onChange={chooseFocus} options={FOCUS_OPTIONS} />
       </View>
 
       {mode === 'list' ? (
@@ -923,14 +1002,16 @@ export default function TonightScreen() {
               peek={peek}
               detent={detent}
               onDetent={setDetent}
-              label="Tonight near you"
+              label={meetsFocus ? 'Tonight near you' : 'Things to do near you'}
               onHeaderLayout={setHeaderH}
               header={sheetHeader}
               toastAnchor={anchorHeight}
               hidden={demoInfo || showLayers || !!bringFor}
               minBar={
                 <DsText v="secondary" tone="primary" numberOfLines={1}>
-                  {metaLine([lists.live.length ? `${lists.live.length} live now` : null, `${lists.tonight.length} tonight`, offMap ? `${offMap} off the map` : null])}
+                  {meetsFocus
+                    ? metaLine([lists.live.length ? `${lists.live.length} live now` : null, `${lists.tonight.length} tonight`, offMap ? `${offMap} off the map` : null])
+                    : placesCountLine(things) || 'Nothing switched on'}
                 </DsText>
               }
             >
@@ -944,11 +1025,12 @@ export default function TonightScreen() {
       <LayersPanel
         visible={showLayers}
         onClose={() => setShowLayers(false)}
-        on={layers}
+        on={stored}
+        focus={focus}
         onToggle={(k) => setSettings(toggledLayer(settings, k))}
         mapStyle={settings.mapStyle ?? 'auto'}
         onMapStyle={(v) => setSettings({ mapStyle: v })}
-        events={<EventFilters eventsOn={eventsOn} onToggleEvents={() => setSettings(toggledLayer(settings, 'events'))} filter={eventFilter} onChange={(f) => setSettings({ eventFilter: f })} />}
+        events={<EventFilters toggle={false} eventsOn={eventsOn} onToggleEvents={() => undefined} filter={eventFilter} onChange={(f) => setSettings({ eventFilter: f })} />}
         photoVehicles={photoFor}
         onPhotoVehicles={(next) => setSettings({ photoVehicles: next })}
       />

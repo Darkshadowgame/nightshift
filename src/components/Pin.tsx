@@ -1,6 +1,6 @@
 import { memo, useId, type ReactNode } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { ART, COLOR, contrast, getThemeMode, inkFor, RADII, SPACING } from '../theme';
 import { DsText } from './ds/Text';
 
@@ -54,6 +54,9 @@ export type Glyph =
 const INK = ART.ink;
 
 
+/** How much a done place's pin is quieted (its rim and glyph stay above 3:1 on the map at this strength). */
+export const DONE_PIN_OPACITY = 0.72;
+
 /** Events are drawn filled ("something happening"); places, shops and cameras outlined ("somewhere to go"). */
 export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rolling', 'cruise', 'show', 'trackday']);
 
@@ -64,7 +67,7 @@ export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rollin
  * pin's sodium: a number badge in colour means "waiting for you" (4.8), and a group isn't.
  * Memoised: map markers re-render only when what they draw changes.
  */
-export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string }) {
+export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge, done }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string; done?: boolean }) {
   const filled = FILLED_GLYPHS.has(glyph);
   // Dark theme: a dark badge with a coloured rim. Light theme: a pale badge with the rim and glyph
   // darkened to read (inkFor), so a pin is as legible on a page or a light map as on a dark one.
@@ -72,12 +75,25 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
   const body = light ? COLOR.surface.card : INK;
   const rim = filled ? colour : light ? inkFor(colour) : colour;
   const glyphInk = filled ? (contrast(colour, INK) >= 4.5 ? INK : ART.signWhite) : rim;
+  // A place you've done (mapFocus.ts): the pin is a little quieter and a tick badge sits at its
+  // bottom-right corner. The tick is never the only signal: the marker's label says "done".
+  const tick = COLOR.state.success;
+  const tickInk = contrast(tick, INK) >= 4.5 ? INK : ART.signWhite;
   const svg = (
     <Svg width={size} height={size} viewBox="0 0 40 40">
-      {/* A dark halo first, so a pin reads clearly over the map's own labels (Review 19). */}
-      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={body} stroke={body} strokeWidth={5} strokeLinejoin="round" />
-      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={filled ? colour : body} stroke={rim} strokeWidth={2.5} />
-      <GlyphShape glyph={glyph} c={glyphInk} cut={body} />
+      <G opacity={done ? DONE_PIN_OPACITY : 1}>
+        {/* A dark halo first, so a pin reads clearly over the map's own labels (Review 19). */}
+        <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={body} stroke={body} strokeWidth={5} strokeLinejoin="round" />
+        <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={filled ? colour : body} stroke={rim} strokeWidth={2.5} />
+        <GlyphShape glyph={glyph} c={glyphInk} cut={body} />
+      </G>
+      {done ? (
+        <>
+          <Circle cx={32} cy={32} r={8.5} fill={body} />
+          <Circle cx={32} cy={32} r={7} fill={tick} />
+          <Path d="M28.4 32.2l2.6 2.6 4.6-5.2" fill="none" stroke={tickInk} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : null}
     </Svg>
   );
   if (!count && !badge) return svg;

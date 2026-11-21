@@ -1261,3 +1261,30 @@ consistency throughout". This replaces "the app is dark only, by design".
   chips in Layers, which doubles as the legend. A cluster of mixed types is brand green. The glyph
   stays, so colour is never the only signal. Dark ink on each fill is AA and the hues stay clear of red
   (cameras, live dot) and the Tracks orange (`themeContrast.test.ts`).
+
+### 9.z Meets apart from Things to do, and Done marks (21 Nov 2026, owner decision)
+
+Owner: "On the main map maybe separate things to do vs active meets so they aren't all in the map
+settings together. I feel like photos and drives etc shouldn't be in the same category. Also if you have
+done a drive or photo location maybe do a subtle tick or make it greyed out."
+
+* **Meets | Things to do.** Tonight's map has one two-way switch (`SegmentedControl`, "What to show"), on its
+  own row under the search pill and Map / List so neither loses room. Meets (cruises and rolling meets
+  included) shows only meets; Things to do shows only places (Drives, Photo spots, Tracks, and the optional
+  Posts, Shops and Speed cameras). The sheet's count line and list follow it ("2 live now · 3 tonight" in
+  Meets, "4 drives · 6 photo spots" in Things to do). Default Meets; the last choice is remembered
+  (`settings.mapFocus`). Opening Things to do for the first time with none of its layers on turns Drives,
+  Photo spots and Tracks on, so it is never empty; anyone who set layers in the old combined sheet keeps
+  exactly those. Logic: `src/lib/mapFocus.ts`.
+* **Layers sheet** is two headed groups matching the switch: Meets (When, Type, Only ones I can go to) and
+  Things to do (the place switches and the Cars / Bikes photo filter). The group on the map comes first;
+  Map style is shared and last. The Meets on/off row is gone: the switch decides. This is the 4.4
+  settings-panel exception again: one `SegmentedControl` per labelled section (When, Map style); the map's
+  own Meets | Things to do switch is the screen's second, by owner request. Reviewers must not count it.
+* **Done.** A drive or photo spot you have done (the place's `completions`, kept per place as
+  `placeProgress`; `hasCompleted`) is drawn at 72% strength with a small success-green tick badge at its
+  bottom-right corner (`Pin` `done`). Its list rows and search results carry "✓ Done" (`DoneMark`), the
+  place page's tag says "✓ Done", and the card says "✓ Done" in its facts. Not done stays full strength.
+  Tracks and venues are information only, never done. The tick is never the only signal: the map pin's
+  label, row and tag all say "done" in words. Theme tokens only (`COLOR.state.success`, AA on the page and
+  card in both themes, `__tests__/mapFocus.test.ts`).

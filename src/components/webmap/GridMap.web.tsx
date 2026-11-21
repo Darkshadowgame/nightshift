@@ -105,7 +105,7 @@ export function GridMap({
                 <Pin glyph={p.glyph} colour={p.colour} size={sz} />
               </PulseRing>
             ) : (
-              <Pin glyph={p.glyph} colour={p.colour} size={sz} count={p.count} badge={p.badge} />
+              <Pin glyph={p.glyph} colour={p.colour} size={sz} count={p.count} badge={p.badge} done={p.done} />
             )}
           </Pressable>
         );

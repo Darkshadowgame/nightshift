@@ -36,6 +36,8 @@ import { currentPosition, geocoderAvailable, liveSearchAvailable, resolveSuggest
 import { firstPage, PAGE } from '../lib/paging';
 import { BIKE_ONLY_LABEL, isBikeOnly, passesVehicleFilter, VEHICLE_CHIPS, vehicleFilter } from '../lib/photoVehicles';
 import { visibleSpots } from '../lib/spots';
+import { placeDone } from '../lib/mapFocus';
+import { DoneMark } from '../components/DoneMark';
 import { useStore } from '../lib/store';
 import type { Build, EventType, LatLng, SpotKind, User, VehicleKind } from '../lib/types';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
@@ -295,7 +297,7 @@ export default function SearchScreen() {
       title={s.name}
       subtitle={metaLine([PLACE_NAMES[s.kind].one, s.region])}
       meta={from ? distanceText(milesBetween(from.at, s.at), from.from) : distanceText(miles, 'home')}
-      trailing={s.authorId === me ? <Tag label="Yours" /> : isBikeOnly(s) ? <Tag label={BIKE_ONLY_LABEL} /> : undefined}
+      trailing={s.authorId === me ? <Tag label="Yours" /> : isBikeOnly(s) ? <Tag label={BIKE_ONLY_LABEL} /> : placeDone(s, me) ? <DoneMark /> : undefined}
       onPress={() => openPlace(s.id)}
     />
   );
