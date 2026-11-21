@@ -35,12 +35,15 @@ export function passesVehicleFilter(s: Pick<Spot, 'kind' | 'vehicles'>, selected
 }
 
 /**
- * Where the filter starts when the person hasn't picked: from their garage. Only bikes there →
- * Bikes; anything else (cars only, both, or nothing yet) → all, with bike-only spots still shown
- * and marked.
+ * Where the filter starts when the person hasn't picked: from their garage (owner, 21 Nov 2026:
+ * "if they only have a car default to car only"). Only cars there → Cars (bike-only spots hidden);
+ * only bikes → Bikes; both, or nothing yet → all, with bike-only spots shown and marked.
  */
 export function defaultVehicleFilter(garage: readonly { kind: VehicleKind }[]): VehicleKind[] {
-  return garage.length > 0 && garage.every((b) => b.kind === 'bike') ? ['bike'] : [];
+  if (!garage.length) return [];
+  if (garage.every((b) => b.kind === 'bike')) return ['bike'];
+  if (garage.every((b) => b.kind === 'car')) return ['car'];
+  return [];
 }
 
 /** The filter in use: the saved choice if there is one, else the garage default. */

@@ -54,11 +54,16 @@ describe('the default comes from the garage', () => {
     expect(defaultVehicleFilter([bike, bike])).toEqual(['bike']);
   });
 
-  test('only cars, both, or an empty garage → all (bike-only spots still shown, marked)', () => {
-    expect(defaultVehicleFilter([car])).toEqual([]);
+  test('only cars → Cars (bike-only spots hidden)', () => {
+    expect(defaultVehicleFilter([car])).toEqual(['car']);
+    expect(defaultVehicleFilter([car, car])).toEqual(['car']);
+    expect(passesVehicleFilter(bikeOnly, defaultVehicleFilter([car]))).toBe(false);
+  });
+
+  test('both, or an empty garage → all (bike-only spots still shown, marked)', () => {
     expect(defaultVehicleFilter([car, bike])).toEqual([]);
     expect(defaultVehicleFilter([])).toEqual([]);
-    expect(passesVehicleFilter(bikeOnly, defaultVehicleFilter([car]))).toBe(true);
+    expect(passesVehicleFilter(bikeOnly, defaultVehicleFilter([car, bike]))).toBe(true);
   });
 
   test("a saved choice wins over the garage, even an empty one (the person cleared it)", () => {
