@@ -1317,3 +1317,12 @@ done a drive or photo location maybe do a subtle tick or make it greyed out."
 * **Best time** (`driveTimes.ts`): the drive page's "Best time to drive it" section: sunrise and sunset today at the road (`sun.ts`), and a rule-of-thumb quiet window, said not to be live traffic.
 * **Drive log** (`driveLog.ts`, route `drive-log`, a row on Me under Edit profile): finished drives with day, vehicle (make and model of your main vehicle) and miles; older completions appear without a vehicle. Phone only.
 * **Group drive** (`groupDrive.ts`): the drive page's header Share sends the drive with regroup points (about every 10 mi) through the share sheet. No live "lost the pack" alert: it needs live location on a server, which Slipstream does not keep.
+### 9.l Tonight's map: strip, time check, busy glow, way home (owner request, 22 Nov 2026)
+
+All for Meets only; Things to do is unchanged. Logic in `src/lib/mapNight.ts` (tests: `__tests__/mapNight.test.ts`).
+
+* **Tonight strip** (`TonightStrip.tsx`): in the sheet, above the card, a swipeable row of the next three meets (live first, then by start): time, title, "9 going". Chips, not cards, so the peek still shows one card. Tap one and the map centres its pin and opens its card, as a tap on the pin does. Shows only with two or more meets and no card open.
+* **Pin preview:** a long press on a marker is not available in react-native-maps, so the first tap is the preview: the sheet's card (photo, time, going) with ✕, and a tap on the card opens the page. This is how 3.3 already worked; nothing new was added.
+* **Time check** (`TimeCheck.tsx`): off by default. Layers › Meets › When has a "Check a time" switch; on, a drag row (18:00 to 02:00, half-hour steps) replaces the strip in the sheet and meets not on at that time fade on the map. The row says "3 meets on at 22:30", so the fade is never the only signal. Not saved.
+* **Busy glow:** a soft, outline-free pool under meets with 12 or more going (two rings from 30), in the meet's own colour. The going count is on the card, strip and list.
+* **Near my way home:** `nearLine` flags meets within 5 miles (about ten minutes) of the straight line from you to Home. Home is read from the phone-only `settings.favouritePlaces` (the entry labelled Home, built by the drives area); none set, or no location, shows nothing. The strip chip then says "On your way home". Coordinates stay in memory: never sent, stored or logged.

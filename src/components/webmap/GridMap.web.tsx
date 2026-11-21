@@ -75,7 +75,7 @@ export function GridMap({
             <Polygon key={p.id} points={p.coords.map((q) => `${x(q.lng)},${y(q.lat)}`).join(' ')} fill={`${p.colour}1f`} stroke={`${p.colour}99`} />
           ))}
           {circles.map((c) => (
-            <Circle key={c.id} cx={x(c.centre.lng)} cy={y(c.centre.lat)} r={c.radiusMiles * pxPerMile} fill={`${c.colour}1f`} stroke={`${c.colour}99`} />
+            <Circle key={c.id} cx={x(c.centre.lng)} cy={y(c.centre.lat)} r={c.radiusMiles * pxPerMile} fill={`${c.colour}${c.glow ? '26' : '1f'}`} stroke={c.glow ? 'none' : `${c.colour}99`} />
           ))}
           {paths.map((p) => (
             <Polyline

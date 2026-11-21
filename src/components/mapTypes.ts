@@ -17,6 +17,8 @@ export interface MapPin {
   badge?: string;
   /** A place you've done: drawn quieter with a tick. Its title already says "done" for screen readers. */
   done?: boolean;
+  /** Drawn faint: the Time check says this meet isn't on at the chosen time (never the only signal: the sheet says how many are). */
+  faded?: boolean;
 }
 
 /** A filled outline, e.g. a borough-wide ban zone. */
@@ -46,6 +48,8 @@ export interface MapCircle {
   centre: LatLng;
   radiusMiles: number;
   colour: string;
+  /** A soft glow (busy meets): a quiet fill with no outline. */
+  glow?: boolean;
 }
 
 /** Imperative handle: move the map without changing its props (e.g. the locate-me button). */

@@ -24,6 +24,8 @@ import {
   useToast,
 } from '../../components/ds';
 import { EventFilters } from '../../components/EventFilters';
+import { TimeCheck } from '../../components/TimeCheck';
+import { TonightStrip } from '../../components/TonightStrip';
 import { LayersPanel } from '../../components/LayersPanel';
 import { detentTops, MapSheet, MIN_SHOWN, type Detent } from '../../components/MapSheet';
 import { MapWidgetSlot } from '../../components/MapWidgetSlot';
@@ -55,6 +57,7 @@ import { milesBetween } from '../../lib/geo';
 import { aroundArea, demoClockTag, PLACE_NAMES } from '../../lib/glossary';
 import { orderPins } from '../../lib/hud';
 import { rememberMapView } from '../../lib/lastView';
+import { eveningOffset, eveningTimes, glowLevel, glowRadii, homePlace, nearLine, onAt, stripMeets } from '../../lib/mapNight';
 import { currentPosition, locationHelp } from '../../lib/location';
 import { useMapAppearance } from '../../lib/mapAppearance';
 import { layerOn, setLayer, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
@@ -276,6 +279,27 @@ export default function TonightScreen() {
     return lists.live.find(open) ?? lists.tonight.find(open) ?? lists.week.find(open) ?? lists.later.find(open) ?? shownViews[0] ?? null;
   }, [lists, shownViews]);
 
+  // Tonight strip, Time check and Near my way home (mapNight.ts): all extras for Meets.
+  const strip = useMemo(() => (meetsFocus ? stripMeets(shownViews, now) : []), [shownViews, now, meetsFocus]);
+  /** Time check: minutes into the evening, or null (off, the default). Not saved: it's a look, not a setting. */
+  const [check, setCheck] = useState<number | null>(null);
+  const hourBucket = Math.floor(now.getTime() / 3_600_000);
+  const checkAt = useMemo(
+    () => (meetsFocus && check !== null ? eveningTimes(now, check) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [meetsFocus, check, hourBucket],
+  );
+  const checkAtMs = checkAt?.getTime() ?? null;
+  const checkCount = checkAt ? shownViews.filter((v) => onAt(v, checkAt)).length : 0;
+  // Near my way home: the line from you to Home, where Home is the phone-only favourite place labelled
+  // Home (the drives area's setting; none set means nothing shows). Worked out here, never stored or sent.
+  const homeAt = homePlace((settings as { favouritePlaces?: unknown }).favouritePlaces);
+  const nearHome = useMemo(
+    () => (homeAt && here ? new Set(nearLine(here, homeAt, strip.map((m) => ({ id: m.id, at: pointOf(views.find((v) => v.event.id === m.id)!) })))) : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [homeAt?.lat, homeAt?.lng, here, strip, views],
+  );
+
   // ---------------------------------------------------------------------------
   // Places and posts on the map (Layers).
   // ---------------------------------------------------------------------------
@@ -383,14 +407,22 @@ export default function TonightScreen() {
     for (const v of inView) {
       const e = v.event;
       const colour = EVENT_COLOURS[e.type];
+      // Time check: a meet that isn't on at the chosen time is drawn faint (the sheet says how many are on).
+      const off = checkAtMs !== null && !onAt(v, new Date(checkAtMs));
+      const fade = off ? { faded: true } : {};
+      // Busy glow: a soft pool under a meet many are going to, from its going count (never the only sign: the count is on its card).
+      if (!off) {
+        const spot = v.shownStop >= 0 ? (e.stops[v.shownStop].at ?? e.area) : e.area;
+        glowRadii(glowLevel(e.going.length)).forEach((r, i) => circles.push({ id: `gl:${e.id}:${i}`, centre: spot, radiusMiles: r, colour, glow: true }));
+      }
       if (v.shownStop >= 0) {
         const stop = e.stops[v.shownStop];
-        if (stop.at) eventPins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live' });
+        if (stop.at) eventPins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live', ...fade });
         if (e.type === 'cruise') paths.push({ id: `rt:${e.id}`, coords: e.stops.flatMap((s) => (s.at ? [s.at] : [])), colour, dashed: true });
       } else {
         // The area circle only for the meet you tapped, and quiet: the pins carry the colour (Review 13).
         if (e.id === selEvent) circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour: COLOR.text.secondary });
-        eventPins.push({ id: `ev:${e.id}`, at: e.area, glyph: e.type, colour, title: `${e.title}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live' });
+        eventPins.push({ id: `ev:${e.id}`, at: e.area, glyph: e.type, colour, title: `${e.title}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live', ...fade });
       }
     }
     const grouped = clusterEventPins(eventPins, snapped.span, selEvent ? `ev:${selEvent}` : null);
@@ -399,11 +431,11 @@ export default function TonightScreen() {
       const lead = c.members[0];
       // One type: its colour; mixed types: the Events brand green.
       const same = c.members.every((m) => m.colour === lead.colour);
-      pins.push({ ...lead, colour: same ? lead.colour : LAYER.event, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live) });
+      pins.push({ ...lead, colour: same ? lead.colour : LAYER.event, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live), faded: c.members.every((m) => m.faded) || undefined });
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
-  }, [views, shownViews, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span, me]);
+  }, [views, shownViews, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span, me, checkAtMs]);
 
   // Tonight's count says what the list holds; the map only draws what is in view, so say how many sit outside it.
   const offMap = useMemo(
@@ -897,6 +929,12 @@ export default function TonightScreen() {
   const sheetHeader = (
     <View style={st.header}>
       {filterNote}
+      {checkAt && !selCard ? (
+        <TimeCheck now={now} offset={check ?? 0} count={checkCount} onChange={setCheck} onClose={() => setCheck(null)} />
+      ) : !selCard && meetsFocus && strip.length >= 2 ? (
+        // Two or more meets: a row to pick between them. One meet is already the card below.
+        <TonightStrip meets={strip} nearHome={nearHome} onOpen={(id) => showRef.current(`ev:${id}`)} />
+      ) : null}
       {selCard ?? (!meetsFocus ? (nearest ? selectionCard(`sp:${nearest.id}`) : ready ? <EmptyState variant="inline" title="Nothing to do is switched on." action={{ label: 'Choose in Map layers', onPress: () => setShowLayers(true) }} /> : null) : pick ? eventCard(pick, 'peek') : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
     </View>
   );
@@ -1030,7 +1068,7 @@ export default function TonightScreen() {
         onToggle={(k) => setSettings(toggledLayer(settings, k))}
         mapStyle={settings.mapStyle ?? 'auto'}
         onMapStyle={(v) => setSettings({ mapStyle: v })}
-        events={<EventFilters toggle={false} eventsOn={eventsOn} onToggleEvents={() => undefined} filter={eventFilter} onChange={(f) => setSettings({ eventFilter: f })} />}
+        events={<EventFilters toggle={false} eventsOn={eventsOn} onToggleEvents={() => undefined} filter={eventFilter} onChange={(f) => setSettings({ eventFilter: f })} timeCheck={check !== null} onTimeCheck={(on) => setCheck(on ? eveningOffset(now, now) : null)} />}
         photoVehicles={photoFor}
         onPhotoVehicles={(next) => setSettings({ photoVehicles: next })}
       />
