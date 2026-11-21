@@ -17,7 +17,8 @@ import { STAND_IN_PHOTOS } from './standInPhotos';
 import { modelLabel, type Variant } from '../lib/vehicles';
 import { DEMO_ROADS, roadPoints } from './demoRoads';
 import { PLACES, type PlaceSeed } from './places';
-import { DEMO_HOME, demoTimes, ME, sceneAreaName } from './seed';
+import { DEMO_HOME, demoTimes, isSampleHome, ME, sceneAreaName } from './seed';
+import { landSnapper } from '../lib/landSafe';
 import { allVariants } from './vehicles';
 
 /**
@@ -291,6 +292,8 @@ export function busyEvents(now: Date, home: LatLng, people: BusyPeople, sampleUs
   const area = sceneAreaName(home);
   // Real drives near home for the cruises; the normal demo uses the nearest two.
   const drives = nearest(PLACES.filter(isDrive), home, 8).slice(2);
+  // Meets sit on real places on land, never a raw offset (a coastal home would put them in the sea).
+  const snap = landSnapper(isSampleHome(home));
   // Everyone who could go: the busy people first, then the normal sample people (never you).
   const builds = [...people.builds, ...sampleBuilds.filter((b) => b.ownerId !== ME)];
   const who = [...people.users, ...sampleUsers.filter((u) => u.id !== ME)].map((u) => u.id);
@@ -325,10 +328,10 @@ export function busyEvents(now: Date, home: LatLng, people: BusyPeople, sampleUs
       routeMiles = Math.round(d.miles ?? 20);
     } else if (spec.type === 'rolling') {
       const first = offset(home, spec.miles, bearing);
-      stops = [0, 1, 2].map((n) => ({ id: sp(n + 1), name: placeName(), at: n === 0 ? first : offset(first, 2 + n * 2, bearing + 90 * n + rand() * 40) }));
+      stops = [0, 1, 2].map((n) => ({ id: sp(n + 1), name: placeName(), at: snap(n === 0 ? first : offset(first, 2 + n * 2, bearing + 90 * n + rand() * 40)) }));
       stops[2] = { ...stops[2], note: 'Planned, hidden until you move on' };
     } else {
-      stops = [{ id: sp(1), name: placeName(), at: offset(home, spec.miles + rand() * 1.5, bearing) }];
+      stops = [{ id: sp(1), name: placeName(), at: snap(offset(home, spec.miles + rand() * 1.5, bearing)) }];
     }
     const placed = stops.flatMap((s) => (s.at ? [s.at] : []));
     const ea = eventArea(placed, id, isPublicType(spec.type));
@@ -503,6 +506,7 @@ export function busyCommunity(now: Date, home: LatLng, region: string, events: r
     ...BUSY_PEOPLE.slice(20, 20 + BUSY_REQUESTS).map((u, i) => ({ from: u, to: ME, status: 'pending' as const, createdAt: ago((1 + i * 5) * HOUR) })),
   ];
 
+  const postSnap = landSnapper(isSampleHome(home));
   // Posts: about their build (with its stand-in photo when it's the same model), some with a place.
   const posts: Post[] = [];
   const comments: PostComment[] = [];
@@ -513,9 +517,8 @@ export function busyCommunity(now: Date, home: LatLng, region: string, events: r
     const pic = b ? similarSample(b.make, b.model, b.kind, b.year) : null;
     let at: LatLng | undefined;
     if (place) {
-      at = offset(home, 1 + rand() * 12, rand() * 360);
-      // Never on a meet point (postPrivacy.ts): move it well clear.
-      for (let k = 0; k < 8 && meetAt(at, events); k++) at = offset(at, 0.6, k * 45);
+      at = postSnap(offset(home, 1 + rand() * 12, rand() * 360));
+      // Never on a meet point (postPrivacy.ts): drop the place rather than move it (a nudge could land in the sea).
       if (meetAt(at, events)) at = undefined;
     }
     const id = `${BUSY_PREFIX}po${i + 1}`;

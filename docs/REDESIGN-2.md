@@ -1254,3 +1254,10 @@ consistency throughout". This replaces "the app is dark only, by design".
 * The scorecard runs one extra light pass (20:30, 1.0x). The scored dark runs set `colorScheme: dark`.
 * Native config: `userInterfaceStyle` is now `automatic` and the splash has a dark variant. Needs a new
   build; an OTA cannot carry it.
+* **Meet types differ by colour as well as glyph (owner, 21 Nov 2026: "different colours would help
+  differentiate between them").** Meet keeps the brand green; Cruise is light indigo (`LAYER.cruise`),
+  Rolling meet is gold (`LAYER.rolling`), Show blue and Track day chalk as before. One colour per type
+  everywhere (`EVENT_COLOURS`): map pin, list row icon, meet page tag, cards, and a dot on the Type
+  chips in Layers, which doubles as the legend. A cluster of mixed types is brand green. The glyph
+  stays, so colour is never the only signal. Dark ink on each fill is AA and the hues stay clear of red
+  (cameras, live dot) and the Tracks orange (`themeContrast.test.ts`).

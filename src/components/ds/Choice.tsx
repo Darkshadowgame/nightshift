@@ -31,7 +31,7 @@ export function chipText(on: boolean, off: string = COLOR.text.primary): string 
  * dot. Many-of-many filters use ChipGroup; a one-of-many row of 5+ options (ChoiceGroup) uses the
  * same face with `role="radio"`. Labels are as typed; `raw` is kept for old callers.
  */
-export function Chip({ label, on, onPress, raw, count, accessibilityLabel, role = 'checkbox', hint }: { label: string; on: boolean; onPress: () => void; raw?: boolean; count?: number; accessibilityLabel?: string; role?: 'checkbox' | 'radio'; hint?: string }) {
+export function Chip({ label, on, onPress, raw, count, accessibilityLabel, role = 'checkbox', hint, dot }: { dot?: string; label: string; on: boolean; onPress: () => void; raw?: boolean; count?: number; accessibilityLabel?: string; role?: 'checkbox' | 'radio'; hint?: string }) {
   return (
     <Press
       onPress={onPress}
@@ -50,6 +50,7 @@ export function Chip({ label, on, onPress, raw, count, accessibilityLabel, role 
         ...(hint ? { paddingVertical: SPACING.sm, alignItems: 'flex-start' as const } : null),
       }}
     >
+      {dot ? <View accessibilityElementsHidden importantForAccessibility="no" style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: dot }} /> : null}
       <View style={{ flexShrink: 1 }}>
         <DsText v={on ? 'bodyStrong' : 'body'} style={{ color: chipText(on) }}>
           {count !== undefined ? `${label} ${count}` : label}
@@ -73,7 +74,7 @@ export function ChipGroup<K extends string>({
   raw,
 }: {
   label: string;
-  options: { key: K; label: string; count?: number }[];
+  options: { key: K; label: string; count?: number; dot?: string }[];
   selected: K[];
   onChange: (next: K[]) => void;
   allLabel?: string;
@@ -92,7 +93,7 @@ export function ChipGroup<K extends string>({
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
         {options.map((o) => (
-          <Chip key={o.key} label={o.label} count={o.count} raw={raw} on={selected.includes(o.key)} onPress={() => onChange(toggleSelection(selected, o.key, order))} />
+          <Chip key={o.key} label={o.label} count={o.count} dot={o.dot} raw={raw} on={selected.includes(o.key)} onPress={() => onChange(toggleSelection(selected, o.key, order))} />
         ))}
       </View>
     </View>

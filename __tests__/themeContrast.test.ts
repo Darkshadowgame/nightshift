@@ -3,7 +3,8 @@
  * WCAG AA (4.5:1 for text, 3:1 for control borders), the brand green stays a fill with ink on it in
  * both modes, and red/amber stay apart from the brand green. Also covers the live-token switch.
  */
-import { applyTheme, COLOR, contrast, getThemeMode, inkFor, LAYER, PALETTE, themedStyles, type ThemeMode } from '../src/theme';
+import { tabLabelStyle } from '../src/lib/tabLabel';
+import { applyTheme, COLOR, contrast, EVENT_COLOURS, getThemeMode, inkFor, LAYER, PALETTE, themedStyles, type ThemeMode } from '../src/theme';
 
 const MODES: ThemeMode[] = ['dark', 'light'];
 const SODIUM = '#95d600';
@@ -127,5 +128,42 @@ describe('live tokens', () => {
       expect(contrast(inkFor(hex), PALETTE.light.card)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(inkFor(hex), PALETTE.light.raised)).toBeGreaterThanOrEqual(4.5);
     }
+  });
+});
+
+describe('bottom tab labels (both themes)', () => {
+  afterEach(() => applyTheme('dark'));
+
+  it('the label style carries no colour key, so the bar paints the tint (an undefined colour fell back to black on iOS)', () => {
+    expect('color' in tabLabelStyle()).toBe(false);
+  });
+
+  it.each(MODES)('active and inactive tab tints are AA on the %s tab bar', (mode) => {
+    applyTheme(mode);
+    expect(contrast(COLOR.text.secondary, COLOR.surface.bg)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(COLOR.action.selected, COLOR.surface.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('meet type colours', () => {
+  const types = ['meet', 'cruise', 'rolling', 'show', 'trackday'] as const;
+  const colours = types.map((t) => EVENT_COLOURS[t]);
+
+  it('each type has its own colour, and meet stays the brand green', () => {
+    expect(new Set(colours).size).toBe(types.length);
+    expect(EVENT_COLOURS.meet.toLowerCase()).toBe(SODIUM);
+  });
+
+  it.each(types)('dark ink reads on the %s pin fill', (t) => {
+    expect(contrast(INK, EVENT_COLOURS[t])).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('cruise and rolling stay clear of red, the live dot and the Tracks orange, and from each other', () => {
+    for (const mode of MODES) {
+      for (const c of [EVENT_COLOURS.cruise, EVENT_COLOURS.rolling]) {
+        for (const other of [PALETTE[mode].danger, PALETTE[mode].liveDot, LAYER.camera, LAYER.track]) expect(hueGap(c, other)).toBeGreaterThanOrEqual(15);
+      }
+    }
+    expect(hueGap(EVENT_COLOURS.cruise, EVENT_COLOURS.rolling)).toBeGreaterThanOrEqual(30);
   });
 });

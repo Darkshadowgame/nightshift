@@ -2,6 +2,7 @@ import type { Build, ChatMessage, Crew, LatLng, Mod, ModCategory, NightEvent, Sp
 import { DEFAULT_FILTER } from '../lib/invites';
 import type { Vote } from '../lib/awards';
 import { eventArea } from '../lib/area';
+import { landSnapper } from '../lib/landSafe';
 import { isPublicType } from '../lib/events';
 import { areaNameNear, nearestRegion } from '../lib/profile';
 import { applySceneNames, nearest, translate, type SceneNames } from '../lib/scene';
@@ -291,12 +292,17 @@ function withAreas(list: NightEvent[]): NightEvent[] {
   });
 }
 
+/** Is this the sample scene's own home? Its hand-placed points are known land; elsewhere they're snapped to land (landSafe.ts). */
+export function isSampleHome(home: LatLng): boolean {
+  return Math.abs(home.lat - DEMO_HOME.lat) < 0.02 && Math.abs(home.lng - DEMO_HOME.lng) < 0.02;
+}
+
 /** The demo's own town: the sample scene is drawn round Tamworth unless you set another home. */
 export const DEMO_TOWN = 'Tamworth';
 
 /** The area name sample meets use until the geocoder names the town: Tamworth for the demo home, else your region. */
 export function sceneAreaName(home: LatLng): string {
-  return Math.abs(home.lat - DEMO_HOME.lat) < 0.02 && Math.abs(home.lng - DEMO_HOME.lng) < 0.02 ? DEMO_TOWN : areaNameNear(home);
+  return isSampleHome(home) ? DEMO_TOWN : areaNameNear(home);
 }
 
 /** Start, halfway and finish of a real drive, for the sample cruises. */
@@ -317,7 +323,9 @@ function events(now: Date, home: LatLng): NightEvent[] {
   const t = demoTimes(now);
   const iso = (d: Date, plusMin = 0) => new Date(d.getTime() + plusMin * MIN).toISOString();
   const roll = rollingProgress(now, t.rollingLate.start);
-  const here = (lat: number, lng: number) => translate({ lat, lng }, DEMO_HOME, home);
+  // Moved onto your area, then onto a real place on land (a coastal home would put a raw offset in the sea).
+  const snap = landSnapper(isSampleHome(home));
+  const here = (lat: number, lng: number) => snap(translate({ lat, lng }, DEMO_HOME, home));
   const area = sceneAreaName(home);
   const [d1, d2] = nearest(PLACES.filter((p) => p.kind === 'drive'), home, 2);
   const [circuit] = nearest(PLACES.filter(isCircuit), home, 1);

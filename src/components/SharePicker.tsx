@@ -7,7 +7,7 @@ import { milesBetween } from '../lib/geo';
 import { shareBuild, shareEvent, sharePlace, type ShareCard } from '../lib/messages';
 import { useStore } from '../lib/store';
 import { classOf } from '../lib/classes';
-import { COLOR } from '../theme';
+import { COLOR, EVENT_COLOURS } from '../theme';
 import { DsText, EmptyState, ListRow, PhotoCard, SearchField, SegmentedControl, Sheet } from './ds';
 
 type Kind = 'build' | 'event' | 'place';
@@ -70,7 +70,7 @@ export function SharePicker({ visible, onPick, onClose }: { visible: boolean; on
           upcoming.length ? (
             upcoming.map((e) => {
               const c = shareEvent(e, now);
-              return <ListRow key={e.id} leading={{ pin: e.type, colour: e.type === 'show' ? COLOR.layer.show : e.type === 'trackday' ? COLOR.layer.trackday : COLOR.layer.event }} title={c.title} subtitle={c.subtitle} onPress={() => pick(c)} />;
+              return <ListRow key={e.id} leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }} title={c.title} subtitle={c.subtitle} onPress={() => pick(c)} />;
             })
           ) : (
             <EmptyState variant="inline" title="No upcoming events you're part of." />

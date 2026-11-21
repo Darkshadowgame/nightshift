@@ -58,7 +58,7 @@ import { rememberMapView } from '../../lib/lastView';
 import { currentPosition, locationHelp } from '../../lib/location';
 import { useMapAppearance } from '../../lib/mapAppearance';
 import { layerOn, setLayer, toggleLayer as toggledLayer, type Layer } from '../../lib/mapLayers';
-import { clusterEventPins, clusterZoomSpan, inViewOnly, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
+import { clusterEventPins, clusterZoomSpan, inViewOnly, offView, placesForView, regionKey, type EventCluster } from '../../lib/mapPlaces';
 import { photoSource, sampleRef } from '../../lib/photoSource';
 import { postPlace } from '../../lib/postPrivacy';
 import { visibleSpots } from '../../lib/spots';
@@ -377,11 +377,25 @@ export default function TonightScreen() {
     pins.push(...grouped.pins);
     for (const c of grouped.clusters) {
       const lead = c.members[0];
-      pins.push({ ...lead, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live) });
+      // One type: its colour; mixed types: the Events brand green.
+      const same = c.members.every((m) => m.colour === lead.colour);
+      pins.push({ ...lead, colour: same ? lead.colour : LAYER.event, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live) });
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
   }, [views, shownViews, events, placeView, postPins, cams, shopView, region.span, snapped.key, selected, snapped.centre, snapped.span]);
+
+  // Tonight's count says what the list holds; the map only draws what is in view, so say how many sit outside it.
+  const offMap = useMemo(
+    () =>
+      offView(
+        [...lists.live, ...lists.tonight],
+        (v) => (v.shownStop >= 0 ? (v.event.type === 'cruise' ? v.event.stops.map((x) => x.at) : [v.event.stops[v.shownStop].at ?? v.event.area]) : [v.event.area]),
+        snapped.centre,
+        snapped.span,
+      ),
+    [lists, snapped.key, snapped.centre, snapped.span],
+  );
 
   function zoomCluster(id: string) {
     autoFit.current = false;
@@ -916,7 +930,7 @@ export default function TonightScreen() {
               hidden={demoInfo || showLayers || !!bringFor}
               minBar={
                 <DsText v="secondary" tone="primary" numberOfLines={1}>
-                  {metaLine([lists.live.length ? `${lists.live.length} live now` : null, `${lists.tonight.length} tonight`])}
+                  {metaLine([lists.live.length ? `${lists.live.length} live now` : null, `${lists.tonight.length} tonight`, offMap ? `${offMap} off the map` : null])}
                 </DsText>
               }
             >

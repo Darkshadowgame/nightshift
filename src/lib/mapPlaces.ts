@@ -213,6 +213,11 @@ export function inViewOnly<T>(
   return items.filter((x) => (keep?.(x) ?? false) || points(x).some((p) => !!p && inBox(p, box)));
 }
 
+/** How many of `items` the map isn't showing right now: none of their points is in the view (`inViewOnly`'s box). */
+export function offView<T>(items: readonly T[], points: (item: T) => readonly (LatLng | null | undefined)[], centre: LatLng, span: number): number {
+  return items.length - inViewOnly(items, points, centre, span).length;
+}
+
 // ---------------------------------------------------------------------------
 // Event pins: never piled up (Review 11)
 // ---------------------------------------------------------------------------

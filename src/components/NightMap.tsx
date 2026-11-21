@@ -3,7 +3,7 @@ import MapView, { Circle, Marker, Polygon, Polyline } from 'react-native-maps';
 import { StyleSheet, View } from 'react-native';
 import { BRAND, C, RADII, SPACING, SURFACE, themedStyles, getThemeMode } from '../theme';
 import { DsText } from './ds/Text';
-import { pinLayer } from '../lib/hud';
+import { markerPlan } from '../lib/pinMarkers';
 import { MAP_POIS, MAP_TYPE } from '../lib/mapAppearance';
 import { PulseRing } from './motion';
 import { Pin, YOU_LABEL, YouDot } from './Pin';
@@ -32,23 +32,41 @@ const PinMarker = memo(
   function PinMarker({ pin, onSelect }: { pin: MapPin; onSelect: (id: string) => void }) {
     const coordinate = useMemo(() => ({ latitude: pin.at.lat, longitude: pin.at.lng }), [pin.at.lat, pin.at.lng]);
     const size = pin.size ?? 36;
+    const label = `${pin.count ? `${pin.count} ` : ''}${pin.title}${pin.live ? ', live now' : ''}${pin.count ? '. Zoom in' : ''}`;
     return (
-      <Marker
-        coordinate={coordinate}
-        onPress={() => onSelect(pin.id)}
-        tracksViewChanges={!!pin.live}
-        zIndex={pinLayer(pin)}
-        anchor={{ x: 0.5, y: 0.5 }}
-        accessibilityLabel={`${pin.count ? `${pin.count} ` : ''}${pin.title}${pin.live ? ', live now' : ''}${pin.count ? '. Zoom in' : ''}`}
-      >
-        {pin.live ? (
-          <PulseRing live colour={pin.colour} size={size} pad>
-            <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
-          </PulseRing>
-        ) : (
-          <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
+      <>
+        {markerPlan(pin).map((m) =>
+          m.role === 'pulse' ? (
+            // Only the animation: its own marker, behind every pin, so it can never swallow a press.
+            <Marker
+              key="pulse"
+              coordinate={coordinate}
+              onPress={() => onSelect(pin.id)}
+              tappable={m.tappable}
+              tracksViewChanges={m.tracksViewChanges}
+              zIndex={m.zIndex}
+              anchor={{ x: 0.5, y: 0.5 }}
+              accessible={false}
+            >
+              <PulseRing live colour={pin.colour} size={size} pad>
+                <View style={{ width: size, height: size }} />
+              </PulseRing>
+            </Marker>
+          ) : (
+            <Marker
+              key="pin"
+              coordinate={coordinate}
+              onPress={() => onSelect(pin.id)}
+              tracksViewChanges={m.tracksViewChanges}
+              zIndex={m.zIndex}
+              anchor={{ x: 0.5, y: 0.5 }}
+              accessibilityLabel={label}
+            >
+              <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} />
+            </Marker>
+          ),
         )}
-      </Marker>
+      </>
     );
   },
   (a, b) =>

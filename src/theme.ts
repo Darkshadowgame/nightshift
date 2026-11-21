@@ -173,8 +173,12 @@ function build(mode: ThemeMode) {
   };
 
   const LAYER = {
-    /** Meets, cruises and rolling meets. */
+    /** Meets (and the Events layer as a whole): the brand green. */
     event: SODIUM,
+    /** Cruises: a light indigo, apart from the shows' blue, the drives' cyan and the shops' purple. */
+    cruise: '#9a8cff',
+    /** Rolling meets: gold, apart from the tracks' orange, the brand green and the red cameras and live dot. */
+    rolling: '#f7d046',
     /** Shows: blue, not the photo spots' magenta. */
     show: '#5c9dff',
     /** Track days: chequered-flag white, not the tracks' lime. */
@@ -597,8 +601,8 @@ export const HIT = 44;
 
 /** Map colours for events, by type. Events are drawn filled (Pin.tsx), places outlined. */
 export const EVENT_COLOURS = {
-  cruise: LAYER.event,
-  rolling: LAYER.event,
+  cruise: LAYER.cruise,
+  rolling: LAYER.rolling,
   meet: LAYER.event,
   show: LAYER.show,
   trackday: LAYER.trackday,

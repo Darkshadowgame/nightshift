@@ -1,4 +1,4 @@
-import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, MIXED_SPAN, maxClusterKm, medoid, inViewOnly, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
+import { CLUSTER_SPAN, DRIVE_LINE_SPAN, MAX_PER_KIND, MIXED_SPAN, maxClusterKm, medoid, inViewOnly, offView, nearestPoints, placesForView, regionKey } from '../src/lib/mapPlaces';
 import { landmassOf } from '../src/lib/landmass';
 import { bundledSpots } from '../src/lib/placeStore';
 import type { LatLng, Spot } from '../src/lib/types';
@@ -226,5 +226,15 @@ describe('event pins never pile up (Review 11)', () => {
   test('the selected pin is never grouped, and street level never groups', () => {
     expect(clusterEventPins(pins, 0.5, 'ev:a').pins.map((p: { id: string }) => p.id)).toContain('ev:a');
     expect(clusterEventPins(pins, 0.02).clusters).toEqual([]);
+  });
+});
+
+describe('offView (the Tonight count says how many meets the map is not showing)', () => {
+  const centre = { lat: 52, lng: -1 };
+  const pts = (p: LatLng) => [p];
+  it('counts only the ones outside the view', () => {
+    const items = [{ lat: 52, lng: -1 }, { lat: 52.01, lng: -1.01 }, { lat: 55, lng: -4 }];
+    expect(offView(items, pts, centre, 0.2)).toBe(1);
+    expect(offView(items, pts, centre, 10)).toBe(0);
   });
 });

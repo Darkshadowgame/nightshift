@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { EVENT_COLOURS } from '../theme';
 import { KIND_OPTIONS, WHEN_OPTIONS, type EventFilter } from '../lib/eventFilter';
 import { SPACING } from '../theme';
 import { ChipGroup, DsText, RowDivider, SegmentedControl, SwitchRow } from './ds';
@@ -25,7 +26,7 @@ export function EventFilters({ eventsOn, onToggleEvents, filter, onChange }: Eve
             <DsText v="label">When</DsText>
             <SegmentedControl accessibilityLabel="When" value={filter.when} onChange={(when) => onChange({ ...filter, when })} options={WHEN_OPTIONS} />
           </View>
-          <ChipGroup label="Type" allLabel="All types" options={KIND_OPTIONS} selected={filter.types} onChange={(types) => onChange({ ...filter, types })} />
+          <ChipGroup label="Type" allLabel="All types" options={KIND_OPTIONS.map((o) => ({ ...o, dot: EVENT_COLOURS[o.key] }))} selected={filter.types} onChange={(types) => onChange({ ...filter, types })} />
           <SwitchRow
             label="Only ones I can go to"
             hint="Hides meets your garage doesn't fit"
