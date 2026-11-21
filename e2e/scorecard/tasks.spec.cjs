@@ -437,6 +437,9 @@ async function runScorecard({ base, clock, scale, outDir, busy = false, scheme =
     await tap(page.getByRole('tab', { name: 'Garage' }));
     await snap('garage');
     const before = ((await text()).match(/(\d+)\s*bhp/) || [])[1];
+    // The Garage lists every vehicle as a photo card; the mods are one tap in, on the vehicle's own page.
+    await tap(B(/^Ford Fiesta ST/));
+    await snap('vehicle');
     await tap(B('Add a mod'));
     await snap('add-mod');
     await tap(B('Cold air intake'), { inSheet: true });
@@ -452,6 +455,9 @@ async function runScorecard({ base, clock, scale, outDir, busy = false, scheme =
     const cls = (t8toast.match(/Class ([A-Z])/) || [])[1];
     const readable = !!now && !!cls && new RegExp(`\\b${now}\\s*bhp`).test(g) && now !== before;
     stop('t8', readable, `toast "${t8toast}"; Garage ${readable ? 'shows' : 'does not show'} ${now} bhp (was ${before})`);
+
+    // Back from the vehicle's page to the tab bar.
+    for (let i = 0; i < 6 && !(await page.getByRole('tab', { name: 'Tonight' }).count()); i++) await tap(B('Go back'));
 
     // 9. Host a meet on Sunday at 10:00, open to anyone, and share it.
     await start('t9');

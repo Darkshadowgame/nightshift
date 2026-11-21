@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { BuildCard } from '../../components/BuildBits';
+import { AvatarSheet } from '../../components/AvatarSheet';
 import { Cover } from '../../components/Cover';
 import { Avatar, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, StatBlock, metaLine } from '../../components/ds';
 import { LadderSheet } from '../../components/LadderSheet';
@@ -70,6 +71,7 @@ export default function Me() {
   const now = useNow();
   const rep = useRep(me);
   const [ladder, setLadder] = useState(false);
+  const [picker, setPicker] = useState(false);
   const user = users.find((u) => u.id === me);
   const main = lastBrought(events, me, builds) ?? builds.find((b) => b.ownerId === me);
   const myAwards = allAwards(votes, events, builds, now).filter((a) => a.ownerId === me);
@@ -115,8 +117,10 @@ export default function Me() {
       <Tabs.Screen options={{ headerRight: meHeaderRight }} />
       <View style={{ gap: SPACING.md }}>
         <View style={st.profile}>
-          {/* A close crop when your car's card is right under it (Review 20 #29), so it's not the same photo twice. */}
-          <Avatar name={user?.name} handle={user?.handle} size="lg" close={!!main} />
+          {/* Your picture: the whole of your main vehicle by default; tap to choose another of your vehicle photos. */}
+          <Press onPress={() => setPicker(true)} label="Profile photo" hint="Choose a profile photo" style={{ width: 76, height: 76, borderRadius: 38 }}>
+            <Avatar name={user?.name} handle={user?.handle} size="lg" />
+          </Press>
           <View style={{ flex: 1, gap: SPACING.xxs }}>
             <DsText v="titleLg" numberOfLines={1}>
               @{user?.handle}
@@ -258,6 +262,7 @@ export default function Me() {
         <ListRow title={SCREEN_TITLES.feedback} onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />
       </View>
 
+      <AvatarSheet visible={picker} onClose={() => setPicker(false)} />
       <LadderSheet visible={ladder} onClose={() => setLadder(false)} level={rep.level} ledger={rep.ledger} />
     </ScrollView>
   );

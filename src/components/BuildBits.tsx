@@ -12,7 +12,7 @@ import type { Build, ModCategory } from '../lib/types';
 import { PaintedArt } from './BuildArt';
 import { View } from 'react-native';
 import { SPACING } from '../theme';
-import { DsText, EmptyState, ListRow, PhotoCard, RowDivider, Tag, metaLine, type CardAction } from './ds';
+import { DsText, EmptyState, ListRow, PhotoCard, RowDivider, Tag, metaLine, type CardAction, type EntityTag } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
 /** "Ford Fiesta ST Mk8": a build's name, as typed. */
@@ -46,7 +46,7 @@ export function useIsDemo(): boolean {
  * drawn in its paint (never grey); the class badge and name on the photo; the power line under it;
  * one secondary.
  */
-export function BuildCard({ build, now, onPress, action, aspect }: { build: Build; now: Date; onPress?: () => void; action?: CardAction | null; aspect?: number }) {
+export function BuildCard({ build, now, onPress, action, aspect, tag }: { build: Build; now: Date; onPress?: () => void; action?: CardAction | null; aspect?: number; tag?: EntityTag | null }) {
   const pic = useBuildPicture(build);
   const shape = build.kind === 'car' ? carShape(build) : undefined;
   return (
@@ -63,6 +63,7 @@ export function BuildCard({ build, now, onPress, action, aspect }: { build: Buil
       titleOnPhoto
       meta={powerLine(build, now)}
       detail={build.nickname || undefined}
+      tag={tag}
       action={action}
       onPress={onPress}
       accessibilityHint="Opens the build"

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { AddModSheet } from '../../components/AddModSheet';
 import { PaintedArt } from '../../components/BuildArt';
@@ -43,6 +43,17 @@ export default function BuildScreen() {
   const community = useCommunity();
   const toast = useToast();
   const pic = useBuildPicture(b ?? { photos: [], make: '', model: '', kind: 'car' });
+  // A new mod scrolls the Mods list up, clear of the toast that confirms it (Review 21 problem 6), at once and
+  // without animation: the closing sheet still covers the page, so the jump isn't seen.
+  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
+  const modsY = useRef(0);
+  const mods = b?.mods.length ?? 0;
+  const lastMods = useRef(mods);
+  useLayoutEffect(() => {
+    const grew = mods > lastMods.current;
+    lastMods.current = mods;
+    if (grew) scroller.current?.scrollTo({ y: Math.max(0, modsY.current - SPACING.md), animated: false });
+  }, [mods]);
 
   useLayoutEffect(() => {
     if (!b) return;
@@ -66,7 +77,7 @@ export default function BuildScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={PAGE_WITH_BAR} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scroller} contentContainerStyle={PAGE_WITH_BAR} showsVerticalScrollIndicator={false}>
         <Hero
           bleed
           aspect={ASPECT.build}
@@ -97,9 +108,11 @@ export default function BuildScreen() {
           <ListRow leading={{ avatar: personMark(owner) }} title={at(owner)} subtitle="Owner" onPress={() => openProfile(owner.id)} accessibilityLabel={`${at(owner)}'s profile`} />
         ) : null}
 
-        <Section title="Mods">
-          <ModGroups build={b} mine={mine} />
-        </Section>
+        <View onLayout={(e) => (modsY.current = e.nativeEvent.layout.y)}>
+          <Section title="Mods">
+            <ModGroups build={b} mine={mine} />
+          </Section>
+        </View>
 
         {mine ? (
           <Section title="Photos">

@@ -101,6 +101,11 @@ export interface Settings {
   eventFilter: EventFilter;
   /** Set once the event filters arrived (18 Nov 2026): When = Tonight and Only ones I can go to on, once. */
   eventFilterOnce?: boolean;
+  /**
+   * Me's profile picture when you chose one of your vehicle photos (a photo ref). Kept on this phone
+   * only: there is no profile column for it yet. Left out: your main vehicle's photo.
+   */
+  avatarRef?: string | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

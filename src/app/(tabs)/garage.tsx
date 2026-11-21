@@ -1,61 +1,76 @@
 import { router, useNavigation } from 'expo-router';
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentRef } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { AddModSheet } from '../../components/AddModSheet';
-import { BuildCard, buildName, ModGroups, powerLine, useIsDemo } from '../../components/BuildBits';
-import { Button, DsText, EmptyState, ErrorState, HeaderActions, ListRow, RowDivider, Section, useToast } from '../../components/ds';
+import { BuildCard, useBuildPicture } from '../../components/BuildBits';
+import { Button, DsText, EmptyState, ErrorState, HeaderActions, ListRow, useToast } from '../../components/ds';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { lastBrought } from '../../lib/bringing';
-import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
-import { buildPicture } from '../../lib/similarPhoto';
 import { useStore } from '../../lib/store';
+import type { Build } from '../../lib/types';
 import { SPACING } from '../../theme';
 
 const openBuild = (id: string) => router.push({ pathname: '/build/[id]', params: { id } });
 const addBuild = () => router.push('/build/edit');
 
 /**
- * Garage (Redesign 2, 3.8; T1): your main build as a big photo card (the one you last brought to a
- * meet, else your first) with its class, name and one power line, and one secondary, Add a mod.
- * Other builds are rows. "+" in the header adds a car or bike.
+ * One vehicle in the Garage: a photo card of equal standing with the others (owner, from a real
+ * phone: "show the car and bikes first, then when you click in, the mods"). A vehicle with no photo
+ * of its own says so and offers "Add yours" (or "Add a photo") under its card.
  */
-export default function Garage() {
-  const nav = useNavigation();
-  const { builds, me, events, saveBuild } = useStore();
-  const now = useNow();
+function VehicleCard({ build, main, now }: { build: Build; main: boolean; now: Date }) {
+  const { saveBuild } = useStore();
   const toast = useToast();
-  const mine = builds.filter((b) => b.ownerId === me);
-  const main = lastBrought(events, me, builds) ?? mine[0];
-  const others = mine.filter((b) => b.id !== main?.id);
-  const [addMod, setAddMod] = useState(false);
-  // A new mod scrolls the Mods list up, clear of the toast that confirms it (Review 21 problem 6: the
-  // toast sat on the new "Cold air intake" row).
-  const scroller = useRef<ComponentRef<typeof ScrollView>>(null);
-  const modsY = useRef(0);
-  const modCount = main?.mods.length ?? 0;
-  const lastCount = useRef(modCount);
-  // At once, before the new row is painted, and without an animation: the closing sheet still covers
-  // the page, so the jump isn't seen, and the row never sits under the toast (which rises with it) for a
-  // moment. A delayed, animated scroll left it there for the first half second (the scorecard's
-  // TOAST-OVER-CHANGE caught it in one run of four).
-  useLayoutEffect(() => {
-    const grew = modCount > lastCount.current;
-    lastCount.current = modCount;
-    if (grew) scroller.current?.scrollTo({ y: Math.max(0, modsY.current - SPACING.md), animated: false });
-  }, [modCount]);
+  const pic = useBuildPicture(build);
   const [error, setError] = useState<string | null>(null);
-  const demo = useIsDemo();
   const flow = usePhotoFlow({
     aspect: '4:3',
     onError: setError,
     onPhoto: (ref) => {
-      if (!main) return;
-      saveBuild({ ...main, photos: [ref, ...main.photos] })
+      saveBuild({ ...build, photos: [ref, ...build.photos] })
         .then(() => toast({ message: 'Photo added' }))
         .catch((e) => setError(e instanceof Error ? e.message : "Couldn't save the photo."));
     },
   });
+  const kind = build.kind === 'bike' ? 'bike' : 'car';
+  const standIn = !!pic?.standIn;
+  return (
+    <View style={{ gap: SPACING.sm }}>
+      {flow.view}
+      <BuildCard build={build} now={now} tag={main ? { label: 'Main', tone: 'neutral' } : undefined} onPress={() => openBuild(build.id)} />
+      {build.photos.length === 0 ? (
+        // A stand-in photo says it's one, so "Add a photo" under a photo makes sense (Review 19 #38).
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: SPACING.xs }}>
+          {standIn ? <DsText v="secondary">Sample photo.</DsText> : null}
+          <Button
+            label={standIn ? 'Add yours' : `Add a photo of your ${kind}`}
+            accessibilityLabel={`Add a photo of your ${build.make} ${build.model}`.trim()}
+            tier="tertiary"
+            size="sm"
+            icon="plus"
+            busy={flow.busy}
+            onPress={() => flow.pick()}
+          />
+        </View>
+      ) : null}
+      {error ? <ErrorState title={error} /> : null}
+    </View>
+  );
+}
+
+/**
+ * Garage (Redesign 2, 3.8; T1): every car and bike you own as a photo card of equal standing, the
+ * main one (the one you last brought to a meet, else your first) first and tagged Main. Tap one to
+ * open it: its photos, mods, Power and dyno and edit actions (the build page). "+" in the header
+ * adds a car or bike; that is the only action here.
+ */
+export default function Garage() {
+  const nav = useNavigation();
+  const { builds, me, events } = useStore();
+  const now = useNow();
+  const mine = builds.filter((b) => b.ownerId === me);
+  const main = lastBrought(events, me, builds) ?? mine[0];
+  const ordered = main ? [main, ...mine.filter((b) => b.id !== main.id)] : [];
 
   useLayoutEffect(() => {
     nav.setOptions({ headerRight: () => <HeaderActions add={{ label: 'Add a car or bike', onPress: addBuild, icon: 'addVehicle' }} bell /> });
@@ -70,53 +85,11 @@ export default function Garage() {
   }
 
   return (
-    <ScrollView ref={scroller} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl * 2 }} showsVerticalScrollIndicator={false}>
-      {flow.view}
-      <View style={{ gap: SPACING.sm }}>
-        <BuildCard build={main} now={now} onPress={() => openBuild(main.id)} action={{ label: 'Add a mod', onPress: () => setAddMod(true) }} />
-        {main.photos.length === 0 ? (
-          // A stand-in photo says it's one, so "Add a photo" under a photo makes sense (Review 19 #38).
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: SPACING.xs }}>
-            {buildPicture(main, demo)?.standIn ? <DsText v="secondary">Sample photo.</DsText> : null}
-            <Button
-              label={buildPicture(main, demo)?.standIn ? 'Add yours' : `Add a photo of your ${main.kind === 'bike' ? 'bike' : 'car'}`}
-              accessibilityLabel={`Add a photo of your ${main.kind === 'bike' ? 'bike' : 'car'}`}
-              tier="tertiary"
-              size="sm"
-              icon="plus"
-              busy={flow.busy}
-              onPress={() => flow.pick()}
-            />
-          </View>
-        ) : null}
-        {error ? <ErrorState title={error} /> : null}
-      </View>
-      <AddModSheet visible={addMod} build={main} onClose={() => setAddMod(false)} />
-
-      {/* The build sheet under the card (Review 19 #39): what's done to it, then where the power comes from. */}
-      <View onLayout={(e) => (modsY.current = e.nativeEvent.layout.y)}>
-        <Section title="Mods">
-          <ModGroups build={main} mine />
-        </Section>
-      </View>
-      <View>
-        <RowDivider />
-        <ListRow title="Power and dyno" subtitle="How the power is worked out" onPress={() => router.push({ pathname: '/build/power', params: { id: main.id } })} />
-        <RowDivider />
-      </View>
-
-      {others.length ? (
-        <Section title="Other builds">
-          <View>
-            {others.map((b, i) => (
-              <View key={b.id}>
-                {i ? <RowDivider /> : null}
-                <ListRow leading={{ classBadge: classOf(b) }} title={buildName(b)} subtitle={powerLine(b, now)} onPress={() => openBuild(b.id)} />
-              </View>
-            ))}
-          </View>
-        </Section>
-      ) : null}
+    <ScrollView contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl * 2 }} showsVerticalScrollIndicator={false}>
+      {ordered.map((b) => (
+        <VehicleCard key={b.id} build={b} main={b.id === main.id && ordered.length > 1} now={now} />
+      ))}
+      <ListRow leading={{ icon: 'plus' }} title="Add a car or bike" onPress={addBuild} />
     </ScrollView>
   );
 }
