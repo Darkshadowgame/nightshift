@@ -16,7 +16,9 @@ import {
   Sheet,
   Tag,
   metaLine,
+  useToast,
 } from '../components/ds';
+import { FavouritesSheet } from '../components/FavouritesSheet';
 import { EventRow } from '../components/EventRow';
 import { NavLaunch } from '../components/NavLaunch';
 import { NightMap } from '../components/NightMap';
@@ -39,6 +41,8 @@ import { visibleSpots } from '../lib/spots';
 import { placeDone } from '../lib/mapFocus';
 import { DoneMark } from '../components/DoneMark';
 import { useStore } from '../lib/store';
+import { FEEL_LABELS, FEELS, filterByFeel, savedFeelTags, type Feel } from '../lib/driveFeel';
+import { asDestination, favouritesOf, findFavourite, toggleFavourite, type Favourite } from '../lib/favourites';
 import type { Build, EventType, LatLng, SpotKind, User, VehicleKind } from '../lib/types';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
 import { COLOR, RADII, SPACING, SPOT_COLOURS, themedStyles } from '../theme';
@@ -107,7 +111,8 @@ interface AddressHit {
  * only ever shows its area; the distance is "about" to that area.
  */
 export default function SearchScreen() {
-  const { events, me, crews, users, builds, markNearbySeen, remote, spots, settings, setSettings } = useStore();
+  const { events, me, crews, users, builds, markNearbySeen, remote, spots, settings, setSettings, backend } = useStore();
+  const toast = useToast();
   const community = useCommunity();
   const params = useLocalSearchParams<{ q?: string; tab?: string }>();
   const startTab: Tab = params.tab === 'addresses' ? 'places' : params.tab === 'events' ? 'meets' : TABS.some((t) => t.key === params.tab) ? (params.tab as Tab) : 'all';
@@ -120,6 +125,8 @@ export default function SearchScreen() {
   const [filters, setFilters] = useState<SearchFilters>(() => defaultFilters(travel.miles));
   const [editing, setEditing] = useState(false);
   const [kinds, setKinds] = useState<SpotKind[]>([]);
+  /** Drives only: the feels to filter by (driveFeel.ts). */
+  const [feelsOn, setFeelsOn] = useState<Feel[]>([]);
   const [here, setHere] = useState<LatLng | null>(null);
   // Opening Search marks "new near you" as seen.
   useFocusEffect(useCallback(() => () => markNearbySeen(), [markNearbySeen]));
@@ -205,6 +212,10 @@ export default function SearchScreen() {
   const [addrError, setAddrError] = useState('');
   const [opening, setOpening] = useState<string | null>(null);
   const [picked, setPicked] = useState<Destination | null>(null);
+  // Favourite places: phone only (favourites.ts). The demo starts with made-up ones.
+  const favs = favouritesOf(settings.favourites, backend === 'local');
+  const setFavs = (next: Favourite[]) => setSettings({ favourites: next });
+  const [managing, setManaging] = useState(false);
   const seq = useRef(0);
   const canAddress = geocoderAvailable || liveSearchAvailable;
   const wantsAddresses = (tab === 'all' || tab === 'places') && canAddress;
@@ -278,7 +289,10 @@ export default function SearchScreen() {
   const photoFor = vehicleFilter(settings.photoVehicles, builds.filter((b) => b.ownerId === me));
   const setPhotoFor = (next: VehicleKind[]) => setSettings({ photoVehicles: next });
   const showsPhotos = !kinds.length || kinds.includes('photo');
-  const shownPlaces = allPlaces.filter(({ s }) => (!kinds.length || kinds.includes(s.kind)) && passesVehicleFilter(s, photoFor));
+  const drivesOnly = kinds.length === 1 && kinds[0] === 'drive';
+  const feelTags = savedFeelTags(settings.driveFeels);
+  const feelOk = new Set(filterByFeel(allPlaces.map((p) => p.s), drivesOnly ? feelsOn : [], feelTags).map((s) => s.id));
+  const shownPlaces = allPlaces.filter(({ s }) => (!kinds.length || kinds.includes(s.kind)) && passesVehicleFilter(s, photoFor) && feelOk.has(s.id));
   const connected = idsIn(community.connections, 'connected')
     .map((id) => users.find((u) => u.id === id))
     .filter((u): u is User => !!u && !community.blocked.has(u.id));
@@ -339,6 +353,26 @@ export default function SearchScreen() {
     </>
   );
 
+  const favRows = (
+    <Section title="Favourites" right={favs.length ? <Button label="Manage" tier="tertiary" size="sm" onPress={() => setManaging(true)} /> : undefined}>
+      {favs.length === 0 ? (
+        <EmptyState variant="inline" title="Search a place and save it here for one-tap trips." />
+      ) : (
+        favs.map((f) => (
+          <ListRow
+            key={f.id}
+            leading={{ icon: 'pin' }}
+            title={f.label}
+            subtitle={f.label === f.name ? f.address || undefined : f.name}
+            meta={from ? distanceText(milesBetween(from.at, f.at), from.from) : distanceText(milesBetween(origin, f.at), 'home')}
+            onPress={() => pick(asDestination(f))}
+            accessibilityHint="Shows it here, with Go here"
+          />
+        ))
+      )}
+    </Section>
+  );
+
   const nothing =
     typed &&
     addrState !== 'searching' &&
@@ -364,7 +398,17 @@ export default function SearchScreen() {
       </View>
 
       {picked ? (
-        <Picked place={picked} note={distanceNote(here, picked.at)} onClear={() => setPicked(null)} />
+        <Picked
+          place={picked}
+          note={distanceNote(here, picked.at)}
+          onClear={() => setPicked(null)}
+          saved={!!findFavourite(favs, picked)}
+          onToggleSaved={() => {
+            const was = !!findFavourite(favs, picked);
+            setFavs(toggleFavourite(favs, picked));
+            toast({ message: was ? 'Removed from favourites' : 'Saved to favourites', tone: was ? 'info' : 'success' });
+          }}
+        />
       ) : typed ? (
         <>
           {nothing ? (
@@ -394,7 +438,11 @@ export default function SearchScreen() {
         </>
       ) : tab === 'places' ? (
         <>
+          {favRows}
           <ChipGroup label="Show" options={PLACE_KINDS.map((k) => ({ key: k, label: PLACE_NAMES[k].many }))} selected={kinds} onChange={setKinds} allLabel="Every kind of place" />
+          {drivesOnly ? (
+            <ChipGroup<Feel> label="Feel" allLabel="Any feel" options={FEELS.map((f) => ({ key: f, label: FEEL_LABELS[f] }))} selected={feelsOn} onChange={setFeelsOn} />
+          ) : null}
           {showsPhotos ? (
             <ChipGroup<VehicleKind> label={`${PLACE_NAMES.photo.many} for`} allLabel="Cars and bikes" options={VEHICLE_CHIPS} selected={photoFor} onChange={setPhotoFor} />
           ) : null}
@@ -416,6 +464,8 @@ export default function SearchScreen() {
           )}
         </Section>
       ) : (
+        <>
+        {tab === 'all' && favs.length ? favRows : null}
         <Section
           title="Meets near you"
           right={tab === 'meets' ? <Button label="Filters" tier="tertiary" size="sm" onPress={() => setEditing(true)} accessibilityLabel={`Filters: ${describeFilters(filters, false)}`} /> : undefined}
@@ -428,7 +478,10 @@ export default function SearchScreen() {
           {tab === 'meets' && hitPage.more > 0 ? <Button label={`Show ${hitPage.more} more`} tier="tertiary" onPress={() => setShownHits((n) => n + PAGE)} /> : null}
           {tab === 'all' && hits.length > 8 ? <Button label="See all" tier="tertiary" size="sm" onPress={() => setTab('meets')} /> : null}
         </Section>
+        </>
       )}
+
+      <FavouritesSheet visible={managing} favourites={favs} onChange={setFavs} onClose={() => setManaging(false)} />
 
       <Sheet visible={editing} title="Filters" onClose={() => setEditing(false)}>
         <ChoiceGroup
@@ -456,7 +509,7 @@ export default function SearchScreen() {
 }
 
 /** The chosen address on a small map, with the one primary action: Go here. */
-function Picked({ place, note, onClear }: { place: Destination; note: string | null; onClear: () => void }) {
+function Picked({ place, note, onClear, saved, onToggleSaved }: { place: Destination; note: string | null; onClear: () => void; saved: boolean; onToggleSaved: () => void }) {
   return (
     <View style={st.picked}>
       <View style={st.pickedMap}>
@@ -475,7 +528,10 @@ function Picked({ place, note, onClear }: { place: Destination; note: string | n
         {note ? <DsText v="meta">{note}</DsText> : null}
       </View>
       <NavLaunch target={{ kind: 'place', name: place.name, lat: place.at.lat, lng: place.at.lng }} to={place.at} label="Go here" kind="primary" />
-      <Button label="Other results" tier="tertiary" size="sm" style={{ alignSelf: 'flex-start' }} onPress={onClear} />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button label="Other results" tier="tertiary" size="sm" onPress={onClear} />
+        <Button label={saved ? 'Remove from favourites' : 'Save to favourites'} tier="tertiary" size="sm" onPress={onToggleSaved} />
+      </View>
     </View>
   );
 }

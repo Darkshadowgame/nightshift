@@ -5,10 +5,12 @@ import { Platform, ScrollView, View } from 'react-native';
 import { navDirectionsAvailable } from '../../../modules/nav-directions';
 import { openReport } from '../../components/Community';
 import { CommonsStrip } from '../../components/CommonsStrip';
+import { useShareLink } from '../../components/ShareLink';
 import { Callout, CheckInCelebration, MediaFrame, NotFoundState } from '../../components/Detail';
 import {
   ActionBar,
   Button,
+  ChipGroup,
   displayHandle,
   DsText,
   EmptyState,
@@ -38,6 +40,9 @@ import { SYSTEM_AUTHOR } from '../../data/places';
 import { BAN_ZONES } from '../../data/seed';
 import { appNow, realNowMs } from '../../lib/appClock';
 import { radiusFor } from '../../lib/commons';
+import { canTagFeel, FEEL_LABELS, FEELS, savedFeelTags, setFeels, topFeels, type Feel } from '../../lib/driveFeel';
+import { driveSun, QUIET_CAVEAT, QUIET_WINDOW } from '../../lib/driveTimes';
+import { groupDriveShare } from '../../lib/groupDrive';
 import { plural } from '../../lib/format';
 import { ONLY_ON_PHONE, PLACE_NAMES } from '../../lib/glossary';
 import { preciseFix } from '../../lib/location';
@@ -96,6 +101,11 @@ function SpotDetail({ spot }: { spot: Spot }) {
   const [justDone, setJustDone] = useState(false);
   const [rated, setRated] = useState(false);
   const [menu, setMenu] = useState(false);
+  const sharer = useShareLink();
+  // Feels: tagged by people who have driven it, kept on this phone (driveFeel.ts).
+  const feelTags = savedFeelTags(store.settings.driveFeels);
+  const feels = spot.kind === 'drive' ? topFeels(spot, feelTags) : [];
+  const sun = spot.kind === 'drive' ? driveSun(appNow(), (spot.path?.length ? spot.path[Math.floor(spot.path.length / 2)] : spot.at)) : null;
 
   const author = spot.authorId ? users.find((u) => u.id === spot.authorId) : undefined;
   const mine = spot.authorId === me;
@@ -196,7 +206,13 @@ function SpotDetail({ spot }: { spot: Spot }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }}>
-      <Stack.Screen options={screenHeader({ onMenu: canReport ? () => setMenu(true) : undefined })} />
+      <Stack.Screen
+        options={screenHeader({
+          // A leader shares the drive with regroup points into any chat or group (groupDrive.ts).
+          action: spot.kind === 'drive' && !pending && checkpoints.length > 1 ? { label: 'Share', accessibilityLabel: 'Share this drive with your group', onPress: () => void sharer.share(groupDriveShare(spot)) } : undefined,
+          onMenu: canReport ? () => setMenu(true) : undefined,
+        })}
+      />
       <ScrollView contentContainerStyle={PAGE_WITH_BAR}>
         {/* The photo first (a photo of the place from Wikimedia Commons, credited through the ⓘ); else the map. */}
         <Hero
@@ -220,6 +236,13 @@ function SpotDetail({ spot }: { spot: Spot }) {
             </View>
           ) : !isInfoOnly(spot.kind) ? (
             <DsText v="meta">No ratings yet</DsText>
+          ) : null}
+          {feels.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
+              {feels.map((f) => (
+                <Tag key={f.feel} label={FEEL_LABELS[f.feel]} />
+              ))}
+            </View>
           ) : null}
           <DsText v="secondary">{spot.description}</DsText>
           {author ? (
@@ -270,6 +293,14 @@ function SpotDetail({ spot }: { spot: Spot }) {
 
         {placePhoto ? map : null}
 
+        {sun ? (
+          <Section title="Best time to drive it">
+            <DsText v="body">{sun.note ?? `Sunrise ${sun.sunrise} · Sunset ${sun.sunset} today`}</DsText>
+            <DsText v="secondary">{QUIET_WINDOW}</DsText>
+            <DsText v="caption">{QUIET_CAVEAT}</DsText>
+          </Section>
+        ) : null}
+
         {spot.kind === 'track' ? (
           <>
             <TrackPanel spot={spot} outline={outline} />
@@ -301,6 +332,19 @@ function SpotDetail({ spot }: { spot: Spot }) {
               <DsText v="secondary">{canRateNow.reason}</DsText>
             )}
             {rateError ? <ErrorState title={rateError} /> : null}
+            {spot.kind === 'drive' ? (
+              canTagFeel(spot, me) ? (
+                <ChipGroup<Feel>
+                  label="How did it feel?"
+                  options={FEELS.map((f) => ({ key: f, label: FEEL_LABELS[f] }))}
+                  selected={feelTags[spot.id] ?? []}
+                  onChange={(next) => store.setSettings({ driveFeels: setFeels(feelTags, spot.id, next) })}
+                  allLabel="Not sure"
+                />
+              ) : !mine && !done ? (
+                <DsText v="caption">Drive it to say how it felt.</DsText>
+              ) : null
+            ) : null}
           </Section>
         ) : null}
 
@@ -308,6 +352,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
       </ScrollView>
       {panel?.bar ? <ActionBar {...panel.bar} /> : null}
       {nav.sheet}
+      {sharer.sheet}
 
       <Sheet visible={menu} title="Place options" onClose={() => setMenu(false)}>
         <View>

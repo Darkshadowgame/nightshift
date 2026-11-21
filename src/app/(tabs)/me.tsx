@@ -257,6 +257,8 @@ export default function Me() {
       <View>
         <ListRow title="Edit profile" onPress={() => router.push('/profile')} />
         <RowDivider />
+        <ListRow title={SCREEN_TITLES.driveLog} onPress={() => router.push('/drive-log')} />
+        <RowDivider />
         <ListRow title={SCREEN_TITLES.help} onPress={() => router.push('/help')} />
         <RowDivider />
         <ListRow title={SCREEN_TITLES.feedback} onPress={() => router.push({ pathname: '/feedback', params: { from: '/me' } })} />

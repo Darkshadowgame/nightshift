@@ -1310,3 +1310,10 @@ done a drive or photo location maybe do a subtle tick or make it greyed out."
   demo person instead.
 * The old per-phone choice (`settings.avatarRef`) is moved onto the profile once, if the profile has none, then
   cleared; the setting is no longer read for display. Rules in `src/lib/avatar.ts`.
+
+### 9.x Drives level-up: favourites, feels, best time, drive log, group drive (owner request, 21 Nov 2026)
+* **Favourite places** (`src/lib/favourites.ts`, `FavouritesSheet`): Search's Places and All tabs open with a Favourites section (one tap shows the place with Go here); Manage opens a sheet to rename or remove. Saving is "Save to favourites" under a chosen place, with a toast. **Phone only**: `settings.favourites`, never sent, never logged, never shown to anyone; the sheet says so in one line. The demo starts with three made-up places.
+* **Feels** (`driveFeel.ts`): twisty, scenic, smooth surface, quiet. A drive page shows its top feels as tags under the stars (your tags first, then what its description names). People who have finished a drive tag it under Rating ("How did it feel?"). Search > Places > Drives has a Feel filter. Tags are on the phone for now: sharing them needs a server table, left for later.
+* **Best time** (`driveTimes.ts`): the drive page's "Best time to drive it" section: sunrise and sunset today at the road (`sun.ts`), and a rule-of-thumb quiet window, said not to be live traffic.
+* **Drive log** (`driveLog.ts`, route `drive-log`, a row on Me under Edit profile): finished drives with day, vehicle (make and model of your main vehicle) and miles; older completions appear without a vehicle. Phone only.
+* **Group drive** (`groupDrive.ts`): the drive page's header Share sends the drive with regroup points (about every 10 mi) through the share sheet. No live "lost the pack" alert: it needs live location on a server, which Slipstream does not keep.

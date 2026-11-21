@@ -102,6 +102,7 @@ const TEMPLATES: Record<string, Template> = {
   settings: 'T5',
   help: 'T5',
   credits: 'T5',
+  'drive-log': 'T5',
   connections: 'T5',
   crews: 'T5',
   rate: 'T5',

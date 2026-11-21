@@ -134,6 +134,7 @@ function Gate() {
         <Stack.Screen name="moderation-log" options={{ title: title('Audit log') }} />
         <Stack.Screen name="drive" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="credits" options={{ title: title(T.credits) }} />
+        <Stack.Screen name="drive-log" options={{ title: title(T.driveLog) }} />
       </Stack.Protected>
       {/* The design system gallery: development builds only (it redirects home in release too). */}
       <Stack.Protected guard={onboarded && __DEV__}>

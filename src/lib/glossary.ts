@@ -291,6 +291,7 @@ export const SCREEN_TITLES = {
   settings: 'Settings',
   help: 'How Slipstream works',
   credits: 'Credits',
+  driveLog: 'Drive log',
   feedback: 'Send feedback',
   post: 'Post',
   newPost: 'New post',

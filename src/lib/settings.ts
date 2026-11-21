@@ -9,6 +9,9 @@ export type AppearanceChoice = 'system' | 'light' | 'dark';
 export const APPEARANCE_LABELS: Record<AppearanceChoice, string> = { system: 'System', light: 'Light', dark: 'Dark' };
 import type { SpeechRate } from './voices';
 import type { SavedPlaces } from './whereTo';
+import type { Favourite } from './favourites';
+import type { FeelTags } from './driveFeel';
+import type { DriveLogEntry } from './driveLog';
 
 /** App settings, kept on the phone. */
 export interface Settings {
@@ -89,6 +92,12 @@ export interface Settings {
    * sent to the server (settings aren't) and never logged (whereTo.ts).
    */
   places?: SavedPlaces;
+  /** Favourite places (Home, Work, a friend's). Phone only: never sent, never logged (favourites.ts). */
+  favourites?: Favourite[];
+  /** The feels you tagged drives with (driveFeel.ts). Phone only. */
+  driveFeels?: FeelTags;
+  /** Drives you finished, with the vehicle used (driveLog.ts). Phone only. */
+  driveLog?: DriveLogEntry[];
   /** The one-time "how the map works" hint has been dismissed. */
   mapHintSeen?: boolean;
   /**

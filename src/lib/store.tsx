@@ -31,7 +31,9 @@ import { dueReminders, isSignedUp, remindersFor, upcomingReminders } from './rem
 import type { BackendExtras, Repository } from './repository';
 import { applySceneNames, sameHome, stopsToName, type SceneNames } from './scene';
 import { DEFAULT_SETTINGS, type Settings } from './settings';
-import { approveDue, DEMO_APPROVAL_MS, type DriveRun, type SpotDraft, type Verdict } from './spots';
+import { approveDue, DEMO_APPROVAL_MS, dayOf, type DriveRun, type SpotDraft, type Verdict } from './spots';
+import { mainBuild } from './carsNear';
+import { addLogEntry, savedLog, vehicleName } from './driveLog';
 import type { Build, LatLng, NightEvent } from './types';
 import { savedPlaces, type SavedPlaces } from './whereTo';
 
@@ -637,7 +639,20 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
         if (problem) throw new Error(problem);
         return need().setTravelPrefs(prefs);
       },
-      finishDrive: async (spotId, run) => need().finishDrive(spotId, run),
+      finishDrive: async (spotId, run) => {
+        const verdict = await need().finishDrive(spotId, run);
+        if (verdict.ok) {
+          // The drive log is on this phone only: the day, the drive and which vehicle (make and model).
+          const cur = latest.current;
+          const spot = cur.spots.find((x) => x.id === spotId);
+          if (spot) {
+            const mine = cur.builds.filter((b) => b.ownerId === me);
+            const entry = { spotId, name: spot.name, on: dayOf(appNow()), miles: spot.miles, vehicle: vehicleName(mainBuild(mine)) };
+            set((s) => ({ ...s, settings: { ...s.settings, driveLog: addLogEntry(savedLog(s.settings.driveLog), entry) } }));
+          }
+        }
+        return verdict;
+      },
       visitSpot: async (spotId, photo, position) => need().visitSpot(spotId, photo, position),
       rateSpot: async (spotId, stars) => need().rateSpot(spotId, stars),
       suggestSpot: async (draft) => need().suggestSpot(draft),
