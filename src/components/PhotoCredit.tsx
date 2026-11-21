@@ -59,10 +59,10 @@ export function PhotoCredit({
           borderRadius: RADII.pill,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: COLOR.surface.scrim,
+          backgroundColor: COLOR.media.pill,
         }}
       >
-        <Icon name="info" size={16} colour={COLOR.text.primary} />
+        <Icon name="info" size={16} colour={COLOR.media.text} />
       </Press>
       <Sheet visible={open} title="Photo credit" onClose={() => setOpen(false)}>
         <View style={{ gap: SPACING.sm }}>

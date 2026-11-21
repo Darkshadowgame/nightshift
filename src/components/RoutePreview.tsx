@@ -3,7 +3,7 @@ import { Animated, Easing, ScrollView, StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { AUTO_START_HINT, startLabel } from '../lib/autoStart';
 import type { RouteCard } from '../lib/routeChoice';
-import { COLOR, RADII, ROAD_COLOUR, SPACING } from '../theme';
+import { COLOR, RADII, ROAD_COLOUR, SPACING, themedStyles } from '../theme';
 import { ActionBar, ChoiceGroup, DsText } from './ds';
 
 /**
@@ -137,7 +137,7 @@ export function RoutePreview({
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   panel: { backgroundColor: COLOR.surface.bg, borderTopWidth: 1, borderTopColor: COLOR.surface.border },
   body: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.md, gap: SPACING.sm },
   summary: { flexDirection: 'row', alignItems: 'baseline', gap: SPACING.sm, flexWrap: 'wrap' },
@@ -146,4 +146,4 @@ const st = StyleSheet.create({
   track: { height: 4, borderRadius: RADII.pill, backgroundColor: COLOR.surface.raised, overflow: 'hidden' },
   bar: { height: 4, borderRadius: RADII.pill, backgroundColor: COLOR.text.primary },
   dot: { width: 10, height: 10, borderRadius: RADII.pill, backgroundColor: ROAD_COLOUR },
-});
+}));

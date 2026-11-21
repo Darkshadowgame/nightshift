@@ -21,7 +21,7 @@ import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
 import { injunctionConfirmText, publishCheck, pspoConfirmText } from '../lib/zones';
-import { ART, COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
+import { ART, COLOR, EVENT_COLOURS, RADII, SPACING, themedStyles } from '../theme';
 import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
 import { useClashCheck } from './ClashSheet';
@@ -847,7 +847,7 @@ function ReviewRow({ label, value, onEdit }: { label: string; value: string; onE
   );
 }
 
-const promptSt = StyleSheet.create({
+const promptSt = themedStyles(() => StyleSheet.create({
   /** Before a point is placed: the chip in the middle of the map card. */
   centre: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: SPACING.sm },
   /** Once placed: the chip in the top left corner, out of the point's way. */
@@ -866,4 +866,4 @@ const promptSt = StyleSheet.create({
     // it fades out instead of peeking from its edge as a white sliver.
     boxShadow: `0 0 10px 8px ${ART.mapBg}`,
   },
-});
+}));

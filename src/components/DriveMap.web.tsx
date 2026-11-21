@@ -6,7 +6,7 @@ import type * as Leaflet from 'leaflet';
 import { iconRotation } from '../lib/driveView';
 import { CAMERA_FOLLOW_MS, CAMERA_JUMP_METRES, easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../lib/heading';
 import type { LatLng } from '../lib/types';
-import { ART, BRAND, C, RADII, ROAD_COLOUR, SPACING } from '../theme';
+import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, themedStyles, getThemeMode, routeFor } from '../theme';
 // Types only: on web './DriveMap' is this file, so values come from elsewhere.
 import type { DriveMapProps } from './DriveMap';
 import { OVERVIEW_BUTTONS, OVERVIEW_MARKER_HALF, OVERVIEW_PADDING } from './mapTypes';
@@ -27,7 +27,7 @@ import { altitudeToZoom } from './webmap/zoom.web';
  * No tilt: the web map is flat. If Leaflet can't load, the screen stays plain asphalt.
  */
 export function DriveMap(props: DriveMapProps) {
-  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, appearance = 'dark', overview, credit } = props;
+  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, appearance = getThemeMode(), overview, credit } = props;
   const others = useDemoDrivers(demoAround);
   const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
   const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
@@ -56,7 +56,7 @@ export function DriveMap(props: DriveMapProps) {
       const out = outer.current;
       if (gone || !el || !out) return;
       // Quarter zoom steps: each zoom change redraws the tiles, so it only changes when the speed does.
-      made = makeMap(L, el, { zoomSnap: 0.25, onTiles: setTiles, appearance: latest.current.appearance ?? 'dark' });
+      made = makeMap(L, el, { zoomSnap: 0.25, onTiles: setTiles, appearance: latest.current.appearance ?? getThemeMode() });
       setAppearanceRef.current = made.setAppearance;
       const map = made.map;
       const p = latest.current;
@@ -231,7 +231,7 @@ export function DriveMap(props: DriveMapProps) {
   const line = useRef<Leaflet.Polyline | null>(null);
   useEffect(() => {
     if (!lf) return;
-    line.current = lf.L.polyline([], { color: BRAND, weight: 8, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(lf.map);
+    line.current = lf.L.polyline([], { color: routeFor(appearance), weight: 8, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(lf.map);
     return () => {
       line.current?.remove();
       line.current = null;
@@ -267,7 +267,7 @@ export function DriveMap(props: DriveMapProps) {
   const { portals } = useMarkers(lf, specs);
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: C.asphalt, overflow: 'hidden' }]}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: appearance === 'light' ? ART.mapBgLight : ART.mapBg, overflow: 'hidden' }]}>
       <div ref={outer} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
         {/* A square as big as the screen's diagonal, so turning it never shows a corner. */}
         <div
@@ -298,7 +298,7 @@ export function DriveMap(props: DriveMapProps) {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   centre: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
-  camera: { width: 9, height: 9, borderRadius: RADII.pill, backgroundColor: C.alert, borderWidth: 1.5, borderColor: C.chalk },
-});
+  camera: { width: 9, height: 9, borderRadius: RADII.pill, backgroundColor: COLOR.layer.camera, borderWidth: 1.5, borderColor: ART.signWhite },
+}));

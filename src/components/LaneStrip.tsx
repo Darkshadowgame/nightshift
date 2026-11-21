@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { laneLabel, type LaneArrow, type LaneStrip as Strip } from '../lib/lanes';
-import { COLOR, RADII, SPACING } from '../theme';
+import { COLOR, RADII, SPACING, themedStyles } from '../theme';
 import { DsText } from './ds';
 
 /**
@@ -84,11 +84,11 @@ export function arrowPaths(arrows: LaneArrow[]): string[] {
   return out;
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
   lanes: { flexDirection: 'row', borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, overflow: 'hidden', backgroundColor: COLOR.surface.card },
   lane: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
   divider: { borderLeftColor: COLOR.surface.border },
   on: { borderColor: COLOR.text.primary, backgroundColor: COLOR.surface.raised },
   exit: { minWidth: 56, height: 48, borderRadius: RADII.control, borderWidth: 2, borderColor: COLOR.text.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.xs },
-});
+}));

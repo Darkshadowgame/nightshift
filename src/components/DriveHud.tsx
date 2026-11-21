@@ -4,7 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import type { BannerInfo, MapOrientation, NavIcon as NavIconChoice, ShownLimit } from '../lib/driveView';
 import { NAV_ICON_COLOURS, NAV_ICON_SHAPES, navIconOf } from '../lib/driveView';
 import { ARROWS, formatDistance } from '../lib/nav';
-import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, tint } from '../theme';
+import { ART, COLOR, RADII, ROAD_COLOUR, SPACING, tint, themedStyles } from '../theme';
 import { photoUri } from '../lib/photos';
 import { Button, ChoiceGroup, DsText, Icon, IconButton, Press, Sheet } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
@@ -330,7 +330,7 @@ export function IconPickerSheet({ visible, value, onChange, onClose }: { visible
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md,
     backgroundColor: COLOR.surface.card, borderBottomWidth: 1, borderBottomColor: COLOR.surface.borderStrong,
@@ -347,7 +347,7 @@ const st = StyleSheet.create({
   roundel: { backgroundColor: ART.signWhite, borderColor: ART.signRed, alignItems: 'center', justifyContent: 'center' },
   roundelText: { color: ART.signBlack, textAlign: 'center' },
   trip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, minHeight: 60 },
-  end: { width: 100, height: 60, borderRadius: RADII.card, backgroundColor: COLOR.state.danger, alignItems: 'center', justifyContent: 'center' },
+  end: { width: 100, height: 60, borderRadius: RADII.card, backgroundColor: COLOR.fill.danger, alignItems: 'center', justifyContent: 'center' },
 
   mapButton: {
     width: 58, height: 58, borderRadius: RADII.pill, backgroundColor: COLOR.surface.glassRaised, borderWidth: 2, borderColor: COLOR.surface.raisedHi,
@@ -356,4 +356,4 @@ const st = StyleSheet.create({
   pill: { backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.control, borderWidth: 2, borderColor: COLOR.state.warning, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
 
   preview: { alignSelf: 'center', width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: RADII.card, backgroundColor: COLOR.surface.bg },
-});
+}));

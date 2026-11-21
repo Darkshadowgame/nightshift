@@ -2,7 +2,8 @@
 // Automated scorecard (docs/REDESIGN-2.md, section 7). Run before pushing UI changes.
 //
 //   npm run scorecard            12:30 and 20:30, at 1.0x and 1.3x text (four runs in parallel),
-//                                plus a Busy night pass at the end of the 20:30 1.0x run
+//                                plus a Busy night pass at the end of the 20:30 1.0x run,
+//                                plus one extra 20:30 1.0x run in the light theme
 //   npm run scorecard:quick      20:30 at 1.0x only, no Busy night pass
 //
 // Options: --web <dir> use an existing web export instead of building one (`expo export --clear`),
@@ -23,7 +24,9 @@ const jobs = Number(opt('--jobs', process.env.CI ? 2 : 4));
 
 const RUNS = quick
   ? [{ clock: '20:30', scale: 1 }]
-  : [{ clock: '12:30', scale: 1 }, { clock: '20:30', scale: 1, busy: true }, { clock: '12:30', scale: 1.3 }, { clock: '20:30', scale: 1.3 }];
+  // The last run is the light theme (one extra pass over the same ten tasks and rule checks).
+  : [{ clock: '12:30', scale: 1 }, { clock: '20:30', scale: 1, busy: true }, { clock: '12:30', scale: 1.3 }, { clock: '20:30', scale: 1.3 }, { clock: '20:30', scale: 1, scheme: 'light' }];
+const same = (a, b) => a.clock === b.clock && a.scale === b.scale && (a.scheme || 'dark') === (b.scheme || 'dark');
 
 async function main() {
   const started = Date.now();
@@ -52,14 +55,14 @@ async function main() {
     while (queue.length) {
       const r = queue.shift();
       const t = Date.now();
-      const res = await runScorecard({ base, clock: r.clock, scale: r.scale, busy: !!r.busy, outDir }).catch((e) => ({ tag: `${r.clock}-${r.scale}x`, clock: r.clock, scale: r.scale, tasks: {}, findings: [], notes: [], error: String(e) }));
+      const res = await runScorecard({ base, clock: r.clock, scale: r.scale, busy: !!r.busy, scheme: r.scheme || 'dark', outDir }).catch((e) => ({ tag: `${r.clock}-${r.scale}x${r.scheme === 'light' ? '-light' : ''}`, clock: r.clock, scale: r.scale, scheme: r.scheme || 'dark', tasks: {}, findings: [], notes: [], error: String(e) }));
       res.wallMs = Date.now() - t;
       console.log(`  done ${res.tag} in ${(res.wallMs / 1000).toFixed(0)} s`);
       results.push(res);
     }
   }));
   server.close();
-  results.sort((a, b) => RUNS.findIndex((r) => r.clock === a.clock && r.scale === a.scale) - RUNS.findIndex((r) => r.clock === b.clock && r.scale === b.scale));
+  results.sort((a, b) => RUNS.findIndex((r) => same(r, a)) - RUNS.findIndex((r) => same(r, b)));
   fs.writeFileSync(path.join(outDir, 'results.json'), JSON.stringify(results, null, 1));
   const ok = report(results);
   console.log(`\nTook ${((Date.now() - started) / 1000).toFixed(0)} s. Screenshots and results.json in ${path.relative(process.cwd(), outDir) || '.'}`);
@@ -68,7 +71,7 @@ async function main() {
 
 function report(results) {
   const rel = (p) => (p ? path.relative(process.cwd(), p) : '');
-  const cols = results.map((r) => `${r.clock} ${r.scale === 1 ? '1.0' : r.scale}x`);
+  const cols = results.map((r) => `${r.clock} ${r.scale === 1 ? '1.0' : r.scale}x${r.scheme === 'light' ? ' light' : ''}`);
   const w = 16;
   console.log('\nTASKS (pass/fail, seconds at human pace; limit in brackets)');
   console.log('#    ' + 'limit'.padEnd(7) + cols.map((c) => c.padEnd(w)).join(''));

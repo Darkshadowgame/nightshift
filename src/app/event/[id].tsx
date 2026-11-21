@@ -32,6 +32,7 @@ import {
   useToast,
   type ActionBarButton,
 } from '../../components/ds';
+import { rgba } from '../../components/ds/logic';
 import type { MapPath, MapPin } from '../../components/mapTypes';
 import { FoldAway, UnlockReveal } from '../../components/motion';
 import { useNavLaunch } from '../../components/NavLaunch';
@@ -550,8 +551,8 @@ export default function EventScreen() {
         follow
       />
       {/* A road label cut by the frame's edge showed as a white sliver (Review 19): the top and bottom edges fade into the frame. */}
-      <Gradient to="top" colours={['rgba(17,24,39,0)', COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: EDGE_FADE }} />
-      <Gradient colours={['rgba(17,24,39,0)', COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: EDGE_FADE / 2 }} />
+      <Gradient to="top" colours={[rgba(COLOR.surface.media, 0), COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: EDGE_FADE }} />
+      <Gradient colours={[rgba(COLOR.surface.media, 0), COLOR.surface.media]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: EDGE_FADE / 2 }} />
       {unlock ? (
         <UnlockReveal
           glyph={ev.type}

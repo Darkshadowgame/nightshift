@@ -13,7 +13,7 @@ import { useFonts } from 'expo-font';
 import { router, Stack, usePathname, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, useColorScheme, View } from 'react-native';
 import { AvatarPhotos } from '../components/AvatarPhotos';
 import { ConnectionToasts, ModerationGate } from '../components/ModerationGate';
 import { OfflinePill } from '../components/OfflinePill';
@@ -25,7 +25,8 @@ import { onNotificationTap } from '../lib/notify';
 import { RoadsProvider } from '../lib/roadStore';
 import { CommunityProvider } from '../lib/communityStore';
 import { StoreProvider, useStore } from '../lib/store';
-import { C, COLOR, TYPE_SCALE } from '../theme';
+import { resolveMode, ThemeProvider, useThemeMode } from '../lib/theme';
+import { applyTheme, COLOR, TYPE_SCALE } from '../theme';
 
 function Gate() {
   const auth = useAuth();
@@ -40,7 +41,7 @@ function Gate() {
   }, [ready, onboarded]);
   if (auth.status === 'loading' || !ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.asphalt, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: COLOR.surface.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={COLOR.text.secondary} />
       </View>
     );
@@ -57,20 +58,20 @@ function Gate() {
                 <IconButton
                   icon="back"
                   label="Go back"
-                  colour={C.chalk}
+                  colour={COLOR.text.primary}
                   onPress={() => (navigation.canGoBack() ? navigation.goBack() : router.replace(fallbackTab(route.name)))}
                 />
               ),
             }
           : {}),
         headerBackTitle: 'Back',
-        headerStyle: { backgroundColor: C.asphalt },
-        headerTintColor: C.chalk,
+        headerStyle: { backgroundColor: COLOR.surface.bg },
+        headerTintColor: COLOR.text.primary,
         // One size for tab and stack headers. Titles come from title() in glossary.ts, in capitals
         // (native stack headers can't transform text). Detail screens are blank: their hero carries the title.
         headerTitleStyle: { fontFamily: TYPE_SCALE.heading.fontFamily, fontSize: TYPE_SCALE.heading.fontSize },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: C.asphalt },
+        contentStyle: { backgroundColor: COLOR.surface.bg },
         headerBackButtonDisplayMode: 'minimal',
       })}
     >
@@ -158,9 +159,16 @@ function Gate() {
   );
 }
 
+/** Light icons on the dark theme, dark icons on the light one. */
+function ThemedStatusBar() {
+  return <StatusBar style={useThemeMode() === 'light' ? 'dark' : 'light'} />;
+}
+
 export default function RootLayout() {
   // A toast goes when the screen changes (Redesign 2, 4.7; Review 13).
   const pathname = usePathname();
+  // Before the saved choice has loaded, the loading screens follow the phone.
+  applyTheme(resolveMode(undefined, useColorScheme()));
   const [loaded] = useFonts({
     Barlow_400Regular,
     Barlow_500Medium,
@@ -172,7 +180,7 @@ export default function RootLayout() {
     ChakraPetch_600SemiBold_Italic,
     ChakraPetch_700Bold_Italic,
   });
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: C.asphalt }} />;
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: COLOR.surface.bg }} />;
   return (
     <AuthProvider>
       <StoreProvider>
@@ -180,11 +188,13 @@ export default function RootLayout() {
           <CommunityProvider>
             <AvatarPhotos>
             {/* Toasts sit just above the ActionBar when a screen has one, else above the tab bar (Redesign 2, 4.7). */}
-            <ToastProvider screenKey={pathname}>
-              <StatusBar style="light" />
-              <Gate />
-              <OfflinePill />
-            </ToastProvider>
+            <ThemeProvider>
+              <ToastProvider screenKey={pathname}>
+                <ThemedStatusBar />
+                <Gate />
+                <OfflinePill />
+              </ToastProvider>
+            </ThemeProvider>
             </AvatarPhotos>
           </CommunityProvider>
         </RoadsProvider>

@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { TextInput, View, type TextInputProps, type TextStyle } from 'react-native';
-import { COLOR, RADII, SPACING } from '../../theme';
+import { COLOR, RADII, SPACING, themedStyles } from '../../theme';
 import { DsText, typeStyle } from './Text';
 
 /** The text field look: input type, strong border, control radius. */
-export const INPUT: TextStyle = {
+export const INPUT: TextStyle = themedStyles(() => ({
   ...typeStyle('input'),
   backgroundColor: COLOR.surface.card,
   borderColor: COLOR.surface.borderStrong,
@@ -13,7 +13,7 @@ export const INPUT: TextStyle = {
   paddingHorizontal: SPACING.md,
   paddingVertical: SPACING.md,
   minHeight: 48,
-};
+}));
 
 export function TextField({ style, multilineHeight, ...rest }: TextInputProps & { multilineHeight?: number }) {
   return <TextInput placeholderTextColor={COLOR.text.secondary} style={[INPUT, multilineHeight ? { minHeight: multilineHeight, textAlignVertical: 'top' } : null, style]} {...rest} />;

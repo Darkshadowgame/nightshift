@@ -9,7 +9,7 @@ import { FEEDBACK_KINDS, FEEDBACK_MAX, FEEDBACK_PHOTOS_MAX, kindLabel, makeRepor
 import { currentPosition } from '../lib/location';
 import { deletePhotos, photoUri } from '../lib/photos';
 import { newId, useStore } from '../lib/store';
-import { COLOR, RADII, SPACING } from '../theme';
+import { COLOR, RADII, SPACING, themedStyles } from '../theme';
 
 /**
  * Send feedback (Settings, Me and the sign-in screen open it). A type, a
@@ -202,8 +202,8 @@ export default function FeedbackScreen() {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   done: { gap: SPACING.sm, padding: SPACING.lg, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
   input: { minHeight: 120, textAlignVertical: 'top', padding: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   thumb: { width: 72, height: 72, borderRadius: RADII.control, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.raisedHi },
-});
+}));

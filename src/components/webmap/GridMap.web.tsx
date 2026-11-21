@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Polygon, Polyline } from 'react-native-svg';
-import { ART, BRAND, C, RADII, SPACING, SURFACE } from '../../theme';
+import { ART, BRAND, COLOR, getThemeMode, RADII, SPACING } from '../../theme';
 import { DsText } from '../ds/Text';
 import { PulseRing } from '../motion';
 import { Pin } from '../Pin';
@@ -12,8 +12,9 @@ import type { NightMapProps } from '../mapTypes';
  * cached): a flat projection on a dark grid, with zoom buttons since it can't pinch.
  */
 export function GridMap({
-  ref, pins, paths = [], circles = [], polygons = [], centre: centreProp, span: spanProp = 0.6, onSelect, onLongPress, picked, onPressMap, recentreKey, onRegion, credit,
+  ref, pins, paths = [], circles = [], polygons = [], centre: centreProp, span: spanProp = 0.6, onSelect, onLongPress, picked, onPressMap, recentreKey, onRegion, credit, appearance = getThemeMode(),
 }: NightMapProps) {
+  const light = appearance === 'light';
   const [size, setSize] = useState({ w: 400, h: 700 });
   /** Set by the handle (e.g. locate me, search); cleared when the props move the map. */
   const [moved, setMoved] = useState<{ centre: NightMapProps['centre']; span: number } | null>(null);
@@ -57,7 +58,7 @@ export function GridMap({
   };
 
   return (
-    <View ref={box as never} style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={onLayout}>
+    <View ref={box as never} style={[StyleSheet.absoluteFill, { backgroundColor: light ? ART.mapBgLight : ART.mapBg }]} onLayout={onLayout}>
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={onPressMap ? (e) => onPressMap(at(e.nativeEvent as never)) : undefined}
@@ -65,10 +66,10 @@ export function GridMap({
       >
         <Svg width={size.w} height={size.h}>
           {Array.from({ length: 12 }, (_, i) => (
-            <Line key={`h${i}`} x1={0} x2={size.w} y1={(i * size.h) / 12} y2={(i * size.h) / 12} stroke={ART.mapGrid} strokeWidth={1} />
+            <Line key={`h${i}`} x1={0} x2={size.w} y1={(i * size.h) / 12} y2={(i * size.h) / 12} stroke={light ? ART.mapGridLight : ART.mapGrid} strokeWidth={1} />
           ))}
           {Array.from({ length: 8 }, (_, i) => (
-            <Line key={`v${i}`} y1={0} y2={size.h} x1={(i * size.w) / 8} x2={(i * size.w) / 8} stroke={ART.mapGrid} strokeWidth={1} />
+            <Line key={`v${i}`} y1={0} y2={size.h} x1={(i * size.w) / 8} x2={(i * size.w) / 8} stroke={light ? ART.mapGridLight : ART.mapGrid} strokeWidth={1} />
           ))}
           {polygons.map((p) => (
             <Polygon key={p.id} points={p.coords.map((q) => `${x(q.lng)},${y(q.lat)}`).join(' ')} fill={`${p.colour}1f`} stroke={`${p.colour}99`} />
@@ -127,14 +128,14 @@ export function GridMap({
             onPress={() => setMoved({ centre, span: Math.min(12, Math.max(0.005, span * z.factor)) })}
             accessibilityRole="button"
             accessibilityLabel={z.factor < 1 ? 'Zoom in' : 'Zoom out'}
-            style={{ width: 44, height: 44, borderRadius: RADII.control, borderWidth: 1, borderColor: C.kerb, backgroundColor: SURFACE.glass, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 44, height: 44, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.glass, alignItems: 'center', justifyContent: 'center' }}
           >
             <DsText v="stat">{z.label}</DsText>
           </Pressable>
         ))}
       </View>
       {credit ? (
-        <View pointerEvents="none" style={{ position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs }}>
+        <View pointerEvents="none" style={{ position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs }}>
           <DsText v="meta" tone="secondary">
             {credit}
           </DsText>

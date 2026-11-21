@@ -57,7 +57,7 @@ export function LayersPanel({ visible, onClose, on, onToggle, mapStyle, onMapSty
               onChange={onMapStyle}
               options={STYLES.map((k) => ({ key: k, label: MAP_STYLE_LABELS[k] }))}
             />
-            <DsText v="caption">Auto goes light by day and dark after sunset where you are.</DsText>
+            <DsText v="caption">Auto follows the app: light or dark with Settings › Appearance.</DsText>
           </View>
         ) : null}
         <DsText v="secondary">{events ? 'Add more:' : 'The map always shows meets. Add more:'}</DsText>

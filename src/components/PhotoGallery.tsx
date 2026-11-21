@@ -14,11 +14,11 @@ function pageOf(e: NativeSyntheticEvent<NativeScrollEvent>, width: number): numb
 export function PhotoCount({ index, total }: { index: number; total: number }) {
   return (
     <View
-      style={{ position: 'absolute', right: SPACING.sm, bottom: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs }}
+      style={{ position: 'absolute', right: SPACING.sm, bottom: SPACING.sm, backgroundColor: COLOR.media.pill, borderRadius: RADII.tag, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs }}
       pointerEvents="none"
       accessibilityLiveRegion="polite"
     >
-      <DsText v="meta" style={{ color: COLOR.text.primary }} accessibilityLabel={`Photo ${index + 1} of ${total}`}>
+      <DsText v="meta" style={{ color: COLOR.media.text }} accessibilityLabel={`Photo ${index + 1} of ${total}`}>
         {`${index + 1}/${total}`}
       </DsText>
     </View>

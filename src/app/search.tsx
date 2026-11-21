@@ -39,7 +39,7 @@ import { visibleSpots } from '../lib/spots';
 import { useStore } from '../lib/store';
 import type { Build, EventType, LatLng, SpotKind, User, VehicleKind } from '../lib/types';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
-import { COLOR, RADII, SPACING, SPOT_COLOURS } from '../theme';
+import { COLOR, RADII, SPACING, SPOT_COLOURS, themedStyles } from '../theme';
 import { TOWNS } from '../data/towns';
 
 type Tab = 'all' | 'meets' | 'places' | 'people';
@@ -478,8 +478,8 @@ function Picked({ place, note, onClear }: { place: Destination; note: string | n
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   page: { padding: SPACING.screen, gap: SPACING.section, paddingBottom: SPACING.xxxl },
   picked: { gap: SPACING.md, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
   pickedMap: { height: 220, borderRadius: RADII.card, overflow: 'hidden' },
-});
+}));

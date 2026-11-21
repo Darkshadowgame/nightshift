@@ -6,7 +6,7 @@ import { useStore, type Notice } from '../lib/store';
 import { useNow } from '../lib/clock';
 import { endTime } from '../lib/events';
 import { clock, dayDiff, dayWord } from '../lib/when';
-import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../theme';
+import { COLOR, EVENT_COLOURS, RADII, SPACING, themedStyles } from '../theme';
 
 /** When a notice came: "21:30" today, "Yesterday", "Fri", "Fri 13 Nov". */
 function noticeTime(iso: string, now: Date): string {
@@ -117,7 +117,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   page: { padding: SPACING.screen, paddingBottom: SPACING.xxxl, flexGrow: 1, backgroundColor: COLOR.surface.bg },
   notice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, padding: SPACING.md, marginBottom: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.raisedHi, backgroundColor: COLOR.surface.raised },
-});
+}));

@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import type * as Leaflet from 'leaflet';
 import { pinLayer } from '../lib/hud';
 import type { LatLng } from '../lib/types';
-import { ART, BRAND, COLOR } from '../theme';
+import { ART, BRAND, COLOR, getThemeMode } from '../theme';
 import { Pin, YOU_LABEL, YouDot } from './Pin';
 import { type MapCircle, type MapPath, type MapPolygon, type MapRegion, type NightMapProps } from './mapTypes';
 import { Credit } from './webmap/Credit.web';
@@ -44,7 +44,7 @@ export function NightMap(props: NightMapProps) {
   /** A tall map is a full-screen one with a sheet over its bottom: its credit goes top left so it stays visible. */
   const [tall, setTall] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const { ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, picked, follow, recentreKey, credit, appearance = 'dark' } = props;
+  const { ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, picked, follow, recentreKey, credit, appearance = getThemeMode() } = props;
   const setAppearanceRef = useRef<((a: 'light' | 'dark') => void) | null>(null);
 
   // Callbacks change every render on most screens: read them through a ref so Leaflet's handlers stay put.
@@ -83,7 +83,7 @@ export function NightMap(props: NightMapProps) {
       (L) => {
         const el = box.current;
         if (gone || !el) return;
-        made = makeMap(L, el, { onTiles: setTiles, appearance: latest.current.appearance ?? 'dark', labels: latest.current.labels ?? true });
+        made = makeMap(L, el, { onTiles: setTiles, appearance: latest.current.appearance ?? getThemeMode(), labels: latest.current.labels ?? true });
         setAppearanceRef.current = made.setAppearance;
         const map = made.map;
         let sized = el.clientWidth > 0 && el.clientHeight > 0;
@@ -181,7 +181,7 @@ export function NightMap(props: NightMapProps) {
 
   if (broken) return <GridMap {...props} />;
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: ART.mapBg }]} onLayout={(e) => setTall(e.nativeEvent.layout.height > 420)}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: appearance === 'light' ? ART.mapBgLight : ART.mapBg }]} onLayout={(e) => setTall(e.nativeEvent.layout.height > 420)}>
       {/* A small map's tiles fade out at every edge into its frame (a CSS mask, Review 20 #4/#16): a road
           shield or label cut by the edge melts away instead of showing as a white sliver (Review 19 #5, #21). */}
       <div ref={box} style={{ position: 'absolute', inset: 0, ...(tall ? null : EDGE_MASK) }} />

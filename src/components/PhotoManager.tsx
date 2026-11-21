@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { makeFirst, moveItem } from '../lib/crop';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
-import { COLOR, RADII, SPACING } from '../theme';
-import { Button, ConfirmBody, DsText, FitImage, Press, Tag } from './ds';
+import { COLOR, RADII, SPACING, themedStyles } from '../theme';
+import { Button, ConfirmBody, DsText, FitImage, OnMedia, Press, Tag } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 
 /**
@@ -78,7 +78,9 @@ export function PhotoManager({
               <FitImage fit="cover" source={photoUri(p)} frameAspect={4 / 3} style={st.img} />
               {i === 0 ? (
                 <View style={st.cover}>
-                  <Tag label="Cover" />
+                  <OnMedia>
+                    <Tag label="Cover" />
+                  </OnMedia>
                 </View>
               ) : null}
             </Press>
@@ -125,10 +127,10 @@ function Small({ label, onPress, disabled, danger, accessibilityLabel }: { label
   return <Button label={label} onPress={onPress} disabled={disabled} tier={danger ? 'destructive' : 'secondary'} size="sm" accessibilityLabel={accessibilityLabel} />;
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   thumb: { borderRadius: RADII.control, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
   thumbOn: { borderColor: COLOR.text.primary },
   img: { width: 120, height: 90, backgroundColor: COLOR.surface.media },
-  cover: { position: 'absolute', left: SPACING.xs, bottom: SPACING.xs, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag },
+  cover: { position: 'absolute', left: SPACING.xs, bottom: SPACING.xs, backgroundColor: COLOR.media.pill, borderRadius: RADII.tag },
   panel: { gap: SPACING.md, padding: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.card },
-});
+}));

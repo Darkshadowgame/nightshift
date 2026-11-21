@@ -18,7 +18,7 @@ import { sameHome, SCENE_NEAR_MILES } from '../lib/scene';
 import { useStore } from '../lib/store';
 import type { Build, LatLng, VehicleKind } from '../lib/types';
 import { findVariant, specFill, type Variant } from '../lib/vehicles';
-import { COLOR, LAYER, RADII, SPACING } from '../theme';
+import { COLOR, LAYER, RADII, SPACING, themedStyles } from '../theme';
 
 /** Where the map starts before a home is set: the middle of England, zoomed out. */
 const UK_MIDDLE = regionCentre('Midlands');
@@ -290,9 +290,9 @@ export default function Welcome() {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, paddingBottom: SPACING.xs },
   page: { paddingHorizontal: SPACING.screen, paddingTop: SPACING.sm, paddingBottom: SPACING.xl, gap: SPACING.md },
   map: { borderRadius: RADII.card, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.surface.borderStrong },
   mapPrompt: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLOR.surface.scrim },
-});
+}));

@@ -4,10 +4,10 @@ import { classOf } from '../lib/classes';
 import { plural } from '../lib/format';
 import { photoSource } from '../lib/photoSource';
 import type { Build } from '../lib/types';
-import { COLOR, RADII, SPACING, outline } from '../theme';
+import { COLOR, RADII, SPACING, outline, themedStyles } from '../theme';
 import { BuildArt, DEFAULT_PAINT } from './BuildArt';
 import { useBuildPicture } from './BuildBits';
-import { ClassBadge, DsText, FitImage, Tag } from './ds';
+import { ClassBadge, DsText, FitImage, OnMedia, Tag } from './ds';
 import { PhotoCredit } from './PhotoCredit';
 
 /**
@@ -17,7 +17,7 @@ import { PhotoCredit } from './PhotoCredit';
  */
 export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build: Build; height?: number; aspect?: number; trophies?: number; tag?: string }) {
   const letter = classOf(build);
-  const metal = COLOR.classMetal[letter];
+  const metal = COLOR.media.class[letter];
   const pic = useBuildPicture(build);
   return (
     <View style={[st.wrap, aspect ? { aspectRatio: aspect } : { height }]}>
@@ -28,27 +28,33 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
       )}
       {/* Top-left, on its own dark plate, so it reads on any photo and never covers the car. */}
       <View style={[st.stamp, { borderColor: outline(metal) }]}>
-        <ClassBadge letter={letter} size="md" />
-        <View>
-          <DsText v="label" style={{ color: metal }}>
-            Class {letter}
-          </DsText>
-          <DsText v="meta" tone="primary">
-            {build.kind === 'bike' ? 'Bike' : 'Car'}
-            {build.year ? ` · ${build.year}` : ''}
-          </DsText>
-        </View>
+        <OnMedia>
+          <ClassBadge letter={letter} size="md" />
+          <View>
+            <DsText v="label" style={{ color: metal }}>
+              Class {letter}
+            </DsText>
+            <DsText v="meta" tone="primary">
+              {build.kind === 'bike' ? 'Bike' : 'Car'}
+              {build.year ? ` · ${build.year}` : ''}
+            </DsText>
+          </View>
+        </OnMedia>
       </View>
       {trophies > 0 || tag ? (
         <View style={st.corner}>
           {tag ? (
             <View style={st.plate}>
-              <Tag label={tag} />
+              <OnMedia>
+                <Tag label={tag} />
+              </OnMedia>
             </View>
           ) : null}
           {trophies > 0 ? (
             <View style={st.plate}>
-              <Tag label={plural(trophies, 'trophy', 'trophies')} />
+              <OnMedia>
+                <Tag label={plural(trophies, 'trophy', 'trophies')} />
+              </OnMedia>
             </View>
           ) : null}
         </View>
@@ -58,7 +64,7 @@ export function BuildHero({ build, height, aspect, trophies = 0, tag }: { build:
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   wrap: { borderRadius: RADII.card, overflow: 'hidden', backgroundColor: COLOR.surface.media },
   stamp: {
     position: 'absolute',
@@ -67,7 +73,7 @@ const st = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLOR.surface.glass,
+    backgroundColor: COLOR.media.pill,
     borderWidth: 1,
     borderRadius: RADII.control,
     paddingLeft: SPACING.xs,
@@ -76,5 +82,5 @@ const st = StyleSheet.create({
   },
   corner: { position: 'absolute', top: SPACING.sm, right: SPACING.sm, flexDirection: 'row', gap: SPACING.xs },
   /** A dark plate under a tag so it reads on any photo. */
-  plate: { backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag },
-});
+  plate: { backgroundColor: COLOR.media.pill, borderRadius: RADII.tag },
+}));

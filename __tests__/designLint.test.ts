@@ -12,11 +12,11 @@ const ROOT = join(__dirname, '..');
 const SCANNED = ['src/app', 'src/components'];
 const EXCLUDED = [join('src', 'components', 'ds')];
 
-function sourceFiles(dir: string): string[] {
+function sourceFiles(dir: string, includeExcluded = false): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
-    if (EXCLUDED.some((x) => relative(ROOT, path).startsWith(x))) return [];
-    if (statSync(path).isDirectory()) return sourceFiles(path);
+    if (!includeExcluded && EXCLUDED.some((x) => relative(ROOT, path).startsWith(x))) return [];
+    if (statSync(path).isDirectory()) return sourceFiles(path, includeExcluded);
     return /\.(tsx?|jsx?)$/.test(name) ? [path] : [];
   });
 }
@@ -24,6 +24,10 @@ function sourceFiles(dir: string): string[] {
 /** A quoted hex colour: '#fff', "#0b0f17", '#ff9a2e99'. */
 const HEX = /(['"`])#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\1/;
 /** A number written straight into fontSize (a computed size like `size * 0.4` is allowed). */
+/** A quoted colour function: 'rgba(0,0,0,0.5)', "hsl(...)". Token files build these; screens never write one. */
+const FUNC_COLOUR = /['"`](?:rgba?|hsla?)\(/;
+/** A named colour on a colour prop: color: 'white', fill="black". `transparent` is fine. */
+const NAMED_COLOUR = /\b(?:[cC]olor|fill|stroke|tintColor)\s*[:=]\s*\{?\s*['"](?:white|black|red|green|blue|gray|grey|yellow|orange|purple|pink|silver)['"]/;
 const FONT_SIZE = /\bfontSize\s*:\s*-?\d/;
 
 /** Lines that break a rule, ignoring comments. */
@@ -56,7 +60,28 @@ describe('design-system lint', () => {
     expect(offences(FONT_SIZE)).toEqual([]);
   });
 
+  it('has no raw hex colours in the design system either (only theme.ts holds them)', () => {
+    const found: string[] = [];
+    for (const file of sourceFiles(join(ROOT, 'src/components/ds'), true)) {
+      readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+        const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
+        if (HEX.test(code)) found.push(`${relative(ROOT, file)}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    expect(found).toEqual([]);
+  });
+
+  it('has no literal rgba()/hsl() colours or named colours outside theme.ts and the design system', () => {
+    expect(offences(FUNC_COLOUR)).toEqual([]);
+    expect(offences(NAMED_COLOUR)).toEqual([]);
+  });
+
   it('catches what it should', () => {
+    expect(FUNC_COLOUR.test(`backgroundColor: 'rgba(0,0,0,0.5)'`)).toBe(true);
+    expect(FUNC_COLOUR.test('rgba(COLOR.surface.media, 0)')).toBe(false);
+    expect(NAMED_COLOUR.test(`color: 'white'`)).toBe(true);
+    expect(NAMED_COLOUR.test(`stroke="black"`)).toBe(true);
+    expect(NAMED_COLOUR.test(`backgroundColor: 'transparent'`)).toBe(false);
     expect(HEX.test(`colour: '#0b0f17'`)).toBe(true);
     expect(HEX.test(`fill="#fff"`)).toBe(true);
     expect(HEX.test(`href: '#top'`)).toBe(false);

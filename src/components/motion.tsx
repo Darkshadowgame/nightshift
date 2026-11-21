@@ -16,7 +16,7 @@ import Animated, {
 import { CLASS_COLOURS } from '../lib/classes';
 import { feel } from '../lib/feel';
 import type { ClassLetter } from '../lib/types';
-import { COLOR, MOTION, RADII, SPACING, tint } from '../theme';
+import { COLOR, MOTION, RADII, SPACING, tint, themedStyles } from '../theme';
 import { ClassBadge, DsText, typeStyle } from './ds';
 import { Pin, type Glyph } from './Pin';
 
@@ -365,16 +365,16 @@ export function UnlockReveal({ glyph, colour, title, onDone, pinSize = 40 }: { g
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   circle: { position: 'absolute', width: 40, height: 40, borderRadius: RADII.pill, borderWidth: 2 },
   centre: { alignItems: 'center', justifyContent: 'center' },
   scrim: { backgroundColor: COLOR.surface.glassRaised, alignItems: 'center', justifyContent: 'center', gap: SPACING.md, padding: SPACING.xl },
-  streak: { position: 'absolute', top: -SPACING.lg, bottom: -SPACING.lg, width: 14, backgroundColor: COLOR.text.primary, opacity: 0.75 },
+  streak: { position: 'absolute', top: -SPACING.lg, bottom: -SPACING.lg, width: 14, backgroundColor: COLOR.media.text, opacity: 0.75 },
   card: {
     backgroundColor: COLOR.surface.glassRaised, borderColor: COLOR.surface.border, borderWidth: 1, borderLeftWidth: 3, borderRadius: RADII.card,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, maxWidth: '86%', alignItems: 'center',
   },
-});
+}));
 
 // ---------------------------------------------------------------------------
 // A moment that folds away: it fades, then its height closes, so the rows under it move up only

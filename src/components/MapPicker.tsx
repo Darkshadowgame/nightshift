@@ -24,7 +24,7 @@ import { longGap, MAX_POINT_GAP_MILES, visibleSpots } from '../lib/spots';
 import { areaNameNear } from '../lib/profile';
 import { useStore } from '../lib/store';
 import type { LatLng, SpotKind } from '../lib/types';
-import { COLOR, ELEVATION, HIT, line, outline, RADII, SPACING, SPOT_COLOURS } from '../theme';
+import { COLOR, ELEVATION, HIT, line, outline, RADII, SPACING, SPOT_COLOURS, themedStyles } from '../theme';
 import type { MapPath, MapPin, MapRegion, NightMapHandle } from './mapTypes';
 import { NightMap } from './NightMap';
 import { Pin, type Glyph } from './Pin';
@@ -36,7 +36,7 @@ import { ActionBar, DsText, ErrorState, IconButton, Press } from './ds';
  * only, no zone pins: the hint's one line explains the outlines, and nothing else on the map goes
  * unexplained (Review 13: hexagon pins with no legend). The line under the crosshair opens a zone.
  */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
+const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.map.ban);
 
 /** Wait this long after the map stops moving before naming the crosshair (the geocoder dislikes bursts). */
 const NAME_DELAY_MS = 500;
@@ -373,7 +373,7 @@ function PickerBody({
 }
 
 const CROSS = 44;
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   crossWrap: { position: 'absolute', left: '50%', top: '50%', width: CROSS, height: CROSS, marginLeft: -CROSS / 2, marginTop: -CROSS / 2, alignItems: 'center', justifyContent: 'center' },
   ring: { position: 'absolute', width: 22, height: 22, borderRadius: RADII.pill, borderWidth: 2.5, backgroundColor: COLOR.surface.glass },
   lineH: { position: 'absolute', width: CROSS, height: 2, opacity: 0.9 },
@@ -383,4 +383,4 @@ const st = StyleSheet.create({
   locate: { width: HIT, height: HIT, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.border, backgroundColor: COLOR.surface.glass, alignItems: 'center', justifyContent: 'center', ...ELEVATION.float },
   // Solid (the sheet's colour): map labels never show through "Under the crosshair" (Review 21 gap 18).
   panel: { backgroundColor: COLOR.surface.sheet, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.border, padding: SPACING.md, gap: SPACING.xs, ...ELEVATION.float },
-});
+}));

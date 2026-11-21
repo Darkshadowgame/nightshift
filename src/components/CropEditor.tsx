@@ -18,7 +18,7 @@ import {
   type Rotation,
 } from '../lib/crop';
 import { plateRedactorAvailable } from '../lib/photos';
-import { COLOR, outline, RADII, SPACING } from '../theme';
+import { COLOR, outline, RADII, SPACING, themedStyles } from '../theme';
 import { Button, DsText, Icon, IconButton, ListRow, RowDivider, Sheet, SheetOption } from './ds';
 
 const HANDLE = 40;
@@ -273,7 +273,7 @@ export function CropEditor({
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLOR.surface.bg, gap: SPACING.sm },
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, minHeight: 48 },
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center', margin: SPACING.xl },
@@ -284,4 +284,4 @@ const st = StyleSheet.create({
   handle: { position: 'absolute', width: HANDLE, height: HANDLE },
   markH: { position: 'absolute', width: MARK, height: 4, backgroundColor: COLOR.text.primary, borderRadius: RADII.pill },
   markV: { position: 'absolute', width: 4, height: MARK, backgroundColor: COLOR.text.primary, borderRadius: RADII.pill },
-});
+}));

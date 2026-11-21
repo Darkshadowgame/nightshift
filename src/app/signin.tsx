@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActionBar, Button, DsText, ErrorState, FitImage, Gradient, Icon, IconButton, Press, Section, typeStyle } from '../components/ds';
+import { ActionBar, Button, DsText, ErrorState, FitImage, Gradient, Icon, IconButton, OnMedia, Press, Section, typeStyle } from '../components/ds';
 import { openLegal } from '../components/AboutSection';
 import { FadeUp } from '../components/motion';
 import { PhotoCredit } from '../components/PhotoCredit';
@@ -11,7 +11,7 @@ import { Pin, type Glyph } from '../components/Pin';
 import { Wordmark } from '../components/Wordmark';
 import { SAMPLE_PHOTOS } from '../data/samplePhotos';
 import { isReviewEmail, useAuth } from '../lib/auth';
-import { COLOR, FONT_SCALE, RADII, SPACING } from '../theme';
+import { COLOR, FONT_SCALE, RADII, SPACING, themedStyles } from '../theme';
 
 /** Set once someone ticks the 18+ and terms box, so it stays ticked next time. Bump the date when the terms change. */
 const AGREED_KEY = 'nightshift.agreed';
@@ -20,7 +20,6 @@ const TERMS_VERSION = '2026-11-17';
 /** The picture behind the tagline: a meet at night, no plate in the crop, credited through the ⓘ (Review 19 #1). */
 const HERO_REF = 'hero-night-meet';
 /** The sign-in hero's extra scrim, light at the top (the photo shows) and darker where the words sit. */
-const HERO_SCRIM = ['rgba(5,7,12,0.2)', 'rgba(5,7,12,0.6)'] as const;
 
 /** The core loop in three short lines (Redesign 2, 3.1). */
 const PITCH: { glyph: Glyph; text: string }[] = [
@@ -114,12 +113,14 @@ export default function SignIn() {
             {photo ? <FitImage source={photo.image} fit="cover" style={StyleSheet.absoluteFill} /> : null}
             {/* A scrim under the fade: at 1.3x text the headline climbs to three lines, over the bright
                 silver car, and still has to read (WCAG AA, scorecard PHOTO-CONTRAST, Review 21 problem 3). */}
-            <Gradient colours={HERO_SCRIM} />
+            <Gradient colours={COLOR.media.heroScrim} />
             <Gradient />
             <View style={{ position: 'absolute', left: SPACING.screen, right: SPACING.screen, bottom: SPACING.md }}>
-              <DsText v="hero" accessibilityRole="header">
-                What's on tonight near you. Go with your car.
-              </DsText>
+              <OnMedia>
+                <DsText v="hero" accessibilityRole="header">
+                  What's on tonight near you. Go with your car.
+                </DsText>
+              </OnMedia>
             </View>
             <PhotoCredit photoRef={HERO_REF} overlay corner="topRight" />
           </View>
@@ -407,11 +408,11 @@ export function EmailSignIn({ onBack }: { onBack?: () => void }) {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, paddingHorizontal: SPACING.xs, paddingBottom: SPACING.xs },
   input: { minHeight: 48, paddingHorizontal: SPACING.md, borderRadius: RADII.control, borderWidth: 1, borderColor: COLOR.surface.borderStrong, backgroundColor: COLOR.surface.card },
   code: { textAlign: 'center', letterSpacing: 8 },
   // A clearly bordered box on a raised fill, so it reads as a control before the first tap (Review 20 #13).
   box: { width: 28, height: 28, borderRadius: RADII.tag, borderWidth: 2, borderColor: COLOR.text.primary, backgroundColor: COLOR.surface.raised, alignItems: 'center', justifyContent: 'center' },
   boxOn: { borderColor: COLOR.text.primary, backgroundColor: COLOR.text.primary },
-});
+}));

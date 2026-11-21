@@ -26,11 +26,11 @@ const TASKS = [
   ['t10', "You can't make the Sunday coffee meet after all. Sort that out, then find where you'd stop people near you seeing you.", 45],
 ];
 
-async function runScorecard({ base, clock, scale, outDir, busy = false }) {
-  const tag = `${clock.replace(':', '')}-${scale}x`;
+async function runScorecard({ base, clock, scale, outDir, busy = false, scheme = 'dark' }) {
+  const tag = `${clock.replace(':', '')}-${scale}x${scheme === 'light' ? '-light' : ''}`;
   const shots = path.join(outDir, tag);
   fs.mkdirSync(shots, { recursive: true });
-  const result = { tag, clock, scale, busy, tasks: {}, findings: [], notes: [], steps: [] };
+  const result = { tag, clock, scale, busy, scheme, tasks: {}, findings: [], notes: [], steps: [] };
   let step = 0;
   let current = '';
   let lastShot = '';
@@ -41,7 +41,7 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
   const shoot = (p, o = {}) => S.page.screenshot({ path: p, type: 'jpeg', quality: 70, ...o });
   let S = null;
   S = await L.launch({
-    base, clock, scale,
+    base, clock, scale, scheme,
     onHit: async (name) => {
       const p = shotPath(name);
       // Text over text after check-in (EXIT-OVERLAP): outline the two lines.
@@ -172,7 +172,7 @@ async function runScorecard({ base, clock, scale, outDir, busy = false }) {
               : { x: Math.floor(m.clip.x + m.clip.w) - 4, y: y0, width: 4, height: e.flags.length };
         if (clip.y < 0 || clip.y + clip.height > 667 || clip.x < 0 || clip.x + clip.width > 375 || !clip.width || !clip.height) continue;
         const png = await page.screenshot({ clip, type: 'png' });
-        const b = await page.evaluate(C.pageBright, [png.toString('base64'), e.flags, e.side === 'left' || e.side === 'right' ? 'y' : 'x']);
+        const b = await page.evaluate(C.pageBright, [png.toString('base64'), e.flags, e.side === 'left' || e.side === 'right' ? 'y' : 'x', scheme === 'light']);
         // A cut label or tile gap is 40+ bright device pixels; a stray anti-aliased pixel or two isn't.
         if (b.n >= 40 && b.cols >= 8) found.push({ rule: 'EDGE', message: `on ${C.at(u)}, a bright sliver along the ${e.side} edge of the small map (a label or tile cut by the edge)`, boxes: [{ x: clip.x, y: clip.y, w: clip.width, h: clip.height }] });
       }

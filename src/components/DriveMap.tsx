@@ -9,7 +9,7 @@ import { MAP_POIS, MAP_TYPE } from '../lib/mapAppearance';
 import type { MapAppearance } from '../lib/sun';
 import { CAMERA_JUMP_METRES, CAMERA_FOLLOW_MS, easeAngle, easeNumber, easeShare, predictAhead, roughMetres } from '../lib/heading';
 import type { LatLng } from '../lib/types';
-import { ART, BRAND, C, RADII, ROAD_COLOUR } from '../theme';
+import { ART, COLOR, RADII, ROAD_COLOUR, themedStyles, getThemeMode, routeFor } from '../theme';
 
 /** The route options you didn't pick, in the preview: grey under the chosen one. */
 export const OTHER_ROUTE = ART.routeOther;
@@ -96,7 +96,7 @@ export const DriveMap = memo(function DriveMap({
   onPressYou,
   onLongPress,
   demoAround,
-  appearance = 'dark',
+  appearance = getThemeMode(),
   overview,
 }: DriveMapProps) {
   const map = useRef<MapView>(null);
@@ -214,7 +214,7 @@ export const DriveMap = memo(function DriveMap({
               ),
             )
           : null}
-        {line.length > 1 ? <Polyline key={overview ? `sel${overview.selected}` : 'route'} coordinates={line} strokeColor={BRAND} strokeWidth={8} zIndex={2} /> : null}
+        {line.length > 1 ? <Polyline key={overview ? `sel${overview.selected}` : 'route'} coordinates={line} strokeColor={routeFor(appearance)} strokeWidth={8} zIndex={2} /> : null}
         {cameras.map((c) => (
           <Marker key={c.id} coordinate={{ latitude: c.at.lat, longitude: c.at.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <View style={st.camera} />
@@ -261,7 +261,7 @@ export const DriveMap = memo(function DriveMap({
   );
 });
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   centre: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
-  camera: { width: 9, height: 9, borderRadius: RADII.pill, backgroundColor: C.alert, borderWidth: 1.5, borderColor: C.chalk },
-});
+  camera: { width: 9, height: 9, borderRadius: RADII.pill, backgroundColor: COLOR.layer.camera, borderWidth: 1.5, borderColor: ART.signWhite },
+}));

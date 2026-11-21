@@ -12,7 +12,7 @@ import { Gradient } from './Gradient';
 import { contentColour, entityA11yLabel, rgba } from './logic';
 import { ClassBadge, Tag, type Photo } from './Marks';
 import { Press, type Haptic } from './Press';
-import { DsText } from './Text';
+import { DsText, OnMedia } from './Text';
 
 export type PhotoCardKind = 'event' | 'build' | 'post' | 'place';
 
@@ -129,7 +129,7 @@ export function PhotoCard({
   // Words over the picture only when it's a photo (or a snapshot), never over the drawn silhouette.
   const onPhoto = !!titleOnPhoto && (!!photo || !!fallback);
   const placeLike = kind === 'event' || kind === 'place';
-  const kindColour = placeLike && !finished ? contentColour(layerColour, COLOR.text.secondary) : COLOR.text.secondary;
+  const kindColour = placeLike && !finished ? (onPhoto ? contentColour(layerColour, COLOR.media.muted, true) : contentColour(layerColour, COLOR.text.secondary)) : onPhoto ? COLOR.media.muted : COLOR.text.secondary;
   const label = entityA11yLabel({
     eyebrow: eyebrow || undefined,
     title,
@@ -237,14 +237,18 @@ export function PhotoCard({
             <View style={{ position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs }}>
               {/* On a photo the kind line sits on a solid dark pill, so "● MEET" reads on any photo, even a
                   bright yellow bonnet (Review 21 problem 3): fog on glass is over 5:1 at any text size. */}
-              {kindLine ? <View style={ON_PHOTO_KIND}>{kindLine}</View> : null}
-              {titleRow}
+              <OnMedia>
+                {kindLine ? <View style={ON_PHOTO_KIND}>{kindLine}</View> : null}
+                {titleRow}
+              </OnMedia>
             </View>
           </>
         ) : null}
         {tag ? (
-          <View style={{ position: 'absolute', top: SPACING.sm, left: SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>
-            <Tag label={tag.label} tone={tag.tone} raw={tag.raw} />
+          <View style={{ position: 'absolute', top: SPACING.sm, left: SPACING.sm, backgroundColor: COLOR.media.pill, borderRadius: RADII.tag }}>
+            <OnMedia>
+              <Tag label={tag.label} tone={tag.tone} raw={tag.raw} />
+            </OnMedia>
           </View>
         ) : null}
       </View>
@@ -374,7 +378,7 @@ export function AreaArt({ colour = COLOR.layer.event }: { colour?: string }) {
 /** The kind line's backing on a photo: a solid dark pill, hugging its words (Review 21 problem 3). */
 export const ON_PHOTO_KIND = {
   alignSelf: 'flex-start' as const,
-  backgroundColor: COLOR.surface.glass,
+  backgroundColor: COLOR.media.pill,
   borderRadius: RADII.tag,
   paddingHorizontal: SPACING.sm,
   paddingVertical: SPACING.xxs,

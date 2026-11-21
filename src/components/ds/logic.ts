@@ -2,15 +2,17 @@
  * Pure helpers behind the design-system components. No React Native imports, so
  * they're tested directly (__tests__/designSystem.test.ts).
  */
-import { C } from '../../theme';
+import { C, inkFor } from '../../theme';
 
 /**
  * A layer colour on content (a kind eyebrow, a list-row pin, a card's accent), never sodium
  * (Redesign 2, 5.4; Review 12 decision 5): the Events layer is sodium on the map, but off the map
  * sodium means "tap this" or "on", so a meet's kind line and pin go `fallback` (fog) instead.
  */
-export function contentColour(colour: string | null | undefined, fallback: string): string {
-  return !colour || colour.toLowerCase() === C.sodium.toLowerCase() ? fallback : colour;
+export function contentColour(colour: string | null | undefined, fallback: string, onMedia = false): string {
+  if (!colour || colour.toLowerCase() === C.sodium.toLowerCase()) return fallback;
+  // On a photo's dark pill the hue is used as is; on a page it is darkened on the light theme.
+  return onMedia ? colour : inkFor(colour);
 }
 
 /**

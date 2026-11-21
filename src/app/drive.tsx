@@ -138,7 +138,7 @@ import { advanceRun, NEW_RUN, runExpired, driveMiles, simulatedRun, type DriveRu
 import { useStore } from '../lib/store';
 import { autoVoiceId, speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
-import { COLOR, RADII, SPACING } from '../theme';
+import { COLOR, RADII, SPACING, themedStyles } from '../theme';
 
 /**
  * The driving view: turn-by-turn directions through an event's stops, a
@@ -1461,11 +1461,11 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLOR.surface.bg },
   panel: { backgroundColor: COLOR.surface.card, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.sm, borderTopWidth: 1, borderTopColor: COLOR.surface.border },
   overlayTop: { position: 'absolute', top: SPACING.sm, left: SPACING.sm, right: SPACING.sm, flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   overlayBottom: { position: 'absolute', left: SPACING.sm, right: SPACING.sm, bottom: SPACING.sm, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: SPACING.sm },
   credit: { flexShrink: 1, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs, marginLeft: 'auto' },
   notice: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: 80, backgroundColor: COLOR.surface.glassRaised, borderRadius: RADII.card, padding: SPACING.md, borderWidth: 1, borderColor: COLOR.surface.borderStrong },
-});
+}));

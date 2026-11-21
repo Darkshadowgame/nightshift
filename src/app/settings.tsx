@@ -13,6 +13,7 @@ import { travelOf } from '../lib/discover';
 import { SCREEN_TITLES } from '../lib/glossary';
 import { clearLaps } from '../lib/lapStore';
 import { LEGAL_PAGES } from '../lib/legal';
+import { APPEARANCE_LABELS, type AppearanceChoice } from '../lib/settings';
 import { askPermission, notificationsSupported, permissionGranted, testReminder } from '../lib/notify';
 import { useStore } from '../lib/store';
 import { SPACING } from '../theme';
@@ -44,7 +45,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
- * Settings (Redesign 2, 3.11; T5): Account → Privacy → Profile → Notifications → Directions →
+ * Settings (Redesign 2, 3.11; T5): Account → Privacy → Profile → Appearance → Notifications → Directions →
  * About → Demo → Staff (staff only). Signed in, Demo offers "Try the demo" (auth.tryDemo: the session
  * stays, nothing from the demo goes to the account); in the demo, every demo control is in Demo,
  * the way out too ("Back to my account" or "Leave the demo"). Privacy sits second so "Show me in People near
@@ -134,6 +135,17 @@ export default function SettingsScreen() {
 
       <Group title="Profile">
         <ListRow title="Handle, name and home area" subtitle={user ? `@${user.handle}` : undefined} onPress={() => router.push('/profile')} />
+      </Group>
+
+      <Group title="Appearance">
+        <ChoiceGroup
+          label="Theme"
+          value={settings.appearance ?? 'system'}
+          onChange={(id) => setSettings({ appearance: id })}
+          options={(Object.keys(APPEARANCE_LABELS) as AppearanceChoice[]).map((k) => ({ key: k, label: APPEARANCE_LABELS[k] }))}
+          chips
+        />
+        <DsText v="caption">System follows your phone. The map follows too, unless you pick Day or Night in its Layers.</DsText>
       </Group>
 
       <Group title="Notifications">

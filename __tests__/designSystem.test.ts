@@ -166,7 +166,7 @@ describe('Redesign 2 tokens (5.6)', () => {
     expect(COLOR.action.primary).toBe(theme.C.sodium);
     expect(COLOR.action.selected).toBe(theme.C.sodium);
     expect(COLOR.action.link).toBe(theme.C.chalk);
-    expect(COLOR.badge).toEqual({ bg: COLOR.state.liveDot, fg: '#ffffff' });
+    expect(COLOR.badge).toEqual({ bg: '#d92548', fg: '#ffffff' });
   });
   it('has one fade over photos, the bar shadow, morph and stagger timings, and photo shapes', () => {
     expect(COLOR.surface.photoFade).toEqual(['rgba(11,15,23,0)', 'rgba(11,15,23,0.9)']);

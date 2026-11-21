@@ -166,7 +166,7 @@ export function SegmentedControl<K extends string>({
               borderRadius: RADII.control - 2,
               paddingHorizontal: SEGMENT_PAD,
               paddingVertical: SPACING.xs,
-              backgroundColor: on ? COLOR.action.selected : 'transparent',
+              backgroundColor: on ? COLOR.action.primary : 'transparent',
             }}
           >
             <DsText

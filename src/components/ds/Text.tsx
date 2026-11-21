@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from 'react';
+import { Children, createContext, useContext, type ReactNode } from 'react';
 import { Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 import { COLOR, FONT_SCALE, TYPE_SCALE, type TypeToken } from '../../theme';
 import { keepTogether } from './logic';
@@ -26,17 +26,32 @@ export function maxScale(token: TypeToken): number | undefined {
 
 export type TextTone = 'primary' | 'secondary' | 'info' | 'action' | 'brand' | 'danger' | 'success' | 'warning' | 'onAction';
 
-const TONE: Record<TextTone, string> = {
-  primary: COLOR.text.primary,
-  secondary: COLOR.text.secondary,
-  info: COLOR.text.info,
-  action: COLOR.action.link,
-  brand: COLOR.action.primary,
-  danger: COLOR.state.danger,
-  success: COLOR.state.success,
-  warning: COLOR.state.warning,
-  onAction: COLOR.action.onPrimary,
-};
+const MediaContext = createContext(false);
+
+/** True inside `<OnMedia>`: the thing is drawn on a photo, so it uses the fixed `COLOR.media` colours. */
+export const useOnMedia = () => useContext(MediaContext);
+
+/**
+ * Wrap anything drawn on a photo or a dark pill over a photo: DsText inside takes the fixed light
+ * text colours, so a title on a photo reads the same in light and dark mode.
+ */
+export function OnMedia({ children }: { children: ReactNode }) {
+  return <MediaContext.Provider value>{children}</MediaContext.Provider>;
+}
+
+function toneColour(t: TextTone, onMedia: boolean): string {
+  switch (t) {
+    case 'primary': return onMedia ? COLOR.media.text : COLOR.text.primary;
+    case 'secondary': return onMedia ? COLOR.media.muted : COLOR.text.secondary;
+    case 'info': return COLOR.text.info;
+    case 'action': return onMedia ? COLOR.media.text : COLOR.action.link;
+    case 'brand': return onMedia ? COLOR.action.primary : COLOR.text.brand;
+    case 'danger': return COLOR.state.danger;
+    case 'success': return COLOR.state.success;
+    case 'warning': return COLOR.state.warning;
+    case 'onAction': return COLOR.action.onPrimary;
+  }
+}
 
 /**
  * Text on the v2 scale. Pick a `v` (token) and, only when the role needs it, a `tone`.
@@ -64,7 +79,9 @@ export function DsText({
   /** Overrides the token's larger-text cap (segment labels cap at 1.15, like iOS). */
   maxFontSizeMultiplier?: number;
 } & Pick<TextProps, 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityLiveRegion' | 'selectable' | 'aria-hidden' | 'nativeID' | 'adjustsFontSizeToFit' | 'minimumFontScale' | 'allowFontScaling'>) {
-  const colour = tone ? TONE[tone] : undefined;
+  const onMedia = useContext(MediaContext);
+  const quiet = v === 'secondary' || v === 'caption' || v === 'meta' || v === 'label' || v === 'eyebrow';
+  const colour = tone ? toneColour(tone, onMedia) : onMedia ? (quiet ? COLOR.media.muted : COLOR.media.text) : undefined;
   return (
     <Text style={[typeStyle(v, colour), style]} numberOfLines={numberOfLines} maxFontSizeMultiplier={maxFontSizeMultiplier ?? maxScale(v)} {...rest}>
       {/* A meta line never wraps with a "·" at a line end (logic.ts keepTogether). */}

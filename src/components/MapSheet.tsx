@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { feel } from '../lib/feel';
-import { C, ELEVATION, RADII, SPACING, SURFACE } from '../theme';
+import { C, ELEVATION, RADII, SPACING, SURFACE, themedStyles } from '../theme';
 import { useToastAnchor } from './ds';
 import { detentTops, MIN_SHOWN, ORDER, settle, type Detent } from './sheetDetents';
 
@@ -172,7 +172,7 @@ export function MapSheet({
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   sheet: {
     position: 'absolute',
     left: 0,
@@ -192,4 +192,4 @@ const st = StyleSheet.create({
   grabberHit: { alignItems: 'center', justifyContent: 'center', height: 22 },
   grabber: { width: 40, height: 5, borderRadius: RADII.pill, backgroundColor: SURFACE.borderStrong },
   body: { paddingHorizontal: SPACING.screen, paddingBottom: SPACING.xxxl, gap: SPACING.lg },
-});
+}));

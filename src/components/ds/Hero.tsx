@@ -9,7 +9,7 @@ import { Gradient } from './Gradient';
 import { contentColour } from './logic';
 import { ClassBadge, Tag, type Photo } from './Marks';
 import { ON_PHOTO_KIND } from './PhotoCard';
-import { DsText } from './Text';
+import { DsText, OnMedia } from './Text';
 
 /**
  * The top of every detail screen (T3), in a fixed order (Redesign 2, 3.5): picture → kind
@@ -73,7 +73,7 @@ export function Hero({
 }) {
   const lines = (Array.isArray(meta) ? meta : [meta]).filter((l): l is string => !!l);
   const onPhoto = !!photo && titleOnPhoto;
-  const kindColour = contentColour(layerColour, COLOR.text.secondary);
+  const kindColour = onPhoto ? contentColour(layerColour, COLOR.media.muted, true) : contentColour(layerColour, COLOR.text.secondary);
 
   // One place for the status tag, as on PhotoCard (K3, Review 13): top left of the picture; with
   // no picture, first on the kind line.
@@ -111,7 +111,7 @@ export function Hero({
           {trailing ?? null}
         </View>
         {titleSub ? (
-          <DsText v="secondary" numberOfLines={1} style={onPhoto ? { color: COLOR.text.primary } : undefined}>
+          <DsText v="secondary" numberOfLines={1} style={onPhoto ? { color: COLOR.media.text } : undefined}>
             {titleSub}
           </DsText>
         ) : null}
@@ -144,13 +144,17 @@ export function Hero({
               <View style={{ position: 'absolute', left: SPACING.screen, right: SPACING.screen, bottom: SPACING.md, gap: SPACING.xs }}>
                 {/* The kind line on a solid dark pill, as on the Tonight cards (PhotoCard ON_PHOTO_KIND): "● MEET"
                     reads on any photo, a bright sky or a white car (Review 21 problem 3). */}
-                {kindRow ? <View style={ON_PHOTO_KIND}>{kindRow}</View> : null}
-                {titleRow}
+                <OnMedia>
+                  {kindRow ? <View style={ON_PHOTO_KIND}>{kindRow}</View> : null}
+                  {titleRow}
+                </OnMedia>
               </View>
             </>
           ) : null}
           {tagOnPicture ? (
-            <View style={{ position: 'absolute', top: SPACING.sm, left: edge ? SPACING.screen : SPACING.sm, backgroundColor: COLOR.surface.glass, borderRadius: RADII.tag }}>{statusTag}</View>
+            <View style={{ position: 'absolute', top: SPACING.sm, left: edge ? SPACING.screen : SPACING.sm, backgroundColor: COLOR.media.pill, borderRadius: RADII.tag }}>
+              <OnMedia>{statusTag}</OnMedia>
+            </View>
           ) : null}
           {overlay}
         </View>

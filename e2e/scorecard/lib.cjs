@@ -203,13 +203,15 @@ const PHONE = { latitude: 52.4862, longitude: -1.8904 };
 const DEMO_HOME = { latitude: 52.63, longitude: -1.7 };
 
 /** A browser page set up like the scored runs. */
-async function launch({ base, clock, scale, onHit, headless = true }) {
+async function launch({ base, clock, scale, onHit, headless = true, scheme = 'dark' }) {
   const browser = await chromium.launch({ headless });
   const ctx = await browser.newContext({
     viewport: { width: 375, height: 667 },
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
+    // The app follows the phone's look (Settings > Appearance > System): dark for the scored runs, light for the extra pass.
+    colorScheme: scheme,
     timezoneId: 'Europe/London',
     locale: 'en-GB',
     geolocation: PHONE,

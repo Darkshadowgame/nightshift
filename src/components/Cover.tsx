@@ -8,10 +8,10 @@ import { coverTitle, plural } from '../lib/format';
 import { powerText } from '../lib/dyno';
 import { modCount } from '../lib/modGroups';
 import type { Build, NightEvent, User } from '../lib/types';
-import { COLOR, F, RADII, SPACING } from '../theme';
+import { COLOR, F, RADII, SPACING, themedStyles } from '../theme';
 import { BuildArt } from './BuildArt';
 import { useBuildPicture } from './BuildBits';
-import { ClassBadge, displayHandle, DsText, FitImage } from './ds';
+import { ClassBadge, displayHandle, DsText, FitImage, OnMedia } from './ds';
 
 /** The "cover shoot" reward: the winning build as a stylised magazine-style cover. */
 export function Cover({ award, build, owner, event, width = 260 }: { award: Award; build: Build; owner?: User; event?: NightEvent; width?: number }) {
@@ -29,7 +29,8 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
           <BuildArt kind={build.kind} shape={carShape(build)} colour={build.colour} height={h * 0.55} />
         </View>
       )}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.surface.scrim, opacity: 0.6 }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: COLOR.media.pill, opacity: 0.6 }]} />
+      <OnMedia>
       <View style={st.top}>
         {/* The masthead is a drawing (SVG text): it scales with the cover, never with the text size. */}
         <Masthead width={width - 2 * SPACING.md} cover={width} />
@@ -64,6 +65,7 @@ export function Cover({ award, build, owner, event, width = 260 }: { award: Awar
           </DsText>
         ) : null}
       </View>
+      </OnMedia>
     </View>
   );
 }
@@ -94,7 +96,7 @@ export function Masthead({ width, cover }: { width: number; cover: number }) {
   const run = { y: m.baseline, fontFamily: F.displayItalic, fontSize: m.fontSize, letterSpacing: -1, lengthAdjust: 'spacingAndGlyphs' as const };
   return (
     <Svg width={width} height={m.height} accessibilityLabel="Slipstream" style={{ overflow: 'visible' }}>
-      <SvgText x={0} textLength={m.night} fill={COLOR.text.primary} {...run}>
+      <SvgText x={0} textLength={m.night} fill={COLOR.media.text} {...run}>
         SLIP
       </SvgText>
       <SvgText x={m.night} textLength={m.shift} fill={COLOR.action.primary} {...run}>
@@ -119,7 +121,7 @@ export function Trophy({ colour = COLOR.action.primary, size = 34 }: { colour?: 
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   cover: { borderRadius: RADII.control, overflow: 'hidden', backgroundColor: COLOR.surface.media, borderWidth: 1, borderColor: COLOR.surface.raisedHi },
   top: { position: 'absolute', top: SPACING.sm, left: SPACING.md, right: SPACING.md },
   bottom: { position: 'absolute', left: SPACING.md, right: SPACING.md, bottom: SPACING.md, gap: SPACING.xs },
@@ -127,5 +129,5 @@ const st = StyleSheet.create({
   // chrome lines (issue, trophy) are the meta size in the label face, in capitals.
   chrome: { fontFamily: F.labelBold, letterSpacing: 1, textTransform: 'uppercase' },
   // Sodium is for the one primary (5.4): the ribbon is glass with a hairline.
-  ribbon: { alignSelf: 'flex-start', backgroundColor: COLOR.surface.glass, borderWidth: 1, borderColor: COLOR.text.primary, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, transform: [{ skewX: '-10deg' }] },
-});
+  ribbon: { alignSelf: 'flex-start', backgroundColor: COLOR.media.pill, borderWidth: 1, borderColor: COLOR.media.text, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xxs, transform: [{ skewX: '-10deg' }] },
+}));

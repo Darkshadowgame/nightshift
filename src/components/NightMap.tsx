@@ -1,7 +1,7 @@
 import { memo, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import MapView, { Circle, Marker, Polygon, Polyline } from 'react-native-maps';
 import { StyleSheet, View } from 'react-native';
-import { BRAND, C, RADII, SPACING, SURFACE } from '../theme';
+import { BRAND, C, RADII, SPACING, SURFACE, themedStyles, getThemeMode } from '../theme';
 import { DsText } from './ds/Text';
 import { pinLayer } from '../lib/hud';
 import { MAP_POIS, MAP_TYPE } from '../lib/mapAppearance';
@@ -88,7 +88,7 @@ const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
 /** iPhone map: Apple Maps in dark mode, so no map key is needed. */
 export const NightMap = memo(function NightMap({
   ref, pins, paths = [], circles = [], polygons = [], centre, span = 0.6, onSelect, onLongPress, showsUser, you, picked, follow, recentreKey, onPressMap, onMoved,
-  onRegion, credit, compass, padding, appearance = 'dark', labels = true,
+  onRegion, credit, compass, padding, appearance = getThemeMode(), labels = true,
 }: NightMapProps) {
   const map = useRef<MapView>(null);
   /** The map's height, for fitting regions above whatever covers its bottom (`padding`). */
@@ -194,6 +194,6 @@ export const NightMap = memo(function NightMap({
   );
 });
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   credit: { position: 'absolute', right: SPACING.xs, bottom: SPACING.xs, backgroundColor: SURFACE.glass, borderRadius: RADII.tag, paddingHorizontal: SPACING.xs, paddingVertical: SPACING.xxs },
-});
+}));

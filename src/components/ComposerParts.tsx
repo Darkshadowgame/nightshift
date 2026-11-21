@@ -3,12 +3,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { TextInput, View, type TextStyle } from 'react-native';
 import { photoUri, plateRedactorAvailable } from '../lib/photos';
 import type { Build } from '../lib/types';
-import { COLOR, RADII, SPACING } from '../theme';
+import { COLOR, RADII, SPACING, themedStyles } from '../theme';
 import { ActionBar, Button, ChoiceGroup, ConfirmSheet, DsText, FitImage, Icon, Press, typeStyle } from './ds';
 import { usePhotoFlow } from './PhotoFlow';
 
 /** The text box style for composers (posts, threads, replies, chats): input type, strong border, control radius. */
-export const INPUT: TextStyle = {
+export const INPUT: TextStyle = themedStyles(() => ({
   ...typeStyle('input'),
   minHeight: 48,
   borderWidth: 1,
@@ -17,7 +17,7 @@ export const INPUT: TextStyle = {
   backgroundColor: COLOR.surface.card,
   paddingHorizontal: SPACING.md,
   paddingVertical: SPACING.sm,
-};
+}));
 
 /** A form field: caps label above, the control, an optional hint below. */
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {

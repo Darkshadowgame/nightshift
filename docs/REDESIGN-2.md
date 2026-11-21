@@ -1232,3 +1232,25 @@ clashed, the owner's earlier decisions stand:
 * The Tracks layer moved from lime to orange (the old accent) so it cannot be mistaken for the brand green.
 * Frozen on purpose (installs, OTA, links): bundle id, package, slug, EAS project, `nightshift://`
   scheme, Supabase refs and migrations, storage keys, repo and folder names.
+
+### 9.y Light theme and one theme layer (21 Nov 2026, owner decision)
+
+Owner: "focus heavily on the style and branding throughout, good in both light and dark mode, with
+consistency throughout". This replaces "the app is dark only, by design".
+
+* **Settings › Appearance › Theme:** System (default), Light, Dark. The maps follow it (Auto) unless
+  you pick Day or Night in the Layers sheet.
+* **One theme layer.** Every colour comes from `src/theme.ts` (`COLOR` and friends). `applyTheme(mode)`
+  rewrites those objects in place; `ThemeProvider` (`src/lib/theme.tsx`) applies it before render and
+  remounts the screens on a switch; module-level StyleSheets use `themedStyles`. Screens never test the
+  mode and never hold a hex or `rgba()` (the design lint fails them).
+* **Brand green has two jobs.** FILL (`COLOR.action.primary`, `#95D600` in both modes) always carries
+  ink `#0a0a0a`. INK (`COLOR.action.selected`, `COLOR.text.brand`): `#95D600` on dark, `#3F6400` on light
+  (6.1:1 on the page), for green text, icons, borders and the wordmark's STREAM. Layer hues used as text
+  go through `inkFor()`; as pin fills they stay as they are.
+* **On a photo, always dark glass and light text** (`COLOR.media`, `<OnMedia>`), whatever the theme.
+* Light palette: page `#EEF2E9`, card `#F8FAF5`, text `#10150C`. Red and amber stay clear of the green
+  in both. `__tests__/themeContrast.test.ts` holds every pair to AA (4.5:1 text, 3:1 control borders).
+* The scorecard runs one extra light pass (20:30, 1.0x). The scored dark runs set `colorScheme: dark`.
+* Native config: `userInterfaceStyle` is now `automatic` and the splash has a dark variant. Needs a new
+  build; an OTA cannot carry it.

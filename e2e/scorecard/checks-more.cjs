@@ -244,7 +244,7 @@ function checkMaps(maps, url) {
  * In the page: how many bright pixels a PNG (base64) has, and in how many columns (rows when `axis`
  * is 'y'), counting only the columns (rows) where `cols` (one flag per CSS pixel) says the map shows.
  */
-async function pageBright([b64, cols, axis = 'x']) {
+async function pageBright([b64, cols, axis = 'x', light = false]) {
   const img = new Image();
   img.src = `data:image/png;base64,${b64}`;
   await img.decode();
@@ -260,7 +260,8 @@ async function pageBright([b64, cols, axis = 'x']) {
     const x = (i / 4) % c.width;
     const y = Math.floor(i / 4 / c.width);
     const at = axis === 'y' ? Math.floor((y * cols.length) / c.height) : Math.floor((x * cols.length) / c.width);
-    if (l > 170 && cols[at]) { n++; seen.add(axis === 'y' ? y : x); }
+    // On a dark map a cut label is a bright sliver; on a light map it is a dark one.
+    if ((light ? l < 120 : l > 170) && cols[at]) { n++; seen.add(axis === 'y' ? y : x); }
   }
   return { n, cols: seen.size, w: c.width, h: c.height };
 }

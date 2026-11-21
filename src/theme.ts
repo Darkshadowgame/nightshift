@@ -1,108 +1,4 @@
-/**
- * Late-night city palette. The app is dark only, by design.
- *
- * Colour has fixed roles (REVIEW-5 B2). Pick by role, not by hue:
- *   BRAND / ACTION  sodium: the one primary button and "selected" (segment, chip, tab). Nothing else
- *                   (Redesign 2, 5.4): links are chalk, eyebrows fog, badges red.
- *   LAYER           map layers and place identity only (pins, place headers, the layer bar).
- *   STATE           live, success, warning, danger, info: never a layer colour.
- *   CLASS           the S–D ramp for class badges: its own metals, not layer or state hexes.
- *   SURFACE         backgrounds, glass overlays, scrims and borders.
- * `C` keeps the raw hues for surfaces and text; don't use `C.neon`, `C.lime` or
- * `C.magenta` directly: they are the Drives, Tracks and Photos layer colours.
- */
-export const C = {
-  asphalt: '#0b0f17',
-  tarmac: '#131a26',
-  kerb: '#1d2636',
-  kerbHi: '#2a3446',
-  fog: '#8a97ad',
-  chalk: '#e9edf4',
-  sodium: '#95d600',
-  /** The Drives layer colour. Not a button or state colour. */
-  neon: '#3fd6ff',
-  /** The Photos layer colour. */
-  magenta: '#ff4fa3',
-  /** The Tracks layer colour (orange, the old brand accent, now free). */
-  lime: '#ff9a2e',
-  /** Danger and errors (also the Speed cameras layer). */
-  alert: '#ff4d4d',
-  /** Text on the brand green. */
-  ink: '#0a0a0a',
-};
-
-/** The one brand and action colour: the primary button and selected states (and the wordmark). */
-export const BRAND = C.sodium;
-
-/** Map layers and place identity. Only on the map, the layer bar, the key and a place's own header. */
-export const LAYER = {
-  /** Meets, cruises and rolling meets. */
-  event: C.sodium,
-  /** Shows: blue, not the photo spots' magenta. */
-  show: '#5c9dff',
-  /** Track days: chequered-flag white, not the tracks' lime. */
-  trackday: C.chalk,
-  photo: C.magenta,
-  drive: C.neon,
-  track: C.lime,
-  /** Meet spots (cafés and museums that welcome meets): mint, not the events' green. */
-  venue: '#2fe0b0',
-  shop: '#b48cff',
-  partner: '#ffd23f',
-  camera: C.alert,
-  /** Road reports: coral, not the cameras' red or the events' orange. */
-  road: '#ff7a59',
-  /** Community posts with a place: a soft violet-blue, not the shops' purple. */
-  post: '#8fb4ff',
-} as const;
-
-/** States. None of these is a layer colour, so "live" never reads as "drive". */
-export const STATE = {
-  /** Live now: bright white with a red dot and the pulse (motion.tsx). */
-  live: '#ffffff',
-  liveDot: '#ff3b5c',
-  /** Checked in, saved, going, passed checkpoints, still there. */
-  success: '#5fe08f',
-  /** "Before you go", ban zones, waiting for an answer. */
-  warning: '#ffb547',
-  /** Errors and destructive actions. */
-  danger: C.alert,
-  /** Neutral notices and invitations. */
-  info: '#9db4d6',
-  /** A chip or segment that's on: the brand colour, one for every chip. */
-  selected: C.sodium,
-} as const;
-
-/** Class letters S (top) to D: a metal ladder of their own (steel, bronze, silver, gold, platinum). */
-export const CLASS = {
-  S: '#e7c6ff',
-  A: '#f2c14e',
-  B: '#d5dbe5',
-  C: '#d39a6a',
-  D: '#8c9bb0',
-} as const;
-
-/** Surfaces, overlays and borders. One alpha per job. */
-export const SURFACE = {
-  bg: C.asphalt,
-  surface: C.tarmac,
-  raised: C.kerb,
-  /** Map chrome over the map (pills, round buttons, the credit). */
-  glass: 'rgba(11,15,23,0.92)',
-  /** Cards and menus floating over the map. */
-  glassRaised: 'rgba(19,26,38,0.97)',
-  /** The map's bottom sheet: the glassRaised colour, solid, so pins never show through its text (REVIEW-8). */
-  sheet: '#131a26',
-  /** Dimming behind a sheet or modal. */
-  scrim: 'rgba(5,7,12,0.6)',
-  border: C.kerb,
-  /** Inputs and anything that must be seen as a control: 3:1 or better on asphalt and tarmac. */
-  borderStrong: '#64748f',
-} as const;
-
-/** Text colours: chalk for text, fog for secondary (never on kerbHi), ink on sodium. */
-export const TEXT = { text: C.chalk, muted: C.fog, onAction: C.ink } as const;
-
+/** Slipstream's theme: the palettes, the live token objects and the helpers are below `tint`. */
 export const F = {
   display: 'ChakraPetch_700Bold',
   /** Real italic faces: iOS won't fake italics for custom fonts. Use these, not fontStyle. */
@@ -170,72 +66,402 @@ export const tint = (hex: string) => `${hex}1f`;
 export const line = (hex: string) => `${hex}40`;
 export const outline = (hex: string) => `${hex}99`;
 
+// ===========================================================================
+// Theme layer. Every colour in the app comes from here and nothing else.
+//
+// Two palettes (dark: the original late-night look; light: off-white with a faint green-grey
+// tint). `applyTheme(mode)` rebuilds the token objects below IN PLACE, so `COLOR.surface.bg` is
+// always the live value and a screen never asks "which mode am I in". The root (ThemeProvider in
+// src/lib/theme.tsx) calls it before rendering and remounts the tree when the mode flips, so
+// screens never keep a stale colour. Module-level StyleSheets use `themedStyles` (below) for the
+// same reason.
+//
+// The brand green has two jobs, and they are never mixed:
+//   FILL  `C.sodium` / `BRAND` (#95d600, both modes): the primary button, selected chips and
+//         segments, switches, the route line's dark-mode colour, pins. Always with ink (#0a0a0a)
+//         on top (11:1).
+//   INK   `COLOR.action.selected`: green used as text, an icon, a border or an underline. Dark mode
+//         keeps #95d600; light mode uses a darker green that passes AA on every light surface.
+// ===========================================================================
+
+export type ThemeMode = 'dark' | 'light';
+
+/** The brand fill. Same in both modes. */
+const SODIUM = '#95d600';
+/** Text on the brand green. */
+const INK = '#0a0a0a';
+
+type Palette = {
+  bg: string; card: string; raised: string; raisedHi: string; media: string;
+  border: string; borderStrong: string;
+  glass: string; glassRaised: string; scrim: string;
+  text: string; muted: string;
+  /** The brand green as text, icons, borders. */
+  brandInk: string;
+  success: string; warning: string; danger: string; info: string; live: string; liveDot: string;
+  class: { S: string; A: string; B: string; C: string; D: string };
+  chatOwn: string; chatOwnBorder: string;
+  shadow: string; shadowDeep: string; shadowSheet: string; shadowBar: string;
+  /** Route lines on the map. */
+  routeLine: string;
+};
+
+const PALETTES: Record<ThemeMode, Palette> = {
+  dark: {
+    bg: '#0b0f17', card: '#131a26', raised: '#1d2636', raisedHi: '#2a3446', media: '#111827',
+    border: '#1d2636', borderStrong: '#64748f',
+    glass: 'rgba(11,15,23,0.92)', glassRaised: 'rgba(19,26,38,0.97)', scrim: 'rgba(5,7,12,0.6)',
+    text: '#e9edf4', muted: '#8a97ad',
+    brandInk: SODIUM,
+    success: '#5fe08f', warning: '#ffb547', danger: '#ff4d4d', info: '#9db4d6', live: '#ffffff', liveDot: '#ff3b5c',
+    class: { S: '#e7c6ff', A: '#f2c14e', B: '#d5dbe5', C: '#d39a6a', D: '#8c9bb0' },
+    chatOwn: '#24426e', chatOwnBorder: '#9db4d699',
+    shadow: 'rgba(0,0,0,0.4)', shadowDeep: 'rgba(0,0,0,0.6)', shadowSheet: 'rgba(0,0,0,0.5)', shadowBar: 'rgba(0,0,0,0.45)',
+    routeLine: SODIUM,
+  },
+  light: {
+    bg: '#eef2e9', card: '#f8faf5', raised: '#e4eadc', raisedHi: '#d8dfce', media: '#dfe5d6',
+    border: '#cdd5c3', borderStrong: '#7b8770',
+    glass: 'rgba(248,250,245,0.94)', glassRaised: 'rgba(248,250,245,0.98)', scrim: 'rgba(16,21,12,0.45)',
+    text: '#10150c', muted: '#4a5543',
+    brandInk: '#3f6400',
+    success: '#17703a', warning: '#8a5300', danger: '#c42626', info: '#3d5a85', live: '#10150c', liveDot: '#d92548',
+    class: { S: '#7a3fb0', A: '#8a6200', B: '#4d5a6e', C: '#8a5628', D: '#5c6a7e' },
+    chatOwn: '#d3e2f5', chatOwnBorder: '#3d5a8599',
+    shadow: 'rgba(16,21,12,0.16)', shadowDeep: 'rgba(16,21,12,0.24)', shadowSheet: 'rgba(16,21,12,0.2)', shadowBar: 'rgba(16,21,12,0.16)',
+    routeLine: '#3f6400',
+  },
+};
+
+/** The route line for a map of this look: the brand fill on a dark map, a darker green on a light one (a fill green vanishes on pale streets). */
+export const routeFor = (look: ThemeMode) => PALETTES[look].routeLine;
+
+/** Exported for the contrast test and the component gallery. */
+export const PALETTE = PALETTES;
+
+/** Fixed hues: the same in both modes (map layers, the layer pins' fills). */
+const FIXED = {
+  neon: '#3fd6ff',
+  magenta: '#ff4fa3',
+  lime: '#ff9a2e',
+  /** The Speed cameras layer. */
+  redFill: '#ff4d4d',
+  chalk: '#e9edf4',
+};
+
+function build(mode: ThemeMode) {
+  const p = PALETTES[mode];
+
+  const C = {
+    asphalt: p.bg,
+    tarmac: p.card,
+    kerb: p.raised,
+    kerbHi: p.raisedHi,
+    fog: p.muted,
+    chalk: p.text,
+    sodium: SODIUM,
+    /** The Drives layer colour. Not a button or state colour. */
+    neon: FIXED.neon,
+    /** The Photos layer colour. */
+    magenta: FIXED.magenta,
+    /** The Tracks layer colour (orange, the old brand accent, now free). */
+    lime: FIXED.lime,
+    /** Danger and errors as text and icons (themed). */
+    alert: p.danger,
+    /** Text on the brand green. */
+    ink: INK,
+  };
+
+  const LAYER = {
+    /** Meets, cruises and rolling meets. */
+    event: SODIUM,
+    /** Shows: blue, not the photo spots' magenta. */
+    show: '#5c9dff',
+    /** Track days: chequered-flag white, not the tracks' lime. */
+    trackday: FIXED.chalk,
+    photo: FIXED.magenta,
+    drive: FIXED.neon,
+    track: FIXED.lime,
+    /** Meet spots (cafés and museums that welcome meets): mint, not the events' green. */
+    venue: '#2fe0b0',
+    shop: '#b48cff',
+    partner: '#ffd23f',
+    camera: FIXED.redFill,
+    /** Road reports: coral, not the cameras' red or the events' orange. */
+    road: '#ff7a59',
+    /** Community posts with a place: a soft violet-blue, not the shops' purple. */
+    post: '#8fb4ff',
+  };
+
+  const STATE = {
+    /** Live now: bright white with a red dot and the pulse (motion.tsx); near-black on the light theme. */
+    live: p.live,
+    liveDot: p.liveDot,
+    /** Checked in, saved, going, passed checkpoints, still there. */
+    success: p.success,
+    /** "Before you go", ban zones, waiting for an answer. */
+    warning: p.warning,
+    /** Errors and destructive actions. */
+    danger: p.danger,
+    /** Neutral notices and invitations. */
+    info: p.info,
+    /** A chip or segment that's on: the brand fill, one for every chip. */
+    selected: SODIUM,
+  };
+
+  const CLASS = { ...p.class };
+
+  const SURFACE = {
+    bg: p.bg,
+    surface: p.card,
+    raised: p.raised,
+    /** Map chrome over the map (pills, round buttons, the credit). */
+    glass: p.glass,
+    /** Cards and menus floating over the map. */
+    glassRaised: p.glassRaised,
+    /** The map's bottom sheet: solid, so pins never show through its text (REVIEW-8). */
+    sheet: p.card,
+    /** Dimming behind a sheet or modal. */
+    scrim: p.scrim,
+    border: p.border,
+    /** Inputs and anything that must be seen as a control: 3:1 or better on the page and card colours. */
+    borderStrong: p.borderStrong,
+  };
+
+  const TEXT = { text: p.text, muted: p.muted, onAction: INK };
+
+  const COLOR = {
+    action: {
+      /** The brand FILL: the primary button, selected chips, switches. Text on it is `onPrimary`. */
+      primary: SODIUM,
+      onPrimary: INK,
+      /** Text links and tertiary buttons: the text colour (Redesign 2, 5.4). */
+      link: p.text,
+      /** The brand as text, icon, border or underline (a selected tab, a selected segment's label, a focus ring). */
+      selected: p.brandInk,
+      selectedTint: tint(SODIUM),
+      disabledBorder: line(SODIUM),
+      destructive: p.danger,
+    },
+    text: {
+      primary: p.text,
+      secondary: p.muted,
+      emphasis: p.text,
+      info: p.info,
+      onAction: INK,
+      disabled: p.muted,
+      /** The brand green as text (the wordmark's STREAM, "brand" tone). */
+      brand: p.brandInk,
+    },
+    surface: {
+      bg: p.bg,
+      card: p.card,
+      raised: p.raised,
+      raisedHi: p.raisedHi,
+      /** Behind photos and build art while they load. */
+      media: p.media,
+      glass: p.glass,
+      glassRaised: p.glassRaised,
+      sheet: p.card,
+      scrim: p.scrim,
+      border: p.border,
+      borderStrong: p.borderStrong,
+      skeleton: p.raised,
+      /** The one gradient over photos (transparent → near-black at 90%), bottom to top under titles. Photos are dark-ish in both modes. */
+      photoFade: ['rgba(11,15,23,0)', 'rgba(11,15,23,0.9)'] as [string, string],
+    },
+    /**
+     * Anything drawn on a photo is fixed (light text on a dark glass), whatever the theme: a photo is
+     * the same photo in both modes. DsText switches to these inside `<OnMedia>`.
+     */
+    media: {
+      text: '#e9edf4',
+      muted: '#aab4c6',
+      pill: 'rgba(11,15,23,0.92)',
+      pillBorder: 'rgba(233,237,244,0.28)',
+      /** Status colours and class metals on that dark glass: the dark palette's, in both modes. */
+      state: { success: PALETTES.dark.success, warning: PALETTES.dark.warning, danger: PALETTES.dark.danger, info: PALETTES.dark.info, live: PALETTES.dark.live, liveDot: PALETTES.dark.liveDot },
+      class: { ...PALETTES.dark.class },
+      /** Scrim on the sign-in photo: light at the top, darker under the words. */
+      heroScrim: ['rgba(5,7,12,0.2)', 'rgba(5,7,12,0.6)'] as [string, string],
+    },
+    state: {
+      live: p.live,
+      liveDot: p.liveDot,
+      success: p.success,
+      warning: p.warning,
+      danger: p.danger,
+      info: p.info,
+    },
+    /** Solid fills carrying ink text (an End button, a Yes button): the bright hues in both modes, 5.9:1 with ink. */
+    fill: { danger: FIXED.redFill, success: '#5fe08f' },
+    classMetal: CLASS,
+    /** Number badges (unread messages, requests, notices): red, never sodium (Redesign 2, 4.8). */
+    badge: { bg: '#d92548', fg: '#ffffff' },
+    layer: LAYER,
+    /** Avatars: a person is not an action, so never sodium. */
+    avatar: { bg: p.raised, fg: p.text, border: p.raisedHi },
+    /** Chat bubbles: yours a tinted blue, theirs the raised grey (REVIEW-10: yours read as grey too). */
+    chat: { own: p.chatOwn, ownBorder: p.chatOwnBorder, theirs: p.raised, theirsBorder: p.borderStrong },
+    /** Build card colours (not layer hexes): real paint, the same in both modes. */
+    paint: ['#e9edf4', '#1b1f27', '#c8102e', '#1f4fa8', '#f2c14e', '#2f7d4f', '#7a7f8a', '#e86a1c'],
+    /** Lines drawn on the maps. */
+    map: { route: p.routeLine, /** Meet-ban outlines: amber on either map (fixed). */ ban: '#ffb547' },
+  };
+
+  const ELEVATION = {
+    flat: {},
+    /** Map chrome, toasts, a card floating over the map. */
+    float: { boxShadow: `0px 3px 10px ${p.shadow}` },
+    /** Toasts: a deeper shadow than map chrome, so a toast floats clear of the cards under it. */
+    toast: { boxShadow: `0px 6px 20px ${p.shadowDeep}` },
+    /** Bottom sheets. */
+    sheet: { boxShadow: `0px -4px 16px ${p.shadowSheet}` },
+    /** The ActionBar pinned to the bottom of a detail screen or form. */
+    bar: { boxShadow: `0px -2px 12px ${p.shadowBar}` },
+  };
+
+  return { C, LAYER, STATE, CLASS, SURFACE, TEXT, COLOR, ELEVATION };
+}
+
+const initial = build('dark');
+
+/**
+ * Colour roles. `C` keeps the role names (asphalt = page, tarmac = card, kerb = raised, chalk =
+ * text, fog = secondary text) whatever the mode; prefer `COLOR`.
+ * Pick by role, not by hue:
+ *   BRAND / ACTION  sodium fill: the one primary button and "selected" (segment, chip, tab).
+ *   LAYER           map layers and place identity only (pins, place headers, the layer bar).
+ *   STATE           live, success, warning, danger, info: never a layer colour.
+ *   CLASS           the S–D ramp for class badges.
+ *   SURFACE         backgrounds, glass overlays, scrims and borders.
+ */
+export const C = initial.C;
+/** The one brand fill: the primary button and selected states (and the wordmark's STREAM on dark). Never text on a light surface: use `COLOR.action.selected`. */
+export const BRAND = SODIUM;
+export const LAYER = initial.LAYER;
+export const STATE = initial.STATE;
+export const CLASS = initial.CLASS;
+export const SURFACE = initial.SURFACE;
+export const TEXT = initial.TEXT;
 /**
  * Semantic colour roles. Pick by role, never by hue.
- * - action: things you can tap or that are selected. Sodium means "tap this" or "on", nothing else.
- * - text: chalk for text, fog for secondary, `info` for neutral notes, `emphasis` for "you can go" style
- *   notes that used to be sodium.
+ * - action: `primary` is the fill (with `onPrimary` on it); `selected` is the brand as ink.
+ * - text: primary, secondary (fog), `info` for neutral notes.
  * - surface: page, card, raised, media, glass, scrim, borders.
+ * - media: text and glass drawn on photos (fixed).
  * - state: live, success, warning, danger, info. Never a layer colour.
  * - classMetal: the S–D class ladder. Only on ClassBadge.
- * - layer: map and place identity. Only on pins, the layers panel, an entity's kind eyebrow and accent.
- * - avatar: chalk on kerb. A person is not an action, so never sodium.
- * - paint: build card colours (not layer hexes).
+ * - layer: map and place identity. Only on pins, the layers panel and an entity's kind eyebrow
+ *   (through `inkFor` when used as text).
  */
-export const COLOR = {
-  action: {
-    primary: C.sodium,
-    onPrimary: C.ink,
-    /** Text links and tertiary buttons: chalk (Redesign 2, 5.4). Sodium is only the primary and "selected". */
-    link: C.chalk,
-    selected: C.sodium,
-    selectedTint: tint(C.sodium),
-    disabledBorder: line(C.sodium),
-    destructive: C.alert,
-  },
-  text: {
-    primary: C.chalk,
-    secondary: C.fog,
-    emphasis: C.chalk,
-    info: STATE.info,
-    onAction: C.ink,
-    disabled: C.fog,
-  },
-  surface: {
-    bg: SURFACE.bg,
-    card: SURFACE.surface,
-    raised: SURFACE.raised,
-    raisedHi: C.kerbHi,
-    /** Behind photos and build art while they load. */
-    media: '#111827',
-    glass: SURFACE.glass,
-    glassRaised: SURFACE.glassRaised,
-    sheet: SURFACE.sheet,
-    scrim: SURFACE.scrim,
-    border: SURFACE.border,
-    /** Inputs and anything that must read as a control: 3:1 or better. */
-    borderStrong: SURFACE.borderStrong,
-    skeleton: C.kerb,
-    /** The one gradient over photos (transparent → asphalt at 90%), bottom to top under titles. */
-    photoFade: ['rgba(11,15,23,0)', 'rgba(11,15,23,0.9)'],
-  },
-  state: {
-    live: STATE.live,
-    liveDot: STATE.liveDot,
-    success: STATE.success,
-    warning: STATE.warning,
-    danger: STATE.danger,
-    info: STATE.info,
-  },
-  classMetal: CLASS,
-  /** Number badges (unread messages, requests, notices): red, never sodium (Redesign 2, 4.8). */
-  badge: { bg: STATE.liveDot, fg: '#ffffff' },
-  layer: LAYER,
-  avatar: { bg: C.kerb, fg: C.chalk, border: C.kerbHi },
-  /** Chat bubbles: yours a solid blue, theirs the raised grey (REVIEW-10: yours read as grey too). */
-  chat: { own: '#24426e', ownBorder: outline(STATE.info), theirs: SURFACE.raised, theirsBorder: SURFACE.borderStrong },
-  paint: ['#e9edf4', '#1b1f27', '#c8102e', '#1f4fa8', '#f2c14e', '#2f7d4f', '#7a7f8a', '#e86a1c'],
-} as const;
+export const COLOR = initial.COLOR;
+export const ELEVATION = initial.ELEVATION;
+
+let mode: ThemeMode = 'dark';
+let version = 0;
+const listeners = new Set<() => void>();
+
+function assignDeep(target: unknown, source: unknown) {
+  const t = target as Record<string, unknown>;
+  const s = source as Record<string, unknown>;
+  for (const key of Object.keys(s)) {
+    const v = s[key];
+    if (v && typeof v === 'object') assignDeep(t[key], v);
+    else t[key] = v;
+  }
+}
+
+/** Switch the live tokens. Cheap and idempotent: call it as often as you like. */
+export function applyTheme(next: ThemeMode) {
+  if (next === mode) return;
+  const built = build(next);
+  assignDeep(C, built.C);
+  assignDeep(LAYER, built.LAYER);
+  assignDeep(STATE, built.STATE);
+  assignDeep(CLASS, built.CLASS);
+  assignDeep(SURFACE, built.SURFACE);
+  assignDeep(TEXT, built.TEXT);
+  assignDeep(COLOR, built.COLOR);
+  assignDeep(ELEVATION, built.ELEVATION);
+  mode = next;
+  version += 1;
+  listeners.forEach((l) => l());
+}
+
+export const getThemeMode = (): ThemeMode => mode;
+/** Bumps on every switch (themedStyles uses it to rebuild). */
+export const themeVersion = () => version;
+export function subscribeTheme(l: () => void) {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+/**
+ * A module-level StyleSheet that follows the theme:
+ *   const st = themedStyles(() => StyleSheet.create({ box: { backgroundColor: COLOR.surface.card } }));
+ * `st.box` is rebuilt the first time it is read after a theme switch.
+ */
+export function themedStyles<T extends object>(make: () => T): T {
+  let seen = -1;
+  let cache: T;
+  const get = () => {
+    if (seen !== version) {
+      cache = make();
+      seen = version;
+    }
+    return cache;
+  };
+  return new Proxy({} as T, {
+    get: (_t, key) => (get() as Record<string | symbol, unknown>)[key],
+    has: (_t, key) => key in (get() as object),
+    ownKeys: () => Reflect.ownKeys(get()),
+    getOwnPropertyDescriptor: (_t, key) => (key in (get() as object) ? { enumerable: true, configurable: true, value: (get() as Record<string | symbol, unknown>)[key] } : undefined),
+  });
+}
+
+// ---- contrast helpers (also used by the tests) ----
+const lin = (v: number) => {
+  const c = v / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+export function luminance(hex: string): number {
+  const n = parseInt(hex.slice(1, 7), 16);
+  return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+}
+export function contrast(a: string, b: string): number {
+  const x = luminance(a);
+  const y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+const toHex = (r: number, g: number, b: number) => `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+const memo = new Map<string, string>();
+/**
+ * A layer or brand hue used as TEXT or a thin icon: itself on dark, and on the light theme darkened
+ * (same hue) until it reads 4.5:1 on the card and the page. Fills (pins, chips) use the hue as is.
+ */
+export function inkFor(hex: string): string {
+  if (mode === 'dark' || !/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  const key = `${mode}${hex}`;
+  const hit = memo.get(key);
+  if (hit) return hit;
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 255;
+  let g = (n >> 8) & 255;
+  let b = n & 255;
+  const need = (c: string) => contrast(c, PALETTES.light.raised) >= 4.5;
+  let out = hex;
+  for (let i = 0; i < 40 && !need(out); i += 1) {
+    r *= 0.93;
+    g *= 0.93;
+    b *= 0.93;
+    out = toHex(r, g, b);
+  }
+  memo.set(key, out);
+  return out;
+}
 
 /**
  * Fixed colours that aren't roles, for drawings rather than UI: a real UK speed-limit sign (it
@@ -247,11 +473,11 @@ export const ART = {
   signRed: '#d61f1f',
   signBlack: '#111111',
   /** Glyphs and labels drawn on a filled pin or icon. */
-  ink: C.asphalt,
+  ink: '#0b0f17',
   /** Wheels and shadows in build art. */
   shadow: '#070a10',
   /** Bodywork in build art. */
-  body: C.kerb,
+  body: '#1d2636',
   /** The web preview's map: background and grid. */
   mapBg: '#080c13',
   /** The same for the day (light) map. */
@@ -259,8 +485,12 @@ export const ART = {
   /** The route preview's other options, under the chosen one (grey on either map). */
   routeOther: '#8a93a3',
   mapGrid: '#141c2a',
+  mapGridLight: '#d3d8d0',
   /** The web map's "you" dot: Apple's location blue, as on every phone map (Review 21 problem 5). */
   you: '#0a84ff',
+  /** The accuracy ring round it. */
+  youHalo: 'rgba(10,132,255,0.18)',
+  youRing: 'rgba(10,132,255,0.35)',
   /** A speed camera with no known limit: the camera layer, dimmed. */
   cameraDim: '#c45a5a',
   /** Native shadows (iOS shadowColor). */
@@ -339,22 +569,6 @@ export const TYPE_SCALE = {
   driveLabel: { fontFamily: F.labelBold, fontSize: 13, lineHeight: 16, letterSpacing: 1.2, caps: true, scale: 'drive' },
 } as const satisfies Record<string, TypeStyle>;
 export type TypeToken = keyof typeof TYPE_SCALE;
-
-/**
- * Elevation: only floating chrome and sheets cast a shadow. Cards on the page are flat
- * (a border, not a shadow). `boxShadow` works on iOS, Android (new architecture) and web.
- */
-export const ELEVATION = {
-  flat: {},
-  /** Map chrome, toasts, a card floating over the map. */
-  float: { boxShadow: '0px 3px 10px rgba(0,0,0,0.4)' },
-  /** Toasts: a deeper shadow than map chrome, so a toast floats clear of the cards under it. */
-  toast: { boxShadow: '0px 6px 20px rgba(0,0,0,0.6)' },
-  /** Bottom sheets. */
-  sheet: { boxShadow: '0px -4px 16px rgba(0,0,0,0.5)' },
-  /** The ActionBar pinned to the bottom of a detail screen or form. */
-  bar: { boxShadow: '0px -2px 12px rgba(0,0,0,0.45)' },
-} as const;
 
 /** Press feedback: one for controls, one for cards. */
 export const PRESS = {

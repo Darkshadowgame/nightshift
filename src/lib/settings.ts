@@ -4,6 +4,9 @@ import { DEFAULT_LAYERS, savedLayers, type SavedLayers } from './mapLayers';
 import { ALL_CATEGORIES, type ShopCategory } from './shopCategories';
 import type { MapOrientation, NavIcon } from './driveView';
 import type { MapStyleChoice } from './sun';
+
+export type AppearanceChoice = 'system' | 'light' | 'dark';
+export const APPEARANCE_LABELS: Record<AppearanceChoice, string> = { system: 'System', light: 'Light', dark: 'Dark' };
 import type { SpeechRate } from './voices';
 import type { SavedPlaces } from './whereTo';
 
@@ -58,6 +61,8 @@ export interface Settings {
    * sunset where you are (sun.ts). Set in Tonight's Layers and the driving view's ··· menu.
    */
   mapStyle?: MapStyleChoice;
+  /** The app's look: follow the phone (default), or always light or always dark. */
+  appearance?: AppearanceChoice;
   /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
   navCameraAlerts: boolean;
   /**

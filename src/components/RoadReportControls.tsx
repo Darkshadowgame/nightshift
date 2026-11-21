@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { KIND_INFO, promptText, REPORT_GRID, type RoadReport, type RoadReportKind, type RoadVote } from '../lib/roadReports';
-import { COLOR, RADII, ROAD_COLOUR, SPACING } from '../theme';
+import { COLOR, RADII, ROAD_COLOUR, SPACING, themedStyles } from '../theme';
 import { DsText, Press } from './ds';
 import { Pin } from './Pin';
 
@@ -75,7 +75,7 @@ export function StillTherePrompt({ report, onAnswer, onDismiss }: { report: Road
         </Press>
       </View>
       <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-        <Press onPress={() => onAnswer('still_there')} haptic="success" label="Yes, still there" style={[st.answer, { backgroundColor: COLOR.state.success }]}>
+        <Press onPress={() => onAnswer('still_there')} haptic="success" label="Yes, still there" style={[st.answer, { backgroundColor: COLOR.fill.success }]}>
           <DsText v="driveButton" tone="onAction">
             Yes
           </DsText>
@@ -99,7 +99,7 @@ export function ReportAlert({ text }: { text: string }) {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   backdrop: { backgroundColor: COLOR.surface.scrim },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: COLOR.surface.card, borderTopWidth: 3, borderTopColor: ROAD_COLOUR, padding: SPACING.md, gap: SPACING.sm },
   gridRow: { flexDirection: 'row', gap: SPACING.sm },
@@ -115,4 +115,4 @@ const st = StyleSheet.create({
   undo: { height: 60, minWidth: 120, borderRadius: RADII.card, backgroundColor: ROAD_COLOUR, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.md },
   answer: { flex: 1, height: 64, borderRadius: RADII.card, alignItems: 'center', justifyContent: 'center' },
   alert: { backgroundColor: ROAD_COLOUR, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
-});
+}));

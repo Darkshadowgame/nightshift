@@ -21,7 +21,7 @@ import { banConfirmText, zoneKind, zoneShapes } from '../../lib/zones';
 import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
 
 /** Meet bans drawn on the map: outlines only, explained in one line under it (Review 13: no unexplained hexagons). */
-const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.state.warning);
+const BAN_SHAPES = zoneShapes(BAN_ZONES, COLOR.map.ban);
 
 type Selected = number | 'new';
 

@@ -65,7 +65,7 @@ import { visibleSpots } from '../../lib/spots';
 import { useStore } from '../../lib/store';
 import { isSpectatorVenue } from '../../lib/tracks';
 import type { LatLng, SpotKind } from '../../lib/types';
-import { ART, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, SHOP_COLOUR, SPACING, SPOT_COLOURS } from '../../theme';
+import { ART, COLOR, ELEVATION, EVENT_COLOURS, LAYER, PARTNER_COLOUR, POST_COLOUR, RADII, SHOP_COLOUR, SPACING, SPOT_COLOURS, themedStyles } from '../../theme';
 
 /**
  * The layers Tonight's map can add to the events (owner decision 7: Posts stays, off by default;
@@ -958,7 +958,7 @@ export default function TonightScreen() {
   );
 }
 
-const st = StyleSheet.create({
+const st = themedStyles(() => StyleSheet.create({
   top: { zIndex: 2, paddingHorizontal: SPACING.screen, paddingBottom: SPACING.sm, gap: SPACING.xs, backgroundColor: COLOR.surface.bg, borderBottomWidth: 1, borderBottomColor: COLOR.surface.border },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   // The navigator header's right side sits flush to the edge (its height is ScreenHeader's HEADER_ROW).
@@ -980,4 +980,4 @@ const st = StyleSheet.create({
     { position: 'absolute', top: SPACING.sm, left: SPACING.screen, right: SPACING.screen, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingLeft: SPACING.md, borderRadius: RADII.card, borderWidth: 1, borderColor: COLOR.surface.raisedHi, backgroundColor: COLOR.surface.raised },
     ELEVATION.float,
   ] as never,
-});
+}));

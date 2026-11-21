@@ -1,12 +1,12 @@
 import { createContext, useContext } from 'react';
 import { Image, Text, View, type ImageSourcePropType } from 'react-native';
 import type { ClassLetter, VehicleKind } from '../../lib/types';
-import { COLOR, F, RADII, SPACING, outline } from '../../theme';
+import { ART, COLOR, F, RADII, SPACING, outline } from '../../theme';
 import { BuildArt } from '../BuildArt';
 import type { CarShape } from '../../lib/buildShape';
 import { initials } from './logic';
 import { FitImage } from './FitImage';
-import { DsText } from './Text';
+import { DsText, useOnMedia } from './Text';
 
 /** A photo: a URI string (photoUri(ref)) or a bundled image. */
 export type Photo = string | ImageSourcePropType;
@@ -89,7 +89,8 @@ const BADGE: Record<BadgeSize, number> = { sm: 22, md: 32, lg: 52, xl: 92 };
 /** A build's class letter in its metal. Belongs to a build, never to a person. */
 export function ClassBadge({ letter, size = 'md', decorative }: { letter: ClassLetter; size?: BadgeSize; decorative?: boolean }) {
   const dim = BADGE[size];
-  const colour = COLOR.classMetal[letter];
+  const media = useOnMedia();
+  const colour = media ? COLOR.media.class[letter] : COLOR.classMetal[letter];
   return (
     <View
       accessible={!decorative}
@@ -104,7 +105,7 @@ export function ClassBadge({ letter, size = 'md', decorative }: { letter: ClassL
         borderRadius: RADII.tag,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLOR.surface.bg,
+        backgroundColor: media ? ART.ink : COLOR.surface.bg,
         transform: [{ skewX: '-8deg' }],
       }}
     >
@@ -152,27 +153,29 @@ export type TagTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'l
  * states only (no layer colours). `raw` keeps the text as typed (names).
  */
 export function Tag({ label, tone = 'neutral', raw, accessibilityLabel }: { label: string; tone?: TagTone; raw?: boolean; accessibilityLabel?: string }) {
+  const media = useOnMedia();
+  const S = media ? COLOR.media.state : COLOR.state;
   const c =
     tone === 'success'
-      ? COLOR.state.success
+      ? S.success
       : tone === 'warning'
-        ? COLOR.state.warning
+        ? S.warning
         : tone === 'danger'
-          ? COLOR.state.danger
+          ? S.danger
           : tone === 'info'
-            ? COLOR.state.info
+            ? S.info
             : tone === 'live'
-              ? COLOR.state.live
+              ? S.live
               : tone === 'selected'
-                ? COLOR.text.primary
-                : COLOR.text.secondary;
+                ? media ? COLOR.media.text : COLOR.text.primary
+                : media ? COLOR.media.muted : COLOR.text.secondary;
   return (
     <View
       accessible
       accessibilityLabel={accessibilityLabel ?? label}
       style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, borderWidth: 1, borderColor: outline(c), borderRadius: RADII.tag, paddingHorizontal: SPACING.xs + SPACING.xxs, paddingVertical: SPACING.xxs }}
     >
-      {tone === 'live' ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLOR.state.liveDot }} /> : null}
+      {tone === 'live' ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: S.liveDot }} /> : null}
       <DsText v="tag" numberOfLines={1} style={[{ color: c }, raw && { textTransform: 'none', letterSpacing: 0.3 }]}>
         {label}
       </DsText>

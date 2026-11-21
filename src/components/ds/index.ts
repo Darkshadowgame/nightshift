@@ -4,7 +4,7 @@
  */
 // Web: hide the browser's scroll bars, so nothing draws over photos (Review 12 decision 3).
 import './webScrollbars';
-export { DsText, typeStyle, maxScale, type TextTone } from './Text';
+export { DsText, OnMedia, useOnMedia, typeStyle, maxScale, type TextTone } from './Text';
 export { Icon, type IconName } from './Icon';
 export { Press, buzz, type Haptic } from './Press';
 export { Button, IconButton, type ButtonTier, type ButtonSize } from './Button';

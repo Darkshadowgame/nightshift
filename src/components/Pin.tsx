@@ -1,7 +1,7 @@
 import { memo, useId, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { ART, COLOR, RADII, SPACING } from '../theme';
+import { ART, COLOR, contrast, getThemeMode, inkFor, RADII, SPACING } from '../theme';
 import { DsText } from './ds/Text';
 
 export type Glyph =
@@ -66,12 +66,18 @@ export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rollin
  */
 export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string }) {
   const filled = FILLED_GLYPHS.has(glyph);
+  // Dark theme: a dark badge with a coloured rim. Light theme: a pale badge with the rim and glyph
+  // darkened to read (inkFor), so a pin is as legible on a page or a light map as on a dark one.
+  const light = getThemeMode() === 'light';
+  const body = light ? COLOR.surface.card : INK;
+  const rim = filled ? colour : light ? inkFor(colour) : colour;
+  const glyphInk = filled ? (contrast(colour, INK) >= 4.5 ? INK : ART.signWhite) : rim;
   const svg = (
     <Svg width={size} height={size} viewBox="0 0 40 40">
       {/* A dark halo first, so a pin reads clearly over the map's own labels (Review 19). */}
-      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={INK} stroke={INK} strokeWidth={5} strokeLinejoin="round" />
-      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={filled ? colour : INK} stroke={colour} strokeWidth={2.5} />
-      <GlyphShape glyph={glyph} c={filled ? INK : colour} />
+      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={body} stroke={body} strokeWidth={5} strokeLinejoin="round" />
+      <Path d="M20 2 36 11v18L20 38 4 29V11Z" fill={filled ? colour : body} stroke={rim} strokeWidth={2.5} />
+      <GlyphShape glyph={glyph} c={glyphInk} cut={body} />
     </Svg>
   );
   if (!count && !badge) return svg;
@@ -83,7 +89,7 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge }:
       <View
         style={{
           position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: RADII.pill, paddingHorizontal: SPACING.xs,
-          backgroundColor: COLOR.text.primary, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: COLOR.media.text, borderWidth: 1.5, borderColor: INK, alignItems: 'center', justifyContent: 'center',
         }}
       >
         <DsText v="tag" style={{ color: INK, lineHeight: 13, letterSpacing: 0 }}>
@@ -124,7 +130,7 @@ export function PinHalo({ size, children, on = true }: { size: number; children:
   );
 }
 
-function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
+function GlyphShape({ glyph, c, cut }: { glyph: Glyph; c: string; cut: string }) {
   switch (glyph) {
     case 'crash':
       // A starburst: something hit something.
@@ -142,7 +148,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Path d="M17.5 11h5l4 16h-13Z" fill={c} />
-          <Rect x={15.6} y={17.5} width={8.8} height={3} fill={INK} />
+          <Rect x={15.6} y={17.5} width={8.8} height={3} fill={cut} />
           <Rect x={11} y={27} width={18} height={2.6} rx={1} fill={c} />
         </>
       );
@@ -151,7 +157,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Circle cx={20} cy={20} r={9.5} fill={c} />
-          <Rect x={13} y={18.4} width={14} height={3.2} rx={0.8} fill={INK} />
+          <Rect x={13} y={18.4} width={14} height={3.2} rx={0.8} fill={cut} />
         </>
       );
     case 'traffic':
@@ -169,7 +175,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
         <>
           <Rect x={11} y={11} width={15} height={9} rx={1.5} fill={c} />
           <Path d="M26 13.5h3v4h-3" fill="none" stroke={c} strokeWidth={1.8} />
-          <Circle cx={16} cy={15.5} r={2.4} fill={INK} />
+          <Circle cx={16} cy={15.5} r={2.4} fill={cut} />
           <Path d="M18.5 20l-5 10M18.5 20v10M18.5 20l5 10" stroke={c} strokeWidth={2} strokeLinecap="round" />
         </>
       );
@@ -178,7 +184,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Path d="M20 9.5l8.5 3.2v6.1c0 5.7-3.7 9.6-8.5 11.9-4.8-2.3-8.5-6.2-8.5-11.9v-6.1Z" fill={c} />
-          <Path d="M16 19.5l3 3 5.5-6" fill="none" stroke={INK} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M16 19.5l3 3 5.5-6" fill="none" stroke={cut} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
         </>
       );
     case 'show':
@@ -234,7 +240,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Path d="M15 31C15 24.5 25.5 25 25.5 19S16.5 14 18.5 9" fill="none" stroke={c} strokeWidth={6.4} strokeLinecap="round" />
-          <Path d="M15 31C15 24.5 25.5 25 25.5 19S16.5 14 18.5 9" fill="none" stroke={INK} strokeWidth={1.4} strokeDasharray="2.4 2.2" />
+          <Path d="M15 31C15 24.5 25.5 25 25.5 19S16.5 14 18.5 9" fill="none" stroke={cut} strokeWidth={1.4} strokeDasharray="2.4 2.2" />
         </>
       );
     case 'track':
@@ -325,7 +331,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
         <>
           <Rect x={10} y={13} width={15} height={10} rx={1.5} fill={c} />
           <Path d="M25 15.5h3.5v5H25" fill="none" stroke={c} strokeWidth={2} />
-          <Circle cx={15} cy={18} r={2.6} fill={INK} />
+          <Circle cx={15} cy={18} r={2.6} fill={cut} />
           <Path d="M17.5 23v7" stroke={c} strokeWidth={2.6} strokeLinecap="round" />
         </>
       );
@@ -334,7 +340,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Rect x={13} y={11} width={12} height={8} rx={1.2} fill={c} />
-          <Circle cx={17} cy={15} r={2} fill={INK} />
+          <Circle cx={17} cy={15} r={2} fill={cut} />
           <Path d="M25 13h3v4h-3" fill="none" stroke={c} strokeWidth={1.8} />
           <Path d="M9 27h22" stroke={c} strokeWidth={2.6} strokeLinecap="round" strokeDasharray="4 3" />
           <Path d="M9 23v8M31 23v8" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
@@ -345,7 +351,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Path d="M20 30.5c-4.6-5.2-7-9-7-12.3a7 7 0 0 1 14 0c0 3.3-2.4 7.1-7 12.3z" fill={c} />
-          <Circle cx={20} cy={18.2} r={2.6} fill={INK} />
+          <Circle cx={20} cy={18.2} r={2.6} fill={cut} />
         </>
       );
     case 'area':
@@ -375,7 +381,7 @@ function GlyphShape({ glyph, c }: { glyph: Glyph; c: string }) {
       return (
         <>
           <Path d="M11 25c0-6.5 4-11 9.5-11 5.2 0 8.5 3.8 8.5 9v4H11z" fill={c} />
-          <Path d="M19 19.5h9" stroke={INK} strokeWidth={2.6} strokeLinecap="round" />
+          <Path d="M19 19.5h9" stroke={cut} strokeWidth={2.6} strokeLinecap="round" />
         </>
       );
     case 'dealer':
@@ -444,8 +450,8 @@ export const YOU_LABEL = 'You are here';
 export function YouDot() {
   return (
     <View testID="you-marker" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,132,255,0.18)', borderWidth: 1, borderColor: 'rgba(10,132,255,0.35)' }} />
-      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: ART.you, borderWidth: 3, borderColor: COLOR.text.primary }} />
+      <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: ART.youHalo, borderWidth: 1, borderColor: ART.youRing }} />
+      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: ART.you, borderWidth: 3, borderColor: ART.signWhite }} />
     </View>
   );
 }
