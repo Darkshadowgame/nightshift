@@ -11,6 +11,8 @@ import { paddedRegion, type MapCircle, type MapPath, type MapPin, type MapPolygo
 import type { LatLng } from '../lib/types';
 
 const MILE_M = 1609.34;
+/** How faint a pin is drawn when the Time check says its meet isn't on. */
+const FADED = 0.3;
 
 /** Coordinates in the map's shape, worked out once per points array (the arrays are stable between renders). */
 const coordCache = new WeakMap<readonly LatLng[], { latitude: number; longitude: number }[]>();
@@ -59,6 +61,7 @@ const PinMarker = memo(
               onPress={() => onSelect(pin.id)}
               tracksViewChanges={m.tracksViewChanges}
               zIndex={m.zIndex}
+              opacity={pin.faded ? FADED : 1}
               anchor={{ x: 0.5, y: 0.5 }}
               accessibilityLabel={label}
             >
@@ -77,7 +80,7 @@ const PinMarker = memo(
     a.pin.size === b.pin.size &&
     a.pin.live === b.pin.live &&
     a.pin.count === b.pin.count &&
-    a.pin.badge === b.pin.badge && a.pin.done === b.pin.done &&
+    a.pin.badge === b.pin.badge && a.pin.done === b.pin.done && a.pin.faded === b.pin.faded &&
     a.pin.title === b.pin.title &&
     a.pin.at.lat === b.pin.at.lat &&
     a.pin.at.lng === b.pin.at.lng,
@@ -96,8 +99,9 @@ const PathLine = memo(function PathLine({ path }: { path: MapPath }) {
 
 const Ring = memo(function Ring({ c }: { c: MapCircle }) {
   const center = useMemo(() => ({ latitude: c.centre.lat, longitude: c.centre.lng }), [c.centre.lat, c.centre.lng]);
+  if (c.glow) return <Circle center={center} radius={c.radiusMiles * MILE_M} strokeColor="transparent" fillColor={`${c.colour}26`} strokeWidth={0} />;
   return <Circle center={center} radius={c.radiusMiles * MILE_M} strokeColor={`${c.colour}99`} fillColor={`${c.colour}1f`} strokeWidth={1.5} />;
-}, (a, b) => a.c.centre.lat === b.c.centre.lat && a.c.centre.lng === b.c.centre.lng && a.c.radiusMiles === b.c.radiusMiles && a.c.colour === b.c.colour);
+}, (a, b) => a.c.centre.lat === b.c.centre.lat && a.c.centre.lng === b.c.centre.lng && a.c.radiusMiles === b.c.radiusMiles && a.c.colour === b.c.colour && a.c.glow === b.c.glow);
 
 const Outline = memo(function Outline({ p }: { p: MapPolygon }) {
   return <Polygon coordinates={toCoords(p.coords)} strokeColor={`${p.colour}99`} fillColor={`${p.colour}1f`} strokeWidth={1.5} />;

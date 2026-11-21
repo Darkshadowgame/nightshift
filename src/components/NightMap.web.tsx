@@ -168,7 +168,13 @@ export function NightMap(props: NightMapProps) {
       label: pinLabel(p),
       onClick: () => latest.current.onSelect?.(p.id),
       // Meets and clusters on the dark map get the label-quieting pool (Review 21 gap 5); small cards have no labels.
-      face: <PinFace pin={p} halo={appearance === 'dark' && props.labels !== false} />,
+      face: p.faded ? (
+        <View style={{ opacity: 0.3 }}>
+          <PinFace pin={p} halo={appearance === 'dark' && props.labels !== false} />
+        </View>
+      ) : (
+        <PinFace pin={p} halo={appearance === 'dark' && props.labels !== false} />
+      ),
     }));
     // You: the blue dot with a soft accuracy ring, as on every phone map (Review 21 problem 5).
     if (props.you) out.push({ id: '__you', lat: props.you.lat, lng: props.you.lng, size: 44, z: 8, label: YOU_LABEL, face: <YouDot /> });
@@ -205,8 +211,11 @@ function useShapes(lf: { L: L; map: Leaflet.Map } | null, paths: MapPath[], circ
       });
     for (const c of circles)
       want.set(`c:${c.id}`, {
-        key: [c.centre.lat, c.centre.lng, c.radiusMiles, c.colour],
-        make: () => L.circle(ll(c.centre), { radius: c.radiusMiles * MILE_M, color: c.colour, opacity: 0.6, weight: 1.5, fillColor: c.colour, fillOpacity: 0.12, interactive: false }),
+        key: [c.centre.lat, c.centre.lng, c.radiusMiles, c.colour, c.glow],
+        make: () =>
+          L.circle(ll(c.centre), c.glow
+            ? { radius: c.radiusMiles * MILE_M, stroke: false, fillColor: c.colour, fillOpacity: 0.15, interactive: false }
+            : { radius: c.radiusMiles * MILE_M, color: c.colour, opacity: 0.6, weight: 1.5, fillColor: c.colour, fillOpacity: 0.12, interactive: false }),
       });
     for (const p of paths)
       want.set(`p:${p.id}`, {
