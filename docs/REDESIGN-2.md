@@ -1288,3 +1288,13 @@ done a drive or photo location maybe do a subtle tick or make it greyed out."
   Tracks and venues are information only, never done. The tick is never the only signal: the map pin's
   label, row and tag all say "done" in words. Theme tokens only (`COLOR.state.success`, AA on the page and
   card in both themes, `__tests__/mapFocus.test.ts`).
+
+### 9.x Forum scope and groups (owner request, 21 Nov 2026)
+* The forum list opens with a two-way SegmentedControl, Everyone (the whole UK) and Local (your region). It
+  switches the view below it, so 4.4 holds; the last choice is kept in settings. In the composer the same
+  choice is a ChoiceGroup ("Who is it for?"), because it's a form field.
+* Make and model groups (SEAT Leon, BMW) come from `src/data/vehicles`, not a hand list. Joining is a
+  personal list on the phone. A group page is the forum filtered, with the toggle; its one primary is
+  "New thread", and Join group is a secondary button.
+* Local is no longer a board chip (the toggle replaces it); Meets takes its place and defaults to Local.
+

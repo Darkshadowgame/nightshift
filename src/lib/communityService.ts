@@ -25,6 +25,7 @@ import {
   type BoardKey,
   type ForumRep,
   type ForumReply,
+  type ForumScope,
   type ForumThread,
   type SolvedRecord,
   type ThreadDraft,
@@ -48,6 +49,10 @@ import { MEDIA_LIMITS, type MediaLimits } from './mediaLimits';
 export interface ThreadQuery {
   board: BoardKey | 'all';
   region?: string | null;
+  /** Everyone (the whole UK, the default) or Local (your region). */
+  scope?: ForumScope;
+  /** A forum group's key: its threads only. */
+  group?: string | null;
   sort: ThreadSort;
   query?: string;
 }
@@ -496,7 +501,7 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       const s = ctx.get();
       const bl = blocked();
       const visible = s.threads.filter((t) => !bl.has(t.authorId) && (!t.hidden || t.authorId === ME));
-      return sortThreads(searchThreads(threadsFor(visible, q.board, q.region ?? null), q.query ?? ''), q.sort);
+      return sortThreads(searchThreads(threadsFor(visible, q.board, q.region ?? null, q.scope ?? 'everyone', q.group), q.query ?? ''), q.sort);
     },
     async thread(id) {
       const s = ctx.get();
@@ -512,7 +517,7 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       const p = threadProblem(d);
       if (p) throw new Error(p);
       const t: ForumThread = {
-        id: newId('ft'), board: d.board, region: d.board === 'local' ? d.region : undefined, authorId: ME, title: d.title.trim(), body: d.body.trim(),
+        id: newId('ft'), board: d.board, region: d.region, ...(d.groupKey ? { groupKey: d.groupKey } : {}), authorId: ME, title: d.title.trim(), body: d.body.trim(),
         photos: d.photos, buildId: d.buildId, createdAt: iso(), lastActivityAt: iso(), replyCount: 0,
         ...(d.board === 'for_sale' ? { listing: cleanListing(d.listing ?? { kind: 'sale' }) } : {}),
       };

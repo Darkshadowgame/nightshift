@@ -108,6 +108,10 @@ export interface Settings {
    * only: there is no profile column for it yet. Left out: your main vehicle's photo.
    */
   avatarRef?: string | null;
+  /** Forum: who the thread list is for, Everyone or Local; the last choice is kept. */
+  forumScope?: 'everyone' | 'local';
+  /** Forum: make and model groups you've joined (keys from forumGroups.ts). */
+  forumGroups?: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {

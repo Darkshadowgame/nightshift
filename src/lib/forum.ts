@@ -1,4 +1,5 @@
 import { textProblem } from './moderation';
+import { inGroup } from './forumGroups';
 import { REGIONS } from './profile';
 
 /**
@@ -20,9 +21,9 @@ export const BOARDS: readonly { key: BoardKey; label: string; hint: string; titl
   { key: 'cars', label: 'Cars', hint: 'Anything on four wheels.', title: 'e.g. GR Yaris or Type R as a daily?', body: 'Say what you think and why. Pictures welcome.' },
   { key: 'bikes', label: 'Bikes', hint: 'Anything on two wheels.', title: 'e.g. First winter with an R1', body: 'Say what you think and why. Pictures welcome.' },
   { key: 'detailing', label: 'Detailing', hint: 'Washing, polishing, wraps and tints.', title: 'e.g. Ceramic coat or wax on a daily?', body: 'Paint, colour, how it lives (garaged or outside), and what you use now.' },
-  { key: 'meets', label: 'Meets and events', hint: 'Talk about events. Never where police are.', title: 'e.g. Parking tips for Sunday’s show', body: 'Which event, and what you want to know or share. Nothing about where police are.' },
+  { key: 'meets', label: 'Meets', hint: 'Talk about meets and shows. Never where police are.', title: 'e.g. Parking tips for Sunday’s show', body: 'Which meet, and what you want to know or share. Nothing about where police are.' },
   { key: 'for_sale', label: 'For sale and wanted', hint: 'Posts only: no payments through Slipstream.', title: 'e.g. FK8 rear wing, Championship White', body: 'Condition, mileage or age, part numbers, what it fits, where you are…' },
-  { key: 'local', label: 'Local', hint: 'Your region.', title: 'e.g. Coffee stops that welcome a few cars?', body: 'Where roughly, and what you have in mind.' },
+  { key: 'local', label: 'Local', hint: 'Your region.', title: 'e.g. Cafes that welcome a few cars?', body: 'Where roughly, and what you have in mind.' },
 ];
 
 export function boardLabel(key: BoardKey): string {
@@ -32,8 +33,10 @@ export function boardLabel(key: BoardKey): string {
 export interface ForumThread {
   id: string;
   board: BoardKey;
-  /** Local board only. */
+  /** Set: the thread is Local (for people in this region). Unset: Everyone. The Local board always has one. */
   region?: string;
+  /** A make or model group it was posted in (forumGroups.ts). */
+  groupKey?: string;
   authorId: string;
   title: string;
   body: string;
@@ -68,7 +71,9 @@ export interface ForumReply {
 
 export interface ThreadDraft {
   board: BoardKey;
+  /** Set: Local to this region. Unset: Everyone. */
   region?: string;
+  groupKey?: string;
   title: string;
   body: string;
   photos: string[];
@@ -188,7 +193,9 @@ export function threadProblem(d: ThreadDraft): string | null {
   if (title.length < LIMITS.title[0]) return 'Give it a title of at least 4 characters.';
   if (title.length > LIMITS.title[1]) return 'Keep the title to 120 characters or fewer.';
   if (d.body.trim().length > LIMITS.body) return 'Keep it to 5,000 characters or fewer.';
-  if (d.board === 'local' && !REGIONS.some((r) => r.name === d.region)) return 'Pick a region for the Local board.';
+  if (d.board === 'local' && !d.region) return 'Pick a region for the Local board.';
+  if (d.region && !REGIONS.some((r) => r.name === d.region)) return 'Pick a region from the list.';
+  if (d.groupKey && !/^[a-z0-9-]{1,40}(:[a-z0-9-]{1,60})?$/.test(d.groupKey)) return 'Pick a group from the list.';
   if (d.photos.length > LIMITS.photos) return 'Up to 10 photos a post.';
   if (d.board === 'for_sale' && d.listing) {
     const l = listingProblem(d.listing);
@@ -227,8 +234,35 @@ export function ilikePattern(query: string): string {
   return `%${query.trim().replace(/[\\%_]/g, (c) => `\\${c}`).replace(/\s+/g, '%')}%`;
 }
 
-export function threadsFor(threads: ForumThread[], board: BoardKey | 'all', region: string | null): ForumThread[] {
-  return threads.filter((t) => (board === 'all' ? true : t.board === board) && (board !== 'local' || !region || t.region === region));
+/** Who a thread list is for: Everyone (the whole UK) or Local (your region). */
+export type ForumScope = 'everyone' | 'local';
+
+export const SCOPES: { key: ForumScope; label: string }[] = [
+  { key: 'everyone', label: 'Everyone' },
+  { key: 'local', label: 'Local' },
+];
+
+export function isScope(x: unknown): x is ForumScope {
+  return x === 'everyone' || x === 'local';
+}
+
+/** Everyone is threads for the whole UK (no region). Local is threads for your region. */
+export function inScope(t: Pick<ForumThread, 'region'>, scope: ForumScope, region: string | null): boolean {
+  return scope === 'local' ? !!t.region && (!region || t.region === region) : !t.region;
+}
+
+/**
+ * Threads for a board, scope and group. A group is a filtered forum: a make group takes its
+ * models' threads too.
+ */
+export function threadsFor(
+  threads: ForumThread[],
+  board: BoardKey | 'all',
+  region: string | null,
+  scope: ForumScope = 'everyone',
+  group?: string | null,
+): ForumThread[] {
+  return threads.filter((t) => (board === 'all' ? true : t.board === board) && inScope(t, scope, region) && (!group || inGroup(t.groupKey, group)));
 }
 
 // ---------------------------------------------------------------------------
