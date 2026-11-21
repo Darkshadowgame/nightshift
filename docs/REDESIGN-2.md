@@ -1298,3 +1298,15 @@ done a drive or photo location maybe do a subtle tick or make it greyed out."
   "New thread", and Join group is a secondary button.
 * Local is no longer a board chip (the toggle replaces it); Meets takes its place and defaults to Local.
 
+
+### 9.y Profile picture from the photo library (owner request, 21 Nov 2026)
+* The Profile photo sheet (tap your picture on Me) has three plain rows, no button, so 4.4 holds: Choose from
+  library, Choose from my vehicles, and (only once you have chosen one) Use my main vehicle, which goes back to the
+  default. A library photo goes through the same crop (square) and plate check as every photo, so nothing new to
+  learn and no new native module (expo-image-picker was already in).
+* The choice is saved on your profile (`profiles.avatar_ref`, migration `20261121150000_profile_avatar.sql`, set
+  only through `set_avatar()`), so everyone sees it: Me, People, forum, chat, going lists. Order everywhere:
+  their picture, else their main vehicle's photo, else initials (`AvatarPhotos`). In the demo it is kept on the
+  demo person instead.
+* The old per-phone choice (`settings.avatarRef`) is moved onto the profile once, if the profile has none, then
+  cleared; the setting is no longer read for display. Rules in `src/lib/avatar.ts`.

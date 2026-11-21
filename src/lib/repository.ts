@@ -30,6 +30,12 @@ export interface Repository {
   changePlan(eventId: string, change: PlanChange): Promise<{ warning?: string }>;
   saveProfile(draft: ProfileDraft): Promise<void>;
   setTravelPrefs(prefs: { travelMiles?: number; alerts?: AlertMode }): Promise<void>;
+  /**
+   * Your profile picture (avatar.ts): a photo ref (a library pick, or one of your vehicle photos), or null
+   * for the default. Signed in it is uploaded and saved on your profile for everyone to see; in the demo it is
+   * kept on the demo person. `onlyIfNone`: leave an existing choice alone (moving the old per-phone choice up).
+   */
+  setAvatar(ref: string | null, onlyIfNone?: boolean): Promise<void>;
   setGoing(eventId: string, going: boolean, buildId?: string): Promise<'going' | 'requested' | 'none'>;
   answerRequest(eventId: string, userId: string, approve: boolean): Promise<void>;
   /**

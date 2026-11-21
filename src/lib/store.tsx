@@ -71,6 +71,8 @@ interface Store extends Persisted {
   changePlan: (eventId: string, change: PlanChange) => Promise<{ warning?: string }>;
   /** Save the person's own profile. Rejects with a readable reason if something is missing. */
   saveProfile: (draft: ProfileDraft) => Promise<void>;
+  /** Your profile picture: a photo ref, or null for the default (your main vehicle's photo). Everyone sees it. */
+  setAvatar: (ref: string | null, onlyIfNone?: boolean) => Promise<void>;
   /**
    * Going, or for people the invite doesn't cover (with that build), a request a host must approve.
    * `buildId`: the car or bike you're bringing; another one later is a vehicle change. False drops out or withdraws.
@@ -616,6 +618,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       editEvent: async (e) => need().editEvent(e),
       changePlan: async (id, change) => need().changePlan(id, change),
       saveProfile: async (draft) => need().saveProfile(draft),
+      setAvatar: async (ref, onlyIfNone) => need().setAvatar(ref, onlyIfNone),
       setGoing: async (id, going, buildId) => {
         // Saved at once, not debounced: a reload straight after I'm going keeps it (Review 18).
         saveNowUntil.current = realNowMs() + 2000;

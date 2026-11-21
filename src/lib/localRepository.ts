@@ -117,6 +117,18 @@ export function createLocalRepository(ctx: LocalContext): Repository {
         return keepsScene(s.scene?.home, home) ? next : redrawScene(next, home, appNow());
       });
     },
+    async setAvatar(ref, onlyIfNone = false) {
+      if (onlyIfNone && get().users.find((u) => u.id === ME)?.avatarRef) return;
+      set((s) => ({
+        ...s,
+        users: s.users.map((u) => {
+          if (u.id !== ME) return u;
+          const rest = { ...u };
+          delete rest.avatarRef;
+          return ref ? { ...rest, avatarRef: ref } : rest;
+        }),
+      }));
+    },
     async setTravelPrefs({ travelMiles, alerts }) {
       const problem = (travelMiles !== undefined && travelProblem(travelMiles)) || (alerts !== undefined && alertProblem(alerts));
       if (problem) throw new Error(problem);

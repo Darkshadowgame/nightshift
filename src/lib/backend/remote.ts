@@ -11,6 +11,8 @@ import type { BackendExtras, Repository } from '../repository';
 import { draftProblem, driveMiles, judgeRun } from '../spots';
 import type { Build, ChatMessage, PlaceRep, Spot, User } from '../types';
 import { uuid } from '../ids';
+import { avatarUploadPath, ownPath, planAvatar } from '../avatar';
+import { isMissingColumn } from '../mediaLimits';
 import { SPAM_PROBLEMS } from '../moderation';
 import type { PendingFeedback } from '../feedbackQueue';
 import {
@@ -253,11 +255,31 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     });
   }
 
-  async function loadPeople(): Promise<Pick<Persisted, 'users' | 'crews' | 'onboarded'> & { onboardedAt?: string }> {
-    const [profiles, homes, settings, crewRows] = await Promise.all([
+  /**
+   * Profiles, with each person's picture once the server has `avatar_ref`
+   * (20261121150000_profile_avatar.sql). Before that, the older columns only: nobody has a picture.
+   */
+  let avatarsOn = true;
+  async function loadProfiles(): Promise<(ProfileRow & { onboarded_at: string | null })[]> {
+    const readOld = () =>
       call<(ProfileRow & { onboarded_at: string | null })[]>(() =>
         client.from('profiles').select('id,handle,display_name,region,onboarded,onboarded_at').or(`onboarded.eq.true,id.eq.${uid}`).limit(2000),
-      ),
+      );
+    if (!avatarsOn) return readOld();
+    try {
+      return await call<(ProfileRow & { onboarded_at: string | null })[]>(() =>
+        client.from('profiles').select('id,handle,display_name,region,onboarded,onboarded_at,avatar_ref').or(`onboarded.eq.true,id.eq.${uid}`).limit(2000),
+      );
+    } catch (e) {
+      if (!(e instanceof Error) || !isMissingColumn({ message: e.message })) throw e;
+      avatarsOn = false;
+      return readOld();
+    }
+  }
+
+  async function loadPeople(): Promise<Pick<Persisted, 'users' | 'crews' | 'onboarded'> & { onboardedAt?: string }> {
+    const [profiles, homes, settings, crewRows] = await Promise.all([
+      loadProfiles(),
       call<HomeRow[]>(() => client.from('my_home').select('user_id,lat,lng')),
       call<SettingsRow[]>(() => client.from('profile_settings').select('travel_miles,new_event_alerts')),
       call<CrewRow[]>(() => client.from('crews').select('id,name,tag,crew_members(user_id,role,joined_at)').limit(1000)),
@@ -266,9 +288,12 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     const crewOf = new Map<string, string>();
     for (const c of crews) for (const m of c.memberIds) crewOf.set(m, c.id);
     const meRow = profiles.find((p) => p.id === uid) ?? { id: uid, handle: null, display_name: null, region: null, onboarded: false, onboarded_at: null };
+    // Profile pictures (20261121150000): Storage paths, shown through signed links.
+    const links = await signed(profiles.flatMap((p) => (p.avatar_ref ? [p.avatar_ref] : [])));
+    const pic = (p: { avatar_ref?: string | null }) => (p.avatar_ref ? links.get(p.avatar_ref) : undefined);
     const users: User[] = [
-      userFromRows(meRow, { home: homes.find((h) => h.user_id === uid) ?? null, settings: settings[0] ?? null, crewId: crewOf.get(uid) }),
-      ...profiles.filter((p) => p.id !== uid).map((p) => userFromRows(p, { crewId: crewOf.get(p.id) })),
+      userFromRows(meRow, { home: homes.find((h) => h.user_id === uid) ?? null, settings: settings[0] ?? null, crewId: crewOf.get(uid), avatar: pic(meRow) }),
+      ...profiles.filter((p) => p.id !== uid).map((p) => userFromRows(p, { crewId: crewOf.get(p.id), avatar: pic(p) })),
     ];
     return { users, crews, onboarded: meRow.onboarded, ...(meRow.onboarded_at ? { onboardedAt: meRow.onboarded_at } : {}) };
   }
@@ -634,6 +659,29 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       await refreshPeople();
       // A new home changes which events are near you: read them again.
       await quietly(loadEvents().then((ev) => set((s) => ({ ...s, ...ev }))));
+    },
+    async setAvatar(ref, onlyIfNone = false) {
+      const me = get().users.find((u) => u.id === uid);
+      // Read the server's own copy first when asked to keep an existing choice (the phone's saved copy can be stale).
+      if (onlyIfNone) {
+        const rows = await call<{ avatar_ref: string | null }[]>(() => client.from('profiles').select('avatar_ref').eq('id', uid));
+        if (rows[0]?.avatar_ref) return;
+      }
+      const plan = planAvatar(ref, uid);
+      if (plan.kind === 'refuse') throw new Error("That photo can't be your profile picture.");
+      const before = me?.avatarRef ? ownPath(me.avatarRef, uid) : null;
+      let path: string | null = null;
+      if (plan.kind === 'path') path = plan.path;
+      if (plan.kind === 'upload') {
+        // The same upload as every other photo: plates were blurred on the phone before it got here.
+        path = `${uid}/avatar/${uuid()}.jpg`;
+        await upload(path, plan.ref);
+      }
+      await rpc('set_avatar', { p_ref: path });
+      // An older library picture of yours is no use now. Best effort.
+      const old = avatarUploadPath(before, uid);
+      if (old && old !== path) await Promise.resolve(client.storage.from('photos').remove([old])).catch(() => {});
+      await refreshPeople();
     },
     async setTravelPrefs({ travelMiles, alerts }) {
       const me = get().users.find((u) => u.id === uid);

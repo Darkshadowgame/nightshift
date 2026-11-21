@@ -14,7 +14,7 @@ import type { Build, ClassLetter, DynoRun, Crew, EngineSwap, EventType, LatLng, 
 // Rows (only the columns the app reads)
 // ---------------------------------------------------------------------------
 
-export interface ProfileRow { id: string; handle: string | null; display_name: string | null; region: string | null; onboarded: boolean }
+export interface ProfileRow { id: string; handle: string | null; display_name: string | null; region: string | null; onboarded: boolean; avatar_ref?: string | null }
 export interface HomeRow { user_id: string; lat: number; lng: number }
 export interface SettingsRow { travel_miles: number; new_event_alerts: AlertMode }
 export interface ModRow { id: string; build_id?: string; category: ModCategory; name: string; bhp_gain: number | null; position: number; note?: string | null }
@@ -89,7 +89,7 @@ const num = (v: number | string | null | undefined): number | undefined => (v ==
 // People
 // ---------------------------------------------------------------------------
 
-export function userFromRows(p: ProfileRow, opts: { home?: HomeRow | null; settings?: SettingsRow | null; crewId?: string } = {}): User {
+export function userFromRows(p: ProfileRow, opts: { home?: HomeRow | null; settings?: SettingsRow | null; crewId?: string; avatar?: string } = {}): User {
   return {
     id: p.id,
     handle: p.handle ?? '',
@@ -97,6 +97,7 @@ export function userFromRows(p: ProfileRow, opts: { home?: HomeRow | null; setti
     region: p.region ?? '',
     home: opts.home ? { lat: opts.home.lat, lng: opts.home.lng } : UNKNOWN_HOME,
     ...(opts.crewId ? { crewId: opts.crewId } : {}),
+    ...(opts.avatar ? { avatarRef: opts.avatar } : {}),
     ...(opts.settings ? { travelMiles: opts.settings.travel_miles, alerts: opts.settings.new_event_alerts } : {}),
   };
 }

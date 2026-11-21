@@ -111,6 +111,11 @@ export interface User {
   travelMiles?: number;
   /** How you hear about new events near you. Private: only you see it. */
   alerts?: 'notify' | 'search' | 'off';
+  /**
+   * Their chosen profile picture (a photo ref: a signed link when signed in, a stored name or sample in
+   * the demo). Left out: their main vehicle's photo. Public: everyone sees it.
+   */
+  avatarRef?: string;
 }
 
 export interface Crew {

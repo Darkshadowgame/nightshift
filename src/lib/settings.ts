@@ -104,8 +104,8 @@ export interface Settings {
   /** Set once the event filters arrived (18 Nov 2026): When = Tonight and Only ones I can go to on, once. */
   eventFilterOnce?: boolean;
   /**
-   * Me's profile picture when you chose one of your vehicle photos (a photo ref). Kept on this phone
-   * only: there is no profile column for it yet. Left out: your main vehicle's photo.
+   * The OLD per-phone profile picture choice (a photo ref). The choice now lives on the profile
+   * (avatar.ts, profiles.avatar_ref); this is read once to move it there, then cleared.
    */
   avatarRef?: string | null;
   /** Forum: who the thread list is for, Everyone or Local; the last choice is kept. */

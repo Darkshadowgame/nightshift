@@ -117,7 +117,7 @@ export default function Me() {
       <Tabs.Screen options={{ headerRight: meHeaderRight }} />
       <View style={{ gap: SPACING.md }}>
         <View style={st.profile}>
-          {/* Your picture: the whole of your main vehicle by default; tap to choose another of your vehicle photos. */}
+          {/* Your picture: your main vehicle by default; tap to choose a photo from your library or one of your vehicle photos. */}
           <Press onPress={() => setPicker(true)} label="Profile photo" hint="Choose a profile photo" style={{ width: 76, height: 76, borderRadius: 38 }}>
             <Avatar name={user?.name} handle={user?.handle} size="lg" />
           </Press>
