@@ -1,4 +1,4 @@
--- Forum scope and groups (20261121120000): a region on any board makes a thread Local, a group
+-- Forum scope and groups (20261121140000): a region on any board makes a thread Local, a group
 -- key tags a make or model, the Local board still needs a region, and bad regions and keys are
 -- refused. Everything rolls back. Users (made up): A author.
 
@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(12);
+select plan(11);
 
 insert into auth.users (id, email) values ('e9000000-0000-0000-0000-000000000001', 'fg-a@example.test');
 update public.profiles set handle = 'scope_a', display_name = 'Scope A', region = 'Midlands', onboarded = true
