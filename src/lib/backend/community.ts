@@ -29,6 +29,8 @@ export interface ThreadRow {
   id: string;
   board: BoardKey;
   region: string | null;
+  /** Make or model group (20261121120000); absent on older rows. */
+  group_key?: string | null;
   author_id: string;
   title: string;
   body: string;
@@ -124,6 +126,7 @@ export function threadFromRow(r: ThreadRow, sign: Signed = same): ForumThread {
     id: r.id,
     board: r.board,
     ...(r.region ? { region: r.region } : {}),
+    ...(r.group_key ? { groupKey: r.group_key } : {}),
     authorId: r.author_id,
     title: r.title,
     body: r.body ?? '',
@@ -335,7 +338,7 @@ interface HistoryRow {
   board: string | null;
 }
 
-const THREAD_COLS = 'id,board,region,author_id,title,body,photos,build_id,created_at,last_activity_at,reply_count,solved_reply_id,hidden_at,listing_kind,price_pence,ono,condition,handover,sold_at';
+const THREAD_COLS = 'id,board,region,group_key,author_id,title,body,photos,build_id,created_at,last_activity_at,reply_count,solved_reply_id,hidden_at,listing_kind,price_pence,ono,condition,handover,sold_at';
 const REPLY_COLS = 'id,thread_id,author_id,body,photos,build_id,created_at,helpful_count,hidden_at';
 const MESSAGE_COLS = 'id,conversation_id,sender_id,body,photo_path,share,system,created_at';
 const SIGNED_SECONDS = 7 * 24 * 3600;
@@ -510,7 +513,9 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       const rows = await call<ThreadRow[]>(() => {
         let x = client.from('forum_threads').select(THREAD_COLS);
         if (q.board !== 'all') x = x.eq('board', q.board);
-        if (q.board === 'local' && q.region) x = x.eq('region', q.region);
+        if (q.scope === 'local') x = q.region ? x.eq('region', q.region) : x.not('region', 'is', null);
+        else x = x.is('region', null);
+        if (q.group) x = q.group.includes(':') ? x.eq('group_key', q.group) : x.or(`group_key.eq.${q.group},group_key.like.${q.group}:%`);
         if (q.query?.trim()) x = x.ilike('title', ilikePattern(q.query));
         return x.order(q.sort === 'new' ? 'created_at' : 'last_activity_at', { ascending: false }).limit(60) as unknown as PromiseLike<Result<ThreadRow[]>>;
       });
@@ -544,7 +549,7 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       return guarded('thread', null, `${d.title.trim()} ${d.body.trim()}`, async () => {
         const photos = await uploadAll('forum', d.photos);
         return rpc<string>('create_thread', {
-          p_board: d.board, p_region: d.board === 'local' ? d.region ?? null : null, p_title: d.title.trim(), p_body: d.body.trim(), p_photos: photos,
+          p_board: d.board, p_region: d.region ?? null, p_group_key: d.groupKey ?? null, p_title: d.title.trim(), p_body: d.body.trim(), p_photos: photos,
           p_build_id: d.buildId && isUuid(d.buildId) ? d.buildId : null,
           ...(d.board === 'for_sale' ? listingParams(cleanListing(d.listing ?? { kind: 'sale' })) : {}),
         });

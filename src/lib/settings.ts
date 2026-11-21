@@ -101,6 +101,10 @@ export interface Settings {
   eventFilter: EventFilter;
   /** Set once the event filters arrived (18 Nov 2026): When = Tonight and Only ones I can go to on, once. */
   eventFilterOnce?: boolean;
+  /** Forum: who the thread list is for, Everyone or Local; the last choice is kept. */
+  forumScope?: 'everyone' | 'local';
+  /** Forum: make and model groups you've joined (keys from forumGroups.ts). */
+  forumGroups?: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {

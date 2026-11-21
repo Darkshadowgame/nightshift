@@ -1,3 +1,5 @@
+import { allVariants } from '../data/vehicles';
+import { findGroup } from '../lib/forumGroups';
 import { modCount } from '../lib/modGroups';
 import { carShape } from '../lib/buildShape';
 import { router } from 'expo-router';
@@ -355,11 +357,11 @@ function threadState(thread: ForumThread): { label: string; tone: 'warning' | 's
  * A thread in Forum and for sale, as one row: the author's avatar, the title, then the price for
  * a listing (or the board), and who, replies and when. Sold, Found or Solved on the right.
  */
-export function ThreadCard({ thread, author, now, showBoard }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean }) {
+export function ThreadCard({ thread, author, now, showBoard, showGroup, showRegion = true }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean; showGroup?: boolean; showRegion?: boolean }) {
   const l = thread.listing;
   const state = threadState(thread);
   const kind = l ? (l.kind === 'wanted' ? 'Wanted' : 'For sale') : showBoard ? boardLabel(thread.board) : null;
-  const subtitle = l ? metaLine([kind, priceLabel(l), ...listingFacts(l).slice(0, 1)]) : metaLine([kind, thread.region]);
+  const subtitle = l ? metaLine([kind, priceLabel(l), ...listingFacts(l).slice(0, 1)]) : metaLine([kind, showGroup ? findGroup(allVariants(), thread.groupKey)?.label : null, showRegion ? thread.region : null]);
   const meta = metaLine([at(author), plural(thread.replyCount, 'reply', 'replies'), postedLabel(thread.lastActivityAt, now)]);
   return (
     <ListRow

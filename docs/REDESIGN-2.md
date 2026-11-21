@@ -1254,3 +1254,13 @@ consistency throughout". This replaces "the app is dark only, by design".
 * The scorecard runs one extra light pass (20:30, 1.0x). The scored dark runs set `colorScheme: dark`.
 * Native config: `userInterfaceStyle` is now `automatic` and the splash has a dark variant. Needs a new
   build; an OTA cannot carry it.
+
+### 9.x Forum scope and groups (owner request, 21 Nov 2026)
+* The forum list opens with a two-way SegmentedControl, Everyone (the whole UK) and Local (your region). It
+  switches the view below it, so 4.4 holds; the last choice is kept in settings. In the composer the same
+  choice is a ChoiceGroup ("Who is it for?"), because it's a form field.
+* Make and model groups (SEAT Leon, BMW) come from `src/data/vehicles`, not a hand list. Joining is a
+  personal list on the phone. A group page is the forum filtered, with the toggle; its one primary is
+  "New thread", and Join group is a secondary button.
+* Local is no longer a board chip (the toggle replaces it); Meets takes its place and defaults to Local.
+

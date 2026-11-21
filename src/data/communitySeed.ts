@@ -72,8 +72,20 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
       { buildId: 'b-cal-0', listing: { kind: 'sale', pricePence: 85000, ono: true, condition: 'good', handover: 'collection' } }),
     t('ft-first-car', 'cars', 'tom', 'GR Yaris or Civic Type R as a first proper car?',
       'Insurance quotes are similar for both at 24. Which would you live with every day?', 2 * DAY + 5 * HOUR),
-    t('ft-local-coffee', 'local', 'priya', 'Coffee stops that welcome a few cars on a Sunday?',
+    t('ft-local-coffee', 'local', 'priya', 'Cafes that welcome a few cars on a Sunday?',
       'Looking for somewhere friendly for a small group. Not after a big meet, just coffee and a chat.', 5 * DAY, { region }),
+    // Everyone (the whole UK) and Local threads, some in make or model groups (forumGroups.ts).
+    t('ft-cupra-fault', 'advice', 'mo', 'Cupra Formentor: what does this gearbox warning mean?',
+      'Amber gearbox symbol with a message to see a dealer, came up on the motorway then cleared at the next start. 2022 VZ2 on 14k miles. Anyone had it?', 1 * DAY + 2 * HOUR,
+      { groupKey: 'cupra:formentor' }),
+    t('ft-leon-dsg', 'advice', 'kez', 'Leon DSG juddering at low speed: software or clutch?',
+      'Judders pulling away on a hill and in queues. Service history is clean. Was it a software update or a new clutch pack for you?', 3 * DAY + HOUR, { groupKey: 'seat:leon' }),
+    t('ft-n54-hpfp', 'cars', 'dan', '335i N54: the signs of a failing high pressure fuel pump',
+      'Long crank and a stumble over 4,000 rpm on mine. What did yours do before it went, and who did the job?', 4 * DAY + 3 * HOUR, { groupKey: 'bmw:335i' }),
+    t('ft-leon-cruise', 'meets', 'cal', 'Leon owners: Sunday morning coffee run?',
+      'Easy road, a cafe with space for a dozen cars and back by lunch. All Leons welcome, any age.', 1 * DAY + 6 * HOUR, { region, groupKey: 'seat:leon' }),
+    t('ft-bmw-garage', 'advice', 'priya', 'Independent BMW specialist round here?',
+      'Looking for someone good with N-series engines who is not main dealer prices. Who do you use?', 2 * DAY + 8 * HOUR, { region, groupKey: 'bmw' }),
   ];
 
   const r = (id: string, threadId: string, authorId: string, body: string, created: number, helpfulCount = 0): ForumReply => ({
@@ -89,6 +101,11 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     r('fr-7', 'ft-ceramic', 'em', 'Ceramic for a daily, every time. Washing gets so much quicker.', 5 * DAY, 2),
     r('fr-8', 'ft-show', 'tom', 'Cheers. Bringing the Yaris, first show.', 20 * HOUR, 0),
     r('fr-9', 'ft-first-car', 'jord', 'Yaris. It’s a rally car with number plates.', 2 * DAY, 1),
+    r('fr-11', 'ft-cupra-fault', 'tom', 'Mine did the same after a software update. A dealer re-flashed the gearbox control unit and it has been fine since.', 20 * HOUR, 3),
+    r('fr-12', 'ft-cupra-fault', 'aimee', 'Ask them to check for open campaigns on the VIN first. It is often free.', 14 * HOUR, 2),
+    r('fr-13', 'ft-leon-dsg', 'jord', 'Wet clutch DSGs hate creeping in traffic. A software relearn sorted mine, a clutch pack was the next step.', 3 * DAY, 2),
+    r('fr-14', 'ft-leon-cruise', 'liv', 'Count me in. Can we leave from the services at 9?', 22 * HOUR, 0),
+    r('fr-15', 'ft-bmw-garage', 'sully', 'There is a good one on an industrial estate near the ring road. Message me and I will send the name.', 2 * DAY, 1),
     r('fr-10', 'ft-first-car', 'cal', 'Civic is the better daily. Bigger boot, comfier on the motorway.', 2 * DAY - 3 * HOUR, 2),
   ];
   for (const th of threads) {

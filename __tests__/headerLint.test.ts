@@ -82,6 +82,8 @@ const TEMPLATES: Record<string, Template> = {
   'post/[id]': 'T3',
   'forum/[id]': 'T3',
   'forum/index': 'T1',
+  'forum/groups': 'T1',
+  'forum/group': 'T1',
   'event/new': 'T4',
   'event/edit': 'T4',
   'event/plan': 'T4',
@@ -120,7 +122,7 @@ const TEMPLATES: Record<string, Template> = {
 /** Pushed T4 screens that aren't modals yet (the plan-change flow edits an event in place). */
 const T4_PUSHED = new Set(['event/plan']);
 /** Screens whose title is set in the screen itself (a chat's name, in sentence case). */
-const TITLE_IN_SCREEN = new Set(['chat/[id]']);
+const TITLE_IN_SCREEN = new Set(['chat/[id]', 'forum/group']);
 
 describe('every screen is a template (K4)', () => {
   const routes = files(APP)
