@@ -127,6 +127,8 @@ export interface Crew {
   ownerId?: string;
   /** Members the owner has made hosts. Only the owner and hosts host crew events. */
   hostIds?: string[];
+  /** Built-in emblem key like "bolt-2" (crewEmblems.ts). Left out: a default from the crew's id. */
+  emblem?: string;
 }
 
 export type CrewRole = 'owner' | 'host' | 'member';

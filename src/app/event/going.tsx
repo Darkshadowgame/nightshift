@@ -5,6 +5,8 @@ import { NotFoundState } from '../../components/Detail';
 import { ClassBadge, displayHandle, DsText, EmptyState, ListRow, RowDivider } from '../../components/ds';
 import { broughtBuild } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
+import { useCommunity } from '../../lib/communityStore';
+import { idsWithoutBlocked } from '../../lib/blocking';
 import { goingMix } from '../../lib/eventAction';
 import { goingSummary } from '../../lib/format';
 import { STATUS_WORDS } from '../../lib/meetExtras';
@@ -19,14 +21,17 @@ import { COLOR, SPACING } from '../../theme';
 export default function GoingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { events, users, builds, me } = useStore();
+  const { blocked } = useCommunity();
   const ev = events.find((e) => e.id === id);
   if (!ev) return <NotFoundState what="Meet" message="It may have been cancelled and removed, or the link is old." />;
-  const mix = goingMix(ev, builds);
+  // Someone you blocked is not on the list or in the count.
+  const shown = { ...ev, going: idsWithoutBlocked(ev.going, blocked) };
+  const mix = goingMix(shown, builds);
   // You first, then everyone else in the order they said they're going.
-  const people = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0));
+  const people = [...shown.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0));
   return (
     <ScrollView style={{ flex: 1, backgroundColor: COLOR.surface.bg }} contentContainerStyle={{ padding: SPACING.screen, gap: SPACING.md, paddingBottom: SPACING.xxxl }} showsVerticalScrollIndicator={false}>
-      <DsText v="secondary">{`${goingSummary(ev.going.length, mix.cars, mix.bikes)} · ${ev.title}`}</DsText>
+      <DsText v="secondary">{`${goingSummary(shown.going.length, mix.cars, mix.bikes)} · ${ev.title}`}</DsText>
       {people.length === 0 ? (
         <EmptyState variant="inline" title="Nobody's said they're going yet." />
       ) : (

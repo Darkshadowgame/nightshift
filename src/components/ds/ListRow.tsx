@@ -15,7 +15,7 @@ export type Leading =
   | { pin: Glyph; colour: string }
   | { classBadge: ClassLetter }
   | { icon: IconName; colour?: string }
-  /** Any small drawing (an award badge), up to 40 pt wide. */
+  /** Any small drawing (an award badge, a crew emblem), up to 40 pt wide. */
   | { node: ReactNode };
 
 function LeadingMark({ leading }: { leading: Leading }) {

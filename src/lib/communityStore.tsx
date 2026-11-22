@@ -70,6 +70,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const { backend, me, ready, users, settings } = store;
   const usersRef = useRef(users);
   usersRef.current = users;
+  const buildsRef = useRef(store.builds);
+  buildsRef.current = store.builds;
   const eventsRef = useRef(store.events);
   eventsRef.current = store.events;
   const crewsRef = useRef(store.crews);
@@ -156,6 +158,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         AsyncStorage.setItem(DEMO_KEY, JSON.stringify(s)).catch(() => {});
       },
       users: () => usersRef.current,
+      builds: () => buildsRef.current,
       travelMiles: () => travelRef.current,
       now: appNow,
       // Sample people accept a connection after 3 seconds (Redesign 2, 3.1).

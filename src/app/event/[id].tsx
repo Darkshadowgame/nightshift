@@ -51,6 +51,7 @@ import { areaRadius } from '../../lib/area';
 import { categoryInfo, votingCloses, type AwardCategory } from '../../lib/awards';
 import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsInvite, ownBuilds } from '../../lib/bringing';
 import { useNow } from '../../lib/clock';
+import { idsWithoutBlocked } from '../../lib/blocking';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
 import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, isPublicType, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
@@ -522,11 +523,13 @@ export default function EventScreen() {
   // Checked in is the ActionBar's line too (Review 20 problem 4); a cancelled meet has no HOSTING tag (problem 6).
   const heroTag = pill || goingState || myStatus === 'checkedIn' || phase === 'cancelled' ? null : (statusTag(myStatus) ?? null);
 
-  const goingPeople = [...ev.going].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
+  // Someone you blocked is not in the going row or its count.
+  const goingNow = idsWithoutBlocked(ev.going, blocked);
+  const goingPeople = [...goingNow].sort((a, b) => (a === me ? -1 : b === me ? 1 : 0)).map((uid) => {
     const u = users.find((x) => x.id === uid);
     return { id: uid, name: u?.name, handle: u?.handle };
   });
-  const mix = goingMix(ev, builds);
+  const mix = goingMix({ ...ev, going: goingNow }, builds);
   // Places: "12 of 20 places", a quiet line under who's going (hosts also see how many are waiting).
   const left = placesLeft(ev);
   const placesLine =
@@ -692,8 +695,8 @@ export default function EventScreen() {
           {errorAt('menu') ? <ErrorState title={errorAt('menu')!} /> : null}
           <GoingStrip
             people={goingPeople}
-            summary={`${phase === 'cancelled' ? 'Was ' : ''}${goingSummary(ev.going.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}`}
-            onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
+            summary={`${phase === 'cancelled' ? 'Was ' : ''}${goingSummary(goingNow.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}`}
+            onPress={goingNow.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
           />
           {placesLine ? <DsText v="secondary">{placesLine}</DsText> : null}
           {waitPos > 0 ? <DsText v="secondary">{WAITLIST_WORDS.onList(waitPos)}</DsText> : full && state.kind === 'join' ? <DsText v="secondary">{WAITLIST_WORDS.full}</DsText> : null}

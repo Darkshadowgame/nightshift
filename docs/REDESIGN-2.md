@@ -1412,3 +1412,24 @@ Built in `src/lib/passport.ts`, `trust.ts`, `useTrust.ts`, `useVisits.ts`; scree
 * **Seen in person** (optional, no plates, no documents): a row on a vehicle's page. People who checked in at the same meet as the owner can say they saw it there; three different people make the mark. One confirmation per person per vehicle and a daily limit.
 * **Meet point privacy** already exists, so nothing was added: the host's "Location shows" choice (At the start, 30 minutes, 1 hour or 2 hours before; 1 hour by default) is in Host a meet under More options (`revealMinutesBefore`); the exact place is only given to hosts and people going once that time is reached (`canSeeStop`, and `post_meet_point_privacy.sql` keeps it out of posts and the map).
 * Server side: `supabase/migrations/20261122170000_lvl_profile.sql` (additive). Signed in, the trust features hide until it is applied; the demo runs them on the phone with made-up history.
+### 9.z People, crews and blocking level up (21 Nov 2026)
+* **Chat quick replies:** one row of three chips ("On my way", "Where are you parked?", "Running late") sits
+  above the composer in a chat you can send in. One tap sends it. It disappears as soon as there is text in
+  the box. Words in `src/lib/quickReplies.ts`; the row is in `src/app/chat/[id].tsx`.
+* **Crew pages:** the crew page now has an emblem next to its name, chosen from a built-in set (six shapes in
+  eight paints, no upload; `crewEmblems.ts`, drawn by `CrewEmblem`). A crew with none picked gets a steady
+  default from its id. The owner changes it from `···` › Change emblem. The page also lists the members'
+  vehicles (up to six, then "and N more") and "The crew is going to": upcoming meets with a count of crew
+  going ("2 from the crew"), never which member (`crewPage.ts`). The Crews list shows the emblem too.
+* **Mutual meets:** on someone else's profile, "Meets you've both been to (N)" with the three most recent.
+  Checked-in past meets only, so it never says where anyone will be. Hidden when you blocked them.
+* **Same model near you:** in Community › People, a short section (up to six rows) of people in your region
+  with the same make and model as a vehicle of yours. Region only, never a distance. Settings › Privacy has
+  a switch to opt out; opting out hides you from it and it from you. Blocked people and your connections
+  never appear. Signed in it is built on the server (`same_model_near()`); in the demo from the demo people.
+* **Block that really blocks:** one rule (`src/lib/blocking.ts`), applied to the going list and its count (event
+  page and Going screen), the Crews list counts, the crew page (members, hosts, owner line, vehicles, "going"
+  counts, add suggestions), group chat members, and the chat list (a 1-to-1 with someone you blocked is gone).
+  The server also hides you from the person you blocked, both ways, in forum threads and replies, event chat,
+  going lists, event requests and crew member lists (migration `20261122160000_lvl_people.sql`).
+

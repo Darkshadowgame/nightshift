@@ -1,7 +1,11 @@
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
+import { CrewEmblem } from '../components/CrewEmblem';
 import { PAGE } from '../components/Detail';
 import { Button, DsText, EmptyState, ListRow, RowDivider, Tag, metaLine } from '../components/ds';
+import { idsWithoutBlocked } from '../lib/blocking';
+import { useCommunity } from '../lib/communityStore';
+import { emblemOf } from '../lib/crewEmblems';
 import { crewEvents, sortCrews } from '../lib/crews';
 import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
@@ -10,8 +14,10 @@ import { COLOR, SPACING } from '../theme';
 /** Browse every crew, and start one. */
 export default function Crews() {
   const { crews, events, me, users } = useStore();
+  const { blocked } = useCommunity();
   const myCrewId = users.find((u) => u.id === me)?.crewId;
-  const list = sortCrews(crews);
+  // Someone you blocked is not counted in a crew (and never listed on its page).
+  const list = sortCrews(crews.map((c) => ({ ...c, memberIds: idsWithoutBlocked(c.memberIds, blocked) })));
 
   return (
     <ScrollView style={{ backgroundColor: COLOR.surface.bg }} contentContainerStyle={PAGE} showsVerticalScrollIndicator={false}>
@@ -25,6 +31,7 @@ export default function Crews() {
             <View key={c.id}>
               {i ? <RowDivider /> : null}
               <ListRow
+                leading={{ node: <CrewEmblem emblem={emblemOf(c)} size={36} /> }}
                 title={c.name}
                 subtitle={metaLine([c.tag, plural(c.memberIds.length, 'member'), plural(upcoming, 'event')])}
                 trailing={mine ? <Tag label="Your crew" tone="success" /> : undefined}

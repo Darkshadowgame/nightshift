@@ -2,6 +2,7 @@ import { appNow } from './appClock';
 import { BAN_ZONES, ME } from '../data/seed';
 import { castVote as applyVote } from './awards';
 import { canGoWith, chosenBuild, ownBuilds } from './bringing';
+import { withEmblem as applyEmblem } from './crewEmblems';
 import {
   addToCrew as applyAddToCrew,
   createCrew as applyCreateCrew,
@@ -278,6 +279,10 @@ export function createLocalRepository(ctx: LocalContext): Repository {
     async setCrewHost(crewId, userId, host) {
       const next = applySetCrewHost({ crews: get().crews, users: get().users }, ME, crewId, userId, host);
       set((s) => ({ ...s, crews: next.crews }));
+    },
+    async setCrewEmblem(crewId, emblem) {
+      const crews = applyEmblem(get().crews, ME, crewId, emblem);
+      set((s) => ({ ...s, crews }));
     },
     async addToCrew(crewId, userId) {
       const next = applyAddToCrew({ crews: get().crews, users: get().users }, ME, crewId, userId);

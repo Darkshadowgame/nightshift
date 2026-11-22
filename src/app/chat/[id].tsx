@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { FlatList, Keyboard, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
 import { at, mainBuild, openProfile, openReport, OptionsSheet, PersonRow, personMark, type SheetOption } from '../../components/Community';
 import { ownBuilds } from '../../lib/bringing';
 import { INPUT } from '../../components/ComposerParts';
@@ -10,6 +10,8 @@ import { ShareCardView, SharePicker } from '../../components/SharePicker';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { clock, dayLabelShort } from '../../lib/when';
+import { QUICK_REPLIES, showQuickReplies } from '../../lib/quickReplies';
+import { chipFace } from '../../components/ds/Choice';
 import { conversationTitle, MESSAGE_MAX, messageProblem, otherMember, seenLabel, shareHref, type Message, type ShareCard } from '../../lib/messages';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
@@ -308,6 +310,16 @@ export default function ChatScreen() {
       {/* The tab bar stays under the composer (Review 19 #35), out of the way while you type. */}
       <ActionBar footer={typing ? undefined : <StackTabBar />}>
         {error ? <ErrorState title={error} /> : null}
+        {showQuickReplies(text, conv.canSend) ? (
+          // One calm row of one-tap replies: gone as soon as you type.
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: SPACING.sm }} style={{ flexGrow: 0 }}>
+            {QUICK_REPLIES.map((r) => (
+              <Press key={r} onPress={() => void send({ body: r })} role="button" label={`Send: ${r}`} haptic="select" disabled={busy} style={{ minHeight: 34, justifyContent: 'center', paddingHorizontal: SPACING.md, ...chipFace(false) }}>
+                <DsText v="body">{r}</DsText>
+              </Press>
+            ))}
+          </ScrollView>
+        ) : null}
         {conv.canSend ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm }}>
             <IconButton

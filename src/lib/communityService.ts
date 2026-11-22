@@ -2,6 +2,7 @@ import { communitySample, SAMPLE_REPLIES } from '../data/communitySeed';
 import { ME, SAMPLE_PEOPLE, samplePhotoRefs } from '../data/seed';
 import { isBusyId, type BusyCommunity } from '../data/busyNight';
 import { peopleNear, type Nearby } from './carsNear';
+import { sameModelNear } from './sameModel';
 import {
   answerConnection,
   connectionsOf,
@@ -38,7 +39,7 @@ import { appNow } from './appClock';
 import { groupProblem, MAX_GROUP, messageProblem, otherMember, type Conversation, type Message, type ShareCard } from './messages';
 import { reportProblem, type BanScope, type ReportReason, type ReportTarget, type StaffRole } from './moderation';
 import { canSee, commentProblem, feedFor, postProblem, postsInBox, snapPlace, withLike, type FeedScope, type Post, type PostComment, type PostDraft } from './posts';
-import type { LatLng, User } from './types';
+import type { Build, LatLng, User } from './types';
 import { MEDIA_LIMITS, type MediaLimits } from './mediaLimits';
 
 /**
@@ -83,6 +84,11 @@ export interface CommunityService {
   peopleNear(maxMiles: number): Promise<Nearby[]>;
   showInNearby(): Promise<boolean>;
   setShowInNearby(on: boolean): Promise<void>;
+  /** Quiet introductions: ids of people in your region with the same make and model as one of your vehicles. Never a distance. */
+  sameModelNear(): Promise<string[]>;
+  /** True when you opted out of Same model near you (you are hidden from it, and it is hidden from you). */
+  sameModelHidden(): Promise<boolean>;
+  setSameModelHidden(hidden: boolean): Promise<void>;
   // Connections and blocks
   connections(): Promise<Record<string, ConnectionState>>;
   requestConnection(userId: string): Promise<'requested' | 'connected'>;
@@ -276,6 +282,8 @@ export interface DemoCommunity {
   sent: string[];
   blocks: string[];
   hidden: boolean;
+  /** Opted out of Same model near you (the demo's copy). */
+  sameModelHidden?: boolean;
   rated: Record<string, boolean>;
   likes: Record<string, number>;
   threads: ForumThread[];
@@ -368,6 +376,8 @@ export interface LocalCommunityContext {
   get(): DemoCommunity;
   set(s: DemoCommunity): void;
   users(): User[];
+  /** Everyone's vehicles, for Same model near you. */
+  builds?(): Build[];
   travelMiles(): number;
   now?: () => Date;
   /** Wait before a sample person answers (ms). */
@@ -434,6 +444,18 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       const m = me();
       if (!m) return [];
       return peopleNear(m, ctx.users(), maxMiles, { blocked: blocked() });
+    },
+    async sameModelNear() {
+      const s = ctx.get();
+      if (s.sameModelHidden) return [];
+      const skip = connected();
+      return sameModelNear({ me: ME, users: ctx.users(), builds: ctx.builds?.() ?? [], blocked: blocked(), skip, meHidden: false }).map((m) => m.user.id);
+    },
+    async sameModelHidden() {
+      return !!ctx.get().sameModelHidden;
+    },
+    async setSameModelHidden(hide) {
+      update((s) => ({ ...s, sameModelHidden: hide }));
     },
     async showInNearby() {
       return !ctx.get().hidden;

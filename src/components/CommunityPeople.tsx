@@ -5,7 +5,9 @@ import { View } from 'react-native';
 import { ANY_NEAR, isFiltered, makesNear, personCards, type NearFilter } from '../lib/carsNear';
 import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { idsIn } from '../lib/connections';
+import { withoutBlocked } from '../lib/blocking';
 import { plural } from '../lib/format';
+import { modelKey, SAME_MODEL_MAX } from '../lib/sameModel';
 import { useStore } from '../lib/store';
 import { CLASS_LETTERS, type ClassLetter, type VehicleKind } from '../lib/types';
 import { SPACING } from '../theme';
@@ -13,7 +15,7 @@ import { PersonNearRow } from './Community';
 import { PeopleStrip } from './PeopleStrip';
 import { useNow } from '../lib/clock';
 import { atYourMeets } from '../lib/people';
-import { Button, Card, ChipGroup, DsText, EmptyState, ErrorState, ListRow, LoadingState, RowDivider, Section, ChoiceGroup, Sheet, metaLine, selectionSummary } from './ds';
+import { Button, Card, ChipGroup, displayHandle, DsText, EmptyState, ErrorState, ListRow, LoadingState, RowDivider, Section, ChoiceGroup, Sheet, metaLine, selectionSummary } from './ds';
 
 const DISTANCES = [10, 25, 50, 100] as const;
 type Distance = `${(typeof DISTANCES)[number]}`;
@@ -33,6 +35,19 @@ export function CommunityPeople() {
   const now = useNow();
   const community = useCommunity();
   const meUser = users.find((u) => u.id === me);
+  // Quiet introductions: same make and model, same region (the server or the demo decides; never a distance).
+  const sameIds = useCommunityQuery((s) => s.sameModelNear(), []);
+  const sameList = useMemo(() => {
+    const mine = new Map(builds.filter((b) => b.ownerId === me).map((b) => [modelKey(b), b]));
+    return withoutBlocked(sameIds.data ?? [], (id) => id, community.blocked)
+      .map((id) => {
+        const user = users.find((u) => u.id === id);
+        const build = builds.find((b) => b.ownerId === id && mine.has(modelKey(b)));
+        return user && build ? { user, build } : null;
+      })
+      .filter((x): x is { user: (typeof users)[number]; build: (typeof builds)[number] } => !!x)
+      .slice(0, SAME_MODEL_MAX);
+  }, [sameIds.data, users, builds, me, community.blocked]);
   const travel = meUser?.travelMiles ?? 25;
   const [miles, setMiles] = useState<number>((DISTANCES as readonly number[]).includes(travel) ? travel : 25);
   const [kinds, setKinds] = useState<VehicleKind[]>([]);
@@ -171,6 +186,25 @@ export function CommunityPeople() {
       {meetPeople.length ? (
         <Section title="At your meets">
           <PeopleStrip people={meetPeople} label="People going to your meets" />
+        </Section>
+      ) : null}
+
+      {sameList.length ? (
+        <Section title="Same model near you">
+          <View>
+            {sameList.map(({ user, build }, i) => (
+              <View key={user.id}>
+                {i ? <RowDivider inset /> : null}
+                <ListRow
+                  leading={{ avatar: { name: user.name, handle: user.handle } }}
+                  title={displayHandle(user.handle)}
+                  subtitle={metaLine([`${build.make} ${build.model}`, user.region])}
+                  onPress={() => router.push({ pathname: '/user/[id]', params: { id: user.id } })}
+                />
+              </View>
+            ))}
+          </View>
+          <DsText v="caption">Same region, same model. You can turn this off in Settings › Privacy.</DsText>
         </Section>
       ) : null}
 

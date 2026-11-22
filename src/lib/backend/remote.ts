@@ -311,7 +311,10 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       call<SettingsRow[]>(() => client.from('profile_settings').select('travel_miles,new_event_alerts')),
       call<CrewRow[]>(() => client.from('crews').select('id,name,tag,crew_members(user_id,role,joined_at)').limit(1000)),
     ]);
-    const crews = crewRows.map(crewFromRow);
+    // Emblems (20261122160000) come separately, so crews still load before that migration is applied.
+    const emblems = await call<{ id: string; emblem: string | null }[]>(() => client.from('crews').select('id,emblem').limit(1000)).catch(() => []);
+    const emblemOfCrew = new Map(emblems.map((r) => [r.id, r.emblem]));
+    const crews = crewRows.map(crewFromRow).map((c) => (emblemOfCrew.get(c.id) ? { ...c, emblem: emblemOfCrew.get(c.id)! } : c));
     const crewOf = new Map<string, string>();
     for (const c of crews) for (const m of c.memberIds) crewOf.set(m, c.id);
     const meRow = profiles.find((p) => p.id === uid) ?? { id: uid, handle: null, display_name: null, region: null, onboarded: false, onboarded_at: null };
@@ -863,6 +866,16 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     },
     async setCrewHost(crewId, userId, host) {
       await rpc('set_crew_role', { p_crew_id: crewId, p_user_id: userId, p_role: host ? 'host' : 'member' });
+      await refreshPeople();
+    },
+    async setCrewEmblem(crewId, emblem) {
+      // set_crew_emblem arrives with migration 20261122160000; until then the owner sees this sentence.
+      try {
+        await rpc('set_crew_emblem', { p_crew_id: crewId, p_emblem: emblem });
+      } catch (e) {
+        if (/set_crew_emblem|schema cache|does not exist/i.test(e instanceof Error ? e.message : String(e))) throw new Error('Crew emblems are not switched on yet. Try again after the next update.');
+        throw e;
+      }
       await refreshPeople();
     },
     async addToCrew() {
