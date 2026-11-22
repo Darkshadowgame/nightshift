@@ -862,9 +862,10 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   /** Real navigation is under way and background location is running: the phone can lock. */
   const inBackground = useRef(false);
   useEffect(() => {
-    if (phase !== 'driving' || simulateRef.current) return;
+    if (phase !== 'driving') return;
     let live = true;
-    startNavBackground((f) => onFixRef.current(f)).then((on) => {
+    // The demo's simulated drive ignores real fixes, but still keeps the app alive so the lock screen updates.
+    startNavBackground((f) => { if (!simulateRef.current) onFixRef.current(f); }).then((on) => {
       if (live) inBackground.current = on;
       else if (on) stopNavBackground();
     });
@@ -1271,8 +1272,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const clockNowMs = nowMs + clockOffset();
   const trip = phase === 'driving' && progress ? tripSummary(clockNowMs, progress.toEnd, progress.secondsToEnd) : null;
 
-  // Lock screen and Dynamic Island directions (src/lib/liveActivity.ts); not in the demo.
-  useNavLiveActivity(settings.lockScreenDirections !== false && store.backend !== 'local', { phase, banner, trip, destination: finish });
+  // Lock screen and Dynamic Island directions (src/lib/liveActivity.ts); the demo drive shows them too.
+  useNavLiveActivity(settings.lockScreenDirections !== false, { phase, banner, trip, destination: finish });
 
   // One alert at a time over the map: the zone you're in or coming to, else the next camera.
   let alertPill: string | null = null;
