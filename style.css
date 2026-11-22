@@ -1,4 +1,4 @@
-/* Nightshift legal and support pages. Dark only, like the app: asphalt, sodium orange, Chakra Petch. */
+/* Slipstream legal and support pages. Dark only, like the app: asphalt, energy green, Chakra Petch. */
 :root {
   --asphalt: #0b0f17;
   --tarmac: #131a26;
@@ -6,7 +6,7 @@
   --kerb-hi: #2a3446;
   --fog: #8a97ad;
   --chalk: #e9edf4;
-  --sodium: #ff9a2e;
+  --sodium: #95d600;
   --alert: #ff4d4d;
   color-scheme: dark;
 }
@@ -15,7 +15,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background: var(--asphalt);
-  background-image: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255, 154, 46, 0.10), transparent 70%);
+  background-image: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(149, 214, 0, 0.10), transparent 70%);
   background-repeat: no-repeat;
   color: var(--chalk);
   font: 17px/1.6 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -46,7 +46,7 @@ li { margin: 4px 0; }
 .card { background: var(--tarmac); border: 1px solid var(--kerb); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
 .card > :first-child { margin-top: 0; }
 .card > :last-child { margin-bottom: 0; }
-.card.key { border-color: rgba(255, 154, 46, 0.45); }
+.card.key { border-color: rgba(149, 214, 0, 0.45); }
 .todo { background: rgba(255, 77, 77, 0.12); border: 1px dashed var(--alert); color: #ffb3b3; border-radius: 6px; padding: 0 6px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.9em; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 20px 0; }
 .grid a.card { display: block; margin: 0; text-decoration: none; color: var(--chalk); }
@@ -61,3 +61,24 @@ th { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; let
 footer { border-top: 1px solid var(--kerb); color: var(--fog); font-size: 14px; padding: 20px 0 40px; }
 footer .wrap { display: flex; gap: 8px 18px; flex-wrap: wrap; }
 footer a { color: var(--fog); }
+
+/* Links page (bio link): one narrow column, big tap targets. */
+.bio { max-width: 480px; margin: 0 auto; padding: 40px 16px 24px; }
+.bio-head { text-align: center; }
+.bio-head img { width: 88px; height: 88px; border-radius: 20px; box-shadow: 0 0 0 1px rgba(233, 237, 244, 0.12), 0 12px 32px rgba(0, 0, 0, 0.5); }
+.wordmark { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-style: italic; text-transform: uppercase; font-size: 34px; line-height: 1; letter-spacing: 0.02em; margin: 18px 0 8px; }
+.wordmark span { color: var(--sodium); }
+.bio-head p { margin: 0 auto; max-width: 28ch; font-size: 19px; line-height: 1.4; text-wrap: balance; }
+.btns { display: grid; gap: 12px; margin: 28px 0 8px; padding: 0; list-style: none; }
+.btns li { margin: 0; }
+.btn { display: flex; text-wrap: balance; align-items: center; justify-content: center; min-height: 56px; padding: 12px 20px; border-radius: 16px; background: var(--tarmac); color: var(--chalk); box-shadow: 0 0 0 1px var(--kerb-hi) inset; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-style: italic; text-transform: uppercase; letter-spacing: 0.03em; font-size: 18px; text-align: center; text-decoration: none; transition-property: scale, background-color, box-shadow; transition-duration: 0.15s; transition-timing-function: ease-out; }
+.btn:hover { background: var(--kerb); box-shadow: 0 0 0 1px var(--sodium) inset; }
+.btn:active { scale: 0.97; }
+.btn:focus-visible { outline: 3px solid var(--chalk); outline-offset: 3px; border-radius: 16px; }
+.btn.primary { min-height: 68px; background: var(--sodium); color: #0a0a0a; box-shadow: 0 10px 30px rgba(149, 214, 0, 0.18); font-size: 20px; }
+.btn.primary:hover { background: #a8ec10; box-shadow: 0 10px 34px rgba(149, 214, 0, 0.3); }
+.bio h2 { font-size: 20px; margin-top: 36px; text-wrap: balance; }
+.bio p { text-wrap: pretty; }
+.bio ul.cost { margin: 8px 0 12px; }
+.bio-foot { text-align: center; margin-top: 36px; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:active { scale: 1; } }
