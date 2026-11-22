@@ -87,8 +87,8 @@ export function seenAt(event: NightEvent, builds: readonly Build[]): Build[] {
 export type MeetStatus = 'late' | 'left';
 
 export const STATUS_WORDS: Record<MeetStatus, { row: string; hint: string; tag: string; undo: string }> = {
-  late: { row: 'Running late', hint: 'Tell the host and everyone going', tag: 'Running late', undo: 'Tap to say you are on time' },
-  left: { row: 'I have left', hint: 'Tell the host and everyone going', tag: 'Left', undo: 'Tap to undo' },
+  late: { row: 'Running late', hint: 'Tell the host and the others', tag: 'Running late', undo: 'Tap to say you are on time' },
+  left: { row: 'I have left', hint: 'Tell the host and the others', tag: 'Left', undo: 'Tap to undo' },
 };
 
 /**

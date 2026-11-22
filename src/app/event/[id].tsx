@@ -701,7 +701,7 @@ export default function EventScreen() {
           {placesLine ? <DsText v="secondary">{placesLine}</DsText> : null}
           {waitPos > 0 ? <DsText v="secondary">{WAITLIST_WORDS.onList(waitPos)}</DsText> : full && state.kind === 'join' ? <DsText v="secondary">{WAITLIST_WORDS.full}</DsText> : null}
           {extrasLive && (going || host) ? <StatusSummary event={ev} /> : null}
-          {extrasLive ? <StatusToggleRow event={ev} me={me} now={now} onSet={(st) => void attempt('status', () => store.setMeetStatus(ev.id, st), "Couldn't change that.")} /> : null}
+          {extrasLive && !justCheckedIn ? <StatusToggleRow event={ev} me={me} now={now} onSet={(st) => void attempt('status', () => store.setMeetStatus(ev.id, st), "Couldn't change that.")} /> : null}
           {errorAt('status') ? <ErrorState title={errorAt('status')!} /> : null}
           {errorAt('cohost') ? <ErrorState title={errorAt('cohost')!} /> : null}
           {/* Bring your mates (Review 18): a row while you're going, never a sheet that opens by itself. */}

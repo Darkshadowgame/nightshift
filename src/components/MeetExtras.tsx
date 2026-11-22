@@ -4,7 +4,6 @@ import { View } from 'react-native';
 import { arrivalBoard, historyLine, rulesOf, seenAt, STATUS_WORDS, statusRow, statusSummary, type HostStats, type MeetHistory, type MeetStatus } from '../lib/meetExtras';
 import { photoSource } from '../lib/photoSource';
 import type { Build, NightEvent, User } from '../lib/types';
-import { formatTime } from '../lib/format';
 import { COLOR, RADII, SPACING } from '../theme';
 import { BuildThumb, Button, displayHandle, DsText, ListRow, Press, Section, Sheet, SheetOption, StatBlock, Tag } from './ds';
 
@@ -40,8 +39,8 @@ export function ArrivalsSection({ event, builds, users, over, me }: { event: Nig
             <View style={{ borderRadius: RADII.control, overflow: 'hidden' }}>
               <BuildThumb photo={x.build.photos[0] ? photoSource(x.build.photos[0]) : null} kind={x.build.kind} size={96} />
             </View>
-            <DsText v="secondary" numberOfLines={1}>{`${x.build.make} ${x.build.model}`}</DsText>
-            <DsText v="meta" numberOfLines={1}>{[handle(x.userId), x.at ? formatTime(x.at) : null].filter(Boolean).join(' · ')}</DsText>
+            <DsText v="secondary">{`${x.build.make} ${x.build.model}`}</DsText>
+            <DsText v="meta" numberOfLines={1}>{handle(x.userId)}</DsText>
           </Press>
         ))}
       </View>

@@ -39,10 +39,10 @@ export function TonightStrip({ meets, nearHome, onOpen }: { meets: StripMeet[]; 
               <DsText v="meta" tone={m.live ? 'primary' : 'secondary'} numberOfLines={1}>
                 {m.live ? 'Live now' : m.time}
               </DsText>
-              <DsText v="secondary" tone="primary" numberOfLines={1}>
+              <DsText v="secondary" tone="primary" numberOfLines={2}>
                 {m.title}
               </DsText>
-              <DsText v="meta" numberOfLines={1}>
+              <DsText v="meta">
                 {home ? `${m.going} going · On your way home` : `${m.going} going`}
               </DsText>
             </Press>

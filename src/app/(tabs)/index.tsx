@@ -857,6 +857,8 @@ export default function TonightScreen() {
     return (
       <>
         {mode === 'list' ? filterNote : null}
+        {/* Two or more meets: a row to pick between them, the first thing under the peek's card (in the header it squeezed the card's photo). One meet is already the card. */}
+        {mode === 'map' && !selCard && !checkAt && strip.length >= 2 ? <TonightStrip meets={strip} nearHome={nearHome} onOpen={(id) => showRef.current(`ev:${id}`)} /> : null}
         {noCar ? (
           <ListRow leading={{ icon: 'plus' }} title="Add your car to see what you can join" chevron onPress={() => router.push('/build/edit')} />
         ) : null}
@@ -931,9 +933,6 @@ export default function TonightScreen() {
       {filterNote}
       {checkAt && !selCard ? (
         <TimeCheck now={now} offset={check ?? 0} count={checkCount} onChange={setCheck} onClose={() => setCheck(null)} />
-      ) : !selCard && meetsFocus && strip.length >= 2 ? (
-        // Two or more meets: a row to pick between them. One meet is already the card below.
-        <TonightStrip meets={strip} nearHome={nearHome} onOpen={(id) => showRef.current(`ev:${id}`)} />
       ) : null}
       {selCard ?? (!meetsFocus ? (nearest ? selectionCard(`sp:${nearest.id}`) : ready ? <EmptyState variant="inline" title="Nothing to do is switched on." action={{ label: 'Choose in Map layers', onPress: () => setShowLayers(true) }} /> : null) : pick ? eventCard(pick, 'peek') : ready ? (hiddenLine ? null : <EmptyState variant="inline" title="Nothing on near you tonight." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} />) : null)}
     </View>
