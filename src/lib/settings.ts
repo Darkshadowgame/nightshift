@@ -66,6 +66,8 @@ export interface Settings {
   mapStyle?: MapStyleChoice;
   /** The app's look: follow the phone (default), or always light or always dark. */
   appearance?: AppearanceChoice;
+  /** Driving view: directions on the lock screen and in the Dynamic Island (a Live Activity). On unless false. */
+  lockScreenDirections?: boolean;
   /** Driving view: speed camera and average-speed zone alerts on the route (OpenStreetMap data). */
   navCameraAlerts: boolean;
   /**

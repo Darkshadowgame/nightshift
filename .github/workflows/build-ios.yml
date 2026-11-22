@@ -53,6 +53,11 @@ jobs:
           for f in modules/nav-directions/expo-module.config.json modules/nav-directions/ios/NavDirections.podspec modules/nav-directions/ios/NavDirectionsModule.swift; do
             test -f "$f" || { echo "::error::$f is missing: the app would ship without turn-by-turn navigation."; exit 1; }
           done
+      - name: Lock screen directions are present
+        run: |
+          for f in modules/nav-live-activity/expo-module.config.json modules/nav-live-activity/ios/NavLiveActivity.podspec modules/nav-live-activity/ios/NavLiveActivityModule.swift targets/nav-activity/expo-target.config.js targets/nav-activity/NavActivityWidget.swift; do
+            test -f "$f" || { echo "::error::$f is missing: the app would ship without lock screen directions."; exit 1; }
+          done
       - run: npm ci
 
       - name: Typecheck and test
@@ -88,7 +93,7 @@ jobs:
 
       - name: Local native modules are linked
         run: |
-          for pod in PlateRedactor NavDirections; do
+          for pod in PlateRedactor NavDirections NavLiveActivity; do
             grep -q "$pod" ios/Podfile.lock || { echo "::error::$pod was not linked by autolinking."; exit 1; }
           done
 
@@ -130,6 +135,7 @@ jobs:
           APP=$(find "$RUNNER_TEMP/Nightshift.xcarchive/Products/Applications" -maxdepth 1 -name '*.app' | head -n 1)
           [ -n "$APP" ] || { echo "::error::No .app found in the archive."; exit 1; }
           [ -f "$APP/main.jsbundle" ] || { echo "::error::main.jsbundle is missing."; exit 1; }
+          [ -d "$APP/PlugIns/SlipstreamDirections.appex" ] || { echo "::error::The lock screen directions extension is not inside the app."; exit 1; }
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/Nightshift.app"
           cd "$RUNNER_TEMP/ipa"

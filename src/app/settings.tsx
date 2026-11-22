@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LEGAL_ROWS, openLegal } from '../components/AboutSection';
 import { AppUpdates, updateDetails, versionLine } from '../components/AppUpdates';
+import { liveActivityAvailable } from '../lib/liveActivity';
 import { Button, ChoiceGroup, ConfirmSheet, DsText, ErrorState, ListRow, RowDivider, Section, SwitchRow, useToast } from '../components/ds';
 import { TravelPrefs } from '../components/TravelPrefs';
 import { useAuth } from '../lib/auth';
@@ -200,6 +201,14 @@ export default function SettingsScreen() {
           options={DIRECTIONS_APPS.map((a) => ({ key: a.id, label: a.label }))}
           chips
         />
+        {liveActivityAvailable ? (
+          <SwitchRow
+            label="Show directions on the lock screen"
+            hint="While you navigate, the next turn shows on the lock screen and in the Dynamic Island. Directions carry on when you switch off the screen, and finish when you arrive or end navigation."
+            value={settings.lockScreenDirections !== false}
+            onValueChange={(on) => setSettings({ lockScreenDirections: on })}
+          />
+        ) : null}
       </Group>
 
       <Group title="About">

@@ -72,6 +72,8 @@ import { compassHeading, driveFocus, pickHeading, smoothHeading } from '../lib/h
 import { fetchRoads } from '../lib/roadLookup';
 import { cellOf, LOOKUP_MIN_MS, lookupDue, OSM_CREDIT, pickWay, remember, roadInfo, type OsmWay, type RoadInfo } from '../lib/speedLimit';
 import { currentPosition, streetAt } from '../lib/location';
+import { useNavLiveActivity } from '../lib/liveActivity';
+import { fixFromLocation, startNavBackground, stopNavBackground } from '../lib/navBackground';
 import {
   activeLimit,
   ARROWS,
@@ -850,7 +852,23 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     return () => clearInterval(t);
   }, []);
 
-  // GPS while this screen is open and the app is in front; nothing in the background.
+  /** Real navigation is under way and background location is running: the phone can lock. */
+  const inBackground = useRef(false);
+  useEffect(() => {
+    if (phase !== 'driving' || simulateRef.current) return;
+    let live = true;
+    startNavBackground((f) => onFixRef.current(f)).then((on) => {
+      if (live) inBackground.current = on;
+      else if (on) stopNavBackground();
+    });
+    return () => {
+      live = false;
+      inBackground.current = false;
+      stopNavBackground();
+    };
+  }, [phase]);
+
+  // GPS while this screen is open and the app is in front; in the background only while navigating (above).
   useEffect(() => {
     closed.current = false;
     let sub: Location.LocationSubscription | null = null;
@@ -867,14 +885,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       }
       const s = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 0, timeInterval: 1000 },
-        (loc) =>
-          onFixRef.current({
-            at: { lat: loc.coords.latitude, lng: loc.coords.longitude },
-            speed: loc.coords.speed != null && loc.coords.speed >= 0 ? loc.coords.speed : null,
-            course: loc.coords.heading != null && loc.coords.heading >= 0 ? loc.coords.heading : null,
-            accuracy: loc.coords.accuracy ?? null,
-            t: loc.timestamp || realNowMs(),
-          }),
+        (loc) => onFixRef.current(fixFromLocation(loc)),
       );
       if (closed.current || AppState.currentState !== 'active') s.remove();
       else sub = s;
@@ -955,7 +966,8 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     start();
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') start();
-      else {
+      // Navigating: carry on in the background (location, voice, lock screen). Otherwise pause as before.
+      else if (!inBackground.current) {
         stop();
         stopSpeaking();
       }
@@ -1211,6 +1223,9 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   // Arrival times read the app's clock (the demo night's 21:10, not the phone's), so both demo runs match.
   const clockNowMs = nowMs + clockOffset();
   const trip = phase === 'driving' && progress ? tripSummary(clockNowMs, progress.toEnd, progress.secondsToEnd) : null;
+
+  // Lock screen and Dynamic Island directions (src/lib/liveActivity.ts); not in the demo.
+  useNavLiveActivity(settings.lockScreenDirections !== false && store.backend !== 'local', { phase, banner, trip, destination: finish });
 
   // One alert at a time over the map: the zone you're in or coming to, else the next camera.
   let alertPill: string | null = null;

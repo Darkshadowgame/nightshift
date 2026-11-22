@@ -10,13 +10,18 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.nightshift.ios",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Slipstream uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
+        "NSLocationWhenInUseUsageDescription": "Slipstream uses your location to show events and builds near you and to check you in at meets and cruise stops. While you are navigating it also keeps guiding you turn by turn, with spoken directions and the lock screen, after you lock the phone or switch app (iPhone shows a blue indicator). It stops as soon as navigation ends.",
         "NSPhotoLibraryUsageDescription": "Slipstream uses your photos so you can add pictures of your build.",
         "NSCameraUsageDescription": "Slipstream uses the camera so you can photograph your build.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
           "waze"
+        ],
+        "NSSupportsLiveActivities": true,
+        "UIBackgroundModes": [
+          "location",
+          "audio"
         ]
       },
       "icon": "./assets/icon.png"
@@ -45,11 +50,12 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Slipstream uses your location to show events and builds near you, to check you in at meets and cruise stops, and to guide you turn by turn while the app is open.",
+          "locationWhenInUsePermission": "Slipstream uses your location to show events and builds near you and to check you in at meets and cruise stops. While you are navigating it also keeps guiding you turn by turn, with spoken directions and the lock screen, after you lock the phone or switch app (iPhone shows a blue indicator). It stops as soon as navigation ends.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "motionUsagePermission": false,
-          "locationFullAccuracyPermission": "Slipstream needs your precise location to check you in at a stop and guide you turn by turn."
+          "locationFullAccuracyPermission": "Slipstream needs your precise location to check you in at a stop and guide you turn by turn.",
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       [
@@ -78,7 +84,8 @@
             "backgroundColor": "#0a0a0a"
           }
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "scheme": "nightshift",
     "backgroundColor": "#0b0f17",
