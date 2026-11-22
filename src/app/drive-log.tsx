@@ -19,7 +19,7 @@ export default function DriveLogScreen() {
   return (
     <ScrollView contentContainerStyle={st.page}>
       {rows.length === 0 ? (
-        <EmptyState variant="block" icon="pin" title="No drives yet. Finish one and it shows up here." />
+        <EmptyState variant="block" icon="pin" title="No drives yet. Finish one and it shows up here." action={{ label: "See tonight's meets", onPress: () => router.navigate('/') }} />
       ) : (
         <Section title={plural(rows.length, 'drive')}>
           <View>

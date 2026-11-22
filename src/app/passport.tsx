@@ -1,6 +1,7 @@
+import { router } from 'expo-router';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { AwardBadge } from '../components/AwardBadge';
-import { DsText, Section } from '../components/ds';
+import { DsText, EmptyState, Section } from '../components/ds';
 import { allAwards, categoryInfo, type AwardCategory } from '../lib/awards';
 import { useNow } from '../lib/clock';
 import { plural } from '../lib/format';
@@ -35,6 +36,8 @@ export default function Passport() {
         </DsText>
         <DsText v="secondary">A region fills in when you check in at a meet there.</DsText>
       </View>
+
+      {stamps.length === 0 ? <EmptyState variant="inline" title="No stamps yet. Check in at a meet to fill your first region." action={{ label: 'Find a meet', onPress: () => router.navigate('/') }} /> : null}
 
       <View style={{ height: 4 * TILE_HEIGHT + 3 * GAP }} accessibilityRole="list">
         {Object.entries(PASSPORT_TILES).map(([region, pos]) => {
