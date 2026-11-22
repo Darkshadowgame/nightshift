@@ -161,6 +161,10 @@ export interface CommunityService {
   ban(userId: string, scope: BanScope, days: number | null, reason: string): Promise<void>;
   /** Admins and the owner: make someone a moderator or admin, or remove the role (null). */
   setRole(userId: string, role: StaffRole | null, reason: string): Promise<void>;
+  /** Staff: is this person marked as an organiser (can post organised events)? False until the organised events migration is live. */
+  isOrganiser(userId: string): Promise<boolean>;
+  /** Admins and the owner: mark or unmark someone as an organiser (set_organiser). */
+  setOrganiser(userId: string, on: boolean, reason: string): Promise<void>;
   team(): Promise<TeamMember[]>;
   /** Admins and the owner: the audit log, newest first. */
   auditLog(filter: { actor?: string | null; action?: string | null; before?: string | null }): Promise<ModerationActionRow[]>;
@@ -853,6 +857,12 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
       throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async setRole() {
+      throw new Error('Moderation is for the Slipstream team, signed in.');
+    },
+    async isOrganiser() {
+      return false;
+    },
+    async setOrganiser() {
       throw new Error('Moderation is for the Slipstream team, signed in.');
     },
     async team() {

@@ -280,7 +280,7 @@ function rollingProgress(now: Date, start: Date): { live: boolean; movedOn: bool
  * `ev-past-snowdome` are no longer seeded (older saves may still hold them; a refresh drops them).
  */
 export const SEED_EVENT_IDS = [
-  'ev-meet-now', 'ev-rolling-late', 'ev-cruise-peak', 'ev-meet-soon', 'ev-meet-tam', 'ev-bike-cat', 'ev-show-don', 'ev-past-snowdome',
+  'ev-meet-now', 'ev-rolling-late', 'ev-cruise-peak', 'ev-meet-soon', 'ev-meet-tam', 'ev-bike-cat', 'ev-show-don', 'ev-org-cars', 'ev-org-track', 'ev-past-snowdome',
   'ev-rolling-live', 'ev-rolling-host', 'ev-track-curb',
 ];
 
@@ -328,7 +328,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
   const here = (lat: number, lng: number) => snap(translate({ lat, lng }, DEMO_HOME, home));
   const area = sceneAreaName(home);
   const [d1, d2] = nearest(PLACES.filter((p) => p.kind === 'drive'), home, 2);
-  const [circuit] = nearest(PLACES.filter(isCircuit), home, 1);
+  const [circuit, circuit2 = circuit] = nearest(PLACES.filter(isCircuit), home, 2);
   const meetGoing = ['em', 'dan', 'jord', 'bex', 'lew', 'cal', 'nina', 'raf', 'ash', 'liv'];
   const lastGoing = ['tom', 'dan', 'kez', 'aimee', 'mo', 'em', 'sully', 'jord', 'priya'];
   return withAreas([
@@ -429,6 +429,41 @@ function events(now: Date, home: LatLng): NightEvent[] {
       currentStop: 0, revealMinutesBefore: 0, hostIds: ['cal'],
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 100 },
       going: ['cal', 'jord', 'nina', 'bex', 'em'], checkIns: {},
+      // Organised events (organised.ts), all made up: an organiser, sponsors (one is a sample partner's shop page) and tickets.
+      organised: true,
+      organiser: 'Sample Show Events',
+      sponsors: [{ name: 'Sample Detailing Studio', shop: 'partner:demo-partner-detailing' }, { name: 'Sample Tyres Direct' }],
+      ticketPence: 1200,
+      ticketUrl: 'https://example.com/tickets/show-day',
+    },
+    {
+      // A sponsored street-side meet run by an organiser, tonight: sits beside the local meets, in its own group.
+      id: 'ev-org-cars', type: 'meet', title: 'Autumn cars and coffee',
+      description: 'A planned evening with a coffee van and a prize for the best paint. Sample event, made up for the demo.',
+      startsAt: tonightAt(now, 22, 15).toISOString(), endsAt: tonightAt(now, 23, 59).toISOString(),
+      area: home, areaName: area,
+      stops: [{ id: 'oc-1', name: 'Business park car park', at: here(52.5156, -1.7072) }],
+      currentStop: 0, revealMinutesBefore: 0, hostIds: ['kez'],
+      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
+      going: ['kez', 'cal', 'priya'], checkIns: {},
+      organised: true,
+      organiser: 'Sample Events Co',
+      sponsors: [{ name: 'Sample Rolling Road', shop: 'partner:demo-partner-rolling-road' }],
+    },
+    {
+      // A ticketed track evening at the nearest circuit.
+      id: 'ev-org-track', type: 'trackday', title: 'Sample track evening',
+      description: 'Open pit lane, briefing at the start. Sample event, made up for the demo.',
+      startsAt: at(now, 9, 17, 0), endsAt: at(now, 9, 21, 0), area: circuit2.at, areaName: circuit2.name,
+      stops: [{ id: 'ot-1', name: circuit2.name, at: circuit2.at }],
+      currentStop: 0, revealMinutesBefore: 0, hostIds: ['cal'],
+      filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 100 },
+      going: ['cal', 'nina'], checkIns: {},
+      organised: true,
+      organiser: 'Sample Track Days',
+      sponsors: [{ name: 'Sample Rolling Road', shop: 'partner:demo-partner-rolling-road' }],
+      ticketPence: 9500,
+      ticketUrl: 'https://example.com/tickets/track-evening',
     },
     {
       // Ended a week ago, voting closed: results, trophies and photos.

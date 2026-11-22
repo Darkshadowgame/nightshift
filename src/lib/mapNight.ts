@@ -13,6 +13,7 @@
 import { endTime } from './events';
 import type { EventView } from './eventView';
 import { milesBetween } from './geo';
+import { isOrganised } from './organised';
 import type { LatLng } from './types';
 import { clock, SMALL_HOURS_END } from './when';
 
@@ -25,6 +26,8 @@ export interface StripMeet {
   time: string;
   live: boolean;
   going: number;
+  /** An organised event (organised.ts): the chip says so, and the strip groups it after the local meets. */
+  organised?: boolean;
 }
 
 /**
@@ -33,21 +36,23 @@ export interface StripMeet {
  */
 export function stripMeets(views: readonly EventView[], now: Date, size = STRIP_SIZE): StripMeet[] {
   const t = now.getTime();
-  return views
+  const next = views
     .filter((v) => endTime(v.event).getTime() > t)
     .sort((a, b) => {
       const la = a.phase === 'live' ? 0 : 1;
       const lb = b.phase === 'live' ? 0 : 1;
       return la - lb || new Date(a.event.startsAt).getTime() - new Date(b.event.startsAt).getTime();
-    })
-    .slice(0, size)
-    .map((v) => ({
-      id: v.event.id,
-      title: v.event.title,
-      time: v.phase === 'live' ? 'Live' : clock(v.event.startsAt),
-      live: v.phase === 'live',
-      going: v.event.going.length,
-    }));
+    });
+  // Local meets first, then organised events, up to `size` of each (organised.ts keeps them apart).
+  const pick = (organised: boolean) => next.filter((v) => isOrganised(v.event) === organised).slice(0, size);
+  return [...pick(false), ...pick(true)].map((v) => ({
+    id: v.event.id,
+    title: v.event.title,
+    time: v.phase === 'live' ? 'Live' : clock(v.event.startsAt),
+    live: v.phase === 'live',
+    going: v.event.going.length,
+    ...(isOrganised(v.event) ? { organised: true } : {}),
+  }));
 }
 
 /** The evening runs 18:00 to 02:00 (480 minutes), in 30 minute steps. */

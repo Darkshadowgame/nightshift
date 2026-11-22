@@ -14,10 +14,10 @@ export const PinFace = memo(
       <PinHalo size={size} on={halo}>
         {pin.live ? (
           <PulseRing live colour={pin.colour} size={size} pad>
-            <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} done={pin.done} />
+            <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} done={pin.done} organised={pin.organised} />
           </PulseRing>
         ) : (
-          <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} done={pin.done} />
+          <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} done={pin.done} organised={pin.organised} />
         )}
       </PinHalo>
     );
@@ -29,7 +29,7 @@ export const PinFace = memo(
     a.pin.size === b.pin.size &&
     a.pin.live === b.pin.live &&
     a.pin.count === b.pin.count &&
-    a.pin.badge === b.pin.badge && a.pin.done === b.pin.done,
+    a.pin.badge === b.pin.badge && a.pin.done === b.pin.done && a.pin.organised === b.pin.organised,
 );
 
 /** How big a pin's box is (live pins leave room for the pulse). */

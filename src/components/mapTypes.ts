@@ -19,6 +19,8 @@ export interface MapPin {
   done?: boolean;
   /** Drawn faint: the Time check says this meet isn't on at the chosen time (never the only signal: the sheet says how many are). */
   faded?: boolean;
+  /** An organised event (organised.ts): a corner mark on the pin, and its label says so. */
+  organised?: boolean;
 }
 
 /** A filled outline, e.g. a borough-wide ban zone. */

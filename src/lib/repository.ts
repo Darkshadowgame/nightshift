@@ -90,6 +90,10 @@ export interface BackendExtras {
   invitesLive(): boolean;
   /** False until the meets level-up migration is live on the server: the screens hide its extras. */
   meetsLive(): boolean;
+  /** False until the organised events migration (20261122190000) is live: the host form hides the Kind choice. */
+  organiserLive(): boolean;
+  /** Your account is marked as an organiser (staff set it). Always false in the demo. */
+  isOrganiser(): boolean;
   /** Meet history and, for hosts, regulars and newcomers (meet_stats()); null when not live. */
   meetStats(eventId: string): Promise<{ runs: number; typical: number | null; regulars: number | null; newcomers: number | null } | null>;
 }

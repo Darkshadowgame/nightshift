@@ -27,6 +27,11 @@ import { BrandPicker } from './BrandPicker';
 import { Callout, MediaFrame } from './Detail';
 import { useClashCheck } from './ClashSheet';
 import { ActionBar, Button, ChipGroup, ChoiceGroup, ConfirmSheet, DateTimeField, displayHandle, DsText, ErrorState, Field, Icon, PAGE_WITH_BAR, Press, RowDivider, Section, StepHeading, SwitchRow, TextField } from './ds';
+import { DEMO_PARTNERS, PARTNERS } from '../data/partners';
+import {
+  canPostOrganised, checkOrganised, draftFromEvent as organisedDraftOf, KIND_CHOICES, KIND_HINTS, MAX_SPONSORS, ORGANISED_WORDS, SPONSOR_NAME_MAX, withKind,
+  type HostKind, type OrganisedDraft,
+} from '../lib/organised';
 import { MapEdgeFade } from './MapEdgeFade';
 import { MapPicker } from './MapPicker';
 import { NightMap } from './NightMap';
@@ -148,6 +153,14 @@ export function EventForm({
   const [capacity, setCapacity] = useState<string>(() => String(initial?.capacity ?? d0?.capacity ?? 'none'));
   /** "Let people invite their connections" (eventInvites.ts): on unless the host turns it off. */
   const [allowInvites, setAllowInvites] = useState(initial?.allowInvites !== false);
+  // Organised events (organised.ts): only an organiser account, once the server has it, sees the Kind choice.
+  const canOrg = canPostOrganised(!!store.remote?.isOrganiser(), !!store.remote?.organiserLive());
+  const [kind, setKind] = useState<HostKind>(() => (initial ? (initial.organised ? 'organised' : 'local') : d0?.kind === 'organised' ? 'organised' : 'local'));
+  const [org, setOrg] = useState<OrganisedDraft>(() =>
+    initial ? organisedDraftOf(initial) : d0 ? { organiser: d0.organiser ?? '', sponsors: d0.sponsors ?? [], price: d0.ticketPrice ?? '', link: d0.ticketLink ?? '' } : organisedDraftOf(undefined),
+  );
+  const organised = canOrg && kind === 'organised';
+  const partnerChoices = (store.backend === 'local' ? DEMO_PARTNERS : PARTNERS).map((p) => ({ id: `partner:${p.id}`, name: p.name }));
   /** What's missing, and where it shows: a field (`name`, `start`, `end`, `point`, `stop:<i>`) or the form. */
   const [error, setErrorRaw] = useState<{ at: string; message: string } | null>(null);
   const setError = (e: { at: string; message: string } | string | null) => setErrorRaw(typeof e === 'string' ? { at: 'form', message: e } : e);
@@ -184,6 +197,7 @@ export function EventForm({
     coHosts,
     rules,
     capacity: capacity === 'none' ? undefined : Number(capacity),
+    ...(organised ? { kind, organiser: org.organiser, sponsors: org.sponsors, ticketPrice: org.price, ticketLink: org.link } : {}),
     savedAt: '',
   };
   const draftKey = JSON.stringify(draftNow);
@@ -349,6 +363,10 @@ export function EventForm({
       const unnamed = visibleStops.findIndex((x) => x.at && !x.name.trim());
       if (unnamed >= 0) return { at: `stop:${unnamed}`, message: 'Name it the way people know it, e.g. the car park or venue.' };
     }
+    if (s === 2 && organised) {
+      const c = checkOrganised(org);
+      if (!c.ok) return { at: c.at, message: c.message };
+    }
     return null;
   }
 
@@ -367,10 +385,11 @@ export function EventForm({
   /** Post: checks every step, then asks before a clash (ClashSheet) and a meet ban (warn only, never blocked). */
   function save(clashOk = false) {
     if (saving) return;
-    for (const s of [0, 1] as Step[]) {
+    for (const s of [0, 1, 2] as Step[]) {
       const p = problem(s);
       if (p) {
         go(s);
+        if (s === 2) setMore(true);
         return setError(p);
       }
     }
@@ -418,6 +437,8 @@ export function EventForm({
     else delete event.capacity;
     if (allowInvites) delete event.allowInvites;
     else event.allowInvites = false;
+    // Local meets never carry sponsors or tickets; organised ones are set only by an organiser (organised.ts).
+    const finalEvent = canOrg ? withKind(event, kind, org) : event;
     const twin = !initial ? duplicateHosted(store.events, event, me) : undefined;
     if (twin) return setError(`You already host ${twin.title} at that time. Change the name or the time.`);
     setError(null);
@@ -425,7 +446,7 @@ export function EventForm({
     finished.current = true;
     setExit({ action: null });
     try {
-      await onSubmit(event, { invited: peopleCount });
+      await onSubmit(finalEvent, { invited: peopleCount });
       if (!editing) clearHostDraft(me);
     } catch (e) {
       finished.current = false;
@@ -474,6 +495,12 @@ export function EventForm({
         onChange={(t) => !editing && setType(t)}
       />
       <DsText v="secondary">{TYPE_HINTS[type]}</DsText>
+      {canOrg ? (
+        <>
+          <ChoiceGroup label={ORGANISED_WORDS.kind} options={KIND_CHOICES} value={kind} onChange={(k) => (setKind(k), k === 'organised' && setMore(true))} />
+          <DsText v="secondary">{KIND_HINTS[kind]}</DsText>
+        </>
+      ) : null}
       <Field label="Name" error={errorAt('name')}>
         <TextField
           value={title}
@@ -696,6 +723,46 @@ export function EventForm({
               onChange={setCapacity}
             />
           ) : null}
+          {organised ? (
+            <View style={{ gap: SPACING.md }} testID="organised-fields">
+              <Field label={ORGANISED_WORDS.organiser} error={errorAt('organiser')}>
+                <TextField value={org.organiser} onChangeText={(t) => (setOrg((o) => ({ ...o, organiser: t })), clearAt('organiser'))} placeholder="Who is running it" maxLength={60} accessibilityLabel={ORGANISED_WORDS.organiser} />
+              </Field>
+              <Field label={ORGANISED_WORDS.sponsors} hint={`Up to ${MAX_SPONSORS}. Shown under “Sponsored by”.`} error={errorAt('sponsors')}>
+                <View style={{ gap: SPACING.sm }}>
+                  {org.sponsors.map((sp, n) => (
+                    <View key={n} style={{ gap: SPACING.xs }}>
+                      <TextField
+                        value={sp.name}
+                        onChangeText={(t) => (setOrg((o) => ({ ...o, sponsors: o.sponsors.map((x, j) => (j === n ? { ...x, name: t } : x)) })), clearAt('sponsors'))}
+                        placeholder={`Sponsor ${n + 1}`}
+                        maxLength={SPONSOR_NAME_MAX}
+                        accessibilityLabel={`${ORGANISED_WORDS.sponsorName} ${n + 1}`}
+                      />
+                      {partnerChoices.length ? (
+                        <ChoiceGroup
+                          label="Shop in Slipstream"
+                          options={[{ key: 'none', label: 'None' }, ...partnerChoices.map((p) => ({ key: p.id, label: p.name }))]}
+                          value={sp.shop ?? 'none'}
+                          onChange={(k) => setOrg((o) => ({ ...o, sponsors: o.sponsors.map((x, j) => (j === n ? { name: x.name, ...(k === 'none' ? {} : { shop: k }) } : x)) }))}
+                        />
+                      ) : null}
+                      <Button label="Remove sponsor" tier="tertiary" size="sm" style={{ alignSelf: 'flex-start' }} onPress={() => setOrg((o) => ({ ...o, sponsors: o.sponsors.filter((_, j) => j !== n) }))} />
+                    </View>
+                  ))}
+                  {org.sponsors.length < MAX_SPONSORS ? (
+                    <Button label="Add a sponsor" tier="tertiary" size="sm" style={{ alignSelf: 'flex-start' }} onPress={() => setOrg((o) => ({ ...o, sponsors: [...o.sponsors, { name: '' }] }))} />
+                  ) : null}
+                </View>
+              </Field>
+              <Field label={ORGANISED_WORDS.ticketPrice} error={errorAt('price')}>
+                <TextField value={org.price} onChangeText={(t) => (setOrg((o) => ({ ...o, price: t })), clearAt('price'))} placeholder="e.g. 12 (leave empty for none)" keyboardType="decimal-pad" maxLength={8} accessibilityLabel={ORGANISED_WORDS.ticketPrice} />
+              </Field>
+              <Field label={ORGANISED_WORDS.ticketLink} hint={ORGANISED_WORDS.noPayments} error={errorAt('link')}>
+                <TextField value={org.link} onChangeText={(t) => (setOrg((o) => ({ ...o, link: t })), clearAt('link'))} placeholder="https://" keyboardType="url" autoCapitalize="none" autoCorrect={false} maxLength={300} accessibilityLabel={ORGANISED_WORDS.ticketLink} />
+              </Field>
+            </View>
+          ) : null}
           <ChipGroup<string>
             label="House rules"
             allLabel="None"
@@ -732,6 +799,12 @@ export function EventForm({
     <>
       <View>
         <ReviewRow label="What" value={`${EVENT_LABELS[type]} · ${title.trim() || 'No name yet'}`} onEdit={() => go(0)} />
+        {organised ? (
+          <>
+            <RowDivider />
+            <ReviewRow label="Kind" value={`Organised event${org.organiser.trim() ? ` by ${org.organiser.trim()}` : ''}`} onEdit={() => go(0)} />
+          </>
+        ) : null}
         <RowDivider />
         <ReviewRow label="When" value={whenText} onEdit={() => go(0)} />
         <RowDivider />

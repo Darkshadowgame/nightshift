@@ -25,6 +25,7 @@ import {
   crewFromRow,
   eventFromRows,
   eventToRpc,
+  organisedArgs,
   isUuid,
   modsToRows,
   noticeFromRow,
@@ -202,6 +203,31 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     await rpc('set_meet_options', { p_event_id: eventId, p_capacity: e.capacity ?? null, p_rules: e.rules ?? [] });
   }
 
+  /**
+   * True once the organised events migration (20261122190000) answers: the organisers table can be
+   * read. `iAmOrganiser`: my account has the mark (staff set it). Both stay false before then.
+   */
+  let organisedOn = false;
+  let iAmOrganiser = false;
+  async function loadOrganiser(): Promise<void> {
+    try {
+      const rows = await call<{ user_id: string }[]>(() => client.from('organisers').select('user_id').eq('user_id', uid));
+      organisedOn = true;
+      iAmOrganiser = rows.length > 0;
+    } catch (e) {
+      if (!offline(e)) {
+        organisedOn = false;
+        iAmOrganiser = false;
+      }
+    }
+  }
+
+  /** An organiser's kind, organiser name, sponsors and tickets, saved once the migration is live. A local meet clears them. */
+  async function setOrganised(e: NightEvent, eventId: string): Promise<void> {
+    if (!organisedOn || !iAmOrganiser) return;
+    await rpc('set_event_organised', organisedArgs(e, eventId));
+  }
+
   async function loadEventParts(ids: string[]) {
     if (ids.length === 0) return { hosts: [], going: [], requests: [], checkIns: [], stops: [], changes: [], chat: [], invites: [], statuses: [], waitlist: [] };
     const [hosts, going, requests, checkIns, stops, changes, chat, invites, meetParts] = await Promise.all([
@@ -355,7 +381,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       .slice(0, 100);
 
   async function refresh(): Promise<void> {
-    const [people, events, builds, places, notices] = await Promise.all([loadPeople(), loadEvents(), loadBuilds(), loadSpots(), loadNotices()]);
+    const [people, events, builds, places, notices] = await Promise.all([loadPeople(), loadEvents(), loadBuilds(), loadSpots(), loadNotices(), loadOrganiser()]).then(([a, b, c, d, f]) => [a, b, c, d, f] as const);
     set((s) => ({ ...s, ...people, ...events, builds, ...places, notices: mergeNotices(s.notices, notices) }));
     const placeRep = await loadPlaceRep(people.users.map((u) => u.id)).catch(() => null);
     if (placeRep) set((s) => ({ ...s, placeRep }));
@@ -648,6 +674,8 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       const r = await rpc<{ id: string; warnings: string[] }>('save_event', eventToRpc(e, uid, true));
       if (e.allowInvites === false) await setEventInvites(r.id, false);
       if (e.capacity || e.rules?.length) await quietly(setMeetOptions(e, r.id));
+      // A new organised event is made as a meet, then marked by the server's own check (organisers only).
+      if (e.organised) await setOrganised(e, r.id);
       await quietly(refreshEvent(r.id));
       return r.id;
     },
@@ -655,6 +683,7 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       await rpc('save_event', eventToRpc(e, uid, false));
       const was = eventOf(e.id);
       if (e.capacity !== was.capacity || (e.rules ?? []).join() !== (was.rules ?? []).join()) await setMeetOptions(e, e.id);
+      if (organisedOn && iAmOrganiser && JSON.stringify(organisedArgs(e, e.id)) !== JSON.stringify(organisedArgs(was, e.id))) await setOrganised(e, e.id);
       if ((e.allowInvites !== false) !== (eventOf(e.id).allowInvites !== false)) await setEventInvites(e.id, e.allowInvites !== false);
       await quietly(refreshEvent(e.id));
     },
@@ -903,6 +932,8 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     },
     invitesLive: () => invitesOn,
     meetsLive: () => meetsOn,
+    organiserLive: () => organisedOn,
+    isOrganiser: () => organisedOn && iAmOrganiser,
     async meetStats(eventId) {
       if (!meetsOn || !isUuid(eventId)) return null;
       try {

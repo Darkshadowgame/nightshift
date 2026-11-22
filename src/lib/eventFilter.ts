@@ -16,6 +16,7 @@
 
 import { windowFor } from './discover';
 import { canJoinDirectly, type EventView } from './eventView';
+import { countNouns, matchesShow, savedShow, type ShowKind } from './organised';
 import type { EventType } from './types';
 
 export type EventWhen = 'tonight' | 'week' | 'all';
@@ -27,11 +28,13 @@ export interface EventFilter {
   types: EventKind[];
   /** Hide meets your garage can't go to. On by default (owner, 18 Nov 2026). */
   canGoOnly: boolean;
+  /** Local meets, Organised events or All (organised.ts). Missing in older saves: All. */
+  show: ShowKind;
 }
 
-export const DEFAULT_EVENT_FILTER: EventFilter = { when: 'tonight', types: [], canGoOnly: true };
+export const DEFAULT_EVENT_FILTER: EventFilter = { when: 'tonight', types: [], canGoOnly: true, show: 'all' };
 /** Everything: what "Show all" sets. */
-export const NO_EVENT_FILTER: EventFilter = { when: 'all', types: [], canGoOnly: false };
+export const NO_EVENT_FILTER: EventFilter = { when: 'all', types: [], canGoOnly: false, show: 'all' };
 
 export const WHEN_OPTIONS: { key: EventWhen; label: string }[] = [
   { key: 'tonight', label: 'Tonight' },
@@ -53,7 +56,7 @@ export function savedEventFilter(saved: Partial<EventFilter> | undefined): Event
   // Every type picked is the same as none (nothing picked means all).
   const types = picked.length === KINDS.length ? [] : picked;
   const canGoOnly = typeof saved?.canGoOnly === 'boolean' ? saved.canGoOnly : DEFAULT_EVENT_FILTER.canGoOnly;
-  return { when, types, canGoOnly };
+  return { when, types, canGoOnly, show: savedShow(saved?.show) };
 }
 
 /**
@@ -100,7 +103,7 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
       if (inWhen) shownInWhen++;
       continue;
     }
-    const inType = filter.types.length === 0 || (filter.types as EventType[]).includes(v.event.type);
+    const inType = (filter.types.length === 0 || (filter.types as EventType[]).includes(v.event.type)) && matchesShow(v.event, filter.show ?? 'all');
     if (!eventsOn || !inWhen || !inType) {
       hiddenByFilters++;
       if (eventsOn && inType && !inWhen) hiddenByWhen++;
@@ -119,7 +122,7 @@ export function filterEvents(views: readonly EventView[], filter: EventFilter, e
 
 /** Is anything narrowing the events (so the Layers button can say so)? */
 export function filtering(filter: EventFilter, eventsOn: boolean): boolean {
-  return !eventsOn || filter.when !== 'all' || filter.types.length > 0 || filter.canGoOnly;
+  return !eventsOn || filter.when !== 'all' || filter.types.length > 0 || filter.canGoOnly || (filter.show ?? 'all') !== 'all';
 }
 
 export interface FilterLine {
@@ -132,7 +135,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 /** Every filter off and Events on: what "Show" sets. */
 function allShown(filter: EventFilter, eventsOn: boolean): boolean {
-  return eventsOn && filter.when === 'all' && filter.types.length === 0 && !filter.canGoOnly;
+  return eventsOn && filter.when === 'all' && filter.types.length === 0 && !filter.canGoOnly && (filter.show ?? 'all') === 'all';
 }
 
 /**
@@ -145,9 +148,10 @@ function allShown(filter: EventFilter, eventsOn: boolean): boolean {
 export function filterLine(result: FilterResult, filter: EventFilter, eventsOn: boolean, hasCar: boolean): FilterLine | null {
   const { hiddenByCar: car, hiddenByFilters: other } = result;
   const when = filter.when === 'tonight' ? ' tonight' : filter.when === 'week' ? ' this week' : '';
-  const count = `${plural(result.shownInWhen, 'meet', 'meets')}${when}`;
+  const nouns = countNouns(filter.show ?? 'all');
+  const count = `${plural(result.shownInWhen, nouns.one, nouns.many)}${when}`;
   if (car === 0 && other === 0) {
-    const defaults = filter.when === DEFAULT_EVENT_FILTER.when && filter.types.length === 0 && filter.canGoOnly === DEFAULT_EVENT_FILTER.canGoOnly;
+    const defaults = filter.when === DEFAULT_EVENT_FILTER.when && filter.types.length === 0 && filter.canGoOnly === DEFAULT_EVENT_FILTER.canGoOnly && (filter.show ?? 'all') === 'all';
     return allShown(filter, eventsOn) && !defaults ? { text: `${count} · Filters off`, action: { label: 'Reset', clears: 'reset' } } : null;
   }
   const carWhy = (n: number) => (hasCar ? `${n} not for your car` : `${n} need a car`);

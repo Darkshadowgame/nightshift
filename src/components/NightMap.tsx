@@ -65,7 +65,7 @@ const PinMarker = memo(
               anchor={{ x: 0.5, y: 0.5 }}
               accessibilityLabel={label}
             >
-              <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} done={pin.done} />
+              <Pin glyph={pin.glyph} colour={pin.colour} size={size} count={pin.count} badge={pin.badge} done={pin.done} organised={pin.organised} />
             </Marker>
           ),
         )}
@@ -80,7 +80,7 @@ const PinMarker = memo(
     a.pin.size === b.pin.size &&
     a.pin.live === b.pin.live &&
     a.pin.count === b.pin.count &&
-    a.pin.badge === b.pin.badge && a.pin.done === b.pin.done && a.pin.faded === b.pin.faded &&
+    a.pin.badge === b.pin.badge && a.pin.done === b.pin.done && a.pin.organised === b.pin.organised && a.pin.faded === b.pin.faded &&
     a.pin.title === b.pin.title &&
     a.pin.at.lat === b.pin.at.lat &&
     a.pin.at.lng === b.pin.at.lng,

@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { EVENT_COLOURS } from '../theme';
 import { KIND_OPTIONS, WHEN_OPTIONS, type EventFilter } from '../lib/eventFilter';
 import { SPACING } from '../theme';
+import { SHOW_OPTIONS } from '../lib/organised';
 import { ChipGroup, DsText, RowDivider, SegmentedControl, SwitchRow } from './ds';
 
 export interface EventFiltersProps {
@@ -18,7 +19,7 @@ export interface EventFiltersProps {
 
 /**
  * The Meets part of the Layers sheet (owner, 18 Nov 2026; "Meets", not "Events": Review 21 gap 19): Meets on or off, When (Tonight / This
- * week / All), Type chips (nothing picked = all) and Only ones I can go to. Meets you're going to or
+ * week / All), Show (All, Local meets or Organised events), Type chips (nothing picked = all) and Only ones I can go to. Meets you're going to or
  * hosting always show. The logic is eventFilter.ts.
  */
 export function EventFilters({ eventsOn, onToggleEvents, filter, onChange, toggle = true, timeCheck, onTimeCheck }: EventFiltersProps) {
@@ -33,6 +34,10 @@ export function EventFilters({ eventsOn, onToggleEvents, filter, onChange, toggl
             {onTimeCheck ? (
               <SwitchRow label="Check a time" hint="Drag across the evening, 18:00 to 02:00, to see what's on" value={!!timeCheck} onValueChange={onTimeCheck} />
             ) : null}
+          </View>
+          <View style={{ gap: SPACING.sm }}>
+            <DsText v="label">Show</DsText>
+            <SegmentedControl accessibilityLabel="Show" value={filter.show ?? 'all'} onChange={(show) => onChange({ ...filter, show })} options={SHOW_OPTIONS} />
           </View>
           <ChipGroup label="Type" allLabel="All types" options={KIND_OPTIONS.map((o) => ({ ...o, dot: EVENT_COLOURS[o.key] }))} selected={filter.types} onChange={(types) => onChange({ ...filter, types })} />
           <SwitchRow

@@ -1,5 +1,6 @@
 import { ScrollView, View } from 'react-native';
 import { plural } from '../lib/format';
+import { ORGANISED_A11Y, ORGANISED_TAG, ORGANISED_WORDS } from '../lib/organised';
 import type { StripMeet } from '../lib/mapNight';
 import { COLOR, RADII, SPACING, themedStyles } from '../theme';
 import { DsText, Press } from './ds';
@@ -15,6 +16,7 @@ const CHIP_W = 168;
  */
 export function TonightStrip({ meets, nearHome, onOpen }: { meets: StripMeet[]; nearHome?: ReadonlySet<string>; onOpen: (id: string) => void }) {
   if (meets.length === 0) return null;
+  const grouped = meets.some((m) => m.organised) && meets.some((m) => !m.organised);
   return (
     <View testID="tonight-strip" accessibilityLabel="Next meets">
       <ScrollView
@@ -25,14 +27,25 @@ export function TonightStrip({ meets, nearHome, onOpen }: { meets: StripMeet[]; 
         contentContainerStyle={st.row}
         keyboardShouldPersistTaps="handled"
       >
-        {meets.map((m) => {
+        {meets.map((m, i) => {
           const home = nearHome?.has(m.id);
+          // Two kinds in the row: a small heading starts each group, local meets first (organised.ts).
+          const heading = grouped && (i === 0 || !!m.organised !== !!meets[i - 1].organised) ? (m.organised ? ORGANISED_WORDS.organisedGroup : ORGANISED_WORDS.localGroup) : null;
           return (
+            <View key={m.id} style={st.group}>
+              {heading ? (
+                <DsText v="eyebrow" accessibilityRole="header" numberOfLines={1}>
+                  {heading}
+                </DsText>
+              ) : grouped ? (
+                <DsText v="eyebrow" aria-hidden numberOfLines={1}>
+                  {' '}
+                </DsText>
+              ) : null}
             <Press
-              key={m.id}
               onPress={() => onOpen(m.id)}
               haptic="select"
-              label={`${m.live ? 'Live now' : m.time}, ${m.title}, ${plural(m.going, 'person', 'people')} going${home ? ', on your way home' : ''}`}
+              label={`${m.live ? 'Live now' : m.time}, ${m.title}${m.organised ? `, ${ORGANISED_A11Y}` : ''}, ${plural(m.going, 'person', 'people')} going${home ? ', on your way home' : ''}`}
               hint="Shows it on the map"
               style={st.chip}
             >
@@ -43,9 +56,10 @@ export function TonightStrip({ meets, nearHome, onOpen }: { meets: StripMeet[]; 
                 {m.title}
               </DsText>
               <DsText v="meta">
-                {home ? `${m.going} going · On your way home` : `${m.going} going`}
+                {[`${m.going} going`, m.organised ? ORGANISED_TAG : null, home ? 'On your way home' : null].filter(Boolean).join(' · ')}
               </DsText>
             </Press>
+            </View>
           );
         })}
       </ScrollView>
@@ -54,6 +68,7 @@ export function TonightStrip({ meets, nearHome, onOpen }: { meets: StripMeet[]; 
 }
 
 const st = themedStyles(() => ({
+  group: { gap: SPACING.xs },
   row: { gap: SPACING.sm, paddingVertical: SPACING.xs },
   chip: {
     width: CHIP_W,

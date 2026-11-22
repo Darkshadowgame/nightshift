@@ -40,13 +40,13 @@ describe('saved map layers (REVIEW-9 decision 13: Events only by default)', () =
 
 describe('event filters (owner, 18 Nov 2026)', () => {
   test('new installs: Tonight, only ones I can go to', () => {
-    expect(DEFAULT_SETTINGS.eventFilter).toEqual({ when: 'tonight', types: [], canGoOnly: true });
+    expect(DEFAULT_SETTINGS.eventFilter).toEqual({ when: 'tonight', types: [], canGoOnly: true, show: 'all' });
   });
   test('older saves get the default once, then a choice is kept', () => {
     const old = upgradeSettings({ eventFilter: { when: 'all', types: [], canGoOnly: false } } as never, true);
-    expect(old.eventFilter).toEqual({ when: 'tonight', types: [], canGoOnly: true });
+    expect(old.eventFilter).toEqual({ when: 'tonight', types: [], canGoOnly: true, show: 'all' });
     expect(old.eventFilterOnce).toBe(true);
-    const later = upgradeSettings({ ...old, eventFilter: { when: 'week', types: ['cruise'], canGoOnly: false } }, true);
-    expect(later.eventFilter).toEqual({ when: 'week', types: ['cruise'], canGoOnly: false });
+    const later = upgradeSettings({ ...old, eventFilter: { when: 'week', types: ['cruise'], canGoOnly: false, show: 'organised' } }, true);
+    expect(later.eventFilter).toEqual({ when: 'week', types: ['cruise'], canGoOnly: false, show: 'organised' });
   });
 });

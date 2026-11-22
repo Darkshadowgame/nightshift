@@ -27,11 +27,11 @@ const f = (x: Partial<EventFilter>): EventFilter => ({ ...NO_EVENT_FILTER, ...x 
 
 describe('event filter defaults', () => {
   test('Tonight and Only ones I can go to by default', () => {
-    expect(DEFAULT_EVENT_FILTER).toEqual({ when: 'tonight', types: [], canGoOnly: true });
+    expect(DEFAULT_EVENT_FILTER).toEqual({ when: 'tonight', types: [], canGoOnly: true, show: 'all' });
     expect(savedEventFilter(undefined)).toEqual(DEFAULT_EVENT_FILTER);
   });
   test('odd saves are cleaned; every type picked means all', () => {
-    expect(savedEventFilter({ when: 'soon' as never, types: ['meet', 'x' as never], canGoOnly: 'y' as never })).toEqual({ when: 'tonight', types: ['meet'], canGoOnly: true });
+    expect(savedEventFilter({ when: 'soon' as never, types: ['meet', 'x' as never], canGoOnly: 'y' as never })).toEqual({ when: 'tonight', types: ['meet'], canGoOnly: true, show: 'all' });
     expect(savedEventFilter({ when: 'all', types: ['rolling', 'meet', 'cruise'], canGoOnly: false })).toEqual(NO_EVENT_FILTER);
   });
   test('tonight ends at 05:00, this week with Sunday night', () => {

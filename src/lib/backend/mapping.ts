@@ -42,6 +42,12 @@ export interface EventRow {
   /** Missing until the meets level-up migration (20261122140000) is live. */
   capacity?: number | null;
   rules?: string[] | null;
+  /** Missing until the organised events migration (20261122190000) is live. */
+  organised?: boolean;
+  organiser_name?: string | null;
+  sponsors?: { name: string; shop?: string }[] | null;
+  ticket_pence?: number | null;
+  ticket_url?: string | null;
 }
 /** A row from get_event_stops(): locked stops have name, lat, lng and note null and visible false. */
 export interface StopRow { id: string; event_id: string; position: number; name: string | null; lat: number | null; lng: number | null; note: string | null; revealed_at: string | null; visible: boolean }
@@ -281,6 +287,16 @@ export function eventFromRows(r: EventRow, parts: EventParts): NightEvent {
   if (r.allow_invites === false) e.allowInvites = false;
   if (r.capacity) e.capacity = r.capacity;
   if (r.rules?.length) e.rules = r.rules;
+  // Only an organised event carries these; a local meet never does (organised.ts). Unset keeps the type's default.
+  if (r.organised) {
+    e.organised = true;
+    if (r.organiser_name) e.organiser = r.organiser_name;
+    if (r.sponsors?.length) e.sponsors = r.sponsors.filter((x) => x && typeof x.name === 'string').map((x) => (x.shop ? { name: x.name, shop: x.shop } : { name: x.name }));
+    if (r.ticket_pence) e.ticketPence = r.ticket_pence;
+    if (r.ticket_url) e.ticketUrl = r.ticket_url;
+  } else if (r.organised === false && (r.type === 'show' || r.type === 'trackday')) {
+    e.organised = false;
+  }
   if (Object.keys(arrivals).length) e.arrivals = arrivals;
   const statuses = mine(parts.statuses ?? []);
   if (statuses.length) e.status = Object.fromEntries(statuses.map((x) => [x.user_id, x.status]));
@@ -439,4 +455,17 @@ export function splitBundledRows(
 /** place_rep_for() rows by user id. */
 export function placeRepFromRows(rows: PlaceRepRow[]): Record<string, PlaceRep> {
   return Object.fromEntries(rows.map((r) => [r.user_id, { drives: Number(r.drives) || 0, drivesRep: Number(r.drives_rep) || 0, photoSpots: Number(r.photo_spots) || 0 }]));
+}
+
+/** set_event_organised()'s arguments: an organised event's fields, or all empty for a local meet (organised.ts). */
+export function organisedArgs(e: NightEvent, eventId: string): Record<string, unknown> {
+  const on = e.organised === true;
+  return {
+    p_event_id: eventId,
+    p_organised: on,
+    p_organiser: on ? (e.organiser ?? null) : null,
+    p_sponsors: on ? (e.sponsors ?? []).map((s) => (s.shop ? { name: s.name, shop: s.shop } : { name: s.name })) : [],
+    p_ticket_pence: on ? (e.ticketPence ?? null) : null,
+    p_ticket_url: on ? (e.ticketUrl ?? null) : null,
+  };
 }

@@ -12,7 +12,7 @@ import { DsText } from './Text';
 /** What leads a row. A person is always an avatar; a build is its class badge; a place or event its pin. */
 export type Leading =
   | { avatar: { name?: string | null; handle?: string | null; photo?: Photo | null } }
-  | { pin: Glyph; colour: string }
+  | { pin: Glyph; colour: string; organised?: boolean }
   | { classBadge: ClassLetter }
   | { icon: IconName; colour?: string }
   /** Any small drawing (an award badge, a crew emblem), up to 40 pt wide. */
@@ -24,7 +24,7 @@ function LeadingMark({ leading }: { leading: Leading }) {
   if ('pin' in leading)
     return (
       <View aria-hidden>
-        <Pin glyph={leading.pin} colour={contentColour(leading.colour, COLOR.text.secondary)} size={36} />
+        <Pin glyph={leading.pin} colour={contentColour(leading.colour, COLOR.text.secondary)} size={36} organised={leading.organised} />
       </View>
     );
   if ('classBadge' in leading) return <ClassBadge letter={leading.classBadge} size="md" decorative />;

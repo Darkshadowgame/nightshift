@@ -41,6 +41,9 @@ function MemberModerationScreen() {
   const now = useNow();
   const status = useCommunityQuery((s) => s.moderationStatus(), []);
   const overview = useCommunityQuery((s) => s.memberOverview(id), [id]);
+  // Organiser mark (organised.ts): admins and the owner can let someone post organised events.
+  const organiser = useCommunityQuery((s) => s.isOrganiser(id), [id]);
+  const [orgReason, setOrgReason] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [more, setMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -90,6 +93,7 @@ function MemberModerationScreen() {
       setDone(message);
       setNote('');
       overview.reload();
+      organiser.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't do that.");
     } finally {
@@ -216,6 +220,33 @@ function MemberModerationScreen() {
               />
             ))}
           </View>
+        </Section>
+      ) : null}
+
+      {myRole === 'admin' || myRole === 'owner' ? (
+        <Section title="Organiser">
+          <ListRow
+            title="Can post organised events"
+            subtitle="Planned events with sponsors and tickets. Everyone else can only post local meets."
+            trailing={organiser.data === null ? undefined : <Tag label={organiser.data ? 'Allowed' : 'Not allowed'} tone={organiser.data ? 'success' : 'neutral'} />}
+          />
+          <Field label="Reason" hint="Kept with the mark. 3 to 200 characters.">
+            <TextField value={orgReason} onChangeText={setOrgReason} placeholder="e.g. Runs the Sample Show Co shows" maxLength={200} accessibilityLabel="Organiser reason" />
+          </Field>
+          {organiser.data !== null ? (
+            <Button
+              label={organiser.data ? 'Remove organiser mark' : 'Make an organiser'}
+              tier={organiser.data ? 'destructive' : 'secondary'}
+              size="sm"
+              busy={busy === 'organiser'}
+              disabled={orgReason.trim().length < 3}
+              hint="Give a reason first"
+              onPress={() =>
+                act('organiser', () => community.run((x) => x.setOrganiser(m.id, !organiser.data, orgReason)), organiser.data ? `${handle} can only post local meets now.` : `${handle} can post organised events.`)
+              }
+              style={{ alignSelf: 'flex-start' }}
+            />
+          ) : null}
         </Section>
       ) : null}
 

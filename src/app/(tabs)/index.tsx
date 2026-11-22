@@ -35,6 +35,7 @@ import { NightMap } from '../../components/NightMap';
 import { Pin } from '../../components/Pin';
 import { DemoNightSheet } from '../../components/DemoNightSheet';
 import { EventRow } from '../../components/EventRow';
+import { isOrganised, ORGANISED_A11Y, ORGANISED_WORDS, showGroupHeadings, splitByKind } from '../../lib/organised';
 import { driveLength, EventEntityCard, placeDistance } from '../../components/TonightCards';
 import { UNVETTED_PHOTO_SPOTS } from '../../data/photoVetting';
 import { BIKE_ONLY_BADGE, BIKE_ONLY_LABEL, isBikeOnly, passesVehicleFilter, vehicleFilter } from '../../lib/photoVehicles';
@@ -407,6 +408,8 @@ export default function TonightScreen() {
     for (const v of inView) {
       const e = v.event;
       const colour = EVENT_COLOURS[e.type];
+      // Organised events (organised.ts): a corner mark on the pin and "organised event" in its label.
+      const org = isOrganised(e) ? { organised: true, label: `, ${ORGANISED_A11Y}` } : { organised: undefined, label: '' };
       // Time check: a meet that isn't on at the chosen time is drawn faint (the sheet says how many are on).
       const off = checkAtMs !== null && !onAt(v, new Date(checkAtMs));
       const fade = off ? { faded: true } : {};
@@ -417,12 +420,12 @@ export default function TonightScreen() {
       }
       if (v.shownStop >= 0) {
         const stop = e.stops[v.shownStop];
-        if (stop.at) eventPins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: e.title, size: 42, live: v.phase === 'live', ...fade });
+        if (stop.at) eventPins.push({ id: `ev:${e.id}`, at: stop.at, glyph: e.type, colour, title: `${e.title}${org.label}`, size: 42, live: v.phase === 'live', organised: org.organised, ...fade });
         if (e.type === 'cruise') paths.push({ id: `rt:${e.id}`, coords: e.stops.flatMap((s) => (s.at ? [s.at] : [])), colour, dashed: true });
       } else {
         // The area circle only for the meet you tapped, and quiet: the pins carry the colour (Review 13).
         if (e.id === selEvent) circles.push({ id: `ar:${e.id}`, centre: e.area, radiusMiles: areaRadius(e), colour: COLOR.text.secondary });
-        eventPins.push({ id: `ev:${e.id}`, at: e.area, glyph: e.type, colour, title: `${e.title}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live', ...fade });
+        eventPins.push({ id: `ev:${e.id}`, at: e.area, glyph: e.type, colour, title: `${e.title}${org.label}, ${aroundArea(e.areaName)}`, size: 34, live: v.phase === 'live', organised: org.organised, ...fade });
       }
     }
     const grouped = clusterEventPins(eventPins, snapped.span, selEvent ? `ev:${selEvent}` : null);
@@ -431,7 +434,7 @@ export default function TonightScreen() {
       const lead = c.members[0];
       // One type: its colour; mixed types: the Events brand green.
       const same = c.members.every((m) => m.colour === lead.colour);
-      pins.push({ ...lead, colour: same ? lead.colour : LAYER.event, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live), faded: c.members.every((m) => m.faded) || undefined });
+      pins.push({ ...lead, colour: same ? lead.colour : LAYER.event, id: c.id, title: 'meets here', size: 42, count: c.members.length, live: c.members.some((m) => m.live), organised: c.members.every((m) => m.organised) || undefined, faded: c.members.every((m) => m.faded) || undefined });
     }
     eventClusters.current = grouped.clusters;
     return { pins: orderPins(pins), paths, circles };
@@ -845,23 +848,19 @@ export default function TonightScreen() {
   }
   function sections(onOpen: (v: EventView) => void) {
     if (!meetsFocus) return placeSections();
-    const live = lists.live.filter((v) => v.event.id !== skip);
-    const tonight = lists.tonight.filter((v) => v.event.id !== skip);
-    // Yours after tonight (going or hosting) lead the sheet (Review 20 gap 8): a Sunday meet you're
-    // going to is never only the last row of the list. Listed here, not again under This week or Later.
-    const isYours = (v: EventView) => v.status === 'going' || v.status === 'hosting';
-    const yours = [...lists.week, ...lists.later].filter((v) => v.event.id !== skip && isYours(v));
-    const week = lists.week.filter((v) => v.event.id !== skip && !isYours(v));
-    const later = lists.later.filter((v) => v.event.id !== skip && !isYours(v));
     let i = 0;
-    return (
-      <>
-        {mode === 'list' ? filterNote : null}
-        {/* Two or more meets: a row to pick between them, the first thing under the peek's card (in the header it squeezed the card's photo). One meet is already the card. */}
-        {mode === 'map' && !selCard && !checkAt && strip.length >= 2 ? <TonightStrip meets={strip} nearHome={nearHome} onOpen={(id) => showRef.current(`ev:${id}`)} /> : null}
-        {noCar ? (
-          <ListRow leading={{ icon: 'plus' }} title="Add your car to see what you can join" chevron onPress={() => router.push('/build/edit')} />
-        ) : null}
+    const isYours = (v: EventView) => v.status === 'going' || v.status === 'hosting';
+    /** One kind's sections (or everything, when the kinds aren't headed): Coming up, Live now, Tonight, This week, Later. */
+    const part = (inGroup: (v: EventView) => boolean) => {
+      const live = lists.live.filter((v) => v.event.id !== skip && inGroup(v));
+      const tonight = lists.tonight.filter((v) => v.event.id !== skip && inGroup(v));
+      // Yours after tonight (going or hosting) lead the sheet (Review 20 gap 8): a Sunday meet you're
+      // going to is never only the last row of the list. Listed here, not again under This week or Later.
+      const yours = [...lists.week, ...lists.later].filter((v) => v.event.id !== skip && inGroup(v) && isYours(v));
+      const week = lists.week.filter((v) => v.event.id !== skip && inGroup(v) && !isYours(v));
+      const later = lists.later.filter((v) => v.event.id !== skip && inGroup(v) && !isYours(v));
+      return (
+        <>
         {yours.length ? (
           <Section title="Coming up">
             <View>
@@ -916,6 +915,36 @@ export default function TonightScreen() {
             </View>
           </Section>
         ) : null}
+        </>
+      );
+    };
+    // Local meets and organised events are separate headed groups, local first (organised.ts), once both are on the list.
+    const headed = showGroupHeadings(eventFilter.show ?? 'all', shownViews);
+    const heading = (label: string, n: number) => (
+      <View key={label} style={{ gap: SPACING.xs, paddingTop: n > 0 ? SPACING.sm : 0 }} testID={`group-${label}`}>
+        <DsText v="title" accessibilityRole="header">
+          {label}
+        </DsText>
+      </View>
+    );
+    return (
+      <>
+        {mode === 'list' ? filterNote : null}
+        {/* Two or more meets: a row to pick between them, the first thing under the peek's card (in the header it squeezed the card's photo). One meet is already the card. */}
+        {mode === 'map' && !selCard && !checkAt && strip.length >= 2 ? <TonightStrip meets={strip} nearHome={nearHome} onOpen={(id) => showRef.current(`ev:${id}`)} /> : null}
+        {noCar ? (
+          <ListRow leading={{ icon: 'plus' }} title="Add your car to see what you can join" chevron onPress={() => router.push('/build/edit')} />
+        ) : null}
+        {headed ? (
+          <>
+            {heading(ORGANISED_WORDS.localGroup, 0)}
+            {part((v) => !isOrganised(v.event))}
+            {heading(ORGANISED_WORDS.organisedGroup, 1)}
+            {part((v) => isOrganised(v.event))}
+          </>
+        ) : (
+          part(() => true)
+        )}
         {mode === 'list' && !nothingOn && shownViews.length === 0 ? <EmptyState variant="inline" title="No meets match your filters." /> : null}
         {nothingOn ? <EmptyState variant="inline" title="Nothing on near you yet." action={{ label: 'Host a meet', onPress: () => router.push('/event/new') }} /> : null}
       </>

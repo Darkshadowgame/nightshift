@@ -44,7 +44,7 @@ import { canInvite, INVITE_WORDS, inviterOf } from '../../lib/eventInvites';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { eventPhotoRef, eventStandIn, statusTag } from '../../components/TonightCards';
 import { PhotoViewer } from '../../components/PhotoGallery';
-import { ArrivalsSection, CoHostSheet, HistoryLine, HostDashboard, RulesSection, StatusSummary, StatusToggleRow } from '../../components/MeetExtras';
+import { ArrivalsSection, CoHostSheet, HistoryLine, HostDashboard, OrganisedSections, RulesSection, StatusSummary, StatusToggleRow } from '../../components/MeetExtras';
 import { albumState, canPostToAlbum, canSeeArrivals, hostStats, isFull, meetHistory, placesLeft, waitPosition, WAITLIST_WORDS, type MeetHistory } from '../../lib/meetExtras';
 import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
@@ -55,6 +55,7 @@ import { idsWithoutBlocked } from '../../lib/blocking';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { GroupDriveRow } from '../../components/GroupDrive';
 import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
+import { kindText } from '../../lib/organised';
 import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, isPublicType, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
 import { myEventStatus, newlyUnlocked, roleOf, STATUS_LABELS } from '../../lib/eventView';
 import { formatTime, goingSummary, plural } from '../../lib/format';
@@ -667,7 +668,7 @@ export default function EventScreen() {
           photo={photoRef ? photoSource(photoRef) : null}
           media={mapOnTop ? <View style={{ aspectRatio: 16 / 9, overflow: 'hidden' }}>{map}</View> : undefined}
           overlay={photoRef ? <PhotoCredit photoRef={photoRef} standIn={standIn?.standIn} overlay corner="topRight" /> : undefined}
-          eyebrow={EVENT_LABELS[ev.type]}
+          eyebrow={kindText(ev)}
           live={phase === 'live'}
           title={ev.title}
           meta={meta}
@@ -877,6 +878,8 @@ export default function EventScreen() {
         ) : null}
 
         {dashboard ? <HostDashboard stats={dashboard} /> : null}
+
+        <OrganisedSections event={ev} />
 
         {extrasLive ? <RulesSection event={ev} /> : null}
 

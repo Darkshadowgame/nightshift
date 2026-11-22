@@ -67,7 +67,7 @@ export const FILLED_GLYPHS: ReadonlySet<Glyph> = new Set<Glyph>(['meet', 'rollin
  * pin's sodium: a number badge in colour means "waiting for you" (4.8), and a group isn't.
  * Memoised: map markers re-render only when what they draw changes.
  */
-export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge, done }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string; done?: boolean }) {
+export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge, done, organised }: { glyph: Glyph; colour: string; size?: number; count?: number; badge?: string; done?: boolean; organised?: boolean }) {
   const filled = FILLED_GLYPHS.has(glyph);
   // Dark theme: a dark badge with a coloured rim. Light theme: a pale badge with the rim and glyph
   // darkened to read (inkFor), so a pin is as legible on a page or a light map as on a dark one.
@@ -92,6 +92,15 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge, d
           <Circle cx={32} cy={32} r={8.5} fill={body} />
           <Circle cx={32} cy={32} r={7} fill={tick} />
           <Path d="M28.4 32.2l2.6 2.6 4.6-5.2" fill="none" stroke={tickInk} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : null}
+      {organised ? (
+        // An organised event (organised.ts): a chalk disc with a solid centre at the bottom-right corner,
+        // on top of the meet's own colour and glyph. The shape is the signal, not a colour; the label says "organised event".
+        <>
+          <Circle cx={32} cy={32} r={8.5} fill={body} />
+          <Circle cx={32} cy={32} r={7} fill={COLOR.media.text} />
+          <Circle cx={32} cy={32} r={3} fill={INK} />
         </>
       ) : null}
     </Svg>

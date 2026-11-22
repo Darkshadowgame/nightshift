@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { endTime, EVENT_LABELS } from '../lib/events';
+import { endTime } from '../lib/events';
+import { kindText } from '../lib/organised';
 import { STATUS_LABELS, type EventView, type MyEventStatus } from '../lib/eventView';
 import { distanceText, meetDistance, type DistanceOrigin } from '../lib/format';
 import { milesBetween } from '../lib/geo';
@@ -140,7 +141,7 @@ export function EventEntityCard({
       photo={ref ? photoSource(ref) : null}
       aspect={aspect}
       overlay={overlay ?? (ref ? <PhotoCredit photoRef={ref} standIn={standIn?.standIn} overlay corner="topRight" /> : undefined)}
-      eyebrow={EVENT_LABELS[e.type]}
+      eyebrow={kindText(e)}
       layerColour={EVENT_COLOURS[e.type]}
       live={v.phase === 'live'}
       title={e.title}

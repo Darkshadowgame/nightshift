@@ -221,6 +221,27 @@ export interface NightEvent {
   status?: Record<string, 'late' | 'left'>;
   /** userId -> when they first checked in (ISO). Missing for older check-ins. */
   arrivals?: Record<string, string>;
+  /**
+   * An organised event: planned by an organiser or business (organised.ts). Left out, it is a local
+   * meet, except that shows and track days default to organised (`isOrganised`). Only organiser
+   * accounts can post one. The four fields below are only ever set on an organised event.
+   */
+  organised?: boolean;
+  /** Who runs it ("Sample Show Co"). */
+  organiser?: string;
+  /** Up to 3 sponsors, always shown under "Sponsored by". */
+  sponsors?: Sponsor[];
+  /** Cheapest ticket, in pence. Tickets are sold elsewhere: the app only links out. */
+  ticketPence?: number;
+  /** An https link to buy tickets, opened in the browser. */
+  ticketUrl?: string;
+}
+
+/** A sponsor of an organised event: a name, and optionally a shop already listed in the app (`/shop/<shop>`). */
+export interface Sponsor {
+  name: string;
+  /** A shop route id, e.g. `partner:demo-partner-detailing`. */
+  shop?: string;
 }
 
 export interface PlanChangeLog {

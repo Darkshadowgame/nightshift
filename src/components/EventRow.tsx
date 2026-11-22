@@ -1,4 +1,4 @@
-import { EVENT_LABELS } from '../lib/events';
+import { isOrganised, kindParts } from '../lib/organised';
 import type { EventView } from '../lib/eventView';
 import type { DistanceOrigin } from '../lib/format';
 import { DEMO_SEEDED_GOING } from '../data/seed';
@@ -45,11 +45,11 @@ export function EventRow({
   const closed = notOpen ?? !!notOpenLine(v);
   return (
     <ListRow
-      leading={{ pin: e.type, colour: v.phase === 'over' || v.phase === 'cancelled' ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
+      leading={{ pin: e.type, organised: isOrganised(e), colour: v.phase === 'over' || v.phase === 'cancelled' ? COLOR.text.secondary : EVENT_COLOURS[e.type] }}
       title={e.title}
       // Never cut (Review 17, 1.3x text): the meta wraps to as many lines as it needs, breaking before
       // a "·" (DsText keepTogether), so no line ends on a dot (Review 21 gap 10).
-      subtitle={metaLine([EVENT_LABELS[e.type], cardTime(e, now), cardDistance(v, origin), place])}
+      subtitle={metaLine([...kindParts(e), cardTime(e, now), cardDistance(v, origin), place])}
       subtitleLines={4}
       meta={seeded ? DEMO_NIGHT.seededGoing : closed ? NOT_OPEN : undefined}
       trailing={shown ? <Tag label={shown.label} tone={shown.tone as TagTone} /> : undefined}

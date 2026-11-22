@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DraftStop } from './events';
-import type { EventType, InviteFilter } from './types';
+import type { EventType, InviteFilter, Sponsor } from './types';
 import { clock, type DayChoice } from './when';
 import { copyOf, lastMeet } from './meetExtras';
+import { penceInput } from './organised';
 import type { NightEvent } from './types';
 
 /**
@@ -28,6 +29,12 @@ export interface HostDraft {
   /** Added later: older drafts have neither. */
   rules?: string[];
   capacity?: number;
+  /** Organiser accounts only (organised.ts): kind and its fields. Older drafts have none. */
+  kind?: 'local' | 'organised';
+  organiser?: string;
+  sponsors?: Sponsor[];
+  ticketPrice?: string;
+  ticketLink?: string;
   savedAt: string;
 }
 
@@ -103,6 +110,7 @@ export function draftFromEvent(source: NightEvent, me: string, now: Date, id = '
     coHosts: next.hostIds.filter((h) => h !== me),
     rules: next.rules,
     capacity: next.capacity,
+    ...(source.organised ? { kind: 'organised' as const, organiser: source.organiser ?? '', sponsors: (source.sponsors ?? []).map((x) => ({ ...x })), ticketPrice: penceInput(source.ticketPence), ticketLink: source.ticketUrl ?? '' } : {}),
     savedAt: now.toISOString(),
   };
 }

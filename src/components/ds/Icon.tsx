@@ -6,7 +6,7 @@ import { COLOR } from '../../theme';
  * Unicode stand-ins (›, ✕, ✓, ···, ⚠) in components. Decorative: the control
  * that holds an icon carries the accessibility label.
  */
-export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share' | 'addVehicle' | 'addMeet' | 'compose';
+export type IconName = 'search' | 'close' | 'chevron' | 'check' | 'more' | 'plus' | 'alert' | 'info' | 'success' | 'bell' | 'back' | 'heart' | 'heartOn' | 'camera' | 'comment' | 'edit' | 'pin' | 'calendar' | 'share' | 'addVehicle' | 'addMeet' | 'compose' | 'ticket';
 
 export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: IconName; size?: number; colour?: string }) {
   const p = { stroke: colour, strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -44,6 +44,13 @@ export function Icon({ name, size = 20, colour = COLOR.text.primary }: { name: I
         <>
           <Path d="M20 12.5V6a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h2v3.5L10.5 17H13" {...p} />
           <Path d="M18 14v6M15 17h6" {...p} />
+        </>
+      ) : null}
+      {name === 'ticket' ? (
+        // A ticket with a notch each side: "Tickets from £12".
+        <>
+          <Path d="M4 8a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2.5a1.5 1.5 0 0 0 0 3V16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2.5a1.5 1.5 0 0 0 0-3z" {...p} />
+          <Path d="M14 7v10" {...p} strokeDasharray="1.5 2.5" />
         </>
       ) : null}
       {name === 'edit' ? <Path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" {...p} /> : null}

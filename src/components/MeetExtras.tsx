@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { ORGANISED_WORDS, organisedFacts, sponsorShopId } from '../lib/organised';
 import { arrivalBoard, historyLine, rulesOf, seenAt, STATUS_WORDS, statusRow, statusSummary, type HostStats, type MeetHistory, type MeetStatus } from '../lib/meetExtras';
 import { photoSource } from '../lib/photoSource';
 import type { Build, NightEvent, User } from '../lib/types';
@@ -133,5 +134,57 @@ export function CoHostSheet({ visible, onClose, people, onPick }: { visible: boo
         )}
       </View>
     </Sheet>
+  );
+}
+
+/**
+ * An organised event's commercial side (organised.ts): "Organised by X" and the ticket row in one
+ * section, then Sponsored by, plainly labelled as such (UK advertising rules). Nothing at all for a
+ * local meet. The ticket row opens the organiser's own https link in the browser: it is a row, never a
+ * second primary beside "I'm going", and the app takes no payment.
+ */
+export function OrganisedSections({ event }: { event: NightEvent }) {
+  const facts = organisedFacts(event);
+  if (!facts) return null;
+  const { organisedBy, sponsors, ticket } = facts;
+  return (
+    <>
+      <Section title={ORGANISED_WORDS.section}>
+        <View testID="organised-section">
+          {organisedBy ? <ListRow leading={{ icon: 'info' }} title={organisedBy} subtitle="Planned by an organiser, not a local meet" /> : null}
+          {ticket ? (
+            <ListRow
+              leading={{ icon: 'ticket' }}
+              title={ticket.title}
+              subtitle={ticket.link ? 'Opens the organiser’s site. Slipstream takes no payment' : undefined}
+              chevron={!!ticket.link}
+              onPress={ticket.link ? () => void Linking.openURL(ticket.link!).catch(() => {}) : undefined}
+              accessibilityHint={ticket.link ? 'Opens in your browser' : undefined}
+            />
+          ) : null}
+          {!organisedBy && !ticket ? <DsText v="secondary">Planned by an organiser, not a local meet.</DsText> : null}
+        </View>
+      </Section>
+      {sponsors.length ? (
+        <Section title={ORGANISED_WORDS.sponsoredBy}>
+          <View testID="sponsored-by">
+            <DsText v="caption">{ORGANISED_WORDS.sponsoredHint}</DsText>
+            {sponsors.map((sp) => {
+              const shop = sponsorShopId(sp);
+              return (
+                <ListRow
+                  key={sp.name}
+                  leading={{ icon: 'pin' }}
+                  title={sp.name}
+                  subtitle={shop ? 'Shop in Slipstream' : undefined}
+                  chevron={!!shop}
+                  onPress={shop ? () => router.push({ pathname: '/shop/[id]', params: { id: shop } }) : undefined}
+                />
+              );
+            })}
+          </View>
+        </Section>
+      ) : null}
+    </>
   );
 }

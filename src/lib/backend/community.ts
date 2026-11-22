@@ -829,6 +829,17 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async setRole(userId, role, reason) {
       await rpc('set_staff_role', { p_user: userId, p_role: role, p_reason: reason.trim() });
     },
+    async isOrganiser(userId) {
+      try {
+        return !!(await rpc<boolean>('is_organiser', { p_user: userId }));
+      } catch {
+        // Before the organised events migration the function doesn't exist: nobody is an organiser.
+        return false;
+      }
+    },
+    async setOrganiser(userId, on, reason) {
+      await rpc('set_organiser', { p_user: userId, p_on: on, p_reason: reason.trim() });
+    },
     async team() {
       const rows = await rpc<{ user_id: string; handle: string | null; display_name: string | null; role: StaffRole; added_at: string; actions_7d: number; actions_30d: number }[]>('moderation_team');
       return (rows ?? []).map((t) => ({
