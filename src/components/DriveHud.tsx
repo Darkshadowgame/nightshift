@@ -11,6 +11,7 @@ import { usePhotoFlow } from './PhotoFlow';
 import { LaneStrip } from './LaneStrip';
 import type { LaneStrip as LaneStripData } from '../lib/lanes';
 import { NavIcon } from './NavIcon';
+import { RoundaboutSymbol } from './RoundaboutSymbol';
 
 /**
  * The driving view's pieces (src/app/drive.tsx), Waze and Apple Maps style:
@@ -54,6 +55,10 @@ export function DriveBanner({
       <View style={[st.banner, { paddingTop: top + SPACING.sm }, danger && { borderBottomColor: COLOR.state.danger }]}>
         {onBack ? (
           <IconButton icon="back" label="Go back" colour={COLOR.text.primary} onPress={onBack} />
+        ) : banner?.kind === 'roundabout' && banner.exit ? (
+          <View style={{ width: 72, alignItems: 'center' }}>
+            <RoundaboutSymbol exit={banner.exit} size={72} label={false} />
+          </View>
         ) : (
           <DsText v="driveArrow" style={st.arrow} allowFontScaling={false}>
             {arrow}
@@ -72,9 +77,13 @@ export function DriveBanner({
       {banner?.then ? (
         <View style={st.then}>
           <DsText v="driveLabel">Then</DsText>
-          <DsText v="driveTitle" tone="action" allowFontScaling={false}>
-            {ARROWS[banner.then.kind]}
-          </DsText>
+          {banner.then.kind === 'roundabout' && banner.then.exit ? (
+            <RoundaboutSymbol exit={banner.then.exit} size={40} label={false} />
+          ) : (
+            <DsText v="driveTitle" tone="action" allowFontScaling={false}>
+              {ARROWS[banner.then.kind]}
+            </DsText>
+          )}
           <DsText v="driveBody" numberOfLines={1} style={{ flex: 1 }}>
             {banner.then.title}
           </DsText>

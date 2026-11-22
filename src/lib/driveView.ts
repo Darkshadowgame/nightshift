@@ -1,4 +1,5 @@
 import { etaClock, formatDistance, formatDuration, metresBetween, mphOf, type Manoeuvre, type NavRoute, type NavStop, type Progress, type RawRouteLike } from './nav';
+import { exitLine, roundaboutExit } from './roundabout';
 import { mphLimit, type SpeedValue } from './speedLimit';
 import type { LatLng } from './types';
 
@@ -55,8 +56,10 @@ export interface BannerInfo {
   title: string;
   /** The instruction in full (for the screen reader and when the title is a road). */
   text: string;
+  /** The exit a roundabout step takes (1 to 9), when the words say it (roundabout.ts). */
+  exit: number | null;
   /** "Then…": the manoeuvre after, when it comes soon after this one. */
-  then: { kind: Manoeuvre; title: string } | null;
+  then: { kind: Manoeuvre; title: string; exit: number | null } | null;
 }
 
 /** Within this (m) after the next manoeuvre, the one after it is shown as "Then". */
@@ -68,13 +71,21 @@ export function bannerFor(route: NavRoute, progress: Progress): BannerInfo | nul
   if (i < 0) return null;
   const step = route.steps[i];
   const after = route.steps[i + 1];
-  const titleOf = (s: { kind: Manoeuvre; text: string }) => (s.kind === 'arrive' ? s.text : roadFromInstruction(s.text) ?? s.text);
+  const exitOf = (s: { kind: Manoeuvre; text: string }) => (s.kind === 'roundabout' ? roundaboutExit(s.text) : null);
+  // A roundabout with its exit drawn in the symbol says the road, else just "Take the 3rd exit".
+  const titleOf = (s: { kind: Manoeuvre; text: string }) => {
+    if (s.kind === 'arrive') return s.text;
+    const road = roadFromInstruction(s.text);
+    const exit = exitOf(s);
+    return road ?? (exit ? exitLine(exit) : s.text);
+  };
   return {
     kind: step.kind,
     distance: progress.toStep,
     title: titleOf(step),
     text: step.text,
-    then: after && after.along - step.along <= THEN_WITHIN_M ? { kind: after.kind, title: titleOf(after) } : null,
+    exit: exitOf(step),
+    then: after && after.along - step.along <= THEN_WITHIN_M ? { kind: after.kind, title: titleOf(after), exit: exitOf(after) } : null,
   };
 }
 

@@ -267,7 +267,8 @@ export default function SearchScreen() {
   const remember = (place?: { name: string; address?: string; at: LatLng; spotId?: string }) => {
     let next = recents;
     if (place) next = rememberPlace(next, place);
-    if (typed) next = rememberSearch(next, query);
+    // A place opened is remembered as the place; the words alone only when nothing was opened from them.
+    else if (typed) next = rememberSearch(next, query);
     if (next !== recents) setSettings({ recents: next });
   };
   function pick(d: Destination) {

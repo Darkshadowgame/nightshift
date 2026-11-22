@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { nativeLiveActivity, type NavActivityState } from '../../modules/nav-live-activity';
 import { realNowMs } from './appClock';
 import { formatDistance, type Manoeuvre } from './nav';
+import { lockScreenRoad } from './roundabout';
 
 /**
  * Turn-by-turn directions on the lock screen and in the Dynamic Island (an iOS Live Activity).
@@ -23,7 +24,7 @@ export const MIN_UPDATE_GAP_MS = 1000;
 export interface LiveActivityInput {
   phase: 'locating' | 'routing' | 'preview' | 'driving' | 'arrived' | 'error';
   /** The driving view's top banner: next manoeuvre, metres to it, the road or instruction. */
-  banner: { kind: Manoeuvre; distance: number; title: string } | null;
+  banner: { kind: Manoeuvre; distance: number; title: string; exit?: number | null } | null;
   /** The bottom bar: arrival time and distance left, already worded. */
   trip: { eta: string; distance: string } | null;
   /** The destination's name as the driving view shows it. */
@@ -42,7 +43,7 @@ export function liveActivityContent(i: LiveActivityInput): NavActivityState | nu
   if (i.phase !== 'driving') return null;
   const tail = { remaining: i.trip?.distance ?? '', eta: i.trip?.eta ?? '', destination: i.destination };
   if (i.banner) {
-    return { arrow: i.banner.kind, distance: i.banner.kind === 'arrive' ? '' : formatDistance(i.banner.distance), road: i.banner.title, ...tail };
+    return { arrow: i.banner.kind, distance: i.banner.kind === 'arrive' ? '' : formatDistance(i.banner.distance), road: i.banner.kind === 'roundabout' ? lockScreenRoad(i.banner.title, i.banner.exit ?? null) : i.banner.title, ...tail };
   }
   if (i.trip) return { arrow: 'straight', distance: '', road: 'Follow the route', ...tail };
   return null;
