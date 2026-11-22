@@ -2,11 +2,42 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { allVariants } from '../../data/vehicles';
 import { CommunityForum, useForumScope, type ForumFilter } from '../../components/CommunityForum';
-import { ActionBar, Button, DsText, EmptyState, PAGE_WITH_BAR } from '../../components/ds';
+import { useState } from 'react';
+import { ThreadCard } from '../../components/Community';
+import { useNow } from '../../lib/clock';
+import { useCommunityQuery } from '../../lib/communityStore';
+import { ActionBar, Button, DsText, EmptyState, PAGE_WITH_BAR, RowDivider, Section } from '../../components/ds';
 import { findGroup, groupKindLabel, joinGroup, leaveGroup } from '../../lib/forumGroups';
 import { title } from '../../lib/glossary';
 import { useStore } from '../../lib/store';
 import { COLOR, SPACING } from '../../theme';
+
+/**
+ * "Common problems": the group's solved threads, the ones whose fix helped most first. Made from the
+ * threads themselves, so nobody writes it by hand. Hidden until the group has a solved thread.
+ */
+function CommonProblems({ group }: { group: string }) {
+  const { users } = useStore();
+  const now = useNow();
+  const [all, setAll] = useState(false);
+  const q = useCommunityQuery((s) => s.commonProblems(group), [group]);
+  const items = q.data ?? [];
+  if (!items.length) return null;
+  const shown = all ? items : items.slice(0, 3);
+  return (
+    <Section title="Common problems">
+      <View>
+        {shown.map((p, i) => (
+          <View key={p.thread.id}>
+            {i ? <RowDivider inset /> : null}
+            <ThreadCard thread={p.thread} author={users.find((u) => u.id === p.thread.authorId)} now={now} showGroup={false} showRegion={false} />
+          </View>
+        ))}
+      </View>
+      {items.length > 3 && !all ? <Button tier="tertiary" size="sm" label={`Show all ${items.length}`} onPress={() => setAll(true)} style={{ alignSelf: 'flex-start' }} /> : null}
+    </Section>
+  );
+}
 
 /**
  * One group's forum: its threads, with the Everyone / Local switch still applying. Join or leave is
@@ -46,6 +77,7 @@ export default function ForumGroup() {
                 onPress={() => setSettings({ forumGroups: joined ? leaveGroup(settings.forumGroups, group.key) : joinGroup(settings.forumGroups, group.key) })}
                 accessibilityLabel={joined ? `Joined ${group.label}. Tap to leave` : `Join ${group.label}`}
               />
+              <CommonProblems group={group.key} />
             </View>
           }
         />

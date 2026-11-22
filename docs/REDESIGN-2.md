@@ -1299,6 +1299,23 @@ done a drive or photo location maybe do a subtle tick or make it greyed out."
 * Local is no longer a board chip (the toggle replaces it); Meets takes its place and defaults to Local.
 
 
+### 9.x Forum level-up: Solved, fault codes, Common problems, Fits, Sold prices (22 Nov 2026)
+* **Solved:** the person who asked sees a quiet "This fixed it" button on each reply in their own thread
+  (tertiary, beside Helpful; the ··· menu still has Unmark). The thread shows a Solved tag in lists and on
+  its header, and the fixing reply is shown first with a Solved tag. In search, solved threads rank first.
+* **Fault codes:** the forum search box (placeholder "Search threads or a fault code") now searches title and
+  text. A typed code like P0420 shows one small card above the results with what it usually means, from the
+  bundled glossary in `src/lib/faultCodes.ts` (generic OBD codes only). Results rank solved first, then threads
+  in a group matching your garage (your model, then your make): `src/lib/forumHelp.ts` (`rankSearch`).
+* **Common problems:** at the top of a make or model group page, built from the group's solved threads, most
+  helpful fix first, three shown and "Show all". Nothing is hand-written; hidden when a group has none.
+* **Fits your model:** an info Tag on For sale listings (list row and listing card) tagged with a group that
+  matches a vehicle in your garage. It takes the Sold tag's place once sold. Listings only carry a group when
+  the seller tagged one, so untagged listings show nothing.
+* **Sold prices:** "Mark as sold" on a sale first asks "What did it go for? (optional)". Only a price is
+  stored, never who bought it. A group page or a search shows one grey line, "Recently sold for £38 to £55
+  (3 sales)", only once there are 3 or more sales in the last 180 days. Needs migration 20261122120000.
+
 ### 9.y Profile picture from the photo library (owner request, 21 Nov 2026)
 * The Profile photo sheet (tap your picture on Me) has three plain rows, no button, so 4.4 holds: Choose from
   library, Choose from my vehicles, and (only once you have chosen one) Use my main vehicle, which goes back to the

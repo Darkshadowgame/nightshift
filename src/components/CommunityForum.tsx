@@ -1,14 +1,17 @@
 import { router } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useNow } from '../lib/clock';
 import { useCommunityQuery } from '../lib/communityStore';
 import type { BoardKey } from '../lib/forum';
 import { isScope, SCOPES, type ForumScope } from '../lib/forum';
+import { faultMeaning, parseFaultCode } from '../lib/faultCodes';
+import { fitsLabel, rankSearch, soldRange, soldRangeLabel } from '../lib/forumHelp';
 import { useStore } from '../lib/store';
+import { useGarageGroups } from '../lib/useGarageGroups';
 import { SPACING } from '../theme';
 import { ThreadCard } from './Community';
-import { ChipGroup, DsText, EmptyState, ErrorState, LoadingState, RowDivider, SearchField, SegmentedControl } from './ds';
+import { Card, ChipGroup, DsText, EmptyState, ErrorState, LoadingState, RowDivider, SearchField, SegmentedControl } from './ds';
 
 /** The boards a first-time user picks from. With none picked ('all'), every board shows, the rest (Cars, Bikes, Detailing) too. Local is the toggle now, not a board. */
 type BoardFilter = Extract<BoardKey, 'advice' | 'builds' | 'meets' | 'for_sale'>;
@@ -56,13 +59,19 @@ export function CommunityForum({ board, onBoard, group, header, hideBoards }: { 
   const [who, setWho] = useForumScope();
   const scope: ForumFilter = query ? 'all' : board;
   const threads = useCommunityQuery((s) => s.threads({ board: scope, region, scope: who, group, sort: 'active', query }), [scope, region, who, group, query]);
+  const garage = useGarageGroups();
+  // Search: solved threads first, then ones in a group for your own vehicle (your model, then your make).
+  const shown = useMemo(() => (threads.data && query ? rankSearch(threads.data, query, garage) : threads.data), [threads.data, query, garage]);
+  const sold = useCommunityQuery((s) => s.soldPrices({ group, query }), [group, query]);
+  const range = sold.data && (query || group) ? soldRange(sold.data) : null;
+  const code = parseFaultCode(query);
   const params = (): Record<string, string> => ({ ...(board === 'all' ? {} : { board }), scope: who, ...(group ? { group } : {}) });
 
-  const list = !threads.data ? (
+  const list = !shown ? (
     threads.loading ? <LoadingState label="Loading threads" /> : null
-  ) : threads.data.length === 0 ? (
+  ) : shown.length === 0 ? (
     query ? (
-      <EmptyState variant="inline" title={`No thread titles with "${query}".`} action={{ label: 'Clear search', onPress: () => setTyped('') }} />
+      <EmptyState variant="inline" title={`No threads with "${query}".`} action={{ label: 'Clear search', onPress: () => setTyped('') }} />
     ) : (
       <EmptyState
         glyph="forum"
@@ -76,10 +85,10 @@ export function CommunityForum({ board, onBoard, group, header, hideBoards }: { 
     )
   ) : (
     <View>
-      {threads.data.map((t, i) => (
+      {shown.map((t, i) => (
         <View key={t.id}>
           {i ? <RowDivider inset /> : null}
-          <ThreadCard thread={t} author={users.find((u) => u.id === t.authorId)} now={now} showBoard={scope === 'all'} showGroup={!group} showRegion={false} />
+          <ThreadCard thread={t} author={users.find((u) => u.id === t.authorId)} now={now} showBoard={scope === 'all'} showGroup={!group} showRegion={false} fits={fitsLabel(t, garage)} />
         </View>
       ))}
     </View>
@@ -98,7 +107,17 @@ export function CommunityForum({ board, onBoard, group, header, hideBoards }: { 
         onChange={(next) => onBoard(next.find((k) => k !== board) ?? 'all')}
       />
       )}
-      <SearchField value={typed} onChangeText={setTyped} placeholder="Search thread titles" loading={typed.trim() !== query && typed.trim() !== ''} />
+      <SearchField value={typed} onChangeText={setTyped} placeholder="Search threads or a fault code" loading={typed.trim() !== query && typed.trim() !== ''} />
+      {code ? (
+        <Card>
+          <DsText v="eyebrow" tone="secondary">
+            Fault code
+          </DsText>
+          <DsText v="bodyStrong">{code}</DsText>
+          <DsText v="secondary">{faultMeaning(code) ?? 'Not in our short list of common codes. Showing threads that mention it.'}</DsText>
+        </Card>
+      ) : null}
+      {range ? <DsText v="meta">{soldRangeLabel(range)}</DsText> : null}
       {threads.error ? <ErrorState title={`Couldn't load threads. ${threads.error}`} /> : null}
       {list}
       <DsText v="caption">Be decent: posts are checked against the rules. No street racing, no timing on public roads and nothing about where police are.</DsText>

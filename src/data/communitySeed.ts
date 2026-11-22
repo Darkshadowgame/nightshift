@@ -86,6 +86,19 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
       'Easy road, a cafe with space for a dozen cars and back by lunch. All Leons welcome, any age.', 1 * DAY + 6 * HOUR, { region, groupKey: 'seat:leon' }),
     t('ft-bmw-garage', 'advice', 'priya', 'Independent BMW specialist round here?',
       'Looking for someone good with N-series engines who is not main dealer prices. Who do you use?', 2 * DAY + 8 * HOUR, { region, groupKey: 'bmw' }),
+    // Fault codes, solved threads (the group "Common problems") and sold prices ("recently sold for").
+    t('ft-p0420', 'advice', 'cal', 'P0420 catalyst code on a 335i: cat or sensor?',
+      'Engine light on with P0420 after a long run. Idle is fine and it passed its MOT last year. Do I need a new cat or is it the rear lambda sensor?', 5 * DAY + 2 * HOUR,
+      { groupKey: 'bmw:335i' }),
+    t('ft-n54-chargepipe', 'for_sale', 'ash', '335i N54 uprated charge pipe',
+      'Aluminium charge pipe, fitted for a year, no leaks. Posts only, collection welcome.', 30 * DAY,
+      { groupKey: 'bmw:335i', listing: { kind: 'sale', pricePence: 6000, ono: true, condition: 'good', handover: 'either', soldAt: ago(22 * DAY), soldPricePence: 5500 } }),
+    t('ft-n54-chargepipe-2', 'for_sale', 'tom', 'N54 charge pipe and boost tap kit',
+      'Complete kit off a 2010 335i, boxed and unused.', 24 * DAY,
+      { groupKey: 'bmw:335i', listing: { kind: 'sale', pricePence: 4500, condition: 'like_new', handover: 'postage', soldAt: ago(16 * DAY), soldPricePence: 4200 } }),
+    t('ft-n54-chargepipe-3', 'for_sale', 'cal', 'Charge pipe upgrade for N54 335i',
+      'Swapped for a bigger kit, this one is in good order.', 18 * DAY,
+      { groupKey: 'bmw:335i', listing: { kind: 'sale', pricePence: 4000, ono: true, condition: 'good', handover: 'collection', soldAt: ago(9 * DAY), soldPricePence: 3800 } }),
   ];
 
   const r = (id: string, threadId: string, authorId: string, body: string, created: number, helpfulCount = 0): ForumReply => ({
@@ -106,6 +119,9 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     r('fr-13', 'ft-leon-dsg', 'jord', 'Wet clutch DSGs hate creeping in traffic. A software relearn sorted mine, a clutch pack was the next step.', 3 * DAY, 2),
     r('fr-14', 'ft-leon-cruise', 'liv', 'Count me in. Can we leave from the services at 9?', 22 * HOUR, 0),
     r('fr-15', 'ft-bmw-garage', 'sully', 'There is a good one on an industrial estate near the ring road. Message me and I will send the name.', 2 * DAY, 1),
+    r('fr-16', 'ft-p0420', 'sully', 'Swap the rear lambda sensor first, it is a fraction of the price of a cat. Mine threw P0420 for the same reason and cleared after the sensor.', 5 * DAY, 5),
+    r('fr-17', 'ft-p0420', 'dan', 'Check for an exhaust leak before the sensor too. A blow at the downpipe flange gave me a false P0420.', 4 * DAY + 6 * HOUR, 2),
+    r('fr-18', 'ft-n54-hpfp', 'sully', 'Mine went at 70k. Long crank was the first sign. A specialist replaced the pump under warranty extension, so ask BMW first.', 4 * DAY, 6),
     r('fr-10', 'ft-first-car', 'cal', 'Civic is the better daily. Bigger boot, comfier on the motorway.', 2 * DAY - 3 * HOUR, 2),
   ];
   for (const th of threads) {
@@ -114,6 +130,7 @@ export function communitySample(now: Date, home: LatLng, region: string): Commun
     if (mine.length) th.lastActivityAt = mine.map((x) => x.createdAt).sort().pop()!;
   }
   threads.find((x) => x.id === 'ft-clutch')!.solvedReplyId = 'fr-1';
+  for (const [thread, reply] of [['ft-p0420', 'fr-16'], ['ft-n54-hpfp', 'fr-18'], ['ft-leon-dsg', 'fr-13'], ['ft-cupra-fault', 'fr-11']]) threads.find((x) => x.id === thread)!.solvedReplyId = reply;
   const solved: SolvedRecord[] = [{ threadId: 'ft-clutch', userId: 'dan', markedBy: 'kez', rep: 25, day: ago(2 * DAY).slice(0, 10), at: ago(2 * DAY) }];
 
   const p = (id: string, authorId: string, body: string, created: number, extra: Partial<Post> = {}): Post => ({
