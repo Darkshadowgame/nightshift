@@ -11,6 +11,7 @@ import { useCommunity, useCommunityQuery } from '../lib/communityStore';
 import { DIRECTIONS_APPS } from '../lib/directions';
 import { travelOf } from '../lib/discover';
 import { SCREEN_TITLES } from '../lib/glossary';
+import { clearBuildLog } from '../lib/buildLogStore';
 import { clearLaps } from '../lib/lapStore';
 import { LEGAL_PAGES } from '../lib/legal';
 import { APPEARANCE_LABELS, type AppearanceChoice } from '../lib/settings';
@@ -308,6 +309,7 @@ export default function SettingsScreen() {
         onConfirm={() => {
           resetDemo();
           clearLaps();
+          clearBuildLog();
           setConfirm(null);
         }}
         onCancel={() => setConfirm(null)}

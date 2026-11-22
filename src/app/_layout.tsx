@@ -93,6 +93,11 @@ function Gate() {
         <Stack.Screen name="event/going" options={{ title: title(T.going) }} />
         <Stack.Screen name="build/[id]" options={{ title: '' }} />
         <Stack.Screen name="build/power" options={{ title: title('Power and dyno') }} />
+        <Stack.Screen name="build/timeline" options={{ title: '' }} />
+        <Stack.Screen name="build/entry" options={{ title: title('Mod details') }} />
+        <Stack.Screen name="build/card" options={{ title: '' }} />
+        <Stack.Screen name="build/wishlist" options={{ title: '' }} />
+        <Stack.Screen name="build/costs" options={{ title: title('What it has cost') }} />
         {/* build/edit sets "Edit build" itself when it opens an existing build. */}
         <Stack.Screen name="build/edit" options={{ title: title(T.addBuild), presentation: 'modal' }} />
         <Stack.Screen name="user/[id]" options={{ title: '' }} />

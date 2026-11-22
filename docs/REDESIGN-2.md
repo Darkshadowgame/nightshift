@@ -1326,3 +1326,25 @@ All for Meets only; Things to do is unchanged. Logic in `src/lib/mapNight.ts` (t
 * **Time check** (`TimeCheck.tsx`): off by default. Layers › Meets › When has a "Check a time" switch; on, a drag row (18:00 to 02:00, half-hour steps) replaces the strip in the sheet and meets not on at that time fade on the map. The row says "3 meets on at 22:30", so the fade is never the only signal. Not saved.
 * **Busy glow:** a soft, outline-free pool under meets with 12 or more going (two rings from 30), in the meet's own colour. The going count is on the card, strip and list.
 * **Near my way home:** `nearLine` flags meets within 5 miles (about ten minutes) of the straight line from you to Home. Home is read from the phone-only `settings.favouritePlaces` (the entry labelled Home, built by the drives area); none set, or no location, shows nothing. The strip chip then says "On your way home". Coordinates stay in memory: never sent, stored or logged.
+
+### 9.z Build story: timeline, spec card, cost, wishlist (level-up, 22 Nov 2026)
+* Four rows at the foot of the build page, under "Power and dyno": **Timeline**, **Spec card**, and (your own build
+  only) **Wishlist** and **What it has cost**. No new buttons on the build page or the Garage; each opens a pushed page
+  with one primary in its ActionBar (Share the timeline, Share, Add to wishlist).
+* **Timeline** (`build/timeline.tsx`): the mods that count, in date order, with Before and After photos where there
+  are any, shared as words plus the build's link. The server's mods have no dates or photos, so the day and the photos
+  are the owner's own and live on their phone (`src/lib/buildLog.ts`, store `buildLogStore.ts`, one AsyncStorage key,
+  keyed by mod name). Adding a mod stamps today. The owner taps a row to set the day and photos (`build/entry.tsx`,
+  same crop and plate check as every photo). Someone else's build shows a timeline only in the demo (sample mods get
+  made-up dates) until dates can be shared (needs a server column; not built).
+* **Spec card** (`build/card.tsx`): photo, class, make and model, power, key mods (biggest gain first, five at most),
+  Slipstream mark and wordmark, on theme tokens in light and dark. No installed module can turn a view into a picture
+  (react-native-view-shot would be a new native module), so it is laid out to screenshot, and Share sends the same
+  words and the link. Never shows a plate; the cost is never on it.
+* **Cost** (`build/costs.tsx`): private running total and a price per mod, whole pounds. Phone only, never sent,
+  never on the card or in shared text, and "Hide the total from me" masks it as £•••. Cleared by Reset the demo.
+* **Wishlist** (`build/wishlist.tsx`): planned parts per vehicle, apart from fitted mods (they never change the
+  mods count, class or power). Tap one for **Who has fitted this**: other people's builds with the same part or job
+  (a tune counts as a tune, `modGroups.ts`), strongest first, each opening that build. "I've fitted it" moves it onto
+  the build with today's date. Phone only.
+* No migration. Nothing here touches the server.

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { MOD_GROUPS, type QuickMod } from '../data/catalog';
 import { allVariants } from '../data/vehicles';
+import { appNow } from '../lib/appClock';
+import { noteMod } from '../lib/buildLogStore';
 import { classOf } from '../lib/classes';
-import { powerText } from '../lib/dyno';
+import { isoDay, powerText } from '../lib/dyno';
 import { OFF_ROAD_TAG } from '../lib/legality';
 import { newId, useStore } from '../lib/store';
 import { groupCategory, hasQuickMod, quickModsFor, stageFromMods, suggestedGain } from '../lib/tune';
@@ -37,6 +39,7 @@ export function AddModSheet({
   onClose,
   onAdd,
   asp: aspGiven,
+  title = 'Add a mod',
 }: {
   visible: boolean;
   build: Build;
@@ -48,6 +51,8 @@ export function AddModSheet({
   onAdd?: (mod: Mod) => void;
   /** The engine kind when the form knows it (a guess for a typed car, the donor's after a swap). */
   asp?: Aspiration;
+  /** The sheet's title: "Add a mod", or "Add to wishlist" when the part is planned, not fitted. */
+  title?: string;
 }) {
   const { saveBuild } = useStore();
   const toast = useToast();
@@ -97,6 +102,8 @@ export function AddModSheet({
     setBusy(true);
     try {
       await saveBuild(next);
+      // The day it went on, kept on the phone for the build timeline.
+      noteMod(build.id, mod.name, { on: isoDay(appNow()) });
       // One line at 1.3x text too (4.7): the part's name is on the button just tapped.
       toast({ message: `Added. Now ${powerText(next)}, Class ${classOf(next)}` });
       close();
@@ -111,7 +118,7 @@ export function AddModSheet({
     // One way out at a time (4.5, Review 21): Done until a part is picked, then the Add button is the
     // sheet's action and Done steps away, so nobody wonders which of the two saves. Untick the part (or
     // tap outside) to leave without adding.
-    <Sheet visible={visible} title="Add a mod" onClose={close} hideDone={!!name}>
+    <Sheet visible={visible} title={title} onClose={close} hideDone={!!name}>
       <SegmentedControl<ModSection>
         accessibilityLabel="Kind of part"
         value={section}

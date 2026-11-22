@@ -12,12 +12,15 @@ import { DynoBadge } from '../../components/DynoBadge';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { PhotoManager } from '../../components/PhotoManager';
 import { allAwards, categoryInfo } from '../../lib/awards';
+import { hasTimeline, logOf } from '../../lib/buildLog';
+import { useBuildLog } from '../../lib/buildLogStore';
 import { carShape } from '../../lib/buildShape';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity } from '../../lib/communityStore';
 import { dynoBadge, headlinePower, latestRun } from '../../lib/dyno';
 import { modCount } from '../../lib/modGroups';
+import { plural } from '../../lib/format';
 import { photoSource } from '../../lib/photoSource';
 import { useStore } from '../../lib/store';
 import { swapTag } from '../../lib/swap';
@@ -41,6 +44,7 @@ export default function BuildScreen() {
   const [addMod, setAddMod] = useState(false);
   const mine = b?.ownerId === me;
   const community = useCommunity();
+  const { log } = useBuildLog();
   const toast = useToast();
   const pic = useBuildPicture(b ?? { photos: [], make: '', model: '', kind: 'car' });
   // A new mod scrolls the Mods list up, clear of the toast that confirms it (Review 21 problem 6), at once and
@@ -73,6 +77,8 @@ export default function BuildScreen() {
   const latest = latestRun(b.dynoRuns);
   const photo = pic?.ref;
   const kindLine = metaLine([b.kind === 'bike' ? 'Bike' : 'Car', b.year ? String(b.year) : null, stage !== 'stock' ? stageLabel(stage) : null, swap]);
+  const bl = logOf(log, b.id);
+  const story = (path: '/build/timeline' | '/build/card' | '/build/wishlist' | '/build/costs') => () => router.push({ pathname: path, params: { id: b.id } });
   const openPower = () => router.push({ pathname: '/build/power', params: { id: b.id } });
 
   return (
@@ -160,6 +166,26 @@ export default function BuildScreen() {
             onPress={openPower}
           />
           <RowDivider />
+        </View>
+
+        {/* The build's story: the timeline and spec card to share, and (yours only) the wishlist and what it has cost. */}
+        <View>
+          {hasTimeline(b, bl, now, mine) ? (
+            <>
+              <ListRow title="Timeline" subtitle="The mods in date order, with before and after photos" onPress={story('/build/timeline')} />
+              <RowDivider />
+            </>
+          ) : null}
+          <ListRow title="Spec card" subtitle="The key numbers on one card to share" onPress={story('/build/card')} />
+          <RowDivider />
+          {mine ? (
+            <>
+              <ListRow title="Wishlist" subtitle={bl.wishes.length ? `${plural(bl.wishes.length, 'part')} planned` : 'Parts you plan to fit'} onPress={story('/build/wishlist')} />
+              <RowDivider />
+              <ListRow title="What it has cost" subtitle="Private: only on this phone" onPress={story('/build/costs')} />
+              <RowDivider />
+            </>
+          ) : null}
         </View>
       </ScrollView>
 

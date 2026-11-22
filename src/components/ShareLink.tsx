@@ -12,7 +12,7 @@ import { Button, DsText, Sheet, TextField, useToast } from './ds';
  *   <Button label="Share" onPress={() => sharer.share(eventSharePayload(ev, when))} />
  *   {sharer.sheet}
  */
-export function useShareLink(): { share: (p: SharePayload) => Promise<void>; sheet: ReactNode } {
+export function useShareLink(what: 'meet' | 'build' = 'meet'): { share: (p: SharePayload) => Promise<void>; sheet: ReactNode } {
   const toast = useToast();
   const [manual, setManual] = useState<SharePayload | null>(null);
   const [copied, setCopied] = useState(false);
@@ -38,10 +38,10 @@ export function useShareLink(): { share: (p: SharePayload) => Promise<void>; she
   }
 
   const sheet = (
-    <Sheet visible={!!manual} title="Share this meet" onClose={() => setManual(null)}>
+    <Sheet visible={!!manual} title={`Share this ${what}`} onClose={() => setManual(null)}>
       <View style={{ gap: SPACING.md }}>
-        <DsText v="secondary">Copy the link and send it to people. It opens the meet in Slipstream.</DsText>
-        <TextField value={manual?.url ?? ''} editable={false} selectTextOnFocus accessibilityLabel="The meet's link" />
+        <DsText v="secondary">{`Copy the link and send it to people. It opens the ${what} in Slipstream.`}</DsText>
+        <TextField value={manual?.url ?? ''} editable={false} selectTextOnFocus accessibilityLabel={`The ${what}'s link`} />
         {shareEnv().copy ? <Button block tier="secondary" label={copied ? 'Copied' : 'Copy link'} onPress={copyAgain} /> : null}
       </View>
     </Sheet>

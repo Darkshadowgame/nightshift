@@ -1,5 +1,5 @@
 import { Platform, Share } from 'react-native';
-import { eventLink, EVENT_LABELS } from './events';
+import { APP_SCHEME, eventLink, EVENT_LABELS } from './events';
 import { aroundArea } from './glossary';
 import type { NightEvent } from './types';
 
@@ -112,4 +112,14 @@ export function eventSharePayload(event: Pick<NightEvent, 'id' | 'title' | 'type
     text: `${event.title} · ${EVENT_LABELS[event.type]} · ${when} · ${aroundArea(event.areaName)}`,
     url: origin === undefined ? eventShareUrl(event.id) : eventShareUrl(event.id, origin),
   };
+}
+
+/** A build's link: its page on the web preview, else the `nightshift://` link. `origin` is for tests. */
+export function buildShareUrl(buildId: string, origin: string | null = webOrigin()): string {
+  return origin ? `${origin.replace(/\/$/, '')}/build/${encodeURIComponent(buildId)}` : `${APP_SCHEME}://build/${buildId}`;
+}
+
+/** What sharing a build sends: the words you give it (spec card or timeline) and its link. Never a plate: builds have none. */
+export function buildSharePayload(build: { id: string; make: string; model: string }, text: string, origin?: string | null): SharePayload {
+  return { title: `${build.make} ${build.model}`, text, url: origin === undefined ? buildShareUrl(build.id) : buildShareUrl(build.id, origin) };
 }
