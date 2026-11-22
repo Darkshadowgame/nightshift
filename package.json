@@ -55,7 +55,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit",
     "scorecard": "node e2e/scorecard/run.cjs",
     "scorecard:quick": "node e2e/scorecard/run.cjs --quick"
   },

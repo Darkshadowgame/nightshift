@@ -32,6 +32,6 @@ jobs:
           done
       - run: npm ci
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npx tsc --noEmit && npx tsc --noEmit -p tsconfig.test.json
       - name: Test
         run: npm test -- --ci
