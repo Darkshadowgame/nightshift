@@ -400,6 +400,7 @@ function useDrivePanel(
 ): Panel {
   const store = useStore();
   const { settings } = store;
+  const pending = spot.status === 'pending';
   const [error, setError] = useState<string | null>(null);
   // The demo never needs you to be there: the app drives the checkpoints for you at a legal pace.
   // Signed in, GPS counts them and the server checks the run again.

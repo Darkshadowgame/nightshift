@@ -3,7 +3,6 @@
   "compilerOptions": {
     "strict": true,
     "types": [
-      "jest",
       "node"
     ]
   },
@@ -16,6 +15,11 @@
   "exclude": [
     "node_modules",
     "supabase",
-    "supabase/functions"
+    "supabase/functions",
+    "__tests__",
+    "jest",
+    "e2e",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }
