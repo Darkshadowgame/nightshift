@@ -39,6 +39,20 @@ export interface LapTime {
   proof: string;
   status: LapStatus;
   submittedAt: string;
+  /** Tyres, pressures and weather. Private: only the person who set the lap sees it (publicLap strips it). */
+  setup?: LapSetup;
+}
+
+export type Weather = 'dry' | 'damp' | 'wet';
+export const WEATHER_LABELS: Record<Weather, string> = { dry: 'Dry', damp: 'Damp', wet: 'Wet' };
+
+/** What the car or bike was running on the lap. All optional, all private. */
+export interface LapSetup {
+  tyres?: string;
+  /** Front and rear pressures in psi, as typed ("32"). */
+  frontPsi?: string;
+  rearPsi?: string;
+  weather?: Weather;
 }
 
 export interface LapDraft {
@@ -50,6 +64,7 @@ export interface LapDraft {
   kind: TrackVehicle;
   buildId?: string;
   proof?: string;
+  setup?: LapSetup;
 }
 
 /** A layout name for tracks with no published layouts. */
@@ -146,6 +161,8 @@ export function lapProblem(
   if (ms === null) return 'Enter the time as minutes:seconds, e.g. 1:23.456.';
   if (ms < MIN_LAP_MS || ms > MAX_LAP_MS) return 'That time is outside what a lap or run here could be. Check it against the timing sheet.';
   if (ctx.fastestMs && ms < ctx.fastestMs) return "That's quicker than the outright record for this layout. Check it against the timing sheet.";
+  const setup = setupProblem(d.setup);
+  if (setup) return setup;
   const build = ctx.builds.find((b) => b.id === d.buildId);
   if (!build || build.ownerId !== ctx.me) return `Pick the ${d.kind} from your garage that set the time.`;
   if (build.kind !== d.kind) return `That build is a ${build.kind}, not a ${d.kind}.`;
@@ -164,7 +181,47 @@ export function makeLap(d: LapDraft, ctx: Parameters<typeof lapProblem>[1], id: 
     buildId: build.id, vehicle: buildLabel(build), kind: build.kind, cls: classOf(build),
     status: 'unverified',
     submittedAt: ctx.now.toISOString(),
+    ...(cleanSetup(d.setup) ? { setup: cleanSetup(d.setup) } : {}),
   };
+}
+
+export const MAX_TYRES = 40;
+const PSI = /^\d{1,2}(\.\d)?$/;
+
+/** What's wrong with the setup notes, or null. Nothing is required. */
+export function setupProblem(s: LapSetup | undefined): string | null {
+  if (!s) return null;
+  if (s.tyres && s.tyres.trim().length > MAX_TYRES) return `Keep the tyres to ${MAX_TYRES} characters.`;
+  for (const p of [s.frontPsi, s.rearPsi]) {
+    if (p && p.trim() && (!PSI.test(p.trim()) || Number(p) < 5 || Number(p) > 60)) return 'Enter tyre pressures in psi, like 32 or 28.5.';
+  }
+  return null;
+}
+
+/** The setup with blanks dropped; undefined when nothing was entered. */
+export function cleanSetup(s: LapSetup | undefined): LapSetup | undefined {
+  if (!s) return undefined;
+  const tyres = s.tyres?.trim();
+  const front = s.frontPsi?.trim();
+  const rear = s.rearPsi?.trim();
+  const out: LapSetup = { ...(tyres ? { tyres } : {}), ...(front ? { frontPsi: front } : {}), ...(rear ? { rearPsi: rear } : {}), ...(s.weather ? { weather: s.weather } : {}) };
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** "Michelin Pilot Sport 4S · 32 / 30 psi · Dry". */
+export function setupLine(s: LapSetup | undefined): string {
+  if (!s) return '';
+  const psi = s.frontPsi && s.rearPsi ? `${s.frontPsi} / ${s.rearPsi} psi` : s.frontPsi ? `${s.frontPsi} psi front` : s.rearPsi ? `${s.rearPsi} psi rear` : null;
+  return [s.tyres, psi, s.weather ? WEATHER_LABELS[s.weather] : null].filter(Boolean).join(' · ');
+}
+
+/**
+ * A lap as anyone else may see it. Setup notes stay private: they're only ever on the phone, and
+ * this is the one place a lap is turned into something shareable (the server copy has no setup).
+ */
+export function publicLap(l: LapTime): LapTime {
+  const { setup: _private, ...rest } = l;
+  return rest;
 }
 
 export interface LeaderGroup {
@@ -217,4 +274,104 @@ export function layoutsWithTimes(laps: LapTime[], trackId: string, published: st
 /** Kart times were dropped with the kart circuits (Nov 2026): saved ones go, and anything else not a car or bike. */
 export function keepLap(l: { kind?: string }): boolean {
   return l.kind === 'car' || l.kind === 'bike';
+}
+
+// ---------------------------------------------------------------------------
+// Class focus, personal bests and the rival
+// ---------------------------------------------------------------------------
+
+/**
+ * Compare against similar vehicles, not everything: the groups for the vehicle type and class of
+ * your own builds that fit this track. With no builds (or none matching), every group.
+ */
+export function classFocus(groups: LeaderGroup[], classes: { kind: TrackVehicle; cls: ClassLetter }[]): LeaderGroup[] {
+  if (!classes.length) return groups;
+  const focused = groups.filter((g) => classes.some((c) => c.kind === g.kind && c.cls === g.cls));
+  return focused.length ? focused : groups;
+}
+
+/** Your place in a group: "2nd of 5", or null when you're not in it. */
+export function placeInGroup(g: LeaderGroup, me: string): { place: number; of: number } | null {
+  const i = g.entries.findIndex((l) => l.userId === me);
+  return i < 0 ? null : { place: i + 1, of: g.entries.length };
+}
+
+const ORDINAL = ['th', 'st', 'nd', 'rd'];
+/** 1 -> "1st", 2 -> "2nd", 11 -> "11th". */
+export function ordinal(n: number): string {
+  const v = n % 100;
+  return `${n}${ORDINAL[(v - 20) % 10] ?? ORDINAL[v] ?? ORDINAL[0]}`;
+}
+
+export interface BestPoint {
+  /** Day, YYYY-MM-DD. */
+  on: string;
+  ms: number;
+  /** The best so far, up to and including this lap. */
+  best: number;
+  /** True when this lap set a new personal best. */
+  isBest: boolean;
+}
+
+/**
+ * Your times at one track and layout, oldest first, each with the best up to that day, for the
+ * personal-best timeline. Rejected times never count; the same day keeps its quickest lap.
+ */
+export function bestTimeline(laps: LapTime[], trackId: string, layout: string, me: string): BestPoint[] {
+  const byDay = new Map<string, number>();
+  for (const l of laps) {
+    if (l.userId !== me || l.trackId !== trackId || l.layout !== layout || l.status === 'rejected') continue;
+    const prev = byDay.get(l.on);
+    if (prev === undefined || l.ms < prev) byDay.set(l.on, l.ms);
+  }
+  let best = Infinity;
+  return [...byDay.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([on, ms]) => {
+      const isBest = ms < best;
+      if (isBest) best = ms;
+      return { on, ms, best, isBest };
+    });
+}
+
+/** A person's best lap at a track and layout. */
+export function bestOf(laps: LapTime[], trackId: string, layout: string, userId: string): LapTime | undefined {
+  let best: LapTime | undefined;
+  for (const l of laps) {
+    if (l.userId !== userId || l.trackId !== trackId || l.layout !== layout || l.status === 'rejected') continue;
+    if (!best || l.ms < best.ms) best = l;
+  }
+  return best;
+}
+
+/** "+0.412" when behind, "-0.412" when ahead, to the thousandth; minutes only past a minute. */
+export function gapText(gapMs: number): string {
+  const abs = Math.abs(Math.round(gapMs));
+  const body = abs >= 60_000 ? formatLapTime(abs) : `${Math.floor(abs / 1000)}.${String(abs % 1000).padStart(3, '0')}`;
+  return `${gapMs > 0 ? '+' : gapMs < 0 ? '-' : ''}${body}`;
+}
+
+export interface RivalStanding {
+  mine?: LapTime;
+  theirs?: LapTime;
+  /** My best minus theirs: positive when I'm slower. */
+  gapMs?: number;
+}
+
+export function rivalStanding(laps: LapTime[], trackId: string, layout: string, me: string, rival: string): RivalStanding {
+  const mine = bestOf(laps, trackId, layout, me);
+  const theirs = bestOf(laps, trackId, layout, rival);
+  return { mine, theirs, ...(mine && theirs ? { gapMs: mine.ms - theirs.ms } : {}) };
+}
+
+/**
+ * What changed since you last looked: who got quicker on this layout. `seen` is the best times
+ * from last time (none the first time, so nothing is announced then).
+ */
+export function rivalNews(seen: { me?: number; them?: number } | undefined, now: { me?: number; them?: number }, rivalName: string): string[] {
+  if (!seen) return [];
+  const out: string[] = [];
+  if (now.me !== undefined && seen.me !== undefined && now.me < seen.me) out.push(`You went quicker: ${formatLapTime(now.me)} (was ${formatLapTime(seen.me)}).`);
+  if (now.them !== undefined && seen.them !== undefined && now.them < seen.them) out.push(`${rivalName} went quicker: ${formatLapTime(now.them)} (was ${formatLapTime(seen.them)}).`);
+  return out;
 }

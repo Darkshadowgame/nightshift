@@ -1380,3 +1380,24 @@ Rules are in `src/lib/meetExtras.ts`; the page pieces are in `src/components/Mee
 - **Co-hosts.** Hosts could already pick co-hosts when making a meet; now ··· > Add a co-host adds someone who is going, any time before it ends (up to 5 hosts).
 - **Your numbers.** One section for hosts: going, arrived, regulars, new, and arrivals by the hour.
 - Left out: Convoy to the meet. It needs a new group chat per region; the meet chat already reaches everyone going.
+### 9.z Level-up: photo spots and tracks (22 Nov 2026)
+
+All of it follows the rulebook: one primary per screen (the place page's Check in, the track page's Add a track time stays a secondary), theme tokens only, plain words, 4.10 time wording.
+
+**Photo spot page** (`src/app/spot/[id].tsx`, parts in `src/components/PlaceExtras.tsx`, logic in `src/lib/placeExtras.ts`):
+* **Where people park and stand:** up to three example shots under the stats, from photos taken at the spot (the suggester's, then check-in photos, newest first), each with a like. The rest of the photos are under "More photos".
+* **Light badge:** a tag in the hero, "Golden hour until 18:12" or "Good light from 17:20 (in 40 min)" (the countdown only under an hour, 4.10). Golden hour is the hour after sunrise and before sunset, from `sun.ts` (`goldenHourState`), worked out on the phone.
+* **Getting in:** access notes (barrier and closing time, security, low cars, one short line). Only people who have checked in can add one; one note each, a new one replaces it; text goes through `textProblem`. Notes never show a name. Signed in they go to the server (`access_notes_for` / `add_access_note`, migration `20261122150000_lvl_places.sql`); until it is applied, or in the demo, they stay on the phone (`extrasStore.ts`).
+* **Collections:** themed sets (Multi-storeys, Coast and seafront, Bridges and tunnels, Retail parks, Cafes and pubs, Hills and passes) matched from place names, shown when a set has three or more places. A row says "3 of 8 done" with a thin bar and opens a sheet of its places with ticks. Progress is the places' own completions.
+* **Shot of the week:** one featured photo per region (`spot.region`), the most-liked in the last 7 days, shown on that region's spot pages. Likes are phone-only plus the demo's sample likes (see "Not shared yet" below).
+
+**Track page** (`src/components/TrackPanel.tsx`, `TrackExtras.tsx`, `src/lib/laptimes.ts`):
+* **Class leaderboards:** the Track times section opens on your own vehicle type and class ("Cars · Class A · You're 2nd of 4") with "Show every class" to widen it; with no build it shows everything, as before.
+* **Your best times:** a small SVG line and dots (`react-native-svg`, already installed): your best per track day on the chosen layout, quicker is higher, new bests filled green.
+* **Setup notes:** tyres, front and rear psi and weather, optional, on the Add a track time form. Shown only under your own times; `publicLap()` strips them, so a shared lap never carries them.
+* **Rival:** one row, "Chase someone", opens a sheet of people with a time on this layout; then "Chasing @name: You're 0.412 s behind". When either of you has gone quicker since you last looked, a one-line note says so. Kept on the phone.
+* **Track days:** upcoming meets of type Track day within 1.5 mi of the circuit (the existing event type, no new system), with who from the app is going. They open the meet.
+
+**Demo:** sample shots, likes, access notes, other people's lap times and track days are made up in `src/data/demoPlaceExtras.ts` (the shots reuse the bundled Commons stand-in photos, credited by the ⓘ). Reset the demo clears what this phone kept.
+
+**Not shared yet:** photo likes (so the shot of the week is chosen from this phone's likes plus any on sample data until a server table exists), rivals, and lap times themselves (they were already phone-only).
