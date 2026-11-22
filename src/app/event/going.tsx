@@ -7,6 +7,7 @@ import { broughtBuild } from '../../lib/bringing';
 import { classOf } from '../../lib/classes';
 import { goingMix } from '../../lib/eventAction';
 import { goingSummary } from '../../lib/format';
+import { STATUS_WORDS } from '../../lib/meetExtras';
 import { useStore } from '../../lib/store';
 import { COLOR, SPACING } from '../../theme';
 
@@ -43,7 +44,7 @@ export default function GoingScreen() {
                   title={displayHandle(u?.handle ?? 'unknown')}
                   subtitle={b ? `${b.make} ${b.model} · ${bhpLine(b)}` : 'Passenger'}
                   trailing={b ? <ClassBadge letter={classOf(b)} size="sm" /> : undefined}
-                  meta={[uid === me ? 'You' : null, ev.hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null].filter(Boolean).join(' · ') || undefined}
+                  meta={[uid === me ? 'You' : null, ev.hostIds.includes(uid) ? 'Hosting' : null, checked ? 'Checked in' : null, ev.status?.[uid] ? STATUS_WORDS[ev.status[uid]].tag : null].filter(Boolean).join(' · ') || undefined}
                   onPress={uid === me ? undefined : () => router.push({ pathname: '/user/[id]', params: { id: uid } })}
                 />
               </View>

@@ -139,8 +139,8 @@ export const RULES: { id: string; label: string }[] = [
 ];
 
 export function rulesOf(event: Pick<NightEvent, 'rules'>): string[] {
-  const known = new Map(RULES.map((r) => [r.id, r.label]));
-  return (event.rules ?? []).flatMap((id) => (known.has(id) ? [known.get(id)!] : []));
+  const picked = cleanRules(event.rules ?? []);
+  return RULES.filter((r) => picked.includes(r.id)).map((r) => r.label);
 }
 
 /** Only ids on the standard list, in list order, no repeats. */

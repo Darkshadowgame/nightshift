@@ -347,6 +347,9 @@ function events(now: Date, home: LatLng): NightEvent[] {
       // Enough cars and bikes that each trophy shows a different few.
       going: meetGoing,
       checkIns: Object.fromEntries(meetGoing.map((u) => [u, ['mn-1']])),
+      // Who's here (most recent first) and the house rules: demo data for the meet page extras.
+      arrivals: Object.fromEntries(meetGoing.map((u, i) => [u, iso(t.meetNow.start, 4 * i)])),
+      rules: ['no-revving', 'litter', 'park-nicely'],
     },
     {
       // Later tonight: the location shows at 21:30 (20 minutes into the demo), then the host moves it on.
@@ -387,6 +390,9 @@ function events(now: Date, home: LatLng): NightEvent[] {
       filter: { ...DEFAULT_FILTER, everyone: true, minMods: 0, radiusMiles: 30 },
       // You're going (Review 11): "You can't make it after all" (scorecard task 10) has something to undo.
       going: ['tom', 'em', 'jord', 'bex', ME], checkIns: {},
+      rules: ['no-revving', 'litter', 'respect-venue'],
+      // One-tap status: the host and people going see it.
+      status: { jord: 'late' },
     },
     {
       // Later in the week: A and B class, so a typical hot hatch can go.
@@ -398,6 +404,8 @@ function events(now: Date, home: LatLng): NightEvent[] {
       currentStop: 0, revealMinutesBefore: 60, hostIds: ['kez'],
       filter: { ...DEFAULT_FILTER, cars: true, bikes: false, classes: ['A', 'B'], minMods: 0, radiusMiles: 25 },
       going: ['kez', 'cal', 'priya', 'em', 'bex'], checkIns: {},
+      // Four places besides the host, all taken: the next person joins the waitlist.
+      capacity: 4, waitlist: ['nina'],
     },
     {
       photo: `${SAMPLE_REF}ev-bike-cat`,
@@ -436,6 +444,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
       // You went too (Review 17): Me counts it as a meet, and your Past list says "Went".
       going: [...lastGoing, ME],
       checkIns: Object.fromEntries([...lastGoing, ME].map((u) => [u, ['ps-1']])),
+      arrivals: Object.fromEntries([...lastGoing, ME].map((u, i) => [u, iso(t.lastWeek.start, 6 * i)])),
     },
   ]);
 }

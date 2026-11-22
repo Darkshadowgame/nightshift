@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DraftStop } from './events';
 import type { EventType, InviteFilter } from './types';
-import type { DayChoice } from './when';
+import { clock, type DayChoice } from './when';
+import { copyOf, lastMeet } from './meetExtras';
+import type { NightEvent } from './types';
 
 /**
  * The host wizard's draft (REVIEW-10 decision 2): saved on the phone as you go, so a stray back
@@ -75,4 +77,38 @@ export async function clearHostDraft(me: string): Promise<void> {
   } catch {
     // Nothing to clear.
   }
+}
+
+/**
+ * "Same as last time": a draft made from the host's previous meet, one week on (or the next free
+ * week), at the "Check and post" step so it is two taps: pick it, then post. Name, text, places,
+ * rules, places limit, invite rules, crew and co-hosts carry over; nobody going, no history.
+ */
+export function draftFromEvent(source: NightEvent, me: string, now: Date, id = 'template'): HostDraft {
+  const next = copyOf(source, id, now);
+  const start = new Date(next.startsAt);
+  return {
+    step: 3,
+    type: next.type,
+    title: next.title,
+    description: next.description ?? '',
+    areaName: next.areaName,
+    day: { label: 'Same day next week', days: 0, date: start.toISOString() },
+    time: clock(start),
+    endTime: next.endsAt ? clock(new Date(next.endsAt)) : null,
+    reveal: next.revealMinutesBefore,
+    stops: source.stops.map((s) => ({ key: s.id, name: s.name, at: s.at })),
+    filter: next.filter,
+    crewOwned: !!next.crewId,
+    coHosts: next.hostIds.filter((h) => h !== me),
+    rules: next.rules,
+    capacity: next.capacity,
+    savedAt: now.toISOString(),
+  };
+}
+
+/** The host's most recent finished meet worth copying (not cancelled, not a public show), or null. */
+export function templateSource(events: readonly NightEvent[], me: string, now: Date): NightEvent | null {
+  const last = lastMeet(events.filter((e) => e.type !== 'show' && e.type !== 'trackday' && e.stops.every((s) => s.at)), me, now);
+  return last;
 }
