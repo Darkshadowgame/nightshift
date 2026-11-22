@@ -68,6 +68,7 @@ import { REP } from '../../lib/rep';
 import { eventSharePayload } from '../../lib/share';
 import { useStore } from '../../lib/store';
 import type { Build, LatLng, User } from '../../lib/types';
+import { useHostTrust, useQuietAlert } from '../../lib/useTrust';
 import { endedLabel, liveLabel, timeRange, whenLabel } from '../../lib/when';
 import { COLOR, EVENT_COLOURS, MOTION, RADII, SPACING } from '../../theme';
 
@@ -112,6 +113,9 @@ export default function EventScreen() {
   const toast = useToast();
   const community = useCommunity();
   const e = events.find((x) => x.id === id);
+  // Trusted host mark and the quiet alert (level-up, profile area): both hide themselves when not available.
+  const hostTrust = useHostTrust(e ?? { hostIds: [] });
+  const quietAlert = useQuietAlert(e?.id ?? '');
   const [message, setMessage] = useState('');
   const [galleryAt, setGalleryAt] = useState<number | null>(null);
   const [error, setErrorState] = useState<{ at: ErrorAt; text: string } | null>(null);
@@ -566,6 +570,8 @@ export default function EventScreen() {
     host && (ev.changes?.length ?? 0) > 0 ? { label: 'Plan changes', onPress: () => (setMenu(false), setChangesOpen(true)) } : null,
     // Says what it cancels (Review 19, 4.5): a bare "Cancel" in a sheet reads as "close this".
     host && !closed ? { label: `Cancel this ${EVENT_LABELS[ev.type].toLowerCase()}…`, destructive: true, onPress: () => (setMenu(false), setConfirmCancel(true)) } : null,
+    // "This is getting out of hand": a quiet alert to the host and the team, for people going to a meet that is still on.
+    !host && going && !closed && quietAlert.live ? { label: 'This is getting out of hand', onPress: () => (setMenu(false), router.push({ pathname: '/quiet', params: { id: ev.id } })) } : null,
     !host ? { label: 'Report', onPress: () => (setMenu(false), openReport('event', ev.id, undefined, 'event')) } : null,
   ] as (MenuOption | null)[]).filter((x): x is MenuOption => !!x);
 
@@ -854,6 +860,8 @@ export default function EventScreen() {
           <ListRow
             leading={{ avatar: { name: users.find((u) => u.id === hostIds[0])?.name, handle: users.find((u) => u.id === hostIds[0])?.handle } }}
             title={`Hosted by ${hostLine}`}
+            subtitle={hostTrust?.label}
+            accessibilityLabel={hostTrust ? `Hosted by ${hostLine}. ${hostTrust.label}. ${hostTrust.detail}` : undefined}
             onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
           />
           {host && !closed ? null : <InviteRows rows={invite} ended={closed} />}

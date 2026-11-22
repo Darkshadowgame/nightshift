@@ -12,6 +12,7 @@ import { plural } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { NightEvent } from '../lib/types';
 import { COLOR, MOTION, SPACING } from '../theme';
+import { AwardBadge } from './AwardBadge';
 import { bhpLine } from './BringPicker';
 import { Cover } from './Cover';
 import { ActionBar, Button, DsText, ErrorState, ListRow, PhotoCard, RowDivider, Section, Sheet, ToastView, displayHandle, SheetRevealRef, useToast } from './ds';
@@ -92,7 +93,7 @@ export function TrophiesSection({ event, preview, progress, delay = 0 }: { event
             <View key={a.category}>
               {i > 0 ? <RowDivider inset /> : null}
               <ListRow
-                leading={{ icon: 'success', colour: COLOR.state.success }}
+                leading={{ node: <AwardBadge category={a.category} size={36} /> }}
                 title={info.label}
                 // A build is always ClassBadge + name + bhp (K3, Review 17), the owner and votes under it.
                 build={b ? { letter: classOf(b), name: `${b.make} ${b.model}`, power: bhpLine(b) } : undefined}

@@ -300,6 +300,9 @@ export const SCREEN_TITLES = {
   groupInfo: 'Group',
   connections: 'Connections',
   report: 'Report',
+  passport: 'Passport',
+  recap: 'Your year',
+  quiet: 'Quiet alert',
   rateBuilds: 'Rate builds',
   moderation: 'Moderation',
 } as const;

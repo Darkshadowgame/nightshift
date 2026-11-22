@@ -14,10 +14,13 @@ export type Leading =
   | { avatar: { name?: string | null; handle?: string | null; photo?: Photo | null } }
   | { pin: Glyph; colour: string }
   | { classBadge: ClassLetter }
-  | { icon: IconName; colour?: string };
+  | { icon: IconName; colour?: string }
+  /** Any small drawing (an award badge), up to 40 pt wide. */
+  | { node: ReactNode };
 
 function LeadingMark({ leading }: { leading: Leading }) {
   if ('avatar' in leading) return <Avatar {...leading.avatar} size="md" />;
+  if ('node' in leading) return <View style={{ width: 40, alignItems: 'center' }}>{leading.node}</View>;
   if ('pin' in leading)
     return (
       <View aria-hidden>
