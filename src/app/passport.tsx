@@ -37,7 +37,7 @@ export default function Passport() {
         <DsText v="secondary">A region fills in when you check in at a meet there.</DsText>
       </View>
 
-      {stamps.length === 0 ? <EmptyState variant="inline" title="No stamps yet. Check in at a meet to fill your first region." action={{ label: 'Find a meet', onPress: () => router.navigate('/') }} /> : null}
+      {stamps.length === 0 ? <EmptyState variant="inline" title="No stamps yet. Check in at a meet to fill your first region." action={{ label: "See tonight's meets", onPress: () => router.navigate('/') }} /> : null}
 
       <View style={{ height: 4 * TILE_HEIGHT + 3 * GAP }} accessibilityRole="list">
         {Object.entries(PASSPORT_TILES).map(([region, pos]) => {

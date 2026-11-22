@@ -17,7 +17,7 @@ jest.mock('react-native-reanimated', () => {
   };
 });
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
-jest.mock('../src/lib/feel', () => ({ feel: new Proxy({}, { get: () => () => {} }) }));
+jest.mock('../src/lib/feel', () => ({ feel: new Proxy({}, { get: () => () => {} }), buzz: () => {} }));
 
 import { TOAST_HANDOFF_MS, ToastProvider, useToast, type ToastInput } from '../src/components/ds/Toast';
 

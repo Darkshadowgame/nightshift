@@ -1433,3 +1433,10 @@ Built in `src/lib/passport.ts`, `trust.ts`, `useTrust.ts`, `useVisits.ts`; scree
   The server also hides you from the person you blocked, both ways, in forum threads and replies, event chat,
   going lists, event requests and crew member lists (migration `20261122160000_lvl_people.sql`).
 
+
+### 9.f Feel pass: one haptic set, empty next steps, quick start, offline (22 Nov 2026)
+
+- **Haptics.** The vocabulary (`none`, `tap`, `select`, `success`, `warning`) and `buzz()` live in `src/lib/feel.ts`; `Press` re-exports them. Components pick the default (chips, segments and switches `select`; destructive `warning`; the confirm sheet's confirm `success`; toasts by tone). Screens call `buzz`, never `feel`. Haptics are not motion, so Reduce Motion does not silence them. There is no haptics-off setting in the app yet.
+- **Empty states.** All use `EmptyState`. Drive log and Passport now offer one next step ("See tonight's meets"). Sections that read from other people (common problems, sold prices, same model near you, who's here) stay hidden until they have something.
+- **First run.** Two steps still. The handle is no longer typed: it is a suggestion said in one line and changed on the profile. Next never blocks on picking a vehicle. The 18+ and terms box at sign-in is untouched.
+- **Offline.** Meets, saved drives and favourites come from the cached store. The offline pill says one line: "You're offline. Showing what's saved on this phone." Forum, chat history, nearby photos and new community data need a connection.
