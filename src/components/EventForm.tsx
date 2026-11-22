@@ -17,6 +17,7 @@ import { areaNameNear } from '../lib/profile';
 import { visibleSpots } from '../lib/spots';
 import { newId, useStore } from '../lib/store';
 import { INVITE_WORDS } from '../lib/eventInvites';
+import { cleanRules, RULES } from '../lib/meetExtras';
 import type { LatLng } from '../lib/types';
 import { CLASS_LETTERS, type ClassLetter, type EventType, type InviteFilter, type NightEvent } from '../lib/types';
 import { clock, defaultStart, endFrom, MAX_DAYS_AHEAD, quickDays, startFrom, timeRange, whenLabel } from '../lib/when';
@@ -142,6 +143,9 @@ export function EventForm({
   /** "Limit who can come" and "More options" are open. */
   const [limiting, setLimiting] = useState(() => !normaliseFilter(filter).everyone);
   const [more, setMore] = useState(false);
+  /** House rules (meetExtras RULES ids) and the optional limit on places ('none' for no limit). */
+  const [rules, setRules] = useState<string[]>(() => cleanRules(initial?.rules ?? d0?.rules ?? []));
+  const [capacity, setCapacity] = useState<string>(() => String(initial?.capacity ?? d0?.capacity ?? 'none'));
   /** "Let people invite their connections" (eventInvites.ts): on unless the host turns it off. */
   const [allowInvites, setAllowInvites] = useState(initial?.allowInvites !== false);
   /** What's missing, and where it shows: a field (`name`, `start`, `end`, `point`, `stop:<i>`) or the form. */
@@ -178,6 +182,8 @@ export function EventForm({
     filter,
     crewOwned,
     coHosts,
+    rules,
+    capacity: capacity === 'none' ? undefined : Number(capacity),
     savedAt: '',
   };
   const draftKey = JSON.stringify(draftNow);
@@ -406,6 +412,10 @@ export function EventForm({
     };
     if (end) event.endsAt = end.toISOString();
     else delete event.endsAt;
+    if (rules.length) event.rules = cleanRules(rules);
+    else delete event.rules;
+    if (capacity !== 'none' && !isPublicType(type)) event.capacity = Number(capacity);
+    else delete event.capacity;
     if (allowInvites) delete event.allowInvites;
     else event.allowInvites = false;
     const twin = !initial ? duplicateHosted(store.events, event, me) : undefined;
@@ -678,6 +688,22 @@ export function EventForm({
           {!remote || remote.invitesLive() ? (
             <SwitchRow label={INVITE_WORDS.hostToggle} hint={INVITE_WORDS.hostToggleHint} value={allowInvites} onValueChange={setAllowInvites} />
           ) : null}
+          {!isPublicType(type) ? (
+            <ChoiceGroup
+              label="Places"
+              options={[...new Set(['none', '10', '20', '50', '100', capacity])].map((k) => ({ key: k, label: k === 'none' ? 'No limit' : k }))}
+              value={capacity}
+              onChange={setCapacity}
+            />
+          ) : null}
+          <ChipGroup<string>
+            label="House rules"
+            allLabel="None"
+            raw
+            options={RULES.map((r) => ({ key: r.id, label: r.label }))}
+            selected={rules}
+            onChange={setRules}
+          />
           {friends.length ? (
             <ChipGroup<string>
               label="Co-hosts"
@@ -695,7 +721,7 @@ export function EventForm({
           tier="tertiary"
           size="sm"
           style={{ alignSelf: 'flex-start' }}
-          accessibilityHint={isPublicType(type) ? 'Co-hosts' : `When the location shows (now ${leadText(reveal)} before) and co-hosts`}
+          accessibilityHint={isPublicType(type) ? 'House rules and co-hosts' : `When the location shows (now ${leadText(reveal)} before), places, house rules and co-hosts`}
           onPress={() => setMore(true)}
         />
       )}

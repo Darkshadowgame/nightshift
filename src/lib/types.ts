@@ -209,6 +209,16 @@ export interface NightEvent {
    * of the builds' own photos, so a meet has pictures of its own (Review 20 #13).
    */
   gallery?: string[];
+  /** Standard house rules the host picked (meetExtras.ts RULES ids), shown on the meet page. */
+  rules?: string[];
+  /** The most people who can go (hosts don't count). Missing means no limit. */
+  capacity?: number;
+  /** People waiting for a place once it is full, first in line first. */
+  waitlist?: string[];
+  /** One-tap status from people going: running late, or left. Seen by hosts and people going. */
+  status?: Record<string, 'late' | 'left'>;
+  /** userId -> when they first checked in (ISO). Missing for older check-ins. */
+  arrivals?: Record<string, string>;
 }
 
 export interface PlanChangeLog {

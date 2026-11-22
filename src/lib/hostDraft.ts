@@ -23,6 +23,9 @@ export interface HostDraft {
   filter: InviteFilter;
   crewOwned: boolean;
   coHosts: string[];
+  /** Added later: older drafts have neither. */
+  rules?: string[];
+  capacity?: number;
   savedAt: string;
 }
 

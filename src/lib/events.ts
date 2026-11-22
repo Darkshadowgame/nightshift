@@ -2,6 +2,7 @@ import { appNow } from './appClock';
 import { eventArea } from './area';
 import { isCrewHost } from './crews';
 import { milesBetween } from './geo';
+import { isFull, joinWaitlist, promoteWaitlist } from './meetExtras';
 import { zonesAt } from './zones';
 import type { BanZone, ChatMessage, Crew, EventType, LatLng, NightEvent, PlanChangeLog, Stop } from './types';
 
@@ -56,7 +57,11 @@ export function rsvp(event: NightEvent, userId: string, eligible: boolean, build
   }
   const vehicles = changed ? { ...event.vehicles, [userId]: buildId } : event.vehicles;
   const requests = (event.requests ?? []).filter((r) => r !== userId);
-  if (eligible) return { ...event, going: going ? event.going : [...event.going, userId], requests, vehicles };
+  if (eligible) {
+    // A full meet: a place isn't free, so you wait your turn (hosts never take a place).
+    if (!going && isFull(event) && !event.hostIds.includes(userId)) return joinWaitlist({ ...event, requests, vehicles }, userId);
+    return { ...event, going: going ? event.going : [...event.going, userId], requests, vehicles, waitlist: (event.waitlist ?? []).filter((w) => w !== userId) };
+  }
   if (event.declined?.includes(userId)) throw new Error('A host has already said no to this one.');
   if (asked && !changed) return event;
   return { ...event, going: event.going.filter((u) => u !== userId), requests: [...requests, userId], vehicles };
@@ -64,7 +69,17 @@ export function rsvp(event: NightEvent, userId: string, eligible: boolean, build
 
 export function dropOut(event: NightEvent, userId: string): NightEvent {
   const vehicles = event.vehicles && userId in event.vehicles ? Object.fromEntries(Object.entries(event.vehicles).filter(([u]) => u !== userId)) : event.vehicles;
-  return { ...event, going: event.going.filter((u) => u !== userId), requests: (event.requests ?? []).filter((r) => r !== userId), vehicles };
+  const status = event.status && userId in event.status ? Object.fromEntries(Object.entries(event.status).filter(([u]) => u !== userId)) : event.status;
+  const next: NightEvent = {
+    ...event,
+    going: event.going.filter((u) => u !== userId),
+    requests: (event.requests ?? []).filter((r) => r !== userId),
+    vehicles,
+    ...(event.waitlist ? { waitlist: event.waitlist.filter((w) => w !== userId) } : {}),
+    ...(status ? { status } : {}),
+  };
+  // A place came up: the first person waiting moves into it.
+  return next.waitlist?.length ? promoteWaitlist(next).event : next;
 }
 
 export const VEHICLE_SET_REASON = "You've checked in, so your vehicle is set for this one.";
@@ -195,7 +210,7 @@ export function canCheckIn(
  * (canGoWith() in bringing.ts); a build it doesn't cover is refused rather than
  * skipping the host. A host checking in with a build counts as going.
  */
-export function checkIn(event: NightEvent, stopIndex: number, userId: string, vehicle?: { buildId: string; fits: boolean }): NightEvent {
+export function checkIn(event: NightEvent, stopIndex: number, userId: string, vehicle?: { buildId: string; fits: boolean }, now: Date = appNow()): NightEvent {
   const stop = event.stops[stopIndex];
   const done = event.checkIns[userId] ?? [];
   let next = event;
@@ -214,7 +229,11 @@ export function checkIn(event: NightEvent, stopIndex: number, userId: string, ve
     };
   }
   if (done.includes(stop.id)) return next;
-  return { ...next, checkIns: { ...next.checkIns, [userId]: [...done, stop.id] } };
+  // The first check-in is when they arrived (the arrival board's order, and the host's arrivals over time).
+  const arrivals = done.length === 0 ? { ...next.arrivals, [userId]: now.toISOString() } : next.arrivals;
+  // Arrived: "running late" no longer applies.
+  const status = next.status?.[userId] === 'late' ? Object.fromEntries(Object.entries(next.status).filter(([u]) => u !== userId)) : next.status;
+  return { ...next, checkIns: { ...next.checkIns, [userId]: [...done, stop.id] }, ...(arrivals ? { arrivals } : {}), ...(status ? { status } : {}) };
 }
 
 /**
@@ -447,6 +466,9 @@ export function applyEventEdit(event: NightEvent, edited: NightEvent, by: string
     cancelled: event.cancelled,
     changes: [...(event.changes ?? []), log],
     ...(event.invitedBy ? { invitedBy: event.invitedBy } : {}),
+    ...(event.waitlist ? { waitlist: event.waitlist } : {}),
+    ...(event.status ? { status: event.status } : {}),
+    ...(event.arrivals ? { arrivals: event.arrivals } : {}),
   };
 }
 
