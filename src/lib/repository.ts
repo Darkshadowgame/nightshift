@@ -3,6 +3,7 @@ import type { AlertMode, SearchFilters } from './discover';
 import type { PlanChange } from './events';
 import type { ProfileDraft } from './profile';
 import type { DriveRun, SpotDraft, Verdict } from './spots';
+import type { MeetStatus } from './meetExtras';
 import type { Build, InviteFilter, LatLng, NightEvent } from './types';
 
 /**
@@ -36,7 +37,12 @@ export interface Repository {
    * kept on the demo person. `onlyIfNone`: leave an existing choice alone (moving the old per-phone choice up).
    */
   setAvatar(ref: string | null, onlyIfNone?: boolean): Promise<void>;
-  setGoing(eventId: string, going: boolean, buildId?: string): Promise<'going' | 'requested' | 'none'>;
+  /** 'waitlisted': the meet is full, so you are in line for a place (meetExtras.ts). */
+  setGoing(eventId: string, going: boolean, buildId?: string): Promise<'going' | 'requested' | 'waitlisted' | 'none'>;
+  /** One-tap status for people going: running late, left, or null to clear it. */
+  setMeetStatus(eventId: string, status: MeetStatus | null): Promise<void>;
+  /** A host adds a co-host after the meet is made. */
+  addCoHost(eventId: string, userId: string): Promise<void>;
   answerRequest(eventId: string, userId: string, approve: boolean): Promise<void>;
   /**
    * Invite connections to an event (eventInvites.ts). Resolves with the ids newly invited. Each gets
@@ -80,4 +86,8 @@ export interface BackendExtras {
   inviteCount(filter: InviteFilter, area: LatLng): Promise<{ people: number | null; builds: number | null }>;
   /** False until the event invites migration is live on the server: the screens hide Invite connections. */
   invitesLive(): boolean;
+  /** False until the meets level-up migration is live on the server: the screens hide its extras. */
+  meetsLive(): boolean;
+  /** Meet history and, for hosts, regulars and newcomers (meet_stats()); null when not live. */
+  meetStats(eventId: string): Promise<{ runs: number; typical: number | null; regulars: number | null; newcomers: number | null } | null>;
 }

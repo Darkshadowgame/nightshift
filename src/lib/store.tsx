@@ -80,7 +80,9 @@ interface Store extends Persisted {
    * `buildId`: the car or bike you're bringing; another one later is a vehicle change. False drops out or withdraws.
    * Resolves with where you ended up.
    */
-  setGoing: (eventId: string, going: boolean, buildId?: string) => Promise<'going' | 'requested' | 'none'>;
+  setGoing: (eventId: string, going: boolean, buildId?: string) => Promise<'going' | 'requested' | 'waitlisted' | 'none'>;
+  setMeetStatus: (eventId: string, status: import('./meetExtras').MeetStatus | null) => Promise<void>;
+  addCoHost: (eventId: string, userId: string) => Promise<void>;
   /** Host approves or declines a request to go. */
   answerRequest: (eventId: string, userId: string, approve: boolean) => Promise<void>;
   /** Invite connections to an event (eventInvites.ts). Resolves with the ids newly invited. */
@@ -626,6 +628,8 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
         saveNowUntil.current = realNowMs() + 2000;
         return need().setGoing(id, going, buildId);
       },
+      setMeetStatus: async (id, status) => need().setMeetStatus(id, status),
+      addCoHost: async (id, userId) => need().addCoHost(id, userId),
       answerRequest: async (id, userId, approve) => need().answerRequest(id, userId, approve),
       inviteConnections: async (id, userIds, ctx) => need().inviteConnections(id, userIds, ctx),
       checkIn: async (id, stop, buildId, position) => need().checkIn(id, stop, buildId, position),

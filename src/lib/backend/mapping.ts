@@ -39,12 +39,18 @@ export interface EventRow {
   invite_brands: string[]; invite_radius_miles: number; created_by: string | null; cancelled_at: string | null; created_at?: string;
   /** Missing until the event invites migration is live. */
   allow_invites?: boolean;
+  /** Missing until the meets level-up migration (20261122140000) is live. */
+  capacity?: number | null;
+  rules?: string[] | null;
 }
 /** A row from get_event_stops(): locked stops have name, lat, lng and note null and visible false. */
 export interface StopRow { id: string; event_id: string; position: number; name: string | null; lat: number | null; lng: number | null; note: string | null; revealed_at: string | null; visible: boolean }
 export interface GoingRow { event_id: string; user_id: string; build_id: string | null }
 export interface RequestRow { event_id: string; user_id: string; status: 'pending' | 'approved' | 'declined'; build_id: string | null }
-export interface CheckInRow { event_id: string; user_id: string; stop_id: string }
+export interface CheckInRow { event_id: string; user_id: string; stop_id: string; checked_in_at?: string }
+/** event_status and event_waitlist rows (meets level-up migration). */
+export interface StatusRow { event_id: string; user_id: string; status: 'late' | 'left' }
+export interface WaitRow { event_id: string; user_id: string; build_id: string | null; created_at: string }
 export interface HostRow { event_id: string; user_id: string }
 /** An invite (event_invites, or request_inviters() for hosts). */
 export interface InviteRow { event_id: string; inviter_id: string; invitee_id: string }
@@ -230,6 +236,8 @@ export interface EventParts {
   stops: StopRow[];
   invites?: InviteRow[];
   changes?: PlanChangeRow[];
+  statuses?: StatusRow[];
+  waitlist?: WaitRow[];
 }
 
 export function eventFromRows(r: EventRow, parts: EventParts): NightEvent {
@@ -240,7 +248,11 @@ export function eventFromRows(r: EventRow, parts: EventParts): NightEvent {
   for (const g of going) if (g.build_id) vehicles[g.user_id] = g.build_id;
   for (const q of requests) if (q.status === 'pending' && q.build_id && !vehicles[q.user_id]) vehicles[q.user_id] = q.build_id;
   const checkIns: Record<string, string[]> = {};
-  for (const c of mine(parts.checkIns)) (checkIns[c.user_id] ??= []).push(c.stop_id);
+  const arrivals: Record<string, string> = {};
+  for (const c of mine(parts.checkIns)) {
+    (checkIns[c.user_id] ??= []).push(c.stop_id);
+    if (c.checked_in_at && (!arrivals[c.user_id] || c.checked_in_at < arrivals[c.user_id])) arrivals[c.user_id] = c.checked_in_at;
+  }
   const stops = mine(parts.stops).sort((a, b) => a.position - b.position).map(stopFromRow);
   const changes: PlanChangeLog[] = mine(parts.changes ?? []).map((c) => ({
     id: c.id, at: c.at, by: c.by_user ?? '', text: c.text, ...(c.ban_zone ? { banZone: c.ban_zone } : {}),
@@ -267,6 +279,16 @@ export function eventFromRows(r: EventRow, parts: EventParts): NightEvent {
   if (r.cancelled_at) e.cancelled = true;
   if (changes.length) e.changes = changes;
   if (r.allow_invites === false) e.allowInvites = false;
+  if (r.capacity) e.capacity = r.capacity;
+  if (r.rules?.length) e.rules = r.rules;
+  if (Object.keys(arrivals).length) e.arrivals = arrivals;
+  const statuses = mine(parts.statuses ?? []);
+  if (statuses.length) e.status = Object.fromEntries(statuses.map((x) => [x.user_id, x.status]));
+  const waiting = mine(parts.waitlist ?? []).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  if (waiting.length) {
+    e.waitlist = waiting.map((w) => w.user_id);
+    for (const w of waiting) if (w.build_id && !vehicles[w.user_id]) vehicles[w.user_id] = w.build_id;
+  }
   const invites = mine(parts.invites ?? []);
   if (invites.length) {
     const invitedBy: Record<string, string> = {};

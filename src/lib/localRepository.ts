@@ -35,6 +35,7 @@ import { driveMiles, judgeRun, makeSpot, rateSpot as applyRating, recordCompleti
 import type { ChatMessage, NightEvent, Spot } from './types';
 import { newId } from './ids';
 import { inviteProblem, newInvitees, withInvites } from './eventInvites';
+import { withCoHost, withStatus } from './meetExtras';
 
 export interface LocalContext {
   /** The latest state (not a render's snapshot). */
@@ -156,7 +157,15 @@ export function createLocalRepository(ctx: LocalContext): Repository {
       const nowDate = appNow();
       const next = rsvp(event, ME, eligible, pick, nowDate); // throws with the reason (a host said no, checked in...)
       updateEvent(eventId, (e) => rsvp(e, ME, eligible, pick, nowDate));
-      return next.going.includes(ME) ? 'going' : next.requests?.includes(ME) ? 'requested' : 'none';
+      return next.going.includes(ME) ? 'going' : next.waitlist?.includes(ME) ? 'waitlisted' : next.requests?.includes(ME) ? 'requested' : 'none';
+    },
+    async setMeetStatus(eventId, status) {
+      const next = withStatus(eventOf(eventId), ME, status);
+      updateEvent(eventId, () => next);
+    },
+    async addCoHost(eventId, userId) {
+      const next = withCoHost(eventOf(eventId), ME, get().crews, userId);
+      updateEvent(eventId, () => next);
     },
     async inviteConnections(eventId, userIds, { connected, blocked }) {
       const state = get();

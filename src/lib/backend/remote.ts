@@ -1,6 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { BAN_ZONES } from '../../data/seed';
 import { applyPlanChange } from '../events';
+import { isFull } from '../meetExtras';
 import type { Persisted } from '../localState';
 import type { Notice } from '../notice';
 import { notifyNow } from '../notify';
@@ -9,7 +10,7 @@ import { BUNDLED_IDS, isBundled } from '../placeStore';
 import { profileProblem } from '../profile';
 import type { BackendExtras, Repository } from '../repository';
 import { draftProblem, driveMiles, judgeRun } from '../spots';
-import type { Build, ChatMessage, PlaceRep, Spot, User } from '../types';
+import type { Build, ChatMessage, NightEvent, PlaceRep, Spot, User } from '../types';
 import { uuid } from '../ids';
 import { avatarUploadPath, ownPath, planAvatar } from '../avatar';
 import { isMissingColumn } from '../mediaLimits';
@@ -55,8 +56,10 @@ import {
   type SettingsRow,
   type SpotRow,
   type SpotStatsRow,
+  type StatusRow,
   type StopRow,
   type VoteRow,
+  type WaitRow,
 } from './mapping';
 import { sendPendingFeedback, type AppInfo } from './feedback';
 import { enqueue, flushOutbox, isNetworkError, OFFLINE, type OutboxItem } from './outbox';
@@ -176,19 +179,43 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     if (invitesOn) await rpc('set_event_invites', { p_event_id: eventId, p_on: on });
   }
 
+  /** True once the meets level-up migration (20261122140000) answers: statuses, waitlist, places, rules, history. */
+  let meetsOn = false;
+
+  async function loadMeetParts(ids: string[]): Promise<{ statuses: StatusRow[]; waitlist: WaitRow[] }> {
+    try {
+      const [statuses, waitlist] = await Promise.all([
+        call<StatusRow[]>(() => client.from('event_status').select('event_id,user_id,status').in('event_id', ids)),
+        call<WaitRow[]>(() => client.from('event_waitlist').select('event_id,user_id,build_id,created_at').in('event_id', ids)),
+      ]);
+      meetsOn = true;
+      return { statuses, waitlist };
+    } catch (e) {
+      if (!offline(e)) meetsOn = false;
+      return { statuses: [], waitlist: [] };
+    }
+  }
+
+  /** The host's places and house rules, saved once the migration is live. */
+  async function setMeetOptions(e: NightEvent, eventId: string): Promise<void> {
+    if (!meetsOn) return;
+    await rpc('set_meet_options', { p_event_id: eventId, p_capacity: e.capacity ?? null, p_rules: e.rules ?? [] });
+  }
+
   async function loadEventParts(ids: string[]) {
-    if (ids.length === 0) return { hosts: [], going: [], requests: [], checkIns: [], stops: [], changes: [], chat: [], invites: [] };
-    const [hosts, going, requests, checkIns, stops, changes, chat, invites] = await Promise.all([
+    if (ids.length === 0) return { hosts: [], going: [], requests: [], checkIns: [], stops: [], changes: [], chat: [], invites: [], statuses: [], waitlist: [] };
+    const [hosts, going, requests, checkIns, stops, changes, chat, invites, meetParts] = await Promise.all([
       call<HostRow[]>(() => client.from('event_hosts').select('event_id,user_id').in('event_id', ids)),
       call<GoingRow[]>(() => client.from('event_going').select('event_id,user_id,build_id').in('event_id', ids)),
       call<RequestRow[]>(() => client.from('event_requests').select('event_id,user_id,status,build_id').in('event_id', ids)),
-      call<CheckInRow[]>(() => client.from('check_ins').select('event_id,user_id,stop_id').in('event_id', ids)),
+      call<CheckInRow[]>(() => client.from('check_ins').select('event_id,user_id,stop_id,checked_in_at').in('event_id', ids)),
       rpc<StopRow[]>('get_event_stops', { p_event_ids: ids }),
       call<PlanChangeRow[]>(() => client.from('plan_changes').select('id,event_id,by_user,at,text,ban_zone').in('event_id', ids).order('at')),
       call<ChatRow[]>(() => client.from('chat_messages').select('id,event_id,user_id,body,system,created_at').in('event_id', ids).order('created_at').limit(2000)),
       loadInvites(ids),
+      loadMeetParts(ids),
     ]);
-    return { hosts, going, requests, checkIns, stops, changes, chat, invites };
+    return { hosts, going, requests, checkIns, stops, changes, chat, invites, ...meetParts };
   }
 
   /** Chat lines still waiting in the outbox, so they stay on screen until sent. */
@@ -617,11 +644,14 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
     async saveEvent(e) {
       const r = await rpc<{ id: string; warnings: string[] }>('save_event', eventToRpc(e, uid, true));
       if (e.allowInvites === false) await setEventInvites(r.id, false);
+      if (e.capacity || e.rules?.length) await quietly(setMeetOptions(e, r.id));
       await quietly(refreshEvent(r.id));
       return r.id;
     },
     async editEvent(e) {
       await rpc('save_event', eventToRpc(e, uid, false));
+      const was = eventOf(e.id);
+      if (e.capacity !== was.capacity || (e.rules ?? []).join() !== (was.rules ?? []).join()) await setMeetOptions(e, e.id);
       if ((e.allowInvites !== false) !== (eventOf(e.id).allowInvites !== false)) await setEventInvites(e.id, e.allowInvites !== false);
       await quietly(refreshEvent(e.id));
     },
@@ -692,7 +722,26 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
         nearby: alerts && alerts !== 'search' && s.nearby ? { ...s.nearby, unseen: [] } : s.nearby,
       }));
     },
+    async setMeetStatus(eventId, status) {
+      if (!meetsOn) throw new Error("That isn't switched on yet.");
+      await rpc('set_meet_status', { p_event_id: eventId, p_status: status });
+      await quietly(refreshEvent(eventId));
+    },
+    async addCoHost(eventId, userId) {
+      if (!meetsOn || !isUuid(userId)) throw new Error("That isn't switched on yet.");
+      await rpc('add_cohost', { p_event_id: eventId, p_user_id: userId });
+      await quietly(refreshEvent(eventId));
+    },
     async setGoing(eventId, going, buildId) {
+      const ev = get().events.find((x) => x.id === eventId);
+      const pick = buildId && isUuid(buildId) ? buildId : null;
+      // A full meet: wait your turn. (The server refuses a direct join too, so an old phone sees "full".)
+      if (going && meetsOn && ev && isFull(ev) && !ev.going.includes(uid) && !ev.hostIds.includes(uid)) {
+        await rpc('join_waitlist', { p_event_id: eventId, p_build_id: pick });
+        await quietly(refreshEvent(eventId));
+        return 'waitlisted';
+      }
+      if (!going && meetsOn && ev?.waitlist?.includes(uid)) await rpc('leave_waitlist', { p_event_id: eventId });
       const r = await rpc<'going' | 'requested' | 'none'>('set_going', { p_event_id: eventId, p_going: going, p_build_id: buildId && isUuid(buildId) ? buildId : null });
       await quietly(refreshEvent(eventId));
       return r;
@@ -829,6 +878,15 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
       return rows.map((r) => ({ eventId: r.event_id, miles: Number(r.miles), canGo: r.can_go }));
     },
     invitesLive: () => invitesOn,
+    meetsLive: () => meetsOn,
+    async meetStats(eventId) {
+      if (!meetsOn || !isUuid(eventId)) return null;
+      try {
+        return await rpc<{ runs: number; typical: number | null; regulars: number | null; newcomers: number | null }>('meet_stats', { p_event_id: eventId });
+      } catch {
+        return null;
+      }
+    },
     async inviteCount(filter, area) {
       return rpc<{ people: number | null; builds: number | null }>('invite_count', {
         p_filter: {

@@ -1,6 +1,6 @@
 -- Meet level-up (20261122140000_lvl_meets.sql; the app's rules are src/lib/meetExtras.ts).
 --
--- M: a future meet open to everyone near Lincoln, capacity 2, hosted by H. A is going. B, C and X
+-- Z has no home near the meet. M: a future meet open to everyone near Lincoln, capacity 2, hosted by H. A is going. B, C and X
 -- have a build and a home near the meet. W: a later "Weekly" meet by H with A going and N going.
 -- P1 and P2 are finished "weekly" meets by H: P1 checked in A, B and C; P2 checked in A and B.
 
@@ -16,7 +16,8 @@ insert into auth.users (id, email) values
   ('f3333333-3333-3333-3333-333333333333', 'lm-b@example.test'),
   ('f4444444-4444-4444-4444-444444444444', 'lm-c@example.test'),
   ('f5555555-5555-5555-5555-555555555555', 'lm-x@example.test'),
-  ('f6666666-6666-6666-6666-666666666666', 'lm-n@example.test');
+  ('f6666666-6666-6666-6666-666666666666', 'lm-n@example.test'),
+  ('f7777777-7777-7777-7777-777777777777', 'lm-z@example.test');
 update public.profiles set handle = 'lm_' || right(id::text, 4), display_name = 'Person ' || right(id::text, 4), region = 'East', onboarded = true
   where id::text like 'f_______-____-____-____-____________';
 insert into public.profile_homes (user_id, home)
@@ -104,8 +105,8 @@ select set_config('request.jwt.claims', '{"sub":"f2222222-2222-2222-2222-2222222
 select is(public.meet_stats('fe000000-0000-0000-0000-0000000000a2')->>'regulars', null, 'meet_stats: people going don''t get the regulars count');
 select is((public.meet_stats('fe000000-0000-0000-0000-0000000000a2')->>'runs')::int, 2, 'meet_stats: but they do see how often it has run');
 
-select set_config('request.jwt.claims', '{"sub":"f5555555-5555-5555-5555-555555555555","role":"authenticated"}', true);
-select throws_ok($$ select public.meet_stats('fe000000-0000-0000-0000-0000000000a2') $$, null, 'Event not found.', 'meet_stats: someone with no part in the meet gets nothing');
+select set_config('request.jwt.claims', '{"sub":"f7777777-7777-7777-7777-777777777777","role":"authenticated"}', true);
+select throws_ok($$ select public.meet_stats('fe000000-0000-0000-0000-0000000000a2') $$, null, 'Event not found.', 'meet_stats: Z lives nowhere near and has no part in the meet, so gets nothing');
 reset role;
 select ok(private.is_event_host('fe000000-0000-0000-0000-0000000000a1', 'f5555555-5555-5555-5555-555555555555'), 'co-host: X can now host the meet');
 
