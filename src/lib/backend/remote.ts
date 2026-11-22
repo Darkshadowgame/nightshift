@@ -742,7 +742,18 @@ export function createSupabaseRepository(ctx: RemoteContext): SupabaseRepository
         return 'waitlisted';
       }
       if (!going && meetsOn && ev?.waitlist?.includes(uid)) await rpc('leave_waitlist', { p_event_id: eventId });
-      const r = await rpc<'going' | 'requested' | 'none'>('set_going', { p_event_id: eventId, p_going: going, p_build_id: buildId && isUuid(buildId) ? buildId : null });
+      let r: 'going' | 'requested' | 'none';
+      try {
+        r = await rpc<'going' | 'requested' | 'none'>('set_going', { p_event_id: eventId, p_going: going, p_build_id: buildId && isUuid(buildId) ? buildId : null });
+      } catch (e) {
+        // People outside the meet can't see how full it is: the server says so, and the waitlist is next.
+        if (going && meetsOn && e instanceof Error && /meet is full/i.test(e.message)) {
+          await rpc('join_waitlist', { p_event_id: eventId, p_build_id: pick });
+          await quietly(refreshEvent(eventId));
+          return 'waitlisted';
+        }
+        throw e;
+      }
       await quietly(refreshEvent(eventId));
       return r;
     },

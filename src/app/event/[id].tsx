@@ -44,6 +44,8 @@ import { canInvite, INVITE_WORDS, inviterOf } from '../../lib/eventInvites';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { eventPhotoRef, eventStandIn, statusTag } from '../../components/TonightCards';
 import { PhotoViewer } from '../../components/PhotoGallery';
+import { ArrivalsSection, CoHostSheet, HistoryLine, HostDashboard, RulesSection, StatusSummary, StatusToggleRow } from '../../components/MeetExtras';
+import { albumState, canPostToAlbum, canSeeArrivals, hostStats, isFull, meetHistory, placesLeft, waitPosition, WAITLIST_WORDS, type MeetHistory } from '../../lib/meetExtras';
 import { appNow } from '../../lib/appClock';
 import { areaRadius } from '../../lib/area';
 import { categoryInfo, votingCloses, type AwardCategory } from '../../lib/awards';
@@ -51,7 +53,7 @@ import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsI
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
-import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
+import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, isPublicType, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
 import { myEventStatus, newlyUnlocked, roleOf, STATUS_LABELS } from '../../lib/eventView';
 import { formatTime, goingSummary, plural } from '../../lib/format';
 import { aroundArea, GOING, LEAVE_MEET, MEET_POINT } from '../../lib/glossary';
@@ -66,7 +68,7 @@ import { REP } from '../../lib/rep';
 import { eventSharePayload } from '../../lib/share';
 import { useStore } from '../../lib/store';
 import type { Build, LatLng, User } from '../../lib/types';
-import { endedLabel, liveLabel, timeRange } from '../../lib/when';
+import { endedLabel, liveLabel, timeRange, whenLabel } from '../../lib/when';
 import { COLOR, EVENT_COLOURS, MOTION, RADII, SPACING } from '../../theme';
 
 /** The soft top edge on the event map, in points. */
@@ -94,7 +96,7 @@ const BAR_ROOM = 140;
 const BAR_STATE_H = 32;
 
 /** Where an error shows: under the control that caused it. */
-type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo';
+type ErrorAt = 'checkin' | 'going' | 'moveon' | 'menu' | 'answer' | 'chat' | 'cancel' | 'photo' | 'status' | 'cohost';
 
 /**
  * An event (Redesign 2, 3.5, template T3). One fixed order in every state:
@@ -137,6 +139,9 @@ export default function EventScreen() {
   /** Invite connections (InviteSheet): from the Bring your mates row while going, and from ···. */
   const [inviting, setInviting] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [addingCoHost, setAddingCoHost] = useState(false);
+  /** Meet history and the host's regulars/newcomers from the server (meet_stats), when it is live. */
+  const [serverStats, setServerStats] = useState<{ runs: number; typical: number | null; regulars: number | null; newcomers: number | null } | null>(null);
   /** The "What are you bringing?" sheet: before I'm going, to change it, or at check-in. */
   const [bring, setBring] = useState<null | 'go' | 'change' | 'checkin'>(null);
   /** At check-in: the build they turned up in, if it isn't the one they said. */
@@ -185,6 +190,14 @@ export default function EventScreen() {
     if (!remote || !id) return;
     return remote.watchEvent(id);
   }, [remote, id]);
+  useEffect(() => {
+    if (!remote || !id) return;
+    let live = true;
+    remote.meetStats(id).then((x) => live && setServerStats(x)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [remote, id, events.length]);
 
   // Photos from the meet: posts placed at the meet point while it was on (and the day after).
   const meetPoint = e ? (e.stops[e.type === 'rolling' ? e.currentStop : 0]?.at ?? null) : null;
@@ -239,6 +252,10 @@ export default function EventScreen() {
   const userLabel = (uid: string) => (uid === me ? 'You' : displayHandle(handleOf(uid)));
   const openUser = (uid: string) => router.push({ pathname: '/user/[id]', params: { id: uid } });
   const skipGps = store.backend === 'local';
+  // The meets level-up extras need the server's migration signed in (store.remote.meetsLive()); the demo always has them.
+  const extrasLive = store.backend === 'local' || !!store.remote?.meetsLive();
+  const waitPos = waitPosition(ev, me);
+  const full = isFull(ev) && !going && !host;
 
   // The vehicle you're bringing (bringing.ts).
   const mine = ownBuilds(me, builds);
@@ -275,6 +292,7 @@ export default function EventScreen() {
       if (result === 'going' && !wasGoing && settings.reminders) askPermission().then((ok) => ok && store.refreshReminders()).catch(() => {});
       const b = mine.find((x) => x.id === buildId);
       if (result === 'requested') toast({ message: 'Asked the host', tone: 'info' });
+      else if (result === 'waitlisted') toast({ message: "You're on the waitlist", tone: 'info' });
       else if (!wasGoing) {
         // Straight away and on one line (4.7, Review 14). No tap in a toast but Undo (Review 17): which
         // car is said in the ActionBar, and changed from the ··· menu.
@@ -368,7 +386,8 @@ export default function EventScreen() {
 
   // Photos: posts at the meet point during the meet, then the builds that checked in.
   const from = new Date(ev.startsAt).getTime() - 30 * 60_000;
-  const to = endTime(ev).getTime() + 24 * 3_600_000;
+  const album = albumState(ev, now);
+  const to = album.closesAt.getTime();
   // Your own photos at the meet point always show (posts may be stamped on the real clock in the demo).
   const postPhotos = (posts.data ?? []).filter((p) => p.photo && (p.authorId === me || (new Date(p.createdAt).getTime() >= from && new Date(p.createdAt).getTime() <= to)));
   // A sample meet's own photos (Review 20 #13) stand in for the builds' photos, which show elsewhere.
@@ -381,7 +400,8 @@ export default function EventScreen() {
     return postPhotos.length + meetPhotos.length + buildPhotos.length;
   }
   const showPhotos = phase === 'live' || phase === 'over';
-  const canAddPhoto = myCheckIns.length > 0 && !closed;
+  // The album takes photos while the meet is on and for 48 hours after it (meetExtras.ts), then it just stays.
+  const canAddPhoto = canPostToAlbum(ev, me, crews, now);
   const tiles = [
     ...postPhotos.map((p) => ({ key: `p:${p.id}`, ref: p.photo!, open: () => router.push({ pathname: '/post/[id]', params: { id: p.id } }), label: `Photo by ${userLabel(p.authorId)}`, kind: 'car' as const })),
     ...meetPhotos.map((ref, i) => ({ key: `g:${i}`, ref, open: () => setGalleryAt(i), label: `Photo ${i + 1} from the meet`, kind: 'car' as const })),
@@ -410,7 +430,13 @@ export default function EventScreen() {
   const canRemind = state.kind === 'waiting' && !state.placing && going && !host && new Date(state.at) > now;
   switch (state.kind) {
     case 'join':
-      primary = { label: state.request ? 'Ask to go' : "I'm going", onPress: state.request ? () => (mine.length > 1 ? setBring('go') : commitGoing(defaultPick?.id)) : imGoing, busy, haptic: 'success' };
+      // On the waitlist: nothing to press but the way out (the bar's pill says where you are in line).
+      if (waitPos > 0) {
+        pill = `Waitlist, number ${waitPos}`;
+        secondary = { label: 'Leave the waitlist', onPress: () => void attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.") };
+        break;
+      }
+      primary = { label: full && !state.request ? WAITLIST_WORDS.join : state.request ? 'Ask to go' : "I'm going", onPress: state.request ? () => (mine.length > 1 ? setBring('go') : commitGoing(defaultPick?.id)) : imGoing, busy, haptic: 'success' };
       break;
     case 'waiting':
       if (going && !host) {
@@ -497,6 +523,18 @@ export default function EventScreen() {
     return { id: uid, name: u?.name, handle: u?.handle };
   });
   const mix = goingMix(ev, builds);
+  // Places: "12 of 20 places", a quiet line under who's going (hosts also see how many are waiting).
+  const left = placesLeft(ev);
+  const placesLine =
+    ev.capacity != null && !isPublicType(ev.type)
+      ? `${ev.capacity - (left ?? 0)} of ${ev.capacity} places${host && (ev.waitlist?.length ?? 0) > 0 ? `, ${ev.waitlist!.length} waiting` : left === 0 ? ', full' : ''}`
+      : null;
+  const arrivalsVisible = extrasLive && (phase === 'live' || phase === 'over') && canSeeArrivals(ev, me, crews, isPublicType(ev.type));
+  const history: MeetHistory | null = extrasLive ? (serverStats ? { runs: serverStats.runs, typical: serverStats.typical } : meetHistory(ev, events, now)) : null;
+  const dashboard = host && extrasLive && !ev.cancelled && (phase === 'live' || phase === 'over' || ev.going.length > 1)
+    ? hostStats(ev, events, now, serverStats && serverStats.regulars != null && serverStats.newcomers != null ? { regulars: serverStats.regulars, newcomers: serverStats.newcomers } : undefined)
+    : null;
+  const coHostPeople = ev.going.filter((u) => !ev.hostIds.includes(u) && u !== me).map((u) => ({ id: u, handle: users.find((x) => x.id === u)?.handle ?? u }));
 
   // Map: the area circle until the meet point shows, then the pin(s).
   const visibleStops = ev.stops.map((st, i) => ({ st, i, visible: canSeeStop(ev, i, me, crews, now) }));
@@ -522,6 +560,7 @@ export default function EventScreen() {
     ev.requests?.includes(me) ? { label: GOING.cancelRequest, onPress: () => (setMenu(false), attempt('menu', () => store.setGoing(ev.id, false), "Couldn't change that.")) } : null,
     inviteOn && !invitePrimary ? { label: INVITE_WORDS.open, onPress: () => (setMenu(false), setInviting(true)) } : null,
     navTo ? { label: 'Open in another app', onPress: () => (setMenu(false), nav.openOther()) } : null,
+    host && !closed && extrasLive && ev.hostIds.length < 5 ? { label: 'Add a co-host', onPress: () => (setMenu(false), setAddingCoHost(true)) } : null,
     canEdit ? { label: 'Edit', onPress: () => (setMenu(false), router.push({ pathname: '/event/edit', params: { id: ev.id } })) } : null,
     canPlan ? { label: 'Change the plan', onPress: () => (setMenu(false), router.push({ pathname: '/event/plan', params: { id: ev.id } })) } : null,
     host && (ev.changes?.length ?? 0) > 0 ? { label: 'Plan changes', onPress: () => (setMenu(false), setChangesOpen(true)) } : null,
@@ -650,6 +689,12 @@ export default function EventScreen() {
             summary={`${phase === 'cancelled' ? 'Was ' : ''}${goingSummary(ev.going.length, mix.cars, mix.bikes, phase === 'over' ? 'went' : 'going')}`}
             onPress={ev.going.length ? () => router.push({ pathname: '/event/going', params: { id: ev.id } }) : undefined}
           />
+          {placesLine ? <DsText v="secondary">{placesLine}</DsText> : null}
+          {waitPos > 0 ? <DsText v="secondary">{WAITLIST_WORDS.onList(waitPos)}</DsText> : full && state.kind === 'join' ? <DsText v="secondary">{WAITLIST_WORDS.full}</DsText> : null}
+          {extrasLive && (going || host) ? <StatusSummary event={ev} /> : null}
+          {extrasLive ? <StatusToggleRow event={ev} me={me} now={now} onSet={(st) => void attempt('status', () => store.setMeetStatus(ev.id, st), "Couldn't change that.")} /> : null}
+          {errorAt('status') ? <ErrorState title={errorAt('status')!} /> : null}
+          {errorAt('cohost') ? <ErrorState title={errorAt('cohost')!} /> : null}
           {/* Bring your mates (Review 18): a row while you're going, never a sheet that opens by itself. */}
           {going && !closed && !invitePrimary ? (
             <ListRow leading={{ icon: 'share' }} title="Bring your mates" subtitle="Invite connections or share" onPress={() => setInviting(true)} />
@@ -674,10 +719,12 @@ export default function EventScreen() {
           </View>
         )}
 
+        {arrivalsVisible ? <ArrivalsSection event={ev} builds={builds} users={users} over={phase === 'over'} me={me} /> : null}
+
         {showPhotos && (tiles.length > 0 || canAddPhoto) ? (
           <View onLayout={(l) => (photosAt.current = l.nativeEvent.layout.y)}>
             {/* Add a photo is said once (C5): in the ActionBar when it's there, else here. */}
-            <Section title="Photos" right={canAddPhoto && !barHasPhoto ? <Button tier="tertiary" size="sm" label="+ Add a photo" onPress={() => flow.pick()} /> : undefined}>
+            <Section title={phase === 'over' ? 'Album' : 'Photos'} right={canAddPhoto && !barHasPhoto ? <Button tier="tertiary" size="sm" label="+ Add a photo" onPress={() => flow.pick()} /> : undefined}>
               {tiles.length === 0 ? (
                 <EmptyState variant="inline" title="No photos yet. Add the first one." />
               ) : (
@@ -690,6 +737,9 @@ export default function EventScreen() {
                   ))}
                 </View>
               )}
+              {phase === 'over' && tiles.length > 0 ? (
+                <DsText v="caption">{album.closed ? 'The album is closed to new photos.' : `Open for photos until ${whenLabel(album.closesAt, now)}.`}</DsText>
+              ) : null}
               {errorAt('photo') ? <ErrorState title={errorAt('photo')!} /> : null}
             </Section>
             <PhotoViewer photos={meetPhotos} start={galleryAt} onClose={() => setGalleryAt(null)} />
@@ -795,6 +845,10 @@ export default function EventScreen() {
           </Section>
         ) : null}
 
+        {dashboard ? <HostDashboard stats={dashboard} /> : null}
+
+        {extrasLive ? <RulesSection event={ev} /> : null}
+
         <Section title="About">
           {ev.description ? <DsText v="body">{ev.description}</DsText> : null}
           <ListRow
@@ -803,6 +857,7 @@ export default function EventScreen() {
             onPress={crew ? () => router.push({ pathname: '/crew/[id]', params: { id: crew.id } }) : hostIds[0] && hostIds[0] !== me ? () => openUser(hostIds[0]) : undefined}
           />
           {host && !closed ? null : <InviteRows rows={invite} ended={closed} />}
+          <HistoryLine history={history} />
           {earlier.map((x) => (
             <ListRow
               key={x.id}
@@ -867,6 +922,16 @@ export default function EventScreen() {
       />
       {sharer.sheet}
       <InviteSheet event={ev} visible={inviting} onClose={() => setInviting(false)} onShareOther={() => void doShare()} />
+
+      <CoHostSheet
+        visible={addingCoHost}
+        onClose={() => setAddingCoHost(false)}
+        people={coHostPeople}
+        onPick={(uid) => {
+          setAddingCoHost(false);
+          void attempt('cohost', () => store.addCoHost(ev.id, uid), "Couldn't add them.").then((ok) => ok && toast({ message: `${userLabel(uid)} is now a co-host` }));
+        }}
+      />
 
       <Sheet visible={menu} title="Meet options" onClose={() => setMenu(false)}>
         <View>
