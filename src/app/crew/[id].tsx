@@ -2,6 +2,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { openReport } from '../../components/Community';
+import { bhpLine } from '../../components/BringPicker';
+import { CrewEmblem } from '../../components/CrewEmblem';
 import { NotFoundState } from '../../components/Detail';
 import {
   ActionBar,
@@ -17,20 +19,25 @@ import {
   PAGE_WITH_BAR,
   RowDivider,
   screenHeader,
+  Press,
   Section,
   Sheet,
   SheetOption,
   StatBlock,
   Tag,
 } from '../../components/ds';
+import { idsWithoutBlocked } from '../../lib/blocking';
 import { classOf } from '../../lib/classes';
+import { useCommunity } from '../../lib/communityStore';
+import { EMBLEMS, emblemLabel, emblemOf } from '../../lib/crewEmblems';
+import { crewMeets, crewVehicles } from '../../lib/crewPage';
 import { useNow } from '../../lib/clock';
 import { crewEvents, crewHostLoss, crewless, crewRole, isCrewHost } from '../../lib/crews';
 import { EVENT_LABELS } from '../../lib/events';
 import { viewEvent, type EventView } from '../../lib/eventView';
 import { formatWhen } from '../../lib/format';
 import { useStore } from '../../lib/store';
-import { COLOR, EVENT_COLOURS, SPACING } from '../../theme';
+import { COLOR, EVENT_COLOURS, RADII, SPACING } from '../../theme';
 
 /** A crew: the same anatomy as an event or place. Hero, stats, one primary, then members and events. */
 export default function CrewScreen() {
@@ -38,19 +45,22 @@ export default function CrewScreen() {
   const store = useStore();
   const { crews, users, builds, events, me } = store;
   const now = useNow();
+  const { blocked } = useCommunity();
   const crew = crews.find((c) => c.id === id);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmJoin, setConfirmJoin] = useState(false);
   const [picking, setPicking] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [emblemSheet, setEmblemSheet] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const members = useMemo(
     () =>
-      (crew?.memberIds ?? [])
+      // Someone you blocked is not on the crew's page.
+      idsWithoutBlocked(crew?.memberIds ?? [], blocked)
         .map((uid) => ({ user: users.find((u) => u.id === uid) }))
         .filter((m) => m.user),
-    [crew, users],
+    [crew, users, blocked],
   );
 
   if (!crew) return <NotFoundState what="Crew" message="This crew no longer exists." />;
@@ -69,7 +79,9 @@ export default function CrewScreen() {
     ? `You'll no longer host ${losing.map((e) => e.title).join(', ')}: you host ${losing.length === 1 ? 'it' : 'them'} as a crew host, not a named host.`
     : null;
   const canAdd = member && canHost;
-  const free = canAdd ? crewless({ crews, users }, [me]) : [];
+  const free = canAdd ? crewless({ crews, users }, [me, ...blocked]) : [];
+  const vehicles = crewVehicles(crew, users, builds, blocked);
+  const goingMeets = crewMeets(crew, events, now, blocked);
   // Adding people straight in is the demo's; signed in, it needs an invite they accept (not built yet).
   const demo = store.backend === 'local';
   const yourRole = owner ? 'Owner' : canHost ? 'Host' : 'Member';
@@ -93,15 +105,16 @@ export default function CrewScreen() {
     <ScrollView contentContainerStyle={PAGE_WITH_BAR} showsVerticalScrollIndicator={false}>
       <Stack.Screen options={screenHeader({ onMenu: () => setMenu(true) })} />
       <Hero
+        leading={<CrewEmblem emblem={emblemOf(crew)} size={56} />}
         eyebrow={`Crew · ${crew.tag}`}
         tag={member ? { label: yourRole, tone: 'success' } : null}
         title={crew.name}
-        meta={`${crew.ownerId ? `Owner ${handle(crew.ownerId)}` : 'No owner'}${crew.hostIds?.length ? ` · hosts ${crew.hostIds.map(handle).join(', ')}` : ''}`}
+        meta={`${crew.ownerId && !blocked.has(crew.ownerId) ? `Owner ${handle(crew.ownerId)}` : 'Owner hidden'}${idsWithoutBlocked(crew.hostIds ?? [], blocked).length ? ` · hosts ${idsWithoutBlocked(crew.hostIds ?? [], blocked).map(handle).join(', ')}` : ''}`}
       />
 
       <StatBlock
         stats={[
-          { label: 'Members', value: String(crew.memberIds.length) },
+          { label: 'Members', value: String(members.length) },
           { label: 'Events', value: String(evs.length) },
         ]}
       />
@@ -203,6 +216,43 @@ export default function CrewScreen() {
         </Section>
       ) : null}
 
+      {vehicles.length > 0 ? (
+        <Section title={`Vehicles (${vehicles.length})`}>
+          <View>
+            {vehicles.slice(0, 6).map(({ build: b, owner }, i) => (
+              <View key={b.id}>
+                {i > 0 ? <RowDivider inset /> : null}
+                <ListRow
+                  leading={{ classBadge: classOf(b) }}
+                  title={`${b.make} ${b.model}`}
+                  subtitle={metaLine([handle(owner.id), bhpLine(b)])}
+                  onPress={() => router.push({ pathname: '/build/[id]', params: { id: b.id } })}
+                />
+              </View>
+            ))}
+          </View>
+          {vehicles.length > 6 ? <DsText v="caption">{`and ${vehicles.length - 6} more`}</DsText> : null}
+        </Section>
+      ) : null}
+
+      {goingMeets.length > 0 ? (
+        <Section title="The crew is going to">
+          <View>
+            {goingMeets.map(({ event: e, crewGoing }, i) => (
+              <View key={e.id}>
+                {i > 0 ? <RowDivider inset /> : null}
+                <ListRow
+                  leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
+                  title={e.title}
+                  subtitle={metaLine([formatWhen(e.startsAt, now), `${crewGoing} from the crew`])}
+                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
+                />
+              </View>
+            ))}
+          </View>
+        </Section>
+      ) : null}
+
       <Section title={`Crew events (${upcoming.length})`}>
         {upcoming.length === 0 ? (
           <EmptyState
@@ -225,6 +275,15 @@ export default function CrewScreen() {
 
       <Sheet visible={menu} title="Crew options" onClose={() => setMenu(false)}>
         <View>
+          {owner ? (
+            <SheetOption
+              label="Change emblem"
+              onPress={() => {
+                setMenu(false);
+                setEmblemSheet(true);
+              }}
+            />
+          ) : null}
           {member ? (
             <SheetOption
               label="Leave crew"
@@ -243,6 +302,27 @@ export default function CrewScreen() {
               }}
             />
           )}
+        </View>
+      </Sheet>
+      <Sheet visible={emblemSheet} title="Crew emblem" onClose={() => setEmblemSheet(false)}>
+        <DsText v="secondary">Pick one. Everyone in the crew sees it on the crew's page.</DsText>
+        {error ? <ErrorState title={error} /> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+          {EMBLEMS.map((key) => (
+            <Press
+              key={key}
+              onPress={() => act(async () => {
+                await store.setCrewEmblem(crew.id, key);
+                setEmblemSheet(false);
+              })}
+              role="button"
+              state={{ selected: emblemOf(crew) === key }}
+              label={emblemLabel(key)}
+              style={{ padding: 3, borderRadius: RADII.card + 3, borderWidth: 2, borderColor: emblemOf(crew) === key ? COLOR.text.primary : 'transparent' }}
+            >
+              <CrewEmblem emblem={key} size={44} />
+            </Press>
+          ))}
         </View>
       </Sheet>
       <ConfirmSheet

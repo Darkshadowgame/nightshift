@@ -63,6 +63,8 @@ export interface Repository {
   leaveCrew(): Promise<void>;
   createCrew(name: string, tag: string): Promise<string>;
   setCrewHost(crewId: string, userId: string, host: boolean): Promise<void>;
+  /** The owner picks the crew's built-in emblem (crewEmblems.ts). */
+  setCrewEmblem(crewId: string, emblem: string): Promise<void>;
   /** Demo only: bring a sample person into your crew. */
   addToCrew(crewId: string, userId: string): Promise<void>;
   markNoticesRead(): Promise<void>;

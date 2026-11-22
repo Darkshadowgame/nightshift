@@ -64,7 +64,7 @@ export default function GroupInfo() {
 
       <Section title={`Members (${conv.memberIds.length} of ${MAX_GROUP})`}>
         <View>
-          {conv.memberIds.map((uid, i) => {
+          {conv.memberIds.filter((uid) => !community.blocked.has(uid)).map((uid, i) => {
             const u = users.find((x) => x.id === uid);
             return (
               <View key={uid}>

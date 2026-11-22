@@ -60,6 +60,7 @@ export default function SettingsScreen() {
   const { users, me, settings, setSettings, resetDemo, restartDemoEvents, refreshReminders, setTravelPrefs, backend } = store;
   const community = useCommunity();
   const status = useCommunityQuery((s) => s.moderationStatus(), []);
+  const sameHidden = useCommunityQuery((s) => s.sameModelHidden(), []);
   const toast = useToast();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [error, setError] = useState<{ at: string; text: string } | null>(null);
@@ -121,6 +122,18 @@ export default function SettingsScreen() {
             community
               .run((s) => s.setShowInNearby(v))
               .then(() => toast(v ? { message: 'Shown in People near you' } : { message: 'Hidden from People near you', tone: 'info' }))
+              .catch(failed('community'));
+          }}
+        />
+        <SwitchRow
+          label="Show me in Same model near you"
+          hint="People in your region with the same make and model see each other. Region only, never a place."
+          value={!(sameHidden.data ?? false)}
+          onValueChange={(v) => {
+            setError(null);
+            community
+              .run((s) => s.setSameModelHidden(!v))
+              .then(() => toast(v ? { message: 'Shown in Same model near you' } : { message: 'Hidden from Same model near you', tone: 'info' }))
               .catch(failed('community'));
           }}
         />

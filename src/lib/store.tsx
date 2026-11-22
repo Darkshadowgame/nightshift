@@ -130,6 +130,7 @@ interface Store extends Persisted {
   createCrew: (name: string, tag: string) => Promise<string>;
   /** Crew owner makes a member a host, or takes it away. */
   setCrewHost: (crewId: string, userId: string, host: boolean) => Promise<void>;
+  setCrewEmblem: (crewId: string, emblem: string) => Promise<void>;
   /** Demo: bring a sample person who isn't in a crew into yours. */
   addToCrew: (crewId: string, userId: string) => Promise<void>;
   /** Signed in: delete the account, everything in it and its photos (Apple 5.1.1(v)), then sign out. */
@@ -645,6 +646,7 @@ function StoreForMode({ mode, signOut, children }: { mode: Mode; signOut: () => 
       leaveCrew: async () => need().leaveCrew(),
       createCrew: async (name, tag) => need().createCrew(name, tag),
       setCrewHost: async (crewId, userId, host) => need().setCrewHost(crewId, userId, host),
+      setCrewEmblem: async (crewId, emblem) => need().setCrewEmblem(crewId, emblem),
       addToCrew: async (crewId, userId) => need().addToCrew(crewId, userId),
       markNoticesRead: () => {
         repo?.markNoticesRead().catch(() => {});

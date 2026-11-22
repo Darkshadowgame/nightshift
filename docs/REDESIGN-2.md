@@ -1310,3 +1310,25 @@ done a drive or photo location maybe do a subtle tick or make it greyed out."
   demo person instead.
 * The old per-phone choice (`settings.avatarRef`) is moved onto the profile once, if the profile has none, then
   cleared; the setting is no longer read for display. Rules in `src/lib/avatar.ts`.
+
+### 9.z People, crews and blocking level up (21 Nov 2026)
+* **Chat quick replies:** one row of three chips ("On my way", "Where are you parked?", "Running late") sits
+  above the composer in a chat you can send in. One tap sends it. It disappears as soon as there is text in
+  the box. Words in `src/lib/quickReplies.ts`; the row is in `src/app/chat/[id].tsx`.
+* **Crew pages:** the crew page now has an emblem next to its name, chosen from a built-in set (six shapes in
+  eight paints, no upload; `crewEmblems.ts`, drawn by `CrewEmblem`). A crew with none picked gets a steady
+  default from its id. The owner changes it from `···` › Change emblem. The page also lists the members'
+  vehicles (up to six, then "and N more") and "The crew is going to": upcoming meets with a count of crew
+  going ("2 from the crew"), never which member (`crewPage.ts`). The Crews list shows the emblem too.
+* **Mutual meets:** on someone else's profile, "Meets you've both been to (N)" with the three most recent.
+  Checked-in past meets only, so it never says where anyone will be. Hidden when you blocked them.
+* **Same model near you:** in Community › People, a short section (up to six rows) of people in your region
+  with the same make and model as a vehicle of yours. Region only, never a distance. Settings › Privacy has
+  a switch to opt out; opting out hides you from it and it from you. Blocked people and your connections
+  never appear. Signed in it is built on the server (`same_model_near()`); in the demo from the demo people.
+* **Block that really blocks:** one rule (`src/lib/blocking.ts`), applied to the going list and its count (event
+  page and Going screen), the Crews list counts, the crew page (members, hosts, owner line, vehicles, "going"
+  counts, add suggestions), group chat members, and the chat list (a 1-to-1 with someone you blocked is gone).
+  The server also hides you from the person you blocked, both ways, in forum threads and replies, event chat,
+  going lists, event requests and crew member lists (migration `20261122160000_lvl_people.sql`).
+

@@ -1,5 +1,7 @@
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { View } from 'react-native';
+import { visibleConversations } from '../lib/blocking';
 import { useNow } from '../lib/clock';
 import { useCommunity } from '../lib/communityStore';
 import { idsIn } from '../lib/connections';
@@ -19,7 +21,8 @@ export function CommunityMessages() {
   const community = useCommunity();
   const now = useNow();
   const connected = idsIn(community.connections, 'connected');
-  const list = community.conversations;
+  // A 1-to-1 with someone you blocked is gone from the list.
+  const list = useMemo(() => visibleConversations(community.conversations, community.me, community.blocked), [community.conversations, community.me, community.blocked]);
   // Your connections as car photos under the chats (Review 19 #54): one tap to their profile and Message.
   const friends = connected.filter((id) => !community.blocked.has(id)).flatMap((id) => users.filter((u) => u.id === id));
 

@@ -463,6 +463,26 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
       const rows = await rpc<{ user_id: string; miles: number }[]>('people_near', { p_max_miles: Math.round(maxMiles) });
       return (rows ?? []).map((r): Nearby => ({ userId: r.user_id, miles: r.miles }));
     },
+    async sameModelNear() {
+      // Arrives with migration 20261122160000. Until it is applied the introductions stay hidden.
+      try {
+        const rows = await rpc<{ user_id: string }[]>('same_model_near');
+        return (rows ?? []).map((r) => r.user_id);
+      } catch {
+        return [];
+      }
+    },
+    async sameModelHidden() {
+      try {
+        const rows = await call<{ hide_same_model: boolean }[]>(() => client.from('profile_settings').select('hide_same_model').eq('user_id', uid) as unknown as PromiseLike<Result<{ hide_same_model: boolean }[]>>);
+        return rows?.[0]?.hide_same_model ?? false;
+      } catch {
+        return false;
+      }
+    },
+    async setSameModelHidden(hide) {
+      await rpc('set_same_model_hidden', { p_hide: hide });
+    },
     async showInNearby() {
       const rows = await call<{ show_in_nearby: boolean }[]>(() => client.from('profile_settings').select('show_in_nearby').eq('user_id', uid) as unknown as PromiseLike<Result<{ show_in_nearby: boolean }[]>>);
       return rows?.[0]?.show_in_nearby ?? false;

@@ -14,7 +14,9 @@ export type Leading =
   | { avatar: { name?: string | null; handle?: string | null; photo?: Photo | null } }
   | { pin: Glyph; colour: string }
   | { classBadge: ClassLetter }
-  | { icon: IconName; colour?: string };
+  | { icon: IconName; colour?: string }
+  /** Anything else that is a mark (a crew emblem), about 40 wide. */
+  | { node: ReactNode };
 
 function LeadingMark({ leading }: { leading: Leading }) {
   if ('avatar' in leading) return <Avatar {...leading.avatar} size="md" />;
@@ -25,6 +27,7 @@ function LeadingMark({ leading }: { leading: Leading }) {
       </View>
     );
   if ('classBadge' in leading) return <ClassBadge letter={leading.classBadge} size="md" decorative />;
+  if ('node' in leading) return <View style={{ width: 40, alignItems: 'center' }}>{leading.node}</View>;
   return (
     <View style={{ width: 40, alignItems: 'center' }}>
       <Icon name={leading.icon} size={22} colour={leading.colour ?? COLOR.text.secondary} />

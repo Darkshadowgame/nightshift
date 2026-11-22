@@ -15,9 +15,12 @@ import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
 import { CONNECT } from '../../lib/connections';
+import { mutualMeets } from '../../lib/crewPage';
+import { EVENT_LABELS } from '../../lib/events';
+import { formatWhen, plural } from '../../lib/format';
 import { publicProfile } from '../../lib/people';
 import { useStore } from '../../lib/store';
-import { ASPECT, SPACING } from '../../theme';
+import { ASPECT, EVENT_COLOURS, SPACING } from '../../theme';
 import { NotFoundState } from '../../components/Detail';
 import { photoSource } from '../../lib/photoSource';
 import { openChat } from '../../lib/openChat';
@@ -44,6 +47,8 @@ export default function UserScreen() {
   const isMe = id === me;
   const state = community.stateOf(id);
   const blocked = community.blocked.has(id);
+  // Meets you have both checked in at: past ones only, so it never says where anyone will be.
+  const both = useMemo(() => (isMe || blocked ? { count: 0, recent: [] } : mutualMeets(events, me, id, now)), [events, me, id, now, isMe, blocked]);
 
   async function act(fn: () => Promise<unknown>, done?: string) {
     setError(null);
@@ -158,6 +163,25 @@ export default function UserScreen() {
             </View>
           }
         </Section>
+        ) : null}
+
+        {both.count > 0 ? (
+          <Section title={`Meets you've both been to (${both.count})`}>
+            <View>
+              {both.recent.map((e, i) => (
+                <View key={e.id}>
+                  {i ? <RowDivider inset /> : null}
+                  <ListRow
+                    leading={{ pin: e.type, colour: EVENT_COLOURS[e.type] }}
+                    title={e.title}
+                    subtitle={metaLine([EVENT_LABELS[e.type], formatWhen(e.startsAt, now)])}
+                    onPress={() => router.push({ pathname: '/event/[id]', params: { id: e.id } })}
+                  />
+                </View>
+              ))}
+            </View>
+            {both.count > both.recent.length ? <DsText v="caption">{`and ${plural(both.count - both.recent.length, 'more meet')}`}</DsText> : null}
+          </Section>
         ) : null}
 
         <Section title="Posts">
