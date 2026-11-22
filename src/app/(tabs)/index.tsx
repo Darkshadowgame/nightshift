@@ -922,7 +922,7 @@ export default function TonightScreen() {
     const headed = showGroupHeadings(eventFilter.show ?? 'all', shownViews);
     const heading = (label: string, n: number) => (
       <View key={label} style={{ gap: SPACING.xs, paddingTop: n > 0 ? SPACING.sm : 0 }} testID={`group-${label}`}>
-        <DsText v="title" accessibilityRole="header">
+        <DsText v="bodyStrong" accessibilityRole="header">
           {label}
         </DsText>
       </View>

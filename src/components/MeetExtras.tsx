@@ -151,7 +151,7 @@ export function OrganisedSections({ event }: { event: NightEvent }) {
     <>
       <Section title={ORGANISED_WORDS.section}>
         <View testID="organised-section">
-          {organisedBy ? <ListRow leading={{ icon: 'info' }} title={organisedBy} subtitle="Planned by an organiser, not a local meet" /> : null}
+          {organisedBy ? <ListRow leading={{ icon: 'info' }} title={organisedBy} /> : null}
           {ticket ? (
             <ListRow
               leading={{ icon: 'ticket' }}

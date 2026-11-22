@@ -95,12 +95,13 @@ export const Pin = memo(function Pin({ glyph, colour, size = 36, count, badge, d
         </>
       ) : null}
       {organised ? (
-        // An organised event (organised.ts): a chalk disc with a solid centre at the bottom-right corner,
-        // on top of the meet's own colour and glyph. The shape is the signal, not a colour; the label says "organised event".
+        // An organised event (organised.ts): a chalk diamond at the bottom-right corner, on top of the meet's own
+        // colour and glyph. A diamond, so it never reads as the round "you" dot, the tick or a count; the shape is
+        // the signal, not a colour, and the label says "organised event".
         <>
-          <Circle cx={32} cy={32} r={8.5} fill={body} />
-          <Circle cx={32} cy={32} r={7} fill={COLOR.media.text} />
-          <Circle cx={32} cy={32} r={3} fill={INK} />
+          <Path d="M31 22 39.5 30.5 31 39 22.5 30.5Z" fill={body} stroke={body} strokeWidth={3} strokeLinejoin="round" />
+          <Path d="M31 24 37.5 30.5 31 37 24.5 30.5Z" fill={COLOR.media.text} />
+          <Path d="M31 27.5 34 30.5 31 33.5 28 30.5Z" fill={INK} />
         </>
       ) : null}
     </Svg>
