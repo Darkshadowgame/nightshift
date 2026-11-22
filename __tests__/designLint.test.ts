@@ -111,6 +111,8 @@ function filesMatching(rule: RegExp): string[] {
 /** Sodium straight from the palette: the primary button and "selected" states live in the design system. */
 const SODIUM = /\bBRAND\b|\bC\.sodium\b|COLOR\.action\.(primary|selected)\b|STATE\.selected\b/;
 const KNOWN_SODIUM = new Set([
+  // The spec card is a branded share card: the accent bar and the wordmark are its brand moment.
+  'src/app/build/card.tsx',
   // Map pins and drawings (the Events layer is sodium by design).
   'src/components/BuildArt.tsx',
   'src/components/DriveMap.tsx',
@@ -175,7 +177,7 @@ describe('Redesign 2 lint', () => {
     expect(hits.filter((f) => !allowed.has(f))).toEqual([]);
   });
   it('uses the sodium text tone only for the wordmark and its moments', () => {
-    expect(filesMatching(/tone="brand"|tone: 'brand'/).filter((f) => !['src/components/Wordmark.tsx', 'src/components/Cover.tsx', 'src/components/motion.tsx'].includes(f))).toEqual([]);
+    expect(filesMatching(/tone="brand"|tone: 'brand'/).filter((f) => !['src/components/Wordmark.tsx', 'src/components/Cover.tsx', 'src/components/motion.tsx', 'src/app/build/card.tsx'].includes(f))).toEqual([]);
   });
   it('never passes the Events layer colour to a kind eyebrow or tag as text colour outside the design system', () => {
     // A layer colour reaches content only through a ds prop (layerColour, leading.colour), where

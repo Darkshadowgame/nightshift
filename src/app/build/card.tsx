@@ -56,7 +56,7 @@ export default function SpecCardScreen() {
               <DsText v="secondary">{card.sub}</DsText>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: SPACING.xs }}>
-              <DsText v="display" style={{ fontSize: 44, lineHeight: 48 }}>{`${card.bhp}`}</DsText>
+              <DsText v="hero">{`${card.bhp}`}</DsText>
               <DsText v="bodyStrong" tone="secondary">{card.est ? 'bhp est.' : 'bhp'}</DsText>
             </View>
             <View style={{ height: 3, width: 48, backgroundColor: COLOR.action.primary }} />
