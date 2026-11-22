@@ -10,6 +10,7 @@ export const APPEARANCE_LABELS: Record<AppearanceChoice, string> = { system: 'Sy
 import type { SpeechRate } from './voices';
 import type { SavedPlaces } from './whereTo';
 import type { Favourite } from './favourites';
+import type { Recents } from './recents';
 import type { FeelTags } from './driveFeel';
 import type { DriveLogEntry } from './driveLog';
 
@@ -98,6 +99,8 @@ export interface Settings {
   places?: SavedPlaces;
   /** Favourite places (Home, Work, a friend's). Phone only: never sent, never logged (favourites.ts). */
   favourites?: Favourite[];
+  /** Recent places and searches on Search (recents.ts). Phone only: never sent, never logged. */
+  recents?: Recents;
   /** The feels you tagged drives with (driveFeel.ts). Phone only. */
   driveFeels?: FeelTags;
   /** Drives you finished, with the vehicle used (driveLog.ts). Phone only. */

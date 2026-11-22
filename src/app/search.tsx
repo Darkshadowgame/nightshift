@@ -19,6 +19,7 @@ import {
   useToast,
 } from '../components/ds';
 import { FavouritesSheet } from '../components/FavouritesSheet';
+import { RecentSection } from '../components/RecentSection';
 import { EventRow } from '../components/EventRow';
 import { NavLaunch } from '../components/NavLaunch';
 import { NightMap } from '../components/NightMap';
@@ -43,6 +44,7 @@ import { DoneMark } from '../components/DoneMark';
 import { useStore } from '../lib/store';
 import { FEEL_LABELS, FEELS, filterByFeel, savedFeelTags, type Feel } from '../lib/driveFeel';
 import { asDestination, favouritesOf, findFavourite, toggleFavourite, type Favourite } from '../lib/favourites';
+import { clearRecents, recentsOf, rememberPlace, rememberSearch, removePlace, removeSearch, visibleRecentPlaces, type RecentPlace } from '../lib/recents';
 import type { Build, EventType, LatLng, SpotKind, User, VehicleKind } from '../lib/types';
 import { distanceNote, whereQueries, type Destination } from '../lib/whereTo';
 import { COLOR, RADII, SPACING, SPOT_COLOURS, themedStyles } from '../theme';
@@ -260,8 +262,17 @@ export default function SearchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, wantsAddresses]);
 
+  // Recent places and searches: phone only (recents.ts). Starts empty, in the demo too.
+  const recents = recentsOf(settings.recents);
+  const remember = (place?: { name: string; address?: string; at: LatLng; spotId?: string }) => {
+    let next = recents;
+    if (place) next = rememberPlace(next, place);
+    if (typed) next = rememberSearch(next, query);
+    if (next !== recents) setSettings({ recents: next });
+  };
   function pick(d: Destination) {
     Keyboard.dismiss();
+    remember(d);
     setPicked(d);
   }
   async function openAddress(h: AddressHit) {
@@ -278,9 +289,19 @@ export default function SearchScreen() {
     }
   }
 
-  const openEvent = (id: string) => router.push({ pathname: '/event/[id]', params: { id } });
-  const openPlace = (id: string) => router.push({ pathname: '/spot/[id]', params: { id } });
-  const openPerson = (id: string) => router.push({ pathname: '/user/[id]', params: { id } });
+  const openEvent = (id: string) => {
+    remember();
+    router.push({ pathname: '/event/[id]', params: { id } });
+  };
+  const openPlace = (id: string) => {
+    const s = spots.find((x) => x.id === id);
+    remember(s ? { name: s.name, address: s.region, at: s.at, spotId: s.id } : undefined);
+    router.push({ pathname: '/spot/[id]', params: { id } });
+  };
+  const openPerson = (id: string) => {
+    remember();
+    router.push({ pathname: '/user/[id]', params: { id } });
+  };
   const cap = (n: number) => (tab === 'all' ? n : 50);
   const set = (patch: Partial<SearchFilters>) => setFilters((f) => ({ ...f, ...patch }));
   const distances = Array.from(new Set<number>([...TRAVEL_CHOICES, travel.miles])).sort((a, b) => a - b);
@@ -373,6 +394,24 @@ export default function SearchScreen() {
     </Section>
   );
 
+  const shownRecents = visibleRecentPlaces(recents, favs.map(asDestination), new Set(allPlaces.map((p) => p.s.id)));
+  const recentRows = (
+    <RecentSection
+      places={shownRecents}
+      searches={recents.searches}
+      distance={(p) => (from ? distanceText(milesBetween(from.at, p.at), from.from) : distanceText(milesBetween(origin, p.at), 'home'))}
+      spotKind={(id) => spots.find((x) => x.id === id)?.kind}
+      onPlace={(p: RecentPlace) => (p.spotId ? openPlace(p.spotId) : pick({ at: p.at, name: p.name, address: p.address }))}
+      onSearch={(q) => setQuery(q)}
+      onRemovePlace={(p) => setSettings({ recents: removePlace(recents, p.id) })}
+      onRemoveSearch={(q) => setSettings({ recents: removeSearch(recents, q) })}
+      onClear={() => {
+        setSettings({ recents: clearRecents() });
+        toast({ message: 'Recent cleared', tone: 'info' });
+      }}
+    />
+  );
+
   const nothing =
     typed &&
     addrState !== 'searching' &&
@@ -393,6 +432,7 @@ export default function SearchScreen() {
           loading={addrState === 'searching'}
           autoFocus={!params.q}
           accessibilityLabel="Search meets, places, people or an address"
+          onSubmit={() => remember()}
         />
         <SegmentedControl options={TABS} value={tab} onChange={setTab} accessibilityLabel="Search in" />
       </View>
@@ -439,6 +479,7 @@ export default function SearchScreen() {
       ) : tab === 'places' ? (
         <>
           {favRows}
+          {recentRows}
           <ChipGroup label="Show" options={PLACE_KINDS.map((k) => ({ key: k, label: PLACE_NAMES[k].many }))} selected={kinds} onChange={setKinds} allLabel="Every kind of place" />
           {drivesOnly ? (
             <ChipGroup<Feel> label="Feel" allLabel="Any feel" options={FEELS.map((f) => ({ key: f, label: FEEL_LABELS[f] }))} selected={feelsOn} onChange={setFeelsOn} />
@@ -466,6 +507,7 @@ export default function SearchScreen() {
       ) : (
         <>
         {tab === 'all' && favs.length ? favRows : null}
+        {tab === 'all' ? recentRows : null}
         <Section
           title="Meets near you"
           right={tab === 'meets' ? <Button label="Filters" tier="tertiary" size="sm" onPress={() => setEditing(true)} accessibilityLabel={`Filters: ${describeFilters(filters, false)}`} /> : undefined}
