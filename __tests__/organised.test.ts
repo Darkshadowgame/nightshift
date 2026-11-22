@@ -148,7 +148,7 @@ describe('the Show filter', () => {
     expect(filterLine(r, f({ show: 'local' }), true, true)?.text).toBe('1 local meet · 2 hidden by your filters');
     const o = filterEvents(all, f({ show: 'organised' }), true, NOW);
     expect(o.shown.map((v) => v.event.id)).toEqual(['org', 'show']);
-    expect(filterLine(o, f({ show: 'organised' }), true, true)?.text).toBe('2 organised events · 1 hidden by your filters');
+    expect(filterLine(o, f({ show: 'organised' }), true, true)?.text).toBe('2 organised meets · 1 hidden by your filters');
     expect(filterEvents(all, f({ show: 'all' }), true, NOW).shown).toHaveLength(3);
   });
   test('yours always show', () => {

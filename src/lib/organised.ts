@@ -35,10 +35,10 @@ export const ORGANISED_TAG = 'Organised';
 /** Owner-facing words, in one place. */
 export const ORGANISED_WORDS = {
   localGroup: 'Local meets',
-  organisedGroup: 'Organised events',
-  section: 'Organised event',
+  organisedGroup: 'Organised meets',
+  section: 'Organised meet',
   sponsoredBy: 'Sponsored by',
-  sponsoredHint: 'Sponsors paid or supported this event.',
+  sponsoredHint: 'Sponsors paid or supported this meet.',
   kind: 'Kind',
   organiser: 'Organiser name',
   sponsors: 'Sponsors',
@@ -62,7 +62,7 @@ export function kindText(e: Pick<NightEvent, 'organised' | 'type'>): string {
 }
 
 /** What a screen reader hears after the title of an organised event. */
-export const ORGANISED_A11Y = 'organised event';
+export const ORGANISED_A11Y = 'organised meet';
 
 // ---------------------------------------------------------------------------
 // Tickets
@@ -149,7 +149,7 @@ export type HostKind = 'local' | 'organised';
 
 export const KIND_CHOICES: { key: HostKind; label: string }[] = [
   { key: 'local', label: 'Local meet' },
-  { key: 'organised', label: 'Organised event' },
+  { key: 'organised', label: 'Organised meet' },
 ];
 
 export const KIND_HINTS: Record<HostKind, string> = {
@@ -240,7 +240,7 @@ export type ShowKind = 'all' | 'local' | 'organised';
 export const SHOW_OPTIONS: { key: ShowKind; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'local', label: 'Local meets' },
-  { key: 'organised', label: 'Organised events' },
+  { key: 'organised', label: 'Organised meets' },
 ];
 
 /** A saved choice, with anything odd falling back to All. */
@@ -265,9 +265,9 @@ export function showGroupHeadings(show: ShowKind, views: readonly Pick<EventView
   return kinds.size === 2;
 }
 
-/** The nouns the count line uses for the filter: "3 meets", "3 local meets", "1 organised event". */
+/** The nouns the count line uses for the filter: "3 meets", "3 local meets", "1 organised meet". */
 export function countNouns(show: ShowKind): { one: string; many: string } {
   if (show === 'local') return { one: 'local meet', many: 'local meets' };
-  if (show === 'organised') return { one: 'organised event', many: 'organised events' };
+  if (show === 'organised') return { one: 'organised meet', many: 'organised meets' };
   return { one: 'meet', many: 'meets' };
 }

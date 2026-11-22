@@ -802,7 +802,7 @@ export function EventForm({
         {organised ? (
           <>
             <RowDivider />
-            <ReviewRow label="Kind" value={`Organised event${org.organiser.trim() ? ` by ${org.organiser.trim()}` : ''}`} onEdit={() => go(0)} />
+            <ReviewRow label="Kind" value={`Organised meet${org.organiser.trim() ? ` by ${org.organiser.trim()}` : ''}`} onEdit={() => go(0)} />
           </>
         ) : null}
         <RowDivider />

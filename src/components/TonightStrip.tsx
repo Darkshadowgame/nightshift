@@ -34,7 +34,7 @@ export function TonightStrip({ meets, nearHome, onOpen }: { meets: StripMeet[]; 
           return (
             <View key={m.id} style={st.group}>
               {heading ? (
-                <DsText v="eyebrow" accessibilityRole="header" numberOfLines={1}>
+                <DsText v="eyebrow" numberOfLines={1}>
                   {heading}
                 </DsText>
               ) : grouped ? (

@@ -439,7 +439,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // A sponsored street-side meet run by an organiser, tonight: sits beside the local meets, in its own group.
       id: 'ev-org-cars', type: 'meet', title: 'Autumn cars and coffee',
-      description: 'A planned evening with a coffee van and a prize for the best paint. Sample event, made up for the demo.',
+      description: 'A planned evening with a coffee van and a prize for the best paint. Sample meet, made up for the demo.',
       startsAt: tonightAt(now, 22, 15).toISOString(), endsAt: tonightAt(now, 23, 59).toISOString(),
       area: home, areaName: area,
       stops: [{ id: 'oc-1', name: 'Business park car park', at: here(52.5156, -1.7072) }],
@@ -453,7 +453,7 @@ function events(now: Date, home: LatLng): NightEvent[] {
     {
       // A ticketed track evening at the nearest circuit.
       id: 'ev-org-track', type: 'trackday', title: 'Sample track evening',
-      description: 'Open pit lane, briefing at the start. Sample event, made up for the demo.',
+      description: 'Open pit lane, briefing at the start. Sample meet, made up for the demo.',
       startsAt: at(now, 9, 17, 0), endsAt: at(now, 9, 21, 0), area: circuit2.at, areaName: circuit2.name,
       stops: [{ id: 'ot-1', name: circuit2.name, at: circuit2.at }],
       currentStop: 0, revealMinutesBefore: 0, hostIds: ['cal'],

@@ -920,13 +920,6 @@ export default function TonightScreen() {
     };
     // Local meets and organised events are separate headed groups, local first (organised.ts), once both are on the list.
     const headed = showGroupHeadings(eventFilter.show ?? 'all', shownViews);
-    const heading = (label: string, n: number) => (
-      <View key={label} style={{ gap: SPACING.xs, paddingTop: n > 0 ? SPACING.sm : 0 }} testID={`group-${label}`}>
-        <DsText v="bodyStrong" accessibilityRole="header">
-          {label}
-        </DsText>
-      </View>
-    );
     return (
       <>
         {mode === 'list' ? filterNote : null}
@@ -937,10 +930,8 @@ export default function TonightScreen() {
         ) : null}
         {headed ? (
           <>
-            {heading(ORGANISED_WORDS.localGroup, 0)}
-            {part((v) => !isOrganised(v.event))}
-            {heading(ORGANISED_WORDS.organisedGroup, 1)}
-            {part((v) => isOrganised(v.event))}
+            <Section title={ORGANISED_WORDS.localGroup}>{part((v) => !isOrganised(v.event))}</Section>
+            <Section title={ORGANISED_WORDS.organisedGroup}>{part((v) => isOrganised(v.event))}</Section>
           </>
         ) : (
           part(() => true)

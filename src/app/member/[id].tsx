@@ -226,8 +226,8 @@ function MemberModerationScreen() {
       {myRole === 'admin' || myRole === 'owner' ? (
         <Section title="Organiser">
           <ListRow
-            title="Can post organised events"
-            subtitle="Planned events with sponsors and tickets. Everyone else can only post local meets."
+            title="Can post organised meets"
+            subtitle="Planned meets with sponsors and tickets. Everyone else can only post local meets."
             trailing={organiser.data === null ? undefined : <Tag label={organiser.data ? 'Allowed' : 'Not allowed'} tone={organiser.data ? 'success' : 'neutral'} />}
           />
           <Field label="Reason" hint="Kept with the mark. 3 to 200 characters.">
@@ -242,7 +242,7 @@ function MemberModerationScreen() {
               disabled={orgReason.trim().length < 3}
               hint="Give a reason first"
               onPress={() =>
-                act('organiser', () => community.run((x) => x.setOrganiser(m.id, !organiser.data, orgReason)), organiser.data ? `${handle} can only post local meets now.` : `${handle} can post organised events.`)
+                act('organiser', () => community.run((x) => x.setOrganiser(m.id, !organiser.data, orgReason)), organiser.data ? `${handle} can only post local meets now.` : `${handle} can post organised meets.`)
               }
               style={{ alignSelf: 'flex-start' }}
             />
