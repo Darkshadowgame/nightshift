@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActionBar, Button, DsText, ErrorState, Field, IconButton, SegmentedControl, StepHeading, TextField, useToast } from '../components/ds';
+import { ActionBar, Button, DsText, ErrorState, IconButton, SegmentedControl, StepHeading, useToast } from '../components/ds';
 import { MapEdgeFade } from '../components/MapEdgeFade';
 import { MapPicker } from '../components/MapPicker';
 import { NightMap } from '../components/NightMap';
@@ -29,8 +29,8 @@ const HOME_RADIUS_MILES = 0.6;
  * Onboarding (Redesign 2, 3.2): two steps, under a minute, then Tonight.
  * 1. What do you drive? Car or bike, one search, tap yours: the picked card (class badge and bhp)
  *    replaces the results. "Can't find it? Enter it yourself" opens make and model. Skip for now.
- * 2. Where's home? A real map with the area circle (the demo starts on the sample area), and a
- *    handle, pre-filled with a suggestion. Home is saved to about half a mile (4.9: miles) and sets the region.
+ * 2. Where's home? A real map with the area circle (the demo starts on the sample area). The handle
+ *    is a suggestion made from the car, said in one line and changed later on the profile. Home is saved to about half a mile (4.9: miles) and sets the region.
  * Travel distance and notifications start at sensible defaults (25 mi, notify) and live in
  * Settings. The 18+ and terms box is at sign-in. The guard in _layout moves on once the profile
  * is saved. Onboarding draws its own header: back, then GET STARTED (and Sign out when signed in);
@@ -57,7 +57,6 @@ export default function Welcome() {
   const [model, setModel] = useState('');
   const [vehicleId, setVehicleId] = useState<string | undefined>();
   const variant = findVariant(allVariants(), vehicleId);
-  const [pickError, setPickError] = useState<string | null>(null);
 
   // Step 2: home and handle (also the display name to start with; change it on your profile).
   const [handleSeed] = useState(() => 1000 + Math.floor(Math.random() * 9000));
@@ -98,7 +97,6 @@ export default function Welcome() {
     setVehicleId(v.id);
     setMake(v.make);
     setModel(v.model);
-    setPickError(null);
   }
 
   function toStep2(keepCar: boolean) {
@@ -187,7 +185,6 @@ export default function Welcome() {
               }}
               onPickVariant={pickVariant}
             />
-            {pickError ? <ErrorState title={pickError} /> : null}
           </>
         ) : (
           <>
@@ -234,16 +231,7 @@ export default function Welcome() {
             {locError ? <ErrorState title={locError} /> : null}
             {__DEV__ && demo && home !== DEMO_HOME ? <Button label="Developer: use the demo area" tier="tertiary" size="sm" onPress={() => setHome(DEMO_HOME)} /> : null}
 
-            <Field label="Your handle" hint="Shown on your profile and in chat. Change it any time.">
-              <TextField
-                value={handle}
-                onChangeText={setHandle}
-                placeholder="e.g. night_owl"
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel="Your handle"
-              />
-            </Field>
+            <DsText v="secondary">{`You'll show up as @${handle.replace(/^@+/, '')}. Change your name and handle any time on your profile.`}</DsText>
           </>
         )}
 
@@ -277,11 +265,7 @@ export default function Welcome() {
       ) : null}
       {step === 1 ? (
         <ActionBar
-          primary={{
-            label: 'Next',
-            onPress: () => (variant ? toStep2(true) : setPickError('Pick yours from the list, or skip for now.')),
-          }}
-          secondary={{ label: 'Skip for now', onPress: () => toStep2(false), accessibilityHint: 'You can add it later in the Garage' }}
+          primary={{ label: variant ? 'Next' : 'Next', onPress: () => toStep2(!!variant) }}
         />
       ) : (
         <ActionBar primary={{ label: 'Show me tonight', onPress: finish, busy: saving, haptic: 'success' }} />
