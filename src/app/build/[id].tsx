@@ -11,6 +11,7 @@ import { ActionBar, ErrorState, FitImage, HeaderActions, Hero, ListRow, PAGE_WIT
 import { DynoBadge } from '../../components/DynoBadge';
 import { PhotoCredit } from '../../components/PhotoCredit';
 import { PhotoManager } from '../../components/PhotoManager';
+import { SeenInPerson } from '../../components/SeenInPerson';
 import { allAwards, categoryInfo } from '../../lib/awards';
 import { carShape } from '../../lib/buildShape';
 import { classOf } from '../../lib/classes';
@@ -107,6 +108,8 @@ export default function BuildScreen() {
         {!mine && owner ? (
           <ListRow leading={{ avatar: personMark(owner) }} title={at(owner)} subtitle="Owner" onPress={() => openProfile(owner.id)} accessibilityLabel={`${at(owner)}'s profile`} />
         ) : null}
+
+        <SeenInPerson build={b} />
 
         <View onLayout={(e) => (modsY.current = e.nativeEvent.layout.y)}>
           <Section title="Mods">

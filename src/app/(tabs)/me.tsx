@@ -9,9 +9,11 @@ import { Avatar, DsText, EmptyState, Icon, ListRow, Press, RowDivider, Section, 
 import { LadderSheet } from '../../components/LadderSheet';
 import { NoticeBell } from '../../components/NoticeBell';
 import { useRep } from '../../components/Rep';
+import { useVisits } from '../../lib/useVisits';
 import { EventRow } from '../../components/EventRow';
 import { allAwards, categoryInfo, votingCloses } from '../../lib/awards';
 import { lastBrought } from '../../lib/bringing';
+import { plural } from '../../lib/format';
 import { classOf } from '../../lib/classes';
 import { useNow } from '../../lib/clock';
 import { endTime, isHost, phaseOf } from '../../lib/events';
@@ -72,6 +74,7 @@ export default function Me() {
   const rep = useRep(me);
   const [ladder, setLadder] = useState(false);
   const [picker, setPicker] = useState(false);
+  const year = useVisits();
   const user = users.find((u) => u.id === me);
   const main = lastBrought(events, me, builds) ?? builds.find((b) => b.ownerId === me);
   const myAwards = allAwards(votes, events, builds, now).filter((a) => a.ownerId === me);
@@ -153,6 +156,9 @@ export default function Me() {
           { value: `${myAwards.length}`, label: myAwards.length === 1 ? 'Trophy' : 'Trophies' },
         ]}
       />
+
+      {/* The quiet streak (level-up): a plain line, nothing when there is none, never a notification. */}
+      {year.streak ? <DsText v="secondary">{year.streak}</DsText> : null}
 
       {/* A meet that's on now isn't "coming up" (Review 21 gap 15): it has its own Now section first, as on Tonight. */}
       {liveNow.length ? (
@@ -252,6 +258,14 @@ export default function Me() {
             })}
           </View>
         ) : null}
+      </Section>
+
+      <Section title="Your year">
+        <View>
+          <ListRow leading={{ icon: 'pin', colour: COLOR.text.secondary }} title="Passport" subtitle={year.passport} onPress={() => router.push('/passport')} />
+          <RowDivider />
+          <ListRow leading={{ icon: 'calendar', colour: COLOR.text.secondary }} title="Your year so far" subtitle={metaLine([plural(year.recap.meets, 'meet'), plural(year.recap.drives, 'drive')])} onPress={() => router.push('/recap')} />
+        </View>
       </Section>
 
       <View>
