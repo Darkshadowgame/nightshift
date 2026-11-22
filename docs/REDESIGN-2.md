@@ -1365,3 +1365,18 @@ All for Meets only; Things to do is unchanged. Logic in `src/lib/mapNight.ts` (t
   (a tune counts as a tune, `modGroups.ts`), strongest first, each opening that build. "I've fitted it" moves it onto
   the build with today's date. Phone only.
 * No migration. Nothing here touches the server.
+
+### 9.m Meets level-up: album, who's here, status, rules, places, co-hosts, numbers (22 Nov 2026)
+
+Rules are in `src/lib/meetExtras.ts`; the page pieces are in `src/components/MeetExtras.tsx`; one migration, `20261122140000_lvl_meets.sql` (test `supabase/tests/lvl_meets_test.sql`).
+
+- **After-meet album.** The existing Photos section (posts at the meet point, same upload, plate blur and moderation) now pools photos from 30 minutes before the start to 48 hours after the end. Once the meet is over it is titled Album, says when it closes, and then stays viewable but takes no new photos. People who checked in, and hosts, add photos. The 48 hour window is applied by the app only.
+- **Who's here / Seen at.** One section: while it is on, vehicles of people checked in, most recent arrival first (`arrivals`, filled from the first check-in; signed in from `check_ins.checked_in_at`). Once it is over the same section is Seen at, each vehicle once, tap to open the build. Only people going and hosts see it (anyone, for a show or track day). It never says where.
+- **Status.** One row under the going line: Running late before you arrive, I have left after. Tap again to undo. Hosts and people going see a count line and a tag on the going list. Arriving clears Running late.
+- **History.** "Has run 3 times before. Usually about 14 people turn up." in About, only from the second run. Same name with a shared host (or crew, or same place and host). The server's `meet_stats()` is used when live (the phone only keeps 8 days of past meets).
+- **Same as last time.** Host opens Host: if you have hosted before and have no draft, the first screen offers it. One tap lands on Check and post with everything copied a week on; tap Post.
+- **House rules.** A fixed list of 10 in More options on the host form, shown as a House rules section on the meet page (only when picked).
+- **Places and waitlist.** Optional limit (hosts do not take a place). Full: the join button says Join the waitlist, you see your number, and you move up when someone drops out (a database trigger, so it works with older apps too).
+- **Co-hosts.** Hosts could already pick co-hosts when making a meet; now ··· > Add a co-host adds someone who is going, any time before it ends (up to 5 hosts).
+- **Your numbers.** One section for hosts: going, arrived, regulars, new, and arrivals by the hour.
+- Left out: Convoy to the meet. It needs a new group chat per region; the meet chat already reaches everyone going.
