@@ -7,6 +7,8 @@ import { Avatar, Button, DsText, ErrorState, HeaderActions, Hero, Icon, IconButt
 import { useNow } from '../../lib/clock';
 import { useCommunity, useCommunityQuery, useMediaLimits } from '../../lib/communityStore';
 import { boardLabel, LIMITS, replyProblem, type ForumReply } from '../../lib/forum';
+import { fitsLabel } from '../../lib/forumHelp';
+import { useGarageGroups } from '../../lib/useGarageGroups';
 import { plural } from '../../lib/format';
 import { photoUri } from '../../lib/photos';
 import { useStore } from '../../lib/store';
@@ -33,6 +35,7 @@ export default function ThreadScreen() {
   const [menu, setMenu] = useState<SheetOption[] | null>(null);
   const [viewing, setViewing] = useState<{ photos: string[]; start: number } | null>(null);
   const thread = q.data?.thread;
+  const garage = useGarageGroups();
 
   useLayoutEffect(() => {
     if (!thread) return;
@@ -41,12 +44,14 @@ export default function ThreadScreen() {
     const opts: SheetOption[] = mine
       ? [
           ...(l
-            ? [
+            ? ([
                 l.soldAt
                   ? { label: l.kind === 'wanted' ? 'Still looking' : 'Back on sale', onPress: () => community.run((s) => s.setListingSold(thread.id, false)).catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it.")) }
-                  : { label: `Mark as ${soldWord(l).toLowerCase()}`, detail: 'It stays up, marked ' + soldWord(l), onPress: () => community.run((s) => s.setListingSold(thread.id, true)).catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it.")) },
-              ]
-            : []),
+                  : l.kind === 'sale'
+                    ? null
+                    : { label: `Mark as ${soldWord(l).toLowerCase()}`, detail: 'It stays up, marked ' + soldWord(l), onPress: () => community.run((s) => s.setListingSold(thread.id, true)).catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it.")) },
+              ] as (SheetOption | null)[])
+            : []).filter((o): o is SheetOption => !!o),
           { label: 'Delete thread', danger: true, onPress: () => community.run((s) => s.deleteThread(thread.id)).then(() => router.back()).catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete it.")) },
         ]
       : [
@@ -140,10 +145,11 @@ export default function ThreadScreen() {
             listing={thread.listing}
             mine={mineThread}
             busy={busy}
-            onSold={(sold) => {
+            fits={fitsLabel(thread, garage)}
+            onSold={(sold, price) => {
               setBusy(true);
               community
-                .run((s) => s.setListingSold(thread.id, sold))
+                .run((s) => s.setListingSold(thread.id, sold, price))
                 .catch((e) => setError(e instanceof Error ? e.message : "Couldn't change it."))
                 .finally(() => setBusy(false));
             }}
@@ -170,9 +176,6 @@ export default function ThreadScreen() {
       </View>
 
       <Section title={plural(replies.length, 'Reply', 'Replies')}>
-        {mineThread && replies.some((r) => r.authorId !== me) && !thread.solvedReplyId ? (
-          <DsText v="caption">Got your answer? Open the ··· on that reply and mark it solved.</DsText>
-        ) : null}
         {ordered.length === 0 ? (
           <DsText v="secondary">
             {mineThread
@@ -217,6 +220,7 @@ export default function ThreadScreen() {
                 </View>
               ) : null}
               {rb ? <BuildRow build={rb} onPress={() => openBuild(rb.id)} /> : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm }}>
               <Press
                 onPress={() => (own ? setError("You can't mark your own reply as helpful.") : act(() => community.run((s) => s.helpful(r.id, !r.helpfulByMe))))}
                 haptic={own ? 'none' : 'select'}
@@ -230,6 +234,10 @@ export default function ThreadScreen() {
                   Helpful {r.helpfulCount}
                 </DsText>
               </Press>
+              {mineThread && !own && !thread.solvedReplyId && thread.board !== 'for_sale' ? (
+                <Button tier="tertiary" size="sm" icon="check" label="This fixed it" accessibilityLabel="Mark this reply as the one that fixed it" onPress={() => act(() => community.run((s) => s.markSolved(thread.id, r.id)))} />
+              ) : null}
+              </View>
             </View>
           );
         })}

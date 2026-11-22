@@ -81,7 +81,9 @@ describe('listings in the demo', () => {
 
   it('has a sample wanted and a sample for-sale listing', async () => {
     const list = await demo().threads({ board: 'for_sale', sort: 'new' });
-    expect(list.map((t) => t.listing?.kind).sort()).toEqual(['sale', 'wanted']);
+    // One wanted, the live for-sale listing, and three sold charge pipes that feed "recently sold for".
+    expect(list.filter((t) => !t.listing?.soldAt).map((t) => t.listing?.kind).sort()).toEqual(['sale', 'wanted']);
+    expect(list.filter((t) => t.listing?.soldAt)).toHaveLength(3);
   });
 
   it('posts a listing and only its author marks it sold', async () => {

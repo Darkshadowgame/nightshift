@@ -357,7 +357,7 @@ function threadState(thread: ForumThread): { label: string; tone: 'warning' | 's
  * A thread in Forum and for sale, as one row: the author's avatar, the title, then the price for
  * a listing (or the board), and who, replies and when. Sold, Found or Solved on the right.
  */
-export function ThreadCard({ thread, author, now, showBoard, showGroup, showRegion = true }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean; showGroup?: boolean; showRegion?: boolean }) {
+export function ThreadCard({ thread, author, now, showBoard, showGroup, showRegion = true, fits }: { thread: ForumThread; author?: User; now: Date; showBoard?: boolean; showGroup?: boolean; showRegion?: boolean; fits?: string | null }) {
   const l = thread.listing;
   const state = threadState(thread);
   const kind = l ? (l.kind === 'wanted' ? 'Wanted' : 'For sale') : showBoard ? boardLabel(thread.board) : null;
@@ -369,9 +369,9 @@ export function ThreadCard({ thread, author, now, showBoard, showGroup, showRegi
       title={thread.title}
       subtitle={subtitle || undefined}
       meta={meta}
-      trailing={state ? <Tag label={state.label} tone={state.tone} /> : undefined}
+      trailing={state ? <Tag label={state.label} tone={state.tone} /> : fits ? <Tag label={fits} tone="info" /> : undefined}
       onPress={() => router.push({ pathname: '/forum/[id]', params: { id: thread.id } })}
-      accessibilityLabel={metaLine([thread.title, subtitle, meta, state?.label])}
+      accessibilityLabel={metaLine([thread.title, subtitle, meta, state?.label ?? fits])}
     />
   );
 }

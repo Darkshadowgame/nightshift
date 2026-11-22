@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Nearby } from '../carsNear';
 import type { ConnectionState } from '../connections';
 import type { CommunityChange, CommunityService, HistoryItem, MemberOverview, ModerationActionRow, PostPin, QueueItem } from '../communityService';
+import { commonProblems as pickCommonProblems, SOLD_WINDOW_DAYS } from '../forumHelp';
 import { cleanListing, ilikePattern, NO_FORUM_REP, replyProblem, threadProblem, type BoardKey, type ForumRep, type ForumReply, type ForumThread, type Handover, type Listing, type ListingCondition, type ListingKind } from '../forum';
 import { uuid } from '../ids';
 import { groupProblem, messageProblem, type Conversation, type Message, type ShareCard } from '../messages';
@@ -154,7 +155,7 @@ export function listingFromRow(r: ThreadRow): Listing {
 }
 
 /** create_thread()'s listing arguments. */
-export function listingParams(l: Omit<Listing, 'soldAt'>): Record<string, unknown> {
+export function listingParams(l: Omit<Listing, 'soldAt' | 'soldPricePence'>): Record<string, unknown> {
   return {
     p_listing_kind: l.kind,
     p_price_pence: l.pricePence ?? null,
@@ -516,10 +517,44 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
         if (q.scope === 'local') x = q.region ? x.eq('region', q.region) : x.not('region', 'is', null);
         else x = x.is('region', null);
         if (q.group) x = q.group.includes(':') ? x.eq('group_key', q.group) : x.or(`group_key.eq.${q.group},group_key.like.${q.group}:%`);
-        if (q.query?.trim()) x = x.ilike('title', ilikePattern(q.query));
+        if (q.query?.trim()) {
+          // Title or text, so a fault code typed in a post's body is found too. Characters that mean something in a filter are dropped.
+          const safe = q.query.replace(/[%_\\,()"]/g, ' ').trim();
+          x = safe ? x.or(`title.ilike."${ilikePattern(safe)}",body.ilike."${ilikePattern(safe)}"`) : x.ilike('title', ilikePattern(q.query));
+        }
         return x.order(q.sort === 'new' ? 'created_at' : 'last_activity_at', { ascending: false }).limit(60) as unknown as PromiseLike<Result<ThreadRow[]>>;
       });
       return threadsWithPhotos(rows ?? []);
+    },
+    async commonProblems(group) {
+      const rows = await call<ThreadRow[]>(() => {
+        let x = client.from('forum_threads').select(THREAD_COLS).not('solved_reply_id', 'is', null).is('hidden_at', null).neq('board', 'for_sale');
+        x = group.includes(':') ? x.eq('group_key', group) : x.or(`group_key.eq.${group},group_key.like.${group}:%`);
+        return x.order('last_activity_at', { ascending: false }).limit(30) as unknown as PromiseLike<Result<ThreadRow[]>>;
+      });
+      const threads = await threadsWithPhotos(rows ?? []);
+      const ids = threads.map((t) => t.solvedReplyId).filter((id): id is string => !!id);
+      const helpful: Record<string, number> = {};
+      if (ids.length) {
+        const reps = await call<{ id: string; helpful_count: number }[]>(() => client.from('forum_replies').select('id,helpful_count').in('id', ids) as unknown as PromiseLike<Result<{ id: string; helpful_count: number }[]>>);
+        for (const r of reps ?? []) helpful[r.id] = r.helpful_count ?? 0;
+      }
+      return pickCommonProblems(threads, helpful, group);
+    },
+    async soldPrices(q) {
+      // Needs the sold_price_pence column (a newer migration): until then there is simply no range.
+      try {
+        const since = new Date(realNowMs() - SOLD_WINDOW_DAYS * 86_400_000).toISOString();
+        const rows = await call<{ sold_price_pence: number | null; title: string; body: string | null }[]>(() => {
+          let x = client.from('forum_threads').select('sold_price_pence,title,body').not('sold_price_pence', 'is', null).is('hidden_at', null).gte('sold_at', since);
+          if (q.group) x = q.group.includes(':') ? x.eq('group_key', q.group) : x.or(`group_key.eq.${q.group},group_key.like.${q.group}:%`);
+          return x.limit(200) as unknown as PromiseLike<Result<{ sold_price_pence: number | null; title: string; body: string | null }[]>>;
+        });
+        const words = (q.query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+        return (rows ?? []).filter((r) => r.sold_price_pence != null && words.every((w) => `${r.title} ${r.body ?? ''}`.toLowerCase().includes(w))).map((r) => r.sold_price_pence as number);
+      } catch {
+        return [];
+      }
     },
     async thread(id) {
       if (!isUuid(id)) return null;
@@ -569,8 +604,15 @@ export function createRemoteCommunity(client: SupabaseClient, uid: string): Comm
     async markSolved(threadId, replyId) {
       await rpc('mark_solved', { p_thread_id: threadId, p_reply_id: replyId });
     },
-    async setListingSold(threadId, sold) {
-      await rpc('set_listing_sold', { p_thread_id: threadId, p_sold: sold });
+    async setListingSold(threadId, sold, pricePence) {
+      const price = sold && pricePence != null ? pricePence : null;
+      try {
+        await rpc('set_listing_sold', { p_thread_id: threadId, p_sold: sold, ...(price != null ? { p_price_pence: price } : {}) });
+      } catch (e) {
+        // The sold price needs the newer server function; until it is there, mark it sold without one.
+        if (price == null || !/function|schema cache|p_price_pence/i.test(e instanceof Error ? e.message : '')) throw e;
+        await rpc('set_listing_sold', { p_thread_id: threadId, p_sold: sold });
+      }
     },
     async deleteThread(id) {
       await call(() => client.from('forum_threads').delete().eq('id', id) as unknown as PromiseLike<Result<unknown>>);

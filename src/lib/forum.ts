@@ -102,9 +102,11 @@ export interface Listing {
   handover?: Handover;
   /** When it was marked sold (or found, when wanted). */
   soldAt?: string;
+  /** What a sale went for, in pence, if the seller said. Never who bought it. */
+  soldPricePence?: number;
 }
 
-export type ListingDraft = Omit<Listing, 'soldAt'>;
+export type ListingDraft = Omit<Listing, 'soldAt' | 'soldPricePence'>;
 
 export const LISTING_KINDS: readonly { key: ListingKind; label: string }[] = [
   { key: 'sale', label: 'For sale' },
@@ -219,13 +221,20 @@ export function sortThreads(threads: ForumThread[], sort: ThreadSort): ForumThre
   return [...threads].sort((a, b) => key(b).localeCompare(key(a)) || b.id.localeCompare(a.id));
 }
 
-/** Search by title: every word must appear, any order, any case. */
+/** What the server would refuse as a sold price (optional: null is fine). */
+export function soldPriceProblem(pence: number | null | undefined): string | null {
+  if (pence == null) return null;
+  if (!Number.isInteger(pence) || pence < 0 || pence > MAX_PRICE_PENCE) return 'Give a price between £0 and £1,000,000.';
+  return null;
+}
+
+/** Search by title or text: every word must appear, any order, any case. */
 export function searchThreads(threads: ForumThread[], query: string): ForumThread[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return threads;
   return threads.filter((t) => {
-    const title = t.title.toLowerCase();
-    return words.every((w) => title.includes(w));
+    const text = `${t.title}\n${t.body}`.toLowerCase();
+    return words.every((w) => text.includes(w));
   });
 }
 

@@ -12,11 +12,13 @@ import {
   type ConnectionRow,
   type ConnectionState,
 } from './connections';
+import { commonProblems as pickCommonProblems, SOLD_WINDOW_DAYS, soldPricesOf, type SolvedProblem } from './forumHelp';
 import {
   cleanListing,
   forumRepOf,
   replyProblem,
   searchThreads,
+  soldPriceProblem,
   solvedRecord,
   sortThreads,
   threadProblem,
@@ -101,7 +103,11 @@ export interface CommunityService {
   helpful(replyId: string, on: boolean): Promise<void>;
   markSolved(threadId: string, replyId: string | null): Promise<void>;
   /** For sale and wanted: the author marks it sold (or found), or back on sale. */
-  setListingSold(threadId: string, sold: boolean): Promise<void>;
+  setListingSold(threadId: string, sold: boolean, pricePence?: number | null): Promise<void>;
+  /** A group's "Common problems": its solved threads, the most helpful fix first. */
+  commonProblems(group: string): Promise<SolvedProblem[]>;
+  /** Prices recently sold listings went for (pence), in a group and/or matching a search. Never who bought. */
+  soldPrices(q: { group?: string | null; query?: string }): Promise<number[]>;
   deleteThread(id: string): Promise<void>;
   deleteReply(id: string): Promise<void>;
   forumRep(userIds: string[]): Promise<Record<string, ForumRep>>;
@@ -561,7 +567,19 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
         solved: rec ? [...s.solved, rec] : s.solved,
       });
     },
-    async setListingSold(threadId, sold) {
+    async commonProblems(group) {
+      const s = ctx.get();
+      const bl = blocked();
+      const helpful = Object.fromEntries(s.replies.map((r) => [r.id, r.helpfulCount]));
+      return pickCommonProblems(s.threads.filter((t) => !bl.has(t.authorId)), helpful, group);
+    },
+    async soldPrices(q) {
+      const since = new Date(now().getTime() - SOLD_WINDOW_DAYS * 86_400_000).toISOString();
+      return soldPricesOf(ctx.get().threads, { group: q.group, query: q.query, sinceIso: since });
+    },
+    async setListingSold(threadId, sold, pricePence) {
+      const problem = soldPriceProblem(pricePence);
+      if (problem) throw new Error(problem);
       const t = ctx.get().threads.find((x) => x.id === threadId);
       if (!t) throw new Error("That thread isn't there any more.");
       if (t.authorId !== ME) throw new Error('Only the person who listed it can mark it sold.');
@@ -571,8 +589,9 @@ export function createLocalCommunity(ctx: LocalCommunityContext): CommunityServi
         ...s,
         threads: s.threads.map((x) => {
           if (x.id !== threadId || !x.listing) return x;
-          const { soldAt: _old, ...rest } = x.listing;
-          return { ...x, listing: soldAt ? { ...rest, soldAt } : rest };
+          const { soldAt: _old, soldPricePence: _price, ...rest } = x.listing;
+          const price = soldAt && x.listing.kind === 'sale' ? (pricePence ?? x.listing.soldPricePence) : undefined;
+          return { ...x, listing: soldAt ? { ...rest, soldAt, ...(price != null ? { soldPricePence: price } : {}) } : rest };
         }),
       }));
     },
