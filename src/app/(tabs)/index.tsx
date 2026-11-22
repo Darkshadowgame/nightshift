@@ -293,7 +293,7 @@ export default function TonightScreen() {
   const checkCount = checkAt ? shownViews.filter((v) => onAt(v, checkAt)).length : 0;
   // Near my way home: the line from you to Home, where Home is the phone-only favourite place labelled
   // Home (the drives area's setting; none set means nothing shows). Worked out here, never stored or sent.
-  const homeAt = homePlace((settings as { favouritePlaces?: unknown }).favouritePlaces);
+  const homeAt = homePlace((settings.favourites ?? []).map((f) => ({ label: f.label, lat: f.at.lat, lng: f.at.lng })));
   const nearHome = useMemo(
     () => (homeAt && here ? new Set(nearLine(here, homeAt, strip.map((m) => ({ id: m.id, at: pointOf(views.find((v) => v.event.id === m.id)!) })))) : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
