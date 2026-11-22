@@ -729,7 +729,7 @@ export default function EventScreen() {
             <ListRow leading={{ icon: 'share' }} title="Bring your mates" subtitle="Invite connections or share" onPress={() => setInviting(true)} />
           ) : null}
           {/* Drive there together / Join the group drive: one row, only while the meet is still to come (groupLive.ts). */}
-          {(going || host) && !closed && currentStop?.at ? <GroupDriveRow kind="meet" target={{ kind: 'event', id: ev.id }} title={ev.title} /> : null}
+          {(going || host) && !closed && !justCheckedIn && currentStop?.at ? <GroupDriveRow kind="meet" target={{ kind: 'event', id: ev.id }} title={ev.title} /> : null}
         </View>
 
         {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (

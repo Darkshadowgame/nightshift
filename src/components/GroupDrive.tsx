@@ -114,7 +114,7 @@ export function GroupDriveRow({ kind, target, title }: { kind: 'drive' | 'meet';
       <ListRow
         leading={{ icon: 'pin' }}
         title={kind === 'meet' ? 'Drive there together' : 'Drive together'}
-        subtitle="Share your live location with friends on the map"
+        subtitle="Everyone in the group sees each other while driving"
         onPress={together.start}
       />
       {together.sheet}
