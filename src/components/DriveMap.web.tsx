@@ -13,6 +13,7 @@ import { OVERVIEW_BUTTONS, OVERVIEW_MARKER_HALF, OVERVIEW_PADDING } from './mapT
 import { NavIcon } from './NavIcon';
 import { DEMO_DRIVER_LABEL, DEMO_DRIVER_SIZE, DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin } from './Pin';
+import { GROUP_MARKER_W, GroupMarkerFace, groupMarkerLabel } from './GroupMarker';
 import { Credit } from './webmap/Credit.web';
 import { loadLeaflet, longPress, makeMap, type L } from './webmap/leaflet.web';
 import { useMarkers, type MarkerSpec } from './webmap/PinMarker.web';
@@ -27,7 +28,7 @@ import { altitudeToZoom } from './webmap/zoom.web';
  * No tilt: the web map is flat. If Leaflet can't load, the screen stays plain asphalt.
  */
 export function DriveMap(props: DriveMapProps) {
-  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, appearance = getThemeMode(), overview, credit } = props;
+  const { route, stops, cameras, reports = [], focus, heading, mapHeading, you, icon, following, panEnabled, onPressYou, demoAround, group = [], appearance = getThemeMode(), overview, credit } = props;
   const others = useDemoDrivers(demoAround);
   const [lf, setLf] = useState<{ L: L; map: Leaflet.Map } | null>(null);
   const [tiles, setTiles] = useState<string | null>(TILE_CREDIT);
@@ -250,6 +251,8 @@ export function DriveMap(props: DriveMapProps) {
     }
     for (const d of others)
       out.push({ id: `demo:${d.id}`, lat: d.at.lat, lng: d.at.lng, size: DEMO_DRIVER_SIZE, z: 1, label: DEMO_DRIVER_LABEL, face: <DemoDriverIcon heading={d.heading - mapHeading} /> });
+    for (const d of group)
+      if (d.member.at) out.push({ id: `grp:${d.member.id}`, lat: d.member.at.lat, lng: d.member.at.lng, size: GROUP_MARKER_W, z: 3, label: groupMarkerLabel(d), face: <GroupMarkerFace dot={d} mapHeading={mapHeading} /> });
     for (const s of stops) out.push({ id: `stop:${s.id}`, lat: s.at.lat, lng: s.at.lng, size: 30, z: 2, face: <Pin glyph={s.glyph} colour={s.colour} size={30} /> });
     if (you && !following)
       out.push({
@@ -263,7 +266,7 @@ export function DriveMap(props: DriveMapProps) {
         face: <NavIcon shape={icon.shape} colour={icon.hex} photo={icon.photo} size={50} rotation={iconRotation(heading, shownTurn)} />,
       });
     return out;
-  }, [cameras, reports, others, mapHeading, stops, you, following, icon.shape, icon.hex, icon.photo, heading, shownTurn]);
+  }, [cameras, reports, others, group, mapHeading, stops, you, following, icon.shape, icon.hex, icon.photo, heading, shownTurn]);
   const { portals } = useMarkers(lf, specs);
 
   return (

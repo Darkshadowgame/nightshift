@@ -16,6 +16,11 @@ import {
   type Voice,
 } from '../../modules/nav-directions';
 import { DriveMap, type DriveMapStop } from '../components/DriveMap';
+import { GroupChip, GroupSheet } from '../components/GroupChip';
+import { useStartGroupDrive } from '../components/GroupDrive';
+import type { GroupDot } from '../components/GroupMarker';
+import { demoMembers, isStale, shouldPostPosition, type SentPosition } from '../lib/groupLive';
+import { useGroupDrive, useGroupPoll } from '../lib/groupDriveStore';
 import { DEMO_ROAD_CREDIT, demoRoadTo } from '../data/demoRoads';
 import { demoJunctionAt, withDemoJunctions } from '../data/demoLanes';
 import { RoutePreview } from '../components/RoutePreview';
@@ -43,7 +48,7 @@ import {
 } from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
-import { Button, ChoiceGroup, DsText, EmptyState, Icon, Sheet, SwitchRow } from '../components/ds';
+import { Button, ChoiceGroup, DsText, EmptyState, Icon, ListRow, Sheet, SwitchRow } from '../components/ds';
 import { VoicePicker } from '../components/VoicePicker';
 import { appNow, clockOffset, realNowMs } from '../lib/appClock';
 import { cameraIndex } from '../lib/cameraData';
@@ -140,6 +145,8 @@ import { advanceRun, NEW_RUN, runExpired, driveMiles, simulatedRun, type DriveRu
 import { useStore } from '../lib/store';
 import { autoVoiceId, speechRate } from '../lib/voices';
 import type { LatLng } from '../lib/types';
+import type { GroupMember } from '../lib/groupLive';
+import type { NavTarget } from '../lib/navPlan';
 import { COLOR, RADII, SPACING, themedStyles } from '../theme';
 
 /**
@@ -1203,6 +1210,46 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const mapHeading = cameraHeading(orientation, heading);
   const checkInStop = checkInAt !== null ? stops[checkInAt] : null;
 
+  // Group drive (groupLive.ts): the others on the map, your own position sent while you navigate in the group.
+  const gd = useGroupDrive();
+  useGroupPoll(true);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const groupNow = Math.floor(nowMs / 2000) * 2000;
+  const myAlong = progress?.snap.along ?? 0;
+  const groupMembers = useMemo<GroupMember[]>(
+    () => (gd.group?.demo ? demoMembers(route ?? null, myAlong, groupNow) : gd.members),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gd.group, gd.members, route, groupNow],
+  );
+  const groupDots = useMemo<GroupDot[]>(
+    () => groupMembers.filter((m) => m.at).map((m) => ({ member: m, stale: isStale(m.updatedAt, groupNow) })),
+    [groupMembers, groupNow],
+  );
+  const groupTarget: NavTarget | null = plan.eventId ? { kind: 'event', id: plan.eventId } : plan.driveId ? { kind: 'spot', id: plan.driveId } : null;
+  const together = useStartGroupDrive(groupTarget, plan.title);
+  const sendingGroup = phase === 'driving' && !!gd.group && !gd.group.demo;
+  const groupId = gd.group?.id;
+  const postPosition = gd.post;
+  const lastSent = useRef<SentPosition | null>(null);
+  useEffect(() => {
+    if (!sendingGroup) return;
+    lastSent.current = null;
+    const timer = setInterval(() => {
+      const f = fixRef.current;
+      const t = realNowMs();
+      if (!f || t - fixAt.current > 15000) return;
+      const here = { at: f.at, t };
+      if (!shouldPostPosition(lastSent.current, here)) return;
+      lastSent.current = here;
+      void postPosition(f.at, f.course, f.speed);
+    }, 1000);
+    return () => {
+      clearInterval(timer);
+      // Navigation ended, you left, or it ended: nobody keeps seeing your last position.
+      void postPosition(null, null, null);
+    };
+  }, [sendingGroup, groupId, postPosition]);
+
   const banner = phase === 'driving' && route && progress ? bannerFor(route, progress) : null;
   let status: { arrow: string; title: string; distance?: string } | null = null;
   const finish = stops[stops.length - 1].name;
@@ -1314,12 +1361,18 @@ function DriveSession({ plan }: { plan: NavPlan }) {
           onPressYou={onPressYou}
           onLongPress={onLongPress}
           demoAround={store.backend === 'local' && settings.busyNight ? (store.users.find((u) => u.id === store.me)?.home ?? null) : null}
+          group={groupDots}
           credit={credits || undefined}
         />
         <View pointerEvents="box-none" style={st.overlayTop}>
           {/* On web the map's tile credit sits top left (WP-E), so alerts start under it; the demo label is in the bottom bar. */}
-          <View pointerEvents="none" style={{ flex: 1, gap: SPACING.xs, alignItems: 'flex-start', paddingTop: Platform.OS === 'web' ? SPACING.xl : 0 }}>
-            {alertPill ? <AlertPill text={alertPill} /> : null}
+          <View pointerEvents="box-none" style={{ flex: 1, gap: SPACING.xs, alignItems: 'flex-start', paddingTop: Platform.OS === 'web' ? SPACING.xl : 0 }}>
+            {alertPill ? (
+              <View pointerEvents="none">
+                <AlertPill text={alertPill} />
+              </View>
+            ) : null}
+            {gd.group && !preview ? <GroupChip count={groupMembers.length + 1} onPress={() => setGroupOpen(true)} /> : null}
           </View>
           <View style={{ gap: SPACING.sm }}>
             <MapButton
@@ -1461,10 +1514,42 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             }}
           />
           {!muted ? <VoicePicker /> : null}
+          {!gd.group && gd.available !== false ? (
+            <ListRow
+              leading={{ icon: 'pin' }}
+              title="Drive together"
+              subtitle="Share your live location with a group"
+              onPress={() => {
+                setMenuOpen(false);
+                together.start();
+              }}
+            />
+          ) : null}
           <SwitchRow label="Speed camera alerts" hint="Fixed and average speed cameras on your route" value={cameraAlerts} onValueChange={(on) => setSettings({ navCameraAlerts: on })} />
           <SwitchRow label="Road reports" hint="Police, hazards and closures from other drivers" value={reportsOn} onValueChange={(on) => setSettings({ roadReports: on })} />
         </View>
       </Sheet>
+      {together.sheet}
+      {gd.group ? (
+        <GroupSheet
+          visible={groupOpen}
+          group={gd.group}
+          members={groupMembers}
+          me={fix?.at ?? null}
+          route={route ?? null}
+          nowMs={groupNow}
+          leading={gd.leading}
+          onLeave={() => {
+            setGroupOpen(false);
+            void gd.leave();
+          }}
+          onEnd={() => {
+            setGroupOpen(false);
+            void gd.end().catch(() => undefined);
+          }}
+          onClose={() => setGroupOpen(false)}
+        />
+      ) : null}
       <IconPickerSheet
         visible={iconOpen}
         value={settings.navIcon}

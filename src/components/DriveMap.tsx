@@ -16,6 +16,7 @@ export const OTHER_ROUTE = ART.routeOther;
 import { NavIcon } from './NavIcon';
 import { DemoDriverIcon, useDemoDrivers } from './DemoDrivers';
 import { Pin, type Glyph } from './Pin';
+import { GROUP_MARKER_H, GROUP_MARKER_W, GroupMarkerFace, groupMarkerLabel, type GroupDot } from './GroupMarker';
 
 export interface DriveMapStop {
   id: string;
@@ -66,6 +67,8 @@ export interface DriveMapProps {
   credit?: string;
   /** Demo, Busy night only: made-up drivers move along the demo routes round this home area (labelled DEMO). */
   demoAround?: LatLng | null;
+  /** The other people in your group drive (groupLive.ts), with a position. */
+  group?: GroupDot[];
 }
 
 /** The camera loop's step (ms). */
@@ -96,6 +99,7 @@ export const DriveMap = memo(function DriveMap({
   onPressYou,
   onLongPress,
   demoAround,
+  group = [],
   appearance = getThemeMode(),
   overview,
 }: DriveMapProps) {
@@ -231,6 +235,22 @@ export const DriveMap = memo(function DriveMap({
             <DemoDriverIcon heading={d.heading - mapHeading} />
           </Marker>
         ))}
+        {group.map((d) =>
+          d.member.at ? (
+            // Re-drawn when it turns or goes stale (markers don't track their views).
+            <Marker
+              key={`g:${d.member.id}:${d.stale ? 's' : 'l'}:${d.member.heading === null ? 'n' : Math.round((d.member.heading - mapHeading) / 30)}`}
+              coordinate={{ latitude: d.member.at.lat, longitude: d.member.at.lng }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={5}
+              tracksViewChanges={false}
+              accessibilityLabel={groupMarkerLabel(d)}
+              style={{ width: GROUP_MARKER_W, height: GROUP_MARKER_H }}
+            >
+              <GroupMarkerFace dot={d} mapHeading={mapHeading} />
+            </Marker>
+          ) : null,
+        )}
         {stops.map((s) => (
           <Marker key={s.id} coordinate={{ latitude: s.at.lat, longitude: s.at.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <Pin glyph={s.glyph} colour={s.colour} size={30} />

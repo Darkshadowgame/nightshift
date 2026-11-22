@@ -55,6 +55,8 @@ export interface Settings {
   navMap?: MapOrientation;
   /** Driving view: your icon on the map (an arrow by default). */
   navIcon?: NavIcon;
+  /** You agreed once to share your live location with a group drive (groupLive.ts). Asked again only if this is cleared. */
+  groupDriveAgreed?: boolean;
   /** Driving view: the installed voice picked in Settings (build 11 on). Unset: the best installed British voice. */
   navVoiceId?: string | null;
   /** Driving view: how fast the voice talks. Normal by default. */

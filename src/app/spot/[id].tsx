@@ -44,6 +44,7 @@ import { radiusFor } from '../../lib/commons';
 import { canTagFeel, FEEL_LABELS, FEELS, savedFeelTags, setFeels, topFeels, type Feel } from '../../lib/driveFeel';
 import { driveSun, QUIET_CAVEAT, QUIET_WINDOW } from '../../lib/driveTimes';
 import { groupDriveShare } from '../../lib/groupDrive';
+import { GroupDriveRow } from '../../components/GroupDrive';
 import { plural } from '../../lib/format';
 import { ONLY_ON_PHONE, PLACE_NAMES } from '../../lib/glossary';
 import { preciseFix } from '../../lib/location';
@@ -548,6 +549,7 @@ function useDrivePanel(
     body: (
       <View style={{ gap: SPACING.md }}>
         {passed ? <CheckInCelebration play title="Drive complete" body="Every checkpoint passed. It counts." /> : null}
+        {spot.kind === 'drive' && !pending ? <GroupDriveRow kind="drive" target={{ kind: 'spot', id: spot.id }} title={spot.name} /> : null}
         <DsText v="caption">{`Pass all ${checkpoints.length} checkpoints in order to count it. Stick to the speed limits: a run that's too quick doesn't count.`}</DsText>
         {error ? <ErrorState title={error} /> : null}
       </View>

@@ -101,6 +101,7 @@ const TEMPLATES: Record<string, Template> = {
   'chat/new': 'T4',
   report: 'T4',
   quiet: 'T4',
+  'group/[code]': 'T4',
   passport: 'T1',
   recap: 'T1',
   feedback: 'T4',

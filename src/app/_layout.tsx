@@ -142,6 +142,7 @@ function Gate() {
         <Stack.Screen name="drive-log" options={{ title: title(T.driveLog) }} />
         <Stack.Screen name="passport" options={{ title: title(T.passport) }} />
         <Stack.Screen name="recap" options={{ title: title(T.recap) }} />
+        <Stack.Screen name="group/[code]" options={{ title: title('Group drive'), presentation: 'modal' }} />
         <Stack.Screen name="quiet" options={{ title: title(T.quiet), presentation: 'modal' }} />
       </Stack.Protected>
       {/* The design system gallery: development builds only (it redirects home in release too). */}

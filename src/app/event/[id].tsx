@@ -53,6 +53,7 @@ import { broughtBuild, canGoWith, checkInBuild, chosenBuild, defaultBuild, fitsI
 import { useNow } from '../../lib/clock';
 import { idsWithoutBlocked } from '../../lib/blocking';
 import { useCommunity, useCommunityQuery } from '../../lib/communityStore';
+import { GroupDriveRow } from '../../components/GroupDrive';
 import { eventPrimary, goingMix, statusLine } from '../../lib/eventAction';
 import { canChangePlan, canCheckIn, canEditEvent, canSeeStop, endTime, EVENT_LABELS, isHost, isPublicType, moveOnAudience, phaseOf, revealTime } from '../../lib/events';
 import { myEventStatus, newlyUnlocked, roleOf, STATUS_LABELS } from '../../lib/eventView';
@@ -727,6 +728,8 @@ export default function EventScreen() {
           {going && !closed && !invitePrimary ? (
             <ListRow leading={{ icon: 'share' }} title="Bring your mates" subtitle="Invite connections or share" onPress={() => setInviting(true)} />
           ) : null}
+          {/* Drive there together / Join the group drive: one row, only while the meet is still to come (groupLive.ts). */}
+          {(going || host) && !closed && currentStop?.at ? <GroupDriveRow kind="meet" target={{ kind: 'event', id: ev.id }} title={ev.title} /> : null}
         </View>
 
         {!ev.cancelled && (resultsIn || now >= votingCloses(ev)) ? (

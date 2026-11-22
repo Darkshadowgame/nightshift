@@ -12,7 +12,7 @@ import { Button, DsText, Sheet, TextField, useToast } from './ds';
  *   <Button label="Share" onPress={() => sharer.share(eventSharePayload(ev, when))} />
  *   {sharer.sheet}
  */
-export function useShareLink(what: 'meet' | 'build' = 'meet'): { share: (p: SharePayload) => Promise<void>; sheet: ReactNode } {
+export function useShareLink(what: 'meet' | 'build' | 'group drive' = 'meet'): { share: (p: SharePayload) => Promise<void>; sheet: ReactNode } {
   const toast = useToast();
   const [manual, setManual] = useState<SharePayload | null>(null);
   const [copied, setCopied] = useState(false);
