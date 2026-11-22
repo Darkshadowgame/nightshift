@@ -22,3 +22,18 @@ export const feel = {
   /** Move on: a distinct pattern so hosts know it went out. */
   warning: () => run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
 };
+
+/**
+ * The one haptic vocabulary. Components pick the default; screens pass `haptic` only to override.
+ * - `none`: plain navigation and opening things.
+ * - `tap`: map chrome and small confirmations.
+ * - `select`: light selection (toggles, chips, segments, likes, picking one of several).
+ * - `success`: a primary action landed (saved, sent, checked in, toast).
+ * - `warning`: a destructive confirm, or a failure toast.
+ * Haptics are not motion, so Reduce Motion does not silence them; the buzz is the same everywhere.
+ */
+export type Haptic = 'none' | 'tap' | 'select' | 'success' | 'warning';
+
+export function buzz(h: Haptic) {
+  if (h !== 'none') feel[h]();
+}

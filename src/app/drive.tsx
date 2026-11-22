@@ -43,13 +43,13 @@ import {
 } from '../components/DriveHud';
 import { openDirections } from '../components/NavLaunch';
 import { ReportAlert, ReportGrid, StillTherePrompt, UndoBar } from '../components/RoadReportControls';
-import { buzz, Button, ChoiceGroup, DsText, EmptyState, Icon, Sheet, SwitchRow } from '../components/ds';
+import { Button, ChoiceGroup, DsText, EmptyState, Icon, Sheet, SwitchRow } from '../components/ds';
 import { VoicePicker } from '../components/VoicePicker';
 import { appNow, clockOffset, realNowMs } from '../lib/appClock';
 import { cameraIndex } from '../lib/cameraData';
 import { CAMERA_CREDIT } from '../lib/cameras';
 import { canCheckIn } from '../lib/events';
-import { feel } from '../lib/feel';
+import { buzz } from '../lib/feel';
 import { DEMO_NIGHT, demoDayTag } from '../lib/glossary';
 import {
   arrivedByRoute,
@@ -531,7 +531,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       if (point.checkIn) setCheckInAt(i);
       if (last) {
         setPhase('arrived');
-        feel.success();
+        buzz('success');
         driveRep.arrived();
         // The demo's drive, driven for you: count it at a legal pace (the same check as on the road).
         if (plan.driveId && simulate && !runDone.current) {
@@ -601,7 +601,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
               store
                 .finishDrive(spot.id, run.current)
                 .then((verdict) => {
-                  if (verdict.ok) feel.success();
+                  if (verdict.ok) buzz('success');
                   setDriveNote(verdict.ok ? 'Drive complete: every checkpoint passed. It counts.' : verdict.reason);
                 })
                 .catch((e) => setDriveNote(e instanceof Error ? e.message : "Couldn't record the drive."));
@@ -668,7 +668,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
             asked.current.add(ask.id);
             promptRef.current = ask;
             setPrompt(ask);
-            feel.tap();
+            buzz('tap');
           }
         }
         // A closure on this leg: find a way round, once per closure.
@@ -705,7 +705,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       if (over && !overRef.current && realNowMs() - lastChime.current > 10_000) {
         lastChime.current = realNowMs();
         chime();
-        feel.warning();
+        buzz('warning');
       }
       overRef.current = over;
 
@@ -794,7 +794,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
       setNotice('Waiting for your location before you can report.');
       return;
     }
-    feel.tap();
+    buzz('tap');
     setGridOpen(true);
   }
 
@@ -802,7 +802,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     setGridOpen(false);
     const f = fixRef.current;
     if (!f) return;
-    feel.success();
+    buzz('success');
     setPending({ kind, at: f.at, heading: f.course, until: realNowMs() + ROAD_RULES.undoMs });
     say('Thanks, reported.');
   }
@@ -810,7 +810,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   function undoReport() {
     pendingRef.current = null;
     setPending(null);
-    feel.tap();
+    buzz('tap');
     say('Report cancelled.');
   }
 
@@ -819,7 +819,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
     promptRef.current = null;
     setPrompt(null);
     if (!r) return;
-    feel.tap();
+    buzz('tap');
     roads.answer(r.id, vote, fixRef.current?.at ?? null).catch((e) => setNotice(e instanceof Error ? e.message : "Couldn't send that."));
   }
   onFixRef.current = onFix;
@@ -1225,7 +1225,7 @@ function DriveSession({ plan }: { plan: NavPlan }) {
   const credits = [osmRoad ? OSM_CREDIT : bakedRoad ? DEMO_ROAD_CREDIT : null, cameraAlerts && mapCameras.length > 0 ? CAMERA_CREDIT : null].filter(Boolean).join(' · ');
 
   const toggleOrientation = () => {
-    feel.tap();
+    buzz('tap');
     setSettings({ navMap: orientation === 'north' ? 'heading' : 'north' });
   };
   const toggleVoice = () => {

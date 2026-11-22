@@ -1,19 +1,14 @@
 import type { ReactNode } from 'react';
 import { Pressable, type AccessibilityRole, type LayoutChangeEvent, type AccessibilityState, type Insets, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
-import { feel } from '../../lib/feel';
+import { buzz, type Haptic } from '../../lib/feel';
 import { PRESS } from '../../theme';
 
 /**
- * Haptics by rule (DESIGN-SYSTEM.md): `select` on toggles, chips, segments and likes;
- * `success` on saved, sent, checked in; `warning` on destructive confirms; `tap` on map
- * chrome only. Components pick the default so screens never call `feel` directly.
+ * Haptics by rule: the vocabulary lives in lib/feel.ts. Components pick the default so screens never call `feel` directly.
  */
-export type Haptic = 'none' | 'tap' | 'select' | 'success' | 'warning';
-
-export function buzz(h: Haptic) {
-  if (h !== 'none') feel[h]();
-}
+export type { Haptic };
+export { buzz };
 
 /**
  * The one pressable. `feedback="control"` dims (buttons, chips, rows); `"card"` dims and

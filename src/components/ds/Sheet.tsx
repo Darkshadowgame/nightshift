@@ -244,7 +244,7 @@ export function ConfirmBody({
   children?: ReactNode;
 }) {
   const labels = confirmLabels(verb, { confirm: confirmLabel, cancel: cancelLabel });
-  const confirm = <Button key="confirm" label={labels.confirm} tier={destructive ? 'destructive' : safeFirst ? 'secondary' : 'primary'} block busy={busy} onPress={onConfirm} />;
+  const confirm = <Button key="confirm" label={labels.confirm} tier={destructive ? 'destructive' : safeFirst ? 'secondary' : 'primary'} block busy={busy} haptic={destructive ? 'warning' : safeFirst ? 'none' : 'success'} onPress={onConfirm} />;
   const cancel = <Button key="cancel" label={labels.cancel} tier={safeFirst ? 'primary' : 'secondary'} block onPress={onCancel} />;
   return (
     <View style={{ gap: SPACING.md }}>

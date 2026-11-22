@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import { feel } from '../lib/feel';
+import { buzz } from '../lib/feel';
 import { C, ELEVATION, RADII, SPACING, SURFACE, themedStyles } from '../theme';
 import { useToastAnchor } from './ds';
 import { detentTops, MIN_SHOWN, ORDER, settle, type Detent } from './sheetDetents';
@@ -87,7 +87,7 @@ export function MapSheet({
     const to = live.current.tops[d];
     y.value = live.current.reduced ? withTiming(to, { duration: 0 }) : withSpring(to, SPRING);
     if (d !== live.current.detent) {
-      feel.select();
+      buzz('select');
       onDetentRef.current(d);
     }
   }

@@ -49,7 +49,7 @@ import { useNow } from '../../lib/clock';
 import { usePostPins } from '../../lib/communityStore';
 import { canJoinDirectly, viewEvents, type EventView } from '../../lib/eventView';
 import { DEFAULT_EVENT_FILTER, filterEvents, filterLine, NO_EVENT_FILTER, whenEnds } from '../../lib/eventFilter';
-import { feel } from '../../lib/feel';
+import { buzz } from '../../lib/feel';
 import { metaLine } from '../../components/ds';
 import { distanceText } from '../../lib/format';
 import { useDistanceOrigin } from '../../lib/useDistanceOrigin';
@@ -453,7 +453,7 @@ export default function TonightScreen() {
     autoFit.current = false;
     const c = placeView.clusters.find((x) => x.id === id) ?? eventClusters.current.find((x) => x.id === id);
     if (!c) return;
-    feel.select();
+    buzz('select');
     setView((x) => ({ centre: c.zoomCentre, span: clusterZoomSpan(c.zoomSpan, box, mapPadding, c.zoomCentre.lat, region.span), key: (x?.key ?? 0) + 1 }));
   }
   const zoomClusterRef = useRef(zoomCluster);
@@ -496,7 +496,7 @@ export default function TonightScreen() {
   );
   function show(id: string, zoom = true, onlyIfHidden = false) {
     autoFit.current = false;
-    feel.select();
+    buzz('select');
     setMode('map');
     setSelected(id);
     setDetent('peek');
@@ -599,7 +599,7 @@ export default function TonightScreen() {
   /** The Meets / Things to do switch: remembered; opening Things to do the first time turns the place layers on. */
   function chooseFocus(next: MapFocus) {
     if (next === focus) return;
-    feel.select();
+    buzz('select');
     setSelected(null);
     setDetent('peek');
     autoFit.current = true;
@@ -790,7 +790,7 @@ export default function TonightScreen() {
   /** What the filters hid, said over the sheet and the list (nothing disappears silently). */
   const hiddenLine = ready && meetsFocus ? filterLine(filtered, eventFilter, eventsOn, myBuilds.length > 0) : null;
   function showHidden(clears: 'all' | 'reset') {
-    feel.select();
+    buzz('select');
     if (clears === 'reset') return setSettings({ eventFilter: { ...DEFAULT_EVENT_FILTER } });
     setSettings({ eventFilter: { ...NO_EVENT_FILTER }, ...(eventsOn ? {} : setLayer(settings, 'events', true)) });
   }
