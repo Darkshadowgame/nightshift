@@ -113,6 +113,10 @@ const SODIUM = /\bBRAND\b|\bC\.sodium\b|COLOR\.action\.(primary|selected)\b|STAT
 const KNOWN_SODIUM = new Set([
   // Map pins and drawings (the Events layer is sodium by design).
   'src/components/BuildArt.tsx',
+  // Profile level-up: the award badges, the recap card's tread ring and the passport's filled tiles.
+  'src/components/AwardBadge.tsx',
+  'src/app/passport.tsx',
+  'src/app/recap.tsx',
   'src/components/DriveMap.tsx',
   'src/components/NightMap.tsx',
   'src/components/NightMap.web.tsx',
