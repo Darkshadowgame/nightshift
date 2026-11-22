@@ -124,6 +124,15 @@ export default function EventScreen() {
   const errorAt = (at: ErrorAt) => (error?.at === at ? error.text : null);
   const [busy, setBusy] = useState(false);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
+  /** Until this time, a layout change re-centres the map under the "Checked in" toast (a toast over text is the one thing it must not be). */
+  const keepMap = useRef(0);
+  const repH = useRef(0);
+  const keepMapUnderToast = () => {
+    if (performance.now() > keepMap.current || mapAt.current <= 0) return;
+    // Never so far down that the "+150 rep" card, folding away later, sits under the header.
+    const y = Math.max(0, Math.min(mapAt.current + repH.current + MAP_H / 2 - (viewH.current - BAR_ROOM - BAR_STATE_H - 34), heroBottom.current + 40));
+    scroll.current?.scrollTo({ y, animated: false });
+  };
   /** The "+150 rep" card is folding away (fade, then its height closes: never over the going row). */
   const [repLeaving, setRepLeaving] = useState(false);
   // "+150 rep" is a moment, not page content (Review 15 decision 7): it shows once, then folds away.
@@ -172,9 +181,13 @@ export default function EventScreen() {
     markUnlockSeen(e.id, fresh);
     // Bring the map into view for the moment (it sits under the hero on a meet with a photo): only as
     // far as the map needs, so the place line stays on screen; the ActionBar says you're going (Review 14).
+    // Read where the map is after the rows that appear on going (status, places, Bring your mates) have
+    // laid out, not before: the target was one row short and the card ended up under the frame's edge.
     if (mapAt.current > 0) {
-      const y = mapAt.current + MAP_H + SPACING.md - (viewH.current - BAR_ROOM - BAR_STATE_H);
-      if (y > 0) setTimeout(() => scroll.current?.scrollTo({ y, animated: true }), 50);
+      setTimeout(() => {
+        const y = mapAt.current + MAP_H + SPACING.md - (viewH.current - BAR_ROOM - BAR_STATE_H);
+        if (y > 0) scroll.current?.scrollTo({ y, animated: true });
+      }, 150);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshKey, e?.id]);
@@ -337,6 +350,9 @@ export default function EventScreen() {
       await store.checkIn(ev.id, current, news ? atCheckIn!.id : undefined, pos);
       setCheckInPick(undefined);
       setJustCheckedIn(true);
+      // The "+150 rep" card opens above the map and pushes the page down: for the next second, keep the
+      // map's middle where the toast lands (see keepMapUnderToast), so the toast sits over map, not text.
+      keepMap.current = performance.now() + 1000;
       toast({ message: 'Checked in' });
     } catch (err) {
       setError('checkin', err instanceof Error ? err.message : "Couldn't check in.");
@@ -686,9 +702,12 @@ export default function EventScreen() {
             ) : null}
           </View>
           {justCheckedIn ? (
-            <FoldAway shown={!repLeaving} gap={SPACING.md} onGone={() => setJustCheckedIn(false)}>
-              <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up. It shows on your profile." />
-            </FoldAway>
+            // A size change fires onLayout, a move does not (web): the card's own height says how far it pushed the map.
+            <View onLayout={(l) => ((repH.current = l.nativeEvent.layout.height), keepMapUnderToast())}>
+              <FoldAway shown={!repLeaving} gap={SPACING.md} onGone={() => (setJustCheckedIn(false), (repH.current = 0))}>
+                <CheckInCelebration play title={`+${REP.attended} rep`} body="For turning up. It shows on your profile." />
+              </FoldAway>
+            </View>
           ) : null}
           {errorAt('checkin') ? <ErrorState title={errorAt('checkin')!} /> : null}
           {errorAt('going') ? <ErrorState title={errorAt('going')!} /> : null}
