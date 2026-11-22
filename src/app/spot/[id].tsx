@@ -31,6 +31,7 @@ import { useNavLaunch } from '../../components/NavLaunch';
 import { NightMap } from '../../components/NightMap';
 import { usePhotoFlow } from '../../components/PhotoFlow';
 import { PhotoCredit } from '../../components/PhotoCredit';
+import { AccessNotes, Collections, ExampleShots, LightBadge, ShotOfTheWeek } from '../../components/PlaceExtras';
 import { Stars } from '../../components/Stars';
 import { TrackPanel } from '../../components/TrackPanel';
 import { ZoneNotice } from '../../components/ZoneCard';
@@ -44,6 +45,7 @@ import { preciseFix } from '../../lib/location';
 import { targetParams } from '../../lib/navPlan';
 import { photoUri } from '../../lib/photos';
 import { samplePhoto } from '../../lib/photoSource';
+import { sampleShots } from '../../lib/placeExtras';
 import { driveTier } from '../../lib/rep';
 import {
   advanceRun,
@@ -221,6 +223,7 @@ function SpotDetail({ spot }: { spot: Spot }) {
           ) : !isInfoOnly(spot.kind) ? (
             <DsText v="meta">No ratings yet</DsText>
           ) : null}
+          {!pending ? <LightBadge spot={spot} /> : null}
           <DsText v="secondary">{spot.description}</DsText>
           {author ? (
             <Button tier="tertiary" size="sm" style={{ marginLeft: -SPACING.xs }} label={`Suggested by ${mine ? 'you' : displayHandle(author.handle)} ›`} onPress={() => router.push({ pathname: '/user/[id]', params: { id: author.id } })} />
@@ -244,6 +247,9 @@ function SpotDetail({ spot }: { spot: Spot }) {
         </Hero>
 
         {stats.length ? <StatBlock stats={stats} /> : null}
+
+        <ExampleShots spot={spot} />
+        <AccessNotes spot={spot} />
 
         {spot.warnings?.length ? (
           <Callout tone="warning" title="Before you go">
@@ -269,6 +275,9 @@ function SpotDetail({ spot }: { spot: Spot }) {
         {panel?.body}
 
         {placePhoto ? map : null}
+
+        <Collections spot={spot} />
+        <ShotOfTheWeek spot={spot} />
 
         {spot.kind === 'track' ? (
           <>
@@ -616,7 +625,10 @@ function useVisitPanel(spot: Spot, onVisited: () => void, nav: Nav): Panel {
 /** People's own photos from check-ins first (plate-blurred), then public photos taken nearby. */
 function Photos({ spot }: { spot: Spot }) {
   // The suggester's photo (photo spots), then check-in photos: all plate-blurred.
-  const members = [...(spot.photo ? [{ key: 'suggested', ref: spot.photo }] : []), ...spot.completions.flatMap((c, i) => (c.photo ? [{ key: `${c.userId}-${i}`, ref: c.photo }] : []))];
+  const all = [...(spot.photo ? [{ key: 'suggested', ref: spot.photo }] : []), ...spot.completions.flatMap((c, i) => (c.photo ? [{ key: `${c.userId}-${i}`, ref: c.photo }] : []))];
+  // The best three show above as example shots (ExampleShots); the rest are here.
+  const shown = new Set(sampleShots(spot).map((s) => s.ref));
+  const members = spot.kind === 'photo' && spot.status === 'approved' ? all.filter((m) => !shown.has(m.ref)) : all;
   const pending = spot.status === 'pending';
   // A drive: look round the middle of the road, wide enough to catch some of it.
   const path = spot.path ?? [];
@@ -625,7 +637,7 @@ function Photos({ spot }: { spot: Spot }) {
   return (
     <>
       {members.length || spot.kind === 'photo' ? (
-        <Section title={members.length ? `Photos (${members.length})` : 'Photos'}>
+        <Section title={members.length ? `${shown.size ? 'More photos' : 'Photos'} (${members.length})` : 'Photos'}>
           {members.length ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
               {members.map((m) => (
@@ -633,7 +645,7 @@ function Photos({ spot }: { spot: Spot }) {
               ))}
             </View>
           ) : (
-            <EmptyState variant="inline" title="No photos yet. Check in here with your car or bike to add the first." />
+            <EmptyState variant="inline" title={shown.size ? 'No more photos yet. Check in here with your car or bike to add yours.' : 'No photos yet. Check in here with your car or bike to add the first.'} />
           )}
         </Section>
       ) : null}

@@ -4,16 +4,23 @@ import { RECORDS_READ_ON, type LapRecord } from '../data/trackInfo';
 import { classOf } from '../lib/classes';
 import { addLap, removeLap, useLaps } from '../lib/lapStore';
 import {
+  classFocus,
   formatLapTime,
   layoutsWithTimes,
   leaderboard,
   makeLap,
   MAIN_LAYOUT,
+  ordinal,
+  placeInGroup,
   recordMs,
   VEHICLE_LABELS,
+  WEATHER_LABELS,
   type LapDraft,
+  type LapSetup,
   type TrackVehicle,
+  type Weather,
 } from '../lib/laptimes';
+import { DEMO_LAPS } from '../data/demoPlaceExtras';
 import { photoUri } from '../lib/photos';
 import { useStore } from '../lib/store';
 import { formatLength, isSpectatorVenue, layoutNames, outrightRecord, trackInfo, trackVehicles, type TrackOutline } from '../lib/tracks';
@@ -24,6 +31,7 @@ import { Field, TextField } from './Detail';
 import { buzz, Button, ChipGroup, ChoiceGroup, ClassBadge, DateTimeField, displayHandle, DsText, EmptyState, ErrorState, ListRow, RowDivider, Section, Tag } from './ds';
 import { appNow, realNowMs } from '../lib/appClock';
 import { usePhotoFlow } from './PhotoFlow';
+import { BestTimeline, RivalRow, setupMeta, TrackDays } from './TrackExtras';
 
 /** Track screen: the circuit's details and records, then the app's own track times. */
 export function TrackPanel({ spot, outline }: { spot: Spot; outline: TrackOutline | null }) {
@@ -31,6 +39,7 @@ export function TrackPanel({ spot, outline }: { spot: Spot; outline: TrackOutlin
     <>
       <TrackDetails spot={spot} outline={outline} />
       <TrackTimes spot={spot} />
+      {isSpectatorVenue(spot.id) ? null : <TrackDays spot={spot} />}
     </>
   );
 }
@@ -146,7 +155,10 @@ function today(): string {
 function TrackTimes({ spot }: { spot: Spot }) {
   const store = useStore();
   const { me, users, builds } = store;
-  const { laps } = useLaps();
+  const { laps: mine } = useLaps();
+  // The demo's other people's times are made up and only ever added in the demo.
+  const demo = store.backend === 'local';
+  const laps = useMemo(() => (demo ? [...DEMO_LAPS, ...mine] : mine), [demo, mine]);
   const published = layoutNames(spot.id);
   const layouts = layoutsWithTimes(laps, spot.id, published);
   const [layout, setLayout] = useState(layouts[0]);
@@ -154,7 +166,12 @@ function TrackTimes({ spot }: { spot: Spot }) {
   /** Filter chips: nothing selected is every vehicle type. */
   const [picked, setPicked] = useState<TrackVehicle[]>([]);
   const kinds = picked.length ? picked : vehicles;
-  const groups = useMemo(() => leaderboard(laps, spot.id, layout, kinds), [laps, spot.id, layout, kinds]);
+  const allGroups = useMemo(() => leaderboard(laps, spot.id, layout, kinds), [laps, spot.id, layout, kinds]);
+  // Compare against similar vehicles, not everything: your own class first, with a way to see them all.
+  const [everyClass, setEveryClass] = useState(false);
+  const myClasses = useMemo(() => builds.filter((b) => b.ownerId === me && vehicles.includes(b.kind)).map((b) => ({ kind: b.kind as TrackVehicle, cls: classOf(b) })), [builds, me, vehicles]);
+  const focused = useMemo(() => classFocus(allGroups, myClasses), [allGroups, myClasses]);
+  const groups = everyClass ? allGroups : focused;
   const [adding, setAdding] = useState(false);
   const run = trackInfo(spot.id)?.run;
   const mineFits = builds.some((b) => b.ownerId === me && vehicles.includes(b.kind));
@@ -168,7 +185,7 @@ function TrackTimes({ spot }: { spot: Spot }) {
   }
 
   return (
-    <Section title="Track times" right={<Tag label={ONLY_ON_PHONE} />}>
+    <Section title="Track times" right={demo ? undefined : <Tag label={ONLY_ON_PHONE} />}>
       {vehicles.length > 1 ? (
         <ChipGroup<TrackVehicle> label="Vehicles" allLabel="Every vehicle" options={vehicles.map((v) => ({ key: v, label: VEHICLE_LABELS[v] }))} selected={picked} onChange={setPicked} />
       ) : null}
@@ -182,6 +199,10 @@ function TrackTimes({ spot }: { spot: Spot }) {
               <ClassBadge letter={g.cls} size="sm" decorative />
               <DsText v="label">
                 {VEHICLE_LABELS[g.kind]} · Class {g.cls}
+                {(() => {
+                  const p = placeInGroup(g, me);
+                  return p ? ` · You're ${ordinal(p.place)} of ${p.of}` : '';
+                })()}
               </DsText>
             </View>
             {g.entries.map((l, i) => {
@@ -191,7 +212,7 @@ function TrackTimes({ spot }: { spot: Spot }) {
                   {i > 0 ? <RowDivider /> : null}
                   <ListRow
                     title={`${i + 1}. ${l.userId === me ? 'You' : who ? displayHandle(who.handle) : 'Someone'} · ${l.vehicle}`}
-                    meta={`${l.on} · ${l.status === 'verified' ? 'Verified' : 'Unverified'}`}
+                    meta={[`${l.on} · ${l.status === 'verified' ? 'Verified' : 'Unverified'}`, setupMeta(l, me)].filter(Boolean).join(' · ')}
                     trailing={
                       <View style={{ alignItems: 'flex-end' }}>
                         <DsText v="stat">{formatLapTime(l.ms)}</DsText>
@@ -205,9 +226,20 @@ function TrackTimes({ spot }: { spot: Spot }) {
           </View>
         ))
       )}
+      {focused.length < allGroups.length || everyClass ? (
+        <Button
+          tier="tertiary"
+          size="sm"
+          style={{ marginLeft: -SPACING.xs, alignSelf: 'flex-start' }}
+          label={everyClass ? 'Show only my class' : 'Show every class'}
+          onPress={() => setEveryClass((v) => !v)}
+        />
+      ) : null}
+      {groups.length ? <RivalRow laps={laps} trackId={spot.id} layout={layout} me={me} /> : null}
+      <BestTimeline laps={laps} trackId={spot.id} layout={layout} me={me} />
       <DsText v="caption">
         {run ? 'Run' : 'Lap'} times from real track days and events only, typed in from the timing sheet with a photo as proof, and grouped by vehicle type and the class of the
-        build that set them. {ONLY_ON_PHONE}: nobody else sees them yet, and they're marked unverified until the server can check the proof. Drives and roads are never timed.
+        build that set them, so you're compared with similar vehicles. {demo ? "Demo: the other people's times are made up. Yours stay on this phone." : `${ONLY_ON_PHONE}: nobody else sees them yet, and they're marked unverified until the server can check the proof.`} Setup notes are only ever yours. Drives and roads are never timed.
       </DsText>
       {adding ? (
         <AddTime spot={spot} vehicles={vehicles} layouts={published.length ? published : [MAIN_LAYOUT]} initialLayout={layout} onDone={() => setAdding(false)} />
@@ -248,6 +280,7 @@ function AddTime({
   const mine = mineAll.filter((b) => b.kind === draft.kind);
   const [error, setError] = useState<string | null>(null);
   const set = (patch: Partial<LapDraft>) => setDraft((d) => ({ ...d, ...patch }));
+  const setSetup = (patch: Partial<LapSetup>) => setDraft((d) => ({ ...d, setup: { ...d.setup, ...patch } }));
   const record = outrightRecord(spot.id, draft.layout);
   const ctx = { track: spot, layouts, vehicles, builds, me, now: appNow(), fastestMs: record ? recordMs(record.time) : null };
 
@@ -301,6 +334,21 @@ function AddTime({
       ) : (
         <DsText v="caption">Add this {draft.kind} to your garage first, so its class can be worked out.</DsText>
       )}
+      <Field label="Setup (optional, only you see it)">
+        <View style={{ gap: SPACING.sm }}>
+          <TextField value={draft.setup?.tyres ?? ''} onChangeText={(tyres) => setSetup({ tyres })} placeholder="Tyres, e.g. Michelin Pilot Sport 4S" maxLength={40} accessibilityLabel="Tyres" />
+          <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+            <TextField style={{ flex: 1, fontVariant: ['tabular-nums'] }} value={draft.setup?.frontPsi ?? ''} onChangeText={(frontPsi) => setSetup({ frontPsi })} placeholder="Front psi" keyboardType="decimal-pad" maxLength={4} accessibilityLabel="Front tyre pressure in psi" />
+            <TextField style={{ flex: 1, fontVariant: ['tabular-nums'] }} value={draft.setup?.rearPsi ?? ''} onChangeText={(rearPsi) => setSetup({ rearPsi })} placeholder="Rear psi" keyboardType="decimal-pad" maxLength={4} accessibilityLabel="Rear tyre pressure in psi" />
+          </View>
+          <ChoiceGroup<Weather>
+            label="Weather"
+            options={(Object.keys(WEATHER_LABELS) as Weather[]).map((w) => ({ key: w, label: WEATHER_LABELS[w] }))}
+            value={draft.setup?.weather ?? null}
+            onChange={(weather) => setSetup({ weather: weather === draft.setup?.weather ? undefined : weather })}
+          />
+        </View>
+      </Field>
       <Field label="Proof">
         {draft.proof ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md }}>

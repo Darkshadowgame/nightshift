@@ -56,3 +56,45 @@ export function mapAppearance(choice: MapStyleChoice | null | undefined, when: D
   if (choice === 'night') return 'dark';
   return isDaytime(when, at ?? DEFAULT_SUN_PLACE) ? 'light' : 'dark';
 }
+
+/** Golden hour: the hour after sunrise and the hour before sunset (soft, low light for photos). */
+export const GOLDEN_HOUR_MS = 60 * 60_000;
+
+export interface GoldenWindow {
+  start: number;
+  end: number;
+  kind: 'morning' | 'evening';
+}
+
+/**
+ * The golden-hour windows around `when` at a place, in time order (yesterday's, today's and
+ * tomorrow's, so a window that crosses midnight UTC is never missed). Empty in polar day or night.
+ */
+export function goldenWindows(when: Date, at: LatLng): GoldenWindow[] {
+  const out: GoldenWindow[] = [];
+  for (const d of [-1, 0, 1]) {
+    const s = sunTimes(new Date(when.getTime() + d * 86_400_000), at);
+    if (s.sunrise === null || s.sunset === null) continue;
+    out.push({ start: s.sunrise, end: s.sunrise + GOLDEN_HOUR_MS, kind: 'morning' });
+    out.push({ start: s.sunset - GOLDEN_HOUR_MS, end: s.sunset, kind: 'evening' });
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+/**
+ * Where a place is in the light right now: inside a golden hour ('now', ends at `end`), or one
+ * starts within `lookaheadMs` ('soon', starts at `start`). Null otherwise.
+ */
+export function goldenHourState(
+  when: Date,
+  at: LatLng,
+  lookaheadMs = 3 * 3_600_000,
+): { state: 'now' | 'soon'; start: number; end: number; kind: 'morning' | 'evening' } | null {
+  const t = when.getTime();
+  const windows = goldenWindows(when, at);
+  const inside = windows.find((w) => t >= w.start && t < w.end);
+  if (inside) return { state: 'now', ...inside };
+  const next = windows.find((w) => w.start > t);
+  if (next && next.start - t <= lookaheadMs) return { state: 'soon', ...next };
+  return null;
+}
